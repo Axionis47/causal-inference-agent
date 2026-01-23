@@ -1,0 +1,120 @@
+name: Continuous Deployment
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: plotpointe
+  REGION: us-central1
+  REGISTRY: gcr.io
+
+jobs:
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker
+        run: gcloud auth configure-docker gcr.io
+
+      - name: Build and push backend
+        run: |
+          docker build -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/causal-backend:${{ github.sha }} ./backend
+          docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/causal-backend:${{ github.sha }}
+
+      - name: Build and push frontend
+        run: |
+          docker build -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/causal-frontend:${{ github.sha }} ./frontend
+          docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/causal-frontend:${{ github.sha }}
+
+      - name: Deploy backend to Cloud Run
+        run: |
+          gcloud run deploy causal-backend-staging \
+            --image ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/causal-backend:${{ github.sha }} \
+            --region ${{ env.REGION }} \
+            --platform managed \
+            --allow-unauthenticated \
+            --set-env-vars ENVIRONMENT=staging \
+            --set-secrets GEMINI_API_KEY=gemini-api-key:latest,KAGGLE_KEY=kaggle-key:latest
+
+      - name: Deploy frontend to Cloud Run
+        run: |
+          gcloud run deploy causal-frontend-staging \
+            --image ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/causal-frontend:${{ github.sha }} \
+            --region ${{ env.REGION }} \
+            --platform managed \
+            --allow-unauthenticated
+
+  benchmark-validation:
+    name: Benchmark Validation
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt
+
+      - name: Run benchmark tests
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          cd backend
+          python -m pytest benchmarks/runners/test_benchmark.py -v --timeout=600
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: benchmark-validation
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker
+        run: gcloud auth configure-docker gcr.io
+
+      - name: Deploy backend to Production
+        run: |
+          gcloud run deploy causal-backend \
+            --image ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/causal-backend:${{ github.sha }} \
+            --region ${{ env.REGION }} \
+            --platform managed \
+            --allow-unauthenticated \
+            --min-instances 1 \
+            --max-instances 10 \
+            --set-env-vars ENVIRONMENT=production \
+            --set-secrets GEMINI_API_KEY=gemini-api-key:latest,KAGGLE_KEY=kaggle-key:latest
+
+      - name: Deploy frontend to Production
+        run: |
+          gcloud run deploy causal-frontend \
+            --image ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/causal-frontend:${{ github.sha }} \
+            --region ${{ env.REGION }} \
+            --platform managed \
+            --allow-unauthenticated \
+            --min-instances 1

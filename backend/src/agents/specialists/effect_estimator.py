@@ -1,0 +1,1409 @@
+"""Effect Estimator Agent - Truly agentic treatment effect estimation.
+
+This agent uses the ReAct pattern to iteratively:
+1. Analyze data characteristics
+2. Check covariate balance and propensity score overlap
+3. Select and run appropriate estimation methods
+4. Evaluate diagnostics and compare results
+5. Iterate until confident in the estimate
+"""
+
+import json
+import pickle
+import time
+from typing import Any
+
+import numpy as np
+import pandas as pd
+from scipy import stats
+
+from src.agents.base import (
+    AnalysisState,
+    BaseAgent,
+    JobStatus,
+    TreatmentEffectResult,
+)
+from src.logging_config.structured import get_logger
+
+logger = get_logger(__name__)
+
+
+class EffectEstimatorAgent(BaseAgent):
+    """Truly agentic effect estimator using ReAct pattern.
+
+    The LLM iteratively:
+    1. Investigates data characteristics
+    2. Checks balance and overlap
+    3. Runs estimation methods one at a time
+    4. Evaluates diagnostics
+    5. Compares results across methods
+    6. Decides when to stop and which estimate to trust
+
+    NO pre-computation - all evidence gathered via tool calls.
+    """
+
+    AGENT_NAME = "effect_estimator"
+
+    SYSTEM_PROMPT = """You are an expert econometrician and causal inference practitioner.
+Your task is to estimate treatment effects using rigorous statistical methods.
+
+You have tools to investigate the data and run estimation methods. Use them iteratively:
+
+1. FIRST: Get data summary to understand the dataset
+2. THEN: Check covariate balance between treatment groups
+3. THEN: Check propensity score overlap (for observational studies)
+4. THEN: Run estimation methods one by one, checking diagnostics after each
+5. FINALLY: Compare results and finalize with your best estimate
+
+IMPORTANT GUIDELINES:
+- Start with simpler methods (OLS, IPW) before complex ones (Causal Forest, DML)
+- Always check diagnostics after running a method
+- If propensity scores have poor overlap, note this limitation
+- If methods disagree significantly, investigate why
+- Use at least 2-3 methods for robustness before finalizing
+
+Method selection guidance:
+- OLS: Always a good baseline, but may be biased with confounding
+- IPW: Good when propensity model is well-specified
+- AIPW/Doubly Robust: Robust to misspecification of either model
+- Matching: Good for interpretability, requires common support
+- Meta-learners (S/T/X): Good for heterogeneous effects
+- Causal Forest: Best for discovering heterogeneity, needs large N
+- DiD: Only if panel data with pre/post periods
+- IV: Only if valid instruments available
+- RDD: Only if running variable with cutoff exists
+
+Call tools iteratively. Analyze each result before deciding next steps."""
+
+    TOOLS = [
+        {
+            "name": "get_data_summary",
+            "description": "Get summary statistics of the dataset including sample sizes, treatment/control split, outcome distribution, and available covariates.",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": [],
+            },
+        },
+        {
+            "name": "check_covariate_balance",
+            "description": "Check balance of covariates between treatment and control groups. Returns standardized mean differences.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "covariates": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "List of covariate names to check. If empty, checks all available covariates.",
+                    },
+                },
+                "required": [],
+            },
+        },
+        {
+            "name": "estimate_propensity_scores",
+            "description": "Estimate propensity scores and check overlap between treatment groups.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "covariates": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Covariates to use for propensity model. If empty, uses discovered confounders or all available.",
+                    },
+                },
+                "required": [],
+            },
+        },
+        {
+            "name": "run_estimation_method",
+            "description": "Run a specific causal estimation method and get the treatment effect estimate.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "method": {
+                        "type": "string",
+                        "enum": [
+                            "ols",
+                            "ipw",
+                            "aipw",
+                            "matching",
+                            "s_learner",
+                            "t_learner",
+                            "x_learner",
+                            "causal_forest",
+                            "double_ml",
+                            "did",
+                            "iv",
+                            "rdd",
+                        ],
+                        "description": "The estimation method to run",
+                    },
+                    "covariates": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Covariates to adjust for. If empty, uses discovered confounders.",
+                    },
+                },
+                "required": ["method"],
+            },
+        },
+        {
+            "name": "check_method_diagnostics",
+            "description": "Check diagnostics for the most recently run method (e.g., residual analysis, influence points).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "diagnostic_type": {
+                        "type": "string",
+                        "enum": ["residuals", "influence", "specification", "all"],
+                        "description": "Type of diagnostic to run",
+                    },
+                },
+                "required": ["diagnostic_type"],
+            },
+        },
+        {
+            "name": "compare_estimates",
+            "description": "Compare all estimates obtained so far across methods.",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": [],
+            },
+        },
+        {
+            "name": "finalize_results",
+            "description": "Finalize the analysis with your conclusions. Call this when you have enough evidence.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "preferred_method": {
+                        "type": "string",
+                        "description": "Which method's estimate you consider most credible",
+                    },
+                    "preferred_estimate": {
+                        "type": "number",
+                        "description": "The treatment effect estimate you recommend",
+                    },
+                    "confidence_level": {
+                        "type": "string",
+                        "enum": ["high", "medium", "low"],
+                        "description": "Your confidence in this estimate",
+                    },
+                    "reasoning": {
+                        "type": "string",
+                        "description": "Detailed reasoning for your conclusions",
+                    },
+                    "caveats": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Important caveats about the estimate",
+                    },
+                },
+                "required": ["preferred_method", "preferred_estimate", "confidence_level", "reasoning"],
+            },
+        },
+    ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._df: pd.DataFrame | None = None
+        self._treatment_var: str | None = None
+        self._outcome_var: str | None = None
+        self._covariates: list[str] = []
+        self._results: list[TreatmentEffectResult] = []
+        self._propensity_scores: np.ndarray | None = None
+        self._last_method_result: TreatmentEffectResult | None = None
+        self._state: AnalysisState | None = None
+
+    async def execute(self, state: AnalysisState) -> AnalysisState:
+        """Execute treatment effect estimation using agentic loop.
+
+        Args:
+            state: Current analysis state
+
+        Returns:
+            Updated state with treatment effect results
+        """
+        self.logger.info(
+            "estimation_start",
+            job_id=state.job_id,
+            has_profile=state.data_profile is not None,
+        )
+
+        state.status = JobStatus.ESTIMATING_EFFECTS
+        start_time = time.time()
+
+        try:
+            # Load data
+            if state.dataframe_path is None:
+                state.mark_failed("No data available for estimation", self.AGENT_NAME)
+                return state
+
+            with open(state.dataframe_path, "rb") as f:
+                self._df = pickle.load(f)
+
+            # Store state reference and extract key variables
+            self._state = state
+            self._treatment_var = state.treatment_variable
+            self._outcome_var = state.outcome_variable
+            self._results = []
+
+            # Get confounders from confounder discovery or profile
+            if state.confounder_discovery and state.confounder_discovery.get("ranked_confounders"):
+                self._covariates = state.confounder_discovery["ranked_confounders"]
+            elif state.data_profile and state.data_profile.potential_confounders:
+                self._covariates = [
+                    c for c in state.data_profile.potential_confounders
+                    if c in self._df.columns and c != self._treatment_var and c != self._outcome_var
+                ]
+            else:
+                # Use all numeric columns except T and Y
+                self._covariates = [
+                    c for c in self._df.select_dtypes(include=[np.number]).columns
+                    if c != self._treatment_var and c != self._outcome_var
+                ]
+
+            # Build initial prompt
+            initial_prompt = self._build_initial_prompt(state)
+
+            # Run agentic loop
+            final_result = await self._run_agentic_loop(initial_prompt, max_iterations=20)
+
+            # Update state with results
+            state.treatment_effects = self._results
+
+            # Create trace
+            duration_ms = int((time.time() - start_time) * 1000)
+            trace = self.create_trace(
+                action="estimation_complete",
+                reasoning=final_result.get("reasoning", "Estimation completed"),
+                outputs={
+                    "n_methods": len(self._results),
+                    "estimates": [
+                        {"method": r.method, "estimate": r.estimate, "se": r.std_error}
+                        for r in self._results
+                    ],
+                    "preferred_method": final_result.get("preferred_method"),
+                    "preferred_estimate": final_result.get("preferred_estimate"),
+                },
+                duration_ms=duration_ms,
+            )
+            state.add_trace(trace)
+
+            self.logger.info(
+                "estimation_complete",
+                n_results=len(self._results),
+                preferred_method=final_result.get("preferred_method"),
+            )
+
+        except Exception as e:
+            self.logger.error("estimation_failed", error=str(e))
+            import traceback
+            traceback.print_exc()
+            state.mark_failed(f"Effect estimation failed: {str(e)}", self.AGENT_NAME)
+
+        return state
+
+    def _build_initial_prompt(self, state: AnalysisState) -> str:
+        """Build the initial prompt for the agentic loop."""
+        prompt = f"""You need to estimate the causal effect of treatment on outcome.
+
+Treatment variable: {self._treatment_var}
+Outcome variable: {self._outcome_var}
+Available covariates for adjustment: {self._covariates[:20]}{'...' if len(self._covariates) > 20 else ''}
+
+"""
+        if state.confounder_discovery:
+            prompt += f"""
+Confounder Discovery Results:
+- Confirmed confounders: {state.confounder_discovery.get('ranked_confounders', [])}
+- Discovery reasoning: {state.confounder_discovery.get('reasoning', 'N/A')[:500]}
+
+"""
+
+        if state.data_profile:
+            prompt += f"""
+Data Profile:
+- Samples: {state.data_profile.n_samples}
+- Has time dimension: {state.data_profile.has_time_dimension}
+- Potential instruments: {state.data_profile.potential_instruments}
+- Discontinuity candidates: {state.data_profile.discontinuity_candidates}
+
+"""
+
+        prompt += """Start by getting a data summary, then systematically investigate and run estimation methods.
+Your goal is to produce a credible causal effect estimate with appropriate uncertainty quantification."""
+
+        return prompt
+
+    async def _run_agentic_loop(
+        self,
+        initial_prompt: str,
+        max_iterations: int = 20,
+    ) -> dict[str, Any]:
+        """Run the agentic tool-calling loop.
+
+        Args:
+            initial_prompt: Starting prompt
+            max_iterations: Maximum iterations
+
+        Returns:
+            Final result dictionary
+        """
+        messages = [{"role": "user", "content": initial_prompt}]
+        final_result = {}
+
+        for iteration in range(max_iterations):
+            self.logger.info(
+                "effect_estimator_iteration",
+                iteration=iteration,
+                max_iterations=max_iterations,
+                methods_run=len(self._results),
+            )
+
+            # Get LLM response with tool calls
+            try:
+                result = await self.reason(
+                    prompt=messages[-1]["content"] if messages[-1]["role"] == "user" else "Continue with your analysis.",
+                    context={"iteration": iteration, "n_results": len(self._results)},
+                )
+            except Exception as e:
+                self.logger.warning("llm_call_failed", iteration=iteration, error=str(e))
+                if self._results:
+                    return self._auto_finalize()
+                raise
+
+            # Log LLM reasoning if provided
+            response_text = result.get("response", "")
+            if response_text:
+                self.logger.info(
+                    "estimator_llm_reasoning",
+                    reasoning=response_text[:500] + ("..." if len(response_text) > 500 else ""),
+                )
+
+            # Check for tool calls
+            pending_calls = result.get("pending_calls", [])
+
+            if not pending_calls:
+                self.logger.info("estimator_no_tool_calls", response_preview=response_text[:200])
+                if "finalize" in response_text.lower() or len(self._results) >= 3:
+                    return self._auto_finalize()
+                messages.append({"role": "assistant", "content": response_text})
+                messages.append({
+                    "role": "user",
+                    "content": "Please continue by calling a tool. If you're done, call finalize_results."
+                })
+                continue
+
+            # Execute each tool call
+            tool_results = []
+            for call in pending_calls:
+                tool_name = call["name"]
+                tool_args = call.get("args", {})
+
+                # Check for finalize with detailed logging
+                if tool_name == "finalize_results":
+                    self.logger.info(
+                        "estimator_finalizing",
+                        preferred_method=tool_args.get("preferred_method"),
+                        preferred_estimate=tool_args.get("preferred_estimate"),
+                        confidence_level=tool_args.get("confidence_level"),
+                        num_results=len(self._results),
+                    )
+                    final_result = tool_args
+                    final_result["results"] = self._results
+                    return final_result
+
+                # Log the tool call decision
+                self.logger.info(
+                    "estimator_tool_decision",
+                    tool=tool_name,
+                    args=tool_args,
+                )
+
+                # Execute the tool
+                try:
+                    tool_result = self._execute_tool(tool_name, tool_args)
+                    tool_results.append(f"[{tool_name}]: {tool_result}")
+
+                    # Log tool result summary
+                    self.logger.info(
+                        "estimator_tool_result",
+                        tool=tool_name,
+                        result_summary=tool_result[:200] + ("..." if len(tool_result) > 200 else ""),
+                    )
+                except Exception as e:
+                    self.logger.warning("tool_execution_error", tool=tool_name, error=str(e))
+                    tool_results.append(f"[{tool_name}]: ERROR - {str(e)}")
+
+            # Add tool results to conversation
+            messages.append({
+                "role": "user",
+                "content": "Tool results:\n\n" + "\n\n".join(tool_results) + "\n\nAnalyze these results and decide your next step."
+            })
+
+        # Max iterations reached - auto-finalize
+        self.logger.warning("max_iterations_reached_auto_finalizing")
+        return self._auto_finalize()
+
+    def _auto_finalize(self) -> dict[str, Any]:
+        """Auto-finalize when LLM doesn't explicitly finalize."""
+        if not self._results:
+            return {
+                "preferred_method": "none",
+                "preferred_estimate": 0.0,
+                "confidence_level": "low",
+                "reasoning": "No estimation methods succeeded",
+                "results": [],
+            }
+
+        # Pick the doubly robust or AIPW estimate if available, else median
+        preferred = None
+        for r in self._results:
+            if "doubly" in r.method.lower() or "aipw" in r.method.lower():
+                preferred = r
+                break
+
+        if not preferred:
+            # Use median estimate
+            estimates = sorted(self._results, key=lambda x: x.estimate)
+            preferred = estimates[len(estimates) // 2]
+
+        return {
+            "preferred_method": preferred.method,
+            "preferred_estimate": preferred.estimate,
+            "confidence_level": "medium" if len(self._results) >= 2 else "low",
+            "reasoning": f"Auto-finalized with {len(self._results)} methods. Preferred: {preferred.method}",
+            "results": self._results,
+        }
+
+    def _execute_tool(self, tool_name: str, args: dict) -> str:
+        """Execute a tool and return the result string.
+
+        Args:
+            tool_name: Name of the tool
+            args: Tool arguments
+
+        Returns:
+            Result string to return to LLM
+        """
+        if tool_name == "get_data_summary":
+            return self._tool_get_data_summary()
+
+        elif tool_name == "check_covariate_balance":
+            covariates = args.get("covariates", [])
+            return self._tool_check_covariate_balance(covariates)
+
+        elif tool_name == "estimate_propensity_scores":
+            covariates = args.get("covariates", [])
+            return self._tool_estimate_propensity_scores(covariates)
+
+        elif tool_name == "run_estimation_method":
+            method = args.get("method")
+            covariates = args.get("covariates", [])
+            return self._tool_run_estimation_method(method, covariates)
+
+        elif tool_name == "check_method_diagnostics":
+            diagnostic_type = args.get("diagnostic_type", "all")
+            return self._tool_check_method_diagnostics(diagnostic_type)
+
+        elif tool_name == "compare_estimates":
+            return self._tool_compare_estimates()
+
+        else:
+            return f"Unknown tool: {tool_name}"
+
+    def _tool_get_data_summary(self) -> str:
+        """Get summary statistics of the dataset."""
+        df = self._df
+        T = df[self._treatment_var]
+        Y = df[self._outcome_var]
+
+        n_total = len(df)
+        n_treated = int(T.sum())
+        n_control = n_total - n_treated
+
+        summary = f"""Dataset Summary:
+- Total samples: {n_total}
+- Treated (T=1): {n_treated} ({100*n_treated/n_total:.1f}%)
+- Control (T=0): {n_control} ({100*n_control/n_total:.1f}%)
+
+Outcome ({self._outcome_var}):
+- Overall mean: {Y.mean():.4f} (std: {Y.std():.4f})
+- Treated mean: {Y[T==1].mean():.4f} (std: {Y[T==1].std():.4f})
+- Control mean: {Y[T==0].mean():.4f} (std: {Y[T==0].std():.4f})
+- Naive difference: {Y[T==1].mean() - Y[T==0].mean():.4f}
+
+Available covariates ({len(self._covariates)}): {self._covariates[:15]}{'...' if len(self._covariates) > 15 else ''}
+"""
+        return summary
+
+    def _tool_check_covariate_balance(self, covariates: list[str]) -> str:
+        """Check covariate balance between treatment groups."""
+        df = self._df
+        T = df[self._treatment_var].values
+
+        if not covariates:
+            covariates = self._covariates[:15]  # Check top 15
+
+        results = []
+        imbalanced = []
+
+        for cov in covariates:
+            if cov not in df.columns:
+                continue
+
+            try:
+                x = df[cov].values
+                treated_mean = np.nanmean(x[T == 1])
+                control_mean = np.nanmean(x[T == 0])
+                pooled_std = np.sqrt(
+                    (np.nanvar(x[T == 1]) + np.nanvar(x[T == 0])) / 2
+                )
+
+                if pooled_std > 0:
+                    smd = (treated_mean - control_mean) / pooled_std
+                else:
+                    smd = 0
+
+                status = "BALANCED" if abs(smd) < 0.1 else ("MODERATE" if abs(smd) < 0.25 else "IMBALANCED")
+                results.append(f"  {cov}: SMD={smd:.3f} ({status})")
+
+                if abs(smd) >= 0.1:
+                    imbalanced.append(cov)
+            except Exception:
+                results.append(f"  {cov}: Could not compute")
+
+        summary = "Covariate Balance (Standardized Mean Differences):\n"
+        summary += "\n".join(results)
+        summary += f"\n\nImbalanced covariates (|SMD| >= 0.1): {imbalanced}"
+        summary += f"\nRecommendation: {'Adjustment needed for imbalanced covariates' if imbalanced else 'Good balance, simple methods may suffice'}"
+
+        return summary
+
+    def _tool_estimate_propensity_scores(self, covariates: list[str]) -> str:
+        """Estimate propensity scores and check overlap."""
+        from sklearn.linear_model import LogisticRegression
+
+        df = self._df
+        T = df[self._treatment_var].values
+
+        if not covariates:
+            covariates = self._covariates[:15]
+
+        # Filter to valid covariates
+        valid_covs = [c for c in covariates if c in df.columns]
+        if not valid_covs:
+            return "No valid covariates for propensity model."
+
+        X = df[valid_covs].values
+
+        # Handle missing values
+        mask = ~np.any(np.isnan(X), axis=1)
+        X_clean = X[mask]
+        T_clean = T[mask]
+
+        if len(X_clean) < 50:
+            return "Insufficient data after removing missing values."
+
+        # Fit propensity model
+        try:
+            model = LogisticRegression(max_iter=1000, random_state=42)
+            model.fit(X_clean, T_clean)
+            ps = model.predict_proba(X_clean)[:, 1]
+        except Exception as e:
+            return f"Propensity model failed: {str(e)}"
+
+        # Store for later use
+        self._propensity_scores = np.full(len(T), np.nan)
+        self._propensity_scores[mask] = ps
+
+        # Check overlap
+        ps_treated = ps[T_clean == 1]
+        ps_control = ps[T_clean == 0]
+
+        overlap_min = max(ps_control.min(), ps_treated.min())
+        overlap_max = min(ps_control.max(), ps_treated.max())
+        overlap_range = overlap_max - overlap_min
+
+        # Proportion in common support
+        in_support = np.mean((ps >= overlap_min) & (ps <= overlap_max))
+
+        summary = f"""Propensity Score Analysis:
+
+Distribution:
+- Treated: mean={ps_treated.mean():.3f}, std={ps_treated.std():.3f}, range=[{ps_treated.min():.3f}, {ps_treated.max():.3f}]
+- Control: mean={ps_control.mean():.3f}, std={ps_control.std():.3f}, range=[{ps_control.min():.3f}, {ps_control.max():.3f}]
+
+Overlap Assessment:
+- Common support region: [{overlap_min:.3f}, {overlap_max:.3f}]
+- Proportion in common support: {in_support:.1%}
+- Overlap quality: {"GOOD" if in_support > 0.9 else ("MODERATE" if in_support > 0.7 else "POOR")}
+
+Recommendations:
+"""
+        if in_support > 0.9:
+            summary += "- Good overlap supports IPW and matching methods\n"
+        elif in_support > 0.7:
+            summary += "- Consider trimming extreme propensity scores\n"
+            summary += "- AIPW may be more robust than IPW\n"
+        else:
+            summary += "- Poor overlap is concerning - results may be extrapolation\n"
+            summary += "- Consider bounding methods or different identification strategy\n"
+
+        return summary
+
+    def _tool_run_estimation_method(self, method: str, covariates: list[str]) -> str:
+        """Run a specific estimation method."""
+        if not covariates:
+            covariates = self._covariates
+
+        # Filter covariates
+        valid_covs = [c for c in covariates if c in self._df.columns]
+
+        try:
+            result = self._run_method(method, valid_covs)
+            if result:
+                self._results.append(result)
+                self._last_method_result = result
+
+                return f"""Method: {result.method}
+Estimand: {result.estimand}
+Estimate: {result.estimate:.4f}
+Std Error: {result.std_error:.4f}
+95% CI: [{result.ci_lower:.4f}, {result.ci_upper:.4f}]
+P-value: {result.p_value:.4f if result.p_value else 'N/A'}
+Assumptions: {result.assumptions_tested}
+Details: {json.dumps(result.details, indent=2, default=str)}
+"""
+            else:
+                return f"Method {method} failed to produce results."
+        except Exception as e:
+            return f"Method {method} failed with error: {str(e)}"
+
+    def _tool_check_method_diagnostics(self, diagnostic_type: str) -> str:
+        """Check diagnostics for the last method."""
+        if not self._last_method_result:
+            return "No method has been run yet. Run a method first."
+
+        result = self._last_method_result
+        diagnostics = []
+
+        if diagnostic_type in ["residuals", "all"]:
+            diagnostics.append(self._check_residual_diagnostics())
+
+        if diagnostic_type in ["influence", "all"]:
+            diagnostics.append(self._check_influence_diagnostics())
+
+        if diagnostic_type in ["specification", "all"]:
+            diagnostics.append(self._check_specification_diagnostics())
+
+        return f"Diagnostics for {result.method}:\n\n" + "\n\n".join(diagnostics)
+
+    def _check_residual_diagnostics(self) -> str:
+        """Check residual-based diagnostics."""
+        # Simple residual check
+        df = self._df
+        T = df[self._treatment_var].values
+        Y = df[self._outcome_var].values
+
+        # Compute residuals from simple model
+        from sklearn.linear_model import LinearRegression
+        X = df[self._covariates[:10]].values if self._covariates else np.ones((len(Y), 1))
+
+        mask = ~np.any(np.isnan(X), axis=1)
+        model = LinearRegression()
+        model.fit(np.column_stack([T[mask], X[mask]]), Y[mask])
+        residuals = Y[mask] - model.predict(np.column_stack([T[mask], X[mask]]))
+
+        # Normality test
+        _, normality_p = stats.shapiro(residuals[:min(5000, len(residuals))])
+
+        # Heteroskedasticity (Breusch-Pagan style)
+        _, hetero_p = stats.pearsonr(np.abs(residuals), model.predict(np.column_stack([T[mask], X[mask]])))
+
+        return f"""Residual Diagnostics:
+- Residual mean: {residuals.mean():.4f} (should be ~0)
+- Residual std: {residuals.std():.4f}
+- Normality test p-value: {normality_p:.4f} (>0.05 suggests normality)
+- Heteroskedasticity indicator: {abs(hetero_p):.4f} (<0.1 suggests homoskedasticity)
+"""
+
+    def _check_influence_diagnostics(self) -> str:
+        """Check for influential observations."""
+        df = self._df
+        Y = df[self._outcome_var].values
+
+        # Simple leverage check
+        n = len(Y)
+        threshold = 4 / n
+
+        return f"""Influence Diagnostics:
+- Sample size: {n}
+- Influential observation threshold: {threshold:.4f}
+- Recommendation: Check for outliers if estimate seems unstable
+"""
+
+    def _check_specification_diagnostics(self) -> str:
+        """Check model specification."""
+        result = self._last_method_result
+        if not result:
+            return "No results to diagnose."
+
+        issues = []
+        if result.std_error > abs(result.estimate):
+            issues.append("- High uncertainty: SE > |estimate|")
+        if result.p_value and result.p_value > 0.1:
+            issues.append("- Not statistically significant at 10% level")
+        if "n_treated" in result.details:
+            if result.details["n_treated"] < 50:
+                issues.append("- Small treated sample may cause instability")
+
+        return f"""Specification Diagnostics:
+- Effect size: {result.estimate:.4f}
+- Relative SE: {result.std_error / (abs(result.estimate) + 1e-10):.2f}
+- Issues found: {len(issues)}
+{chr(10).join(issues) if issues else '- No major specification issues detected'}
+"""
+
+    def _tool_compare_estimates(self) -> str:
+        """Compare estimates across methods."""
+        if not self._results:
+            return "No estimates to compare yet. Run some methods first."
+
+        estimates = [r.estimate for r in self._results]
+        methods = [r.method for r in self._results]
+
+        mean_est = np.mean(estimates)
+        std_est = np.std(estimates)
+        cv = std_est / (abs(mean_est) + 1e-10)
+
+        comparison = f"""Estimate Comparison ({len(self._results)} methods):
+
+Individual estimates:
+"""
+        for r in self._results:
+            comparison += f"  {r.method}: {r.estimate:.4f} (SE: {r.std_error:.4f})\n"
+
+        comparison += f"""
+Summary:
+- Mean estimate: {mean_est:.4f}
+- Std across methods: {std_est:.4f}
+- Coefficient of variation: {cv:.2%}
+- Range: [{min(estimates):.4f}, {max(estimates):.4f}]
+
+Consistency Assessment: {"CONSISTENT" if cv < 0.2 else ("MODERATE" if cv < 0.5 else "INCONSISTENT")}
+"""
+
+        if cv >= 0.5:
+            comparison += "\nWARNING: Estimates vary substantially across methods. Investigate assumptions."
+
+        return comparison
+
+    def _run_method(self, method: str, covariates: list[str]) -> TreatmentEffectResult | None:
+        """Run a specific estimation method.
+
+        This delegates to the causal estimators engine or implements methods directly.
+        """
+        df = self._df
+        T_col = self._treatment_var
+        Y_col = self._outcome_var
+
+        # Prepare clean data
+        all_cols = [T_col, Y_col] + [c for c in covariates if c in df.columns]
+        df_clean = df[all_cols].dropna()
+
+        if len(df_clean) < 50:
+            return None
+
+        T = df_clean[T_col].values
+        Y = df_clean[Y_col].values
+        X = df_clean[covariates].values if covariates else None
+
+        # Ensure binary treatment
+        if len(np.unique(T)) > 2:
+            T = (T > np.median(T)).astype(int)
+
+        method_map = {
+            "ols": self._estimate_ols,
+            "ipw": self._estimate_ipw,
+            "aipw": self._estimate_aipw,
+            "matching": self._estimate_matching,
+            "s_learner": self._estimate_s_learner,
+            "t_learner": self._estimate_t_learner,
+            "x_learner": self._estimate_x_learner,
+            "causal_forest": self._estimate_causal_forest,
+            "double_ml": self._estimate_double_ml,
+            "did": self._estimate_did,
+            "iv": self._estimate_iv,
+            "rdd": self._estimate_rdd,
+        }
+
+        estimator = method_map.get(method)
+        if estimator is None:
+            return None
+
+        return estimator(T, Y, X, df_clean)
+
+    def _estimate_ols(self, T, Y, X, df) -> TreatmentEffectResult:
+        """OLS regression estimate."""
+        import statsmodels.api as sm
+
+        if X is not None and X.shape[1] > 0:
+            design = np.column_stack([np.ones(len(T)), T, X])
+        else:
+            design = np.column_stack([np.ones(len(T)), T])
+
+        model = sm.OLS(Y, design)
+        results = model.fit()
+
+        ate = results.params[1]
+        se = results.bse[1]
+        ci = results.conf_int()[1]
+        pval = results.pvalues[1]
+
+        return TreatmentEffectResult(
+            method="OLS Regression",
+            estimand="ATE",
+            estimate=float(ate),
+            std_error=float(se),
+            ci_lower=float(ci[0]),
+            ci_upper=float(ci[1]),
+            p_value=float(pval),
+            assumptions_tested=["Linearity", "No unmeasured confounding"],
+            details={"r_squared": float(results.rsquared), "n_obs": int(results.nobs)},
+        )
+
+    def _estimate_ipw(self, T, Y, X, df) -> TreatmentEffectResult | None:
+        """Inverse Probability Weighting estimate."""
+        from sklearn.linear_model import LogisticRegression
+
+        if X is None or X.shape[1] == 0:
+            return None
+
+        # Estimate propensity scores
+        ps_model = LogisticRegression(max_iter=1000, random_state=42)
+        ps_model.fit(X, T)
+        ps = ps_model.predict_proba(X)[:, 1]
+        ps = np.clip(ps, 0.01, 0.99)
+
+        # IPW estimator
+        weights_treated = T / ps
+        weights_control = (1 - T) / (1 - ps)
+        ate = np.mean(weights_treated * Y) - np.mean(weights_control * Y)
+
+        # Bootstrap for SE
+        n_bootstrap = 200
+        bootstrap_estimates = []
+        n = len(Y)
+        for _ in range(n_bootstrap):
+            idx = np.random.choice(n, size=n, replace=True)
+            w_t = weights_treated[idx]
+            w_c = weights_control[idx]
+            y_b = Y[idx]
+            bootstrap_estimates.append(np.mean(w_t * y_b) - np.mean(w_c * y_b))
+
+        se = np.std(bootstrap_estimates)
+        ci_lower = np.percentile(bootstrap_estimates, 2.5)
+        ci_upper = np.percentile(bootstrap_estimates, 97.5)
+
+        return TreatmentEffectResult(
+            method="Inverse Probability Weighting",
+            estimand="ATE",
+            estimate=float(ate),
+            std_error=float(se),
+            ci_lower=float(ci_lower),
+            ci_upper=float(ci_upper),
+            p_value=float(2 * (1 - stats.norm.cdf(abs(ate / se)))) if se > 0 else None,
+            assumptions_tested=["Unconfoundedness", "Positivity"],
+            details={
+                "mean_ps_treated": float(np.mean(ps[T == 1])),
+                "mean_ps_control": float(np.mean(ps[T == 0])),
+            },
+        )
+
+    def _estimate_aipw(self, T, Y, X, df) -> TreatmentEffectResult | None:
+        """Augmented IPW (Doubly Robust) estimate."""
+        from sklearn.linear_model import LinearRegression, LogisticRegression
+
+        if X is None or X.shape[1] == 0:
+            return None
+
+        # Propensity scores
+        ps_model = LogisticRegression(max_iter=1000, random_state=42)
+        ps_model.fit(X, T)
+        ps = ps_model.predict_proba(X)[:, 1]
+        ps = np.clip(ps, 0.01, 0.99)
+
+        # Outcome models
+        treated_idx = T == 1
+        control_idx = T == 0
+
+        if np.sum(treated_idx) < 10 or np.sum(control_idx) < 10:
+            return None
+
+        mu1_model = LinearRegression()
+        mu0_model = LinearRegression()
+
+        mu1_model.fit(X[treated_idx], Y[treated_idx])
+        mu0_model.fit(X[control_idx], Y[control_idx])
+
+        mu1 = mu1_model.predict(X)
+        mu0 = mu0_model.predict(X)
+
+        # AIPW estimator
+        aipw1 = mu1 + T * (Y - mu1) / ps
+        aipw0 = mu0 + (1 - T) * (Y - mu0) / (1 - ps)
+        ate = np.mean(aipw1 - aipw0)
+
+        # Bootstrap for SE
+        n_bootstrap = 200
+        bootstrap_estimates = []
+        n = len(Y)
+        for _ in range(n_bootstrap):
+            idx = np.random.choice(n, size=n, replace=True)
+            bootstrap_estimates.append(np.mean(aipw1[idx] - aipw0[idx]))
+
+        se = np.std(bootstrap_estimates)
+        ci_lower = np.percentile(bootstrap_estimates, 2.5)
+        ci_upper = np.percentile(bootstrap_estimates, 97.5)
+
+        return TreatmentEffectResult(
+            method="Doubly Robust (AIPW)",
+            estimand="ATE",
+            estimate=float(ate),
+            std_error=float(se),
+            ci_lower=float(ci_lower),
+            ci_upper=float(ci_upper),
+            p_value=float(2 * (1 - stats.norm.cdf(abs(ate / se)))) if se > 0 else None,
+            assumptions_tested=["Unconfoundedness", "Correct propensity OR outcome model"],
+            details={"is_doubly_robust": True},
+        )
+
+    def _estimate_matching(self, T, Y, X, df) -> TreatmentEffectResult | None:
+        """Propensity Score Matching estimate."""
+        from sklearn.linear_model import LogisticRegression
+        from sklearn.neighbors import NearestNeighbors
+
+        if X is None or X.shape[1] == 0:
+            return None
+
+        # Estimate propensity scores
+        ps_model = LogisticRegression(max_iter=1000, random_state=42)
+        ps_model.fit(X, T)
+        ps = ps_model.predict_proba(X)[:, 1]
+
+        treated_idx = np.where(T == 1)[0]
+        control_idx = np.where(T == 0)[0]
+
+        if len(treated_idx) == 0 or len(control_idx) == 0:
+            return None
+
+        # Nearest neighbor matching
+        nn = NearestNeighbors(n_neighbors=1, algorithm="ball_tree")
+        nn.fit(ps[control_idx].reshape(-1, 1))
+        distances, indices = nn.kneighbors(ps[treated_idx].reshape(-1, 1))
+
+        matched_control_idx = control_idx[indices.flatten()]
+        att = np.mean(Y[treated_idx] - Y[matched_control_idx])
+
+        # Bootstrap for SE
+        n_bootstrap = 200
+        bootstrap_estimates = []
+        for _ in range(n_bootstrap):
+            boot_idx = np.random.choice(len(treated_idx), size=len(treated_idx), replace=True)
+            boot_treated = treated_idx[boot_idx]
+            boot_control = matched_control_idx[boot_idx]
+            bootstrap_estimates.append(np.mean(Y[boot_treated] - Y[boot_control]))
+
+        se = np.std(bootstrap_estimates)
+        ci_lower = np.percentile(bootstrap_estimates, 2.5)
+        ci_upper = np.percentile(bootstrap_estimates, 97.5)
+
+        return TreatmentEffectResult(
+            method="Propensity Score Matching",
+            estimand="ATT",
+            estimate=float(att),
+            std_error=float(se),
+            ci_lower=float(ci_lower),
+            ci_upper=float(ci_upper),
+            p_value=float(2 * (1 - stats.norm.cdf(abs(att / se)))) if se > 0 else None,
+            assumptions_tested=["Unconfoundedness", "Common support"],
+            details={
+                "n_treated": int(len(treated_idx)),
+                "n_control": int(len(control_idx)),
+                "mean_match_distance": float(np.mean(distances)),
+            },
+        )
+
+    def _estimate_s_learner(self, T, Y, X, df) -> TreatmentEffectResult | None:
+        """S-Learner estimate."""
+        from sklearn.ensemble import GradientBoostingRegressor
+
+        if X is None or X.shape[1] == 0:
+            return None
+
+        X_with_T = np.column_stack([X, T])
+        model = GradientBoostingRegressor(n_estimators=100, random_state=42)
+        model.fit(X_with_T, Y)
+
+        X_treat = np.column_stack([X, np.ones(len(X))])
+        X_control = np.column_stack([X, np.zeros(len(X))])
+
+        y1_pred = model.predict(X_treat)
+        y0_pred = model.predict(X_control)
+        cate = y1_pred - y0_pred
+        ate = np.mean(cate)
+
+        # Bootstrap for SE
+        n_bootstrap = 100
+        bootstrap_ates = []
+        for _ in range(n_bootstrap):
+            idx = np.random.choice(len(Y), size=len(Y), replace=True)
+            bootstrap_ates.append(np.mean(cate[idx]))
+
+        se = np.std(bootstrap_ates)
+
+        return TreatmentEffectResult(
+            method="S-Learner",
+            estimand="ATE",
+            estimate=float(ate),
+            std_error=float(se),
+            ci_lower=float(ate - 1.96 * se),
+            ci_upper=float(ate + 1.96 * se),
+            p_value=float(2 * (1 - stats.norm.cdf(abs(ate / se)))) if se > 0 else None,
+            assumptions_tested=["Unconfoundedness"],
+            details={"cate_std": float(np.std(cate))},
+        )
+
+    def _estimate_t_learner(self, T, Y, X, df) -> TreatmentEffectResult | None:
+        """T-Learner estimate."""
+        from sklearn.ensemble import GradientBoostingRegressor
+
+        if X is None or X.shape[1] == 0:
+            return None
+
+        treated_idx = T == 1
+        control_idx = T == 0
+
+        if np.sum(treated_idx) < 20 or np.sum(control_idx) < 20:
+            return None
+
+        model_t = GradientBoostingRegressor(n_estimators=100, random_state=42)
+        model_c = GradientBoostingRegressor(n_estimators=100, random_state=42)
+
+        model_t.fit(X[treated_idx], Y[treated_idx])
+        model_c.fit(X[control_idx], Y[control_idx])
+
+        y1_pred = model_t.predict(X)
+        y0_pred = model_c.predict(X)
+        cate = y1_pred - y0_pred
+        ate = np.mean(cate)
+
+        # Bootstrap for SE
+        n_bootstrap = 100
+        bootstrap_ates = []
+        for _ in range(n_bootstrap):
+            idx = np.random.choice(len(Y), size=len(Y), replace=True)
+            bootstrap_ates.append(np.mean(cate[idx]))
+
+        se = np.std(bootstrap_ates)
+
+        return TreatmentEffectResult(
+            method="T-Learner",
+            estimand="ATE",
+            estimate=float(ate),
+            std_error=float(se),
+            ci_lower=float(ate - 1.96 * se),
+            ci_upper=float(ate + 1.96 * se),
+            p_value=float(2 * (1 - stats.norm.cdf(abs(ate / se)))) if se > 0 else None,
+            assumptions_tested=["Unconfoundedness"],
+            details={
+                "cate_std": float(np.std(cate)),
+                "n_treated_train": int(np.sum(treated_idx)),
+                "n_control_train": int(np.sum(control_idx)),
+            },
+        )
+
+    def _estimate_x_learner(self, T, Y, X, df) -> TreatmentEffectResult | None:
+        """X-Learner estimate."""
+        from sklearn.ensemble import GradientBoostingRegressor
+        from sklearn.linear_model import LogisticRegression
+
+        if X is None or X.shape[1] == 0:
+            return None
+
+        treated_idx = T == 1
+        control_idx = T == 0
+
+        if np.sum(treated_idx) < 20 or np.sum(control_idx) < 20:
+            return None
+
+        # Step 1: Fit outcome models
+        model_t = GradientBoostingRegressor(n_estimators=100, random_state=42)
+        model_c = GradientBoostingRegressor(n_estimators=100, random_state=42)
+
+        model_t.fit(X[treated_idx], Y[treated_idx])
+        model_c.fit(X[control_idx], Y[control_idx])
+
+        # Step 2: Impute treatment effects
+        D1 = Y[treated_idx] - model_c.predict(X[treated_idx])
+        D0 = model_t.predict(X[control_idx]) - Y[control_idx]
+
+        # Step 3: Fit CATE models
+        tau1_model = GradientBoostingRegressor(n_estimators=50, random_state=42)
+        tau0_model = GradientBoostingRegressor(n_estimators=50, random_state=42)
+
+        tau1_model.fit(X[treated_idx], D1)
+        tau0_model.fit(X[control_idx], D0)
+
+        # Step 4: Propensity weighting
+        ps_model = LogisticRegression(max_iter=1000, random_state=42)
+        ps_model.fit(X, T)
+        ps = np.clip(ps_model.predict_proba(X)[:, 1], 0.01, 0.99)
+
+        tau1 = tau1_model.predict(X)
+        tau0 = tau0_model.predict(X)
+        cate = ps * tau0 + (1 - ps) * tau1
+        ate = np.mean(cate)
+
+        # Bootstrap for SE
+        n_bootstrap = 100
+        bootstrap_ates = []
+        for _ in range(n_bootstrap):
+            idx = np.random.choice(len(Y), size=len(Y), replace=True)
+            bootstrap_ates.append(np.mean(cate[idx]))
+
+        se = np.std(bootstrap_ates)
+
+        return TreatmentEffectResult(
+            method="X-Learner",
+            estimand="ATE",
+            estimate=float(ate),
+            std_error=float(se),
+            ci_lower=float(ate - 1.96 * se),
+            ci_upper=float(ate + 1.96 * se),
+            p_value=float(2 * (1 - stats.norm.cdf(abs(ate / se)))) if se > 0 else None,
+            assumptions_tested=["Unconfoundedness"],
+            details={"cate_std": float(np.std(cate))},
+        )
+
+    def _estimate_causal_forest(self, T, Y, X, df) -> TreatmentEffectResult | None:
+        """Causal Forest estimate using EconML."""
+        try:
+            from econml.dml import CausalForestDML
+        except ImportError:
+            return None
+
+        if X is None or X.shape[1] == 0:
+            return None
+
+        cf = CausalForestDML(n_estimators=100, min_samples_leaf=10, random_state=42)
+
+        try:
+            cf.fit(Y, T, X=X)
+            cate = cf.effect(X)
+            ate = np.mean(cate)
+
+            ci = cf.effect_interval(X, alpha=0.05)
+            ate_ci_lower = np.mean(ci[0])
+            ate_ci_upper = np.mean(ci[1])
+            se = (ate_ci_upper - ate_ci_lower) / (2 * 1.96)
+
+            return TreatmentEffectResult(
+                method="Causal Forest",
+                estimand="ATE",
+                estimate=float(ate),
+                std_error=float(se),
+                ci_lower=float(ate_ci_lower),
+                ci_upper=float(ate_ci_upper),
+                p_value=float(2 * (1 - stats.norm.cdf(abs(ate / se)))) if se > 0 else None,
+                assumptions_tested=["Unconfoundedness", "Overlap"],
+                details={"cate_std": float(np.std(cate))},
+            )
+        except Exception:
+            return None
+
+    def _estimate_double_ml(self, T, Y, X, df) -> TreatmentEffectResult | None:
+        """Double Machine Learning estimate."""
+        try:
+            from econml.dml import LinearDML
+            from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
+        except ImportError:
+            return None
+
+        if X is None or X.shape[1] == 0:
+            return None
+
+        dml = LinearDML(
+            model_y=GradientBoostingRegressor(n_estimators=100, random_state=42),
+            model_t=GradientBoostingClassifier(n_estimators=100, random_state=42),
+            random_state=42,
+        )
+
+        try:
+            dml.fit(Y, T, X=X)
+            ate = dml.ate(X)
+            ate_interval = dml.ate_interval(X, alpha=0.05)
+            se = (ate_interval[1] - ate_interval[0]) / (2 * 1.96)
+
+            return TreatmentEffectResult(
+                method="Double ML",
+                estimand="ATE",
+                estimate=float(ate),
+                std_error=float(se),
+                ci_lower=float(ate_interval[0]),
+                ci_upper=float(ate_interval[1]),
+                p_value=float(2 * (1 - stats.norm.cdf(abs(ate / se)))) if se > 0 else None,
+                assumptions_tested=["Unconfoundedness", "Overlap"],
+                details={"method": "LinearDML"},
+            )
+        except Exception:
+            return None
+
+    def _estimate_did(self, T, Y, X, df) -> TreatmentEffectResult | None:
+        """Difference-in-Differences estimate."""
+        if not self._state or not self._state.data_profile:
+            return None
+
+        if not self._state.data_profile.has_time_dimension:
+            return None
+
+        time_col = self._state.data_profile.time_column
+        if time_col not in df.columns:
+            return None
+
+        time_vals = sorted(df[time_col].unique())
+        if len(time_vals) < 2:
+            return None
+
+        pre_period = time_vals[0]
+        post_period = time_vals[-1]
+
+        pre_treated = Y[(T == 1) & (df[time_col] == pre_period)]
+        post_treated = Y[(T == 1) & (df[time_col] == post_period)]
+        pre_control = Y[(T == 0) & (df[time_col] == pre_period)]
+        post_control = Y[(T == 0) & (df[time_col] == post_period)]
+
+        if any(len(g) == 0 for g in [pre_treated, post_treated, pre_control, post_control]):
+            return None
+
+        did = (np.mean(post_treated) - np.mean(pre_treated)) - \
+              (np.mean(post_control) - np.mean(pre_control))
+
+        var_did = (
+            np.var(post_treated) / len(post_treated) +
+            np.var(pre_treated) / len(pre_treated) +
+            np.var(post_control) / len(post_control) +
+            np.var(pre_control) / len(pre_control)
+        )
+        se = np.sqrt(var_did)
+
+        return TreatmentEffectResult(
+            method="Difference-in-Differences",
+            estimand="ATT",
+            estimate=float(did),
+            std_error=float(se),
+            ci_lower=float(did - 1.96 * se),
+            ci_upper=float(did + 1.96 * se),
+            p_value=float(2 * (1 - stats.norm.cdf(abs(did / se)))) if se > 0 else None,
+            assumptions_tested=["Parallel trends"],
+            details={"time_col": time_col},
+        )
+
+    def _estimate_iv(self, T, Y, X, df) -> TreatmentEffectResult | None:
+        """Instrumental Variables (2SLS) estimate."""
+        import statsmodels.api as sm
+
+        if not self._state or not self._state.data_profile:
+            return None
+
+        if not self._state.data_profile.potential_instruments:
+            return None
+
+        iv_col = self._state.data_profile.potential_instruments[0]
+        if iv_col not in df.columns:
+            return None
+
+        Z = df[iv_col].values
+
+        # First stage
+        Z_design = sm.add_constant(Z)
+        first_stage = sm.OLS(T, Z_design).fit()
+        f_stat = first_stage.fvalue
+
+        T_hat = first_stage.predict(Z_design)
+
+        # Second stage
+        T_hat_design = sm.add_constant(T_hat)
+        second_stage = sm.OLS(Y, T_hat_design).fit()
+
+        late = second_stage.params[1]
+        se = second_stage.bse[1]
+        ci = second_stage.conf_int()[1]
+
+        return TreatmentEffectResult(
+            method="Instrumental Variables (2SLS)",
+            estimand="LATE",
+            estimate=float(late),
+            std_error=float(se),
+            ci_lower=float(ci[0]),
+            ci_upper=float(ci[1]),
+            p_value=float(second_stage.pvalues[1]),
+            assumptions_tested=["Relevance", "Exclusion restriction", "Monotonicity"],
+            details={"first_stage_f": float(f_stat), "instrument": iv_col},
+        )
+
+    def _estimate_rdd(self, T, Y, X, df) -> TreatmentEffectResult | None:
+        """Regression Discontinuity Design estimate."""
+        import statsmodels.api as sm
+
+        if not self._state or not self._state.data_profile:
+            return None
+
+        if not self._state.data_profile.discontinuity_candidates:
+            return None
+
+        run_col = self._state.data_profile.discontinuity_candidates[0]
+        if run_col not in df.columns:
+            return None
+
+        R = df[run_col].values
+        cutoff = np.median(R)
+        R_centered = R - cutoff
+
+        bandwidth = np.std(R) * 0.5
+        near_cutoff = np.abs(R_centered) <= bandwidth
+
+        if np.sum(near_cutoff) < 50:
+            return None
+
+        R_local = R_centered[near_cutoff]
+        Y_local = Y[near_cutoff]
+        T_local = (R_local >= 0).astype(int)
+
+        design = np.column_stack([
+            np.ones(len(R_local)),
+            T_local,
+            R_local,
+            T_local * R_local,
+        ])
+
+        model = sm.OLS(Y_local, design).fit()
+        late = model.params[1]
+        se = model.bse[1]
+        ci = model.conf_int()[1]
+
+        return TreatmentEffectResult(
+            method="Regression Discontinuity",
+            estimand="LATE",
+            estimate=float(late),
+            std_error=float(se),
+            ci_lower=float(ci[0]),
+            ci_upper=float(ci[1]),
+            p_value=float(model.pvalues[1]),
+            assumptions_tested=["Continuity at cutoff", "No manipulation"],
+            details={"cutoff": float(cutoff), "bandwidth": float(bandwidth), "running_var": run_col},
+        )
