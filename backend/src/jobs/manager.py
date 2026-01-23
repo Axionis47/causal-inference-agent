@@ -155,7 +155,7 @@ class JobManager:
                     self.orchestrator.execute_with_tracing(state),
                     timeout=timeout_seconds,
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.error(
                     "job_timeout",
                     job_id=job_id,
