@@ -65,15 +65,16 @@ RUN useradd --create-home --shell /bin/bash appuser && \
 
 USER appuser
 
-# Expose port
-EXPOSE 8000
+# Expose port (Cloud Run uses PORT env var, default 8080)
+EXPOSE 8080
 
-# Health check
+# Health check (Cloud Run handles health checks, but keep for local testing)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+    CMD curl -f http://localhost:${PORT:-8080}/health || exit 1
 
-# Run the application
-CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run the application (use PORT env var for Cloud Run compatibility, default 8080)
+ENV PORT=8080
+CMD uvicorn src.api.main:app --host 0.0.0.0 --port $PORT
 
 # =============================================================================
 # Default to production
