@@ -47,7 +47,7 @@ jobs:
             --platform managed \
             --allow-unauthenticated \
             --set-env-vars ENVIRONMENT=staging \
-            --set-secrets GEMINI_API_KEY=gemini-api-key:latest,KAGGLE_KEY=kaggle-key:latest
+            --set-secrets ANTHROPIC_API_KEY=anthropic-api-key:latest,KAGGLE_KEY=kaggle-key:latest
 
       - name: Deploy frontend to Cloud Run
         run: |
@@ -74,7 +74,7 @@ jobs:
 
       - name: Run benchmark tests
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           cd backend
           python -m pytest benchmarks/runners/test_benchmark.py -v --timeout=600
@@ -108,7 +108,7 @@ jobs:
             --min-instances 1 \
             --max-instances 10 \
             --set-env-vars ENVIRONMENT=production \
-            --set-secrets GEMINI_API_KEY=gemini-api-key:latest,KAGGLE_KEY=kaggle-key:latest
+            --set-secrets ANTHROPIC_API_KEY=anthropic-api-key:latest,KAGGLE_KEY=kaggle-key:latest
 
       - name: Deploy frontend to Production
         run: |
