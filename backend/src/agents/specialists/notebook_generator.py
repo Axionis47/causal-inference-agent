@@ -5,7 +5,6 @@ import tempfile
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 import nbformat
 import numpy as np
@@ -186,7 +185,7 @@ reproduce the analysis by running all cells in order."""
         cells = []
 
         # Title
-        title = f"# Causal Inference Analysis\n\n"
+        title = "# Causal Inference Analysis\n\n"
         title += f"**Dataset**: {state.dataset_info.name or state.dataset_info.url}\n\n"
         title += f"**Generated**: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}\n\n"
         title += f"**Job ID**: {state.job_id}\n"
@@ -354,19 +353,19 @@ plt.show()'''
         cells.append(new_code_cell(outcome_code))
 
         # Treatment vs outcome
-        comparison_code = f'''# Treatment vs Outcome
+        comparison_code = '''# Treatment vs Outcome
 fig, ax = plt.subplots(figsize=(10, 6))
 
 if df[treatment_var].nunique() <= 5:
     # Box plot for categorical treatment
     df.boxplot(column=outcome_var, by=treatment_var, ax=ax)
-    ax.set_title(f'{{outcome_var}} by {{treatment_var}}')
+    ax.set_title(f'{outcome_var} by {treatment_var}')
 else:
     # Scatter plot for continuous treatment
     ax.scatter(df[treatment_var], df[outcome_var], alpha=0.5)
     ax.set_xlabel(treatment_var)
     ax.set_ylabel(outcome_var)
-    ax.set_title(f'{{outcome_var}} vs {{treatment_var}}')
+    ax.set_title(f'{outcome_var} vs {treatment_var}')
 
 plt.tight_layout()
 plt.show()
@@ -374,7 +373,7 @@ plt.show()
 # Simple correlation
 if df[treatment_var].dtype in ['int64', 'float64']:
     corr = df[[treatment_var, outcome_var]].corr().iloc[0, 1]
-    print(f"\\nCorrelation between {{treatment_var}} and {{outcome_var}}: {{corr:.3f}}")'''
+    print(f"\\nCorrelation between {treatment_var} and {outcome_var}: {corr:.3f}")'''
         cells.append(new_code_cell(comparison_code))
 
         return cells

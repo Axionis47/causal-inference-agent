@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.routes import health_router, jobs_router
 from src.config import get_settings
-from src.logging_config.structured import setup_logging, get_logger
+from src.logging_config.structured import get_logger, setup_logging
 
 # Set up logging
 setup_logging()

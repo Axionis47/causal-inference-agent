@@ -383,7 +383,7 @@ BEGIN YOUR INVESTIGATION NOW by calling the appropriate tools."""
                 return f"""Confounder test for '{variable}':
 - Correlation with treatment ({self._treatment_var}): r={corr_t:.4f}, p={pval_t:.4f} → {'YES' if affects_treatment else 'NO'}
 - Correlation with outcome ({self._outcome_var}): r={corr_y:.4f}, p={pval_y:.4f} → {'YES' if affects_outcome else 'NO'}
-- IS CONFOUNDER: {'YES (strength={:.4f})'.format(confounder_strength) if is_confounder else 'NO'}"""
+- IS CONFOUNDER: {f'YES (strength={confounder_strength:.4f})' if is_confounder else 'NO'}"""
 
             elif tool_name == "finalize_confounders":
                 # This is handled in the caller

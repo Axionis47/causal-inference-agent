@@ -54,7 +54,7 @@ class VertexAIClient:
     def model(self):
         """Get or create the generative model."""
         if self._model is None:
-            from vertexai.generative_models import GenerativeModel, GenerationConfig
+            from vertexai.generative_models import GenerationConfig, GenerativeModel
 
             self._model = GenerativeModel(
                 model_name=self.model_name,
@@ -87,10 +87,8 @@ class VertexAIClient:
             The model response
         """
         from vertexai.generative_models import (
-            GenerativeModel,
             GenerationConfig,
-            Tool,
-            FunctionDeclaration,
+            GenerativeModel,
         )
 
         logger.debug(
@@ -155,9 +153,9 @@ class VertexAIClient:
             Dict containing the final response and all tool calls made
         """
         from vertexai.generative_models import (
-            GenerativeModel,
-            GenerationConfig,
             Content,
+            GenerationConfig,
+            GenerativeModel,
             Part,
         )
 
@@ -297,7 +295,7 @@ Output only the JSON, no other text."""
 
     def _convert_tool(self, tool_def: dict[str, Any]):
         """Convert a tool definition dict to Vertex AI Tool format."""
-        from vertexai.generative_models import Tool, FunctionDeclaration
+        from vertexai.generative_models import FunctionDeclaration, Tool
 
         function_declaration = FunctionDeclaration(
             name=tool_def["name"],

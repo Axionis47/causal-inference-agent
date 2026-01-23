@@ -1,14 +1,14 @@
 """Causal inference methods."""
 
 from .base import BaseCausalMethod, MethodResult
-from .ols import OLSMethod
-from .propensity import PSMMethod, IPWMethod, AIPWMethod
-from .did import DifferenceInDifferencesMethod
-from .iv import InstrumentalVariablesMethod
-from .rdd import RegressionDiscontinuityMethod
-from .metalearners import SLearner, TLearner, XLearner
 from .causal_forest import CausalForestMethod
+from .did import DifferenceInDifferencesMethod
 from .double_ml import DoubleMLMethod
+from .iv import InstrumentalVariablesMethod
+from .metalearners import SLearner, TLearner, XLearner
+from .ols import OLSMethod
+from .propensity import AIPWMethod, IPWMethod, PSMMethod
+from .rdd import RegressionDiscontinuityMethod
 
 __all__ = [
     "BaseCausalMethod",

@@ -7,14 +7,12 @@ This agent uses the ReAct pattern to iteratively:
 4. Assess overall robustness of causal findings
 """
 
-import json
 import pickle
 import time
 from typing import Any
 
 import numpy as np
 import pandas as pd
-from scipy import stats
 
 from src.agents.base import (
     AnalysisState,
@@ -694,7 +692,7 @@ What Gamma means:
         )
         self._results.append(result)
 
-        spec_results = "\n".join([f"  {s}: {e:.4f}" for s, e in zip(specs, estimates)])
+        spec_results = "\n".join([f"  {s}: {e:.4f}" for s, e in zip(specs, estimates, strict=False)])
 
         return f"""Specification Curve Analysis ({len(estimates)} specifications):
 
@@ -879,7 +877,7 @@ Interpretation: {interpretation}
         )
         self._results.append(result)
 
-        sg_results = "\n".join([f"  {l}: {e:.4f}" for l, e in zip(subgroup_labels, subgroup_effects)])
+        sg_results = "\n".join([f"  {l}: {e:.4f}" for l, e in zip(subgroup_labels, subgroup_effects, strict=False)])
 
         return f"""Subgroup Analysis (by {subgroup_var}):
 

@@ -9,7 +9,6 @@ This agent uses the ReAct pattern to iteratively:
 6. Provide actionable recommendations
 """
 
-import json
 import pickle
 import time
 from typing import Any
@@ -20,7 +19,7 @@ from scipy import stats
 from sklearn.calibration import calibration_curve
 from sklearn.linear_model import LogisticRegression
 
-from src.agents.base import AnalysisState, BaseAgent, JobStatus
+from src.agents.base import AnalysisState, BaseAgent
 from src.logging_config.structured import get_logger
 
 logger = get_logger(__name__)
@@ -719,7 +718,7 @@ Imbalanced covariates: {imbalanced if imbalanced else 'None'}
             well_calibrated = calibration_error < 0.1
 
             bin_results = []
-            for i, (true, pred) in enumerate(zip(prob_true, prob_pred)):
+            for i, (true, pred) in enumerate(zip(prob_true, prob_pred, strict=False)):
                 bin_results.append(f"  Bin {i+1}: predicted={pred:.3f}, observed={true:.3f}, diff={abs(true-pred):.3f}")
 
             return f"""Calibration Assessment:

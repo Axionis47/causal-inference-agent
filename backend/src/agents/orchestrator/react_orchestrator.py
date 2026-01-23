@@ -11,11 +11,8 @@ NO HARDCODED WORKFLOW - the LLM decides everything.
 """
 
 import time
-from datetime import datetime
-from typing import Any
 
 from src.agents.base import (
-    AgentTrace,
     AnalysisState,
     BaseAgent,
     CritiqueDecision,

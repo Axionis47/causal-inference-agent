@@ -2,18 +2,17 @@
 
 from .datasets import (
     BenchmarkDataset,
-    LaLondeDataset,
     IHDPDataset,
-    TwinsDataset,
+    LaLondeDataset,
     SyntheticBenchmark,
+    TwinsDataset,
     get_all_benchmarks,
     get_benchmark,
 )
-
 from .evaluation import (
     CausalEvaluator,
-    EvaluationResult,
     EvaluationMetrics,
+    EvaluationResult,
     run_benchmark_suite,
 )
 

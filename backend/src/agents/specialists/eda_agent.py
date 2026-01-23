@@ -9,7 +9,6 @@ This agent performs EDA through iterative LLM-driven investigation:
 No pre-computation - all evidence gathered through tool calls.
 """
 
-import json
 import pickle
 import time
 from pathlib import Path
@@ -481,7 +480,7 @@ call finalize_eda with your comprehensive assessment."""
             else:
                 return f"Unknown tool: {tool_name}"
         except Exception as e:
-            self.logger.error(f"tool_execution_error", tool=tool_name, error=str(e))
+            self.logger.error("tool_execution_error", tool=tool_name, error=str(e))
             return f"Error executing {tool_name}: {str(e)}"
 
     def _tool_get_data_overview(self) -> str:

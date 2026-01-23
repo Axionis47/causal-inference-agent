@@ -9,7 +9,6 @@ This agent iteratively explores datasets to identify causal structure:
 No pre-computation of causal structure - all identification through tool calls.
 """
 
-import json
 import pickle
 import tempfile
 import time
@@ -329,6 +328,7 @@ WORKFLOW:
     async def _load_from_kaggle(self, url: str) -> pd.DataFrame | None:
         """Load dataset from Kaggle."""
         import os
+
         from src.config import get_settings
 
         settings = get_settings()
@@ -551,7 +551,7 @@ Call tools to gather evidence, then call finalize_profile with your conclusions.
             else:
                 return f"Unknown tool: {tool_name}"
         except Exception as e:
-            self.logger.error(f"tool_execution_error", tool=tool_name, error=str(e))
+            self.logger.error("tool_execution_error", tool=tool_name, error=str(e))
             return f"Error executing {tool_name}: {str(e)}"
 
     def _tool_get_dataset_overview(self) -> str:
@@ -631,7 +631,7 @@ SUGGESTIONS for investigation:
                 if data.nunique() == 2:
                     min_class = value_counts.min()
                     balance = min_class / n
-                    output += f"\nTreatment Suitability:\n"
+                    output += "\nTreatment Suitability:\n"
                     output += f"  - Balance (minority class): {balance*100:.1f}%\n"
                     if 0.1 <= balance <= 0.5:
                         output += "  - GOOD: Balanced enough for causal inference\n"
@@ -698,12 +698,12 @@ SUGGESTIONS for investigation:
             minority_pct = value_counts.min() / n * 100
             majority_pct = value_counts.max() / n * 100
 
-            output += f"Binary Treatment Variable\n"
-            output += f"\nValue Distribution:\n"
+            output += "Binary Treatment Variable\n"
+            output += "\nValue Distribution:\n"
             for val, count in value_counts.items():
                 output += f"  {val}: {count} ({count/n*100:.1f}%)\n"
 
-            output += f"\nBalance Assessment:\n"
+            output += "\nBalance Assessment:\n"
             output += f"  Minority class: {minority_pct:.1f}%\n"
             output += f"  Majority class: {majority_pct:.1f}%\n"
 
@@ -723,7 +723,7 @@ SUGGESTIONS for investigation:
         elif 2 < n_unique <= 5:
             # Multi-level treatment
             output += f"Multi-level Treatment Variable ({n_unique} levels)\n"
-            output += f"\nValue Distribution:\n"
+            output += "\nValue Distribution:\n"
             for val, count in data.value_counts().items():
                 output += f"  {val}: {count} ({count/n*100:.1f}%)\n"
             output += "\n  Can be used for multi-valued treatment analysis\n"

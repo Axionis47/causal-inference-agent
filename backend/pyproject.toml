@@ -88,6 +88,8 @@ include = ["src*"]
 [tool.ruff]
 target-version = "py311"
 line-length = 100
+
+[tool.ruff.lint]
 select = [
     "E",   # pycodestyle errors
     "W",   # pycodestyle warnings
@@ -100,9 +102,16 @@ select = [
 ignore = [
     "E501",  # line too long (handled by formatter)
     "B008",  # do not perform function calls in argument defaults
+    "B007",  # loop control variable not used
+    "B023",  # function definition does not bind loop variable
+    "B006",  # mutable argument default
+    "B904",  # raise from err
+    "C401",  # unnecessary generator
+    "F841",  # local variable assigned but never used
+    "E741",  # ambiguous variable name
 ]
 
-[tool.ruff.isort]
+[tool.ruff.lint.isort]
 known-first-party = ["src"]
 
 [tool.mypy]

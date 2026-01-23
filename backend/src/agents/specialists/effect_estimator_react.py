@@ -9,7 +9,6 @@ This agent uses the ReAct paradigm to autonomously:
 """
 
 import pickle
-from typing import Any
 
 import numpy as np
 import pandas as pd

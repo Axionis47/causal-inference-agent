@@ -6,7 +6,6 @@ import pandas as pd
 
 from ..methods import (
     AIPWMethod,
-    BaseCausalMethod,
     CausalForestMethod,
     DifferenceInDifferencesMethod,
     DoubleMLMethod,

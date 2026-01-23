@@ -414,7 +414,7 @@ Call finalize_discovery when you have a satisfactory graph."""
             else:
                 return f"Unknown tool: {tool_name}"
         except Exception as e:
-            self.logger.error(f"tool_execution_error", tool=tool_name, error=str(e))
+            self.logger.error("tool_execution_error", tool=tool_name, error=str(e))
             return f"Error executing {tool_name}: {str(e)}"
 
     def _tool_get_data_characteristics(self) -> str:
@@ -544,7 +544,7 @@ Distributions (Skewness):"""
                 self._discovered_graphs[algorithm] = dag
                 self._current_graph = dag
 
-                output += f"\nDiscovery completed successfully!\n"
+                output += "\nDiscovery completed successfully!\n"
                 output += f"Nodes: {len(dag.nodes)}\n"
                 output += f"Edges: {len(dag.edges)}\n"
 
@@ -785,9 +785,9 @@ Distributions (Skewness):"""
                 output += f"Direct edge {treatment} → {outcome}: YES\n"
             elif has_path:
                 output += f"Direct edge {treatment} → {outcome}: NO\n"
-                output += f"Indirect path exists: YES\n"
+                output += "Indirect path exists: YES\n"
             else:
-                warnings.append(f"No path from treatment to outcome - may indicate no causal effect")
+                warnings.append("No path from treatment to outcome - may indicate no causal effect")
 
         # Check 3: Outcome → Treatment (reverse causation)
         if treatment and outcome:
@@ -893,7 +893,7 @@ Distributions (Skewness):"""
             output += f"Only in {algs[1]}: {len(only_second)}\n"
 
             if common:
-                output += f"\nCommon edges (likely robust):\n"
+                output += "\nCommon edges (likely robust):\n"
                 for src, tgt in list(common)[:10]:
                     output += f"  {src} → {tgt}\n"
 

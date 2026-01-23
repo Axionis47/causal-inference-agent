@@ -3,9 +3,10 @@
 import time
 import traceback
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Callable
+from typing import Any
 
 from src.llm import get_llm_client
 from src.logging_config.structured import get_logger

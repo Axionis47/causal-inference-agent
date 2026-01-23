@@ -9,7 +9,6 @@ This agent reviews causal analysis quality using multi-perspective debate AND da
 Not just summaries - critics can actually look at the data!
 """
 
-import json
 import pickle
 import time
 from dataclasses import dataclass
@@ -18,7 +17,6 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from scipy import stats
 
 from src.agents.base import (
     AnalysisState,
@@ -427,7 +425,7 @@ After gathering evidence, call finalize_critique with your assessment."""
             else:
                 return f"Unknown tool: {tool_name}"
         except Exception as e:
-            self.logger.error(f"tool_execution_error", tool=tool_name, error=str(e))
+            self.logger.error("tool_execution_error", tool=tool_name, error=str(e))
             return f"Error executing {tool_name}: {str(e)}"
 
     def _tool_get_analysis_summary(self) -> str:
@@ -438,7 +436,7 @@ After gathering evidence, call finalize_critique with your assessment."""
 
         # Dataset info
         if state.data_profile:
-            output += f"\nDataset:\n"
+            output += "\nDataset:\n"
             output += f"  Samples: {state.data_profile.n_samples}\n"
             output += f"  Features: {state.data_profile.n_features}\n"
             output += f"  Treatment: {state.treatment_variable}\n"
@@ -446,7 +444,7 @@ After gathering evidence, call finalize_critique with your assessment."""
 
         # Causal graph
         if state.proposed_dag:
-            output += f"\nCausal Graph:\n"
+            output += "\nCausal Graph:\n"
             output += f"  Method: {state.proposed_dag.discovery_method}\n"
             output += f"  Nodes: {len(state.proposed_dag.nodes)}\n"
             output += f"  Edges: {len(state.proposed_dag.edges)}\n"
@@ -569,7 +567,7 @@ After gathering evidence, call finalize_critique with your assessment."""
         output += f"Coefficient of variation: {cv:.1f}%\n\n"
 
         output += "Individual estimates:\n"
-        for i, (method, est) in enumerate(zip(methods, estimates)):
+        for i, (method, est) in enumerate(zip(methods, estimates, strict=False)):
             deviation = abs(est - mean_est) / (std_est + 1e-10)
             flag = " (outlier)" if deviation > 2 else ""
             output += f"  {method}: {est:.4f}{flag}\n"
@@ -767,7 +765,7 @@ After gathering evidence, call finalize_critique with your assessment."""
         # Check PS diagnostics from state
         if hasattr(state, 'ps_diagnostics') and state.ps_diagnostics:
             diag = state.ps_diagnostics
-            output += f"PS Diagnostics Available:\n"
+            output += "PS Diagnostics Available:\n"
 
             if hasattr(diag, 'overlap'):
                 output += f"  Overlap: {diag.overlap}\n"

@@ -9,13 +9,13 @@ This implements the ReAct paradigm where agents:
 Reference: https://arxiv.org/abs/2210.03629
 """
 
-import asyncio
 import time
 from abc import abstractmethod
+from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Coroutine
+from typing import Any
 
 from src.llm import get_llm_client
 from src.logging_config.structured import get_logger
@@ -45,7 +45,7 @@ class ToolResult:
         if self.status == ToolResultStatus.SUCCESS:
             if isinstance(self.output, dict):
                 # Format dict nicely
-                lines = [f"Tool executed successfully:"]
+                lines = ["Tool executed successfully:"]
                 for k, v in self.output.items():
                     lines.append(f"  {k}: {v}")
                 return "\n".join(lines)

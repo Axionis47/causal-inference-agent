@@ -4,12 +4,10 @@ This agent coordinates the entire analysis pipeline using LLM reasoning.
 CRITICAL: All decisions are made through Gemini reasoning - NO hardcoded if-else logic.
 """
 
-import json
 import time
 from typing import Any
 
 from src.agents.base import (
-    AgentTrace,
     AnalysisState,
     BaseAgent,
     CritiqueDecision,

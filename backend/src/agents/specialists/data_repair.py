@@ -22,7 +22,7 @@ from sklearn.experimental import enable_iterative_imputer  # noqa
 from sklearn.impute import IterativeImputer, SimpleImputer
 from sklearn.preprocessing import RobustScaler
 
-from src.agents.base import AnalysisState, BaseAgent, JobStatus
+from src.agents.base import AnalysisState, BaseAgent
 from src.logging_config.structured import get_logger
 
 logger = get_logger(__name__)
@@ -537,7 +537,7 @@ Be conservative - only repair issues that would materially affect causal inferen
             else:
                 return f"Unknown tool: {tool_name}"
         except Exception as e:
-            self.logger.error(f"tool_execution_error", tool=tool_name, error=str(e))
+            self.logger.error("tool_execution_error", tool=tool_name, error=str(e))
             return f"Error executing {tool_name}: {str(e)}"
 
     def _tool_get_data_summary(self) -> str:

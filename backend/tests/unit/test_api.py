@@ -1,6 +1,7 @@
 """Unit tests for API endpoints."""
 
 import pytest
+from unittest.mock import patch, MagicMock, AsyncMock
 from fastapi.testclient import TestClient
 
 
@@ -35,24 +36,40 @@ class TestJobEndpoints:
     """Test job-related endpoints."""
 
     @pytest.fixture
-    def client(self):
-        """Create test client."""
-        from src.api.main import app
-        return TestClient(app)
+    def mock_job_manager(self):
+        """Create mock job manager."""
+        mock_manager = MagicMock()
+        # Use AsyncMock for async methods
+        mock_manager.create_job = AsyncMock(return_value=MagicMock(
+            id="test-job-123",
+            kaggle_url="https://www.kaggle.com/datasets/test/test-dataset",
+            status="pending",
+        ))
+        mock_manager.get_job = AsyncMock(return_value=None)  # Job not found by default
+        mock_manager.list_jobs = AsyncMock(return_value=([], 0))
+        return mock_manager
 
-    def test_create_job_valid_url(self, client):
+    @pytest.fixture
+    def client(self, mock_job_manager):
+        """Create test client with mocked job manager."""
+        with patch("src.api.routes.jobs.get_job_manager", return_value=mock_job_manager):
+            from src.api.main import app
+            yield TestClient(app)
+
+    def test_create_job_valid_url(self, client, mock_job_manager):
         """Test creating a job with valid Kaggle URL."""
-        response = client.post(
-            "/jobs",
-            json={
-                "kaggle_url": "https://www.kaggle.com/datasets/test/test-dataset",
-                "treatment_variable": "treatment",
-                "outcome_variable": "outcome",
-            },
-        )
+        with patch("src.api.routes.jobs.get_job_manager", return_value=mock_job_manager):
+            response = client.post(
+                "/jobs",
+                json={
+                    "kaggle_url": "https://www.kaggle.com/datasets/test/test-dataset",
+                    "treatment_variable": "treatment",
+                    "outcome_variable": "outcome",
+                },
+            )
 
-        # Should accept the request (may fail async processing due to missing credentials)
-        assert response.status_code in [200, 201, 202, 422, 500]
+            # Should accept the request (may return 500 if env not configured)
+            assert response.status_code in [200, 201, 202, 500]
 
     def test_create_job_missing_url(self, client):
         """Test creating job without URL fails."""
@@ -65,20 +82,22 @@ class TestJobEndpoints:
 
         assert response.status_code == 422  # Validation error
 
-    def test_get_job_not_found(self, client):
+    def test_get_job_not_found(self, client, mock_job_manager):
         """Test getting non-existent job."""
-        response = client.get("/jobs/nonexistent-job-id")
+        with patch("src.api.routes.jobs.get_job_manager", return_value=mock_job_manager):
+            response = client.get("/jobs/nonexistent-job-id")
 
-        assert response.status_code == 404
+            assert response.status_code == 404
 
-    def test_list_jobs(self, client):
+    def test_list_jobs(self, client, mock_job_manager):
         """Test listing jobs endpoint."""
-        response = client.get("/jobs")
+        with patch("src.api.routes.jobs.get_job_manager", return_value=mock_job_manager):
+            response = client.get("/jobs")
 
-        assert response.status_code == 200
-        data = response.json()
-        assert "jobs" in data
-        assert isinstance(data["jobs"], list)
+            assert response.status_code == 200
+            data = response.json()
+            assert "jobs" in data
+            assert isinstance(data["jobs"], list)
 
 
 class TestAPISchemas:

@@ -10,13 +10,14 @@ Supports:
 - Bootstrap stability selection for edge confidence
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable
+from typing import Any
 
 import numpy as np
 import pandas as pd
-from scipy import stats, optimize
+from scipy import optimize, stats
 from scipy.linalg import expm
 
 

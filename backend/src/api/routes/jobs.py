@@ -3,6 +3,7 @@
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import FileResponse
 
+from src.agents.base import JobStatus
 from src.api.schemas import (
     AgentTracesResponse,
     AnalysisResultsResponse,
@@ -15,7 +16,6 @@ from src.api.schemas import (
     SensitivityResponse,
     TreatmentEffectResponse,
 )
-from src.agents.base import JobStatus
 from src.jobs.manager import get_job_manager
 from src.logging_config.structured import get_logger
 

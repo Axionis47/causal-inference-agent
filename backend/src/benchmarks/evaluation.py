@@ -11,14 +11,16 @@ Metrics:
 """
 
 import asyncio
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Callable
+from typing import Any
+
 import numpy as np
 import pandas as pd
-from scipy import stats
 
 from src.logging_config.structured import get_logger
+
 from .datasets import BenchmarkDataset, get_all_benchmarks, get_benchmark
 
 logger = get_logger(__name__)

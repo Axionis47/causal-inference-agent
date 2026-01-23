@@ -4,7 +4,6 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from scipy import stats
 from sklearn.linear_model import LogisticRegression
 from sklearn.neighbors import NearestNeighbors
 
