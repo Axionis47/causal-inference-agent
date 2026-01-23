@@ -36,7 +36,7 @@ jobs:
 
       - name: Build and push frontend
         run: |
-          docker build -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/causal-frontend:${{ github.sha }} ./frontend
+          docker build --build-arg VITE_API_URL=https://causal-backend-staging-du6qod3mja-uc.a.run.app -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/causal-frontend:${{ github.sha }} ./frontend
           docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/causal-frontend:${{ github.sha }}
 
       - name: Deploy backend to Cloud Run
