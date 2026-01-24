@@ -113,10 +113,15 @@ jobs:
             --set-env-vars ENVIRONMENT=production \
             --set-secrets CLAUDE_API_KEY=anthropic-api-key:latest,KAGGLE_KEY=kaggle-key:latest
 
+      - name: Build production frontend
+        run: |
+          docker build --build-arg VITE_API_URL=https://causal-backend-du6qod3mja-uc.a.run.app -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/causal-frontend-prod:${{ github.sha }} ./frontend
+          docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/causal-frontend-prod:${{ github.sha }}
+
       - name: Deploy frontend to Production
         run: |
           gcloud run deploy causal-frontend \
-            --image ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/causal-frontend:${{ github.sha }} \
+            --image ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/causal-frontend-prod:${{ github.sha }} \
             --region ${{ env.REGION }} \
             --platform managed \
             --allow-unauthenticated \

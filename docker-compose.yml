@@ -9,7 +9,7 @@ services:
       - "8000:8000"
     environment:
       - ENVIRONMENT=development
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - KAGGLE_KEY=${KAGGLE_KEY}
       - KAGGLE_USERNAME=${KAGGLE_USERNAME}
       - GCP_PROJECT_ID=${GCP_PROJECT_ID:-plotpointe}
@@ -34,11 +34,11 @@ services:
       args:
         - VITE_API_URL=http://localhost:8000
     ports:
-      - "3000:80"
+      - "3000:8080"
     depends_on:
       - backend
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -54,7 +54,7 @@ services:
       - "8000:8000"
     environment:
       - ENVIRONMENT=development
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - KAGGLE_KEY=${KAGGLE_KEY}
       - KAGGLE_USERNAME=${KAGGLE_USERNAME}
       - USE_FIRESTORE=false

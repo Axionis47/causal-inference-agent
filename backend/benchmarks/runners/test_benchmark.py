@@ -151,7 +151,7 @@ class TestBenchmarkRunner:
     def test_calculate_metrics_with_ground_truth(self, runner):
         """Test metric calculation with known values."""
         from ..datasets.loader import BenchmarkDataset
-        from src.agents import AnalysisState, TreatmentEffect
+        from src.agents import AnalysisState, TreatmentEffectResult, DatasetInfo
         import pandas as pd
 
         # Create mock dataset with known ground truth
@@ -170,11 +170,12 @@ class TestBenchmarkRunner:
         # Create mock state with estimates
         state = AnalysisState(
             job_id="test",
+            dataset_info=DatasetInfo(url="test://mock"),
             treatment_variable="treatment",
             outcome_variable="outcome",
         )
         state.treatment_effects = [
-            TreatmentEffect(
+            TreatmentEffectResult(
                 method="OLS",
                 estimand="ATE",
                 estimate=2.1,  # Close to true ATE of 2.0

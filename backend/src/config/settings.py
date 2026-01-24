@@ -65,8 +65,16 @@ class Settings(BaseSettings):
     max_agent_iterations: int = 3
     agent_timeout_seconds: int = 300
 
-    # CORS
-    cors_origins: list[str] = ["http://localhost:3000", "http://localhost:5173"]
+    # CORS - Include all frontend origins (local dev + Cloud Run deployments)
+    cors_origins: list[str] = [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "https://causal-frontend-staging-du6qod3mja-uc.a.run.app",
+        "https://causal-frontend-du6qod3mja-uc.a.run.app",
+    ]
+
+    # API Documentation
+    enable_api_docs: bool = True  # Enable Swagger/ReDoc in all environments
 
     @property
     def is_production(self) -> bool:

@@ -21,8 +21,8 @@ def create_app() -> FastAPI:
         title=settings.app_name,
         version=settings.app_version,
         description="Agentic causal inference orchestration system",
-        docs_url="/docs" if not settings.is_production else None,
-        redoc_url="/redoc" if not settings.is_production else None,
+        docs_url="/docs" if settings.enable_api_docs else None,
+        redoc_url="/redoc" if settings.enable_api_docs else None,
     )
 
     # Configure CORS
@@ -37,6 +37,21 @@ def create_app() -> FastAPI:
     # Include routers
     app.include_router(health_router)
     app.include_router(jobs_router)
+
+    @app.get("/")
+    async def root():
+        """Root endpoint with API information."""
+        return {
+            "name": settings.app_name,
+            "version": settings.app_version,
+            "description": "Agentic causal inference orchestration system",
+            "docs": "/docs" if settings.enable_api_docs else None,
+            "redoc": "/redoc" if settings.enable_api_docs else None,
+            "endpoints": {
+                "health": "/health",
+                "jobs": "/jobs",
+            },
+        }
 
     @app.on_event("startup")
     async def startup_event():
