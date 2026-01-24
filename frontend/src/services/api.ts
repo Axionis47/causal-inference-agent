@@ -85,6 +85,21 @@ export interface AgentTrace {
   duration_ms: number;
 }
 
+export interface CancelJobResponse {
+  job_id: string;
+  was_running: boolean;
+  cancelled: boolean;
+  status?: string;
+}
+
+export interface DeleteJobResponse {
+  job_id: string;
+  found: boolean;
+  cancelled: boolean;
+  firestore_deleted: boolean;
+  local_artifacts_deleted: Record<string, boolean>;
+}
+
 // API functions
 export async function createJob(request: CreateJobRequest): Promise<Job> {
   const response = await api.post('/jobs', request);
@@ -115,8 +130,14 @@ export async function listJobs(
   return response.data;
 }
 
-export async function cancelJob(jobId: string): Promise<void> {
-  await api.delete(`/jobs/${jobId}`);
+export async function cancelJob(jobId: string): Promise<CancelJobResponse> {
+  const response = await api.post(`/jobs/${jobId}/cancel`);
+  return response.data;
+}
+
+export async function deleteJob(jobId: string, force: boolean = false): Promise<DeleteJobResponse> {
+  const response = await api.delete(`/jobs/${jobId}`, { params: { force } });
+  return response.data;
 }
 
 export async function getResults(jobId: string): Promise<AnalysisResults> {

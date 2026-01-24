@@ -1,5 +1,6 @@
-import { useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   CheckCircle,
   XCircle,
@@ -7,14 +8,20 @@ import {
   Download,
   AlertTriangle,
   Activity,
+  StopCircle,
+  Trash2,
+  Ban,
 } from 'lucide-react';
-import { getJob, getJobStatus, getResults, getNotebookUrl } from '../services/api';
+import { getJob, getJobStatus, getResults, getNotebookUrl, cancelJob, deleteJob } from '../services/api';
 import JobProgress from '../components/job/JobProgress';
 import ResultsDisplay from '../components/results/ResultsDisplay';
 import AgentTraces from '../components/agents/AgentTraces';
 
 export default function JobPage() {
   const { jobId } = useParams<{ jobId: string }>();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const jobQuery = useQuery({
     queryKey: ['job', jobId],
@@ -25,7 +32,7 @@ export default function JobPage() {
   const statusQuery = useQuery({
     queryKey: ['jobStatus', jobId],
     queryFn: () => getJobStatus(jobId!),
-    enabled: !!jobId && jobQuery.data?.status !== 'completed' && jobQuery.data?.status !== 'failed',
+    enabled: !!jobId && jobQuery.data?.status !== 'completed' && jobQuery.data?.status !== 'failed' && jobQuery.data?.status !== 'cancelled',
     refetchInterval: 3000, // Poll every 3 seconds while running
   });
 
@@ -33,6 +40,22 @@ export default function JobPage() {
     queryKey: ['results', jobId],
     queryFn: () => getResults(jobId!),
     enabled: jobQuery.data?.status === 'completed',
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: () => cancelJob(jobId!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['job', jobId] });
+      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (force: boolean) => deleteJob(jobId!, force),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      navigate('/jobs');
+    },
   });
 
   if (jobQuery.isLoading) {
@@ -59,7 +82,8 @@ export default function JobPage() {
   const status = statusQuery.data || { progress_percentage: 0, current_agent: undefined };
   const isComplete = job.status === 'completed';
   const isFailed = job.status === 'failed';
-  const isRunning = !isComplete && !isFailed;
+  const isCancelled = job.status === 'cancelled';
+  const isRunning = !isComplete && !isFailed && !isCancelled;
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -112,7 +136,70 @@ export default function JobPage() {
             </div>
           </div>
         )}
+
+        {isCancelled && (
+          <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start space-x-3">
+            <Ban className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium text-yellow-800">Job Cancelled</p>
+              <p className="text-sm text-yellow-600 mt-1">{job.error_message || 'This job was cancelled by user request.'}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Action Buttons */}
+        <div className="mt-6 flex items-center space-x-3">
+          {isRunning && (
+            <button
+              onClick={() => cancelMutation.mutate()}
+              disabled={cancelMutation.isPending}
+              className="inline-flex items-center space-x-2 px-4 py-2 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200 disabled:opacity-50 transition-colors"
+            >
+              <StopCircle className="w-5 h-5" />
+              <span>{cancelMutation.isPending ? 'Cancelling...' : 'Stop Job'}</span>
+            </button>
+          )}
+
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            className="inline-flex items-center space-x-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+          >
+            <Trash2 className="w-5 h-5" />
+            <span>Delete Job</span>
+          </button>
+        </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Delete Job?</h3>
+            <p className="text-gray-600 mb-4">
+              This will permanently delete the job record, analysis results, and all associated data.
+              {isRunning && ' The job will be cancelled first.'}
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  deleteMutation.mutate(isRunning);
+                  setShowDeleteConfirm(false);
+                }}
+                disabled={deleteMutation.isPending}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
+              >
+                {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Progress */}
       {isRunning && (
@@ -150,6 +237,16 @@ function StatusBadge({ status }: { status: string }) {
       icon: <XCircle className="w-4 h-4" />,
       class: 'bg-red-100 text-red-700',
       label: 'Failed',
+    },
+    cancelled: {
+      icon: <Ban className="w-4 h-4" />,
+      class: 'bg-yellow-100 text-yellow-700',
+      label: 'Cancelled',
+    },
+    cancelling: {
+      icon: <StopCircle className="w-4 h-4" />,
+      class: 'bg-yellow-100 text-yellow-700',
+      label: 'Cancelling...',
     },
   };
 

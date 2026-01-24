@@ -1,7 +1,8 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { Clock, CheckCircle, XCircle, Activity, ChevronRight } from 'lucide-react';
-import { listJobs, Job } from '../services/api';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Clock, CheckCircle, XCircle, Activity, ChevronRight, Trash2, StopCircle, Ban } from 'lucide-react';
+import { listJobs, Job, cancelJob, deleteJob } from '../services/api';
 
 export default function JobsListPage() {
   const jobsQuery = useQuery({
@@ -51,6 +52,23 @@ export default function JobsListPage() {
 }
 
 function JobCard({ job }: { job: Job }) {
+  const queryClient = useQueryClient();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const cancelMutation = useMutation({
+    mutationFn: () => cancelJob(job.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (force: boolean) => deleteJob(job.id, force),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+    },
+  });
+
   const statusConfig: Record<string, { icon: React.ReactNode; color: string }> = {
     completed: {
       icon: <CheckCircle className="w-5 h-5" />,
@@ -64,6 +82,10 @@ function JobCard({ job }: { job: Job }) {
       icon: <Clock className="w-5 h-5" />,
       color: 'text-gray-400',
     },
+    cancelled: {
+      icon: <Ban className="w-5 h-5" />,
+      color: 'text-yellow-500',
+    },
   };
 
   const defaultStatus = {
@@ -72,43 +94,103 @@ function JobCard({ job }: { job: Job }) {
   };
 
   const { icon, color } = statusConfig[job.status] || defaultStatus;
-  const isRunning = !['completed', 'failed', 'pending'].includes(job.status);
+  const isRunning = !['completed', 'failed', 'pending', 'cancelled'].includes(job.status);
 
   return (
-    <Link
-      to={`/jobs/${job.id}`}
-      className="card block hover:shadow-md transition-shadow group"
-    >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <div className={color}>
-            {isRunning ? (
-              <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-            ) : (
-              icon
-            )}
+    <>
+      <div className="card hover:shadow-md transition-shadow group">
+        <div className="flex items-center justify-between">
+          <Link to={`/jobs/${job.id}`} className="flex items-center space-x-4 flex-1">
+            <div className={color}>
+              {isRunning ? (
+                <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+              ) : (
+                icon
+              )}
+            </div>
+            <div>
+              <p className="font-medium text-gray-900 group-hover:text-primary-600">
+                Job {job.id}
+              </p>
+              <p className="text-sm text-gray-500 truncate max-w-md">
+                {job.kaggle_url}
+              </p>
+            </div>
+          </Link>
+          <div className="flex items-center space-x-4">
+            <div className="text-right">
+              <p className="text-sm font-medium text-gray-900 capitalize">
+                {job.status.replace('_', ' ')}
+              </p>
+              <p className="text-xs text-gray-500">
+                {new Date(job.created_at).toLocaleDateString()}
+              </p>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center space-x-2">
+              {isRunning && (
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    cancelMutation.mutate();
+                  }}
+                  disabled={cancelMutation.isPending}
+                  className="p-2 text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors"
+                  title="Stop Job"
+                >
+                  <StopCircle className="w-5 h-5" />
+                </button>
+              )}
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  setShowDeleteConfirm(true);
+                }}
+                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                title="Delete Job"
+              >
+                <Trash2 className="w-5 h-5" />
+              </button>
+            </div>
+
+            <Link to={`/jobs/${job.id}`}>
+              <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-gray-600" />
+            </Link>
           </div>
-          <div>
-            <p className="font-medium text-gray-900 group-hover:text-primary-600">
-              Job {job.id}
-            </p>
-            <p className="text-sm text-gray-500 truncate max-w-md">
-              {job.kaggle_url}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center space-x-4">
-          <div className="text-right">
-            <p className="text-sm font-medium text-gray-900 capitalize">
-              {job.status.replace('_', ' ')}
-            </p>
-            <p className="text-xs text-gray-500">
-              {new Date(job.created_at).toLocaleDateString()}
-            </p>
-          </div>
-          <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-gray-600" />
         </div>
       </div>
-    </Link>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Delete Job {job.id}?</h3>
+            <p className="text-gray-600 mb-4">
+              This will permanently delete the job record, analysis results, and all associated data.
+              {isRunning && ' The job will be cancelled first.'}
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  deleteMutation.mutate(isRunning);
+                  setShowDeleteConfirm(false);
+                }}
+                disabled={deleteMutation.isPending}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
+              >
+                {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
