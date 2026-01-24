@@ -202,6 +202,7 @@ WORKFLOW:
         self._df: pd.DataFrame | None = None
         self._state: AnalysisState | None = None
         self._profile: DataProfile | None = None
+        self._load_error: str | None = None  # Track dataset loading errors
 
     async def execute(self, state: AnalysisState) -> AnalysisState:
         """Execute data profiling through iterative LLM-driven investigation.
@@ -223,9 +224,11 @@ WORKFLOW:
 
         try:
             # Load the dataset
+            self._load_error = None  # Reset error state
             self._df = await self._load_dataset(state)
             if self._df is None:
-                state.mark_failed("Failed to load dataset", self.AGENT_NAME)
+                error_msg = self._load_error or "Failed to load dataset"
+                state.mark_failed(error_msg, self.AGENT_NAME)
                 return state
 
             self._state = state
@@ -384,7 +387,34 @@ WORKFLOW:
                 return None
 
         except Exception as e:
-            self.logger.error("kaggle_load_failed", error=str(e))
+            error_str = str(e)
+            dataset_ref = dataset_id if 'dataset_id' in dir() else url
+            # Provide more specific error messages for common issues
+            if "403" in error_str or "Forbidden" in error_str:
+                self._load_error = f"Dataset '{dataset_ref}' is not accessible. It may be private, deleted, or the URL is incorrect. Try a different dataset."
+                self.logger.error(
+                    "kaggle_access_denied",
+                    error=self._load_error,
+                    dataset_id=dataset_ref,
+                    details=error_str[:500],
+                )
+            elif "401" in error_str or "Unauthorized" in error_str:
+                self._load_error = f"Dataset '{dataset_ref}' not found or authentication failed. Please check the dataset URL."
+                self.logger.error(
+                    "kaggle_auth_failed",
+                    error=self._load_error,
+                    details=error_str[:500],
+                )
+            elif "404" in error_str or "Not Found" in error_str:
+                self._load_error = f"Dataset '{dataset_ref}' not found. Please verify the URL is correct."
+                self.logger.error(
+                    "kaggle_not_found",
+                    error=self._load_error,
+                    dataset_id=dataset_ref,
+                )
+            else:
+                self._load_error = f"Failed to load dataset from Kaggle: {error_str[:200]}"
+                self.logger.error("kaggle_load_failed", error=error_str[:500])
             return None
 
     def _compute_basic_profile(self, df: pd.DataFrame) -> DataProfile:
