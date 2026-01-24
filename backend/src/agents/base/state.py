@@ -87,6 +87,10 @@ class TreatmentEffectResult(BaseModel):
     assumptions_tested: list[str] = Field(default_factory=list)
     details: dict[str, Any] = Field(default_factory=dict)
 
+    # Which variables were analyzed (for multi-pair analysis)
+    treatment_variable: str | None = None
+    outcome_variable: str | None = None
+
 
 class SensitivityResult(BaseModel):
     """Result of a sensitivity analysis."""

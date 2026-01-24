@@ -217,6 +217,215 @@ Call tools iteratively. Analyze each result before deciding next steps."""
         self._last_method_result: TreatmentEffectResult | None = None
         self._state: AnalysisState | None = None
 
+    # =========================================================================
+    # Multi-Pair Causal Analysis: LLM-driven pair selection
+    # =========================================================================
+
+    async def _identify_valid_causal_pairs(
+        self,
+        state: AnalysisState,
+    ) -> list[tuple[str, str, str]]:
+        """Identify valid treatment-outcome pairs using LLM filtering.
+
+        Prioritizes:
+        1. User-specified variables (if both provided)
+        2. Single candidates (no LLM needed)
+        3. LLM selection from multiple candidates
+
+        Returns:
+            List of (treatment, outcome, rationale) tuples
+        """
+        profile = state.data_profile
+
+        # Priority 1: User specified both variables - use those
+        if state.treatment_variable and state.outcome_variable:
+            self.logger.info(
+                "using_user_specified_variables",
+                treatment=state.treatment_variable,
+                outcome=state.outcome_variable,
+            )
+            return [(
+                state.treatment_variable,
+                state.outcome_variable,
+                "User specified"
+            )]
+
+        # Priority 2: No profile - can't infer
+        if profile is None:
+            return []
+
+        treatment_candidates = profile.treatment_candidates or []
+        outcome_candidates = profile.outcome_candidates or []
+
+        # Priority 3: No candidates found
+        if not treatment_candidates or not outcome_candidates:
+            return []
+
+        # Priority 4: Single candidate each - no LLM needed
+        if len(treatment_candidates) == 1 and len(outcome_candidates) == 1:
+            self.logger.info(
+                "single_candidates",
+                treatment=treatment_candidates[0],
+                outcome=outcome_candidates[0],
+            )
+            return [(
+                treatment_candidates[0],
+                outcome_candidates[0],
+                "Single candidates identified"
+            )]
+
+        # Priority 5: Multiple candidates - use LLM to filter
+        self.logger.info(
+            "multiple_candidates_llm_filtering",
+            n_treatments=len(treatment_candidates),
+            n_outcomes=len(outcome_candidates),
+        )
+
+        prompt = self._build_pair_selection_prompt(profile)
+        try:
+            result = await self.reason(
+                prompt=prompt,
+                context={"task": "pair_selection"},
+            )
+            pairs = self._parse_pair_selection(result, profile)
+            if pairs:
+                return pairs
+        except Exception as e:
+            self.logger.warning("pair_selection_llm_failed", error=str(e))
+
+        # Fallback: Use first candidates
+        self.logger.info("fallback_to_first_candidates")
+        return [(
+            treatment_candidates[0],
+            outcome_candidates[0],
+            "Fallback to first candidates"
+        )]
+
+    def _build_pair_selection_prompt(self, profile) -> str:
+        """Build LLM prompt for causal pair selection."""
+        return f"""You are evaluating potential causal relationships in a dataset.
+
+Dataset Profile:
+- Total features: {profile.n_features}
+- Feature names: {profile.feature_names[:30]}{"..." if len(profile.feature_names) > 30 else ""}
+- Treatment candidates: {profile.treatment_candidates}
+- Outcome candidates: {profile.outcome_candidates}
+- Potential confounders: {profile.potential_confounders[:10]}{"..." if len(profile.potential_confounders) > 10 else ""}
+
+Your task: Identify which treatment-outcome pairs represent VALID causal questions.
+
+A valid causal pair requires:
+1. Temporal ordering: Treatment could plausibly precede outcome
+2. Manipulability: Treatment is something that could be intervened upon
+3. Non-identity: Treatment and outcome measure different concepts
+4. Plausible mechanism: There's a reasonable pathway for effect
+
+INVALID pairs include:
+- Demographic → Demographic (age cannot cause gender)
+- Outcome → Treatment (reverse causality)
+- Proxies of each other (revenue_usd → revenue_eur)
+- Treatment cannot affect outcome by design
+
+Return your analysis as JSON (no markdown, just raw JSON):
+{{
+    "valid_pairs": [
+        {{"treatment": "var_name", "outcome": "var_name", "rationale": "brief explanation", "priority": 1}}
+    ],
+    "rejected_pairs": [
+        {{"treatment": "var_name", "outcome": "var_name", "reason": "why invalid"}}
+    ]
+}}
+
+IMPORTANT:
+- Limit to at most 3 valid pairs (prioritize the most scientifically interesting)
+- Priority 1 = most important, 2 = secondary, 3 = exploratory
+- Only include pairs where BOTH variables are in the candidates lists above
+"""
+
+    def _parse_pair_selection(
+        self,
+        result: dict,
+        profile,
+    ) -> list[tuple[str, str, str]]:
+        """Parse LLM response to extract valid pairs."""
+        response_text = result.get("response", "")
+
+        # Try to extract JSON from response
+        try:
+            # Handle markdown code blocks
+            if "```json" in response_text:
+                json_str = response_text.split("```json")[1].split("```")[0].strip()
+            elif "```" in response_text:
+                json_str = response_text.split("```")[1].split("```")[0].strip()
+            else:
+                # Try to find JSON object directly
+                start = response_text.find("{")
+                end = response_text.rfind("}") + 1
+                if start >= 0 and end > start:
+                    json_str = response_text[start:end]
+                else:
+                    return []
+
+            data = json.loads(json_str)
+            valid_pairs = data.get("valid_pairs", [])
+
+            # Validate and extract pairs
+            pairs = []
+            valid_treatments = set(profile.treatment_candidates or [])
+            valid_outcomes = set(profile.outcome_candidates or [])
+
+            for p in valid_pairs[:3]:  # Max 3 pairs
+                treatment = p.get("treatment")
+                outcome = p.get("outcome")
+                rationale = p.get("rationale", "LLM selected")
+
+                # Validate variables exist in candidates
+                if treatment in valid_treatments and outcome in valid_outcomes:
+                    pairs.append((treatment, outcome, rationale))
+                    self.logger.info(
+                        "valid_pair_identified",
+                        treatment=treatment,
+                        outcome=outcome,
+                        rationale=rationale[:100],
+                    )
+
+            return pairs
+
+        except (json.JSONDecodeError, KeyError, IndexError) as e:
+            self.logger.warning("pair_selection_parse_failed", error=str(e))
+            return []
+
+    def _get_covariates_for_pair(
+        self,
+        state: AnalysisState,
+        treatment: str,
+        outcome: str,
+    ) -> list[str]:
+        """Get covariates for a specific treatment-outcome pair."""
+        # Priority 1: Use discovered confounders
+        if state.confounder_discovery and state.confounder_discovery.get("ranked_confounders"):
+            return [
+                c for c in state.confounder_discovery["ranked_confounders"]
+                if c in self._df.columns and c != treatment and c != outcome
+            ]
+
+        # Priority 2: Use profile's potential confounders
+        if state.data_profile and state.data_profile.potential_confounders:
+            return [
+                c for c in state.data_profile.potential_confounders
+                if c in self._df.columns and c != treatment and c != outcome
+            ]
+
+        # Priority 3: Use all numeric columns except treatment and outcome
+        return [
+            c for c in self._df.select_dtypes(include=[np.number]).columns
+            if c != treatment and c != outcome
+        ]
+
+    # =========================================================================
+    # Main execution
+    # =========================================================================
+
     async def execute(self, state: AnalysisState) -> AnalysisState:
         """Execute treatment effect estimation using agentic loop.
 
@@ -244,49 +453,80 @@ Call tools iteratively. Analyze each result before deciding next steps."""
             with open(state.dataframe_path, "rb") as f:
                 self._df = pickle.load(f)
 
-            # Store state reference and extract key variables
+            # Store state reference
             self._state = state
-            self._treatment_var = state.treatment_variable
-            self._outcome_var = state.outcome_variable
-            self._results = []
+            all_results = []
 
-            # Get confounders from confounder discovery or profile
-            if state.confounder_discovery and state.confounder_discovery.get("ranked_confounders"):
-                self._covariates = state.confounder_discovery["ranked_confounders"]
-            elif state.data_profile and state.data_profile.potential_confounders:
-                self._covariates = [
-                    c for c in state.data_profile.potential_confounders
-                    if c in self._df.columns and c != self._treatment_var and c != self._outcome_var
-                ]
-            else:
-                # Use all numeric columns except T and Y
-                self._covariates = [
-                    c for c in self._df.select_dtypes(include=[np.number]).columns
-                    if c != self._treatment_var and c != self._outcome_var
-                ]
+            # Identify valid causal pairs (LLM-driven when multiple candidates)
+            pairs = await self._identify_valid_causal_pairs(state)
 
-            # Build initial prompt
-            initial_prompt = self._build_initial_prompt(state)
+            if not pairs:
+                state.mark_failed("No valid treatment-outcome pairs identified", self.AGENT_NAME)
+                return state
 
-            # Run agentic loop
-            final_result = await self._run_agentic_loop(initial_prompt, max_iterations=20)
+            self.logger.info("causal_pairs_identified", count=len(pairs))
 
-            # Update state with results
-            state.treatment_effects = self._results
+            # Analyze each valid pair
+            for treatment, outcome, rationale in pairs:
+                # Validate variables exist in data
+                if treatment not in self._df.columns or outcome not in self._df.columns:
+                    self.logger.warning(
+                        "skipping_invalid_pair",
+                        treatment=treatment,
+                        outcome=outcome,
+                        reason="variable not in data"
+                    )
+                    continue
+
+                self.logger.info(
+                    "analyzing_causal_pair",
+                    treatment=treatment,
+                    outcome=outcome,
+                    rationale=rationale[:50],
+                )
+
+                # Set current pair
+                self._treatment_var = treatment
+                self._outcome_var = outcome
+                self._results = []
+
+                # Get covariates for this pair
+                self._covariates = self._get_covariates_for_pair(state, treatment, outcome)
+
+                # Run agentic estimation for this pair
+                final_result = await self._run_agentic_loop(
+                    self._build_initial_prompt(state),
+                    max_iterations=15
+                )
+
+                # Tag results with pair info
+                for result in self._results:
+                    result.treatment_variable = treatment
+                    result.outcome_variable = outcome
+
+                all_results.extend(self._results)
+
+            # Update state with all results
+            state.treatment_effects = all_results
 
             # Create trace
             duration_ms = int((time.time() - start_time) * 1000)
             trace = self.create_trace(
                 action="estimation_complete",
-                reasoning=final_result.get("reasoning", "Estimation completed"),
+                reasoning=f"Analyzed {len(pairs)} causal pairs with {len(all_results)} total estimates",
                 outputs={
-                    "n_methods": len(self._results),
+                    "n_pairs_analyzed": len(pairs),
+                    "n_total_estimates": len(all_results),
                     "estimates": [
-                        {"method": r.method, "estimate": r.estimate, "se": r.std_error}
-                        for r in self._results
+                        {
+                            "treatment": r.treatment_variable,
+                            "outcome": r.outcome_variable,
+                            "method": r.method,
+                            "estimate": r.estimate,
+                            "se": r.std_error,
+                        }
+                        for r in all_results
                     ],
-                    "preferred_method": final_result.get("preferred_method"),
-                    "preferred_estimate": final_result.get("preferred_estimate"),
                 },
                 duration_ms=duration_ms,
             )
@@ -294,8 +534,8 @@ Call tools iteratively. Analyze each result before deciding next steps."""
 
             self.logger.info(
                 "estimation_complete",
-                n_results=len(self._results),
-                preferred_method=final_result.get("preferred_method"),
+                n_pairs=len(pairs),
+                n_results=len(all_results),
             )
 
         except Exception as e:
