@@ -327,6 +327,7 @@ WORKFLOW:
 
     async def _load_from_kaggle(self, url: str) -> pd.DataFrame | None:
         """Load dataset from Kaggle."""
+        import json
         import os
 
         from src.config import get_settings
@@ -336,8 +337,20 @@ WORKFLOW:
         # Set Kaggle credentials from config if available
         # Otherwise, Kaggle API will use ~/.kaggle/kaggle.json
         if settings.kaggle_key_value:
-            os.environ["KAGGLE_USERNAME"] = settings.kaggle_username
-            os.environ["KAGGLE_KEY"] = settings.kaggle_key_value
+            kaggle_key = settings.kaggle_key_value
+            kaggle_username = settings.kaggle_username
+
+            # Handle JSON format: {"username": "...", "key": "..."}
+            if kaggle_key.startswith("{"):
+                try:
+                    kaggle_creds = json.loads(kaggle_key)
+                    kaggle_username = kaggle_creds.get("username", kaggle_username)
+                    kaggle_key = kaggle_creds.get("key", kaggle_key)
+                except json.JSONDecodeError:
+                    pass  # Not JSON, use as-is
+
+            os.environ["KAGGLE_USERNAME"] = kaggle_username
+            os.environ["KAGGLE_KEY"] = kaggle_key
 
         try:
             from kaggle.api.kaggle_api_extended import KaggleApi
