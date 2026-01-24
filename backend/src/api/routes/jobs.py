@@ -1,14 +1,16 @@
 """Job management API routes."""
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import FileResponse
 
 from src.agents.base import JobStatus
 from src.api.schemas import (
     AgentTracesResponse,
     AnalysisResultsResponse,
+    CancelJobResponse,
     CausalGraphResponse,
     CreateJobRequest,
+    DeleteJobResponse,
     JobDetailResponse,
     JobListResponse,
     JobResponse,
@@ -142,9 +144,13 @@ async def get_job_status(job_id: str) -> JobStatusResponse:
     )
 
 
-@router.delete("/{job_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def cancel_job(job_id: str) -> None:
-    """Cancel a running job."""
+@router.post("/{job_id}/cancel", response_model=CancelJobResponse)
+async def cancel_job(job_id: str) -> CancelJobResponse:
+    """Cancel a running job.
+
+    This endpoint gracefully cancels a running job. If the job is already
+    completed, failed, or cancelled, this is a no-op.
+    """
     manager = get_job_manager()
 
     # Check if job exists
@@ -155,8 +161,57 @@ async def cancel_job(job_id: str) -> None:
             detail=f"Job {job_id} not found",
         )
 
-    # Try to cancel
-    await manager.cancel_job(job_id)
+    result = await manager.cancel_job(job_id)
+
+    return CancelJobResponse(
+        job_id=result["job_id"],
+        was_running=result["was_running"],
+        cancelled=result["cancelled"],
+        status=result.get("status"),
+    )
+
+
+@router.delete("/{job_id}", response_model=DeleteJobResponse)
+async def delete_job(
+    job_id: str,
+    force: bool = Query(False, description="Force delete even if job is running"),
+) -> DeleteJobResponse:
+    """Delete a job and all its artifacts.
+
+    This permanently deletes:
+    - Job record from Firestore
+    - Analysis results from Firestore
+    - Agent traces from Firestore
+    - Local temp files (DataFrame, notebook)
+
+    Use force=True to cancel a running job before deletion.
+    """
+    manager = get_job_manager()
+
+    # Check if job exists
+    job = await manager.get_job(job_id)
+    if job is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Job {job_id} not found",
+        )
+
+    try:
+        result = await manager.delete_job(job_id, force=force)
+    except ValueError as e:
+        # Job is running and force=False
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(e),
+        )
+
+    return DeleteJobResponse(
+        job_id=result["job_id"],
+        found=result["found"],
+        cancelled=result["cancelled"],
+        firestore_deleted=result["firestore_deleted"],
+        local_artifacts_deleted=result["local_artifacts_deleted"],
+    )
 
 
 @router.get("/{job_id}/results", response_model=AnalysisResultsResponse)

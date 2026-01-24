@@ -142,3 +142,22 @@ class DatasetValidationResponse(BaseModel):
     valid: bool
     dataset_name: str | None = None
     error: str | None = None
+
+
+class CancelJobResponse(BaseModel):
+    """Response for job cancellation."""
+
+    job_id: str
+    was_running: bool
+    cancelled: bool
+    status: str | None = None
+
+
+class DeleteJobResponse(BaseModel):
+    """Response for job deletion."""
+
+    job_id: str
+    found: bool
+    cancelled: bool
+    firestore_deleted: bool
+    local_artifacts_deleted: dict[str, bool] = {}

@@ -22,6 +22,8 @@ class JobStatus(str, Enum):
     GENERATING_NOTEBOOK = "generating_notebook"
     COMPLETED = "completed"
     FAILED = "failed"
+    CANCELLING = "cancelling"  # Graceful shutdown in progress
+    CANCELLED = "cancelled"    # User-initiated cancellation
 
 
 class DatasetInfo(BaseModel):
@@ -278,6 +280,17 @@ class AnalysisState(BaseModel):
         """Mark the analysis as completed."""
         self.status = JobStatus.COMPLETED
         self.completed_at = datetime.utcnow()
+        self.updated_at = datetime.utcnow()
+
+    def mark_cancelling(self) -> None:
+        """Mark the analysis as being cancelled (graceful shutdown in progress)."""
+        self.status = JobStatus.CANCELLING
+        self.updated_at = datetime.utcnow()
+
+    def mark_cancelled(self, reason: str = "Cancelled by user") -> None:
+        """Mark the analysis as cancelled."""
+        self.status = JobStatus.CANCELLED
+        self.error_message = reason
         self.updated_at = datetime.utcnow()
 
     def get_primary_pair(self) -> tuple[str | None, str | None]:

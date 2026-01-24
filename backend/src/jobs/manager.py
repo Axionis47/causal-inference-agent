@@ -21,6 +21,7 @@ from src.agents import (
     SensitivityAnalystAgent,
 )
 from src.logging_config.structured import get_logger
+from src.storage.cleanup import cleanup_local_artifacts
 from src.storage.firestore import get_firestore_client
 
 logger = get_logger(__name__)
@@ -187,8 +188,18 @@ class JobManager:
 
         except asyncio.CancelledError:
             logger.info("job_cancelled", job_id=job_id)
-            state.mark_failed("Job was cancelled", "job_manager")
+            state.mark_cancelled("Job was cancelled by user")
             await self.firestore.update_job(state)
+
+            # Best effort: save partial traces if any exist
+            if state.agent_traces:
+                try:
+                    await self.firestore.save_traces(state)
+                except Exception:
+                    pass  # Don't fail cancellation due to trace save failure
+
+            # Re-raise to complete cancellation
+            raise
 
         except Exception as e:
             logger.error(
@@ -257,29 +268,131 @@ class JobManager:
         job_status = JobStatus(status) if status else None
         return await self.firestore.list_jobs(job_status, limit, offset)
 
-    async def cancel_job(self, job_id: str) -> bool:
-        """Cancel a running job.
+    async def cancel_job(self, job_id: str, graceful_timeout: float = 5.0) -> dict[str, Any]:
+        """Cancel a running job with graceful shutdown.
 
         Args:
-            job_id: Job ID
+            job_id: Job ID to cancel
+            graceful_timeout: Seconds to wait for graceful shutdown
 
         Returns:
-            True if cancelled
+            Dict with cancellation result
         """
+        result = {
+            "job_id": job_id,
+            "was_running": False,
+            "cancelled": False,
+            "status": None,
+        }
+
+        # Check current job status in Firestore
+        job = await self.firestore.get_job(job_id)
+        if job is None:
+            return result
+
+        current_status = job.get("status")
+        result["status"] = current_status
+
+        # If job is already in a terminal state, nothing to cancel
+        if current_status in ["completed", "failed", "cancelled"]:
+            result["cancelled"] = False
+            return result
+
+        # Check if task is in memory
         task = self._running_jobs.get(job_id)
-        if task:
+
+        if task and not task.done():
+            result["was_running"] = True
+
+            # Mark as cancelling in Firestore first
+            await self.firestore.update_job_status(
+                job_id,
+                JobStatus.CANCELLING,
+                "Cancellation initiated by user",
+            )
+
+            # Request cancellation
             task.cancel()
+
+            # Wait for graceful shutdown
+            try:
+                await asyncio.wait_for(
+                    asyncio.shield(task),
+                    timeout=graceful_timeout,
+                )
+            except (asyncio.CancelledError, asyncio.TimeoutError):
+                pass  # Expected
+
+            # Remove from running jobs
             self._running_jobs.pop(job_id, None)
+            result["cancelled"] = True
+            result["status"] = "cancelled"
 
-            # Update status
-            job = await self.firestore.get_job(job_id)
-            if job:
-                job["status"] = JobStatus.FAILED.value
-                job["error_message"] = "Job cancelled by user"
-                # Update would need the full state - simplified here
+        else:
+            # Job not in memory but status indicates running
+            # This happens after server restart
+            if current_status not in ["completed", "failed", "cancelled"]:
+                # Mark as cancelled directly
+                await self.firestore.update_job_status(
+                    job_id,
+                    JobStatus.CANCELLED,
+                    "Job cancelled (was not actively running)",
+                )
+                result["cancelled"] = True
+                result["status"] = "cancelled"
 
-            return True
-        return False
+        logger.info("job_cancel_result", **result)
+        return result
+
+    async def delete_job(self, job_id: str, force: bool = False) -> dict[str, Any]:
+        """Delete a job and all its artifacts.
+
+        Args:
+            job_id: Job ID to delete
+            force: If True, delete even if job is running (will cancel first)
+
+        Returns:
+            Dict with deletion results
+
+        Raises:
+            ValueError: If job is running and force=False
+        """
+        result = {
+            "job_id": job_id,
+            "found": False,
+            "cancelled": False,
+            "firestore_deleted": False,
+            "local_artifacts_deleted": {},
+        }
+
+        # Check if job exists
+        job = await self.firestore.get_job(job_id)
+        if job is None:
+            return result
+
+        result["found"] = True
+        current_status = job.get("status")
+
+        # If job is running, cancel it first (if force=True) or reject
+        if current_status not in ["completed", "failed", "cancelled"]:
+            if not force:
+                raise ValueError(
+                    f"Job {job_id} is still running (status: {current_status}). "
+                    "Use force=True to cancel and delete."
+                )
+            # Cancel first
+            cancel_result = await self.cancel_job(job_id)
+            result["cancelled"] = cancel_result.get("cancelled", False)
+
+        # Delete local artifacts
+        result["local_artifacts_deleted"] = cleanup_local_artifacts(job_id)
+
+        # Delete from Firestore (cascades to results and traces)
+        firestore_result = await self.firestore.delete_job(job_id, cascade=True)
+        result["firestore_deleted"] = firestore_result.get("job", False)
+
+        logger.info("job_deleted", **result)
+        return result
 
     async def get_results(self, job_id: str) -> dict[str, Any] | None:
         """Get analysis results.
@@ -318,6 +431,8 @@ class JobManager:
             "generating_notebook": 90,
             "completed": 100,
             "failed": 0,
+            "cancelling": 0,
+            "cancelled": 0,
         }
         return progress_map.get(status, 0)
 

@@ -126,14 +126,21 @@ class FirestoreClient:
         jobs = [doc.to_dict() for doc in query.stream()]
         return jobs, total
 
-    async def delete_job(self, job_id: str) -> bool:
-        """Delete a job.
+    async def update_job_status(
+        self,
+        job_id: str,
+        status: JobStatus,
+        error_message: str | None = None,
+    ) -> bool:
+        """Update just the status of a job (for cancel operations).
 
         Args:
             job_id: Job ID
+            status: New status
+            error_message: Optional error message
 
         Returns:
-            True if deleted, False if not found
+            True if updated, False if job not found
         """
         doc_ref = self.db.collection(self.jobs_collection).document(job_id)
         doc = doc_ref.get()
@@ -141,14 +148,80 @@ class FirestoreClient:
         if not doc.exists:
             return False
 
-        doc_ref.delete()
+        update_data = {
+            "status": status.value,
+            "updated_at": datetime.utcnow(),
+        }
+        if error_message is not None:
+            update_data["error_message"] = error_message
 
-        # Also delete related results and traces
-        self._delete_collection(f"{self.results_collection}/{job_id}")
-        self._delete_collection(f"{self.traces_collection}/{job_id}")
-
-        logger.info("job_deleted", job_id=job_id)
+        doc_ref.update(update_data)
+        logger.info("job_status_updated", job_id=job_id, status=status.value)
         return True
+
+    async def delete_job(self, job_id: str, cascade: bool = True) -> dict[str, Any]:
+        """Delete a job and optionally cascade to related data.
+
+        Args:
+            job_id: Job ID
+            cascade: If True, also delete results and traces
+
+        Returns:
+            Dict with deletion results
+        """
+        result = {"job": False, "results": False, "traces": False}
+
+        doc_ref = self.db.collection(self.jobs_collection).document(job_id)
+        doc = doc_ref.get()
+
+        if not doc.exists:
+            return result
+
+        # Delete job document
+        doc_ref.delete()
+        result["job"] = True
+
+        if cascade:
+            # Delete results document
+            results_ref = self.db.collection(self.results_collection).document(job_id)
+            if results_ref.get().exists:
+                results_ref.delete()
+                result["results"] = True
+
+            # Delete traces subcollection
+            traces_deleted = self._delete_traces_collection(job_id)
+            result["traces"] = traces_deleted > 0
+
+        logger.info("job_deleted", job_id=job_id, cascade=cascade, result=result)
+        return result
+
+    def _delete_traces_collection(self, job_id: str, batch_size: int = 100) -> int:
+        """Delete all traces for a job.
+
+        Args:
+            job_id: Job ID
+            batch_size: Number of docs to delete per batch
+
+        Returns:
+            Number of traces deleted
+        """
+        total_deleted = 0
+        collection_ref = (
+            self.db.collection(self.traces_collection)
+            .document(job_id)
+            .collection("traces")
+        )
+
+        while True:
+            docs = list(collection_ref.limit(batch_size).stream())
+            if not docs:
+                break
+
+            for doc in docs:
+                doc.reference.delete()
+                total_deleted += 1
+
+        return total_deleted
 
     async def save_results(self, state: AnalysisState) -> None:
         """Save analysis results.
