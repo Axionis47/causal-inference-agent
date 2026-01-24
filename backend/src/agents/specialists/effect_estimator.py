@@ -20,6 +20,7 @@ from scipy import stats
 from src.agents.base import (
     AnalysisState,
     BaseAgent,
+    CausalPair,
     JobStatus,
     TreatmentEffectResult,
 )
@@ -465,6 +466,18 @@ IMPORTANT:
                 return state
 
             self.logger.info("causal_pairs_identified", count=len(pairs))
+
+            # Store analyzed pairs in state for downstream agents
+            state.analyzed_pairs = [
+                CausalPair(treatment=t, outcome=o, rationale=r, priority=i + 1)
+                for i, (t, o, r) in enumerate(pairs)
+            ]
+
+            # Backfill state variables from primary pair for backward compatibility
+            # This ensures downstream agents that use state.treatment_variable work correctly
+            if pairs and not state.treatment_variable:
+                state.treatment_variable = pairs[0][0]
+                state.outcome_variable = pairs[0][1]
 
             # Analyze each valid pair
             for treatment, outcome, rationale in pairs:

@@ -218,6 +218,25 @@ If specification curve shows instability, investigate further."""
         self._df: pd.DataFrame | None = None
         self._state: AnalysisState | None = None
         self._results: list[SensitivityResult] = []
+        self._treatment_var: str | None = None
+        self._outcome_var: str | None = None
+
+    def _resolve_treatment_outcome(self) -> tuple[str | None, str | None]:
+        """Get treatment and outcome variables using state helper.
+
+        Returns:
+            Tuple of (treatment_var, outcome_var)
+        """
+        if self._treatment_var and self._outcome_var:
+            return self._treatment_var, self._outcome_var
+
+        if self._state:
+            t, o = self._state.get_primary_pair()
+            self._treatment_var = t
+            self._outcome_var = o
+            return t, o
+
+        return None, None
 
     async def execute(self, state: AnalysisState) -> AnalysisState:
         """Execute sensitivity analysis using agentic loop.
@@ -290,16 +309,25 @@ If specification curve shows instability, investigate further."""
 
     def _build_initial_prompt(self) -> str:
         """Build the initial prompt for the agentic loop."""
+        # Get primary pair using helper method (robust to None values)
+        treatment_var, outcome_var = self._state.get_primary_pair()
+
+        # Get effects for the primary pair
+        if treatment_var and outcome_var:
+            effects = self._state.get_effects_for_pair(treatment_var, outcome_var)
+        else:
+            effects = self._state.treatment_effects
+
         effects_summary = ""
-        for i, effect in enumerate(self._state.treatment_effects):
+        for i, effect in enumerate(effects):
             effects_summary += f"{i}. {effect.method}: {effect.estimand} = {effect.estimate:.4f} (SE: {effect.std_error:.4f}, CI: [{effect.ci_lower:.4f}, {effect.ci_upper:.4f}])\n"
 
         return f"""You need to assess the robustness of these causal effect estimates:
 
 Treatment Effects:
 {effects_summary}
-Treatment variable: {self._state.treatment_variable}
-Outcome variable: {self._state.outcome_variable}
+Treatment variable: {treatment_var or 'Unknown'}
+Outcome variable: {outcome_var or 'Unknown'}
 Sample size: {self._state.data_profile.n_samples if self._state.data_profile else 'Unknown'}
 
 Start by reviewing the estimates, then systematically run sensitivity analyses.
@@ -411,7 +439,7 @@ Begin with E-value (most fundamental), then decide what else is needed based on 
         e_value_result = next((r for r in self._results if "e-value" in r.method.lower()), None)
         robustness = "moderate"
 
-        if e_value_result:
+        if e_value_result and e_value_result.robustness_value is not None:
             if e_value_result.robustness_value >= 2.5:
                 robustness = "high"
             elif e_value_result.robustness_value >= 1.5:
@@ -603,8 +631,10 @@ What Gamma means:
         from sklearn.linear_model import LinearRegression
 
         df = self._df
-        T_col = self._state.treatment_variable
-        Y_col = self._state.outcome_variable
+        T_col, Y_col = self._resolve_treatment_outcome()
+
+        if not T_col or not Y_col:
+            return "Treatment or outcome variable not identified."
 
         if T_col not in df.columns or Y_col not in df.columns:
             return "Treatment or outcome variable not in dataset."
@@ -717,8 +747,10 @@ Interpretation: {interpretation}
         from sklearn.linear_model import LinearRegression
 
         df = self._df
-        T_col = self._state.treatment_variable
-        Y_col = self._state.outcome_variable
+        T_col, Y_col = self._resolve_treatment_outcome()
+
+        if not T_col or not Y_col:
+            return "Treatment or outcome variable not identified."
 
         T = df[T_col].dropna().values
         Y = df[Y_col].dropna().values
@@ -808,8 +840,10 @@ Interpretation: {interpretation}
         subgroup_var = args.get("subgroup_variable")
 
         df = self._df
-        T_col = self._state.treatment_variable
-        Y_col = self._state.outcome_variable
+        T_col, Y_col = self._resolve_treatment_outcome()
+
+        if not T_col or not Y_col:
+            return "Treatment or outcome variable not identified."
 
         # Find subgroup variable
         if not subgroup_var:
@@ -900,8 +934,10 @@ Interpretation: {interpretation}
         from sklearn.linear_model import LinearRegression
 
         df = self._df
-        T_col = self._state.treatment_variable
-        Y_col = self._state.outcome_variable
+        T_col, Y_col = self._resolve_treatment_outcome()
+
+        if not T_col or not Y_col:
+            return "Treatment or outcome variable not identified."
 
         T = df[T_col].values
         Y = df[Y_col].values

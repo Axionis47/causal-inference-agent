@@ -211,6 +211,25 @@ Use the investigation tools to gather evidence, then call finalize_critique."""
         self._df: pd.DataFrame | None = None
         self._state: AnalysisState | None = None
         self._investigation_evidence: list[str] = []
+        self._treatment_var: str | None = None
+        self._outcome_var: str | None = None
+
+    def _resolve_treatment_outcome(self) -> tuple[str | None, str | None]:
+        """Get treatment and outcome variables using state helper.
+
+        Returns:
+            Tuple of (treatment_var, outcome_var)
+        """
+        if self._treatment_var and self._outcome_var:
+            return self._treatment_var, self._outcome_var
+
+        if self._state:
+            t, o = self._state.get_primary_pair()
+            self._treatment_var = t
+            self._outcome_var = o
+            return t, o
+
+        return None, None
 
     async def execute(self, state: AnalysisState) -> AnalysisState:
         """Execute critique through investigation and debate.
@@ -294,13 +313,16 @@ Use the investigation tools to gather evidence, then call finalize_critique."""
         """Build the initial prompt for investigation."""
         state = self._state
 
+        # Get primary pair using helper method (robust to None values)
+        treatment_var, outcome_var = self._resolve_treatment_outcome()
+
         n_methods = len(state.treatment_effects)
         n_sens = len(state.sensitivity_results) if state.sensitivity_results else 0
 
         return f"""You are critically reviewing a causal inference analysis.
 
-Treatment: {state.treatment_variable}
-Outcome: {state.outcome_variable}
+Treatment: {treatment_var or 'Unknown'}
+Outcome: {outcome_var or 'Unknown'}
 Methods used: {n_methods}
 Sensitivity analyses: {n_sens}
 
@@ -431,6 +453,8 @@ After gathering evidence, call finalize_critique with your assessment."""
     def _tool_get_analysis_summary(self) -> str:
         """Get overview of the analysis."""
         state = self._state
+        treatment_var, outcome_var = self._resolve_treatment_outcome()
+
         output = "Analysis Summary:\n"
         output += "=" * 50 + "\n"
 
@@ -439,8 +463,8 @@ After gathering evidence, call finalize_critique with your assessment."""
             output += "\nDataset:\n"
             output += f"  Samples: {state.data_profile.n_samples}\n"
             output += f"  Features: {state.data_profile.n_features}\n"
-            output += f"  Treatment: {state.treatment_variable}\n"
-            output += f"  Outcome: {state.outcome_variable}\n"
+            output += f"  Treatment: {treatment_var or 'Unknown'}\n"
+            output += f"  Outcome: {outcome_var or 'Unknown'}\n"
 
         # Causal graph
         if state.proposed_dag:
@@ -478,7 +502,10 @@ After gathering evidence, call finalize_critique with your assessment."""
 
         state = self._state
         df = self._df
-        treatment_col = state.treatment_variable
+        treatment_col, outcome_col = self._resolve_treatment_outcome()
+
+        if not treatment_col:
+            return "Treatment variable not identified."
 
         if treatment_col not in df.columns:
             return f"Treatment variable '{treatment_col}' not found."
@@ -497,7 +524,7 @@ After gathering evidence, call finalize_critique with your assessment."""
                 covariates = state.data_profile.potential_confounders[:10]
             else:
                 covariates = df.select_dtypes(include=[np.number]).columns.tolist()
-                covariates = [c for c in covariates if c not in [treatment_col, state.outcome_variable]][:10]
+                covariates = [c for c in covariates if c not in [treatment_col, outcome_col]][:10]
 
         output = "Covariate Balance Check:\n"
         output += "=" * 50 + "\n"
@@ -601,10 +628,11 @@ After gathering evidence, call finalize_critique with your assessment."""
         if self._df is None:
             return "No data available for subgroup analysis."
 
-        state = self._state
         df = self._df
-        treatment_col = state.treatment_variable
-        outcome_col = state.outcome_variable
+        treatment_col, outcome_col = self._resolve_treatment_outcome()
+
+        if not treatment_col or not outcome_col:
+            return "Treatment or outcome variable not identified."
 
         if treatment_col not in df.columns or outcome_col not in df.columns:
             return "Treatment or outcome variable not found."
@@ -667,8 +695,10 @@ After gathering evidence, call finalize_critique with your assessment."""
 
         state = self._state
         df = self._df
-        treatment_col = state.treatment_variable
-        outcome_col = state.outcome_variable
+        treatment_col, outcome_col = self._resolve_treatment_outcome()
+
+        if not treatment_col or not outcome_col:
+            return "Treatment or outcome variable not identified."
 
         if treatment_col not in df.columns or outcome_col not in df.columns:
             return "Treatment or outcome variable not found."

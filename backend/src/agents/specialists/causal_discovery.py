@@ -204,6 +204,25 @@ WORKFLOW:
         self._state: AnalysisState | None = None
         self._discovered_graphs: dict[str, CausalDAG] = {}
         self._current_graph: CausalDAG | None = None
+        self._treatment_var: str | None = None
+        self._outcome_var: str | None = None
+
+    def _resolve_treatment_outcome(self) -> tuple[str | None, str | None]:
+        """Get treatment and outcome variables using state helper.
+
+        Returns:
+            Tuple of (treatment_var, outcome_var)
+        """
+        if self._treatment_var and self._outcome_var:
+            return self._treatment_var, self._outcome_var
+
+        if self._state:
+            t, o = self._state.get_primary_pair()
+            self._treatment_var = t
+            self._outcome_var = o
+            return t, o
+
+        return None, None
 
     async def execute(self, state: AnalysisState) -> AnalysisState:
         """Execute causal discovery through iterative LLM-driven investigation.
@@ -231,6 +250,9 @@ WORKFLOW:
             self._state = state
             self._discovered_graphs = {}
             self._current_graph = None
+
+            # Resolve treatment/outcome using helper (falls back to analyzed_pairs)
+            self._treatment_var, self._outcome_var = self._resolve_treatment_outcome()
 
             # Build the initial prompt
             initial_prompt = self._build_initial_prompt()
@@ -287,8 +309,8 @@ WORKFLOW:
 
     def _build_initial_prompt(self) -> str:
         """Build the initial prompt for the agentic loop."""
-        treatment = self._state.treatment_variable or "unknown"
-        outcome = self._state.outcome_variable or "unknown"
+        treatment = self._treatment_var or "unknown"
+        outcome = self._outcome_var or "unknown"
 
         return f"""You are discovering the causal structure for a causal inference analysis.
 
@@ -450,8 +472,8 @@ Dataset:
 
 Variables: {', '.join(relevant_cols)}
 
-Treatment: {self._state.treatment_variable}
-Outcome: {self._state.outcome_variable}
+Treatment: {self._treatment_var or 'Not specified'}
+Outcome: {self._outcome_var or 'Not specified'}
 
 Distributions (Skewness):"""
 
@@ -555,12 +577,12 @@ Distributions (Skewness):"""
                 output += f"Undirected edges: {len(undirected)}\n"
 
                 # Check treatment-outcome path
-                if self._state.treatment_variable and self._state.outcome_variable:
-                    has_path = self._check_path(dag, self._state.treatment_variable, self._state.outcome_variable)
+                if self._treatment_var and self._outcome_var:
+                    has_path = self._check_path(dag, self._treatment_var, self._outcome_var)
                     if has_path:
-                        output += f"\nDirect edge exists: {self._state.treatment_variable} → {self._state.outcome_variable}"
+                        output += f"\nDirect edge exists: {self._treatment_var} → {self._outcome_var}"
                     else:
-                        output += f"\nNo direct edge: {self._state.treatment_variable} → {self._state.outcome_variable}"
+                        output += f"\nNo direct edge: {self._treatment_var} → {self._outcome_var}"
 
                 output += "\n\nCall inspect_graph for detailed structure."
 
@@ -593,8 +615,8 @@ Distributions (Skewness):"""
             result = discovery.discover(
                 df=df,
                 variables=nodes,
-                treatment=self._state.treatment_variable,
-                outcome=self._state.outcome_variable,
+                treatment=self._treatment_var,
+                outcome=self._outcome_var,
             )
 
             edges = [
@@ -611,8 +633,8 @@ Distributions (Skewness):"""
                 nodes=result.nodes,
                 edges=edges,
                 discovery_method=f"{algorithm.upper()} (engine)",
-                treatment_variable=self._state.treatment_variable,
-                outcome_variable=self._state.outcome_variable,
+                treatment_variable=self._treatment_var,
+                outcome_variable=self._outcome_var,
             )
 
         except Exception as e:
@@ -686,8 +708,8 @@ Distributions (Skewness):"""
                 nodes=nodes,
                 edges=edges,
                 discovery_method=f"{algorithm.upper()} (legacy)",
-                treatment_variable=self._state.treatment_variable,
-                outcome_variable=self._state.outcome_variable,
+                treatment_variable=self._treatment_var,
+                outcome_variable=self._outcome_var,
             )
 
         except ImportError as e:
@@ -727,8 +749,8 @@ Distributions (Skewness):"""
                 output += f"  {e.source} -- {e.target}\n"
 
         # Treatment and outcome analysis
-        treatment = self._state.treatment_variable
-        outcome = self._state.outcome_variable
+        treatment = self._treatment_var
+        outcome = self._outcome_var
 
         if treatment:
             output += f"\nTreatment ({treatment}) connections:\n"
@@ -768,8 +790,8 @@ Distributions (Skewness):"""
         issues = []
         warnings = []
 
-        treatment = self._state.treatment_variable
-        outcome = self._state.outcome_variable
+        treatment = self._treatment_var
+        outcome = self._outcome_var
 
         # Check 1: Treatment and outcome in graph
         if treatment and treatment not in dag.nodes:
@@ -869,8 +891,8 @@ Distributions (Skewness):"""
             output += f"  Nodes: {len(dag.nodes)}, Directed: {directed}, Undirected: {undirected}\n"
 
             # Treatment-outcome edge
-            treatment = self._state.treatment_variable
-            outcome = self._state.outcome_variable
+            treatment = self._treatment_var
+            outcome = self._outcome_var
             if treatment and outcome:
                 has_edge = any(e.source == treatment and e.target == outcome for e in dag.edges)
                 output += f"  {treatment} → {outcome}: {'YES' if has_edge else 'NO'}\n"
@@ -906,8 +928,8 @@ Distributions (Skewness):"""
         nodes = []
         edges = []
 
-        treatment = self._state.treatment_variable
-        outcome = self._state.outcome_variable
+        treatment = self._treatment_var
+        outcome = self._outcome_var
         profile = self._state.data_profile
 
         if treatment:
@@ -966,8 +988,8 @@ Distributions (Skewness):"""
         confounders = []
         if chosen_alg and chosen_alg in self._discovered_graphs:
             dag = self._discovered_graphs[chosen_alg]
-            treatment = self._state.treatment_variable
-            outcome = self._state.outcome_variable
+            treatment = self._treatment_var
+            outcome = self._outcome_var
 
             if treatment and outcome:
                 t_parents = set(e.source for e in dag.edges

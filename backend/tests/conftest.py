@@ -5,16 +5,17 @@ import sys
 from pathlib import Path
 
 import pytest
+from dotenv import load_dotenv
 
 # Add src to path for imports
 backend_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(backend_dir))
 
-# Set test environment
-os.environ["ENVIRONMENT"] = "development"
-os.environ["GEMINI_API_KEY"] = os.environ.get("GEMINI_API_KEY", "test-key")
-os.environ["KAGGLE_KEY"] = os.environ.get("KAGGLE_KEY", "test-key")
-os.environ["CLAUDE_API_KEY"] = os.environ.get("CLAUDE_API_KEY", "test-key")
+# Load .env file from backend directory
+load_dotenv(backend_dir / ".env")
+
+# Set test environment (don't override if already set from .env)
+os.environ.setdefault("ENVIRONMENT", "development")
 
 
 @pytest.fixture

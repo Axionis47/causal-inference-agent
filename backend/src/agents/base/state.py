@@ -55,6 +55,15 @@ class DataProfile(BaseModel):
     discontinuity_candidates: list[str] = Field(default_factory=list)
 
 
+class CausalPair(BaseModel):
+    """A treatment-outcome pair that was analyzed."""
+
+    treatment: str
+    outcome: str
+    rationale: str = ""
+    priority: int = 1  # 1 = primary, 2 = secondary, 3 = exploratory
+
+
 class CausalEdge(BaseModel):
     """An edge in a causal graph."""
 
@@ -192,6 +201,7 @@ class AnalysisState(BaseModel):
 
     # Populated by Effect Estimator
     treatment_effects: list[TreatmentEffectResult] = Field(default_factory=list)
+    analyzed_pairs: list[CausalPair] = Field(default_factory=list)  # Pairs that were analyzed
 
     # Populated by Sensitivity Analyst
     sensitivity_results: list[SensitivityResult] = Field(default_factory=list)
@@ -269,3 +279,65 @@ class AnalysisState(BaseModel):
         self.status = JobStatus.COMPLETED
         self.completed_at = datetime.utcnow()
         self.updated_at = datetime.utcnow()
+
+    def get_primary_pair(self) -> tuple[str | None, str | None]:
+        """Get the primary treatment-outcome pair for analysis.
+
+        Priority order:
+        1. User-specified variables (treatment_variable, outcome_variable)
+        2. First analyzed pair (from effect estimation)
+        3. First treatment effect's variables
+        4. None, None
+
+        Returns:
+            Tuple of (treatment_variable, outcome_variable)
+        """
+        # Priority 1: User specified
+        if self.treatment_variable and self.outcome_variable:
+            return self.treatment_variable, self.outcome_variable
+
+        # Priority 2: First analyzed pair
+        if self.analyzed_pairs:
+            pair = self.analyzed_pairs[0]
+            return pair.treatment, pair.outcome
+
+        # Priority 3: From treatment effects
+        if self.treatment_effects:
+            effect = self.treatment_effects[0]
+            if effect.treatment_variable and effect.outcome_variable:
+                return effect.treatment_variable, effect.outcome_variable
+
+        return None, None
+
+    def get_effects_for_pair(
+        self, treatment: str, outcome: str
+    ) -> list[TreatmentEffectResult]:
+        """Get treatment effects for a specific pair.
+
+        Args:
+            treatment: Treatment variable name
+            outcome: Outcome variable name
+
+        Returns:
+            List of effects for this pair
+        """
+        return [
+            e for e in self.treatment_effects
+            if e.treatment_variable == treatment and e.outcome_variable == outcome
+        ]
+
+    def get_all_pairs(self) -> list[tuple[str, str]]:
+        """Get all unique treatment-outcome pairs that were analyzed.
+
+        Returns:
+            List of (treatment, outcome) tuples
+        """
+        if self.analyzed_pairs:
+            return [(p.treatment, p.outcome) for p in self.analyzed_pairs]
+
+        # Fallback: extract from effects
+        pairs = set()
+        for e in self.treatment_effects:
+            if e.treatment_variable and e.outcome_variable:
+                pairs.add((e.treatment_variable, e.outcome_variable))
+        return list(pairs)

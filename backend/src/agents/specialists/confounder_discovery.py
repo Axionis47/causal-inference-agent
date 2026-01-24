@@ -131,9 +131,27 @@ Call tools to gather evidence, don't just guess."""
     def __init__(self):
         super().__init__()
         self._df: pd.DataFrame | None = None
+        self._state: AnalysisState | None = None
         self._treatment_var: str | None = None
         self._outcome_var: str | None = None
         self._investigation_log: list[dict] = []
+
+    def _resolve_treatment_outcome(self) -> tuple[str | None, str | None]:
+        """Get treatment and outcome variables using state helper.
+
+        Returns:
+            Tuple of (treatment_var, outcome_var)
+        """
+        if self._treatment_var and self._outcome_var:
+            return self._treatment_var, self._outcome_var
+
+        if self._state:
+            t, o = self._state.get_primary_pair()
+            self._treatment_var = t
+            self._outcome_var = o
+            return t, o
+
+        return None, None
 
     async def execute(self, state: AnalysisState) -> AnalysisState:
         """Execute confounder discovery through iterative tool-based reasoning."""
@@ -147,8 +165,11 @@ Call tools to gather evidence, don't just guess."""
                 self.logger.warning("no_dataframe_for_confounder_discovery")
                 return state
 
-            self._treatment_var = state.treatment_variable
-            self._outcome_var = state.outcome_variable
+            # Store state reference for helper methods
+            self._state = state
+
+            # Use helper to resolve treatment/outcome (falls back to analyzed_pairs)
+            self._treatment_var, self._outcome_var = self._resolve_treatment_outcome()
 
             if not self._treatment_var or not self._outcome_var:
                 self.logger.warning("no_treatment_or_outcome_specified")

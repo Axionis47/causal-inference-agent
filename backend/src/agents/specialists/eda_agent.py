@@ -236,6 +236,8 @@ Each tool call should have a clear purpose related to assessing causal analysis 
         self._df: pd.DataFrame | None = None
         self._state: AnalysisState | None = None
         self._eda_result: EDAResult | None = None
+        self._treatment_var: str | None = None
+        self._outcome_var: str | None = None
         # Track what we've analyzed for the finalize step
         self._analyzed_distributions: dict[str, dict] = {}
         self._outlier_results: dict[str, dict] = {}
@@ -243,6 +245,23 @@ Each tool call should have a clear purpose related to assessing causal analysis 
         self._vif_results: dict[str, float] = {}
         self._balance_results: dict[str, dict] = {}
         self._missing_analysis: dict | None = None
+
+    def _resolve_treatment_outcome(self) -> tuple[str | None, str | None]:
+        """Get treatment and outcome variables using state helper.
+
+        Returns:
+            Tuple of (treatment_var, outcome_var)
+        """
+        if self._treatment_var and self._outcome_var:
+            return self._treatment_var, self._outcome_var
+
+        if self._state:
+            t, o = self._state.get_primary_pair()
+            self._treatment_var = t
+            self._outcome_var = o
+            return t, o
+
+        return None, None
 
     async def execute(self, state: AnalysisState) -> AnalysisState:
         """Execute EDA through iterative LLM-driven investigation.
@@ -271,6 +290,9 @@ Each tool call should have a clear purpose related to assessing causal analysis 
 
             self._state = state
             self._eda_result = EDAResult()
+
+            # Resolve treatment/outcome using helper (falls back to analyzed_pairs)
+            self._treatment_var, self._outcome_var = self._resolve_treatment_outcome()
 
             # Reset tracking
             self._analyzed_distributions = {}
@@ -332,8 +354,8 @@ Each tool call should have a clear purpose related to assessing causal analysis 
         return f"""You are performing exploratory data analysis for a causal inference study.
 
 Dataset: {self._state.dataset_info.name or self._state.dataset_info.url}
-Treatment variable: {self._state.treatment_variable}
-Outcome variable: {self._state.outcome_variable}
+Treatment variable: {self._treatment_var}
+Outcome variable: {self._outcome_var}
 
 Your goal is to assess data quality and readiness for causal inference.
 
@@ -499,14 +521,14 @@ call finalize_eda with your comprehensive assessment."""
         total_missing_pct = df.isnull().sum().sum() / (n_rows * n_cols) * 100
 
         # Treatment info
-        treatment_col = self._state.treatment_variable
+        treatment_col = self._treatment_var
         treatment_info = "Not specified"
         if treatment_col and treatment_col in df.columns:
             t_vals = df[treatment_col].value_counts()
             treatment_info = f"Values: {dict(t_vals)}, Missing: {df[treatment_col].isnull().sum()}"
 
         # Outcome info
-        outcome_col = self._state.outcome_variable
+        outcome_col = self._outcome_var
         outcome_info = "Not specified"
         if outcome_col and outcome_col in df.columns:
             outcome_info = (
@@ -651,8 +673,8 @@ Potential Confounders: {len(confounders)}
         if not variables:
             variables = df.select_dtypes(include=[np.number]).columns.tolist()
             # Exclude treatment/outcome for focused analysis
-            if self._state.treatment_variable in variables:
-                variables.remove(self._state.treatment_variable)
+            if self._treatment_var in variables:
+                variables.remove(self._treatment_var)
 
         results = []
         for var in variables:
@@ -795,7 +817,7 @@ Potential Confounders: {len(confounders)}
         if not covariates:
             covariates = df.select_dtypes(include=[np.number]).columns.tolist()
             # Remove treatment and outcome
-            for var in [self._state.treatment_variable, self._state.outcome_variable]:
+            for var in [self._treatment_var, self._outcome_var]:
                 if var in covariates:
                     covariates.remove(var)
 
@@ -867,7 +889,7 @@ Potential Confounders: {len(confounders)}
     def _tool_check_covariate_balance(self, covariates: list[str]) -> str:
         """Check covariate balance between treatment groups."""
         df = self._df
-        treatment_col = self._state.treatment_variable
+        treatment_col = self._treatment_var
 
         if not treatment_col or treatment_col not in df.columns:
             return "Treatment variable not specified or not found"
@@ -887,7 +909,7 @@ Potential Confounders: {len(confounders)}
                 covariates = self._state.data_profile.potential_confounders
             else:
                 covariates = df.select_dtypes(include=[np.number]).columns.tolist()
-                for var in [treatment_col, self._state.outcome_variable]:
+                for var in [treatment_col, self._outcome_var]:
                     if var in covariates:
                         covariates.remove(var)
 
@@ -998,7 +1020,7 @@ Potential Confounders: {len(confounders)}
         col_analysis.sort(key=lambda x: x["missing"], reverse=True)
 
         # Check if missing is related to treatment
-        treatment_col = self._state.treatment_variable
+        treatment_col = self._treatment_var
         missing_by_treatment = {}
         if treatment_col and treatment_col in df.columns:
             for col in cols_with_missing.index[:10]:
