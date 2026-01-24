@@ -320,7 +320,7 @@ class JobManager:
                     asyncio.shield(task),
                     timeout=graceful_timeout,
                 )
-            except (asyncio.CancelledError, asyncio.TimeoutError):
+            except (asyncio.CancelledError, TimeoutError):
                 pass  # Expected
 
             # Remove from running jobs
