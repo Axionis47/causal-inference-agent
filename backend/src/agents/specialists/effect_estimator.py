@@ -1877,13 +1877,13 @@ RECOMMENDED ESTIMATE:
             reliability = "low"
         elif min_arm < 300:
             # Moderate sample: Regularized GBM
-            gbm_params = dict(
-                n_estimators=30,
-                max_depth=3,
-                min_samples_leaf=max(10, min_arm // 20),
-                learning_rate=0.1,
-                random_state=42,
-            )
+            gbm_params = {
+                "n_estimators": 30,
+                "max_depth": 3,
+                "min_samples_leaf": max(10, min_arm // 20),
+                "learning_rate": 0.1,
+                "random_state": 42,
+            }
             model_t = GradientBoostingRegressor(**gbm_params)
             model_c = GradientBoostingRegressor(**gbm_params)
             tau1_model = GradientBoostingRegressor(**gbm_params)

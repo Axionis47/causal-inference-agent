@@ -58,6 +58,7 @@ export interface CausalGraph {
   nodes: string[];
   edges: { source: string; target: string; type: string }[];
   discovery_method: string;
+  interpretation?: string;
 }
 
 export interface SensitivityResult {
