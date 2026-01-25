@@ -22,7 +22,7 @@ from src.agents import (
 )
 from src.logging_config.structured import get_logger
 from src.storage.cleanup import cleanup_local_artifacts
-from src.storage.firestore import get_firestore_client
+from src.storage.firestore import get_storage_client
 
 logger = get_logger(__name__)
 
@@ -41,7 +41,7 @@ class JobManager:
                 - "standard": Original orchestrator with fixed workflow
                 - "react": Fully autonomous ReAct orchestrator (experimental)
         """
-        self.firestore = get_firestore_client()
+        self.firestore = get_storage_client()
         self._running_jobs: dict[str, asyncio.Task] = {}
         self._orchestrator_mode = orchestrator_mode
 
@@ -417,18 +417,22 @@ class JobManager:
         return await self.firestore.get_traces(job_id)
 
     def _calculate_progress(self, status: str) -> int:
-        """Calculate progress percentage from status."""
+        """Calculate progress percentage from status.
+
+        Progress is distributed more evenly across stages (~10-12% each)
+        to provide smoother visual feedback during analysis.
+        """
         progress_map = {
             "pending": 0,
-            "fetching_data": 10,
-            "profiling": 15,
-            "exploratory_analysis": 25,
-            "discovering_causal": 35,
-            "estimating_effects": 50,
-            "sensitivity_analysis": 70,
-            "critique_review": 80,
-            "iterating": 85,
-            "generating_notebook": 90,
+            "fetching_data": 8,
+            "profiling": 20,
+            "exploratory_analysis": 32,
+            "discovering_causal": 44,
+            "estimating_effects": 56,
+            "sensitivity_analysis": 68,
+            "critique_review": 78,
+            "iterating": 84,
+            "generating_notebook": 92,
             "completed": 100,
             "failed": 0,
             "cancelling": 0,

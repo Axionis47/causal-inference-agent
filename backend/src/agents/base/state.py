@@ -83,6 +83,7 @@ class CausalDAG(BaseModel):
     discovery_method: str
     treatment_variable: str | None = None
     outcome_variable: str | None = None
+    interpretation: str = ""  # LLM-generated interpretation of the graph
 
 
 class TreatmentEffectResult(BaseModel):

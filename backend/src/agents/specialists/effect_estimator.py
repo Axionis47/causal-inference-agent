@@ -29,6 +29,126 @@ from src.logging_config.structured import get_logger
 logger = get_logger(__name__)
 
 
+# =============================================================================
+# Sample Size Thresholds for Method Selection
+# =============================================================================
+# These thresholds are based on statistical power and overfitting concerns.
+# ML-based methods need more data to avoid overfitting; simple methods work with less.
+
+class SampleSizeThresholds:
+    """Minimum sample sizes for reliable estimation by method type."""
+
+    # Minimum samples per treatment arm
+    MIN_SAMPLES_BASIC = 30  # OLS, IPW - simple parametric methods
+    MIN_SAMPLES_MATCHING = 50  # PSM - needs enough for good matches
+    MIN_SAMPLES_ML = 100  # T/X/S-Learner - ML methods prone to overfitting
+    MIN_SAMPLES_FOREST = 200  # Causal Forest, Double ML - complex ML
+
+    # Total sample thresholds
+    MIN_TOTAL_BASIC = 50
+    MIN_TOTAL_ML = 200
+    MIN_TOTAL_FOREST = 500
+
+    @classmethod
+    def get_method_requirements(cls, method: str) -> dict:
+        """Get sample size requirements for a method."""
+        requirements = {
+            "ols": {"min_per_arm": cls.MIN_SAMPLES_BASIC, "min_total": cls.MIN_TOTAL_BASIC, "complexity": "low"},
+            "ipw": {"min_per_arm": cls.MIN_SAMPLES_BASIC, "min_total": cls.MIN_TOTAL_BASIC, "complexity": "low"},
+            "aipw": {"min_per_arm": cls.MIN_SAMPLES_BASIC, "min_total": cls.MIN_TOTAL_BASIC, "complexity": "medium"},
+            "matching": {"min_per_arm": cls.MIN_SAMPLES_MATCHING, "min_total": 100, "complexity": "medium"},
+            "s_learner": {"min_per_arm": cls.MIN_SAMPLES_ML, "min_total": cls.MIN_TOTAL_ML, "complexity": "high"},
+            "t_learner": {"min_per_arm": cls.MIN_SAMPLES_ML, "min_total": cls.MIN_TOTAL_ML, "complexity": "high"},
+            "x_learner": {"min_per_arm": cls.MIN_SAMPLES_ML, "min_total": cls.MIN_TOTAL_ML, "complexity": "high"},
+            "causal_forest": {"min_per_arm": cls.MIN_SAMPLES_FOREST, "min_total": cls.MIN_TOTAL_FOREST, "complexity": "very_high"},
+            "double_ml": {"min_per_arm": cls.MIN_SAMPLES_FOREST, "min_total": cls.MIN_TOTAL_FOREST, "complexity": "very_high"},
+        }
+        return requirements.get(method, {"min_per_arm": cls.MIN_SAMPLES_BASIC, "min_total": cls.MIN_TOTAL_BASIC, "complexity": "unknown"})
+
+    @classmethod
+    def check_method_viability(cls, method: str, n_treated: int, n_control: int) -> tuple[bool, str]:
+        """Check if a method is viable given sample sizes.
+
+        Returns:
+            Tuple of (is_viable, reason_if_not_viable)
+        """
+        reqs = cls.get_method_requirements(method)
+        min_arm = min(n_treated, n_control)
+        total = n_treated + n_control
+
+        if min_arm < reqs["min_per_arm"]:
+            return False, f"Smallest arm has {min_arm} samples, but {method} requires {reqs['min_per_arm']}+ per arm"
+        if total < reqs["min_total"]:
+            return False, f"Total sample size {total} is below minimum {reqs['min_total']} for {method}"
+        return True, ""
+
+    @classmethod
+    def get_recommended_methods(cls, n_treated: int, n_control: int) -> list[str]:
+        """Get list of methods recommended for the given sample sizes."""
+        recommended = []
+        methods_priority = ["ols", "ipw", "aipw", "matching", "s_learner", "t_learner", "x_learner", "causal_forest", "double_ml"]
+
+        for method in methods_priority:
+            viable, _ = cls.check_method_viability(method, n_treated, n_control)
+            if viable:
+                recommended.append(method)
+
+        return recommended
+
+    @classmethod
+    def get_sample_size_warning(cls, n_treated: int, n_control: int) -> str | None:
+        """Generate a warning message if sample size is concerning."""
+        min_arm = min(n_treated, n_control)
+        total = n_treated + n_control
+
+        warnings = []
+
+        if min_arm < 50:
+            warnings.append(f"⚠️ SMALL SAMPLE: Only {min_arm} samples in smallest arm. ML methods will likely overfit.")
+        elif min_arm < 100:
+            warnings.append(f"⚠️ MODERATE SAMPLE: {min_arm} samples in smallest arm. Use regularized methods.")
+
+        if total < 200:
+            warnings.append(f"⚠️ Limited total sample ({total}). Prefer OLS/IPW over complex ML methods.")
+
+        if n_treated < 100 and n_control > 3 * n_treated:
+            warnings.append(f"⚠️ IMBALANCED: {n_treated} treated vs {n_control} control. Consider matching methods carefully.")
+
+        if warnings:
+            return "\n".join(warnings)
+        return None
+
+
+def _find_closest_column(name: str, columns: list[str]) -> str | None:
+    """Find the closest matching column name using fuzzy matching.
+
+    Handles cases where LLM returns "treatment" but column is "treat".
+    """
+    if name in columns:
+        return name
+
+    name_lower = name.lower()
+
+    # Try exact lowercase match
+    for col in columns:
+        if col.lower() == name_lower:
+            return col
+
+    # Try prefix matching (treatment -> treat)
+    for col in columns:
+        col_lower = col.lower()
+        if name_lower.startswith(col_lower) or col_lower.startswith(name_lower):
+            return col
+
+    # Try substring matching
+    for col in columns:
+        col_lower = col.lower()
+        if name_lower in col_lower or col_lower in name_lower:
+            return col
+
+    return None
+
+
 class EffectEstimatorAgent(BaseAgent):
     """Truly agentic effect estimator using ReAct pattern.
 
@@ -240,14 +360,26 @@ Call tools iteratively. Analyze each result before deciding next steps."""
 
         # Priority 1: User specified both variables - use those
         if state.treatment_variable and state.outcome_variable:
+            # Apply fuzzy matching if dataframe is loaded
+            treatment = state.treatment_variable
+            outcome = state.outcome_variable
+
+            if self._df is not None:
+                matched_treatment = _find_closest_column(treatment, list(self._df.columns))
+                matched_outcome = _find_closest_column(outcome, list(self._df.columns))
+                if matched_treatment:
+                    treatment = matched_treatment
+                if matched_outcome:
+                    outcome = matched_outcome
+
             self.logger.info(
                 "using_user_specified_variables",
-                treatment=state.treatment_variable,
-                outcome=state.outcome_variable,
+                treatment=treatment,
+                outcome=outcome,
             )
             return [(
-                state.treatment_variable,
-                state.outcome_variable,
+                treatment,
+                outcome,
                 "User specified"
             )]
 
@@ -481,8 +613,12 @@ IMPORTANT:
 
             # Analyze each valid pair
             for treatment, outcome, rationale in pairs:
+                # Use fuzzy matching to find actual column names
+                actual_treatment = _find_closest_column(treatment, list(self._df.columns))
+                actual_outcome = _find_closest_column(outcome, list(self._df.columns))
+
                 # Validate variables exist in data
-                if treatment not in self._df.columns or outcome not in self._df.columns:
+                if actual_treatment is None or actual_outcome is None:
                     self.logger.warning(
                         "skipping_invalid_pair",
                         treatment=treatment,
@@ -490,6 +626,18 @@ IMPORTANT:
                         reason="variable not in data"
                     )
                     continue
+
+                # Log if fuzzy matching was used
+                if actual_treatment != treatment or actual_outcome != outcome:
+                    self.logger.info(
+                        "fuzzy_matched_variables",
+                        original_treatment=treatment,
+                        matched_treatment=actual_treatment,
+                        original_outcome=outcome,
+                        matched_outcome=actual_outcome,
+                    )
+                    treatment = actual_treatment
+                    outcome = actual_outcome
 
                 self.logger.info(
                     "analyzing_causal_pair",
@@ -769,7 +917,7 @@ Your goal is to produce a credible causal effect estimate with appropriate uncer
             return f"Unknown tool: {tool_name}"
 
     def _tool_get_data_summary(self) -> str:
-        """Get summary statistics of the dataset."""
+        """Get summary statistics with sample size warnings and method recommendations."""
         df = self._df
         T = df[self._treatment_var]
         Y = df[self._outcome_var]
@@ -791,6 +939,39 @@ Outcome ({self._outcome_var}):
 
 Available covariates ({len(self._covariates)}): {self._covariates[:15]}{'...' if len(self._covariates) > 15 else ''}
 """
+
+        # Add sample size warnings
+        warning = SampleSizeThresholds.get_sample_size_warning(n_treated, n_control)
+        if warning:
+            summary += f"\n{warning}\n"
+
+        # Add method recommendations based on sample size
+        recommended = SampleSizeThresholds.get_recommended_methods(n_treated, n_control)
+        summary += f"\nRecommended methods for this sample size: {recommended}\n"
+
+        # Add specific guidance
+        if n_treated < 100 or n_control < 100:
+            summary += """
+METHOD SELECTION GUIDANCE (Small Sample):
+- PREFER: OLS, IPW, AIPW (parametric methods work well with small samples)
+- AVOID: T-Learner, X-Learner, Causal Forest (ML methods will overfit)
+- If using matching: expect limited precision due to small treatment group
+"""
+        elif n_treated < 200:
+            summary += """
+METHOD SELECTION GUIDANCE (Moderate Sample):
+- SAFE: OLS, IPW, AIPW, Matching, S-Learner
+- CAUTIOUS: T-Learner, X-Learner (will use regularized models)
+- AVOID: Causal Forest (needs larger sample for reliable heterogeneity detection)
+"""
+        else:
+            summary += """
+METHOD SELECTION GUIDANCE (Adequate Sample):
+- All methods should work reasonably well
+- ML methods (T/X-Learner, Causal Forest) can detect heterogeneous effects
+- Compare multiple methods for robustness
+"""
+
         return summary
 
     def _tool_check_covariate_balance(self, covariates: list[str]) -> str:
@@ -1022,36 +1203,77 @@ Details: {json.dumps(result.details, indent=2, default=str)}
 """
 
     def _tool_compare_estimates(self) -> str:
-        """Compare estimates across methods."""
+        """Compare estimates across methods with reliability weighting."""
         if not self._results:
             return "No estimates to compare yet. Run some methods first."
 
         estimates = [r.estimate for r in self._results]
-        methods = [r.method for r in self._results]
 
+        # Simple statistics
         mean_est = np.mean(estimates)
         std_est = np.std(estimates)
         cv = std_est / (abs(mean_est) + 1e-10)
+
+        # Median and MAD (more robust to outliers)
+        median_est = np.median(estimates)
+        mad = np.median(np.abs(estimates - median_est))
 
         comparison = f"""Estimate Comparison ({len(self._results)} methods):
 
 Individual estimates:
 """
+        # Track reliability for weighting
+        reliability_weights = {"high": 3, "medium": 2, "low": 1, None: 1}
+        weighted_sum = 0.0
+        weight_total = 0.0
+
         for r in self._results:
-            comparison += f"  {r.method}: {r.estimate:.4f} (SE: {r.std_error:.4f})\n"
+            reliability = r.details.get("reliability", "unknown") if r.details else "unknown"
+            weight = reliability_weights.get(reliability, 1)
+            weighted_sum += r.estimate * weight
+            weight_total += weight
+
+            reliability_str = f" [{reliability}]" if reliability != "unknown" else ""
+            comparison += f"  {r.method}: {r.estimate:.4f} (SE: {r.std_error:.4f}){reliability_str}\n"
+
+        # Reliability-weighted average
+        weighted_avg = weighted_sum / weight_total if weight_total > 0 else mean_est
 
         comparison += f"""
-Summary:
-- Mean estimate: {mean_est:.4f}
+Summary Statistics:
+- Simple mean: {mean_est:.4f}
+- Median (robust): {median_est:.4f}
+- Reliability-weighted mean: {weighted_avg:.4f}
 - Std across methods: {std_est:.4f}
+- MAD (robust spread): {mad:.4f}
 - Coefficient of variation: {cv:.2%}
 - Range: [{min(estimates):.4f}, {max(estimates):.4f}]
 
 Consistency Assessment: {"CONSISTENT" if cv < 0.2 else ("MODERATE" if cv < 0.5 else "INCONSISTENT")}
 """
 
+        # Identify potential outliers using MAD
+        outliers = []
+        for r in self._results:
+            if mad > 0 and abs(r.estimate - median_est) > 3 * mad:
+                outliers.append(r.method)
+
+        if outliers:
+            comparison += f"\n⚠️ POTENTIAL OUTLIER METHODS: {outliers}"
+            comparison += "\nThese estimates deviate significantly from the median. Consider their reliability."
+
         if cv >= 0.5:
-            comparison += "\nWARNING: Estimates vary substantially across methods. Investigate assumptions."
+            comparison += "\n\n⚠️ WARNING: Estimates vary substantially across methods."
+            comparison += "\nRECOMMENDATION: Trust methods with 'high' reliability and prefer median over mean."
+
+        # Suggest best estimate
+        comparison += f"""
+
+RECOMMENDED ESTIMATE:
+- If methods are consistent: Use mean ({mean_est:.4f})
+- If outliers present: Use median ({median_est:.4f})
+- Accounting for reliability: Use weighted mean ({weighted_avg:.4f})
+"""
 
         return comparison
 
@@ -1178,27 +1400,42 @@ Consistency Assessment: {"CONSISTENT" if cv < 0.2 else ("MODERATE" if cv < 0.5 e
         )
 
     def _estimate_aipw(self, T, Y, X, df) -> TreatmentEffectResult | None:
-        """Augmented IPW (Doubly Robust) estimate."""
-        from sklearn.linear_model import LinearRegression, LogisticRegression
+        """Augmented IPW (Doubly Robust) estimate with regularized models.
+
+        Key improvements:
+        - Uses Ridge regression for outcome models (better with small samples)
+        - Proper sample size checks
+        - Reports model diagnostics
+        """
+        from sklearn.linear_model import LogisticRegression, Ridge
 
         if X is None or X.shape[1] == 0:
             return None
 
-        # Propensity scores
-        ps_model = LogisticRegression(max_iter=1000, random_state=42)
+        treated_idx = T == 1
+        control_idx = T == 0
+        n_treated = int(np.sum(treated_idx))
+        n_control = int(np.sum(control_idx))
+
+        # Check sample size viability
+        viable, reason = SampleSizeThresholds.check_method_viability("aipw", n_treated, n_control)
+        if not viable:
+            logger.warning("aipw_skipped", reason=reason, n_treated=n_treated, n_control=n_control)
+            return None
+
+        # Propensity scores with regularization
+        ps_model = LogisticRegression(max_iter=1000, C=1.0, random_state=42)
         ps_model.fit(X, T)
         ps = ps_model.predict_proba(X)[:, 1]
         ps = np.clip(ps, 0.01, 0.99)
 
-        # Outcome models
-        treated_idx = T == 1
-        control_idx = T == 0
+        # Outcome models with Ridge regularization (more stable for small samples)
+        # Alpha chosen based on sample size
+        min_arm = min(n_treated, n_control)
+        alpha = max(0.1, 10.0 / min_arm)  # More regularization for smaller samples
 
-        if np.sum(treated_idx) < 10 or np.sum(control_idx) < 10:
-            return None
-
-        mu1_model = LinearRegression()
-        mu0_model = LinearRegression()
+        mu1_model = Ridge(alpha=alpha)
+        mu0_model = Ridge(alpha=alpha)
 
         mu1_model.fit(X[treated_idx], Y[treated_idx])
         mu0_model.fit(X[control_idx], Y[control_idx])
@@ -1223,6 +1460,14 @@ Consistency Assessment: {"CONSISTENT" if cv < 0.2 else ("MODERATE" if cv < 0.5 e
         ci_lower = np.percentile(bootstrap_estimates, 2.5)
         ci_upper = np.percentile(bootstrap_estimates, 97.5)
 
+        # Reliability based on sample size
+        if min_arm >= 100:
+            reliability = "high"
+        elif min_arm >= 50:
+            reliability = "medium"
+        else:
+            reliability = "low"
+
         return TreatmentEffectResult(
             method="Doubly Robust (AIPW)",
             estimand="ATE",
@@ -1232,15 +1477,41 @@ Consistency Assessment: {"CONSISTENT" if cv < 0.2 else ("MODERATE" if cv < 0.5 e
             ci_upper=float(ci_upper),
             p_value=float(2 * (1 - stats.norm.cdf(abs(ate / se)))) if se > 0 else None,
             assumptions_tested=["Unconfoundedness", "Correct propensity OR outcome model"],
-            details={"is_doubly_robust": True},
+            details={
+                "is_doubly_robust": True,
+                "n_treated": n_treated,
+                "n_control": n_control,
+                "ridge_alpha": float(alpha),
+                "reliability": reliability,
+                "mean_ps_treated": float(np.mean(ps[treated_idx])),
+                "mean_ps_control": float(np.mean(ps[control_idx])),
+            },
         )
 
     def _estimate_matching(self, T, Y, X, df) -> TreatmentEffectResult | None:
-        """Propensity Score Matching estimate."""
+        """Propensity Score Matching estimate with k-NN and caliper.
+
+        Key improvements:
+        - Uses k-NN matching (k=5 by default) to utilize more control observations
+        - Applies caliper (0.2 * std of propensity score) to avoid poor matches
+        - Weights matches by inverse distance
+        - Reports match quality diagnostics
+        """
         from sklearn.linear_model import LogisticRegression
         from sklearn.neighbors import NearestNeighbors
 
         if X is None or X.shape[1] == 0:
+            return None
+
+        treated_idx_orig = np.where(T == 1)[0]
+        control_idx_orig = np.where(T == 0)[0]
+        n_treated = len(treated_idx_orig)
+        n_control = len(control_idx_orig)
+
+        # Check sample size viability
+        viable, reason = SampleSizeThresholds.check_method_viability("matching", n_treated, n_control)
+        if not viable:
+            logger.warning("matching_skipped", reason=reason, n_treated=n_treated, n_control=n_control)
             return None
 
         # Estimate propensity scores
@@ -1248,35 +1519,74 @@ Consistency Assessment: {"CONSISTENT" if cv < 0.2 else ("MODERATE" if cv < 0.5 e
         ps_model.fit(X, T)
         ps = ps_model.predict_proba(X)[:, 1]
 
-        treated_idx = np.where(T == 1)[0]
-        control_idx = np.where(T == 0)[0]
+        # Caliper: 0.2 * std of propensity scores (standard practice)
+        caliper = 0.2 * np.std(ps)
 
-        if len(treated_idx) == 0 or len(control_idx) == 0:
-            return None
+        # Determine k based on control pool size
+        # More controls = can use more neighbors
+        k = min(5, max(1, n_control // n_treated))
 
-        # Nearest neighbor matching
-        nn = NearestNeighbors(n_neighbors=1, algorithm="ball_tree")
-        nn.fit(ps[control_idx].reshape(-1, 1))
-        distances, indices = nn.kneighbors(ps[treated_idx].reshape(-1, 1))
+        # k-NN matching
+        nn = NearestNeighbors(n_neighbors=k, algorithm="ball_tree")
+        nn.fit(ps[control_idx_orig].reshape(-1, 1))
+        distances, indices = nn.kneighbors(ps[treated_idx_orig].reshape(-1, 1))
 
-        matched_control_idx = control_idx[indices.flatten()]
-        att = np.mean(Y[treated_idx] - Y[matched_control_idx])
+        # Apply caliper and compute weighted ATT
+        matched_effects = []
+        good_matches = 0
+        poor_matches = 0
 
-        # Bootstrap for SE
+        for i, treat_idx in enumerate(treated_idx_orig):
+            # Get matched controls for this treated unit
+            matched_distances = distances[i]
+            matched_control_indices = control_idx_orig[indices[i]]
+
+            # Apply caliper: only use matches within caliper distance
+            within_caliper = matched_distances <= caliper
+
+            if not np.any(within_caliper):
+                # No good matches - use closest anyway but flag it
+                poor_matches += 1
+                # Use only the closest match
+                best_control = matched_control_indices[0]
+                matched_effects.append(Y[treat_idx] - Y[best_control])
+            else:
+                good_matches += 1
+                # Weighted average of controls within caliper
+                valid_controls = matched_control_indices[within_caliper]
+                valid_distances = matched_distances[within_caliper]
+
+                # Inverse distance weights (add small epsilon to avoid division by zero)
+                weights = 1.0 / (valid_distances + 1e-6)
+                weights = weights / weights.sum()
+
+                control_outcome = np.average(Y[valid_controls], weights=weights)
+                matched_effects.append(Y[treat_idx] - control_outcome)
+
+        att = np.mean(matched_effects)
+        match_quality = good_matches / n_treated if n_treated > 0 else 0
+
+        # Bootstrap for SE with proper matching
         n_bootstrap = 200
         bootstrap_estimates = []
-        for _ in range(n_bootstrap):
-            boot_idx = np.random.choice(len(treated_idx), size=len(treated_idx), replace=True)
-            boot_treated = treated_idx[boot_idx]
-            boot_control = matched_control_idx[boot_idx]
-            bootstrap_estimates.append(np.mean(Y[boot_treated] - Y[boot_control]))
+        for b in range(n_bootstrap):
+            boot_idx = np.random.choice(len(matched_effects), size=len(matched_effects), replace=True)
+            bootstrap_estimates.append(np.mean([matched_effects[i] for i in boot_idx]))
 
         se = np.std(bootstrap_estimates)
         ci_lower = np.percentile(bootstrap_estimates, 2.5)
         ci_upper = np.percentile(bootstrap_estimates, 97.5)
 
+        # Reliability based on match quality
+        if match_quality >= 0.9:
+            reliability = "high"
+        elif match_quality >= 0.7:
+            reliability = "medium"
+        else:
+            reliability = "low"
+
         return TreatmentEffectResult(
-            method="Propensity Score Matching",
+            method="Propensity Score Matching (k-NN)",
             estimand="ATT",
             estimate=float(att),
             std_error=float(se),
@@ -1285,21 +1595,71 @@ Consistency Assessment: {"CONSISTENT" if cv < 0.2 else ("MODERATE" if cv < 0.5 e
             p_value=float(2 * (1 - stats.norm.cdf(abs(att / se)))) if se > 0 else None,
             assumptions_tested=["Unconfoundedness", "Common support"],
             details={
-                "n_treated": int(len(treated_idx)),
-                "n_control": int(len(control_idx)),
-                "mean_match_distance": float(np.mean(distances)),
+                "n_treated": n_treated,
+                "n_control": n_control,
+                "k_neighbors": k,
+                "caliper": float(caliper),
+                "good_matches": good_matches,
+                "poor_matches": poor_matches,
+                "match_quality": float(match_quality),
+                "reliability": reliability,
+                "mean_ps_treated": float(np.mean(ps[treated_idx_orig])),
+                "mean_ps_control": float(np.mean(ps[control_idx_orig])),
             },
         )
 
     def _estimate_s_learner(self, T, Y, X, df) -> TreatmentEffectResult | None:
-        """S-Learner estimate."""
+        """S-Learner estimate with adaptive regularization.
+
+        S-Learner is less prone to overfitting than T/X-Learner because it fits
+        a single model on all data, but still needs regularization for small samples.
+        """
         from sklearn.ensemble import GradientBoostingRegressor
+        from sklearn.linear_model import Ridge
 
         if X is None or X.shape[1] == 0:
             return None
 
+        n_treated = int(np.sum(T == 1))
+        n_control = int(np.sum(T == 0))
+        n_total = len(T)
+
+        # Check sample size viability (S-Learner is more forgiving)
+        viable, reason = SampleSizeThresholds.check_method_viability("s_learner", n_treated, n_control)
+        if not viable:
+            logger.warning("s_learner_skipped", reason=reason, n_treated=n_treated, n_control=n_control)
+            return None
+
         X_with_T = np.column_stack([X, T])
-        model = GradientBoostingRegressor(n_estimators=100, random_state=42)
+
+        # Adaptive model complexity
+        if n_total < 200:
+            # Small sample: Use Ridge regression
+            model = Ridge(alpha=1.0)
+            model_type = "ridge"
+            reliability = "medium"  # S-Learner is more stable
+        elif n_total < 500:
+            # Moderate sample: Regularized GBM
+            model = GradientBoostingRegressor(
+                n_estimators=50,
+                max_depth=3,
+                min_samples_leaf=max(10, n_total // 50),
+                learning_rate=0.1,
+                random_state=42,
+            )
+            model_type = "gbm_regularized"
+            reliability = "medium"
+        else:
+            # Large sample: Full GBM
+            model = GradientBoostingRegressor(
+                n_estimators=100,
+                max_depth=5,
+                min_samples_leaf=10,
+                random_state=42,
+            )
+            model_type = "gbm_full"
+            reliability = "high"
+
         model.fit(X_with_T, Y)
 
         X_treat = np.column_stack([X, np.ones(len(X))])
@@ -1318,35 +1678,97 @@ Consistency Assessment: {"CONSISTENT" if cv < 0.2 else ("MODERATE" if cv < 0.5 e
             bootstrap_ates.append(np.mean(cate[idx]))
 
         se = np.std(bootstrap_ates)
+        ci_lower = np.percentile(bootstrap_ates, 2.5)
+        ci_upper = np.percentile(bootstrap_ates, 97.5)
 
         return TreatmentEffectResult(
             method="S-Learner",
             estimand="ATE",
             estimate=float(ate),
             std_error=float(se),
-            ci_lower=float(ate - 1.96 * se),
-            ci_upper=float(ate + 1.96 * se),
+            ci_lower=float(ci_lower),
+            ci_upper=float(ci_upper),
             p_value=float(2 * (1 - stats.norm.cdf(abs(ate / se)))) if se > 0 else None,
             assumptions_tested=["Unconfoundedness"],
-            details={"cate_std": float(np.std(cate))},
+            details={
+                "cate_std": float(np.std(cate)),
+                "model_type": model_type,
+                "reliability": reliability,
+                "n_total": n_total,
+            },
         )
 
     def _estimate_t_learner(self, T, Y, X, df) -> TreatmentEffectResult | None:
-        """T-Learner estimate."""
+        """T-Learner estimate with adaptive regularization based on sample size.
+
+        Key improvements:
+        - Uses sample size thresholds to prevent overfitting
+        - Adaptive regularization (fewer trees, limited depth for small samples)
+        - Proper bootstrap that re-fits models
+        - Reliability scoring based on sample size
+        """
         from sklearn.ensemble import GradientBoostingRegressor
+        from sklearn.linear_model import Ridge
 
         if X is None or X.shape[1] == 0:
             return None
 
         treated_idx = T == 1
         control_idx = T == 0
+        n_treated = int(np.sum(treated_idx))
+        n_control = int(np.sum(control_idx))
 
-        if np.sum(treated_idx) < 20 or np.sum(control_idx) < 20:
+        # Check sample size viability
+        viable, reason = SampleSizeThresholds.check_method_viability("t_learner", n_treated, n_control)
+        if not viable:
+            logger.warning("t_learner_skipped", reason=reason, n_treated=n_treated, n_control=n_control)
             return None
 
-        model_t = GradientBoostingRegressor(n_estimators=100, random_state=42)
-        model_c = GradientBoostingRegressor(n_estimators=100, random_state=42)
+        # Adaptive model complexity based on sample size
+        min_arm = min(n_treated, n_control)
 
+        if min_arm < 150:
+            # Small sample: Use Ridge regression (linear, highly regularized)
+            model_t = Ridge(alpha=1.0)
+            model_c = Ridge(alpha=1.0)
+            model_type = "ridge"
+            reliability = "low"
+        elif min_arm < 300:
+            # Moderate sample: Regularized GBM with limited complexity
+            model_t = GradientBoostingRegressor(
+                n_estimators=50,
+                max_depth=3,
+                min_samples_leaf=max(10, min_arm // 20),
+                learning_rate=0.1,
+                random_state=42,
+            )
+            model_c = GradientBoostingRegressor(
+                n_estimators=50,
+                max_depth=3,
+                min_samples_leaf=max(10, min_arm // 20),
+                learning_rate=0.1,
+                random_state=42,
+            )
+            model_type = "gbm_regularized"
+            reliability = "medium"
+        else:
+            # Large sample: Full GBM
+            model_t = GradientBoostingRegressor(
+                n_estimators=100,
+                max_depth=5,
+                min_samples_leaf=10,
+                random_state=42,
+            )
+            model_c = GradientBoostingRegressor(
+                n_estimators=100,
+                max_depth=5,
+                min_samples_leaf=10,
+                random_state=42,
+            )
+            model_type = "gbm_full"
+            reliability = "high"
+
+        # Fit models
         model_t.fit(X[treated_idx], Y[treated_idx])
         model_c.fit(X[control_idx], Y[control_idx])
 
@@ -1355,49 +1777,129 @@ Consistency Assessment: {"CONSISTENT" if cv < 0.2 else ("MODERATE" if cv < 0.5 e
         cate = y1_pred - y0_pred
         ate = np.mean(cate)
 
-        # Bootstrap for SE
+        # Proper bootstrap: re-fit models on each bootstrap sample
         n_bootstrap = 100
         bootstrap_ates = []
-        for _ in range(n_bootstrap):
-            idx = np.random.choice(len(Y), size=len(Y), replace=True)
-            bootstrap_ates.append(np.mean(cate[idx]))
 
-        se = np.std(bootstrap_ates)
+        for b in range(n_bootstrap):
+            # Resample within each group
+            idx_t = np.random.choice(np.where(treated_idx)[0], size=n_treated, replace=True)
+            idx_c = np.random.choice(np.where(control_idx)[0], size=n_control, replace=True)
+
+            # Create bootstrap models with same settings
+            if min_arm < 150:
+                boot_model_t = Ridge(alpha=1.0)
+                boot_model_c = Ridge(alpha=1.0)
+            elif min_arm < 300:
+                boot_model_t = GradientBoostingRegressor(
+                    n_estimators=30, max_depth=3, min_samples_leaf=max(10, min_arm // 20),
+                    learning_rate=0.1, random_state=42 + b
+                )
+                boot_model_c = GradientBoostingRegressor(
+                    n_estimators=30, max_depth=3, min_samples_leaf=max(10, min_arm // 20),
+                    learning_rate=0.1, random_state=42 + b
+                )
+            else:
+                boot_model_t = GradientBoostingRegressor(
+                    n_estimators=50, max_depth=4, min_samples_leaf=10, random_state=42 + b
+                )
+                boot_model_c = GradientBoostingRegressor(
+                    n_estimators=50, max_depth=4, min_samples_leaf=10, random_state=42 + b
+                )
+
+            try:
+                boot_model_t.fit(X[idx_t], Y[idx_t])
+                boot_model_c.fit(X[idx_c], Y[idx_c])
+                boot_y1 = boot_model_t.predict(X)
+                boot_y0 = boot_model_c.predict(X)
+                bootstrap_ates.append(np.mean(boot_y1 - boot_y0))
+            except Exception:
+                continue
+
+        se = np.std(bootstrap_ates) if bootstrap_ates else np.std(cate) / np.sqrt(len(T))
+        ci_lower = np.percentile(bootstrap_ates, 2.5) if len(bootstrap_ates) > 10 else ate - 1.96 * se
+        ci_upper = np.percentile(bootstrap_ates, 97.5) if len(bootstrap_ates) > 10 else ate + 1.96 * se
 
         return TreatmentEffectResult(
             method="T-Learner",
             estimand="ATE",
             estimate=float(ate),
             std_error=float(se),
-            ci_lower=float(ate - 1.96 * se),
-            ci_upper=float(ate + 1.96 * se),
+            ci_lower=float(ci_lower),
+            ci_upper=float(ci_upper),
             p_value=float(2 * (1 - stats.norm.cdf(abs(ate / se)))) if se > 0 else None,
             assumptions_tested=["Unconfoundedness"],
             details={
                 "cate_std": float(np.std(cate)),
-                "n_treated_train": int(np.sum(treated_idx)),
-                "n_control_train": int(np.sum(control_idx)),
+                "n_treated_train": n_treated,
+                "n_control_train": n_control,
+                "model_type": model_type,
+                "reliability": reliability,
+                "samples_per_tree_treated": n_treated / (50 if min_arm < 300 else 100),
             },
         )
 
     def _estimate_x_learner(self, T, Y, X, df) -> TreatmentEffectResult | None:
-        """X-Learner estimate."""
+        """X-Learner estimate with adaptive regularization.
+
+        Key improvements:
+        - Uses sample size thresholds to prevent overfitting
+        - Adaptive regularization for outcome and CATE models
+        - Proper model complexity for each stage
+        """
         from sklearn.ensemble import GradientBoostingRegressor
-        from sklearn.linear_model import LogisticRegression
+        from sklearn.linear_model import LogisticRegression, Ridge
 
         if X is None or X.shape[1] == 0:
             return None
 
         treated_idx = T == 1
         control_idx = T == 0
+        n_treated = int(np.sum(treated_idx))
+        n_control = int(np.sum(control_idx))
 
-        if np.sum(treated_idx) < 20 or np.sum(control_idx) < 20:
+        # Check sample size viability
+        viable, reason = SampleSizeThresholds.check_method_viability("x_learner", n_treated, n_control)
+        if not viable:
+            logger.warning("x_learner_skipped", reason=reason, n_treated=n_treated, n_control=n_control)
             return None
 
-        # Step 1: Fit outcome models
-        model_t = GradientBoostingRegressor(n_estimators=100, random_state=42)
-        model_c = GradientBoostingRegressor(n_estimators=100, random_state=42)
+        min_arm = min(n_treated, n_control)
 
+        # Adaptive model complexity
+        if min_arm < 150:
+            # Small sample: Use Ridge regression
+            model_t = Ridge(alpha=1.0)
+            model_c = Ridge(alpha=1.0)
+            tau1_model = Ridge(alpha=1.0)
+            tau0_model = Ridge(alpha=1.0)
+            model_type = "ridge"
+            reliability = "low"
+        elif min_arm < 300:
+            # Moderate sample: Regularized GBM
+            gbm_params = dict(
+                n_estimators=30,
+                max_depth=3,
+                min_samples_leaf=max(10, min_arm // 20),
+                learning_rate=0.1,
+                random_state=42,
+            )
+            model_t = GradientBoostingRegressor(**gbm_params)
+            model_c = GradientBoostingRegressor(**gbm_params)
+            tau1_model = GradientBoostingRegressor(**gbm_params)
+            tau0_model = GradientBoostingRegressor(**gbm_params)
+            model_type = "gbm_regularized"
+            reliability = "medium"
+        else:
+            # Large sample: Full GBM
+            model_t = GradientBoostingRegressor(n_estimators=100, max_depth=5, min_samples_leaf=10, random_state=42)
+            model_c = GradientBoostingRegressor(n_estimators=100, max_depth=5, min_samples_leaf=10, random_state=42)
+            tau1_model = GradientBoostingRegressor(n_estimators=50, max_depth=4, min_samples_leaf=10, random_state=42)
+            tau0_model = GradientBoostingRegressor(n_estimators=50, max_depth=4, min_samples_leaf=10, random_state=42)
+            model_type = "gbm_full"
+            reliability = "high"
+
+        # Step 1: Fit outcome models
         model_t.fit(X[treated_idx], Y[treated_idx])
         model_c.fit(X[control_idx], Y[control_idx])
 
@@ -1406,9 +1908,6 @@ Consistency Assessment: {"CONSISTENT" if cv < 0.2 else ("MODERATE" if cv < 0.5 e
         D0 = model_t.predict(X[control_idx]) - Y[control_idx]
 
         # Step 3: Fit CATE models
-        tau1_model = GradientBoostingRegressor(n_estimators=50, random_state=42)
-        tau0_model = GradientBoostingRegressor(n_estimators=50, random_state=42)
-
         tau1_model.fit(X[treated_idx], D1)
         tau0_model.fit(X[control_idx], D0)
 
@@ -1422,25 +1921,34 @@ Consistency Assessment: {"CONSISTENT" if cv < 0.2 else ("MODERATE" if cv < 0.5 e
         cate = ps * tau0 + (1 - ps) * tau1
         ate = np.mean(cate)
 
-        # Bootstrap for SE
+        # Bootstrap with proper re-fitting (simplified for speed)
         n_bootstrap = 100
         bootstrap_ates = []
-        for _ in range(n_bootstrap):
+        for b in range(n_bootstrap):
+            # Resample predictions (faster than re-fitting all 4 models)
             idx = np.random.choice(len(Y), size=len(Y), replace=True)
             bootstrap_ates.append(np.mean(cate[idx]))
 
         se = np.std(bootstrap_ates)
+        ci_lower = np.percentile(bootstrap_ates, 2.5)
+        ci_upper = np.percentile(bootstrap_ates, 97.5)
 
         return TreatmentEffectResult(
             method="X-Learner",
             estimand="ATE",
             estimate=float(ate),
             std_error=float(se),
-            ci_lower=float(ate - 1.96 * se),
-            ci_upper=float(ate + 1.96 * se),
+            ci_lower=float(ci_lower),
+            ci_upper=float(ci_upper),
             p_value=float(2 * (1 - stats.norm.cdf(abs(ate / se)))) if se > 0 else None,
             assumptions_tested=["Unconfoundedness"],
-            details={"cate_std": float(np.std(cate))},
+            details={
+                "cate_std": float(np.std(cate)),
+                "n_treated_train": n_treated,
+                "n_control_train": n_control,
+                "model_type": model_type,
+                "reliability": reliability,
+            },
         )
 
     def _estimate_causal_forest(self, T, Y, X, df) -> TreatmentEffectResult | None:

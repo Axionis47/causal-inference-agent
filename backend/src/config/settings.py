@@ -32,7 +32,9 @@ class Settings(BaseSettings):
     gcp_project_id: str = Field(default="plotpointe")
     gcp_region: str = "us-central1"
 
-    # Firestore
+    # Storage
+    use_firestore: bool = True  # Default True for production; set False in .env for local dev
+    local_storage_path: str = "./data"  # Path for local JSON storage when use_firestore=False
     firestore_database: str = "(default)"
 
     # Cloud Storage

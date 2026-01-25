@@ -99,6 +99,8 @@ export default function ResultsDisplay({ results }: ResultsDisplayProps) {
           <p className="text-sm text-gray-600 mb-4">
             Discovered using: {results.causal_graph.discovery_method}
           </p>
+
+          {/* Nodes */}
           <div className="flex flex-wrap gap-2 mb-4">
             <span className="text-sm font-medium text-gray-700">Nodes:</span>
             {results.causal_graph.nodes.map((node) => (
@@ -116,9 +118,39 @@ export default function ResultsDisplay({ results }: ResultsDisplayProps) {
               </span>
             ))}
           </div>
-          <p className="text-sm text-gray-500">
-            {results.causal_graph.edges.length} edges discovered
-          </p>
+
+          {/* Edges */}
+          {results.causal_graph.edges.length > 0 && (
+            <div className="mb-4">
+              <span className="text-sm font-medium text-gray-700 block mb-2">
+                Discovered Edges ({results.causal_graph.edges.length}):
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {results.causal_graph.edges.map((edge, idx) => (
+                  <span
+                    key={idx}
+                    className="inline-flex items-center px-3 py-1 text-xs bg-blue-50 text-blue-700 rounded-full"
+                  >
+                    <span className="font-medium">{edge.source}</span>
+                    <span className="mx-1">→</span>
+                    <span className="font-medium">{edge.target}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* LLM Interpretation */}
+          {results.causal_graph.interpretation && (
+            <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+              <span className="text-sm font-medium text-gray-700 block mb-2">
+                Interpretation:
+              </span>
+              <p className="text-sm text-gray-600 whitespace-pre-wrap">
+                {results.causal_graph.interpretation}
+              </p>
+            </div>
+          )}
         </div>
       )}
 

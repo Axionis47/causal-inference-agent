@@ -33,7 +33,7 @@ export default function JobPage() {
     queryKey: ['jobStatus', jobId],
     queryFn: () => getJobStatus(jobId!),
     enabled: !!jobId && jobQuery.data?.status !== 'completed' && jobQuery.data?.status !== 'failed' && jobQuery.data?.status !== 'cancelled',
-    refetchInterval: 3000, // Poll every 3 seconds while running
+    refetchInterval: 1000, // Poll every 1 second while running (faster to catch quick stages)
   });
 
   const resultsQuery = useQuery({

@@ -9,6 +9,7 @@ interface JobProgressProps {
 const STAGES = [
   { key: 'fetching_data', label: 'Fetching Data', agent: 'data_loader' },
   { key: 'profiling', label: 'Data Profiling', agent: 'data_profiler' },
+  { key: 'exploratory_analysis', label: 'Exploratory Analysis', agent: 'eda_agent' },
   { key: 'discovering_causal', label: 'Causal Discovery', agent: 'causal_discovery' },
   { key: 'estimating_effects', label: 'Effect Estimation', agent: 'effect_estimator' },
   { key: 'sensitivity_analysis', label: 'Sensitivity Analysis', agent: 'sensitivity_analyst' },
@@ -29,7 +30,7 @@ export default function JobProgress({ status, progress, currentAgent }: JobProgr
       {/* Progress bar */}
       <div className="w-full bg-gray-200 rounded-full h-2 mb-8">
         <div
-          className="bg-primary-600 h-2 rounded-full transition-all duration-500"
+          className="bg-primary-600 h-2 rounded-full transition-all duration-1000 ease-out"
           style={{ width: `${progress}%` }}
         />
       </div>

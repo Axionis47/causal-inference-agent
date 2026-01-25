@@ -257,6 +257,7 @@ class FirestoreClient:
                     for e in state.proposed_dag.edges
                 ],
                 "discovery_method": state.proposed_dag.discovery_method,
+                "interpretation": state.proposed_dag.interpretation,
             }
 
         # Add treatment effects
@@ -371,8 +372,28 @@ _client: FirestoreClient | None = None
 
 
 def get_firestore_client() -> FirestoreClient:
-    """Get the singleton Firestore client."""
+    """Get the singleton Firestore client (for production use)."""
     global _client
     if _client is None:
         _client = FirestoreClient()
     return _client
+
+
+# Type alias for storage client (both have same interface)
+StorageClient = FirestoreClient  # LocalStorageClient has the same interface
+
+
+def get_storage_client() -> StorageClient:
+    """Get the appropriate storage client based on settings.
+
+    Returns FirestoreClient for production, LocalStorageClient for development.
+    """
+    settings = get_settings()
+
+    if settings.use_firestore:
+        logger.info("using_firestore_storage")
+        return get_firestore_client()
+    else:
+        logger.info("using_local_storage", path=settings.local_storage_path)
+        from .local_storage import get_local_storage_client
+        return get_local_storage_client()  # type: ignore
