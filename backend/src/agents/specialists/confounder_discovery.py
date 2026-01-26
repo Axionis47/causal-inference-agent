@@ -6,19 +6,20 @@ calls tools to gather that evidence, and iteratively reasons about confounders.
 
 import pickle
 import time
-from typing import Any
 
 import numpy as np
 import pandas as pd
 from scipy import stats
 
-from src.agents.base import AnalysisState, BaseAgent
+from src.agents.base import AnalysisState, ToolResult, ToolResultStatus
+from src.agents.base.context_tools import ContextTools
+from src.agents.base.react_agent import ReActAgent
 from src.logging_config.structured import get_logger
 
 logger = get_logger(__name__)
 
 
-class ConfounderDiscoveryAgent(BaseAgent):
+class ConfounderDiscoveryAgent(ReActAgent, ContextTools):
     """Agent that discovers confounders through iterative tool-based reasoning.
 
     This agent is TRULY AGENTIC - the LLM:
@@ -27,10 +28,11 @@ class ConfounderDiscoveryAgent(BaseAgent):
     3. Iterates based on results
     4. Makes final decisions based on gathered evidence
 
-    NO pre-computation of evidence - the LLM drives the investigation.
+    Uses ReAct pattern with pull-based context tools.
     """
 
     AGENT_NAME = "confounder_discovery"
+    MAX_STEPS = 15
 
     SYSTEM_PROMPT = """You are an expert causal inference researcher investigating confounders.
 
@@ -56,85 +58,80 @@ INVESTIGATION STRATEGY:
 Be THOROUGH - missing a true confounder leads to biased causal estimates.
 Call tools to gather evidence, don't just guess."""
 
-    TOOLS = [
-        {
-            "name": "get_candidate_variables",
-            "description": "Get the list of candidate variables to investigate as potential confounders",
-            "parameters": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-            },
-        },
-        {
-            "name": "compute_correlation",
-            "description": "Compute Pearson correlation between two variables. Use this to check if a variable is associated with treatment or outcome.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "var1": {"type": "string", "description": "First variable name"},
-                    "var2": {"type": "string", "description": "Second variable name"},
-                },
-                "required": ["var1", "var2"],
-            },
-        },
-        {
-            "name": "compute_partial_correlation",
-            "description": "Compute partial correlation between var1 and var2, controlling for control_var. Helps distinguish confounders from mediators.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "var1": {"type": "string", "description": "First variable"},
-                    "var2": {"type": "string", "description": "Second variable"},
-                    "control_var": {"type": "string", "description": "Variable to control for"},
-                },
-                "required": ["var1", "var2", "control_var"],
-            },
-        },
-        {
-            "name": "test_confounder_criteria",
-            "description": "Test if a variable meets the statistical criteria for being a confounder (associated with both T and Y)",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "variable": {"type": "string", "description": "Variable to test"},
-                },
-                "required": ["variable"],
-            },
-        },
-        {
-            "name": "finalize_confounders",
-            "description": "Submit your final list of identified confounders after investigation",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "confounders": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "List of confirmed confounders, ranked by importance",
-                    },
-                    "excluded": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "Variables investigated but excluded (mediators, colliders, noise)",
-                    },
-                    "reasoning": {
-                        "type": "string",
-                        "description": "Explanation of your confounder identification process",
-                    },
-                },
-                "required": ["confounders", "reasoning"],
-            },
-        },
-    ]
-
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self._df: pd.DataFrame | None = None
-        self._state: AnalysisState | None = None
+        self._current_state: AnalysisState | None = None
         self._treatment_var: str | None = None
         self._outcome_var: str | None = None
         self._investigation_log: list[dict] = []
+        self._finalized: bool = False
+
+        # Register context tools from mixin
+        self.register_context_tools()
+        # Register discovery-specific tools
+        self._register_discovery_tools()
+
+    def _register_discovery_tools(self) -> None:
+        """Register confounder discovery tools."""
+        self.register_tool(
+            name="get_candidate_variables",
+            description="Get the list of candidate variables to investigate as potential confounders",
+            handler=self._tool_get_candidates,
+            parameters={},
+        )
+
+        self.register_tool(
+            name="compute_correlation",
+            description="Compute Pearson correlation between two variables. Use this to check if a variable is associated with treatment or outcome.",
+            handler=self._tool_compute_correlation,
+            parameters={
+                "var1": {"type": "string", "description": "First variable name"},
+                "var2": {"type": "string", "description": "Second variable name"},
+            },
+        )
+
+        self.register_tool(
+            name="compute_partial_correlation",
+            description="Compute partial correlation between var1 and var2, controlling for control_var. Helps distinguish confounders from mediators.",
+            handler=self._tool_compute_partial_correlation,
+            parameters={
+                "var1": {"type": "string", "description": "First variable"},
+                "var2": {"type": "string", "description": "Second variable"},
+                "control_var": {"type": "string", "description": "Variable to control for"},
+            },
+        )
+
+        self.register_tool(
+            name="test_confounder_criteria",
+            description="Test if a variable meets the statistical criteria for being a confounder (associated with both T and Y)",
+            handler=self._tool_test_confounder_criteria,
+            parameters={
+                "variable": {"type": "string", "description": "Variable to test"},
+            },
+        )
+
+        self.register_tool(
+            name="finalize_confounders",
+            description="Submit your final list of identified confounders after investigation",
+            handler=self._tool_finalize_confounders,
+            parameters={
+                "confounders": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of confirmed confounders, ranked by importance",
+                },
+                "excluded": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Variables investigated but excluded (mediators, colliders, noise)",
+                },
+                "reasoning": {
+                    "type": "string",
+                    "description": "Explanation of your confounder identification process",
+                },
+            },
+        )
 
     def _resolve_treatment_outcome(self) -> tuple[str | None, str | None]:
         """Get treatment and outcome variables using state helper.
@@ -145,13 +142,35 @@ Call tools to gather evidence, don't just guess."""
         if self._treatment_var and self._outcome_var:
             return self._treatment_var, self._outcome_var
 
-        if self._state:
-            t, o = self._state.get_primary_pair()
+        if self._current_state:
+            t, o = self._current_state.get_primary_pair()
             self._treatment_var = t
             self._outcome_var = o
             return t, o
 
         return None, None
+
+    def _get_initial_observation(self, state: AnalysisState) -> str:
+        """Build initial observation for confounder discovery."""
+        candidates = self._get_candidates()
+        treatment = self._treatment_var or "unknown"
+        outcome = self._outcome_var or "unknown"
+
+        return f"""CONFOUNDER DISCOVERY TASK
+Treatment variable: {treatment}
+Outcome variable: {outcome}
+Candidate variables to investigate: {candidates}
+
+Your goal is to identify which candidates are confounders (affect both treatment and outcome).
+Use the tools to systematically investigate each candidate:
+1. Start by getting the candidate list
+2. For each candidate, test if it meets confounder criteria
+3. Use correlations and partial correlations to verify
+4. Call finalize_confounders when done with your ranked list."""
+
+    async def is_task_complete(self, state: AnalysisState) -> bool:
+        """Check if confounder discovery is complete."""
+        return self._finalized
 
     async def execute(self, state: AnalysisState) -> AnalysisState:
         """Execute confounder discovery through iterative tool-based reasoning."""
@@ -166,7 +185,9 @@ Call tools to gather evidence, don't just guess."""
                 return state
 
             # Store state reference for helper methods
-            self._state = state
+            self._current_state = state
+            self._investigation_log = []
+            self._finalized = False
 
             # Use helper to resolve treatment/outcome (falls back to analyzed_pairs)
             self._treatment_var, self._outcome_var = self._resolve_treatment_outcome()
@@ -175,51 +196,11 @@ Call tools to gather evidence, don't just guess."""
                 self.logger.warning("no_treatment_or_outcome_specified")
                 return state
 
-            # Get candidate variables
-            candidates = self._get_candidates()
+            # Run ReAct loop - LLM calls tools iteratively
+            await super().execute(state)
 
-            # Start agentic investigation
-            prompt = f"""Investigate potential confounders for estimating the causal effect of '{self._treatment_var}' on '{self._outcome_var}'.
-
-Available candidate variables: {candidates}
-
-Start by calling get_candidate_variables, then systematically investigate each candidate:
-1. For each candidate, compute its correlation with the treatment variable
-2. Compute its correlation with the outcome variable
-3. If it correlates with BOTH (|r| > 0.05), it's a potential confounder
-4. Use partial correlations to verify it's not a mediator
-
-After investigating, call finalize_confounders with your ranked list.
-
-BEGIN YOUR INVESTIGATION NOW by calling the appropriate tools."""
-
-            # Run agentic loop - LLM calls tools iteratively
-            result = await self._run_agentic_loop(prompt, max_iterations=15)
-
-            # Extract final confounders from result
-            if result:
-                confounders = result.get("confounders", [])
-                excluded = result.get("excluded", [])
-                reasoning = result.get("reasoning", "")
-
-                # Update state
-                if state.data_profile:
-                    state.data_profile.potential_confounders = confounders
-
-                state.confounder_discovery = {
-                    "ranked_confounders": confounders,
-                    "excluded_variables": excluded,
-                    "adjustment_strategy": reasoning,
-                    "investigation_log": self._investigation_log,
-                }
-
-                self.logger.info(
-                    "confounder_discovery_complete",
-                    n_confounders=len(confounders),
-                    n_excluded=len(excluded),
-                )
-            else:
-                # Fallback if agentic loop didn't complete
+            # Auto-finalize if LLM didn't call finalize_confounders
+            if not self._finalized:
                 self.logger.info("using_fallback_confounder_identification")
                 state = self._fallback_confounder_identification(state)
 
@@ -239,182 +220,214 @@ BEGIN YOUR INVESTIGATION NOW by calling the appropriate tools."""
 
         return state
 
-    async def _run_agentic_loop(
-        self,
-        initial_prompt: str,
-        max_iterations: int = 15,
-    ) -> dict[str, Any] | None:
-        """Run the agentic tool-calling loop.
+    # -------------------------------------------------------------------------
+    # Tool Handlers (async, return ToolResult)
+    # -------------------------------------------------------------------------
 
-        The LLM calls tools, we execute them and return results,
-        LLM continues until it calls finalize_confounders.
-        """
-        messages = [{"role": "user", "content": initial_prompt}]
-        final_result = None
+    async def _tool_get_candidates(self, state: AnalysisState) -> ToolResult:
+        """Get candidate variables for confounder investigation."""
+        candidates = self._get_candidates()
+        self._investigation_log.append({
+            "tool": "get_candidate_variables",
+            "args": {},
+            "result": candidates,
+        })
+        return ToolResult(
+            status=ToolResultStatus.SUCCESS,
+            output={
+                "candidates": candidates,
+                "treatment": self._treatment_var,
+                "outcome": self._outcome_var,
+            },
+        )
 
-        for iteration in range(max_iterations):
-            self.logger.info(
-                "confounder_iteration",
-                iteration=iteration,
-                max_iterations=max_iterations,
-                investigations=len(self._investigation_log),
+    async def _tool_compute_correlation(
+        self, state: AnalysisState, var1: str, var2: str
+    ) -> ToolResult:
+        """Compute Pearson correlation between two variables."""
+        if self._df is None:
+            return ToolResult(
+                status=ToolResultStatus.ERROR,
+                error="No data loaded",
             )
 
-            try:
-                # Get LLM response with tool calls
-                result = await self.reason(messages[-1]["content"] if iteration == 0 else "Continue your investigation based on the tool results.")
+        if var1 not in self._df.columns or var2 not in self._df.columns:
+            return ToolResult(
+                status=ToolResultStatus.ERROR,
+                error=f"Variable not found. Available: {list(self._df.columns)}",
+            )
 
-                # Log LLM reasoning if provided
-                response_text = result.get("response", "")
-                if response_text:
-                    self.logger.info(
-                        "confounder_llm_reasoning",
-                        reasoning=response_text[:500] + ("..." if len(response_text) > 500 else ""),
-                    )
+        corr, pval = stats.pearsonr(self._df[var1], self._df[var2])
+        significance = "significant" if pval < 0.05 else "not significant"
+        strength = "strong" if abs(corr) > 0.3 else ("moderate" if abs(corr) > 0.1 else "weak")
 
-                pending_calls = result.get("pending_calls", [])
+        result = {
+            "var1": var1,
+            "var2": var2,
+            "correlation": float(corr),
+            "p_value": float(pval),
+            "strength": strength,
+            "significance": significance,
+        }
 
-                if not pending_calls:
-                    self.logger.info("confounder_no_tool_calls", response_preview=response_text[:200])
-                    break
+        self._investigation_log.append({
+            "tool": "compute_correlation",
+            "args": {"var1": var1, "var2": var2},
+            "result": result,
+        })
 
-                # Process each tool call
-                tool_results = []
-                for call in pending_calls:
-                    tool_name = call["name"]
-                    tool_args = call.get("args", {})
+        return ToolResult(
+            status=ToolResultStatus.SUCCESS,
+            output=result,
+        )
 
-                    # Check if this is the final tool
-                    if tool_name == "finalize_confounders":
-                        confounders = tool_args.get("confounders", [])
-                        self.logger.info(
-                            "confounder_finalizing",
-                            n_confounders=len(confounders),
-                            top_confounders=confounders[:5] if confounders else [],
-                            strategy=tool_args.get("adjustment_strategy", "")[:100],
-                        )
-                        return tool_args
-
-                    # Log the tool call decision
-                    self.logger.info(
-                        "confounder_tool_decision",
-                        tool=tool_name,
-                        args=tool_args,
-                    )
-
-                    # Execute the tool
-                    tool_result = self._execute_tool(tool_name, tool_args)
-
-                    # Log the investigation
-                    self._investigation_log.append({
-                        "tool": tool_name,
-                        "args": tool_args,
-                        "result": tool_result,
-                    })
-
-                    tool_results.append({
-                        "tool": tool_name,
-                        "result": tool_result,
-                    })
-
-                    # Log tool result summary
-                    self.logger.info(
-                        "confounder_tool_result",
-                        tool=tool_name,
-                        result_summary=tool_result[:200] + ("..." if len(tool_result) > 200 else ""),
-                    )
-
-                # Build context for next iteration
-                results_str = "\n".join([
-                    f"Tool: {tr['tool']}\nResult: {tr['result']}"
-                    for tr in tool_results
-                ])
-                messages.append({
-                    "role": "assistant",
-                    "content": f"Tool results:\n{results_str}\n\nContinue investigating or call finalize_confounders if done.",
-                })
-
-            except Exception as e:
-                self.logger.warning("confounder_iteration_failed", error=str(e))
-                break
-
-        return final_result
-
-    def _execute_tool(self, tool_name: str, args: dict) -> str:
-        """Execute a tool and return the result as a string."""
+    async def _tool_compute_partial_correlation(
+        self, state: AnalysisState, var1: str, var2: str, control_var: str
+    ) -> ToolResult:
+        """Compute partial correlation controlling for a third variable."""
         if self._df is None:
-            return "Error: No data loaded"
+            return ToolResult(
+                status=ToolResultStatus.ERROR,
+                error="No data loaded",
+            )
 
-        try:
-            if tool_name == "get_candidate_variables":
-                candidates = self._get_candidates()
-                return f"Candidate variables: {candidates}"
+        for v in [var1, var2, control_var]:
+            if v not in self._df.columns:
+                return ToolResult(
+                    status=ToolResultStatus.ERROR,
+                    error=f"Variable '{v}' not found",
+                )
 
-            elif tool_name == "compute_correlation":
-                var1 = args.get("var1")
-                var2 = args.get("var2")
-                if var1 not in self._df.columns or var2 not in self._df.columns:
-                    return f"Error: Variable not found. Available: {list(self._df.columns)}"
+        from sklearn.linear_model import LinearRegression
 
-                corr, pval = stats.pearsonr(self._df[var1], self._df[var2])
-                significance = "significant" if pval < 0.05 else "not significant"
-                strength = "strong" if abs(corr) > 0.3 else ("moderate" if abs(corr) > 0.1 else "weak")
-                return f"Correlation({var1}, {var2}): r={corr:.4f}, p={pval:.4f} ({strength}, {significance})"
+        X = self._df[[var1, var2, control_var]].dropna()
+        v1_vals = X[var1].values
+        v2_vals = X[var2].values
+        ctrl = X[control_var].values.reshape(-1, 1)
 
-            elif tool_name == "compute_partial_correlation":
-                var1 = args.get("var1")
-                var2 = args.get("var2")
-                control_var = args.get("control_var")
+        # Residualize
+        v1_resid = v1_vals - LinearRegression().fit(ctrl, v1_vals).predict(ctrl)
+        v2_resid = v2_vals - LinearRegression().fit(ctrl, v2_vals).predict(ctrl)
 
-                for v in [var1, var2, control_var]:
-                    if v not in self._df.columns:
-                        return f"Error: Variable '{v}' not found"
+        partial_corr, pval = stats.pearsonr(v1_resid, v2_resid)
 
-                # Compute partial correlation
-                from sklearn.linear_model import LinearRegression
+        result = {
+            "var1": var1,
+            "var2": var2,
+            "control_var": control_var,
+            "partial_correlation": float(partial_corr),
+            "p_value": float(pval),
+        }
 
-                X = self._df[[var1, var2, control_var]].dropna()
-                v1 = X[var1].values
-                v2 = X[var2].values
-                ctrl = X[control_var].values.reshape(-1, 1)
+        self._investigation_log.append({
+            "tool": "compute_partial_correlation",
+            "args": {"var1": var1, "var2": var2, "control_var": control_var},
+            "result": result,
+        })
 
-                # Residualize
-                v1_resid = v1 - LinearRegression().fit(ctrl, v1).predict(ctrl)
-                v2_resid = v2 - LinearRegression().fit(ctrl, v2).predict(ctrl)
+        return ToolResult(
+            status=ToolResultStatus.SUCCESS,
+            output=result,
+        )
 
-                partial_corr, pval = stats.pearsonr(v1_resid, v2_resid)
-                return f"Partial correlation({var1}, {var2} | {control_var}): r={partial_corr:.4f}, p={pval:.4f}"
+    async def _tool_test_confounder_criteria(
+        self, state: AnalysisState, variable: str
+    ) -> ToolResult:
+        """Test if a variable meets confounder criteria."""
+        if self._df is None:
+            return ToolResult(
+                status=ToolResultStatus.ERROR,
+                error="No data loaded",
+            )
 
-            elif tool_name == "test_confounder_criteria":
-                variable = args.get("variable")
-                if variable not in self._df.columns:
-                    return f"Error: Variable '{variable}' not found"
+        if variable not in self._df.columns:
+            return ToolResult(
+                status=ToolResultStatus.ERROR,
+                error=f"Variable '{variable}' not found",
+            )
 
-                # Test association with treatment
-                corr_t, pval_t = stats.pearsonr(self._df[variable], self._df[self._treatment_var])
-                # Test association with outcome
-                corr_y, pval_y = stats.pearsonr(self._df[variable], self._df[self._outcome_var])
+        # Test association with treatment
+        corr_t, pval_t = stats.pearsonr(self._df[variable], self._df[self._treatment_var])
+        # Test association with outcome
+        corr_y, pval_y = stats.pearsonr(self._df[variable], self._df[self._outcome_var])
 
-                affects_treatment = abs(corr_t) > 0.05 and pval_t < 0.1
-                affects_outcome = abs(corr_y) > 0.05 and pval_y < 0.1
-                is_confounder = affects_treatment and affects_outcome
+        affects_treatment = abs(corr_t) > 0.05 and pval_t < 0.1
+        affects_outcome = abs(corr_y) > 0.05 and pval_y < 0.1
+        is_confounder = affects_treatment and affects_outcome
+        confounder_strength = abs(corr_t) * abs(corr_y)
 
-                confounder_strength = abs(corr_t) * abs(corr_y)
+        result = {
+            "variable": variable,
+            "treatment_var": self._treatment_var,
+            "outcome_var": self._outcome_var,
+            "corr_with_treatment": float(corr_t),
+            "pval_treatment": float(pval_t),
+            "affects_treatment": affects_treatment,
+            "corr_with_outcome": float(corr_y),
+            "pval_outcome": float(pval_y),
+            "affects_outcome": affects_outcome,
+            "is_confounder": is_confounder,
+            "confounder_strength": float(confounder_strength) if is_confounder else 0.0,
+        }
 
-                return f"""Confounder test for '{variable}':
-- Correlation with treatment ({self._treatment_var}): r={corr_t:.4f}, p={pval_t:.4f} → {'YES' if affects_treatment else 'NO'}
-- Correlation with outcome ({self._outcome_var}): r={corr_y:.4f}, p={pval_y:.4f} → {'YES' if affects_outcome else 'NO'}
-- IS CONFOUNDER: {f'YES (strength={confounder_strength:.4f})' if is_confounder else 'NO'}"""
+        self._investigation_log.append({
+            "tool": "test_confounder_criteria",
+            "args": {"variable": variable},
+            "result": result,
+        })
 
-            elif tool_name == "finalize_confounders":
-                # This is handled in the caller
-                return "Confounders finalized"
+        return ToolResult(
+            status=ToolResultStatus.SUCCESS,
+            output=result,
+        )
 
-            else:
-                return f"Error: Unknown tool '{tool_name}'"
+    async def _tool_finalize_confounders(
+        self,
+        state: AnalysisState,
+        confounders: list[str],
+        reasoning: str,
+        excluded: list[str] | None = None,
+    ) -> ToolResult:
+        """Finalize the list of identified confounders."""
+        excluded = excluded or []
 
-        except Exception as e:
-            return f"Error executing {tool_name}: {str(e)}"
+        self.logger.info(
+            "confounder_finalizing",
+            n_confounders=len(confounders),
+            top_confounders=confounders[:5] if confounders else [],
+        )
+
+        # Update state
+        if state.data_profile:
+            state.data_profile.potential_confounders = confounders
+
+        state.confounder_discovery = {
+            "ranked_confounders": confounders,
+            "excluded_variables": excluded,
+            "adjustment_strategy": reasoning,
+            "investigation_log": self._investigation_log,
+        }
+
+        self._finalized = True
+
+        self.logger.info(
+            "confounder_discovery_complete",
+            n_confounders=len(confounders),
+            n_excluded=len(excluded),
+        )
+
+        return ToolResult(
+            status=ToolResultStatus.SUCCESS,
+            output={
+                "confounders": confounders,
+                "excluded": excluded,
+                "reasoning": reasoning,
+            },
+        )
+
+    # -------------------------------------------------------------------------
+    # Helper Methods
+    # -------------------------------------------------------------------------
 
     def _get_candidates(self) -> list[str]:
         """Get candidate variables for confounder investigation."""

@@ -35,6 +35,13 @@ class DatasetInfo(BaseModel):
     n_samples: int | None = None
     n_features: int | None = None
 
+    # Kaggle semantic metadata for variable understanding
+    kaggle_description: str | None = None
+    kaggle_column_descriptions: dict[str, str] = Field(default_factory=dict)
+    kaggle_tags: list[str] = Field(default_factory=list)
+    kaggle_domain: str | None = None  # Inferred domain (healthcare, economics, etc.)
+    metadata_quality: str = "unknown"  # high, medium, low, unknown
+
 
 class DataProfile(BaseModel):
     """Profile of a dataset from the data profiler agent."""
@@ -184,6 +191,11 @@ class AnalysisState(BaseModel):
     This state is passed between agents and tracks the progress of the analysis.
     """
 
+    # Trace management constants
+    MAX_TRACES: int = 50  # Keep last 50 detailed traces
+    MAX_TRACE_OUTPUT_LEN: int = 500  # Truncate large outputs
+    MAX_TRACE_REASONING_LEN: int = 1000  # Truncate long reasoning
+
     job_id: str
     dataset_info: DatasetInfo
     status: JobStatus = JobStatus.PENDING
@@ -191,6 +203,13 @@ class AnalysisState(BaseModel):
     # Set by user or inferred
     treatment_variable: str | None = None
     outcome_variable: str | None = None
+
+    # Raw metadata from Kaggle (populated by metadata extractor)
+    raw_metadata: dict[str, Any] | None = None
+
+    # Domain knowledge (populated by DomainKnowledgeAgent)
+    # Contains: hypotheses, uncertainties, temporal_understanding, immutable_vars
+    domain_knowledge: dict[str, Any] | None = None
 
     # Populated by Data Profiler
     data_profile: DataProfile | None = None
@@ -245,9 +264,99 @@ class AnalysisState(BaseModel):
     completed_at: datetime | None = None
 
     def add_trace(self, trace: AgentTrace) -> None:
-        """Add an agent trace to the history."""
+        """Add an agent trace with automatic truncation and compression.
+
+        Traces are truncated to prevent large outputs from consuming memory,
+        and old traces are compressed into summaries when the list grows too large.
+        """
+        # Truncate large fields in the trace
+        trace = self._truncate_trace(trace)
+
+        # Add to main list
         self.agent_traces.append(trace)
         self.updated_at = datetime.utcnow()
+
+        # Compress if we exceed max traces
+        if len(self.agent_traces) > self.MAX_TRACES:
+            self._compress_traces()
+
+    def _truncate_trace(self, trace: AgentTrace) -> AgentTrace:
+        """Truncate large fields in a trace to save tokens."""
+        # Truncate outputs
+        if trace.outputs:
+            truncated_outputs = {}
+            for k, v in trace.outputs.items():
+                str_v = str(v)
+                if len(str_v) > self.MAX_TRACE_OUTPUT_LEN:
+                    truncated_outputs[k] = str_v[:self.MAX_TRACE_OUTPUT_LEN] + "...[truncated]"
+                else:
+                    truncated_outputs[k] = v
+            trace.outputs = truncated_outputs
+
+        # Truncate reasoning
+        if trace.reasoning and len(trace.reasoning) > self.MAX_TRACE_REASONING_LEN:
+            trace.reasoning = trace.reasoning[:self.MAX_TRACE_REASONING_LEN] + "...[truncated]"
+
+        return trace
+
+    def _compress_traces(self) -> None:
+        """Compress old traces into a summary to prevent unbounded growth."""
+        if len(self.agent_traces) <= self.MAX_TRACES:
+            return
+
+        # Keep last half of max traces
+        keep_count = self.MAX_TRACES // 2
+        old_traces = self.agent_traces[:-keep_count]
+        recent_traces = self.agent_traces[-keep_count:]
+
+        # Create summary of old traces
+        summary = self._create_trace_summary(old_traces)
+
+        # Replace with summary + recent
+        self.agent_traces = [summary] + recent_traces
+
+    def _create_trace_summary(self, traces: list[AgentTrace]) -> AgentTrace:
+        """Create a summary trace from multiple traces."""
+        # Group by agent
+        agent_actions: dict[str, list[str]] = {}
+        total_duration = 0
+        total_tokens: dict[str, int] = {"input": 0, "output": 0}
+
+        for trace in traces:
+            agent = trace.agent_name
+            if agent not in agent_actions:
+                agent_actions[agent] = []
+            agent_actions[agent].append(trace.action)
+            total_duration += trace.duration_ms
+            total_tokens["input"] += trace.token_usage.get("input", 0)
+            total_tokens["output"] += trace.token_usage.get("output", 0)
+
+        # Build summary text
+        summary_text = f"Summary of {len(traces)} compressed traces:\n"
+        for agent, actions in agent_actions.items():
+            summary_text += f"  {agent}: {len(actions)} actions\n"
+
+        return AgentTrace(
+            agent_name="trace_summary",
+            action="compressed_history",
+            reasoning=summary_text,
+            outputs={
+                "trace_count": len(traces),
+                "agents": list(agent_actions.keys()),
+                "total_duration_ms": total_duration,
+                "compressed_at": datetime.utcnow().isoformat()
+            },
+            duration_ms=0,
+            token_usage=total_tokens
+        )
+
+    def get_recent_traces(self, n: int = 10) -> list[AgentTrace]:
+        """Get the N most recent traces for context injection."""
+        return self.agent_traces[-n:]
+
+    def get_traces_for_agent(self, agent_name: str) -> list[AgentTrace]:
+        """Get traces for a specific agent."""
+        return [t for t in self.agent_traces if t.agent_name == agent_name]
 
     def get_latest_critique(self) -> CritiqueFeedback | None:
         """Get the most recent critique feedback."""

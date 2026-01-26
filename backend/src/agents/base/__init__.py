@@ -1,6 +1,7 @@
 """Base agent module."""
 
 from .agent import BaseAgent, ToolExecutionError
+from .context_tools import ContextTools
 from .react_agent import ReActAgent, ReActStep, ToolResult, ToolResultStatus
 from .state import (
     AgentTrace,
@@ -28,6 +29,8 @@ __all__ = [
     "ReActStep",
     "ToolResult",
     "ToolResultStatus",
+    # Context tools mixin
+    "ContextTools",
     # State
     "AgentTrace",
     "AnalysisState",

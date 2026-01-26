@@ -1,10 +1,12 @@
-"""Sensitivity Analyst Agent - Truly agentic sensitivity analysis.
+"""Sensitivity Analyst Agent - ReAct-based sensitivity analysis.
 
 This agent uses the ReAct pattern to iteratively:
 1. Review current treatment effect estimates
 2. Run sensitivity analyses one at a time
 3. Interpret results and decide if more investigation needed
 4. Assess overall robustness of causal findings
+
+Uses pull-based context - queries for information on demand.
 """
 
 import pickle
@@ -16,38 +18,48 @@ import pandas as pd
 
 from src.agents.base import (
     AnalysisState,
-    BaseAgent,
     JobStatus,
     SensitivityResult,
+    ToolResult,
+    ToolResultStatus,
 )
+from src.agents.base.context_tools import ContextTools
+from src.agents.base.react_agent import ReActAgent
 from src.logging_config.structured import get_logger
 
 logger = get_logger(__name__)
 
 
-class SensitivityAnalystAgent(BaseAgent):
-    """Truly agentic sensitivity analyst using ReAct pattern.
+class SensitivityAnalystAgent(ReActAgent, ContextTools):
+    """ReAct-based sensitivity analyst.
 
-    The LLM iteratively:
-    1. Reviews treatment effect estimates
-    2. Chooses and runs sensitivity analyses one at a time
-    3. Interprets results before deciding next analysis
-    4. Provides final robustness assessment
+    This agent iteratively:
+    1. Queries previous agent findings for context
+    2. Reviews treatment effect estimates
+    3. Chooses and runs sensitivity analyses one at a time
+    4. Interprets results before deciding next analysis
+    5. Provides final robustness assessment
 
-    NO batch execution - each analysis is run and interpreted before the next.
+    Uses pull-based context - queries for information on demand.
     """
 
     AGENT_NAME = "sensitivity_analyst"
+    MAX_STEPS = 15
 
     SYSTEM_PROMPT = """You are an expert in sensitivity analysis for causal inference.
 Your task is to assess how robust the causal estimates are to potential assumption violations.
 
-You have tools to run sensitivity analyses on-demand. Use them iteratively:
-
-1. FIRST: Review the treatment effect estimates
+WORKFLOW:
+1. FIRST: Query previous findings from effect_estimator agent
 2. THEN: Run analyses one at a time based on what you learn
 3. INTERPRET: Each result before choosing the next analysis
 4. FINALLY: Provide overall robustness assessment
+
+CONTEXT TOOLS:
+- ask_domain_knowledge: Query domain knowledge for causal constraints
+- get_previous_finding: Get findings from previous agents (especially effect_estimator)
+- get_eda_finding: Query EDA results
+- get_treatment_outcome: Get treatment/outcome variables
 
 AVAILABLE ANALYSES AND WHEN TO USE THEM:
 
@@ -78,20 +90,42 @@ AVAILABLE ANALYSES AND WHEN TO USE THEM:
 Run analyses based on what you learn. If E-value is low, no need for extensive other tests.
 If specification curve shows instability, investigate further."""
 
-    TOOLS = [
-        {
-            "name": "get_estimates_summary",
-            "description": "Get summary of current treatment effect estimates to understand what needs sensitivity testing.",
-            "parameters": {
+    def __init__(self) -> None:
+        """Initialize the sensitivity analyst agent."""
+        super().__init__()
+
+        # Register context query tools from mixin
+        self.register_context_tools()
+
+        # Internal state
+        self._df: pd.DataFrame | None = None
+        self._current_state: AnalysisState | None = None
+        self._results: list[SensitivityResult] = []
+        self._treatment_var: str | None = None
+        self._outcome_var: str | None = None
+        self._finalized: bool = False
+        self._final_result: dict[str, Any] = {}
+
+        # Register sensitivity-specific tools
+        self._register_sensitivity_tools()
+
+    def _register_sensitivity_tools(self) -> None:
+        """Register tools for sensitivity analysis."""
+        self.register_tool(
+            name="get_estimates_summary",
+            description="Get summary of current treatment effect estimates to understand what needs sensitivity testing.",
+            parameters={
                 "type": "object",
                 "properties": {},
                 "required": [],
             },
-        },
-        {
-            "name": "compute_e_value",
-            "description": "Compute E-value for sensitivity to unmeasured confounding. This quantifies how strong an unmeasured confounder would need to be to explain away the observed effect.",
-            "parameters": {
+            handler=self._tool_get_estimates_summary,
+        )
+
+        self.register_tool(
+            name="compute_e_value",
+            description="Compute E-value for sensitivity to unmeasured confounding. This quantifies how strong an unmeasured confounder would need to be to explain away the observed effect.",
+            parameters={
                 "type": "object",
                 "properties": {
                     "method_index": {
@@ -101,11 +135,13 @@ If specification curve shows instability, investigate further."""
                 },
                 "required": [],
             },
-        },
-        {
-            "name": "compute_rosenbaum_bounds",
-            "description": "Compute Rosenbaum bounds (Gamma) for sensitivity to unmeasured confounding in matched studies.",
-            "parameters": {
+            handler=self._tool_compute_e_value,
+        )
+
+        self.register_tool(
+            name="compute_rosenbaum_bounds",
+            description="Compute Rosenbaum bounds (Gamma) for sensitivity to unmeasured confounding in matched studies.",
+            parameters={
                 "type": "object",
                 "properties": {
                     "method_index": {
@@ -115,11 +151,13 @@ If specification curve shows instability, investigate further."""
                 },
                 "required": [],
             },
-        },
-        {
-            "name": "run_specification_curve",
-            "description": "Run specification curve analysis to see how estimates vary across different model specifications.",
-            "parameters": {
+            handler=self._tool_compute_rosenbaum_bounds,
+        )
+
+        self.register_tool(
+            name="run_specification_curve",
+            description="Run specification curve analysis to see how estimates vary across different model specifications.",
+            parameters={
                 "type": "object",
                 "properties": {
                     "n_specifications": {
@@ -129,11 +167,13 @@ If specification curve shows instability, investigate further."""
                 },
                 "required": [],
             },
-        },
-        {
-            "name": "run_placebo_test",
-            "description": "Run placebo tests using fake treatments or outcomes to check for spurious effects.",
-            "parameters": {
+            handler=self._tool_run_specification_curve,
+        )
+
+        self.register_tool(
+            name="run_placebo_test",
+            description="Run placebo tests using fake treatments or outcomes to check for spurious effects.",
+            parameters={
                 "type": "object",
                 "properties": {
                     "test_type": {
@@ -148,11 +188,13 @@ If specification curve shows instability, investigate further."""
                 },
                 "required": ["test_type"],
             },
-        },
-        {
-            "name": "run_subgroup_analysis",
-            "description": "Analyze treatment effect across subgroups to check for consistency.",
-            "parameters": {
+            handler=self._tool_run_placebo_test,
+        )
+
+        self.register_tool(
+            name="run_subgroup_analysis",
+            description="Analyze treatment effect across subgroups to check for consistency.",
+            parameters={
                 "type": "object",
                 "properties": {
                     "subgroup_variable": {
@@ -162,11 +204,13 @@ If specification curve shows instability, investigate further."""
                 },
                 "required": [],
             },
-        },
-        {
-            "name": "check_variance_stability",
-            "description": "Check if standard errors are stable via bootstrap resampling.",
-            "parameters": {
+            handler=self._tool_run_subgroup_analysis,
+        )
+
+        self.register_tool(
+            name="check_variance_stability",
+            description="Check if standard errors are stable via bootstrap resampling.",
+            parameters={
                 "type": "object",
                 "properties": {
                     "n_bootstrap": {
@@ -176,11 +220,13 @@ If specification curve shows instability, investigate further."""
                 },
                 "required": [],
             },
-        },
-        {
-            "name": "finalize_sensitivity",
-            "description": "Finalize the sensitivity analysis with overall robustness assessment.",
-            "parameters": {
+            handler=self._tool_check_variance_stability,
+        )
+
+        self.register_tool(
+            name="finalize_sensitivity",
+            description="Finalize the sensitivity analysis with overall robustness assessment.",
+            parameters={
                 "type": "object",
                 "properties": {
                     "overall_robustness": {
@@ -210,28 +256,56 @@ If specification curve shows instability, investigate further."""
                 },
                 "required": ["overall_robustness", "key_findings", "reasoning"],
             },
-        },
-    ]
+            handler=self._tool_finalize_sensitivity,
+        )
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._df: pd.DataFrame | None = None
-        self._state: AnalysisState | None = None
-        self._results: list[SensitivityResult] = []
-        self._treatment_var: str | None = None
-        self._outcome_var: str | None = None
+    # =========================================================================
+    # ReAct Required Methods
+    # =========================================================================
+
+    def _get_initial_observation(self, state: AnalysisState) -> str:
+        """Get the initial observation for the ReAct loop."""
+        # Get primary pair
+        treatment_var, outcome_var = state.get_primary_pair()
+
+        # Get effects for the primary pair
+        if treatment_var and outcome_var:
+            effects = state.get_effects_for_pair(treatment_var, outcome_var)
+        else:
+            effects = state.treatment_effects
+
+        effects_summary = ""
+        for i, effect in enumerate(effects[:5]):  # Limit to first 5
+            effects_summary += f"  {i}. {effect.method}: {effect.estimate:.4f} (SE: {effect.std_error:.4f})\n"
+
+        obs = f"""You are assessing the robustness of causal effect estimates.
+
+Treatment: {treatment_var or 'Unknown'}
+Outcome: {outcome_var or 'Unknown'}
+Sample size: {state.data_profile.n_samples if state.data_profile else 'Unknown'}
+
+Treatment Effects to assess:
+{effects_summary}
+
+WORKFLOW:
+1. First, query previous findings from effect_estimator
+2. Run E-value analysis (most fundamental sensitivity test)
+3. Based on results, run additional analyses as needed
+4. Finalize with overall robustness assessment"""
+
+        return obs
+
+    async def is_task_complete(self, state: AnalysisState) -> bool:
+        """Check if sensitivity analysis is complete."""
+        return self._finalized
 
     def _resolve_treatment_outcome(self) -> tuple[str | None, str | None]:
-        """Get treatment and outcome variables using state helper.
-
-        Returns:
-            Tuple of (treatment_var, outcome_var)
-        """
+        """Get treatment and outcome variables using state helper."""
         if self._treatment_var and self._outcome_var:
             return self._treatment_var, self._outcome_var
 
-        if self._state:
-            t, o = self._state.get_primary_pair()
+        if self._current_state:
+            t, o = self._current_state.get_primary_pair()
             self._treatment_var = t
             self._outcome_var = o
             return t, o
@@ -239,7 +313,7 @@ If specification curve shows instability, investigate further."""
         return None, None
 
     async def execute(self, state: AnalysisState) -> AnalysisState:
-        """Execute sensitivity analysis using agentic loop.
+        """Execute sensitivity analysis using ReAct loop.
 
         Args:
             state: Current analysis state with treatment effects
@@ -268,172 +342,45 @@ If specification curve shows instability, investigate further."""
             with open(state.dataframe_path, "rb") as f:
                 self._df = pickle.load(f)
 
-            self._state = state
+            self._current_state = state
             self._results = []
+            self._finalized = False
 
-            # Build initial prompt
-            initial_prompt = self._build_initial_prompt()
+            # Run ReAct loop
+            await super().execute(state)
 
-            # Run agentic loop
-            final_result = await self._run_agentic_loop(initial_prompt, max_iterations=15)
+            # If not finalized via tool, auto-finalize
+            if not self._finalized:
+                self.logger.warning("sensitivity_auto_finalize")
+                self._auto_finalize()
+                self._finalized = True
 
             # Store results
             state.sensitivity_results = self._results
 
-            # Create trace
             duration_ms = int((time.time() - start_time) * 1000)
-            trace = self.create_trace(
-                action="sensitivity_complete",
-                reasoning=final_result.get("reasoning", "Sensitivity analysis completed"),
-                outputs={
-                    "overall_robustness": final_result.get("overall_robustness"),
-                    "n_analyses": len(self._results),
-                    "key_findings": final_result.get("key_findings", []),
-                },
-                duration_ms=duration_ms,
-            )
-            state.add_trace(trace)
-
             self.logger.info(
                 "sensitivity_complete",
                 n_results=len(self._results),
-                robustness=final_result.get("overall_robustness"),
+                robustness=self._final_result.get("overall_robustness"),
+                duration_ms=duration_ms,
             )
 
         except Exception as e:
-            self.logger.error("sensitivity_failed", error=str(e))
-            import traceback
-            traceback.print_exc()
+            self.logger.exception("sensitivity_failed", error=str(e))
 
         return state
 
-    def _build_initial_prompt(self) -> str:
-        """Build the initial prompt for the agentic loop."""
-        # Get primary pair using helper method (robust to None values)
-        treatment_var, outcome_var = self._state.get_primary_pair()
-
-        # Get effects for the primary pair
-        if treatment_var and outcome_var:
-            effects = self._state.get_effects_for_pair(treatment_var, outcome_var)
-        else:
-            effects = self._state.treatment_effects
-
-        effects_summary = ""
-        for i, effect in enumerate(effects):
-            effects_summary += f"{i}. {effect.method}: {effect.estimand} = {effect.estimate:.4f} (SE: {effect.std_error:.4f}, CI: [{effect.ci_lower:.4f}, {effect.ci_upper:.4f}])\n"
-
-        return f"""You need to assess the robustness of these causal effect estimates:
-
-Treatment Effects:
-{effects_summary}
-Treatment variable: {treatment_var or 'Unknown'}
-Outcome variable: {outcome_var or 'Unknown'}
-Sample size: {self._state.data_profile.n_samples if self._state.data_profile else 'Unknown'}
-
-Start by reviewing the estimates, then systematically run sensitivity analyses.
-Begin with E-value (most fundamental), then decide what else is needed based on results."""
-
-    async def _run_agentic_loop(
-        self,
-        initial_prompt: str,
-        max_iterations: int = 15,
-    ) -> dict[str, Any]:
-        """Run the agentic tool-calling loop."""
-        messages = [{"role": "user", "content": initial_prompt}]
-        final_result = {}
-
-        for iteration in range(max_iterations):
-            self.logger.info(
-                "sensitivity_iteration",
-                iteration=iteration,
-                max_iterations=max_iterations,
-                analyses_run=len(self._results),
-            )
-
-            try:
-                result = await self.reason(
-                    prompt=messages[-1]["content"] if messages[-1]["role"] == "user" else "Continue your analysis.",
-                    context={"iteration": iteration, "n_results": len(self._results)},
-                )
-            except Exception as e:
-                self.logger.warning("llm_call_failed", iteration=iteration, error=str(e))
-                return self._auto_finalize()
-
-            # Log LLM reasoning if provided
-            response_text = result.get("response", "")
-            if response_text:
-                self.logger.info(
-                    "sensitivity_llm_reasoning",
-                    reasoning=response_text[:500] + ("..." if len(response_text) > 500 else ""),
-                )
-
-            pending_calls = result.get("pending_calls", [])
-
-            if not pending_calls:
-                self.logger.info("sensitivity_no_tool_calls", response_preview=response_text[:200])
-                if "finalize" in response_text.lower() or len(self._results) >= 3:
-                    return self._auto_finalize()
-                messages.append({"role": "assistant", "content": response_text})
-                messages.append({
-                    "role": "user",
-                    "content": "Please call a tool to continue. If done, call finalize_sensitivity."
-                })
-                continue
-
-            # Execute tool calls
-            tool_results = []
-            for call in pending_calls:
-                tool_name = call["name"]
-                tool_args = call.get("args", {})
-
-                # Check for finalize with detailed logging
-                if tool_name == "finalize_sensitivity":
-                    self.logger.info(
-                        "sensitivity_finalizing",
-                        overall_robustness=tool_args.get("overall_robustness"),
-                        num_findings=len(tool_args.get("key_findings", [])),
-                        num_concerns=len(tool_args.get("concerns", [])),
-                    )
-                    final_result = tool_args
-                    return final_result
-
-                # Log the tool call decision
-                self.logger.info(
-                    "sensitivity_tool_decision",
-                    tool=tool_name,
-                    args=tool_args,
-                )
-
-                try:
-                    tool_result = self._execute_tool(tool_name, tool_args)
-                    tool_results.append(f"[{tool_name}]: {tool_result}")
-
-                    # Log tool result summary
-                    self.logger.info(
-                        "sensitivity_tool_result",
-                        tool=tool_name,
-                        result_summary=tool_result[:200] + ("..." if len(tool_result) > 200 else ""),
-                    )
-                except Exception as e:
-                    self.logger.warning("tool_execution_error", tool=tool_name, error=str(e))
-                    tool_results.append(f"[{tool_name}]: ERROR - {str(e)}")
-
-            messages.append({
-                "role": "user",
-                "content": "Tool results:\n\n" + "\n\n".join(tool_results) + "\n\nInterpret these results and decide what analysis to run next, or finalize if you have enough evidence."
-            })
-
-        return self._auto_finalize()
-
-    def _auto_finalize(self) -> dict[str, Any]:
+    def _auto_finalize(self) -> None:
         """Auto-finalize when LLM doesn't explicitly finalize."""
         if not self._results:
-            return {
+            self._final_result = {
                 "overall_robustness": "uncertain",
                 "key_findings": ["No sensitivity analyses completed"],
                 "concerns": ["Unable to assess robustness"],
                 "reasoning": "Auto-finalized: no sensitivity results obtained",
             }
+            return
 
         # Assess based on results
         e_value_result = next((r for r in self._results if "e-value" in r.method.lower()), None)
@@ -449,74 +396,78 @@ Begin with E-value (most fundamental), then decide what else is needed based on 
 
         key_findings = [r.interpretation for r in self._results[:3]]
 
-        return {
+        self._final_result = {
             "overall_robustness": robustness,
             "key_findings": key_findings,
             "concerns": [],
             "reasoning": f"Auto-finalized with {len(self._results)} analyses completed",
         }
 
-    def _execute_tool(self, tool_name: str, args: dict) -> str:
-        """Execute a tool and return the result string."""
-        if tool_name == "get_estimates_summary":
-            return self._tool_get_estimates_summary()
-        elif tool_name == "compute_e_value":
-            return self._tool_compute_e_value(args)
-        elif tool_name == "compute_rosenbaum_bounds":
-            return self._tool_compute_rosenbaum_bounds(args)
-        elif tool_name == "run_specification_curve":
-            return self._tool_run_specification_curve(args)
-        elif tool_name == "run_placebo_test":
-            return self._tool_run_placebo_test(args)
-        elif tool_name == "run_subgroup_analysis":
-            return self._tool_run_subgroup_analysis(args)
-        elif tool_name == "check_variance_stability":
-            return self._tool_check_variance_stability(args)
-        else:
-            return f"Unknown tool: {tool_name}"
+    # =========================================================================
+    # Tool Handlers (async, return ToolResult)
+    # =========================================================================
 
-    def _tool_get_estimates_summary(self) -> str:
+    async def _tool_get_estimates_summary(
+        self,
+        state: AnalysisState,
+    ) -> ToolResult:
         """Get summary of treatment effect estimates."""
-        if not self._state.treatment_effects:
-            return "No treatment effects estimated yet."
+        if not self._current_state.treatment_effects:
+            return ToolResult(
+                status=ToolResultStatus.ERROR,
+                output=None,
+                error="No treatment effects estimated yet."
+            )
 
-        summary = "Treatment Effect Estimates Summary:\n\n"
-        for i, effect in enumerate(self._state.treatment_effects):
-            summary += f"""Method {i}: {effect.method}
-  Estimand: {effect.estimand}
-  Estimate: {effect.estimate:.4f}
-  Std Error: {effect.std_error:.4f}
-  95% CI: [{effect.ci_lower:.4f}, {effect.ci_upper:.4f}]
-  P-value: {effect.p_value:.4f if effect.p_value else 'N/A'}
-  Assumptions: {effect.assumptions_tested}
+        estimates_data = []
+        for i, effect in enumerate(self._current_state.treatment_effects):
+            estimates_data.append({
+                "index": i,
+                "method": effect.method,
+                "estimand": effect.estimand,
+                "estimate": round(effect.estimate, 4),
+                "std_error": round(effect.std_error, 4),
+                "ci": [round(effect.ci_lower, 4), round(effect.ci_upper, 4)],
+                "p_value": round(effect.p_value, 4) if effect.p_value else None,
+            })
 
-"""
-
-        # Add summary statistics
-        estimates = [e.estimate for e in self._state.treatment_effects]
+        estimates = [e.estimate for e in self._current_state.treatment_effects]
+        summary_stats = None
         if len(estimates) > 1:
-            summary += f"""Cross-Method Summary:
-- Mean estimate: {np.mean(estimates):.4f}
-- Std across methods: {np.std(estimates):.4f}
-- Range: [{min(estimates):.4f}, {max(estimates):.4f}]
-- All same sign: {'Yes' if (all(e > 0 for e in estimates) or all(e < 0 for e in estimates)) else 'No'}
-"""
+            summary_stats = {
+                "mean": round(float(np.mean(estimates)), 4),
+                "std": round(float(np.std(estimates)), 4),
+                "range": [round(min(estimates), 4), round(max(estimates), 4)],
+                "all_same_sign": all(e > 0 for e in estimates) or all(e < 0 for e in estimates),
+            }
 
-        return summary
+        return ToolResult(
+            status=ToolResultStatus.SUCCESS,
+            output={
+                "n_estimates": len(estimates_data),
+                "estimates": estimates_data,
+                "cross_method_summary": summary_stats,
+            }
+        )
 
-    def _tool_compute_e_value(self, args: dict) -> str:
+    async def _tool_compute_e_value(
+        self,
+        state: AnalysisState,
+        method_index: int = 0,
+    ) -> ToolResult:
         """Compute E-value for unmeasured confounding."""
-        method_index = args.get("method_index", 0)
+        if method_index >= len(self._current_state.treatment_effects):
+            return ToolResult(
+                status=ToolResultStatus.ERROR,
+                output=None,
+                error=f"Invalid method index {method_index}"
+            )
 
-        if method_index >= len(self._state.treatment_effects):
-            return f"Invalid method index {method_index}"
-
-        effect = self._state.treatment_effects[method_index]
+        effect = self._current_state.treatment_effects[method_index]
         estimate = effect.estimate
         se = effect.std_error
 
         # Convert to approximate risk ratio for E-value calculation
-        # For continuous outcomes, use approximate conversion
         if estimate >= 0:
             rr = max(1.01, 1 + estimate / (se * 2 + 0.01))
         else:
@@ -535,23 +486,23 @@ Begin with E-value (most fundamental), then decide what else is needed based on 
 
         # Interpretation
         if e_value >= 3 and e_value_ci >= 1.5:
-            interpretation = "ROBUST: Would need very strong unmeasured confounding to explain away"
+            interpretation = "ROBUST: Would need very strong unmeasured confounding"
             robustness_level = "high"
         elif e_value >= 2 and e_value_ci >= 1.2:
             interpretation = "MODERATELY ROBUST: Moderate confounding strength needed"
             robustness_level = "moderate"
         elif e_value >= 1.5:
-            interpretation = "SOMEWHAT SENSITIVE: Relatively weak confounding could explain effect"
+            interpretation = "SOMEWHAT SENSITIVE: Relatively weak confounding could explain"
             robustness_level = "low"
         else:
-            interpretation = "SENSITIVE: Even weak unmeasured confounding could explain the effect"
+            interpretation = "SENSITIVE: Even weak confounding could explain the effect"
             robustness_level = "very low"
 
         # Store result
-        result = SensitivityResult(
+        sens_result = SensitivityResult(
             method="E-value",
             robustness_value=float(e_value),
-            interpretation=f"E-value = {e_value:.2f} (CI bound: {e_value_ci:.2f}): {interpretation}",
+            interpretation=f"E-value = {e_value:.2f} (CI: {e_value_ci:.2f}): {interpretation}",
             details={
                 "e_value_point": float(e_value),
                 "e_value_ci": float(e_value_ci),
@@ -559,30 +510,34 @@ Begin with E-value (most fundamental), then decide what else is needed based on 
                 "robustness_level": robustness_level,
             },
         )
-        self._results.append(result)
+        self._results.append(sens_result)
 
-        return f"""E-Value Analysis for {effect.method}:
+        return ToolResult(
+            status=ToolResultStatus.SUCCESS,
+            output={
+                "method_analyzed": effect.method,
+                "e_value_point": round(float(e_value), 2),
+                "e_value_ci": round(float(e_value_ci), 2),
+                "approximate_rr": round(float(rr), 2),
+                "robustness_level": robustness_level,
+                "interpretation": interpretation,
+            }
+        )
 
-E-value (point estimate): {e_value:.2f}
-E-value (confidence interval): {e_value_ci:.2f}
-Approximate risk ratio: {rr:.2f}
-
-Interpretation: {interpretation}
-
-What this means:
-- An unmeasured confounder would need to be associated with both treatment and outcome by a risk ratio of at least {e_value:.2f} to explain away the observed effect
-- E-value > 2 is generally considered robust
-- E-value for CI tells us minimum confounding to shift CI to include null
-"""
-
-    def _tool_compute_rosenbaum_bounds(self, args: dict) -> str:
+    async def _tool_compute_rosenbaum_bounds(
+        self,
+        state: AnalysisState,
+        method_index: int = 0,
+    ) -> ToolResult:
         """Compute Rosenbaum bounds."""
-        method_index = args.get("method_index", 0)
+        if method_index >= len(self._current_state.treatment_effects):
+            return ToolResult(
+                status=ToolResultStatus.ERROR,
+                output=None,
+                error=f"Invalid method index {method_index}"
+            )
 
-        if method_index >= len(self._state.treatment_effects):
-            return f"Invalid method index {method_index}"
-
-        effect = self._state.treatment_effects[method_index]
+        effect = self._current_state.treatment_effects[method_index]
         estimate = effect.estimate
         se = effect.std_error
 
@@ -594,13 +549,13 @@ What this means:
         if gamma >= 3:
             interpretation = "VERY ROBUST: Would need very strong hidden bias"
         elif gamma >= 2:
-            interpretation = "MODERATELY ROBUST: Hidden bias would need to double odds of treatment"
+            interpretation = "MODERATELY ROBUST: Hidden bias would need to double odds"
         elif gamma >= 1.5:
             interpretation = "SOMEWHAT SENSITIVE: Moderate hidden bias could explain effect"
         else:
             interpretation = "SENSITIVE: Small hidden bias could explain effect"
 
-        result = SensitivityResult(
+        sens_result = SensitivityResult(
             method="Rosenbaum Bounds (approximate)",
             robustness_value=float(gamma),
             interpretation=f"Gamma = {gamma:.2f}: {interpretation}",
@@ -609,35 +564,33 @@ What this means:
                 "z_score": float(z_score),
             },
         )
-        self._results.append(result)
+        self._results.append(sens_result)
 
-        return f"""Rosenbaum Bounds Analysis:
+        return ToolResult(
+            status=ToolResultStatus.SUCCESS,
+            output={
+                "gamma": round(float(gamma), 2),
+                "z_score": round(float(z_score), 2),
+                "interpretation": interpretation,
+            }
+        )
 
-Gamma (sensitivity parameter): {gamma:.2f}
-Z-score: {z_score:.2f}
-
-Interpretation: {interpretation}
-
-What Gamma means:
-- Gamma = 1 means no hidden bias
-- Gamma = 2 means matched units could differ by factor of 2 in odds of treatment due to unmeasured confounder
-- Higher Gamma = more robust to unmeasured confounding
-"""
-
-    def _tool_run_specification_curve(self, args: dict) -> str:
+    async def _tool_run_specification_curve(
+        self,
+        state: AnalysisState,
+        n_specifications: int = 10,
+    ) -> ToolResult:
         """Run specification curve analysis."""
-        n_specs = args.get("n_specifications", 10)
-
         from sklearn.linear_model import LinearRegression
 
         df = self._df
         T_col, Y_col = self._resolve_treatment_outcome()
 
         if not T_col or not Y_col:
-            return "Treatment or outcome variable not identified."
+            return ToolResult(status=ToolResultStatus.ERROR, output=None, error="Treatment or outcome variable not identified.")
 
         if T_col not in df.columns or Y_col not in df.columns:
-            return "Treatment or outcome variable not in dataset."
+            return ToolResult(status=ToolResultStatus.ERROR, output=None, error="Treatment or outcome variable not in dataset.")
 
         T = df[T_col].values
         Y = df[Y_col].values
@@ -647,13 +600,13 @@ What Gamma means:
         Y = Y[mask]
 
         if len(T) < 50:
-            return "Insufficient data for specification curve."
+            return ToolResult(status=ToolResultStatus.ERROR, output=None, error="Insufficient data for specification curve.")
 
         # Get covariates
         covariates = []
-        if self._state.data_profile:
+        if self._current_state.data_profile:
             covariates = [
-                c for c in self._state.data_profile.potential_confounders
+                c for c in self._current_state.data_profile.potential_confounders
                 if c in df.columns and c != T_col and c != Y_col
             ][:15]
 
@@ -667,7 +620,7 @@ What Gamma means:
         specs.append("No controls")
 
         # Different covariate sets
-        for i in range(min(n_specs - 1, len(covariates))):
+        for i in range(min(n_specifications - 1, len(covariates))):
             cov_subset = covariates[: i + 1]
             try:
                 cov_data = df[cov_subset].values[mask]
@@ -684,73 +637,65 @@ What Gamma means:
                 continue
 
         if len(estimates) < 2:
-            return "Could not compute multiple specifications."
+            return ToolResult(status=ToolResultStatus.ERROR, output=None, error="Could not compute multiple specifications.")
 
         # Summary statistics
-        est_mean = np.mean(estimates)
-        est_std = np.std(estimates)
-        est_range = np.max(estimates) - np.min(estimates)
+        est_mean = float(np.mean(estimates))
+        est_std = float(np.std(estimates))
         all_same_sign = all(e > 0 for e in estimates) or all(e < 0 for e in estimates)
         cv = est_std / abs(est_mean) if est_mean != 0 else float("inf")
 
         # Interpretation
         if cv < 0.2 and all_same_sign:
             interpretation = "HIGHLY STABLE: Estimates consistent across specifications"
-            robustness = "high"
         elif cv < 0.4 and all_same_sign:
             interpretation = "MODERATELY STABLE: Some variation but same direction"
-            robustness = "moderate"
         elif all_same_sign:
             interpretation = "VARIABLE: Magnitude varies but direction consistent"
-            robustness = "moderate"
         else:
             interpretation = "UNSTABLE: Sign changes across specifications"
-            robustness = "low"
 
-        result = SensitivityResult(
+        sens_result = SensitivityResult(
             method="Specification Curve",
             robustness_value=float(1 - min(cv, 1)),
             interpretation=f"{interpretation} (CV={cv:.2f})",
             details={
                 "n_specifications": len(estimates),
-                "estimate_mean": float(est_mean),
-                "estimate_std": float(est_std),
-                "estimate_range": float(est_range),
+                "estimate_mean": est_mean,
+                "estimate_std": est_std,
                 "all_same_sign": all_same_sign,
                 "cv": float(cv),
             },
         )
-        self._results.append(result)
+        self._results.append(sens_result)
 
-        spec_results = "\n".join([f"  {s}: {e:.4f}" for s, e in zip(specs, estimates, strict=False)])
+        return ToolResult(
+            status=ToolResultStatus.SUCCESS,
+            output={
+                "n_specifications": len(estimates),
+                "mean_estimate": round(est_mean, 4),
+                "std_estimate": round(est_std, 4),
+                "range": [round(min(estimates), 4), round(max(estimates), 4)],
+                "all_same_sign": all_same_sign,
+                "cv": round(cv, 4),
+                "interpretation": interpretation,
+            }
+        )
 
-        return f"""Specification Curve Analysis ({len(estimates)} specifications):
-
-Individual Specifications:
-{spec_results}
-
-Summary:
-- Mean estimate: {est_mean:.4f}
-- Std deviation: {est_std:.4f}
-- Range: [{min(estimates):.4f}, {max(estimates):.4f}]
-- All same sign: {'Yes' if all_same_sign else 'No'}
-- Coefficient of variation: {cv:.2%}
-
-Interpretation: {interpretation}
-"""
-
-    def _tool_run_placebo_test(self, args: dict) -> str:
+    async def _tool_run_placebo_test(
+        self,
+        state: AnalysisState,
+        test_type: str = "both",
+        n_placebos: int = 100,
+    ) -> ToolResult:
         """Run placebo tests."""
-        test_type = args.get("test_type", "both")
-        n_placebos = args.get("n_placebos", 100)
-
         from sklearn.linear_model import LinearRegression
 
         df = self._df
         T_col, Y_col = self._resolve_treatment_outcome()
 
         if not T_col or not Y_col:
-            return "Treatment or outcome variable not identified."
+            return ToolResult(status=ToolResultStatus.ERROR, output=None, error="Treatment or outcome not identified.")
 
         T = df[T_col].dropna().values
         Y = df[Y_col].dropna().values
@@ -759,14 +704,14 @@ Interpretation: {interpretation}
         T = T[:n]
         Y = Y[:n]
 
-        actual_effect = abs(self._state.treatment_effects[0].estimate) if self._state.treatment_effects else 0
-
-        results_text = ""
+        actual_effect = abs(self._current_state.treatment_effects[0].estimate) if self._current_state.treatment_effects else 0
 
         np.random.seed(42)
+        results_output = {"test_type": test_type, "actual_effect": round(actual_effect, 4)}
+        interpretation = ""
+        ratio = 1.0
 
         if test_type in ["placebo_treatment", "both"]:
-            # Placebo treatment test
             placebo_effects = []
             for _ in range(n_placebos):
                 T_placebo = np.random.binomial(1, 0.5, size=len(Y))
@@ -774,28 +719,26 @@ Interpretation: {interpretation}
                 model.fit(T_placebo.reshape(-1, 1), Y)
                 placebo_effects.append(abs(model.coef_[0]))
 
-            placebo_mean = np.mean(placebo_effects)
-            placebo_p95 = np.percentile(placebo_effects, 95)
+            placebo_mean = float(np.mean(placebo_effects))
+            placebo_p95 = float(np.percentile(placebo_effects, 95))
             ratio = actual_effect / (placebo_mean + 0.001)
 
             if actual_effect > 2 * placebo_p95:
-                interp_t = "PASSED: Real effect far exceeds placebo distribution"
+                interp_t = "PASSED: Real effect far exceeds placebo"
             elif actual_effect > placebo_p95:
-                interp_t = "PASSED: Real effect exceeds 95th percentile of placebo"
+                interp_t = "PASSED: Real effect exceeds 95th percentile"
             else:
                 interp_t = "CONCERNING: Real effect within placebo distribution"
 
-            results_text += f"""Placebo Treatment Test ({n_placebos} iterations):
-- Actual effect: {actual_effect:.4f}
-- Placebo mean: {placebo_mean:.4f}
-- Placebo 95th percentile: {placebo_p95:.4f}
-- Ratio (actual/placebo): {ratio:.2f}
-- Interpretation: {interp_t}
-
-"""
+            results_output["placebo_treatment"] = {
+                "placebo_mean": round(placebo_mean, 4),
+                "placebo_p95": round(placebo_p95, 4),
+                "ratio": round(ratio, 2),
+                "interpretation": interp_t,
+            }
+            interpretation = interp_t
 
         if test_type in ["placebo_outcome", "both"]:
-            # Placebo outcome test
             placebo_effects = []
             for _ in range(n_placebos):
                 Y_placebo = np.random.randn(len(T))
@@ -803,59 +746,59 @@ Interpretation: {interpretation}
                 model.fit(T.reshape(-1, 1), Y_placebo)
                 placebo_effects.append(abs(model.coef_[0]))
 
-            placebo_mean = np.mean(placebo_effects)
-            placebo_p95 = np.percentile(placebo_effects, 95)
+            placebo_mean = float(np.mean(placebo_effects))
             ratio = actual_effect / (placebo_mean + 0.001)
 
             if actual_effect > 3 * placebo_mean:
-                interp_o = "PASSED: Treatment has much larger effect on real vs placebo outcomes"
+                interp_o = "PASSED: Much larger effect on real outcome"
             elif actual_effect > 2 * placebo_mean:
-                interp_o = "PASSED: Treatment effect notably larger on real outcome"
+                interp_o = "PASSED: Notably larger on real outcome"
             else:
-                interp_o = "CONCERNING: Treatment effect similar on real and placebo outcomes"
+                interp_o = "CONCERNING: Similar on real and placebo outcomes"
 
-            results_text += f"""Placebo Outcome Test ({n_placebos} iterations):
-- Actual effect: {actual_effect:.4f}
-- Placebo mean: {placebo_mean:.4f}
-- Ratio (actual/placebo): {ratio:.2f}
-- Interpretation: {interp_o}
+            results_output["placebo_outcome"] = {
+                "placebo_mean": round(placebo_mean, 4),
+                "ratio": round(ratio, 2),
+                "interpretation": interp_o,
+            }
+            interpretation = interp_o if test_type == "placebo_outcome" else f"{interpretation}; {interp_o}"
 
-"""
-
-        # Store result
-        result = SensitivityResult(
+        sens_result = SensitivityResult(
             method=f"Placebo Test ({test_type})",
-            robustness_value=float(ratio if 'ratio' in dir() else 1),
-            interpretation=interp_t if test_type == "placebo_treatment" else (interp_o if test_type == "placebo_outcome" else f"{interp_t}; {interp_o}"),
+            robustness_value=float(ratio),
+            interpretation=interpretation,
             details={"test_type": test_type, "n_placebos": n_placebos},
         )
-        self._results.append(result)
+        self._results.append(sens_result)
 
-        return results_text
+        return ToolResult(status=ToolResultStatus.SUCCESS, output=results_output)
 
-    def _tool_run_subgroup_analysis(self, args: dict) -> str:
+    async def _tool_run_subgroup_analysis(
+        self,
+        state: AnalysisState,
+        subgroup_variable: str | None = None,
+    ) -> ToolResult:
         """Run subgroup analysis."""
         from sklearn.linear_model import LinearRegression
-
-        subgroup_var = args.get("subgroup_variable")
 
         df = self._df
         T_col, Y_col = self._resolve_treatment_outcome()
 
         if not T_col or not Y_col:
-            return "Treatment or outcome variable not identified."
+            return ToolResult(status=ToolResultStatus.ERROR, output=None, error="Treatment or outcome not identified.")
+
+        subgroup_var = subgroup_variable
 
         # Find subgroup variable
         if not subgroup_var:
-            if self._state.data_profile:
-                for col, dtype in self._state.data_profile.feature_types.items():
+            if self._current_state.data_profile:
+                for col, dtype in self._current_state.data_profile.feature_types.items():
                     if dtype in ["categorical", "binary"] and col not in [T_col, Y_col]:
                         if 2 <= df[col].nunique() <= 5:
                             subgroup_var = col
                             break
 
         if not subgroup_var:
-            # Create quartiles
             subgroup_var = "_quartile"
             df = df.copy()
             df[subgroup_var] = pd.qcut(df[Y_col], 4, labels=False, duplicates="drop")
@@ -877,67 +820,59 @@ Interpretation: {interpretation}
 
             model = LinearRegression()
             model.fit(T_sg.reshape(-1, 1), Y_sg)
-            subgroup_effects.append(model.coef_[0])
+            subgroup_effects.append(float(model.coef_[0]))
             subgroup_labels.append(f"{subgroup_var}={sg_val}")
 
         if len(subgroup_effects) < 2:
-            return "Insufficient subgroups for analysis."
+            return ToolResult(status=ToolResultStatus.ERROR, output=None, error="Insufficient subgroups.")
 
-        # Summary
-        effect_mean = np.mean(subgroup_effects)
-        effect_std = np.std(subgroup_effects)
+        effect_mean = float(np.mean(subgroup_effects))
+        effect_std = float(np.std(subgroup_effects))
         all_same_sign = all(e > 0 for e in subgroup_effects) or all(e < 0 for e in subgroup_effects)
         cv = effect_std / abs(effect_mean) if effect_mean != 0 else float("inf")
 
         if cv < 0.3 and all_same_sign:
             interpretation = "CONSISTENT: Effect similar across subgroups"
-            robustness = "high"
         elif all_same_sign:
             interpretation = "DIRECTION CONSISTENT: Magnitude varies but direction stable"
-            robustness = "moderate"
         else:
             interpretation = "HETEROGENEOUS: Effect varies including sign changes"
-            robustness = "low"
 
-        result = SensitivityResult(
+        sens_result = SensitivityResult(
             method="Subgroup Analysis",
             robustness_value=float(1 - min(cv, 1)),
             interpretation=interpretation,
-            details={
+            details={"subgroup_variable": subgroup_var, "n_subgroups": len(subgroup_effects), "cv": float(cv)},
+        )
+        self._results.append(sens_result)
+
+        return ToolResult(
+            status=ToolResultStatus.SUCCESS,
+            output={
                 "subgroup_variable": subgroup_var,
                 "n_subgroups": len(subgroup_effects),
-                "cv": float(cv),
-            },
+                "subgroup_effects": [{"label": l, "effect": round(e, 4)} for l, e in zip(subgroup_labels, subgroup_effects, strict=False)],
+                "mean_effect": round(effect_mean, 4),
+                "std_effect": round(effect_std, 4),
+                "all_same_sign": all_same_sign,
+                "cv": round(cv, 4),
+                "interpretation": interpretation,
+            }
         )
-        self._results.append(result)
 
-        sg_results = "\n".join([f"  {l}: {e:.4f}" for l, e in zip(subgroup_labels, subgroup_effects, strict=False)])
-
-        return f"""Subgroup Analysis (by {subgroup_var}):
-
-Subgroup Effects:
-{sg_results}
-
-Summary:
-- Mean effect: {effect_mean:.4f}
-- Std deviation: {effect_std:.4f}
-- All same sign: {'Yes' if all_same_sign else 'No'}
-- CV: {cv:.2%}
-
-Interpretation: {interpretation}
-"""
-
-    def _tool_check_variance_stability(self, args: dict) -> str:
+    async def _tool_check_variance_stability(
+        self,
+        state: AnalysisState,
+        n_bootstrap: int = 200,
+    ) -> ToolResult:
         """Check variance stability via bootstrap."""
-        n_bootstrap = args.get("n_bootstrap", 200)
-
         from sklearn.linear_model import LinearRegression
 
         df = self._df
         T_col, Y_col = self._resolve_treatment_outcome()
 
         if not T_col or not Y_col:
-            return "Treatment or outcome variable not identified."
+            return ToolResult(status=ToolResultStatus.ERROR, output=None, error="Treatment or outcome not identified.")
 
         T = df[T_col].values
         Y = df[Y_col].values
@@ -947,9 +882,8 @@ Interpretation: {interpretation}
         Y = Y[mask]
 
         if len(T) < 50:
-            return "Insufficient data for bootstrap."
+            return ToolResult(status=ToolResultStatus.ERROR, output=None, error="Insufficient data for bootstrap.")
 
-        # Bootstrap
         np.random.seed(42)
         bootstrap_estimates = []
         n = len(T)
@@ -963,12 +897,11 @@ Interpretation: {interpretation}
             model.fit(T_boot.reshape(-1, 1), Y_boot)
             bootstrap_estimates.append(model.coef_[0])
 
-        boot_mean = np.mean(bootstrap_estimates)
-        boot_std = np.std(bootstrap_estimates)
-        boot_ci = (np.percentile(bootstrap_estimates, 2.5), np.percentile(bootstrap_estimates, 97.5))
+        boot_mean = float(np.mean(bootstrap_estimates))
+        boot_std = float(np.std(bootstrap_estimates))
+        boot_ci = (float(np.percentile(bootstrap_estimates, 2.5)), float(np.percentile(bootstrap_estimates, 97.5)))
 
-        # Compare to reported SE
-        reported_se = self._state.treatment_effects[0].std_error if self._state.treatment_effects else boot_std
+        reported_se = self._current_state.treatment_effects[0].std_error if self._current_state.treatment_effects else boot_std
         se_ratio = boot_std / (reported_se + 0.001)
 
         if 0.8 <= se_ratio <= 1.2:
@@ -976,30 +909,63 @@ Interpretation: {interpretation}
         elif se_ratio < 0.8:
             interpretation = "CONSERVATIVE: Reported SE may be larger than necessary"
         else:
-            interpretation = "UNSTABLE: Bootstrap SE larger than reported - some concern"
+            interpretation = "UNSTABLE: Bootstrap SE larger than reported"
 
-        result = SensitivityResult(
+        sens_result = SensitivityResult(
             method="Bootstrap Variance Check",
             robustness_value=float(min(se_ratio, 1 / se_ratio)),
             interpretation=interpretation,
-            details={
-                "bootstrap_se": float(boot_std),
-                "reported_se": float(reported_se),
-                "se_ratio": float(se_ratio),
-            },
+            details={"bootstrap_se": boot_std, "reported_se": float(reported_se), "se_ratio": float(se_ratio)},
         )
-        self._results.append(result)
+        self._results.append(sens_result)
 
-        return f"""Bootstrap Variance Analysis ({n_bootstrap} iterations):
+        return ToolResult(
+            status=ToolResultStatus.SUCCESS,
+            output={
+                "n_bootstrap": n_bootstrap,
+                "boot_mean": round(boot_mean, 4),
+                "boot_se": round(boot_std, 4),
+                "boot_ci": [round(boot_ci[0], 4), round(boot_ci[1], 4)],
+                "reported_se": round(float(reported_se), 4),
+                "se_ratio": round(float(se_ratio), 2),
+                "interpretation": interpretation,
+            }
+        )
 
-Bootstrap Results:
-- Mean estimate: {boot_mean:.4f}
-- Bootstrap SE: {boot_std:.4f}
-- Bootstrap 95% CI: [{boot_ci[0]:.4f}, {boot_ci[1]:.4f}]
+    async def _tool_finalize_sensitivity(
+        self,
+        state: AnalysisState,
+        overall_robustness: str,
+        key_findings: list[str],
+        reasoning: str,
+        concerns: list[str] | None = None,
+        recommendations: list[str] | None = None,
+    ) -> ToolResult:
+        """Finalize the sensitivity analysis."""
+        self._finalized = True
+        self._final_result = {
+            "overall_robustness": overall_robustness,
+            "key_findings": key_findings,
+            "concerns": concerns or [],
+            "recommendations": recommendations or [],
+            "reasoning": reasoning,
+            "n_analyses": len(self._results),
+        }
 
-Comparison to Reported:
-- Reported SE: {reported_se:.4f}
-- Ratio (bootstrap/reported): {se_ratio:.2f}
+        self.logger.info(
+            "sensitivity_finalized",
+            overall_robustness=overall_robustness,
+            n_analyses=len(self._results),
+        )
 
-Interpretation: {interpretation}
-"""
+        return ToolResult(
+            status=ToolResultStatus.SUCCESS,
+            output={
+                "finalized": True,
+                "overall_robustness": overall_robustness,
+                "key_findings": key_findings,
+                "concerns": concerns or [],
+                "recommendations": recommendations or [],
+            },
+            metadata={"is_finish": True},
+        )

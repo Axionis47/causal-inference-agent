@@ -1,4 +1,4 @@
-"""Effect Estimator Agent - Truly agentic treatment effect estimation.
+"""Effect Estimator Agent - ReAct-based treatment effect estimation.
 
 This agent uses the ReAct pattern to iteratively:
 1. Analyze data characteristics
@@ -6,6 +6,8 @@ This agent uses the ReAct pattern to iteratively:
 3. Select and run appropriate estimation methods
 4. Evaluate diagnostics and compare results
 5. Iterate until confident in the estimate
+
+Uses pull-based context - queries for information on demand.
 """
 
 import json
@@ -19,11 +21,14 @@ from scipy import stats
 
 from src.agents.base import (
     AnalysisState,
-    BaseAgent,
     CausalPair,
     JobStatus,
+    ToolResult,
+    ToolResultStatus,
     TreatmentEffectResult,
 )
+from src.agents.base.context_tools import ContextTools
+from src.agents.base.react_agent import ReActAgent
 from src.logging_config.structured import get_logger
 
 logger = get_logger(__name__)
@@ -149,32 +154,40 @@ def _find_closest_column(name: str, columns: list[str]) -> str | None:
     return None
 
 
-class EffectEstimatorAgent(BaseAgent):
-    """Truly agentic effect estimator using ReAct pattern.
+class EffectEstimatorAgent(ReActAgent, ContextTools):
+    """ReAct-based treatment effect estimator.
 
-    The LLM iteratively:
-    1. Investigates data characteristics
-    2. Checks balance and overlap
-    3. Runs estimation methods one at a time
-    4. Evaluates diagnostics
-    5. Compares results across methods
-    6. Decides when to stop and which estimate to trust
+    This agent iteratively:
+    1. Queries domain knowledge and prior agent findings
+    2. Investigates data characteristics
+    3. Checks balance and overlap
+    4. Runs estimation methods one at a time
+    5. Evaluates diagnostics
+    6. Compares results across methods
+    7. Decides when to stop and which estimate to trust
 
-    NO pre-computation - all evidence gathered via tool calls.
+    Uses pull-based context - queries for information on demand.
     """
 
     AGENT_NAME = "effect_estimator"
+    MAX_STEPS = 20
 
     SYSTEM_PROMPT = """You are an expert econometrician and causal inference practitioner.
 Your task is to estimate treatment effects using rigorous statistical methods.
 
-You have tools to investigate the data and run estimation methods. Use them iteratively:
+WORKFLOW:
+1. FIRST: Query previous agent findings (domain_knowledge, data_profiler, eda_agent)
+2. THEN: Get data summary to understand the dataset
+3. THEN: Check covariate balance between treatment groups
+4. THEN: Check propensity score overlap (for observational studies)
+5. THEN: Run estimation methods one by one, checking diagnostics after each
+6. FINALLY: Compare results and finalize with your best estimate
 
-1. FIRST: Get data summary to understand the dataset
-2. THEN: Check covariate balance between treatment groups
-3. THEN: Check propensity score overlap (for observational studies)
-4. THEN: Run estimation methods one by one, checking diagnostics after each
-5. FINALLY: Compare results and finalize with your best estimate
+CONTEXT TOOLS:
+- ask_domain_knowledge: Query domain knowledge for causal constraints
+- get_previous_finding: Get findings from previous agents
+- get_eda_finding: Query specific EDA results (balance, correlations, etc.)
+- get_treatment_outcome: Get current treatment/outcome variables
 
 IMPORTANT GUIDELINES:
 - Start with simpler methods (OLS, IPW) before complex ones (Causal Forest, DML)
@@ -196,20 +209,45 @@ Method selection guidance:
 
 Call tools iteratively. Analyze each result before deciding next steps."""
 
-    TOOLS = [
-        {
-            "name": "get_data_summary",
-            "description": "Get summary statistics of the dataset including sample sizes, treatment/control split, outcome distribution, and available covariates.",
-            "parameters": {
+    def __init__(self) -> None:
+        """Initialize the effect estimator agent."""
+        super().__init__()
+
+        # Register context query tools from mixin
+        self.register_context_tools()
+
+        # Internal state
+        self._df: pd.DataFrame | None = None
+        self._treatment_var: str | None = None
+        self._outcome_var: str | None = None
+        self._covariates: list[str] = []
+        self._results: list[TreatmentEffectResult] = []
+        self._propensity_scores: np.ndarray | None = None
+        self._last_method_result: TreatmentEffectResult | None = None
+        self._current_state: AnalysisState | None = None
+        self._finalized: bool = False
+        self._final_result: dict[str, Any] = {}
+
+        # Register estimation-specific tools
+        self._register_estimation_tools()
+
+    def _register_estimation_tools(self) -> None:
+        """Register tools for effect estimation."""
+        self.register_tool(
+            name="get_data_summary",
+            description="Get summary statistics of the dataset including sample sizes, treatment/control split, outcome distribution, and available covariates.",
+            parameters={
                 "type": "object",
                 "properties": {},
                 "required": [],
             },
-        },
-        {
-            "name": "check_covariate_balance",
-            "description": "Check balance of covariates between treatment and control groups. Returns standardized mean differences.",
-            "parameters": {
+            handler=self._tool_get_data_summary,
+        )
+
+        self.register_tool(
+            name="check_covariate_balance",
+            description="Check balance of covariates between treatment and control groups. Returns standardized mean differences.",
+            parameters={
                 "type": "object",
                 "properties": {
                     "covariates": {
@@ -220,11 +258,13 @@ Call tools iteratively. Analyze each result before deciding next steps."""
                 },
                 "required": [],
             },
-        },
-        {
-            "name": "estimate_propensity_scores",
-            "description": "Estimate propensity scores and check overlap between treatment groups.",
-            "parameters": {
+            handler=self._tool_check_covariate_balance,
+        )
+
+        self.register_tool(
+            name="estimate_propensity_scores",
+            description="Estimate propensity scores and check overlap between treatment groups.",
+            parameters={
                 "type": "object",
                 "properties": {
                     "covariates": {
@@ -235,11 +275,13 @@ Call tools iteratively. Analyze each result before deciding next steps."""
                 },
                 "required": [],
             },
-        },
-        {
-            "name": "run_estimation_method",
-            "description": "Run a specific causal estimation method and get the treatment effect estimate.",
-            "parameters": {
+            handler=self._tool_estimate_propensity_scores,
+        )
+
+        self.register_tool(
+            name="run_estimation_method",
+            description="Run a specific causal estimation method and get the treatment effect estimate.",
+            parameters={
                 "type": "object",
                 "properties": {
                     "method": {
@@ -268,11 +310,13 @@ Call tools iteratively. Analyze each result before deciding next steps."""
                 },
                 "required": ["method"],
             },
-        },
-        {
-            "name": "check_method_diagnostics",
-            "description": "Check diagnostics for the most recently run method (e.g., residual analysis, influence points).",
-            "parameters": {
+            handler=self._tool_run_estimation_method,
+        )
+
+        self.register_tool(
+            name="check_method_diagnostics",
+            description="Check diagnostics for the most recently run method (e.g., residual analysis, influence points).",
+            parameters={
                 "type": "object",
                 "properties": {
                     "diagnostic_type": {
@@ -283,20 +327,24 @@ Call tools iteratively. Analyze each result before deciding next steps."""
                 },
                 "required": ["diagnostic_type"],
             },
-        },
-        {
-            "name": "compare_estimates",
-            "description": "Compare all estimates obtained so far across methods.",
-            "parameters": {
+            handler=self._tool_check_method_diagnostics,
+        )
+
+        self.register_tool(
+            name="compare_estimates",
+            description="Compare all estimates obtained so far across methods.",
+            parameters={
                 "type": "object",
                 "properties": {},
                 "required": [],
             },
-        },
-        {
-            "name": "finalize_results",
-            "description": "Finalize the analysis with your conclusions. Call this when you have enough evidence.",
-            "parameters": {
+            handler=self._tool_compare_estimates,
+        )
+
+        self.register_tool(
+            name="finalize_estimation",
+            description="Finalize the analysis with your conclusions. Call this when you have enough evidence.",
+            parameters={
                 "type": "object",
                 "properties": {
                     "preferred_method": {
@@ -324,19 +372,48 @@ Call tools iteratively. Analyze each result before deciding next steps."""
                 },
                 "required": ["preferred_method", "preferred_estimate", "confidence_level", "reasoning"],
             },
-        },
-    ]
+            handler=self._tool_finalize_estimation,
+        )
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._df: pd.DataFrame | None = None
-        self._treatment_var: str | None = None
-        self._outcome_var: str | None = None
-        self._covariates: list[str] = []
-        self._results: list[TreatmentEffectResult] = []
-        self._propensity_scores: np.ndarray | None = None
-        self._last_method_result: TreatmentEffectResult | None = None
-        self._state: AnalysisState | None = None
+    # =========================================================================
+    # ReAct Required Methods
+    # =========================================================================
+
+    def _get_initial_observation(self, state: AnalysisState) -> str:
+        """Get the initial observation for the ReAct loop."""
+        obs = f"""You are estimating treatment effects for a causal analysis.
+
+Treatment variable: {self._treatment_var}
+Outcome variable: {self._outcome_var}
+Available covariates: {self._covariates[:20]}{'...' if len(self._covariates) > 20 else ''}
+
+WORKFLOW:
+1. First, query domain knowledge and previous agent findings for context
+2. Get data summary to understand sample sizes and distributions
+3. Check covariate balance between treatment groups
+4. Estimate propensity scores and check overlap
+5. Run estimation methods (start simple: OLS, IPW, AIPW)
+6. Compare results across methods
+7. Finalize with your best estimate when you have 2-3 consistent estimates"""
+
+        # Add context from state if available
+        if state.confounder_discovery:
+            confounders = state.confounder_discovery.get("ranked_confounders", [])
+            if confounders:
+                obs += f"\n\nConfounders identified: {confounders[:5]}"
+
+        if state.data_profile:
+            obs += f"\n\nData has {state.data_profile.n_samples} samples."
+            if state.data_profile.has_time_dimension:
+                obs += " Has time dimension (DiD may be applicable)."
+            if state.data_profile.potential_instruments:
+                obs += f" Potential instruments: {state.data_profile.potential_instruments}"
+
+        return obs
+
+    async def is_task_complete(self, state: AnalysisState) -> bool:
+        """Check if estimation task is complete."""
+        return self._finalized
 
     # =========================================================================
     # Multi-Pair Causal Analysis: LLM-driven pair selection
@@ -416,11 +493,12 @@ Call tools iteratively. Analyze each result before deciding next steps."""
 
         prompt = self._build_pair_selection_prompt(profile)
         try:
-            result = await self.reason(
+            result = await self.llm.generate(
                 prompt=prompt,
-                context={"task": "pair_selection"},
+                system_instruction="You are an expert in causal inference. Return valid JSON only.",
             )
-            pairs = self._parse_pair_selection(result, profile)
+            # Wrap result in dict format expected by _parse_pair_selection
+            pairs = self._parse_pair_selection({"response": result}, profile)
             if pairs:
                 return pairs
         except Exception as e:
@@ -560,7 +638,7 @@ IMPORTANT:
     # =========================================================================
 
     async def execute(self, state: AnalysisState) -> AnalysisState:
-        """Execute treatment effect estimation using agentic loop.
+        """Execute treatment effect estimation using ReAct loop.
 
         Args:
             state: Current analysis state
@@ -587,7 +665,7 @@ IMPORTANT:
                 self._df = pickle.load(f)
 
             # Store state reference
-            self._state = state
+            self._current_state = state
             all_results = []
 
             # Identify valid causal pairs (LLM-driven when multiple candidates)
@@ -606,7 +684,6 @@ IMPORTANT:
             ]
 
             # Backfill state variables from primary pair for backward compatibility
-            # This ensures downstream agents that use state.treatment_variable work correctly
             if pairs and not state.treatment_variable:
                 state.treatment_variable = pairs[0][0]
                 state.outcome_variable = pairs[0][1]
@@ -650,15 +727,19 @@ IMPORTANT:
                 self._treatment_var = treatment
                 self._outcome_var = outcome
                 self._results = []
+                self._finalized = False
 
                 # Get covariates for this pair
                 self._covariates = self._get_covariates_for_pair(state, treatment, outcome)
 
-                # Run agentic estimation for this pair
-                final_result = await self._run_agentic_loop(
-                    self._build_initial_prompt(state),
-                    max_iterations=15
-                )
+                # Run ReAct loop for this pair
+                await super().execute(state)
+
+                # If not finalized via tool, auto-finalize
+                if not self._finalized:
+                    self.logger.warning("estimation_auto_finalize")
+                    self._auto_finalize()
+                    self._finalized = True
 
                 # Tag results with pair info
                 for result in self._results:
@@ -670,184 +751,19 @@ IMPORTANT:
             # Update state with all results
             state.treatment_effects = all_results
 
-            # Create trace
             duration_ms = int((time.time() - start_time) * 1000)
-            trace = self.create_trace(
-                action="estimation_complete",
-                reasoning=f"Analyzed {len(pairs)} causal pairs with {len(all_results)} total estimates",
-                outputs={
-                    "n_pairs_analyzed": len(pairs),
-                    "n_total_estimates": len(all_results),
-                    "estimates": [
-                        {
-                            "treatment": r.treatment_variable,
-                            "outcome": r.outcome_variable,
-                            "method": r.method,
-                            "estimate": r.estimate,
-                            "se": r.std_error,
-                        }
-                        for r in all_results
-                    ],
-                },
-                duration_ms=duration_ms,
-            )
-            state.add_trace(trace)
-
             self.logger.info(
                 "estimation_complete",
                 n_pairs=len(pairs),
                 n_results=len(all_results),
+                duration_ms=duration_ms,
             )
 
         except Exception as e:
-            self.logger.error("estimation_failed", error=str(e))
-            import traceback
-            traceback.print_exc()
+            self.logger.exception("estimation_failed", error=str(e))
             state.mark_failed(f"Effect estimation failed: {str(e)}", self.AGENT_NAME)
 
         return state
-
-    def _build_initial_prompt(self, state: AnalysisState) -> str:
-        """Build the initial prompt for the agentic loop."""
-        prompt = f"""You need to estimate the causal effect of treatment on outcome.
-
-Treatment variable: {self._treatment_var}
-Outcome variable: {self._outcome_var}
-Available covariates for adjustment: {self._covariates[:20]}{'...' if len(self._covariates) > 20 else ''}
-
-"""
-        if state.confounder_discovery:
-            prompt += f"""
-Confounder Discovery Results:
-- Confirmed confounders: {state.confounder_discovery.get('ranked_confounders', [])}
-- Discovery reasoning: {state.confounder_discovery.get('reasoning', 'N/A')[:500]}
-
-"""
-
-        if state.data_profile:
-            prompt += f"""
-Data Profile:
-- Samples: {state.data_profile.n_samples}
-- Has time dimension: {state.data_profile.has_time_dimension}
-- Potential instruments: {state.data_profile.potential_instruments}
-- Discontinuity candidates: {state.data_profile.discontinuity_candidates}
-
-"""
-
-        prompt += """Start by getting a data summary, then systematically investigate and run estimation methods.
-Your goal is to produce a credible causal effect estimate with appropriate uncertainty quantification."""
-
-        return prompt
-
-    async def _run_agentic_loop(
-        self,
-        initial_prompt: str,
-        max_iterations: int = 20,
-    ) -> dict[str, Any]:
-        """Run the agentic tool-calling loop.
-
-        Args:
-            initial_prompt: Starting prompt
-            max_iterations: Maximum iterations
-
-        Returns:
-            Final result dictionary
-        """
-        messages = [{"role": "user", "content": initial_prompt}]
-        final_result = {}
-
-        for iteration in range(max_iterations):
-            self.logger.info(
-                "effect_estimator_iteration",
-                iteration=iteration,
-                max_iterations=max_iterations,
-                methods_run=len(self._results),
-            )
-
-            # Get LLM response with tool calls
-            try:
-                result = await self.reason(
-                    prompt=messages[-1]["content"] if messages[-1]["role"] == "user" else "Continue with your analysis.",
-                    context={"iteration": iteration, "n_results": len(self._results)},
-                )
-            except Exception as e:
-                self.logger.warning("llm_call_failed", iteration=iteration, error=str(e))
-                if self._results:
-                    return self._auto_finalize()
-                raise
-
-            # Log LLM reasoning if provided
-            response_text = result.get("response", "")
-            if response_text:
-                self.logger.info(
-                    "estimator_llm_reasoning",
-                    reasoning=response_text[:500] + ("..." if len(response_text) > 500 else ""),
-                )
-
-            # Check for tool calls
-            pending_calls = result.get("pending_calls", [])
-
-            if not pending_calls:
-                self.logger.info("estimator_no_tool_calls", response_preview=response_text[:200])
-                if "finalize" in response_text.lower() or len(self._results) >= 3:
-                    return self._auto_finalize()
-                messages.append({"role": "assistant", "content": response_text})
-                messages.append({
-                    "role": "user",
-                    "content": "Please continue by calling a tool. If you're done, call finalize_results."
-                })
-                continue
-
-            # Execute each tool call
-            tool_results = []
-            for call in pending_calls:
-                tool_name = call["name"]
-                tool_args = call.get("args", {})
-
-                # Check for finalize with detailed logging
-                if tool_name == "finalize_results":
-                    self.logger.info(
-                        "estimator_finalizing",
-                        preferred_method=tool_args.get("preferred_method"),
-                        preferred_estimate=tool_args.get("preferred_estimate"),
-                        confidence_level=tool_args.get("confidence_level"),
-                        num_results=len(self._results),
-                    )
-                    final_result = tool_args
-                    final_result["results"] = self._results
-                    return final_result
-
-                # Log the tool call decision
-                self.logger.info(
-                    "estimator_tool_decision",
-                    tool=tool_name,
-                    args=tool_args,
-                )
-
-                # Execute the tool
-                try:
-                    tool_result = self._execute_tool(tool_name, tool_args)
-                    tool_results.append(f"[{tool_name}]: {tool_result}")
-
-                    # Log tool result summary
-                    self.logger.info(
-                        "estimator_tool_result",
-                        tool=tool_name,
-                        result_summary=tool_result[:200] + ("..." if len(tool_result) > 200 else ""),
-                    )
-                except Exception as e:
-                    self.logger.warning("tool_execution_error", tool=tool_name, error=str(e))
-                    tool_results.append(f"[{tool_name}]: ERROR - {str(e)}")
-
-            # Add tool results to conversation
-            messages.append({
-                "role": "user",
-                "content": "Tool results:\n\n" + "\n\n".join(tool_results) + "\n\nAnalyze these results and decide your next step."
-            })
-
-        # Max iterations reached - auto-finalize
-        self.logger.warning("max_iterations_reached_auto_finalizing")
-        return self._auto_finalize()
 
     def _auto_finalize(self) -> dict[str, Any]:
         """Auto-finalize when LLM doesn't explicitly finalize."""
@@ -880,43 +796,14 @@ Your goal is to produce a credible causal effect estimate with appropriate uncer
             "results": self._results,
         }
 
-    def _execute_tool(self, tool_name: str, args: dict) -> str:
-        """Execute a tool and return the result string.
+    # =========================================================================
+    # Tool Handlers (async, return ToolResult)
+    # =========================================================================
 
-        Args:
-            tool_name: Name of the tool
-            args: Tool arguments
-
-        Returns:
-            Result string to return to LLM
-        """
-        if tool_name == "get_data_summary":
-            return self._tool_get_data_summary()
-
-        elif tool_name == "check_covariate_balance":
-            covariates = args.get("covariates", [])
-            return self._tool_check_covariate_balance(covariates)
-
-        elif tool_name == "estimate_propensity_scores":
-            covariates = args.get("covariates", [])
-            return self._tool_estimate_propensity_scores(covariates)
-
-        elif tool_name == "run_estimation_method":
-            method = args.get("method")
-            covariates = args.get("covariates", [])
-            return self._tool_run_estimation_method(method, covariates)
-
-        elif tool_name == "check_method_diagnostics":
-            diagnostic_type = args.get("diagnostic_type", "all")
-            return self._tool_check_method_diagnostics(diagnostic_type)
-
-        elif tool_name == "compare_estimates":
-            return self._tool_compare_estimates()
-
-        else:
-            return f"Unknown tool: {tool_name}"
-
-    def _tool_get_data_summary(self) -> str:
+    async def _tool_get_data_summary(
+        self,
+        state: AnalysisState,
+    ) -> ToolResult:
         """Get summary statistics with sample size warnings and method recommendations."""
         df = self._df
         T = df[self._treatment_var]
@@ -926,55 +813,45 @@ Your goal is to produce a credible causal effect estimate with appropriate uncer
         n_treated = int(T.sum())
         n_control = n_total - n_treated
 
-        summary = f"""Dataset Summary:
-- Total samples: {n_total}
-- Treated (T=1): {n_treated} ({100*n_treated/n_total:.1f}%)
-- Control (T=0): {n_control} ({100*n_control/n_total:.1f}%)
-
-Outcome ({self._outcome_var}):
-- Overall mean: {Y.mean():.4f} (std: {Y.std():.4f})
-- Treated mean: {Y[T==1].mean():.4f} (std: {Y[T==1].std():.4f})
-- Control mean: {Y[T==0].mean():.4f} (std: {Y[T==0].std():.4f})
-- Naive difference: {Y[T==1].mean() - Y[T==0].mean():.4f}
-
-Available covariates ({len(self._covariates)}): {self._covariates[:15]}{'...' if len(self._covariates) > 15 else ''}
-"""
-
         # Add sample size warnings
         warning = SampleSizeThresholds.get_sample_size_warning(n_treated, n_control)
-        if warning:
-            summary += f"\n{warning}\n"
-
-        # Add method recommendations based on sample size
         recommended = SampleSizeThresholds.get_recommended_methods(n_treated, n_control)
-        summary += f"\nRecommended methods for this sample size: {recommended}\n"
 
-        # Add specific guidance
+        # Build guidance based on sample size
         if n_treated < 100 or n_control < 100:
-            summary += """
-METHOD SELECTION GUIDANCE (Small Sample):
-- PREFER: OLS, IPW, AIPW (parametric methods work well with small samples)
-- AVOID: T-Learner, X-Learner, Causal Forest (ML methods will overfit)
-- If using matching: expect limited precision due to small treatment group
-"""
+            guidance = "Small sample: PREFER OLS, IPW, AIPW. AVOID T/X-Learner, Causal Forest."
         elif n_treated < 200:
-            summary += """
-METHOD SELECTION GUIDANCE (Moderate Sample):
-- SAFE: OLS, IPW, AIPW, Matching, S-Learner
-- CAUTIOUS: T-Learner, X-Learner (will use regularized models)
-- AVOID: Causal Forest (needs larger sample for reliable heterogeneity detection)
-"""
+            guidance = "Moderate sample: SAFE OLS, IPW, AIPW, Matching. CAUTIOUS with T/X-Learner."
         else:
-            summary += """
-METHOD SELECTION GUIDANCE (Adequate Sample):
-- All methods should work reasonably well
-- ML methods (T/X-Learner, Causal Forest) can detect heterogeneous effects
-- Compare multiple methods for robustness
-"""
+            guidance = "Adequate sample: All methods viable. Use ML methods for heterogeneity."
 
-        return summary
+        return ToolResult(
+            status=ToolResultStatus.SUCCESS,
+            output={
+                "n_total": n_total,
+                "n_treated": n_treated,
+                "n_control": n_control,
+                "treatment_pct": round(100 * n_treated / n_total, 1),
+                "outcome_stats": {
+                    "overall_mean": round(Y.mean(), 4),
+                    "overall_std": round(Y.std(), 4),
+                    "treated_mean": round(Y[T == 1].mean(), 4),
+                    "control_mean": round(Y[T == 0].mean(), 4),
+                    "naive_difference": round(Y[T == 1].mean() - Y[T == 0].mean(), 4),
+                },
+                "n_covariates": len(self._covariates),
+                "covariates_sample": self._covariates[:10],
+                "recommended_methods": recommended,
+                "guidance": guidance,
+                "warning": warning,
+            }
+        )
 
-    def _tool_check_covariate_balance(self, covariates: list[str]) -> str:
+    async def _tool_check_covariate_balance(
+        self,
+        state: AnalysisState,
+        covariates: list[str] | None = None,
+    ) -> ToolResult:
         """Check covariate balance between treatment groups."""
         df = self._df
         T = df[self._treatment_var].values
@@ -982,7 +859,7 @@ METHOD SELECTION GUIDANCE (Adequate Sample):
         if not covariates:
             covariates = self._covariates[:15]  # Check top 15
 
-        results = []
+        balance_results = []
         imbalanced = []
 
         for cov in covariates:
@@ -1003,21 +880,35 @@ METHOD SELECTION GUIDANCE (Adequate Sample):
                     smd = 0
 
                 status = "BALANCED" if abs(smd) < 0.1 else ("MODERATE" if abs(smd) < 0.25 else "IMBALANCED")
-                results.append(f"  {cov}: SMD={smd:.3f} ({status})")
+                balance_results.append({
+                    "covariate": cov,
+                    "smd": round(smd, 3),
+                    "status": status,
+                })
 
                 if abs(smd) >= 0.1:
                     imbalanced.append(cov)
             except Exception:
-                results.append(f"  {cov}: Could not compute")
+                pass
 
-        summary = "Covariate Balance (Standardized Mean Differences):\n"
-        summary += "\n".join(results)
-        summary += f"\n\nImbalanced covariates (|SMD| >= 0.1): {imbalanced}"
-        summary += f"\nRecommendation: {'Adjustment needed for imbalanced covariates' if imbalanced else 'Good balance, simple methods may suffice'}"
+        recommendation = "Adjustment needed for imbalanced covariates" if imbalanced else "Good balance, simple methods may suffice"
 
-        return summary
+        return ToolResult(
+            status=ToolResultStatus.SUCCESS,
+            output={
+                "covariates_checked": len(balance_results),
+                "imbalanced_count": len(imbalanced),
+                "imbalanced_covariates": imbalanced,
+                "balance_details": balance_results[:10],
+                "recommendation": recommendation,
+            }
+        )
 
-    def _tool_estimate_propensity_scores(self, covariates: list[str]) -> str:
+    async def _tool_estimate_propensity_scores(
+        self,
+        state: AnalysisState,
+        covariates: list[str] | None = None,
+    ) -> ToolResult:
         """Estimate propensity scores and check overlap."""
         from sklearn.linear_model import LogisticRegression
 
@@ -1030,7 +921,11 @@ METHOD SELECTION GUIDANCE (Adequate Sample):
         # Filter to valid covariates
         valid_covs = [c for c in covariates if c in df.columns]
         if not valid_covs:
-            return "No valid covariates for propensity model."
+            return ToolResult(
+                status=ToolResultStatus.ERROR,
+                output=None,
+                error="No valid covariates for propensity model."
+            )
 
         X = df[valid_covs].values
 
@@ -1040,7 +935,11 @@ METHOD SELECTION GUIDANCE (Adequate Sample):
         T_clean = T[mask]
 
         if len(X_clean) < 50:
-            return "Insufficient data after removing missing values."
+            return ToolResult(
+                status=ToolResultStatus.ERROR,
+                output=None,
+                error="Insufficient data after removing missing values."
+            )
 
         # Fit propensity model
         try:
@@ -1048,7 +947,11 @@ METHOD SELECTION GUIDANCE (Adequate Sample):
             model.fit(X_clean, T_clean)
             ps = model.predict_proba(X_clean)[:, 1]
         except Exception as e:
-            return f"Propensity model failed: {str(e)}"
+            return ToolResult(
+                status=ToolResultStatus.ERROR,
+                output=None,
+                error=f"Propensity model failed: {str(e)}"
+            )
 
         # Store for later use
         self._propensity_scores = np.full(len(T), np.nan)
@@ -1060,36 +963,46 @@ METHOD SELECTION GUIDANCE (Adequate Sample):
 
         overlap_min = max(ps_control.min(), ps_treated.min())
         overlap_max = min(ps_control.max(), ps_treated.max())
-        overlap_range = overlap_max - overlap_min
 
         # Proportion in common support
-        in_support = np.mean((ps >= overlap_min) & (ps <= overlap_max))
+        in_support = float(np.mean((ps >= overlap_min) & (ps <= overlap_max)))
+        overlap_quality = "GOOD" if in_support > 0.9 else ("MODERATE" if in_support > 0.7 else "POOR")
 
-        summary = f"""Propensity Score Analysis:
-
-Distribution:
-- Treated: mean={ps_treated.mean():.3f}, std={ps_treated.std():.3f}, range=[{ps_treated.min():.3f}, {ps_treated.max():.3f}]
-- Control: mean={ps_control.mean():.3f}, std={ps_control.std():.3f}, range=[{ps_control.min():.3f}, {ps_control.max():.3f}]
-
-Overlap Assessment:
-- Common support region: [{overlap_min:.3f}, {overlap_max:.3f}]
-- Proportion in common support: {in_support:.1%}
-- Overlap quality: {"GOOD" if in_support > 0.9 else ("MODERATE" if in_support > 0.7 else "POOR")}
-
-Recommendations:
-"""
         if in_support > 0.9:
-            summary += "- Good overlap supports IPW and matching methods\n"
+            recommendation = "Good overlap supports IPW and matching methods"
         elif in_support > 0.7:
-            summary += "- Consider trimming extreme propensity scores\n"
-            summary += "- AIPW may be more robust than IPW\n"
+            recommendation = "Consider trimming extreme PS; AIPW may be more robust than IPW"
         else:
-            summary += "- Poor overlap is concerning - results may be extrapolation\n"
-            summary += "- Consider bounding methods or different identification strategy\n"
+            recommendation = "Poor overlap is concerning - results may be extrapolation"
 
-        return summary
+        return ToolResult(
+            status=ToolResultStatus.SUCCESS,
+            output={
+                "treated_ps": {
+                    "mean": round(float(ps_treated.mean()), 3),
+                    "std": round(float(ps_treated.std()), 3),
+                    "min": round(float(ps_treated.min()), 3),
+                    "max": round(float(ps_treated.max()), 3),
+                },
+                "control_ps": {
+                    "mean": round(float(ps_control.mean()), 3),
+                    "std": round(float(ps_control.std()), 3),
+                    "min": round(float(ps_control.min()), 3),
+                    "max": round(float(ps_control.max()), 3),
+                },
+                "common_support": [round(overlap_min, 3), round(overlap_max, 3)],
+                "proportion_in_support": round(in_support, 3),
+                "overlap_quality": overlap_quality,
+                "recommendation": recommendation,
+            }
+        )
 
-    def _tool_run_estimation_method(self, method: str, covariates: list[str]) -> str:
+    async def _tool_run_estimation_method(
+        self,
+        state: AnalysisState,
+        method: str,
+        covariates: list[str] | None = None,
+    ) -> ToolResult:
         """Run a specific estimation method."""
         if not covariates:
             covariates = self._covariates
@@ -1103,48 +1016,74 @@ Recommendations:
                 self._results.append(result)
                 self._last_method_result = result
 
-                return f"""Method: {result.method}
-Estimand: {result.estimand}
-Estimate: {result.estimate:.4f}
-Std Error: {result.std_error:.4f}
-95% CI: [{result.ci_lower:.4f}, {result.ci_upper:.4f}]
-P-value: {result.p_value:.4f if result.p_value else 'N/A'}
-Assumptions: {result.assumptions_tested}
-Details: {json.dumps(result.details, indent=2, default=str)}
-"""
+                return ToolResult(
+                    status=ToolResultStatus.SUCCESS,
+                    output={
+                        "method": result.method,
+                        "estimand": result.estimand,
+                        "estimate": round(result.estimate, 4),
+                        "std_error": round(result.std_error, 4),
+                        "ci_lower": round(result.ci_lower, 4),
+                        "ci_upper": round(result.ci_upper, 4),
+                        "p_value": round(result.p_value, 4) if result.p_value else None,
+                        "assumptions": result.assumptions_tested,
+                        "details": result.details,
+                    }
+                )
             else:
-                return f"Method {method} failed to produce results."
+                return ToolResult(
+                    status=ToolResultStatus.ERROR,
+                    output=None,
+                    error=f"Method {method} failed to produce results."
+                )
         except Exception as e:
-            return f"Method {method} failed with error: {str(e)}"
+            return ToolResult(
+                status=ToolResultStatus.ERROR,
+                output=None,
+                error=f"Method {method} failed with error: {str(e)}"
+            )
 
-    def _tool_check_method_diagnostics(self, diagnostic_type: str) -> str:
+    async def _tool_check_method_diagnostics(
+        self,
+        state: AnalysisState,
+        diagnostic_type: str = "all",
+    ) -> ToolResult:
         """Check diagnostics for the last method."""
         if not self._last_method_result:
-            return "No method has been run yet. Run a method first."
+            return ToolResult(
+                status=ToolResultStatus.ERROR,
+                output=None,
+                error="No method has been run yet. Run a method first."
+            )
 
         result = self._last_method_result
-        diagnostics = []
+        diagnostics = {}
 
         if diagnostic_type in ["residuals", "all"]:
-            diagnostics.append(self._check_residual_diagnostics())
+            diagnostics["residuals"] = self._check_residual_diagnostics()
 
         if diagnostic_type in ["influence", "all"]:
-            diagnostics.append(self._check_influence_diagnostics())
+            diagnostics["influence"] = self._check_influence_diagnostics()
 
         if diagnostic_type in ["specification", "all"]:
-            diagnostics.append(self._check_specification_diagnostics())
+            diagnostics["specification"] = self._check_specification_diagnostics()
 
-        return f"Diagnostics for {result.method}:\n\n" + "\n\n".join(diagnostics)
+        return ToolResult(
+            status=ToolResultStatus.SUCCESS,
+            output={
+                "method": result.method,
+                "diagnostics": diagnostics,
+            }
+        )
 
-    def _check_residual_diagnostics(self) -> str:
+    def _check_residual_diagnostics(self) -> dict:
         """Check residual-based diagnostics."""
-        # Simple residual check
+        from sklearn.linear_model import LinearRegression
+
         df = self._df
         T = df[self._treatment_var].values
         Y = df[self._outcome_var].values
 
-        # Compute residuals from simple model
-        from sklearn.linear_model import LinearRegression
         X = df[self._covariates[:10]].values if self._covariates else np.ones((len(Y), 1))
 
         mask = ~np.any(np.isnan(X), axis=1)
@@ -1155,102 +1094,95 @@ Details: {json.dumps(result.details, indent=2, default=str)}
         # Normality test
         _, normality_p = stats.shapiro(residuals[:min(5000, len(residuals))])
 
-        # Heteroskedasticity (Breusch-Pagan style)
+        # Heteroskedasticity
         _, hetero_p = stats.pearsonr(np.abs(residuals), model.predict(np.column_stack([T[mask], X[mask]])))
 
-        return f"""Residual Diagnostics:
-- Residual mean: {residuals.mean():.4f} (should be ~0)
-- Residual std: {residuals.std():.4f}
-- Normality test p-value: {normality_p:.4f} (>0.05 suggests normality)
-- Heteroskedasticity indicator: {abs(hetero_p):.4f} (<0.1 suggests homoskedasticity)
-"""
+        return {
+            "residual_mean": round(float(residuals.mean()), 4),
+            "residual_std": round(float(residuals.std()), 4),
+            "normality_p": round(float(normality_p), 4),
+            "heteroskedasticity_p": round(float(abs(hetero_p)), 4),
+            "normal": normality_p > 0.05,
+            "homoskedastic": abs(hetero_p) < 0.1,
+        }
 
-    def _check_influence_diagnostics(self) -> str:
+    def _check_influence_diagnostics(self) -> dict:
         """Check for influential observations."""
         df = self._df
         Y = df[self._outcome_var].values
-
-        # Simple leverage check
         n = len(Y)
         threshold = 4 / n
 
-        return f"""Influence Diagnostics:
-- Sample size: {n}
-- Influential observation threshold: {threshold:.4f}
-- Recommendation: Check for outliers if estimate seems unstable
-"""
+        return {
+            "sample_size": n,
+            "influence_threshold": round(threshold, 4),
+            "recommendation": "Check for outliers if estimate seems unstable",
+        }
 
-    def _check_specification_diagnostics(self) -> str:
+    def _check_specification_diagnostics(self) -> dict:
         """Check model specification."""
         result = self._last_method_result
         if not result:
-            return "No results to diagnose."
+            return {"error": "No results to diagnose"}
 
         issues = []
         if result.std_error > abs(result.estimate):
-            issues.append("- High uncertainty: SE > |estimate|")
+            issues.append("High uncertainty: SE > |estimate|")
         if result.p_value and result.p_value > 0.1:
-            issues.append("- Not statistically significant at 10% level")
-        if "n_treated" in result.details:
+            issues.append("Not statistically significant at 10% level")
+        if result.details and "n_treated" in result.details:
             if result.details["n_treated"] < 50:
-                issues.append("- Small treated sample may cause instability")
+                issues.append("Small treated sample may cause instability")
 
-        return f"""Specification Diagnostics:
-- Effect size: {result.estimate:.4f}
-- Relative SE: {result.std_error / (abs(result.estimate) + 1e-10):.2f}
-- Issues found: {len(issues)}
-{chr(10).join(issues) if issues else '- No major specification issues detected'}
-"""
+        return {
+            "effect_size": round(result.estimate, 4),
+            "relative_se": round(result.std_error / (abs(result.estimate) + 1e-10), 2),
+            "issues_count": len(issues),
+            "issues": issues,
+        }
 
-    def _tool_compare_estimates(self) -> str:
+    async def _tool_compare_estimates(
+        self,
+        state: AnalysisState,
+    ) -> ToolResult:
         """Compare estimates across methods with reliability weighting."""
         if not self._results:
-            return "No estimates to compare yet. Run some methods first."
+            return ToolResult(
+                status=ToolResultStatus.ERROR,
+                output=None,
+                error="No estimates to compare yet. Run some methods first."
+            )
 
         estimates = [r.estimate for r in self._results]
 
         # Simple statistics
-        mean_est = np.mean(estimates)
-        std_est = np.std(estimates)
+        mean_est = float(np.mean(estimates))
+        std_est = float(np.std(estimates))
         cv = std_est / (abs(mean_est) + 1e-10)
 
         # Median and MAD (more robust to outliers)
-        median_est = np.median(estimates)
-        mad = np.median(np.abs(estimates - median_est))
+        median_est = float(np.median(estimates))
+        mad = float(np.median(np.abs(np.array(estimates) - median_est)))
 
-        comparison = f"""Estimate Comparison ({len(self._results)} methods):
-
-Individual estimates:
-"""
         # Track reliability for weighting
         reliability_weights = {"high": 3, "medium": 2, "low": 1, None: 1}
         weighted_sum = 0.0
         weight_total = 0.0
 
+        individual_estimates = []
         for r in self._results:
             reliability = r.details.get("reliability", "unknown") if r.details else "unknown"
             weight = reliability_weights.get(reliability, 1)
             weighted_sum += r.estimate * weight
             weight_total += weight
+            individual_estimates.append({
+                "method": r.method,
+                "estimate": round(r.estimate, 4),
+                "std_error": round(r.std_error, 4),
+                "reliability": reliability,
+            })
 
-            reliability_str = f" [{reliability}]" if reliability != "unknown" else ""
-            comparison += f"  {r.method}: {r.estimate:.4f} (SE: {r.std_error:.4f}){reliability_str}\n"
-
-        # Reliability-weighted average
         weighted_avg = weighted_sum / weight_total if weight_total > 0 else mean_est
-
-        comparison += f"""
-Summary Statistics:
-- Simple mean: {mean_est:.4f}
-- Median (robust): {median_est:.4f}
-- Reliability-weighted mean: {weighted_avg:.4f}
-- Std across methods: {std_est:.4f}
-- MAD (robust spread): {mad:.4f}
-- Coefficient of variation: {cv:.2%}
-- Range: [{min(estimates):.4f}, {max(estimates):.4f}]
-
-Consistency Assessment: {"CONSISTENT" if cv < 0.2 else ("MODERATE" if cv < 0.5 else "INCONSISTENT")}
-"""
 
         # Identify potential outliers using MAD
         outliers = []
@@ -1258,24 +1190,68 @@ Consistency Assessment: {"CONSISTENT" if cv < 0.2 else ("MODERATE" if cv < 0.5 e
             if mad > 0 and abs(r.estimate - median_est) > 3 * mad:
                 outliers.append(r.method)
 
-        if outliers:
-            comparison += f"\n⚠️ POTENTIAL OUTLIER METHODS: {outliers}"
-            comparison += "\nThese estimates deviate significantly from the median. Consider their reliability."
+        consistency = "CONSISTENT" if cv < 0.2 else ("MODERATE" if cv < 0.5 else "INCONSISTENT")
 
-        if cv >= 0.5:
-            comparison += "\n\n⚠️ WARNING: Estimates vary substantially across methods."
-            comparison += "\nRECOMMENDATION: Trust methods with 'high' reliability and prefer median over mean."
+        return ToolResult(
+            status=ToolResultStatus.SUCCESS,
+            output={
+                "n_methods": len(self._results),
+                "individual_estimates": individual_estimates,
+                "statistics": {
+                    "mean": round(mean_est, 4),
+                    "median": round(median_est, 4),
+                    "weighted_mean": round(weighted_avg, 4),
+                    "std": round(std_est, 4),
+                    "mad": round(mad, 4),
+                    "cv": round(cv, 4),
+                    "range": [round(min(estimates), 4), round(max(estimates), 4)],
+                },
+                "consistency": consistency,
+                "outlier_methods": outliers,
+                "recommendation": f"Use {'mean' if consistency == 'CONSISTENT' else 'median'} estimate: {round(mean_est if consistency == 'CONSISTENT' else median_est, 4)}",
+            }
+        )
 
-        # Suggest best estimate
-        comparison += f"""
+    async def _tool_finalize_estimation(
+        self,
+        state: AnalysisState,
+        preferred_method: str,
+        preferred_estimate: float,
+        confidence_level: str,
+        reasoning: str,
+        caveats: list[str] | None = None,
+    ) -> ToolResult:
+        """Finalize the estimation with conclusions."""
+        self._finalized = True
+        self._final_result = {
+            "preferred_method": preferred_method,
+            "preferred_estimate": preferred_estimate,
+            "confidence_level": confidence_level,
+            "reasoning": reasoning,
+            "caveats": caveats or [],
+            "n_methods_run": len(self._results),
+        }
 
-RECOMMENDED ESTIMATE:
-- If methods are consistent: Use mean ({mean_est:.4f})
-- If outliers present: Use median ({median_est:.4f})
-- Accounting for reliability: Use weighted mean ({weighted_avg:.4f})
-"""
+        self.logger.info(
+            "estimation_finalized",
+            preferred_method=preferred_method,
+            preferred_estimate=preferred_estimate,
+            confidence_level=confidence_level,
+            n_methods=len(self._results),
+        )
 
-        return comparison
+        return ToolResult(
+            status=ToolResultStatus.SUCCESS,
+            output={
+                "finalized": True,
+                "preferred_method": preferred_method,
+                "preferred_estimate": preferred_estimate,
+                "confidence_level": confidence_level,
+                "reasoning": reasoning,
+                "caveats": caveats or [],
+            },
+            metadata={"is_finish": True},
+        )
 
     def _run_method(self, method: str, covariates: list[str]) -> TreatmentEffectResult | None:
         """Run a specific estimation method.
@@ -2026,13 +2002,13 @@ RECOMMENDED ESTIMATE:
 
     def _estimate_did(self, T, Y, X, df) -> TreatmentEffectResult | None:
         """Difference-in-Differences estimate."""
-        if not self._state or not self._state.data_profile:
+        if not self._current_state or not self._current_state.data_profile:
             return None
 
-        if not self._state.data_profile.has_time_dimension:
+        if not self._current_state.data_profile.has_time_dimension:
             return None
 
-        time_col = self._state.data_profile.time_column
+        time_col = self._current_state.data_profile.time_column
         if time_col not in df.columns:
             return None
 
@@ -2078,13 +2054,13 @@ RECOMMENDED ESTIMATE:
         """Instrumental Variables (2SLS) estimate."""
         import statsmodels.api as sm
 
-        if not self._state or not self._state.data_profile:
+        if not self._current_state or not self._current_state.data_profile:
             return None
 
-        if not self._state.data_profile.potential_instruments:
+        if not self._current_state.data_profile.potential_instruments:
             return None
 
-        iv_col = self._state.data_profile.potential_instruments[0]
+        iv_col = self._current_state.data_profile.potential_instruments[0]
         if iv_col not in df.columns:
             return None
 
@@ -2121,13 +2097,13 @@ RECOMMENDED ESTIMATE:
         """Regression Discontinuity Design estimate."""
         import statsmodels.api as sm
 
-        if not self._state or not self._state.data_profile:
+        if not self._current_state or not self._current_state.data_profile:
             return None
 
-        if not self._state.data_profile.discontinuity_candidates:
+        if not self._current_state.data_profile.discontinuity_candidates:
             return None
 
-        run_col = self._state.data_profile.discontinuity_candidates[0]
+        run_col = self._current_state.data_profile.discontinuity_candidates[0]
         if run_col not in df.columns:
             return None
 

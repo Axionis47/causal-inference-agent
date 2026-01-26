@@ -1,67 +1,74 @@
-"""Causal Discovery Agent - Truly Agentic Graph Structure Learning.
+"""Causal Discovery Agent - ReAct-based Graph Structure Learning.
 
-This agent iteratively discovers causal structure from data:
-- LLM investigates data characteristics to choose algorithms
-- LLM runs algorithms and inspects results
-- LLM validates discovered graphs for sensibility
-- LLM can try multiple algorithms and compare
-- Iterates until confident about causal structure
+This agent iteratively discovers causal structure from data using ReAct:
+- Queries domain knowledge for prior constraints
+- Investigates data characteristics to choose algorithms
+- Runs algorithms and inspects results
+- Validates discovered graphs for sensibility
+- Compares multiple algorithms
 
-No hardcoded algorithm selection - all decisions through tool calls.
+Uses pull-based context - queries for information on demand.
 """
 
 import pickle
 import time
+from pathlib import Path
 from typing import Any
 
 import numpy as np
 import pandas as pd
+from scipy import stats as sp_stats
 
 from src.agents.base import (
     AnalysisState,
-    BaseAgent,
     CausalDAG,
     CausalEdge,
     JobStatus,
+    ToolResult,
+    ToolResultStatus,
 )
+from src.agents.base.context_tools import ContextTools
+from src.agents.base.react_agent import ReActAgent
 from src.logging_config.structured import get_logger
 
 logger = get_logger(__name__)
 
 
-class CausalDiscoveryAgent(BaseAgent):
-    """Truly agentic causal discovery agent.
+class CausalDiscoveryAgent(ReActAgent, ContextTools):
+    """ReAct-based causal discovery agent.
 
-    Unlike traditional discovery that runs a single algorithm, this agent:
-    1. LLM investigates data characteristics first
-    2. LLM selects and runs algorithms based on findings
-    3. LLM inspects discovered graphs and validates them
-    4. LLM can compare multiple algorithms
-    5. LLM finalizes with best graph
+    This agent:
+    1. Queries domain knowledge for prior constraints (immutable vars, temporal ordering)
+    2. Investigates data characteristics to select algorithms
+    3. Runs discovery algorithms and inspects results
+    4. Validates discovered graphs for causal sensibility
+    5. Compares multiple algorithms to find robust structure
+    6. Finalizes with the best graph
 
-    This approach allows intelligent algorithm selection and validation.
+    Uses pull-based context - queries for information on demand.
     """
 
     AGENT_NAME = "causal_discovery"
+    MAX_STEPS = 15
 
     SYSTEM_PROMPT = """You are an expert in causal discovery and graphical models.
 Your role is to learn the causal structure from observational data.
 
-CRITICAL: You must ITERATIVELY investigate and discover by calling tools. Do NOT
-select an algorithm blindly. Instead:
-1. First understand the data characteristics
-2. Select an appropriate algorithm based on data properties
-3. Run the algorithm and inspect the results
-4. Validate the discovered graph makes sense
-5. Optionally try another algorithm to compare
-6. Finalize with your best graph
+WORKFLOW:
+1. Query domain knowledge for constraints (immutable variables, temporal ordering)
+2. Get data characteristics to understand sample size, variable types, distributions
+3. Select an appropriate algorithm based on data properties
+4. Run the algorithm and inspect results
+5. Validate the discovered graph makes causal sense
+6. Optionally try another algorithm and compare
+7. Finalize with your best graph
 
 ALGORITHM SELECTION GUIDE:
 
 1. PC ALGORITHM (Constraint-based)
    - Best for: Large number of variables, sparse graphs
    - Assumptions: Faithfulness, causal sufficiency, no hidden confounders
-   - Pros: Theoretically grounded, computationally efficient for sparse graphs
+   - Pros: Theoretically grounded, efficient for sparse graphs
    - Cons: Sensitive to sample size, assumes no hidden confounders
 
 2. GES (Greedy Equivalence Search)
@@ -74,7 +81,7 @@ ALGORITHM SELECTION GUIDE:
    - Best for: Dense graphs, continuous data, linear relationships
    - Assumptions: Linear functional relationships
    - Pros: Modern, continuous optimization, handles dense graphs
-   - Cons: May produce non-DAG solutions that need post-processing
+   - Cons: May produce non-DAG solutions needing post-processing
 
 4. LiNGAM (Linear Non-Gaussian)
    - Best for: Non-Gaussian data with linear relationships
@@ -83,39 +90,60 @@ ALGORITHM SELECTION GUIDE:
    - Cons: Requires non-Gaussianity, sensitive to Gaussian variables
 
 DATA CONSIDERATIONS:
-- Sample size < 500: Be cautious, consider simpler methods
+- Sample size < 500: Be cautious, use simpler methods
 - Variables > 20: Use PC or limit variable set
 - Gaussian data: Avoid LiNGAM
-- Non-linear relationships: Results may be unreliable for linear methods
+- Non-linear relationships: Linear methods may be unreliable
+
+DOMAIN KNOWLEDGE:
+- Use ask_domain_knowledge to query for prior information
+- Check for immutable variables (can't be caused by others)
+- Check for temporal ordering constraints
+- Domain knowledge can help validate discovered edges
 
 VALIDATION CRITERIA:
 - Does treatment → outcome path exist?
 - Are confounders properly placed?
-- Are there unrealistic edges?
-- Is the graph too dense or too sparse?
+- Are there unrealistic edges (e.g., outcome causing treatment)?
+- Is the graph too dense or too sparse?"""
 
-WORKFLOW:
-1. Call get_data_characteristics to understand the data
-2. Call run_discovery_algorithm with chosen algorithm
-3. Call inspect_graph to see the structure
-4. Call validate_graph to check sensibility
-5. Optionally try another algorithm and compare
-6. Call finalize_discovery with your chosen graph"""
+    def __init__(self) -> None:
+        """Initialize the causal discovery agent."""
+        super().__init__()
 
-    TOOLS = [
-        {
-            "name": "get_data_characteristics",
-            "description": "Get data characteristics relevant for algorithm selection: sample size, variable count, distributions, correlations.",
-            "parameters": {
+        # Register context query tools from mixin
+        self.register_context_tools()
+
+        # Internal state
+        self._df: pd.DataFrame | None = None
+        self._current_state: AnalysisState | None = None
+        self._discovered_graphs: dict[str, CausalDAG] = {}
+        self._current_graph: CausalDAG | None = None
+        self._treatment_var: str | None = None
+        self._outcome_var: str | None = None
+        self._finalized: bool = False
+        self._final_result: dict[str, Any] = {}
+
+        # Register discovery-specific tools
+        self._register_discovery_tools()
+
+    def _register_discovery_tools(self) -> None:
+        """Register tools for causal discovery."""
+        self.register_tool(
+            name="get_data_characteristics",
+            description="Get data characteristics relevant for algorithm selection: sample size, variable count, distributions, correlations, Gaussianity. Call this early.",
+            parameters={
                 "type": "object",
                 "properties": {},
                 "required": [],
             },
-        },
-        {
-            "name": "run_discovery_algorithm",
-            "description": "Run a causal discovery algorithm on the data.",
-            "parameters": {
+            handler=self._tool_get_data_characteristics,
+        )
+
+        self.register_tool(
+            name="run_discovery_algorithm",
+            description="Run a causal discovery algorithm on the data. Choose based on data characteristics.",
+            parameters={
                 "type": "object",
                 "properties": {
                     "algorithm": {
@@ -134,38 +162,46 @@ WORKFLOW:
                 },
                 "required": ["algorithm"],
             },
-        },
-        {
-            "name": "inspect_graph",
-            "description": "Inspect the most recently discovered graph structure in detail.",
-            "parameters": {
+            handler=self._tool_run_discovery_algorithm,
+        )
+
+        self.register_tool(
+            name="inspect_graph",
+            description="Inspect the most recently discovered graph structure in detail. Shows edges, treatment/outcome connections, potential confounders.",
+            parameters={
                 "type": "object",
                 "properties": {},
                 "required": [],
             },
-        },
-        {
-            "name": "validate_graph",
-            "description": "Validate the discovered graph for causal sensibility.",
-            "parameters": {
+            handler=self._tool_inspect_graph,
+        )
+
+        self.register_tool(
+            name="validate_graph",
+            description="Validate the discovered graph for causal sensibility. Checks treatment-outcome path, reverse causation, density, and isolated nodes.",
+            parameters={
                 "type": "object",
                 "properties": {},
                 "required": [],
             },
-        },
-        {
-            "name": "compare_algorithms",
-            "description": "Compare results from different algorithms that have been run.",
-            "parameters": {
+            handler=self._tool_validate_graph,
+        )
+
+        self.register_tool(
+            name="compare_algorithms",
+            description="Compare results from different algorithms that have been run. Identifies common and divergent edges.",
+            parameters={
                 "type": "object",
                 "properties": {},
                 "required": [],
             },
-        },
-        {
-            "name": "finalize_discovery",
-            "description": "Finalize the causal discovery with chosen graph. Call this when satisfied.",
-            "parameters": {
+            handler=self._tool_compare_algorithms,
+        )
+
+        self.register_tool(
+            name="finalize_discovery",
+            description="Finalize the causal discovery with chosen graph. Call this when satisfied with the discovered structure.",
+            parameters={
                 "type": "object",
                 "properties": {
                     "chosen_algorithm": {
@@ -194,38 +230,39 @@ WORKFLOW:
                 },
                 "required": ["chosen_algorithm", "interpretation", "confidence"],
             },
-        },
-    ]
+            handler=self._tool_finalize_discovery,
+        )
 
-    def __init__(self):
-        """Initialize the causal discovery agent."""
-        super().__init__()
-        self._df: pd.DataFrame | None = None
-        self._state: AnalysisState | None = None
-        self._discovered_graphs: dict[str, CausalDAG] = {}
-        self._current_graph: CausalDAG | None = None
-        self._treatment_var: str | None = None
-        self._outcome_var: str | None = None
+    def _get_initial_observation(self, state: AnalysisState) -> str:
+        """Generate lean initial observation for causal discovery."""
+        treatment, outcome = state.get_primary_pair()
+        treatment = treatment or "unknown"
+        outcome = outcome or "unknown"
 
-    def _resolve_treatment_outcome(self) -> tuple[str | None, str | None]:
-        """Get treatment and outcome variables using state helper.
+        n_samples = state.dataset_info.n_samples or "unknown"
+        n_features = state.dataset_info.n_features or "unknown"
 
-        Returns:
-            Tuple of (treatment_var, outcome_var)
-        """
-        if self._treatment_var and self._outcome_var:
-            return self._treatment_var, self._outcome_var
+        obs = f"""Discover the causal structure for causal inference analysis.
+Treatment: {treatment}
+Outcome: {outcome}
+Dataset: {n_samples} samples x {n_features} features
 
-        if self._state:
-            t, o = self._state.get_primary_pair()
-            self._treatment_var = t
-            self._outcome_var = o
-            return t, o
+Workflow:
+1. Query domain knowledge for constraints (temporal ordering, immutable vars)
+2. Get data characteristics to guide algorithm selection
+3. Run appropriate discovery algorithm
+4. Inspect and validate the graph
+5. Optionally try another algorithm and compare
+6. Finalize when satisfied with the discovered structure"""
 
-        return None, None
+        return obs
+
+    async def is_task_complete(self, state: AnalysisState) -> bool:
+        """Check if discovery task is complete."""
+        return self._finalized and state.proposed_dag is not None
 
     async def execute(self, state: AnalysisState) -> AnalysisState:
-        """Execute causal discovery through iterative LLM-driven investigation.
+        """Execute causal discovery through ReAct loop.
 
         Args:
             state: Current analysis state
@@ -233,216 +270,93 @@ WORKFLOW:
         Returns:
             Updated state with proposed DAG
         """
-        self.logger.info("discovery_start", job_id=state.job_id)
+        self.logger.info(
+            "discovery_start",
+            job_id=state.job_id,
+            dataset=state.dataset_info.name or state.dataset_info.url,
+        )
 
         state.status = JobStatus.DISCOVERING_CAUSAL
         start_time = time.time()
 
         try:
             # Load data
-            if state.dataframe_path is None:
-                self.logger.warning("no_data_for_discovery")
+            self._df = self._load_dataframe(state)
+            if self._df is None:
+                state.mark_failed("Failed to load dataset for discovery", self.AGENT_NAME)
                 return state
 
-            with open(state.dataframe_path, "rb") as f:
-                self._df = pickle.load(f)
-
-            self._state = state
+            self._current_state = state
             self._discovered_graphs = {}
             self._current_graph = None
+            self._finalized = False
 
-            # Resolve treatment/outcome using helper (falls back to analyzed_pairs)
-            self._treatment_var, self._outcome_var = self._resolve_treatment_outcome()
+            # Resolve treatment/outcome
+            self._treatment_var, self._outcome_var = state.get_primary_pair()
 
-            # Build the initial prompt
-            initial_prompt = self._build_initial_prompt()
+            # Run the ReAct loop
+            state = await super().execute(state)
 
-            # Run the agentic loop
-            final_result = await self._run_agentic_loop(initial_prompt, max_iterations=12)
+            # If not finalized via tool, auto-finalize
+            if not self._finalized:
+                self.logger.warning("discovery_auto_finalize")
+                self._final_result = self._auto_finalize()
+                self._finalized = True
 
-            # Get the chosen graph
-            chosen_alg = final_result.get("chosen_algorithm", "")
+            # Set the proposed DAG
+            chosen_alg = self._final_result.get("chosen_algorithm", "")
             if chosen_alg and chosen_alg in self._discovered_graphs:
                 state.proposed_dag = self._discovered_graphs[chosen_alg]
             elif self._current_graph:
                 state.proposed_dag = self._current_graph
             elif self._discovered_graphs:
-                # Use first discovered graph
                 state.proposed_dag = list(self._discovered_graphs.values())[0]
             else:
-                # Create simple fallback DAG
                 state.proposed_dag = self._create_simple_dag()
 
             # Store interpretation
             if state.proposed_dag:
-                state.proposed_dag.interpretation = final_result.get("interpretation", "")
+                state.proposed_dag.interpretation = self._final_result.get("interpretation", "")
 
-            # Create trace
             duration_ms = int((time.time() - start_time) * 1000)
-            trace = self.create_trace(
-                action="discovery_complete",
-                reasoning=final_result.get("interpretation", "Causal discovery completed"),
-                outputs={
-                    "algorithm": final_result.get("chosen_algorithm", "unknown"),
-                    "n_nodes": len(state.proposed_dag.nodes) if state.proposed_dag else 0,
-                    "n_edges": len(state.proposed_dag.edges) if state.proposed_dag else 0,
-                    "confidence": final_result.get("confidence", "medium"),
-                },
-                duration_ms=duration_ms,
-            )
-            state.add_trace(trace)
-
             self.logger.info(
                 "discovery_complete",
                 has_dag=state.proposed_dag is not None,
-                algorithm=final_result.get("chosen_algorithm", "unknown"),
+                algorithm=self._final_result.get("chosen_algorithm", "unknown"),
+                n_nodes=len(state.proposed_dag.nodes) if state.proposed_dag else 0,
+                n_edges=len(state.proposed_dag.edges) if state.proposed_dag else 0,
+                duration_ms=duration_ms,
             )
 
         except Exception as e:
-            self.logger.error("discovery_failed", error=str(e))
-            import traceback
-            traceback.print_exc()
+            self.logger.exception("discovery_failed", error=str(e))
             # Don't fail the job - create simple DAG as fallback
             state.proposed_dag = self._create_simple_dag()
 
         return state
 
-    def _build_initial_prompt(self) -> str:
-        """Build the initial prompt for the agentic loop."""
-        treatment = self._treatment_var or "unknown"
-        outcome = self._outcome_var or "unknown"
+    def _load_dataframe(self, state: AnalysisState) -> pd.DataFrame | None:
+        """Load DataFrame from pickle path."""
+        if state.dataframe_path and Path(state.dataframe_path).exists():
+            with open(state.dataframe_path, "rb") as f:
+                return pickle.load(f)
+        return None
 
-        return f"""You are discovering the causal structure for a causal inference analysis.
+    # =========================================================================
+    # Tool Handlers
+    # =========================================================================
 
-Treatment variable: {treatment}
-Outcome variable: {outcome}
-
-Your goal is to discover how variables are causally related, especially:
-1. What variables are confounders (affect both treatment and outcome)?
-2. What variables are mediators (on the path from treatment to outcome)?
-3. What is the overall causal structure?
-
-Start by calling get_data_characteristics to understand the data,
-then select an appropriate discovery algorithm.
-
-After running an algorithm, inspect and validate the results.
-You may try multiple algorithms to compare.
-
-Call finalize_discovery when you have a satisfactory graph."""
-
-    async def _run_agentic_loop(
-        self, initial_prompt: str, max_iterations: int = 12
-    ) -> dict[str, Any]:
-        """Run the agentic loop where LLM iteratively discovers structure."""
-        messages = [{"role": "user", "content": initial_prompt}]
-
-        for iteration in range(max_iterations):
-            self.logger.info(
-                "discovery_iteration",
-                iteration=iteration,
-                max_iterations=max_iterations,
-                graphs_discovered=len(self._discovered_graphs),
-            )
-
-            # Get LLM response with tool calls
-            result = await self.reason(
-                prompt=messages[-1]["content"],
-                context={"iteration": iteration, "max_iterations": max_iterations},
-            )
-
-            # Log LLM reasoning if provided
-            response_text = result.get("response", "")
-            if response_text:
-                self.logger.info(
-                    "discovery_llm_reasoning",
-                    reasoning=response_text[:500] + ("..." if len(response_text) > 500 else ""),
-                )
-
-            pending_calls = result.get("pending_calls", [])
-
-            if not pending_calls:
-                self.logger.info("discovery_no_tool_calls", response_preview=response_text[:200])
-                if "finalize" in response_text.lower() or iteration > 8:
-                    return self._auto_finalize()
-                messages.append({
-                    "role": "user",
-                    "content": "Please continue by calling tools. "
-                    "If satisfied with the discovered structure, call finalize_discovery.",
-                })
-                continue
-
-            # Execute tool calls
-            tool_results = []
-            for call in pending_calls:
-                tool_name = call.get("name")
-                tool_args = call.get("args", {})
-
-                # Check for finalize with detailed logging
-                if tool_name == "finalize_discovery":
-                    self.logger.info(
-                        "discovery_finalizing",
-                        chosen_algorithm=tool_args.get("chosen_algorithm"),
-                        confidence=tool_args.get("confidence"),
-                        interpretation=tool_args.get("interpretation", "")[:200],
-                    )
-                    return tool_args
-
-                # Log the tool call decision
-                self.logger.info(
-                    "discovery_tool_decision",
-                    tool=tool_name,
-                    args=tool_args,
-                )
-
-                # Execute the tool
-                tool_result = self._execute_tool(tool_name, tool_args)
-                tool_results.append(f"## {tool_name}\n{tool_result}")
-
-                # Log tool result summary
-                self.logger.info(
-                    "discovery_tool_result",
-                    tool=tool_name,
-                    result_summary=tool_result[:200] + ("..." if len(tool_result) > 200 else ""),
-                )
-
-            # Feed results back to LLM
-            results_text = "\n\n".join(tool_results)
-            messages.append({
-                "role": "user",
-                "content": f"Tool results:\n\n{results_text}\n\nContinue investigating or call finalize_discovery.",
-            })
-
-        # Max iterations reached - auto-finalize
-        self.logger.warning("discovery_max_iterations_reached")
-        return self._auto_finalize()
-
-    def _execute_tool(self, tool_name: str, args: dict[str, Any]) -> str:
-        """Execute a tool and return results as string."""
-        try:
-            if tool_name == "get_data_characteristics":
-                return self._tool_get_data_characteristics()
-            elif tool_name == "run_discovery_algorithm":
-                return self._tool_run_discovery_algorithm(
-                    args.get("algorithm", "pc"),
-                    args.get("alpha", 0.05),
-                    args.get("threshold", 0.1),
-                )
-            elif tool_name == "inspect_graph":
-                return self._tool_inspect_graph()
-            elif tool_name == "validate_graph":
-                return self._tool_validate_graph()
-            elif tool_name == "compare_algorithms":
-                return self._tool_compare_algorithms()
-            else:
-                return f"Unknown tool: {tool_name}"
-        except Exception as e:
-            self.logger.error("tool_execution_error", tool=tool_name, error=str(e))
-            return f"Error executing {tool_name}: {str(e)}"
-
-    def _tool_get_data_characteristics(self) -> str:
+    async def _tool_get_data_characteristics(self, state: AnalysisState) -> ToolResult:
         """Get data characteristics for algorithm selection."""
+        if self._df is None:
+            return ToolResult(
+                status=ToolResultStatus.ERROR,
+                output=None,
+                error="Dataset not loaded",
+            )
+
         df = self._df
-        profile = self._state.data_profile
+        profile = state.data_profile
 
         # Prepare numeric columns
         numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
@@ -462,33 +376,25 @@ Call finalize_discovery when you have a satisfactory graph."""
 
         df_subset = df[relevant_cols].dropna()
 
-        output = f"""Data Characteristics for Causal Discovery:
-{"=" * 50}
-
-Dataset:
-- Total samples: {len(df)}
-- Complete cases: {len(df_subset)}
-- Variables for discovery: {len(relevant_cols)}
-
-Variables: {', '.join(relevant_cols)}
-
-Treatment: {self._treatment_var or 'Not specified'}
-Outcome: {self._outcome_var or 'Not specified'}
-
-Distributions (Skewness):"""
-
-        from scipy import stats as sp_stats
+        # Distribution analysis
+        distributions = []
+        non_gaussian_count = 0
         for col in relevant_cols[:10]:
             data = df_subset[col].dropna()
             if len(data) > 10:
                 skew = sp_stats.skew(data)
-                # Normality test
                 if len(data) <= 5000:
                     _, p_val = sp_stats.shapiro(data.sample(min(len(data), 5000), random_state=42))
                 else:
                     _, p_val = sp_stats.normaltest(data)
-                gaussian = "likely Gaussian" if p_val > 0.05 else "non-Gaussian"
-                output += f"\n  {col}: skew={skew:.2f}, {gaussian}"
+                is_gaussian = p_val > 0.05
+                if not is_gaussian:
+                    non_gaussian_count += 1
+                distributions.append({
+                    "column": col,
+                    "skewness": round(skew, 2),
+                    "gaussian": is_gaussian,
+                })
 
         # Correlation summary
         corr_matrix = df_subset.corr().abs()
@@ -496,45 +402,63 @@ Distributions (Skewness):"""
         for i, c1 in enumerate(corr_matrix.columns):
             for j, c2 in enumerate(corr_matrix.columns):
                 if i < j and corr_matrix.iloc[i, j] > 0.7:
-                    high_corrs.append((c1, c2, corr_matrix.iloc[i, j]))
-
-        output += f"\n\nHigh Correlations (|r| > 0.7): {len(high_corrs)}"
-        if high_corrs:
-            for c1, c2, corr in high_corrs[:5]:
-                output += f"\n  {c1} <-> {c2}: r={corr:.2f}"
+                    high_corrs.append({
+                        "var1": c1,
+                        "var2": c2,
+                        "correlation": round(float(corr_matrix.iloc[i, j]), 2),
+                    })
 
         # Algorithm recommendations
-        output += "\n\nAlgorithm Recommendations:"
         n_samples = len(df_subset)
         n_vars = len(relevant_cols)
+        recommendations = []
 
         if n_samples < 300:
-            output += "\n- WARNING: Small sample size - results may be unreliable"
-            output += "\n- Recommend: PC with higher alpha (0.1) or simple DAG"
+            recommendations.append("WARNING: Small sample size - results may be unreliable")
+            recommendations.append("Consider PC with higher alpha (0.1) or use simple DAG")
         elif n_vars > 15:
-            output += "\n- Many variables - consider limiting to most relevant"
-            output += "\n- Recommend: PC (efficient for sparse graphs)"
+            recommendations.append("Many variables - consider PC (efficient for sparse graphs)")
         else:
-            output += "\n- Sample size adequate for discovery"
+            recommendations.append("Sample size adequate for discovery")
 
-        # Check for Gaussian data
-        non_gaussian_count = sum(1 for col in relevant_cols[:10]
-                                  if len(df_subset[col].dropna()) > 10
-                                  and sp_stats.shapiro(df_subset[col].dropna().sample(
-                                      min(len(df_subset[col].dropna()), 5000), random_state=42))[1] < 0.05)
         if non_gaussian_count > len(relevant_cols) * 0.5:
-            output += "\n- Most variables are non-Gaussian - LiNGAM may work well"
+            recommendations.append("Most variables are non-Gaussian - LiNGAM may work well")
         else:
-            output += "\n- Many Gaussian variables - avoid LiNGAM, use PC or GES"
+            recommendations.append("Many Gaussian variables - avoid LiNGAM, use PC or GES")
 
-        return output
+        return ToolResult(
+            status=ToolResultStatus.SUCCESS,
+            output={
+                "n_samples": len(df),
+                "n_complete_cases": len(df_subset),
+                "n_variables": len(relevant_cols),
+                "variables": relevant_cols,
+                "treatment": self._treatment_var,
+                "outcome": self._outcome_var,
+                "distributions": distributions[:10],
+                "non_gaussian_pct": round(non_gaussian_count / max(len(distributions), 1) * 100, 1),
+                "high_correlations": high_corrs[:5],
+                "recommendations": recommendations,
+            },
+        )
 
-    def _tool_run_discovery_algorithm(
-        self, algorithm: str, alpha: float = 0.05, threshold: float = 0.1
-    ) -> str:
+    async def _tool_run_discovery_algorithm(
+        self,
+        state: AnalysisState,
+        algorithm: str,
+        alpha: float = 0.05,
+        threshold: float = 0.1,
+    ) -> ToolResult:
         """Run a discovery algorithm."""
+        if self._df is None:
+            return ToolResult(
+                status=ToolResultStatus.ERROR,
+                output=None,
+                error="Dataset not loaded",
+            )
+
         df = self._df
-        profile = self._state.data_profile
+        profile = state.data_profile
 
         # Prepare data
         numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
@@ -553,11 +477,11 @@ Distributions (Skewness):"""
         df_subset = df[relevant_cols].dropna()
 
         if len(df_subset) < 50:
-            return f"Error: Not enough complete cases ({len(df_subset)}) for discovery."
-
-        output = f"Running {algorithm.upper()} algorithm...\n"
-        output += f"Variables: {len(relevant_cols)}, Samples: {len(df_subset)}\n"
-        output += "=" * 50 + "\n"
+            return ToolResult(
+                status=ToolResultStatus.ERROR,
+                output=None,
+                error=f"Not enough complete cases ({len(df_subset)}) for discovery",
+            )
 
         try:
             dag = self._run_algorithm(df_subset, algorithm, alpha, threshold)
@@ -566,40 +490,66 @@ Distributions (Skewness):"""
                 self._discovered_graphs[algorithm] = dag
                 self._current_graph = dag
 
-                output += "\nDiscovery completed successfully!\n"
-                output += f"Nodes: {len(dag.nodes)}\n"
-                output += f"Edges: {len(dag.edges)}\n"
-
-                # Summarize edges
                 directed = [e for e in dag.edges if e.edge_type == "directed"]
                 undirected = [e for e in dag.edges if e.edge_type == "undirected"]
-                output += f"Directed edges: {len(directed)}\n"
-                output += f"Undirected edges: {len(undirected)}\n"
 
                 # Check treatment-outcome path
+                has_direct_edge = False
                 if self._treatment_var and self._outcome_var:
-                    has_path = self._check_path(dag, self._treatment_var, self._outcome_var)
-                    if has_path:
-                        output += f"\nDirect edge exists: {self._treatment_var} → {self._outcome_var}"
-                    else:
-                        output += f"\nNo direct edge: {self._treatment_var} → {self._outcome_var}"
+                    has_direct_edge = any(
+                        e.source == self._treatment_var and e.target == self._outcome_var
+                        for e in directed
+                    )
 
-                output += "\n\nCall inspect_graph for detailed structure."
-
+                return ToolResult(
+                    status=ToolResultStatus.SUCCESS,
+                    output={
+                        "algorithm": algorithm.upper(),
+                        "n_nodes": len(dag.nodes),
+                        "n_edges": len(dag.edges),
+                        "n_directed": len(directed),
+                        "n_undirected": len(undirected),
+                        "variables_used": len(relevant_cols),
+                        "samples_used": len(df_subset),
+                        "treatment_outcome_edge": has_direct_edge,
+                        "message": "Discovery completed. Call inspect_graph for details.",
+                    },
+                )
             else:
-                output += "\nDiscovery failed - falling back to simple DAG."
+                # Fallback to simple DAG
                 dag = self._create_simple_dag()
                 self._discovered_graphs[algorithm] = dag
                 self._current_graph = dag
 
+                return ToolResult(
+                    status=ToolResultStatus.SUCCESS,
+                    output={
+                        "algorithm": algorithm.upper(),
+                        "fallback": True,
+                        "message": "Algorithm failed - using simple DAG fallback",
+                        "n_nodes": len(dag.nodes),
+                        "n_edges": len(dag.edges),
+                    },
+                )
+
         except Exception as e:
-            output += f"\nError during discovery: {str(e)}"
-            output += "\nFalling back to simple DAG."
+            self.logger.error("discovery_algorithm_error", algorithm=algorithm, error=str(e))
+            # Fallback to simple DAG
             dag = self._create_simple_dag()
             self._discovered_graphs[algorithm] = dag
             self._current_graph = dag
 
-        return output
+            return ToolResult(
+                status=ToolResultStatus.SUCCESS,
+                output={
+                    "algorithm": algorithm.upper(),
+                    "error": str(e),
+                    "fallback": True,
+                    "message": f"Error during discovery: {str(e)}. Using simple DAG fallback.",
+                    "n_nodes": len(dag.nodes),
+                    "n_edges": len(dag.edges),
+                },
+            )
 
     def _run_algorithm(
         self, df: pd.DataFrame, algorithm: str, alpha: float, threshold: float
@@ -719,74 +669,89 @@ Distributions (Skewness):"""
             self.logger.warning(f"algorithm_failed_{algorithm}", error=str(e))
             return None
 
-    def _tool_inspect_graph(self) -> str:
+    async def _tool_inspect_graph(self, state: AnalysisState) -> ToolResult:
         """Inspect the current graph structure."""
         if not self._current_graph:
-            return "No graph discovered yet. Run a discovery algorithm first."
+            return ToolResult(
+                status=ToolResultStatus.ERROR,
+                output=None,
+                error="No graph discovered yet. Run a discovery algorithm first.",
+            )
 
         dag = self._current_graph
-        output = f"Graph Structure ({dag.discovery_method}):\n"
-        output += "=" * 50 + "\n"
-        output += f"Nodes ({len(dag.nodes)}): {', '.join(dag.nodes[:15])}"
-        if len(dag.nodes) > 15:
-            output += f"... ({len(dag.nodes) - 15} more)"
-        output += "\n"
 
         # Group edges by type
         directed = [e for e in dag.edges if e.edge_type == "directed"]
         undirected = [e for e in dag.edges if e.edge_type == "undirected"]
 
-        output += f"\nDirected Edges ({len(directed)}):\n"
+        # Format directed edges
+        directed_edges = []
         for e in directed[:20]:
-            conf = f" (conf={e.confidence:.2f})" if e.confidence else ""
-            output += f"  {e.source} → {e.target}{conf}\n"
-        if len(directed) > 20:
-            output += f"  ... ({len(directed) - 20} more)\n"
+            edge_info = {"source": e.source, "target": e.target}
+            if e.confidence:
+                edge_info["confidence"] = round(e.confidence, 2)
+            directed_edges.append(edge_info)
 
-        if undirected:
-            output += f"\nUndirected Edges ({len(undirected)}):\n"
-            for e in undirected[:10]:
-                output += f"  {e.source} -- {e.target}\n"
+        # Format undirected edges
+        undirected_edges = [{"var1": e.source, "var2": e.target} for e in undirected[:10]]
 
         # Treatment and outcome analysis
         treatment = self._treatment_var
         outcome = self._outcome_var
 
-        if treatment:
-            output += f"\nTreatment ({treatment}) connections:\n"
+        treatment_info = None
+        if treatment and treatment in dag.nodes:
             incoming = [e.source for e in directed if e.target == treatment]
             outgoing = [e.target for e in directed if e.source == treatment]
-            output += f"  Parents: {incoming if incoming else 'None'}\n"
-            output += f"  Children: {outgoing if outgoing else 'None'}\n"
+            treatment_info = {
+                "variable": treatment,
+                "parents": incoming,
+                "children": outgoing,
+            }
 
-        if outcome:
-            output += f"\nOutcome ({outcome}) connections:\n"
+        outcome_info = None
+        if outcome and outcome in dag.nodes:
             incoming = [e.source for e in directed if e.target == outcome]
             outgoing = [e.target for e in directed if e.source == outcome]
-            output += f"  Parents: {incoming if incoming else 'None'}\n"
-            output += f"  Children: {outgoing if outgoing else 'None'}\n"
+            outcome_info = {
+                "variable": outcome,
+                "parents": incoming,
+                "children": outgoing,
+            }
 
         # Identify potential confounders
+        confounders = []
         if treatment and outcome:
             t_parents = set(e.source for e in directed if e.target == treatment)
             o_parents = set(e.source for e in directed if e.target == outcome)
-            confounders = t_parents & o_parents
-            if confounders:
-                output += f"\nPotential Confounders: {list(confounders)}\n"
-            else:
-                output += "\nNo common parents of treatment and outcome (confounders) found.\n"
+            confounders = list(t_parents & o_parents)
 
-        return output
+        return ToolResult(
+            status=ToolResultStatus.SUCCESS,
+            output={
+                "method": dag.discovery_method,
+                "n_nodes": len(dag.nodes),
+                "nodes": dag.nodes[:15] + (["..."] if len(dag.nodes) > 15 else []),
+                "n_directed": len(directed),
+                "n_undirected": len(undirected),
+                "directed_edges": directed_edges,
+                "undirected_edges": undirected_edges,
+                "treatment": treatment_info,
+                "outcome": outcome_info,
+                "potential_confounders": confounders,
+            },
+        )
 
-    def _tool_validate_graph(self) -> str:
+    async def _tool_validate_graph(self, state: AnalysisState) -> ToolResult:
         """Validate the discovered graph."""
         if not self._current_graph:
-            return "No graph to validate. Run a discovery algorithm first."
+            return ToolResult(
+                status=ToolResultStatus.ERROR,
+                output=None,
+                error="No graph to validate. Run a discovery algorithm first.",
+            )
 
         dag = self._current_graph
-        output = "Graph Validation:\n"
-        output += "=" * 50 + "\n"
-
         issues = []
         warnings = []
 
@@ -800,21 +765,20 @@ Distributions (Skewness):"""
             issues.append(f"Outcome variable '{outcome}' not in graph nodes")
 
         # Check 2: Treatment → Outcome path
+        has_direct_edge = False
+        has_path = False
         if treatment and outcome and treatment in dag.nodes and outcome in dag.nodes:
-            has_direct = any(e.source == treatment and e.target == outcome for e in dag.edges)
+            has_direct_edge = any(e.source == treatment and e.target == outcome for e in dag.edges)
             has_path = self._check_path(dag, treatment, outcome)
-            if has_direct:
-                output += f"Direct edge {treatment} → {outcome}: YES\n"
-            elif has_path:
-                output += f"Direct edge {treatment} → {outcome}: NO\n"
-                output += "Indirect path exists: YES\n"
-            else:
+
+            if not has_direct_edge and not has_path:
                 warnings.append("No path from treatment to outcome - may indicate no causal effect")
 
         # Check 3: Outcome → Treatment (reverse causation)
+        reverse_edge = False
         if treatment and outcome:
-            reverse = any(e.source == outcome and e.target == treatment for e in dag.edges)
-            if reverse:
+            reverse_edge = any(e.source == outcome and e.target == treatment for e in dag.edges)
+            if reverse_edge:
                 issues.append(f"Reverse edge {outcome} → {treatment} detected - may be spurious")
 
         # Check 4: Graph density
@@ -823,7 +787,6 @@ Distributions (Skewness):"""
         max_edges = n_nodes * (n_nodes - 1) / 2
         density = n_edges / max_edges if max_edges > 0 else 0
 
-        output += f"\nGraph density: {density:.2%}\n"
         if density > 0.5:
             warnings.append("Graph is very dense - may include spurious edges")
         elif density < 0.05 and n_nodes > 5:
@@ -834,27 +797,32 @@ Distributions (Skewness):"""
         for e in dag.edges:
             connected.add(e.source)
             connected.add(e.target)
-        isolated = set(dag.nodes) - connected
+        isolated = list(set(dag.nodes) - connected)
+
         if isolated:
-            warnings.append(f"Isolated nodes (no edges): {list(isolated)[:5]}")
+            warnings.append(f"Isolated nodes (no edges): {isolated[:5]}")
 
-        # Summary
-        output += f"\nIssues ({len(issues)}):\n"
-        for issue in issues:
-            output += f"  - ISSUE: {issue}\n"
-
-        output += f"\nWarnings ({len(warnings)}):\n"
-        for warning in warnings:
-            output += f"  - WARNING: {warning}\n"
-
+        # Determine validation status
         if not issues and not warnings:
-            output += "\nValidation passed - graph appears reasonable.\n"
+            validation_status = "passed"
         elif not issues:
-            output += "\nValidation passed with warnings - graph may need refinement.\n"
+            validation_status = "passed_with_warnings"
         else:
-            output += "\nValidation found issues - consider trying a different algorithm.\n"
+            validation_status = "issues_found"
 
-        return output
+        return ToolResult(
+            status=ToolResultStatus.SUCCESS,
+            output={
+                "validation_status": validation_status,
+                "has_treatment_outcome_edge": has_direct_edge,
+                "has_treatment_outcome_path": has_path,
+                "reverse_causation": reverse_edge,
+                "density": round(density * 100, 1),
+                "n_isolated": len(isolated),
+                "issues": issues,
+                "warnings": warnings,
+            },
+        )
 
     def _check_path(self, dag: CausalDAG, source: str, target: str) -> bool:
         """Check if there's a directed path from source to target."""
@@ -875,29 +843,41 @@ Distributions (Skewness):"""
 
         return False
 
-    def _tool_compare_algorithms(self) -> str:
+    async def _tool_compare_algorithms(self, state: AnalysisState) -> ToolResult:
         """Compare results from different algorithms."""
         if len(self._discovered_graphs) < 2:
-            return f"Only {len(self._discovered_graphs)} algorithm(s) run. Run more algorithms to compare."
-
-        output = "Algorithm Comparison:\n"
-        output += "=" * 50 + "\n"
+            return ToolResult(
+                status=ToolResultStatus.SUCCESS,
+                output={
+                    "n_algorithms": len(self._discovered_graphs),
+                    "message": f"Only {len(self._discovered_graphs)} algorithm(s) run. Run more algorithms to compare.",
+                },
+            )
 
         # Compare basic stats
+        comparison = []
         for alg, dag in self._discovered_graphs.items():
             directed = len([e for e in dag.edges if e.edge_type == "directed"])
             undirected = len([e for e in dag.edges if e.edge_type == "undirected"])
-            output += f"\n{alg.upper()}:\n"
-            output += f"  Nodes: {len(dag.nodes)}, Directed: {directed}, Undirected: {undirected}\n"
 
-            # Treatment-outcome edge
-            treatment = self._treatment_var
-            outcome = self._outcome_var
-            if treatment and outcome:
-                has_edge = any(e.source == treatment and e.target == outcome for e in dag.edges)
-                output += f"  {treatment} → {outcome}: {'YES' if has_edge else 'NO'}\n"
+            has_edge = False
+            if self._treatment_var and self._outcome_var:
+                has_edge = any(
+                    e.source == self._treatment_var and e.target == self._outcome_var
+                    for e in dag.edges
+                )
+
+            comparison.append({
+                "algorithm": alg.upper(),
+                "n_nodes": len(dag.nodes),
+                "n_directed": directed,
+                "n_undirected": undirected,
+                "treatment_outcome_edge": has_edge,
+            })
 
         # Find common edges
+        common_edges = []
+        unique_edges = {}
         if len(self._discovered_graphs) >= 2:
             algs = list(self._discovered_graphs.keys())
             dag1 = self._discovered_graphs[algs[0]]
@@ -910,18 +890,58 @@ Distributions (Skewness):"""
             only_first = edges1 - edges2
             only_second = edges2 - edges1
 
-            output += f"\nCommon directed edges: {len(common)}\n"
-            output += f"Only in {algs[0]}: {len(only_first)}\n"
-            output += f"Only in {algs[1]}: {len(only_second)}\n"
+            common_edges = [{"source": s, "target": t} for s, t in list(common)[:10]]
+            unique_edges = {
+                algs[0]: len(only_first),
+                algs[1]: len(only_second),
+            }
 
-            if common:
-                output += "\nCommon edges (likely robust):\n"
-                for src, tgt in list(common)[:10]:
-                    output += f"  {src} → {tgt}\n"
+        return ToolResult(
+            status=ToolResultStatus.SUCCESS,
+            output={
+                "n_algorithms": len(self._discovered_graphs),
+                "comparison": comparison,
+                "common_edges": common_edges,
+                "unique_edge_counts": unique_edges,
+                "recommendation": "Prefer algorithms that agree on treatment-outcome relationships",
+            },
+        )
 
-        output += "\nRecommendation: Prefer algorithms that agree on treatment-outcome relationships."
+    async def _tool_finalize_discovery(
+        self,
+        state: AnalysisState,
+        chosen_algorithm: str,
+        interpretation: str,
+        confidence: str,
+        confounders: list[str] | None = None,
+        mediators: list[str] | None = None,
+    ) -> ToolResult:
+        """Finalize the discovery with chosen graph."""
+        self.logger.info(
+            "discovery_finalizing",
+            chosen_algorithm=chosen_algorithm,
+            confidence=confidence,
+        )
 
-        return output
+        self._final_result = {
+            "chosen_algorithm": chosen_algorithm,
+            "confounders": confounders or [],
+            "mediators": mediators or [],
+            "interpretation": interpretation,
+            "confidence": confidence,
+        }
+        self._finalized = True
+
+        return ToolResult(
+            status=ToolResultStatus.SUCCESS,
+            output={
+                "discovery_finalized": True,
+                "chosen_algorithm": chosen_algorithm,
+                "confidence": confidence,
+                "n_confounders": len(confounders or []),
+                "n_mediators": len(mediators or []),
+            },
+        )
 
     def _create_simple_dag(self) -> CausalDAG:
         """Create a simple treatment → outcome DAG with confounders."""
@@ -930,7 +950,7 @@ Distributions (Skewness):"""
 
         treatment = self._treatment_var
         outcome = self._outcome_var
-        profile = self._state.data_profile
+        profile = self._current_state.data_profile if self._current_state else None
 
         if treatment:
             nodes.append(treatment)

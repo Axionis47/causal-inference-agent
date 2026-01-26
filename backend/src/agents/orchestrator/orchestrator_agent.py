@@ -36,9 +36,10 @@ class OrchestratorAgent(BaseAgent):
 a team of specialist agents to perform rigorous causal analysis on datasets.
 
 You have access to the following specialist agents:
-- data_profiler: Analyzes dataset characteristics, identifies treatment/outcome candidates
-- eda_agent: Performs comprehensive exploratory data analysis (correlations, outliers, distributions, covariate balance, multicollinearity)
-- causal_discovery: Learns causal graph structure from data using algorithms like PC, GES, NOTEARS
+- domain_knowledge: Extracts domain knowledge from dataset metadata (treatment/outcome hints, temporal ordering, immutable variables). Run this FIRST if metadata is available.
+- data_profiler: Analyzes dataset characteristics, identifies treatment/outcome candidates. Uses domain knowledge if available.
+- eda_agent: Performs comprehensive exploratory data analysis (correlations, outliers, distributions, covariate balance, multicollinearity). Uses domain knowledge for context.
+- causal_discovery: Learns causal graph structure from data using algorithms like PC, GES, NOTEARS. Uses domain knowledge for constraints.
 - effect_estimator: Estimates treatment effects (ATE, ATT, CATE) using appropriate methods
 - sensitivity_analyst: Performs robustness checks (Rosenbaum bounds, E-values, placebo tests)
 - notebook_generator: Creates reproducible Jupyter notebooks documenting the analysis
@@ -47,15 +48,24 @@ You also interact with:
 - critique_agent: Reviews analysis quality and provides feedback for iteration
 
 Your workflow:
-1. First, ALWAYS dispatch to data_profiler to understand the dataset
-2. ALWAYS dispatch to eda_agent for comprehensive EDA (correlations, outliers, balance checks)
-3. Based on the profile and EDA, reason about what causal methods are appropriate
-4. Dispatch to specialists in a logical order
-5. Request critique review before finalizing
-6. If critique says ITERATE, address the feedback and re-dispatch relevant agents
-7. Once APPROVED, dispatch to notebook_generator
+1. If metadata is available, FIRST dispatch to domain_knowledge to extract causal hints
+2. Then dispatch to data_profiler to understand the dataset (it will query domain knowledge)
+3. ALWAYS dispatch to eda_agent for comprehensive EDA (correlations, outliers, balance checks)
+4. Based on the profile and EDA, reason about what causal methods are appropriate
+5. Dispatch to causal_discovery to learn the causal graph structure
+6. Dispatch to effect_estimator and sensitivity_analyst
+7. Request critique review before finalizing
+8. If critique says ITERATE, address the feedback and re-dispatch relevant agents
+9. Once APPROVED, dispatch to notebook_generator
+
+CONTEXT ENGINEERING:
+- Domain knowledge agent builds understanding from metadata (variable descriptions, tags, domain)
+- All downstream agents (profiler, EDA, discovery) can QUERY domain knowledge through tools
+- This is PULL-based context - agents request what they need, not push-based dumps
+- If domain knowledge has high confidence hypotheses, profiler/discovery should leverage them
 
 CRITICAL RULES:
+- If metadata exists, dispatch domain_knowledge FIRST to build context
 - NEVER skip the data profiling step
 - NEVER skip the EDA step - it's crucial for identifying data quality issues
 - ALWAYS reason explicitly about WHY you're choosing each method
@@ -75,6 +85,7 @@ When making decisions, output your reasoning step-by-step, then specify which ag
                     "agent_name": {
                         "type": "string",
                         "enum": [
+                            "domain_knowledge",
                             "data_profiler",
                             "eda_agent",
                             "causal_discovery",
@@ -250,6 +261,42 @@ Current Status: {state.status.value}
 Iteration: {state.iteration_count} / {state.max_iterations}
 
 """
+        # Add metadata status
+        if state.raw_metadata:
+            quality = state.raw_metadata.get("metadata_quality", "unknown")
+            prompt += f"\nDataset Metadata: Available (quality: {quality})"
+            if not state.domain_knowledge:
+                prompt += "\n→ Domain knowledge NOT extracted yet. Consider dispatching domain_knowledge agent."
+            prompt += "\n"
+        else:
+            prompt += "\nDataset Metadata: Not available\n"
+
+        # Add domain knowledge if available
+        if state.domain_knowledge:
+            dk = state.domain_knowledge
+            prompt += "\nDomain Knowledge (extracted from metadata):\n"
+
+            # Show hypotheses
+            hypotheses = dk.get("hypotheses", [])
+            if hypotheses:
+                prompt += "- Key hypotheses:\n"
+                for h in hypotheses[:3]:
+                    prompt += f"  * {h.get('claim', '')} (confidence: {h.get('confidence', 'unknown')})\n"
+
+            # Show temporal ordering
+            if dk.get("temporal_understanding"):
+                prompt += f"- Temporal ordering: {dk['temporal_understanding']}\n"
+
+            # Show immutable vars
+            if dk.get("immutable_vars"):
+                prompt += f"- Immutable variables: {dk['immutable_vars']}\n"
+
+            # Show uncertainties
+            if dk.get("uncertainties"):
+                prompt += f"- Uncertainties: {len(dk['uncertainties'])} flagged\n"
+
+            prompt += "\n"
+
         # Add data profile if available
         if state.data_profile:
             prompt += f"""
@@ -338,7 +385,10 @@ Do not just provide text - you MUST call a tool to proceed."""
         return {
             "job_id": state.job_id,
             "status": state.status.value,
+            "has_metadata": state.raw_metadata is not None,
+            "has_domain_knowledge": state.domain_knowledge is not None,
             "has_profile": state.data_profile is not None,
+            "has_eda": state.eda_result is not None,
             "has_dag": state.proposed_dag is not None,
             "num_effects": len(state.treatment_effects),
             "num_sensitivity": len(state.sensitivity_results),
@@ -405,6 +455,7 @@ Do not just provide text - you MUST call a tool to proceed."""
 
         # Update status based on agent
         status_map = {
+            "domain_knowledge": JobStatus.PROFILING,  # Part of early profiling phase
             "data_profiler": JobStatus.PROFILING,
             "eda_agent": JobStatus.EXPLORATORY_ANALYSIS,
             "causal_discovery": JobStatus.DISCOVERING_CAUSAL,

@@ -290,9 +290,7 @@ Use the investigation tools to gather evidence, then call finalize_critique."""
             )
 
         except Exception as e:
-            self.logger.error("critique_failed", error=str(e))
-            import traceback
-            traceback.print_exc()
+            self.logger.exception("critique_failed", error=str(e))
             # Fallback to heuristic critique
             feedback = self._heuristic_critique(state, str(e))
             state.critique_history.append(feedback)

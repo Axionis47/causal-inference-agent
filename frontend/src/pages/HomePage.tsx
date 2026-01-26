@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { Upload, AlertCircle, ArrowRight } from 'lucide-react';
 import { createJob, CreateJobRequest } from '../services/api';
+import { validateKaggleUrl } from '../utils';
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -25,8 +26,10 @@ export default function HomePage() {
     e.preventDefault();
     setError(null);
 
-    if (!kaggleUrl.trim()) {
-      setError('Please enter a Kaggle dataset URL');
+    // Use centralized validation
+    const validationError = validateKaggleUrl(kaggleUrl.trim());
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
@@ -71,7 +74,7 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label
                 htmlFor="treatment-var"
@@ -135,7 +138,7 @@ export default function HomePage() {
         </form>
       </div>
 
-      <div className="mt-12 grid grid-cols-3 gap-6">
+      <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="text-center">
           <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <span className="text-2xl">1</span>

@@ -1,0 +1,17 @@
+{
+  "fcb85703": {
+    "id": "fcb85703",
+    "kaggle_url": "https://www.kaggle.com/datasets/rtatman/iris-dataset-json-version",
+    "dataset_name": null,
+    "status": "failed",
+    "treatment_variable": null,
+    "outcome_variable": null,
+    "iteration_count": 0,
+    "max_iterations": 3,
+    "created_at": "2026-01-26T07:42:46.361227",
+    "updated_at": "2026-01-26T07:42:58.994274",
+    "error_message": "Failed to load dataset",
+    "error_agent": "data_profiler",
+    "notebook_path": null
+  }
+}

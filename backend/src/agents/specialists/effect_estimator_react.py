@@ -188,37 +188,40 @@ CRITICAL RULES:
         )
 
     def _get_initial_observation(self, state: AnalysisState) -> str:
-        """Get initial observation from state."""
+        """Get LEAN initial observation - minimal context, use tools for details.
+
+        This reduces token usage by ~500 tokens per call by not dumping
+        the full data profile upfront. Agents should use context query tools
+        to pull specific information as needed.
+        """
         obs = f"""Task: Estimate treatment effects for job {state.job_id}
-
 Dataset: {state.dataset_info.name or state.dataset_info.url}
-"""
-        if state.data_profile:
-            obs += f"""
-Data Profile Available:
-- Samples: {state.data_profile.n_samples}
-- Features: {state.data_profile.n_features}
-- Treatment candidates: {state.data_profile.treatment_candidates}
-- Outcome candidates: {state.data_profile.outcome_candidates}
-- Potential confounders: {state.data_profile.potential_confounders[:10]}
-- Has time dimension: {state.data_profile.has_time_dimension}
-- Potential instruments: {state.data_profile.potential_instruments}
-"""
-        if state.treatment_variable:
-            obs += f"\nSelected treatment: {state.treatment_variable}"
-        if state.outcome_variable:
-            obs += f"\nSelected outcome: {state.outcome_variable}"
 
-        obs += "\n\nStart by inspecting the data to understand what you're working with."
+Key variables:
+- Treatment: {state.treatment_variable or "Use get_treatment_outcome tool to confirm"}
+- Outcome: {state.outcome_variable or "Use get_treatment_outcome tool to confirm"}
+"""
+        # Add minimal data availability info
+        if state.data_profile:
+            obs += f"- Samples: {state.data_profile.n_samples}, Features: {state.data_profile.n_features}\n"
+
+        obs += """
+Use context query tools to pull specific information as needed:
+- get_confounder_analysis: Get ranked confounders when running methods
+- get_profile_for_variables: Get stats for specific columns
+- ask_domain_knowledge: Query domain understanding
+- analyze_variable_semantics: Understand what variables represent
+
+Start by inspecting the data overview to understand what you're working with."""
 
         # Load the dataframe
         if state.dataframe_path:
             try:
                 with open(state.dataframe_path, "rb") as f:
                     self._df = pickle.load(f)
-                obs += f"\nData loaded: {len(self._df)} rows, {len(self._df.columns)} columns"
+                obs += f"\n\nData loaded: {len(self._df)} rows, {len(self._df.columns)} columns"
             except Exception as e:
-                obs += f"\nWarning: Could not load data: {e}"
+                obs += f"\n\nWarning: Could not load data: {e}"
 
         return obs
 
