@@ -151,8 +151,9 @@ class TestEffectEstimatorAgent:
 
     def test_estimator_has_tools(self, estimator):
         """Test estimator has tools defined."""
-        assert estimator.TOOLS is not None
-        assert len(estimator.TOOLS) > 0
+        # ReAct agents store tools in _tool_schemas (registered dynamically)
+        assert estimator._tool_schemas is not None
+        assert len(estimator._tool_schemas) > 0
 
     def test_estimator_has_system_prompt(self, estimator):
         """Test estimator has system prompt defined."""
@@ -197,8 +198,9 @@ class TestSensitivityAnalystAgent:
 
     def test_analyst_has_tools(self, analyst):
         """Test analyst has tools defined."""
-        assert analyst.TOOLS is not None
-        assert len(analyst.TOOLS) > 0
+        # ReAct agents store tools in _tool_schemas (registered dynamically)
+        assert analyst._tool_schemas is not None
+        assert len(analyst._tool_schemas) > 0
 
     def test_analyst_has_system_prompt(self, analyst):
         """Test analyst has system prompt defined."""

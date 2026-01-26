@@ -1,9 +1,12 @@
 """Job management API routes."""
 
+from pathlib import Path
+
 from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import FileResponse
 
 from src.agents.base import JobStatus
+from src.storage.cleanup import CAUSAL_TEMP_DIR
 from src.api.schemas import (
     AgentTracesResponse,
     AnalysisResultsResponse,
@@ -17,6 +20,11 @@ from src.api.schemas import (
     JobStatusResponse,
     SensitivityResponse,
     TreatmentEffectResponse,
+)
+from src.api.utils import (
+    build_data_context,
+    calculate_method_consensus,
+    generate_executive_summary,
 )
 from src.jobs.manager import get_job_manager
 from src.logging_config.structured import get_logger
@@ -246,9 +254,10 @@ async def get_results(job_id: str) -> AnalysisResultsResponse:
     if results.get("causal_graph"):
         cg = results["causal_graph"]
         causal_graph = CausalGraphResponse(
-            nodes=cg["nodes"],
-            edges=cg["edges"],
-            discovery_method=cg["discovery_method"],
+            nodes=cg.get("nodes", []),
+            edges=cg.get("edges", []),
+            discovery_method=cg.get("discovery_method", "unknown"),
+            interpretation=cg.get("interpretation"),
         )
 
     treatment_effects = [
@@ -274,10 +283,34 @@ async def get_results(job_id: str) -> AnalysisResultsResponse:
         for s in results.get("sensitivity_results", [])
     ]
 
+    # Calculate method consensus
+    method_consensus = calculate_method_consensus(treatment_effects)
+
+    # Check if sensitivity analysis shows robustness (robustness_value > 1 typically means robust)
+    sensitivity_robust = (
+        len(sensitivity) > 0 and
+        all(s.robustness_value > 1.0 for s in sensitivity)
+    )
+
+    # Generate executive summary
+    executive_summary = generate_executive_summary(
+        treatment_variable=results.get("treatment_variable"),
+        outcome_variable=results.get("outcome_variable"),
+        effects=treatment_effects,
+        consensus=method_consensus,
+        sensitivity_robust=sensitivity_robust,
+    )
+
+    # Build data context
+    data_context = build_data_context(results)
+
     return AnalysisResultsResponse(
         job_id=job_id,
         treatment_variable=results.get("treatment_variable"),
         outcome_variable=results.get("outcome_variable"),
+        executive_summary=executive_summary,
+        method_consensus=method_consensus,
+        data_context=data_context,
         causal_graph=causal_graph,
         treatment_effects=treatment_effects,
         sensitivity_analysis=sensitivity,
@@ -299,10 +332,30 @@ async def download_notebook(job_id: str):
             detail=f"Notebook not found for job {job_id}",
         )
 
-    notebook_path = results["notebook_path"]
+    notebook_path = Path(results["notebook_path"]).resolve()
+
+    # Security: validate path is within expected directory
+    try:
+        notebook_path.relative_to(CAUSAL_TEMP_DIR)
+    except ValueError:
+        logger.warning(
+            "notebook_path_traversal_attempt",
+            job_id=job_id,
+            path=str(notebook_path),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid notebook path",
+        )
+
+    if not notebook_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Notebook file not found for job {job_id}",
+        )
 
     return FileResponse(
-        path=notebook_path,
+        path=str(notebook_path),
         filename=f"causal_analysis_{job_id}.ipynb",
         media_type="application/x-ipynb+json",
     )

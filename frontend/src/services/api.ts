@@ -67,10 +67,38 @@ export interface SensitivityResult {
   interpretation: string;
 }
 
+export interface MethodConsensus {
+  n_methods: number;
+  direction_agreement: number;
+  all_significant: boolean;
+  estimate_range: [number, number];
+  median_estimate: number;
+  consensus_strength: 'strong' | 'moderate' | 'weak';
+}
+
+export interface DataContext {
+  n_samples: number;
+  n_features: number;
+  n_treated?: number;
+  n_control?: number;
+  missing_data_pct: number;
+  data_quality_issues: string[];
+}
+
+export interface ExecutiveSummary {
+  headline: string;
+  effect_direction: 'positive' | 'negative' | 'null' | 'mixed';
+  confidence_level: 'high' | 'medium' | 'low';
+  key_findings: string[];
+}
+
 export interface AnalysisResults {
   job_id: string;
   treatment_variable?: string;
   outcome_variable?: string;
+  executive_summary?: ExecutiveSummary;
+  method_consensus?: MethodConsensus;
+  data_context?: DataContext;
   causal_graph?: CausalGraph;
   treatment_effects: TreatmentEffect[];
   sensitivity_analysis: SensitivityResult[];

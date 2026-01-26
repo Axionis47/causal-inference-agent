@@ -13,7 +13,7 @@ import time
 from abc import abstractmethod
 from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
@@ -169,6 +169,39 @@ class ReActAgent:
             "parameters": parameters,
         })
         self.logger.debug("tool_registered", tool=name)
+
+    def create_trace(
+        self,
+        action: str,
+        reasoning: str,
+        inputs: dict[str, Any] | None = None,
+        outputs: dict[str, Any] | None = None,
+        tools_called: list[str] | None = None,
+        duration_ms: int = 0,
+    ) -> AgentTrace:
+        """Create an agent trace for observability.
+
+        Args:
+            action: Description of the action taken
+            reasoning: The LLM's reasoning for this action
+            inputs: Input data for this action
+            outputs: Output data from this action
+            tools_called: List of tools that were called
+            duration_ms: Duration of the action in milliseconds
+
+        Returns:
+            AgentTrace instance
+        """
+        return AgentTrace(
+            agent_name=self.AGENT_NAME,
+            timestamp=datetime.now(timezone.utc),
+            action=action,
+            reasoning=reasoning,
+            inputs=inputs or {},
+            outputs=outputs or {},
+            tools_called=tools_called or [],
+            duration_ms=duration_ms,
+        )
 
     async def execute(self, state: AnalysisState) -> AnalysisState:
         """Execute the ReAct loop until task completion.

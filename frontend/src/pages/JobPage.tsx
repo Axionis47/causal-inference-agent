@@ -12,7 +12,7 @@ import {
   Trash2,
   Ban,
 } from 'lucide-react';
-import { getJob, getJobStatus, getResults, getNotebookUrl, cancelJob, deleteJob } from '../services/api';
+import { getJob, getResults, getNotebookUrl, cancelJob, deleteJob } from '../services/api';
 import JobProgress from '../components/job/JobProgress';
 import ResultsDisplay from '../components/results/ResultsDisplay';
 import AgentTraces from '../components/agents/AgentTraces';
@@ -27,13 +27,12 @@ export default function JobPage() {
     queryKey: ['job', jobId],
     queryFn: () => getJob(jobId!),
     enabled: !!jobId,
-  });
-
-  const statusQuery = useQuery({
-    queryKey: ['jobStatus', jobId],
-    queryFn: () => getJobStatus(jobId!),
-    enabled: !!jobId && jobQuery.data?.status !== 'completed' && jobQuery.data?.status !== 'failed' && jobQuery.data?.status !== 'cancelled',
-    refetchInterval: 1000, // Poll every 1 second while running (faster to catch quick stages)
+    // Poll every 1 second while job is running to catch quick stage transitions
+    refetchInterval: (query: { state: { data?: { status?: string } } }) => {
+      const status = query.state.data?.status;
+      const isTerminal = status === 'completed' || status === 'failed' || status === 'cancelled';
+      return isTerminal ? false : 1000;
+    },
   });
 
   const resultsQuery = useQuery({
@@ -79,7 +78,6 @@ export default function JobPage() {
   }
 
   const job = jobQuery.data;
-  const status = statusQuery.data || { progress_percentage: 0, current_agent: undefined };
   const isComplete = job.status === 'completed';
   const isFailed = job.status === 'failed';
   const isCancelled = job.status === 'cancelled';
@@ -114,16 +112,22 @@ export default function JobPage() {
           </div>
         </div>
 
-        {isComplete && resultsQuery.data?.notebook_url && (
+        {isComplete && (
           <div className="mt-6">
-            <a
-              href={getNotebookUrl(job.id)}
-              download
-              className="btn-primary inline-flex items-center space-x-2"
-            >
-              <Download className="w-5 h-5" />
-              <span>Download Jupyter Notebook</span>
-            </a>
+            {resultsQuery.data?.notebook_url ? (
+              <a
+                href={getNotebookUrl(job.id)}
+                download
+                className="btn-primary inline-flex items-center space-x-2"
+              >
+                <Download className="w-5 h-5" />
+                <span>Download Jupyter Notebook</span>
+              </a>
+            ) : resultsQuery.isSuccess && !resultsQuery.data?.notebook_url && (
+              <p className="text-sm text-gray-500 italic">
+                Notebook not available for this analysis.
+              </p>
+            )}
           </div>
         )}
 
@@ -205,14 +209,37 @@ export default function JobPage() {
       {isRunning && (
         <JobProgress
           status={job.status}
-          progress={status.progress_percentage}
-          currentAgent={job.current_agent || status.current_agent}
+          progress={job.progress_percentage ?? 0}
+          currentAgent={job.current_agent}
         />
       )}
 
       {/* Results */}
-      {isComplete && resultsQuery.data && (
-        <ResultsDisplay results={resultsQuery.data} />
+      {isComplete && (
+        <>
+          {resultsQuery.isLoading && (
+            <div className="card">
+              <div className="flex items-center justify-center py-12">
+                <div className="w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin" />
+                <span className="ml-3 text-gray-600">Loading analysis results...</span>
+              </div>
+            </div>
+          )}
+          {resultsQuery.isError && (
+            <div className="card">
+              <div className="flex items-center space-x-3 text-red-600">
+                <AlertTriangle className="w-6 h-6" />
+                <div>
+                  <p className="font-medium">Failed to load results</p>
+                  <p className="text-sm text-red-500">Please try refreshing the page or check back later.</p>
+                </div>
+              </div>
+            </div>
+          )}
+          {resultsQuery.data && (
+            <ResultsDisplay results={resultsQuery.data} />
+          )}
+        </>
       )}
 
       {/* Agent Traces */}

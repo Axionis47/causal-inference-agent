@@ -90,6 +90,7 @@ class CausalGraphResponse(BaseModel):
     nodes: list[str]
     edges: list[dict[str, Any]]
     discovery_method: str
+    interpretation: str | None = None
 
 
 class SensitivityResponse(BaseModel):
@@ -100,12 +101,54 @@ class SensitivityResponse(BaseModel):
     interpretation: str
 
 
+class MethodConsensusResponse(BaseModel):
+    """Consensus across multiple estimation methods."""
+
+    n_methods: int = Field(..., description="Number of methods used")
+    direction_agreement: float = Field(..., description="Proportion agreeing on effect direction (0-1)")
+    all_significant: bool = Field(..., description="Whether all methods show statistical significance")
+    estimate_range: tuple[float, float] = Field(..., description="Range of estimates (min, max)")
+    median_estimate: float = Field(..., description="Median estimate across methods")
+    consensus_strength: str = Field(..., description="'strong', 'moderate', or 'weak'")
+
+
+class DataContextResponse(BaseModel):
+    """Data context and quality information."""
+
+    n_samples: int = Field(..., description="Total sample size")
+    n_features: int = Field(..., description="Number of features")
+    n_treated: int | None = Field(None, description="Number in treatment group")
+    n_control: int | None = Field(None, description="Number in control group")
+    missing_data_pct: float = Field(0.0, description="Overall missing data percentage")
+    data_quality_issues: list[str] = Field(default_factory=list, description="Data quality warnings")
+
+
+class ExecutiveSummaryResponse(BaseModel):
+    """Executive summary of analysis findings."""
+
+    headline: str = Field(..., description="One-line key finding")
+    effect_direction: str = Field(..., description="'positive', 'negative', 'null', or 'mixed'")
+    confidence_level: str = Field(..., description="'high', 'medium', or 'low'")
+    key_findings: list[str] = Field(default_factory=list, description="Bullet points of key findings")
+
+
 class AnalysisResultsResponse(BaseModel):
     """Complete analysis results."""
 
     job_id: str
     treatment_variable: str | None
     outcome_variable: str | None
+
+    # New: Executive summary for quick understanding
+    executive_summary: ExecutiveSummaryResponse | None = None
+
+    # New: Method consensus information
+    method_consensus: MethodConsensusResponse | None = None
+
+    # New: Data context
+    data_context: DataContextResponse | None = None
+
+    # Existing fields
     causal_graph: CausalGraphResponse | None = None
     treatment_effects: list[TreatmentEffectResponse] = []
     sensitivity_analysis: list[SensitivityResponse] = []
