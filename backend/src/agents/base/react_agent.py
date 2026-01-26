@@ -13,7 +13,7 @@ import time
 from abc import abstractmethod
 from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime
 from enum import Enum
 from typing import Any
 
@@ -194,7 +194,7 @@ class ReActAgent:
         """
         return AgentTrace(
             agent_name=self.AGENT_NAME,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(datetime.UTC),
             action=action,
             reasoning=reasoning,
             inputs=inputs or {},

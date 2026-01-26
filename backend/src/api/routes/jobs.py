@@ -6,7 +6,6 @@ from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import FileResponse
 
 from src.agents.base import JobStatus
-from src.storage.cleanup import CAUSAL_TEMP_DIR
 from src.api.schemas import (
     AgentTracesResponse,
     AnalysisResultsResponse,
@@ -28,6 +27,7 @@ from src.api.utils import (
 )
 from src.jobs.manager import get_job_manager
 from src.logging_config.structured import get_logger
+from src.storage.cleanup import CAUSAL_TEMP_DIR
 
 logger = get_logger(__name__)
 
