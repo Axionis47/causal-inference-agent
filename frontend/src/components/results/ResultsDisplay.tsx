@@ -20,10 +20,19 @@ interface ResultsDisplayProps {
 }
 
 function ResultsDisplay({ results }: ResultsDisplayProps) {
-  // Safely access arrays with fallbacks
-  const treatmentEffects = results.treatment_effects ?? [];
-  const sensitivityAnalysis = results.sensitivity_analysis ?? [];
-  const recommendations = results.recommendations ?? [];
+  // Safely access arrays with fallbacks - memoize to maintain stable references
+  const treatmentEffects = useMemo(
+    () => results.treatment_effects ?? [],
+    [results.treatment_effects]
+  );
+  const sensitivityAnalysis = useMemo(
+    () => results.sensitivity_analysis ?? [],
+    [results.sensitivity_analysis]
+  );
+  const recommendations = useMemo(
+    () => results.recommendations ?? [],
+    [results.recommendations]
+  );
 
   // Memoize maxAbs calculation to avoid O(n²) complexity
   const maxAbs = useMemo(() => {

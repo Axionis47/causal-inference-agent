@@ -6,10 +6,8 @@ agent evaluations using Claude API (configured via .env file).
 
 import asyncio
 import json
-import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 from src.logging_config.structured import get_logger, setup_logging
 
@@ -45,13 +43,13 @@ def get_evaluator(agent_name: str) -> AgenticEvaluator | None:
     """
     # Import evaluators to ensure registration
     from . import (
+        causal_discovery_eval,
+        critique_agent_eval,
         data_profiler_eval,
         eda_agent_eval,
-        causal_discovery_eval,
         effect_estimator_eval,
-        sensitivity_analyst_eval,
-        critique_agent_eval,
         orchestrator_eval,
+        sensitivity_analyst_eval,
     )
 
     agent_to_evaluator = {

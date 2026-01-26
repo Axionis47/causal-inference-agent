@@ -26,8 +26,8 @@ Usage:
 """
 
 from .base import (
-    AgenticEvalResult,
     AgenticEvalMetrics,
+    AgenticEvalResult,
     AgenticEvaluator,
     EvalCase,
     EvalCategory,
@@ -35,16 +35,16 @@ from .base import (
     EvalSuite,
     generate_summary_report,
 )
-from .eval_runner import run_agent_evals, run_all_evals, get_evaluator
+from .causal_discovery_eval import CausalDiscoveryEvaluator
+from .critique_agent_eval import CritiqueAgentEvaluator
 
 # Import individual evaluators for direct access
 from .data_profiler_eval import DataProfilerEvaluator
 from .eda_agent_eval import EDAAgentEvaluator
-from .causal_discovery_eval import CausalDiscoveryEvaluator
 from .effect_estimator_eval import EffectEstimatorEvaluator
-from .sensitivity_analyst_eval import SensitivityAnalystEvaluator
-from .critique_agent_eval import CritiqueAgentEvaluator
+from .eval_runner import get_evaluator, run_agent_evals, run_all_evals
 from .orchestrator_eval import OrchestratorEvaluator
+from .sensitivity_analyst_eval import SensitivityAnalystEvaluator
 
 __all__ = [
     # Base classes

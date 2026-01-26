@@ -13,7 +13,6 @@ Uses ReAct loop: Observe → Think → Act → Observe...
 
 from __future__ import annotations
 
-import re
 from typing import Any
 
 from src.agents.base import AnalysisState, ReActAgent, ToolResult, ToolResultStatus

@@ -17,11 +17,11 @@ from src.logging_config.structured import get_logger
 
 from .base import (
     AgenticEvaluator,
+    AnalysisState,
     EvalCase,
     EvalCategory,
     EvalDifficulty,
     EvalSuite,
-    AnalysisState,
 )
 
 logger = get_logger(__name__)
@@ -157,7 +157,7 @@ class EffectEstimatorEvaluator(AgenticEvaluator):
             n_features=len(df.columns),
             feature_names=list(df.columns),
             feature_types=feature_types,
-            missing_values={col: 0 for col in df.columns},
+            missing_values=dict.fromkeys(df.columns, 0),
             numeric_stats={},
             categorical_stats={},
             treatment_candidates=[treatment_col],

@@ -9,7 +9,7 @@ to query domain knowledge, data profiles, EDA results, etc.
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from .react_agent import ToolResult, ToolResultStatus
 
@@ -1202,16 +1202,16 @@ class ContextTools:
             output={
                 "treatment": treatment,
                 "outcome": outcome,
-                "adjustment_set": sorted(list(final_adjustment)),
+                "adjustment_set": sorted(final_adjustment),
                 "adjustment_rationale": (
                     "Variables that block backdoor paths (common causes of treatment and outcome)"
                 ),
-                "mediators_to_avoid": sorted(list(mediators)),
+                "mediators_to_avoid": sorted(mediators),
                 "mediator_rationale": (
                     "Descendants of treatment that are ancestors of outcome - adjusting would "
                     "block part of the causal effect"
                 ),
-                "colliders_warning": sorted(list(colliders)),
+                "colliders_warning": sorted(colliders),
                 "collider_rationale": (
                     "Variables with multiple causes - adjusting could open confounding paths"
                 ),

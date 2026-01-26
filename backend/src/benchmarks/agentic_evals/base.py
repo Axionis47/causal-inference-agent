@@ -5,14 +5,13 @@ reasoning capabilities with actual LLM calls (using Claude via .env config).
 """
 
 import asyncio
-import os
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -332,7 +331,7 @@ class AgenticEvaluator(ABC):
                     timeout=case.timeout_seconds,
                 )
                 metrics.task_completed = True
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 self.logger.warning("case_timeout", case=case.name)
                 final_state = state
                 metrics.task_completed = False

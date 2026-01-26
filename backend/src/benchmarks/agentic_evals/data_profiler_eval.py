@@ -16,11 +16,11 @@ from src.logging_config.structured import get_logger
 
 from .base import (
     AgenticEvaluator,
+    AnalysisState,
     EvalCase,
     EvalCategory,
     EvalDifficulty,
     EvalSuite,
-    AnalysisState,
 )
 
 logger = get_logger(__name__)

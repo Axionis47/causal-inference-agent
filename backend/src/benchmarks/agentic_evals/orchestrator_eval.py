@@ -11,7 +11,7 @@ Tests the orchestrator's ability to:
 import numpy as np
 import pandas as pd
 
-from src.agents.base import AnalysisState, DatasetInfo, JobStatus
+from src.agents.base import AnalysisState, JobStatus
 from src.agents.orchestrator.react_orchestrator import ReActOrchestrator
 from src.logging_config.structured import get_logger
 
