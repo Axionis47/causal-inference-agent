@@ -957,6 +957,18 @@ Use the available tools to gather evidence before finalizing the profile."""
 
     def _compute_basic_profile(self, df: pd.DataFrame) -> DataProfile:
         """Compute basic statistical profile of the dataset."""
+        # Handle empty DataFrame case
+        if df is None or len(df) == 0:
+            return DataProfile(
+                n_samples=0,
+                n_features=0 if df is None else len(df.columns),
+                feature_names=[] if df is None else list(df.columns),
+                feature_types={},
+                missing_values={},
+                numeric_stats={},
+                categorical_stats={},
+            )
+
         feature_types = {}
         numeric_stats = {}
         categorical_stats = {}
@@ -1005,6 +1017,19 @@ Use the available tools to gather evidence before finalizing the profile."""
         df = self._df
         profile = self._profile
 
+        # Handle empty DataFrame case
+        if df is None or len(df) == 0 or len(df.columns) == 0:
+            return {
+                "treatment_candidates": [],
+                "outcome_candidates": [],
+                "potential_confounders": [],
+                "potential_instruments": [],
+                "has_time_dimension": False,
+                "time_column": None,
+                "discontinuity_candidates": [],
+                "recommended_methods": [],
+            }
+
         # Heuristic treatment candidates
         treatment_candidates = []
         treatment_keywords = ["treatment", "treated", "treat", "intervention", "exposed", "program"]
@@ -1015,8 +1040,9 @@ Use the available tools to gather evidence before finalizing the profile."""
                 treatment_candidates.append(col)
             elif profile.feature_types.get(col) == "binary":
                 data = df[col].dropna()
-                if len(data) > 0:
-                    balance = data.value_counts().min() / len(data)
+                value_counts = data.value_counts()
+                if len(data) > 0 and len(value_counts) > 0:
+                    balance = value_counts.min() / len(data)
                     if 0.1 <= balance <= 0.5:
                         treatment_candidates.append(col)
 

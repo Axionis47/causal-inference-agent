@@ -43,6 +43,7 @@ class JobManager:
         """
         self.firestore = get_storage_client()
         self._running_jobs: dict[str, asyncio.Task] = {}
+        self._jobs_lock = asyncio.Lock()  # Protects _running_jobs from race conditions
         self._orchestrator_mode = orchestrator_mode
 
         # Initialize orchestrator based on mode
@@ -121,7 +122,8 @@ class JobManager:
 
         # Start async processing
         task = asyncio.create_task(self._run_job(state))
-        self._running_jobs[job_id] = task
+        async with self._jobs_lock:
+            self._running_jobs[job_id] = task
 
         logger.info(
             "job_created",
@@ -298,10 +300,12 @@ class JobManager:
             result["cancelled"] = False
             return result
 
-        # Check if task is in memory
-        task = self._running_jobs.get(job_id)
+        # Check if task is in memory (protected by lock to avoid race conditions)
+        async with self._jobs_lock:
+            task = self._running_jobs.get(job_id)
+            task_running = task and not task.done()
 
-        if task and not task.done():
+        if task_running:
             result["was_running"] = True
 
             # Mark as cancelling in Firestore first
@@ -323,8 +327,9 @@ class JobManager:
             except (asyncio.CancelledError, TimeoutError):
                 pass  # Expected
 
-            # Remove from running jobs
-            self._running_jobs.pop(job_id, None)
+            # Remove from running jobs (protected by lock)
+            async with self._jobs_lock:
+                self._running_jobs.pop(job_id, None)
             result["cancelled"] = True
             result["status"] = "cancelled"
 

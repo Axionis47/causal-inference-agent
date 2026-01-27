@@ -1,12 +1,23 @@
 """Job-related Pydantic schemas for API."""
 
+import re
 from datetime import datetime
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from src.agents.base import JobStatus
+
+# Kaggle URL pattern: https://www.kaggle.com/datasets/owner/dataset-name
+KAGGLE_URL_PATTERN = re.compile(
+    r"^https?://(?:www\.)?kaggle\.com/datasets/[\w-]+/[\w-]+/?$",
+    re.IGNORECASE
+)
+
+# Maximum lengths for string fields
+MAX_KAGGLE_URL_LENGTH = 500
+MAX_VARIABLE_NAME_LENGTH = 256
 
 
 class OrchestratorMode(str, Enum):
@@ -18,14 +29,56 @@ class OrchestratorMode(str, Enum):
 class CreateJobRequest(BaseModel):
     """Request to create a new analysis job."""
 
-    kaggle_url: str = Field(..., description="Kaggle dataset URL")
-    treatment_variable: str | None = Field(None, description="Optional treatment variable hint")
-    outcome_variable: str | None = Field(None, description="Optional outcome variable hint")
+    kaggle_url: str = Field(
+        ...,
+        description="Kaggle dataset URL",
+        min_length=1,
+        max_length=MAX_KAGGLE_URL_LENGTH,
+    )
+    treatment_variable: str | None = Field(
+        None,
+        description="Optional treatment variable hint",
+        max_length=MAX_VARIABLE_NAME_LENGTH,
+    )
+    outcome_variable: str | None = Field(
+        None,
+        description="Optional outcome variable hint",
+        max_length=MAX_VARIABLE_NAME_LENGTH,
+    )
     analysis_preferences: dict[str, Any] | None = Field(None, description="Optional analysis preferences")
     orchestrator_mode: OrchestratorMode = Field(
         default=OrchestratorMode.STANDARD,
         description="Orchestrator mode: 'standard' for fixed workflow, 'react' for autonomous (experimental)"
     )
+
+    @field_validator("kaggle_url")
+    @classmethod
+    def validate_kaggle_url(cls, v: str) -> str:
+        """Validate and normalize the Kaggle URL."""
+        v = v.strip()
+        if not v:
+            raise ValueError("Kaggle URL cannot be empty")
+        if not KAGGLE_URL_PATTERN.match(v):
+            raise ValueError(
+                "Invalid Kaggle URL format. Expected: https://www.kaggle.com/datasets/owner/dataset-name"
+            )
+        return v
+
+    @field_validator("treatment_variable", "outcome_variable")
+    @classmethod
+    def validate_variable_name(cls, v: str | None) -> str | None:
+        """Validate optional variable names."""
+        if v is None:
+            return None
+        v = v.strip()
+        if not v:
+            return None  # Treat empty/whitespace-only as None
+        # Basic validation: alphanumeric, underscores, hyphens
+        if not re.match(r"^[\w\-]+$", v):
+            raise ValueError(
+                "Variable name must contain only alphanumeric characters, underscores, and hyphens"
+            )
+        return v
 
 
 class JobResponse(BaseModel):

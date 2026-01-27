@@ -223,8 +223,14 @@ function ResultsDisplay({ results }: ResultsDisplayProps) {
                   <div>
                     <span className="text-gray-500">Estimate Range</span>
                     <p className="font-mono text-xs text-gray-600">
-                      [{results.method_consensus.estimate_range[0].toFixed(3)},{' '}
-                      {results.method_consensus.estimate_range[1].toFixed(3)}]
+                      {results.method_consensus.estimate_range ? (
+                        <>
+                          [{results.method_consensus.estimate_range[0]?.toFixed(3) ?? 'N/A'},{' '}
+                          {results.method_consensus.estimate_range[1]?.toFixed(3) ?? 'N/A'}]
+                        </>
+                      ) : (
+                        'N/A'
+                      )}
                     </p>
                   </div>
                 </div>

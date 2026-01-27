@@ -42,7 +42,10 @@ export default function AgentTraces({ jobId }: AgentTracesProps) {
           ) : tracesQuery.data && tracesQuery.data.length > 0 ? (
             <div className="space-y-4">
               {tracesQuery.data.map((trace, index) => (
-                <TraceCard key={index} trace={trace} />
+                <TraceCard
+                  key={`${trace.agent_name}-${trace.timestamp}-${trace.action}-${index}`}
+                  trace={trace}
+                />
               ))}
             </div>
           ) : (

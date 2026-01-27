@@ -870,11 +870,16 @@ IMPORTANT:
                 x = df[cov].values
                 treated_mean = np.nanmean(x[T == 1])
                 control_mean = np.nanmean(x[T == 0])
+
+                # Skip if either mean is NaN (all values in group are NaN)
+                if np.isnan(treated_mean) or np.isnan(control_mean):
+                    continue
+
                 pooled_std = np.sqrt(
                     (np.nanvar(x[T == 1]) + np.nanvar(x[T == 0])) / 2
                 )
 
-                if pooled_std > 0:
+                if pooled_std > 0 and not np.isnan(pooled_std):
                     smd = (treated_mean - control_mean) / pooled_std
                 else:
                     smd = 0
@@ -1345,12 +1350,20 @@ IMPORTANT:
         weights_control = (1 - T) / (1 - ps)
         ate = np.mean(weights_treated * Y) - np.mean(weights_control * Y)
 
-        # Bootstrap for SE
+        # Bootstrap for SE (stratified to ensure both groups are represented)
         n_bootstrap = 200
         bootstrap_estimates = []
         n = len(Y)
+        treated_idx = np.where(T == 1)[0]
+        control_idx = np.where(T == 0)[0]
+        n_treated_boot = len(treated_idx)
+        n_control_boot = len(control_idx)
+
         for _ in range(n_bootstrap):
-            idx = np.random.choice(n, size=n, replace=True)
+            # Stratified bootstrap: sample from each group proportionally
+            boot_treated = np.random.choice(treated_idx, size=n_treated_boot, replace=True)
+            boot_control = np.random.choice(control_idx, size=n_control_boot, replace=True)
+            idx = np.concatenate([boot_treated, boot_control])
             w_t = weights_treated[idx]
             w_c = weights_control[idx]
             y_b = Y[idx]

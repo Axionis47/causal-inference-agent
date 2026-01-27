@@ -410,8 +410,12 @@ Do not just provide text - you MUST call a tool to proceed."""
         Returns:
             Updated analysis state
         """
-        tool_name = call["name"]
+        tool_name = call.get("name")
         args = call.get("args", {})
+
+        if not tool_name:
+            self.logger.warning("tool_call_missing_name", call=call)
+            return state
 
         self.logger.info(
             "executing_tool_call",
@@ -443,9 +447,13 @@ Do not just provide text - you MUST call a tool to proceed."""
         Returns:
             Updated analysis state
         """
-        agent_name = args["agent_name"]
+        agent_name = args.get("agent_name")
         task_description = args.get("task_description", "")
         reasoning = args.get("reasoning", "")
+
+        if not agent_name:
+            self.logger.error("dispatch_missing_agent_name", args=args)
+            return state
 
         self.logger.info(
             "dispatching_to_specialist",

@@ -1,5 +1,6 @@
 """Job management API routes."""
 
+import os
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -32,6 +33,9 @@ from src.storage.cleanup import CAUSAL_TEMP_DIR
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
+
+# Valid job statuses for query parameter validation
+VALID_STATUSES = {s.value for s in JobStatus}
 
 
 @router.post("", response_model=JobResponse, status_code=status.HTTP_201_CREATED)
@@ -67,23 +71,36 @@ async def create_job(request: CreateJobRequest) -> JobResponse:
         )
 
     except Exception as e:
-        logger.error("create_job_failed", error=str(e))
+        logger.error("create_job_failed", error=str(e), error_type=type(e).__name__)
+        # Don't expose internal error details to clients
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create job: {str(e)}",
+            detail="Failed to create job. Please check your Kaggle URL and try again.",
         )
 
 
 @router.get("", response_model=JobListResponse)
 async def list_jobs(
-    status: str | None = None,
-    limit: int = 20,
-    offset: int = 0,
+    status: str | None = Query(None, description="Filter by job status"),
+    limit: int = Query(20, ge=1, le=100, description="Maximum number of results"),
+    offset: int = Query(0, ge=0, description="Number of results to skip"),
 ) -> JobListResponse:
     """List all jobs with optional status filtering."""
     manager = get_job_manager()
 
-    jobs, total = await manager.list_jobs(status=status, limit=limit, offset=offset)
+    # Validate status if provided (not empty string)
+    validated_status: str | None = None
+    if status is not None:
+        status = status.strip()
+        if status:  # Non-empty after stripping
+            if status not in VALID_STATUSES:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid status '{status}'. Valid values: {sorted(VALID_STATUSES)}",
+                )
+            validated_status = status
+
+    jobs, total = await manager.list_jobs(status=validated_status, limit=limit, offset=offset)
 
     return JobListResponse(
         jobs=[
@@ -251,37 +268,55 @@ async def get_results(job_id: str) -> AnalysisResultsResponse:
 
     # Build response
     causal_graph = None
-    if results.get("causal_graph"):
-        cg = results["causal_graph"]
+    cg_data = results.get("causal_graph")
+    if isinstance(cg_data, dict):
         causal_graph = CausalGraphResponse(
-            nodes=cg.get("nodes", []),
-            edges=cg.get("edges", []),
-            discovery_method=cg.get("discovery_method", "unknown"),
-            interpretation=cg.get("interpretation"),
+            nodes=cg_data.get("nodes", []),
+            edges=cg_data.get("edges", []),
+            discovery_method=cg_data.get("discovery_method", "unknown"),
+            interpretation=cg_data.get("interpretation"),
         )
 
-    treatment_effects = [
-        TreatmentEffectResponse(
-            method=e["method"],
-            estimand=e["estimand"],
-            estimate=e["estimate"],
-            std_error=e["std_error"],
-            ci_lower=e["ci_lower"],
-            ci_upper=e["ci_upper"],
-            p_value=e.get("p_value"),
-            assumptions_tested=e.get("assumptions_tested", []),
+    # Parse treatment effects with safe fallbacks for missing fields
+    treatment_effects = []
+    for e in results.get("treatment_effects", []):
+        if not isinstance(e, dict):
+            logger.warning("invalid_treatment_effect_entry", job_id=job_id, entry_type=type(e).__name__)
+            continue
+        # Skip entries missing required fields
+        if not all(k in e for k in ("method", "estimand", "estimate")):
+            logger.warning("incomplete_treatment_effect", job_id=job_id, keys=list(e.keys()))
+            continue
+        treatment_effects.append(
+            TreatmentEffectResponse(
+                method=e.get("method", "unknown"),
+                estimand=e.get("estimand", "unknown"),
+                estimate=e.get("estimate", 0.0),
+                std_error=e.get("std_error", 0.0),
+                ci_lower=e.get("ci_lower", 0.0),
+                ci_upper=e.get("ci_upper", 0.0),
+                p_value=e.get("p_value"),
+                assumptions_tested=e.get("assumptions_tested", []),
+            )
         )
-        for e in results.get("treatment_effects", [])
-    ]
 
-    sensitivity = [
-        SensitivityResponse(
-            method=s["method"],
-            robustness_value=s["robustness_value"],
-            interpretation=s["interpretation"],
+    # Parse sensitivity results with safe fallbacks
+    sensitivity = []
+    for s in results.get("sensitivity_results", []):
+        if not isinstance(s, dict):
+            logger.warning("invalid_sensitivity_entry", job_id=job_id, entry_type=type(s).__name__)
+            continue
+        # Skip entries missing required fields
+        if not all(k in s for k in ("method", "robustness_value", "interpretation")):
+            logger.warning("incomplete_sensitivity_result", job_id=job_id, keys=list(s.keys()))
+            continue
+        sensitivity.append(
+            SensitivityResponse(
+                method=s.get("method", "unknown"),
+                robustness_value=s.get("robustness_value", 0.0),
+                interpretation=s.get("interpretation", "No interpretation available"),
+            )
         )
-        for s in results.get("sensitivity_results", [])
-    ]
 
     # Calculate method consensus
     method_consensus = calculate_method_consensus(treatment_effects)
@@ -332,14 +367,22 @@ async def download_notebook(job_id: str):
             detail=f"Notebook not found for job {job_id}",
         )
 
-    notebook_path = Path(results["notebook_path"]).resolve()
+    raw_path = results["notebook_path"]
 
-    # Security: validate path is within expected directory
-    try:
-        notebook_path.relative_to(CAUSAL_TEMP_DIR)
-    except ValueError:
+    # Validate path is a string
+    if not isinstance(raw_path, str):
+        logger.warning("invalid_notebook_path_type", job_id=job_id, path_type=type(raw_path).__name__)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Invalid notebook path configuration",
+        )
+
+    notebook_path = Path(raw_path)
+
+    # Security: Check for symlinks BEFORE resolving (prevents symlink attacks)
+    if notebook_path.is_symlink():
         logger.warning(
-            "notebook_path_traversal_attempt",
+            "notebook_symlink_detected",
             job_id=job_id,
             path=str(notebook_path),
         )
@@ -348,14 +391,58 @@ async def download_notebook(job_id: str):
             detail="Invalid notebook path",
         )
 
-    if not notebook_path.exists():
+    # Now resolve and validate
+    resolved_path = notebook_path.resolve()
+
+    # Security: validate resolved path is within expected directory
+    try:
+        resolved_path.relative_to(Path(CAUSAL_TEMP_DIR).resolve())
+    except ValueError:
+        logger.warning(
+            "notebook_path_traversal_attempt",
+            job_id=job_id,
+            raw_path=raw_path,
+            resolved_path=str(resolved_path),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid notebook path",
+        )
+
+    # Verify file exists and is a regular file (not a directory or device)
+    if not resolved_path.exists():
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Notebook file not found for job {job_id}",
         )
 
+    if not resolved_path.is_file():
+        logger.warning("notebook_not_regular_file", job_id=job_id, path=str(resolved_path))
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid notebook path",
+        )
+
+    # Additional check: verify the file is still within the temp dir at serve time
+    # (handles TOCTOU race conditions)
+    try:
+        temp_dir_stat = os.stat(CAUSAL_TEMP_DIR)
+        notebook_parent = resolved_path.parent
+        while notebook_parent != notebook_parent.parent:
+            if os.stat(notebook_parent).st_ino == temp_dir_stat.st_ino:
+                break
+            notebook_parent = notebook_parent.parent
+        else:
+            raise ValueError("Path not within temp directory")
+    except (OSError, ValueError) as e:
+        logger.warning("notebook_path_validation_failed", job_id=job_id, error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid notebook path",
+        )
+
     return FileResponse(
-        path=str(notebook_path),
+        path=str(resolved_path),
         filename=f"causal_analysis_{job_id}.ipynb",
         media_type="application/x-ipynb+json",
     )

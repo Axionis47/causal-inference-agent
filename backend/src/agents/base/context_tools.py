@@ -419,11 +419,16 @@ class ContextTools:
                 error=f"Column '{column}' not found. Available: {profile.feature_names[:10]}..."
             )
 
+        missing_count = profile.missing_values.get(column, 0)
+        missing_pct = (
+            round(missing_count / profile.n_samples * 100, 2)
+            if profile.n_samples > 0 else 0.0
+        )
         info = {
             "name": column,
             "dtype": profile.feature_types.get(column, "unknown"),
-            "missing_count": profile.missing_values.get(column, 0),
-            "missing_pct": round(profile.missing_values.get(column, 0) / profile.n_samples * 100, 2)
+            "missing_count": missing_count,
+            "missing_pct": missing_pct
         }
 
         # Add numeric stats if available
@@ -883,11 +888,13 @@ class ContextTools:
                 result["variables"][var] = {"error": "not found"}
                 continue
 
+            missing_val = profile.missing_values.get(var, 0)
             var_info: dict = {
                 "dtype": profile.feature_types.get(var, "unknown"),
-                "missing": profile.missing_values.get(var, 0),
-                "missing_pct": round(
-                    profile.missing_values.get(var, 0) / profile.n_samples * 100, 2
+                "missing": missing_val,
+                "missing_pct": (
+                    round(missing_val / profile.n_samples * 100, 2)
+                    if profile.n_samples > 0 else 0.0
                 )
             }
 

@@ -214,6 +214,8 @@ class ReActAgent:
         """
         self._steps = []
         start_time = time.time()
+        consecutive_errors = 0  # Track consecutive null/error actions
+        MAX_CONSECUTIVE_ERRORS = 3  # Break out after this many failures
 
         self.logger.info(
             "react_loop_start",
@@ -264,14 +266,38 @@ class ReActAgent:
             if action and action in self._tools:
                 result = await self._execute_tool(action, action_input, state)
                 observation = result.to_observation()
+                consecutive_errors = 0  # Reset on successful action
             else:
                 # No valid action, create error observation
+                consecutive_errors += 1
                 result = ToolResult(
                     status=ToolResultStatus.ERROR,
                     output=None,
                     error=f"Unknown action: {action}. Available: {list(self._tools.keys())}",
                 )
                 observation = result.to_observation()
+
+                # Check for stuck loop - too many consecutive null/invalid actions
+                if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
+                    self.logger.warning(
+                        "react_loop_stuck",
+                        agent=self.AGENT_NAME,
+                        consecutive_errors=consecutive_errors,
+                        step=step_num,
+                    )
+                    # Record final step and break
+                    step = ReActStep(
+                        step_number=step_num,
+                        observation=observation,
+                        thought=thought,
+                        action=action,
+                        action_input=action_input,
+                        result=result,
+                        duration_ms=int((time.time() - step_start) * 1000),
+                    )
+                    self._steps.append(step)
+                    self._record_trace(state, step)
+                    break
 
             # Record step
             step = ReActStep(
@@ -293,7 +319,20 @@ class ReActAgent:
 
             # Error recovery: if we got an error, add recovery hint
             if result.status == ToolResultStatus.ERROR:
+                consecutive_errors += 1
                 observation = f"{observation}\n\nThe previous action failed. Consider an alternative approach."
+
+                # Also check for stuck loop after tool execution errors
+                if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
+                    self.logger.warning(
+                        "react_loop_stuck_errors",
+                        agent=self.AGENT_NAME,
+                        consecutive_errors=consecutive_errors,
+                        step=step_num,
+                    )
+                    break
+            else:
+                consecutive_errors = 0  # Reset on success
 
         total_duration = int((time.time() - start_time) * 1000)
         self.logger.info(
@@ -335,18 +374,21 @@ class ReActAgent:
         # Extract thought from response
         thought = result.get("response", "")
 
-        # Extract action from pending calls
+        # Extract action from pending calls with safe access
         action = None
         action_input = None
 
-        if result.get("pending_calls"):
-            call = result["pending_calls"][0]  # Take first action
-            action = call["name"]
-            action_input = call.get("args", {})
-        elif result.get("tool_calls"):
-            call = result["tool_calls"][-1]
-            action = call["name"]
-            action_input = call.get("args", {})
+        pending_calls = result.get("pending_calls")
+        if pending_calls and len(pending_calls) > 0:
+            call = pending_calls[0]  # Take first action
+            action = call.get("name") if isinstance(call, dict) else None
+            action_input = call.get("args", {}) if isinstance(call, dict) else {}
+        else:
+            tool_calls = result.get("tool_calls")
+            if tool_calls and len(tool_calls) > 0:
+                call = tool_calls[-1]
+                action = call.get("name") if isinstance(call, dict) else None
+                action_input = call.get("args", {}) if isinstance(call, dict) else {}
 
         return thought, action, action_input
 

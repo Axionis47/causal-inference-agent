@@ -722,14 +722,23 @@ Finalize when you have assessed data quality for causal analysis."""
             for i, col in enumerate(covariates):
                 try:
                     vif = variance_inflation_factor(X_with_const, i + 1)
-                    vif_results.append({"variable": col, "vif": round(float(vif), 2)})
-                    self._vif_results[col] = float(vif)
 
-                    if vif > 10:
-                        warnings.append(f"SEVERE: {col} (VIF={vif:.1f})")
-                    elif vif > 5:
-                        warnings.append(f"MODERATE: {col} (VIF={vif:.1f})")
-                except Exception:
+                    # Handle infinite or NaN VIF (perfect collinearity)
+                    if np.isinf(vif) or np.isnan(vif):
+                        vif_results.append({"variable": col, "vif": float("inf"), "note": "perfect_collinearity"})
+                        self._vif_results[col] = float("inf")
+                        warnings.append(f"PERFECT COLLINEARITY: {col} (VIF=∞)")
+                    else:
+                        vif_results.append({"variable": col, "vif": round(float(vif), 2)})
+                        self._vif_results[col] = float(vif)
+
+                        if vif > 10:
+                            warnings.append(f"SEVERE: {col} (VIF={vif:.1f})")
+                        elif vif > 5:
+                            warnings.append(f"MODERATE: {col} (VIF={vif:.1f})")
+                except Exception as e:
+                    # Log the exception for debugging
+                    self.logger.debug("vif_computation_error", column=col, error=str(e))
                     pass
 
             # Store

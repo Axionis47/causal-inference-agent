@@ -18,6 +18,26 @@ export default function JobsListPage() {
     );
   }
 
+  if (jobsQuery.isError) {
+    return (
+      <div className="max-w-4xl mx-auto">
+        <div className="card text-center py-12">
+          <XCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Failed to load jobs</h3>
+          <p className="text-gray-600 mb-4">
+            {jobsQuery.error instanceof Error ? jobsQuery.error.message : 'An unexpected error occurred'}
+          </p>
+          <button
+            onClick={() => jobsQuery.refetch()}
+            className="btn-primary"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const jobs = jobsQuery.data?.jobs || [];
 
   return (
@@ -54,18 +74,27 @@ export default function JobsListPage() {
 function JobCard({ job }: { job: Job }) {
   const queryClient = useQueryClient();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const cancelMutation = useMutation({
     mutationFn: () => cancelJob(job.id),
     onSuccess: () => {
+      setError(null);
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
+    },
+    onError: (err: Error) => {
+      setError(`Failed to cancel: ${err.message}`);
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: (force: boolean) => deleteJob(job.id, force),
     onSuccess: () => {
+      setError(null);
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
+    },
+    onError: (err: Error) => {
+      setError(`Failed to delete: ${err.message}`);
     },
   });
 
@@ -99,6 +128,17 @@ function JobCard({ job }: { job: Job }) {
   return (
     <>
       <div className="card hover:shadow-md transition-shadow group">
+        {error && (
+          <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded-lg flex items-center justify-between">
+            <span className="text-sm text-red-700">{error}</span>
+            <button
+              onClick={() => setError(null)}
+              className="text-red-500 hover:text-red-700"
+            >
+              <XCircle className="w-4 h-4" />
+            </button>
+          </div>
+        )}
         <div className="flex items-center justify-between">
           <Link to={`/jobs/${job.id}`} className="flex items-center space-x-4 flex-1">
             <div className={color}>
