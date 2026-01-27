@@ -489,6 +489,3 @@ causal-orchestrator/
 
 ---
 
-## License
-
-MIT
