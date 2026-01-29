@@ -1,0 +1,9 @@
+participant_id,group,baseline_score,followup_score
+001,control,62,64
+002,treatment,65,72
+003,control,71,70
+004,treatment,58,67
+005,control,69,71
+006,treatment,73,78
+007,control,55,59
+008,treatment,66,74
