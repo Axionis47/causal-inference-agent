@@ -887,6 +887,11 @@ Use the available tools to gather evidence before finalizing the profile."""
                 except json.JSONDecodeError:
                     pass
 
+            if not kaggle_username:
+                self._load_error = "KAGGLE_USERNAME is not configured. Cannot download datasets."
+                self.logger.error("kaggle_missing_username")
+                return None
+
             os.environ["KAGGLE_USERNAME"] = kaggle_username
             os.environ["KAGGLE_KEY"] = kaggle_key
 
