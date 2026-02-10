@@ -7,19 +7,13 @@ from typing import Any, Literal
 
 from src.agents import (
     AnalysisState,
-    CausalDiscoveryAgent,
-    CritiqueAgent,
-    DataProfilerAgent,
     DatasetInfo,
-    EDAAgent,
-    EffectEstimatorAgent,
     EffectEstimatorReActAgent,
     JobStatus,
-    NotebookGeneratorAgent,
     OrchestratorAgent,
     ReActOrchestrator,
-    SensitivityAnalystAgent,
 )
+from src.agents.registry import create_all_agents
 from src.logging_config.structured import get_logger
 from src.storage.cleanup import cleanup_local_artifacts
 from src.storage.firestore import get_storage_client
@@ -57,33 +51,18 @@ class JobManager:
         self._setup_agents()
 
     def _setup_agents(self) -> None:
-        """Set up and register all agents with the orchestrator."""
-        # Create specialist agents
-        # Use ReAct variants when in react mode for supported agents
-        data_profiler = DataProfilerAgent()
-        eda_agent = EDAAgent()
-        causal_discovery = CausalDiscoveryAgent()
+        """Set up and register all agents with the orchestrator via the registry."""
+        agents = create_all_agents()
 
+        # Override effect_estimator with ReAct variant when in react mode
         if self._orchestrator_mode == "react":
-            effect_estimator = EffectEstimatorReActAgent()
+            agents["effect_estimator"] = EffectEstimatorReActAgent()
             logger.info("using_react_effect_estimator")
-        else:
-            effect_estimator = EffectEstimatorAgent()
 
-        sensitivity_analyst = SensitivityAnalystAgent()
-        notebook_generator = NotebookGeneratorAgent()
-        critique = CritiqueAgent()
+        for name, agent in agents.items():
+            self.orchestrator.register_specialist(name, agent)
 
-        # Register with orchestrator
-        self.orchestrator.register_specialist("data_profiler", data_profiler)
-        self.orchestrator.register_specialist("eda_agent", eda_agent)
-        self.orchestrator.register_specialist("causal_discovery", causal_discovery)
-        self.orchestrator.register_specialist("effect_estimator", effect_estimator)
-        self.orchestrator.register_specialist("sensitivity_analyst", sensitivity_analyst)
-        self.orchestrator.register_specialist("notebook_generator", notebook_generator)
-        self.orchestrator.register_specialist("critique", critique)
-
-        logger.info("agents_initialized", mode=self._orchestrator_mode)
+        logger.info("agents_initialized", mode=self._orchestrator_mode, count=len(agents))
 
     async def create_job(
         self,
@@ -171,8 +150,8 @@ class JobManager:
                 await self.firestore.update_job(state)
                 return
 
-            # Save results
-            if final_state.status == JobStatus.COMPLETED:
+            # Save results if completed or has treatment effects
+            if final_state.status == JobStatus.COMPLETED or final_state.treatment_effects:
                 await self.firestore.save_results(final_state)
 
             # Save traces

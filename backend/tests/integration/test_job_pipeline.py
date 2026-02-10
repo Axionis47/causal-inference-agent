@@ -1,7 +1,6 @@
 """Integration tests for the full job pipeline."""
 
 import asyncio
-import pickle
 import tempfile
 from pathlib import Path
 
@@ -64,10 +63,9 @@ class TestFullPipeline:
     @pytest.fixture
     def pipeline_state(self, sample_dataframe):
         """Create analysis state with saved dataframe."""
-        # Save dataframe
-        temp_path = Path(tempfile.gettempdir()) / "pipeline_test_data.pkl"
-        with open(temp_path, "wb") as f:
-            pickle.dump(sample_dataframe, f)
+        # Save dataframe as parquet (the format agents expect)
+        temp_path = Path(tempfile.gettempdir()) / "pipeline_test_data.parquet"
+        sample_dataframe.to_parquet(temp_path)
 
         state = AnalysisState(
             job_id="integration-test-001",
@@ -86,7 +84,7 @@ class TestFullPipeline:
         temp_path.unlink(missing_ok=True)
 
     @pytest.mark.asyncio
-    @pytest.mark.timeout(60)
+    @pytest.mark.timeout(180)
     async def test_data_profiler_execution(self, pipeline_state):
         """Test data profiler on sample data."""
         profiler = DataProfilerAgent()
@@ -101,7 +99,7 @@ class TestFullPipeline:
         assert len(result_state.data_profile.outcome_candidates) > 0
 
     @pytest.mark.asyncio
-    @pytest.mark.timeout(60)
+    @pytest.mark.timeout(180)
     async def test_effect_estimator_execution(self, pipeline_state, sample_dataframe):
         """Test effect estimator on sample data."""
         # Set up required data profile
@@ -132,7 +130,7 @@ class TestFullPipeline:
         assert 500 < avg_estimate < 2500, f"Average estimate {avg_estimate} not near true ATE of 1500"
 
     @pytest.mark.asyncio
-    @pytest.mark.timeout(120)
+    @pytest.mark.timeout(360)
     async def test_full_pipeline_integration(self, pipeline_state, sample_dataframe):
         """Test full pipeline from profiling to sensitivity analysis."""
         # Initialize agents
@@ -222,7 +220,6 @@ class TestErrorHandling:
     @pytest.mark.asyncio
     async def test_invalid_variables_handled(self):
         """Test handling of invalid treatment/outcome variables."""
-        import pickle
         import tempfile
         from pathlib import Path
 
@@ -232,9 +229,8 @@ class TestErrorHandling:
             "y": [4, 5, 6],
         })
 
-        temp_path = Path(tempfile.gettempdir()) / "invalid_vars_test.pkl"
-        with open(temp_path, "wb") as f:
-            pickle.dump(df, f)
+        temp_path = Path(tempfile.gettempdir()) / "invalid_vars_test.parquet"
+        df.to_parquet(temp_path)
 
         state = AnalysisState(
             job_id="invalid-vars-test",

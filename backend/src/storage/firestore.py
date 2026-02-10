@@ -54,27 +54,38 @@ class FirestoreClient:
         return state.job_id
 
     async def update_job(self, state: AnalysisState) -> None:
-        """Update a job document.
+        """Update a job document using a Firestore transaction for safety.
 
         Args:
             state: Updated analysis state
         """
-        job_data = {
-            "status": state.status.value,
-            "treatment_variable": state.treatment_variable,
-            "outcome_variable": state.outcome_variable,
-            "iteration_count": state.iteration_count,
-            "updated_at": datetime.utcnow(),
-            "error_message": state.error_message,
-            "error_agent": state.error_agent,
-            "notebook_path": state.notebook_path,
-        }
-
-        if state.completed_at:
-            job_data["completed_at"] = state.completed_at
-
         doc_ref = self.db.collection(self.jobs_collection).document(state.job_id)
-        doc_ref.update(job_data)
+
+        @firestore.transactional
+        def _update_in_transaction(transaction, doc_ref, state):
+            snapshot = doc_ref.get(transaction=transaction)
+            if not snapshot.exists:
+                logger.warning("job_not_found_for_update", job_id=state.job_id)
+                return
+
+            job_data = {
+                "status": state.status.value,
+                "treatment_variable": state.treatment_variable,
+                "outcome_variable": state.outcome_variable,
+                "iteration_count": state.iteration_count,
+                "updated_at": datetime.utcnow(),
+                "error_message": state.error_message,
+                "error_agent": state.error_agent,
+                "notebook_path": state.notebook_path,
+            }
+
+            if state.completed_at:
+                job_data["completed_at"] = state.completed_at
+
+            transaction.update(doc_ref, job_data)
+
+        transaction = self.db.transaction()
+        _update_in_transaction(transaction, doc_ref, state)
 
         logger.debug("job_updated", job_id=state.job_id, status=state.status.value)
 

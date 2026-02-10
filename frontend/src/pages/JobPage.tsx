@@ -176,9 +176,17 @@ export default function JobPage() {
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-job-title"
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') setShowDeleteConfirm(false);
+          }}
+        >
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Delete Job?</h3>
+            <h3 id="delete-job-title" className="text-lg font-semibold text-gray-900 mb-2">Delete Job?</h3>
             <p className="text-gray-600 mb-4">
               This will permanently delete the job record, analysis results, and all associated data.
               {isRunning && ' The job will be cancelled first.'}
@@ -187,6 +195,7 @@ export default function JobPage() {
               <button
                 onClick={() => setShowDeleteConfirm(false)}
                 className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                autoFocus
               >
                 Cancel
               </button>

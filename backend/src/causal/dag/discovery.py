@@ -143,9 +143,14 @@ class ConditionalIndependenceTests:
         if np.isnan(r) or np.abs(r) >= 1.0:
             return 1.0, True
 
+        # Check degrees of freedom
+        dof = n - len(z) - 3
+        if dof <= 0:
+            return 1.0, True  # Cannot determine independence with insufficient samples
+
         # Fisher's Z transformation
         z_score = 0.5 * np.log((1 + r) / (1 - r))
-        se = 1.0 / np.sqrt(n - len(z) - 3)
+        se = 1.0 / np.sqrt(dof)
         z_stat = abs(z_score) / se
         p_value = 2 * (1 - stats.norm.cdf(z_stat))
 
@@ -242,7 +247,7 @@ class NOTEARS:
         max_iter: int = 100,
         h_tol: float = 1e-8,
         rho_max: float = 1e16,
-        w_threshold: float = 0.3,
+        w_threshold: float = 0.1,
     ):
         """Initialize NOTEARS.
 
@@ -339,8 +344,46 @@ class NOTEARS:
                 break
             rho *= 10
 
+        # Adaptive thresholding: run NOTEARS on permuted data to get null distribution
+        null_weights = []
+        n_permutations = 5
+        for p_idx in range(n_permutations):
+            rng = np.random.RandomState(p_idx)
+            X_perm = X.copy()
+            for col in range(d):
+                X_perm[:, col] = rng.permutation(X_perm[:, col])
+
+            # Quick NOTEARS on permuted data (fewer iterations)
+            W_null = np.zeros((d, d))
+            rho_null = 1.0
+            alpha_null = 0.0
+
+            def _func_null(w):
+                W_n = w.reshape((d, d))
+                loss_n = 0.5 / n * np.sum((X_perm - X_perm @ W_n) ** 2)
+                E_n = expm(W_n * W_n)
+                h_n = np.trace(E_n) - d
+                return loss_n + 0.5 * rho_null * h_n * h_n + alpha_null * h_n + self.lambda1 * np.sum(np.abs(w))
+
+            try:
+                w_null_est = optimize.minimize(
+                    _func_null, np.zeros(d * d),
+                    method='L-BFGS-B',
+                    options={'maxiter': 200},
+                ).x
+                null_weights.extend(np.abs(w_null_est))
+            except Exception:
+                continue
+
+        # Use 95th percentile of null weight distribution as adaptive threshold
+        if len(null_weights) > 0:
+            adaptive_threshold = float(np.percentile(null_weights, 95))
+            threshold = max(adaptive_threshold, self.w_threshold)
+        else:
+            threshold = self.w_threshold
+
         # Threshold small weights
-        W[np.abs(W) < self.w_threshold] = 0
+        W[np.abs(W) < threshold] = 0
 
         return W
 
@@ -383,12 +426,23 @@ class PCAlgorithm:
         Returns:
             Tuple of (adjacency matrix, separation sets)
         """
+        from itertools import combinations
+
+        try:
+            from statsmodels.stats.multitest import multipletests
+            _has_multipletests = True
+        except ImportError:
+            _has_multipletests = False
+
         n_vars = data.shape[1]
         ci_test = self._get_ci_test_func()
 
         # Initialize complete undirected graph
         adj = np.ones((n_vars, n_vars)) - np.eye(n_vars)
         sep_sets: dict[tuple[int, int], list[int]] = {}
+
+        # Collect all CI test p-values for FDR correction
+        all_test_results: list[dict] = []
 
         # Phase 1: Skeleton discovery
         cond_size = 0
@@ -409,10 +463,17 @@ class PCAlgorithm:
                         continue
 
                     # Test all conditioning sets of current size
-                    from itertools import combinations
                     for cond_set in combinations(neighbors, cond_size):
                         cond_list = list(cond_set)
-                        _, is_indep = ci_test(data, i, j, cond_list, self.alpha)
+                        p_value, is_indep = ci_test(data, i, j, cond_list, self.alpha)
+
+                        # Store test result for FDR correction
+                        all_test_results.append({
+                            "i": i, "j": j,
+                            "cond_list": cond_list,
+                            "p_value": p_value,
+                            "is_indep": is_indep,
+                        })
 
                         if is_indep:
                             adj[i, j] = 0
@@ -422,6 +483,23 @@ class PCAlgorithm:
                             break
 
             cond_size += 1
+
+        # Apply FDR correction (Benjamini-Hochberg) to all collected p-values
+        # This re-evaluates edges that were kept, possibly removing more
+        if _has_multipletests and len(all_test_results) > 1:
+            pvals = np.array([t["p_value"] for t in all_test_results])
+            _, adjusted_pvals, _, _ = multipletests(pvals, method='fdr_bh')
+
+            # Re-evaluate: edges removed stay removed; but edges kept with
+            # adjusted p-value > alpha should also be removed
+            for idx, test in enumerate(all_test_results):
+                i, j = test["i"], test["j"]
+                if adj[i, j] > 0 and adjusted_pvals[idx] > self.alpha:
+                    # This edge should be removed after FDR correction
+                    adj[i, j] = 0
+                    adj[j, i] = 0
+                    sep_sets[(i, j)] = test["cond_list"]
+                    sep_sets[(j, i)] = test["cond_list"]
 
         # Phase 2: Orient edges (v-structures)
         oriented = np.zeros((n_vars, n_vars))
@@ -845,7 +923,9 @@ class CausalDiscovery:
         outcome: str | None,
         max_vars: int,
     ) -> list[str]:
-        """Select top variables by relevance."""
+        """Select top variables by mutual information with treatment + outcome."""
+        from sklearn.feature_selection import mutual_info_regression
+
         priority = []
         if treatment and treatment in variables:
             priority.append(treatment)
@@ -854,9 +934,50 @@ class CausalDiscovery:
 
         remaining = [v for v in variables if v not in priority]
 
-        # Rank by variance (standardized)
-        variances = df[remaining].var() / df[remaining].mean().abs().clip(lower=1e-10)
-        top_remaining = variances.sort_values(ascending=False).head(max_vars - len(priority)).index.tolist()
+        if not remaining:
+            return priority
+
+        # Score each variable by mutual information with treatment + outcome
+        df_numeric = df[remaining].select_dtypes(include=[np.number]).dropna()
+        if len(df_numeric) < 10:
+            # Fallback to first max_vars if not enough data
+            return priority + remaining[: max_vars - len(priority)]
+
+        target_cols = [c for c in priority if c in df.columns]
+        if not target_cols:
+            # No treatment/outcome to score against; use variance as fallback
+            variances = df_numeric.var()
+            top_remaining = variances.sort_values(ascending=False).head(max_vars - len(priority)).index.tolist()
+            return priority + top_remaining
+
+        # Compute MI score: sum of MI with each target variable
+        X_remaining = df_numeric.values
+        mi_scores = np.zeros(len(remaining))
+
+        for target_col in target_cols:
+            if target_col not in df.columns:
+                continue
+            target_vals = df.loc[df_numeric.index, target_col].values
+            if not np.issubdtype(target_vals.dtype, np.number):
+                continue
+            # Drop rows where target is NaN
+            valid_mask = ~np.isnan(target_vals)
+            if valid_mask.sum() < 10:
+                continue
+            try:
+                mi = mutual_info_regression(
+                    X_remaining[valid_mask],
+                    target_vals[valid_mask],
+                    random_state=42,
+                )
+                mi_scores += mi
+            except Exception:
+                continue
+
+        # Sort by MI score descending, take top
+        n_to_select = max_vars - len(priority)
+        top_indices = np.argsort(mi_scores)[::-1][:n_to_select]
+        top_remaining = [remaining[i] for i in top_indices]
 
         return priority + top_remaining
 
@@ -937,7 +1058,7 @@ class CausalDiscovery:
 
     def _run_notears(self, data: np.ndarray, variables: list[str]) -> DiscoveryResult:
         """Run true NOTEARS algorithm."""
-        notears = NOTEARS(w_threshold=0.3)
+        notears = NOTEARS(w_threshold=0.1)
         adj = notears.fit(data)
 
         edges = []

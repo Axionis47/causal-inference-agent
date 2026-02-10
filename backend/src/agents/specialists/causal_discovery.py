@@ -10,7 +10,6 @@ This agent iteratively discovers causal structure from data using ReAct:
 Uses pull-based context - queries for information on demand.
 """
 
-import pickle
 import time
 from pathlib import Path
 from typing import Any
@@ -29,11 +28,13 @@ from src.agents.base import (
 )
 from src.agents.base.context_tools import ContextTools
 from src.agents.base.react_agent import ReActAgent
+from src.agents.registry import register_agent
 from src.logging_config.structured import get_logger
 
 logger = get_logger(__name__)
 
 
+@register_agent("causal_discovery")
 class CausalDiscoveryAgent(ReActAgent, ContextTools):
     """ReAct-based causal discovery agent.
 
@@ -336,10 +337,9 @@ Workflow:
         return state
 
     def _load_dataframe(self, state: AnalysisState) -> pd.DataFrame | None:
-        """Load DataFrame from pickle path."""
+        """Load DataFrame from parquet path."""
         if state.dataframe_path and Path(state.dataframe_path).exists():
-            with open(state.dataframe_path, "rb") as f:
-                return pickle.load(f)
+            return pd.read_parquet(state.dataframe_path)
         return None
 
     # =========================================================================
@@ -370,6 +370,14 @@ Workflow:
                 profile.potential_confounders[:10]
             )
             relevant_cols = [c for c in relevant_cols if c in numeric_cols]
+
+        # CRITICAL: Ensure user-specified treatment/outcome are always included
+        if state.treatment_variable and state.treatment_variable in numeric_cols:
+            if state.treatment_variable not in relevant_cols:
+                relevant_cols.insert(0, state.treatment_variable)
+        if state.outcome_variable and state.outcome_variable in numeric_cols:
+            if state.outcome_variable not in relevant_cols:
+                relevant_cols.insert(1, state.outcome_variable)
 
         if not relevant_cols:
             relevant_cols = numeric_cols[:15]
@@ -473,6 +481,14 @@ Workflow:
         else:
             relevant_cols = numeric_cols
 
+        # CRITICAL: Ensure user-specified treatment/outcome are always included
+        if state.treatment_variable and state.treatment_variable in numeric_cols:
+            if state.treatment_variable not in relevant_cols:
+                relevant_cols.insert(0, state.treatment_variable)
+        if state.outcome_variable and state.outcome_variable in numeric_cols:
+            if state.outcome_variable not in relevant_cols:
+                relevant_cols.insert(1, state.outcome_variable)
+
         relevant_cols = relevant_cols[:20]  # Limit for computation
         df_subset = df[relevant_cols].dropna()
 
@@ -487,6 +503,12 @@ Workflow:
             dag = self._run_algorithm(df_subset, algorithm, alpha, threshold)
 
             if dag:
+                # Ensure treatment/outcome are recorded in the DAG
+                if self._treatment_var:
+                    dag.treatment_variable = self._treatment_var
+                if self._outcome_var:
+                    dag.outcome_variable = self._outcome_var
+
                 self._discovered_graphs[algorithm] = dag
                 self._current_graph = dag
 

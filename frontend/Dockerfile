@@ -50,21 +50,27 @@ RUN npm run build
 # =============================================================================
 FROM nginx:alpine AS production
 
+RUN apk add --no-cache curl
+
 # Copy nginx config
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy built assets
 COPY --from=builder /app/dist /usr/share/nginx/html
 
+# Copy runtime config entrypoint
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
 # Expose port (Cloud Run uses 8080)
 EXPOSE 8080
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD wget --quiet --tries=1 --spider http://localhost:8080/health || exit 1
+    CMD curl -f http://localhost:8080/health || exit 1
 
-# Start nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Use entrypoint for runtime config injection
+ENTRYPOINT ["/docker-entrypoint.sh"]
 
 # =============================================================================
 # Default to production

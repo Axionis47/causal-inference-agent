@@ -4,6 +4,8 @@ This agent coordinates the entire analysis pipeline using LLM reasoning.
 CRITICAL: All decisions are made through Gemini reasoning - NO hardcoded if-else logic.
 """
 
+import asyncio
+import copy
 import time
 from typing import Any
 
@@ -32,6 +34,18 @@ class OrchestratorAgent(BaseAgent):
 
     AGENT_NAME = "orchestrator"
 
+    # Maps each agent to the state fields it writes (used for safe parallel merging)
+    AGENT_WRITES: dict[str, list[str]] = {
+        "domain_knowledge": ["domain_knowledge"],
+        "data_profiler": ["data_profile"],
+        "eda_agent": ["eda_result"],
+        "causal_discovery": ["proposed_dag"],
+        "effect_estimator": ["treatment_effects"],
+        "sensitivity_analyst": ["sensitivity_results"],
+        "notebook_generator": ["notebook_path"],
+        "critique": ["critique_history"],
+    }
+
     SYSTEM_PROMPT = """You are an expert causal inference orchestrator. Your role is to coordinate
 a team of specialist agents to perform rigorous causal analysis on datasets.
 
@@ -50,9 +64,9 @@ You also interact with:
 Your workflow:
 1. If metadata is available, FIRST dispatch to domain_knowledge to extract causal hints
 2. Then dispatch to data_profiler to understand the dataset (it will query domain knowledge)
-3. ALWAYS dispatch to eda_agent for comprehensive EDA (correlations, outliers, balance checks)
-4. Based on the profile and EDA, reason about what causal methods are appropriate
-5. Dispatch to causal_discovery to learn the causal graph structure
+3. Dispatch BOTH eda_agent AND causal_discovery IN PARALLEL using dispatch_parallel_agents (they are independent and can run concurrently)
+4. Based on the profile, EDA, and discovered DAG, reason about what causal methods are appropriate
+5. Dispatch to effect_estimator to estimate treatment effects
 6. Dispatch to effect_estimator and sensitivity_analyst
 7. Request critique review before finalizing
 8. If critique says ITERATE, address the feedback and re-dispatch relevant agents
@@ -77,8 +91,46 @@ When making decisions, output your reasoning step-by-step, then specify which ag
 
     TOOLS = [
         {
+            "name": "dispatch_parallel_agents",
+            "description": "Dispatch multiple independent agents to run in parallel. Use this when agents don't depend on each other's output (e.g., eda_agent and causal_discovery after profiling).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "agents": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "agent_name": {
+                                    "type": "string",
+                                    "enum": [
+                                        "domain_knowledge",
+                                        "data_profiler",
+                                        "eda_agent",
+                                        "causal_discovery",
+                                        "effect_estimator",
+                                        "sensitivity_analyst",
+                                        "notebook_generator",
+                                    ],
+                                },
+                                "task_description": {"type": "string"},
+                            },
+                            "required": ["agent_name", "task_description"],
+                        },
+                        "minItems": 2,
+                        "description": "List of agents to run concurrently",
+                    },
+                    "reasoning": {
+                        "type": "string",
+                        "description": "Why these agents can safely run in parallel",
+                    },
+                },
+                "required": ["agents", "reasoning"],
+            },
+        },
+        {
             "name": "dispatch_to_agent",
-            "description": "Dispatch a task to a specialist agent",
+            "description": "Dispatch a task to a single specialist agent",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -189,7 +241,7 @@ When making decisions, output your reasoning step-by-step, then specify which ag
         context_prompt = self._build_context_prompt(state)
 
         # Orchestration loop
-        max_decisions = 10  # Safety limit
+        max_decisions = 15  # Safety limit
         decisions_made = 0
 
         while decisions_made < max_decisions:
@@ -248,6 +300,35 @@ When making decisions, output your reasoning step-by-step, then specify which ag
             final_status=state.status.value,
             decisions_made=decisions_made,
         )
+
+        # If loop ended without explicit finalization but we have results, generate notebook then complete
+        if state.status not in [JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED]:
+            if state.treatment_effects:
+                self.logger.info(
+                    "auto_completing_with_results",
+                    n_effects=len(state.treatment_effects),
+                )
+
+                # Generate notebook before marking completed
+                if state.notebook_path is None:
+                    notebook_agent = self._specialist_agents.get("notebook_generator")
+                    if notebook_agent:
+                        self.logger.info("auto_completion_generating_notebook")
+                        state.status = JobStatus.GENERATING_NOTEBOOK
+                        try:
+                            state = await notebook_agent.execute_with_tracing(state)
+                        except Exception as e:
+                            self.logger.error(
+                                "auto_completion_notebook_failed", error=str(e)
+                            )
+                            # Don't fail the whole job just because notebook generation failed
+
+                state.mark_completed()
+            else:
+                state.mark_failed(
+                    "Orchestration ended without producing treatment effect estimates",
+                    "orchestrator",
+                )
 
         return state
 
@@ -373,7 +454,8 @@ Think step by step:
         prompt += """
 
 Please call one of the available tools to proceed:
-- dispatch_to_agent: Send a task to a specialist
+- dispatch_parallel_agents: Run multiple independent agents concurrently
+- dispatch_to_agent: Send a task to a single specialist
 - request_critique: Request analysis review
 - finalize_analysis: Complete the analysis
 
@@ -423,7 +505,9 @@ Do not just provide text - you MUST call a tool to proceed."""
             args_keys=list(args.keys()),
         )
 
-        if tool_name == "dispatch_to_agent":
+        if tool_name == "dispatch_parallel_agents":
+            return await self._dispatch_parallel(state, args)
+        elif tool_name == "dispatch_to_agent":
             return await self._dispatch_to_agent(state, args)
         elif tool_name == "request_critique":
             return await self._request_critique(state, args)
@@ -498,6 +582,96 @@ Do not just provide text - you MUST call a tool to proceed."""
                 error=str(e),
             )
             state.mark_failed(str(e), agent_name)
+
+        return state
+
+    async def _dispatch_parallel(
+        self,
+        state: AnalysisState,
+        args: dict[str, Any],
+    ) -> AnalysisState:
+        """Dispatch multiple agents to run concurrently.
+
+        Uses copy-on-write: each agent gets a shallow copy of state,
+        then results are merged back using AGENT_WRITES field mapping.
+        """
+        agent_configs = args.get("agents", [])
+        reasoning = args.get("reasoning", "")
+
+        if len(agent_configs) < 2:
+            # Fall back to sequential if only one agent
+            if agent_configs:
+                return await self._dispatch_to_agent(state, {
+                    "agent_name": agent_configs[0]["agent_name"],
+                    "task_description": agent_configs[0].get("task_description", ""),
+                    "reasoning": reasoning,
+                })
+            return state
+
+        agent_names = [c["agent_name"] for c in agent_configs]
+        self.logger.info("parallel_dispatch_start", agents=agent_names)
+
+        # Record dispatch trace
+        trace = self.create_trace(
+            action=f"parallel_dispatch_{'_'.join(agent_names)}",
+            reasoning=reasoning,
+            inputs={"agents": agent_names},
+        )
+        state.add_trace(trace)
+
+        # Create state branches and gather specialist references
+        branches: list[AnalysisState] = []
+        specialists: list[tuple[str, BaseAgent]] = []
+        for config in agent_configs:
+            name = config["agent_name"]
+            specialist = self._specialist_agents.get(name)
+            if specialist is None:
+                self.logger.error("parallel_specialist_not_found", agent=name)
+                continue
+            branches.append(copy.copy(state))
+            specialists.append((name, specialist))
+
+        # Execute all agents concurrently
+        start_time = time.time()
+        tasks = [
+            specialist.execute_with_tracing(branch)
+            for (_, specialist), branch in zip(specialists, branches)
+        ]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Merge results back into main state
+        for (name, _), result in zip(specialists, results):
+            if isinstance(result, Exception):
+                self.logger.error(
+                    "parallel_agent_failed", agent=name, error=str(result)
+                )
+                error_trace = self.create_trace(
+                    action=f"parallel_{name}_failed",
+                    reasoning=str(result),
+                )
+                state.add_trace(error_trace)
+                continue
+
+            # Merge the fields this agent writes
+            for field in self.AGENT_WRITES.get(name, []):
+                value = getattr(result, field, None)
+                if value is not None:
+                    setattr(state, field, value)
+
+            # Merge traces from branch (last 5 per agent)
+            if result.agent_traces:
+                new_traces = [
+                    t for t in result.agent_traces
+                    if t not in state.agent_traces
+                ]
+                state.agent_traces.extend(new_traces[-5:])
+
+        duration_ms = int((time.time() - start_time) * 1000)
+        self.logger.info(
+            "parallel_dispatch_complete",
+            agents=agent_names,
+            duration_ms=duration_ms,
+        )
 
         return state
 

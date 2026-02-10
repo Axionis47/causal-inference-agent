@@ -1,41 +1,37 @@
-"""Notebook Generator Agent - Creates reproducible Jupyter notebooks."""
+"""Notebook Generator Agent - Creates reproducible Jupyter notebooks.
+
+Generates notebooks that faithfully report the work of each pipeline agent:
+Data Profiler → Domain Knowledge → Data Repair → EDA → Causal Discovery
+→ PS Diagnostics → Effect Estimator → Sensitivity Analyst → Critique Agent.
+
+Each section presents the agent's actual findings from AnalysisState,
+with visualizations built from pipeline-computed data (not recomputed).
+"""
 
 import json
 import tempfile
 import time
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 import nbformat
 import numpy as np
 from nbformat.v4 import new_code_cell, new_markdown_cell, new_notebook
 
 from src.agents.base import AnalysisState, BaseAgent, JobStatus
+from src.agents.registry import register_agent
 from src.logging_config.structured import get_logger
 
 logger = get_logger(__name__)
 
 
+@register_agent("notebook_generator")
 class NotebookGeneratorAgent(BaseAgent):
-    """Agent that generates reproducible Jupyter notebooks.
+    """Agent that generates reproducible Jupyter notebooks reporting pipeline results.
 
-    This agent compiles all analysis results into a well-documented,
-    executable Jupyter notebook that includes:
-
-    1. Introduction and dataset description
-    2. Data loading and preprocessing code
-    3. Exploratory data analysis
-    4. Causal graph visualization
-    5. Treatment effect estimation code and results
-    6. Sensitivity analysis
-    7. Conclusions and recommendations
-
-    Uses LLM reasoning to:
-    1. Generate clear explanations
-    2. Add appropriate commentary
-    3. Structure the narrative
-
-    The notebook is fully reproducible with all code executable.
+    Each notebook section maps 1:1 to a pipeline agent and presents
+    that agent's actual outputs, reasoning, and findings.
     """
 
     AGENT_NAME = "notebook_generator"
@@ -43,69 +39,24 @@ class NotebookGeneratorAgent(BaseAgent):
     SYSTEM_PROMPT = """You are an expert at creating clear, reproducible Jupyter notebooks
 for causal inference analysis.
 
-When generating notebooks:
-1. Start with a clear introduction explaining the research question
-2. Document all data preprocessing steps
-3. Explain the choice of methods
-4. Present results with proper interpretation
-5. Discuss limitations and caveats
-6. End with actionable conclusions
+When generating narratives:
+1. Be specific to the dataset - never write generic placeholder text
+2. Explain the choice of methods in context of the data characteristics
+3. Present results with proper interpretation and caveats
+4. Discuss limitations honestly
+5. Write in clear academic style accessible to data scientists"""
 
-Write in a clear, educational style that helps readers understand both
-the methods and the findings. Include comments in code cells to explain
-what each step does.
+    TOOLS = []  # No tools needed - uses LLM for narrative only
 
-The notebook should be fully executable - readers should be able to
-reproduce the analysis by running all cells in order."""
-
-    TOOLS = [
-        {
-            "name": "generate_narrative",
-            "description": "Generate narrative text for a notebook section",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "section": {
-                        "type": "string",
-                        "enum": [
-                            "introduction",
-                            "data_description",
-                            "methodology",
-                            "results",
-                            "sensitivity",
-                            "conclusions",
-                        ],
-                        "description": "The section to generate narrative for",
-                    },
-                    "content": {
-                        "type": "string",
-                        "description": "The narrative content for this section",
-                    },
-                },
-                "required": ["section", "content"],
-            },
-        },
-    ]
+    # ─────────────────────────── Main execute ───────────────────────────
 
     async def execute(self, state: AnalysisState) -> AnalysisState:
-        """Generate the analysis notebook.
-
-        Args:
-            state: Current analysis state with all results
-
-        Returns:
-            Updated state with notebook path
-        """
-        self.logger.info(
-            "notebook_generation_start",
-            job_id=state.job_id,
-        )
-
+        """Generate the analysis notebook reporting all pipeline findings."""
+        self.logger.info("notebook_generation_start", job_id=state.job_id)
         state.status = JobStatus.GENERATING_NOTEBOOK
         start_time = time.time()
 
         try:
-            # Create the notebook
             nb = new_notebook()
             nb.metadata = {
                 "kernelspec": {
@@ -113,61 +64,75 @@ reproduce the analysis by running all cells in order."""
                     "language": "python",
                     "name": "python3",
                 },
-                "language_info": {
-                    "name": "python",
-                    "version": "3.11",
-                },
+                "language_info": {"name": "python", "version": "3.11"},
             }
 
-            # Generate sections
-            cells = []
+            cells: list = []
 
-            # Title and Introduction
+            # 1. Title & Introduction
             cells.extend(await self._generate_introduction(state))
 
-            # Setup and Imports
+            # 2. Domain Knowledge (if agent ran)
+            if state.domain_knowledge:
+                cells.extend(self._generate_domain_knowledge(state))
+
+            # 3. Setup & Imports
             cells.extend(self._generate_setup_cells())
 
-            # Data Loading
-            cells.extend(await self._generate_data_loading(state))
+            # 4. Data Loading
+            cells.extend(self._generate_data_loading(state))
 
-            # Exploratory Data Analysis (comprehensive)
-            cells.extend(await self._generate_comprehensive_eda(state))
+            # 5. Data Profile (profiler agent findings)
+            if state.data_profile:
+                cells.extend(self._generate_data_profile_report(state))
 
-            # Causal Structure
+            # 6. Data Repairs (data repair agent)
+            if state.data_repairs:
+                cells.extend(self._generate_data_repairs(state))
+
+            # 7. EDA (EDA agent findings)
+            cells.extend(self._generate_eda_report(state))
+
+            # 8. Causal Structure (discovery agent)
             if state.proposed_dag:
-                cells.extend(await self._generate_causal_structure(state))
+                cells.extend(self._generate_causal_structure(state))
 
-            # Treatment Effect Estimation
-            cells.extend(await self._generate_treatment_effects(state))
+            # 9. Confounder Analysis
+            if state.confounder_discovery or (
+                state.data_profile and state.data_profile.potential_confounders
+            ):
+                cells.extend(self._generate_confounder_analysis(state))
 
-            # Sensitivity Analysis
+            # 10. PS Diagnostics (propensity score diagnostics agent)
+            if state.ps_diagnostics:
+                cells.extend(self._generate_ps_diagnostics(state))
+
+            # 11. Treatment Effect Estimation (effect estimator)
+            cells.extend(self._generate_treatment_effects(state))
+
+            # 12. Sensitivity Analysis (sensitivity analyst)
             if state.sensitivity_results:
-                cells.extend(await self._generate_sensitivity(state))
+                cells.extend(self._generate_sensitivity(state))
 
-            # Conclusions
+            # 13. Analysis Quality & Critique
+            if state.critique_history:
+                cells.extend(self._generate_critique_section(state))
+
+            # 14. Conclusions
             cells.extend(await self._generate_conclusions(state))
 
-            # Add all cells to notebook
             nb.cells = cells
-
-            # Save notebook
             notebook_path = self._save_notebook(nb, state.job_id)
             state.notebook_path = notebook_path
 
-            # Create trace
             duration_ms = int((time.time() - start_time) * 1000)
             trace = self.create_trace(
                 action="notebook_generated",
-                reasoning="Generated reproducible Jupyter notebook",
-                outputs={
-                    "path": notebook_path,
-                    "n_cells": len(cells),
-                },
+                reasoning="Generated pipeline report notebook",
+                outputs={"path": notebook_path, "n_cells": len(cells)},
                 duration_ms=duration_ms,
             )
             state.add_trace(trace)
-
             self.logger.info(
                 "notebook_generation_complete",
                 path=notebook_path,
@@ -180,587 +145,599 @@ reproduce the analysis by running all cells in order."""
 
         return state
 
+    # ─────────────────────── Helper: LLM Narrative ──────────────────────
+
+    async def _generate_llm_narrative(
+        self, section: str, context: dict[str, Any]
+    ) -> str:
+        """Generate LLM-driven narrative for a notebook section.
+
+        Falls back to empty string on any failure so notebook generation
+        never breaks due to LLM issues.
+        """
+        context_str = "\n".join(f"- {k}: {v}" for k, v in context.items())
+        prompt = f"""Generate a clear, concise narrative for the "{section}" section
+of a causal inference analysis notebook.
+
+Context:
+{context_str}
+
+Write in clear academic style. Be specific to this dataset.
+Output markdown only, no code fences. 2-3 paragraphs maximum."""
+
+        try:
+            response = await self.llm.generate(
+                prompt=prompt,
+                system_instruction=self.SYSTEM_PROMPT,
+            )
+            # Handle different LLM backends:
+            # - Claude returns a dict with content blocks
+            # - Gemini returns an object with .text
+            if isinstance(response, dict):
+                content = response.get("content", [])
+                text_parts = [
+                    block.get("text", "")
+                    for block in content
+                    if isinstance(block, dict) and block.get("type") == "text"
+                ]
+                text = "\n".join(text_parts)
+            else:
+                text = response.text
+            # Strip leading markdown headings — the caller adds its own
+            lines = text.lstrip().split("\n")
+            while lines and lines[0].startswith("#"):
+                lines.pop(0)
+            return "\n".join(lines).strip()
+        except Exception as e:
+            self.logger.warning(
+                "llm_narrative_failed", section=section, error=str(e)
+            )
+            return ""
+
+    # ─────────────────────── Helper: Dedup Effects ──────────────────────
+
+    def _deduplicate_effects(self, effects: list) -> list:
+        """Deduplicate treatment effects by method name, keeping last occurrence."""
+        seen: dict[str, Any] = {}
+        for effect in effects:
+            seen[effect.method] = effect
+        return list(seen.values())
+
+    def _deduplicate_sensitivity(self, results: list) -> list:
+        """Deduplicate sensitivity results by method name, keeping last occurrence."""
+        seen: dict[str, Any] = {}
+        for result in results:
+            seen[result.method] = result
+        return list(seen.values())
+
+    # ─────────────────────────── 1. Introduction ────────────────────────
+
     async def _generate_introduction(self, state: AnalysisState) -> list:
-        """Generate introduction section."""
+        """Generate title and introduction."""
         cells = []
 
-        # Title
-        title = "# Causal Inference Analysis\n\n"
+        title = f"# Causal Inference Analysis Report\n\n"
         title += f"**Dataset**: {state.dataset_info.name or state.dataset_info.url}\n\n"
         title += f"**Generated**: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}\n\n"
         title += f"**Job ID**: {state.job_id}\n"
         cells.append(new_markdown_cell(title))
 
-        # Introduction narrative
+        # Static intro
         intro = "## Introduction\n\n"
-        intro += "This notebook presents a causal inference analysis aimed at estimating "
-        intro += f"the effect of **{state.treatment_variable}** on **{state.outcome_variable}**.\n\n"
+        intro += f"This notebook reports the results of an automated causal inference analysis "
+        intro += f"estimating the effect of **{state.treatment_variable}** on **{state.outcome_variable}**.\n\n"
 
         if state.data_profile:
-            intro += f"The dataset contains {state.data_profile.n_samples:,} observations "
-            intro += f"and {state.data_profile.n_features} variables.\n\n"
+            intro += f"The dataset contains **{state.data_profile.n_samples:,}** observations "
+            intro += f"and **{state.data_profile.n_features}** variables.\n\n"
 
-        intro += "### Analysis Overview\n\n"
-        intro += "1. Data loading and preprocessing\n"
-        intro += "2. Exploratory data analysis\n"
+        # Pipeline overview
+        intro += "### Pipeline Steps Completed\n\n"
+        steps = []
+        if state.data_profile:
+            steps.append("Data Profiling")
+        if state.domain_knowledge:
+            steps.append("Domain Knowledge Extraction")
+        if state.data_repairs:
+            n_repairs = len(state.data_repairs)
+            steps.append(f"Data Repair ({n_repairs} repair{'s' if n_repairs != 1 else ''})")
+        if state.eda_result:
+            steps.append("Exploratory Data Analysis")
         if state.proposed_dag:
-            intro += "3. Causal structure discovery\n"
-        intro += f"4. Treatment effect estimation ({len(state.treatment_effects)} methods)\n"
+            steps.append(f"Causal Discovery ({state.proposed_dag.discovery_method})")
+        if state.ps_diagnostics:
+            quality = state.ps_diagnostics.get("model_quality", "unknown")
+            steps.append(f"Propensity Score Diagnostics (quality: {quality})")
+        if state.treatment_effects:
+            methods = [e.method for e in self._deduplicate_effects(state.treatment_effects)]
+            steps.append(f"Treatment Effect Estimation ({', '.join(methods)})")
         if state.sensitivity_results:
-            intro += f"5. Sensitivity analysis ({len(state.sensitivity_results)} tests)\n"
-        intro += "6. Conclusions and recommendations\n"
+            steps.append(f"Sensitivity Analysis ({len(state.sensitivity_results)} tests)")
+        if state.critique_history:
+            steps.append(f"Quality Review ({state.critique_history[-1].decision.value})")
+
+        for i, step in enumerate(steps, 1):
+            intro += f"{i}. {step}\n"
 
         cells.append(new_markdown_cell(intro))
 
+        # LLM-generated context paragraph
+        llm_context = {
+            "dataset": state.dataset_info.name or state.dataset_info.url or "unknown",
+            "treatment": state.treatment_variable,
+            "outcome": state.outcome_variable,
+            "n_samples": state.data_profile.n_samples if state.data_profile else "unknown",
+            "n_methods": len(self._deduplicate_effects(state.treatment_effects)),
+        }
+        if state.domain_knowledge and state.domain_knowledge.get("hypotheses"):
+            top = state.domain_knowledge["hypotheses"][0]
+            if isinstance(top, dict):
+                llm_context["key_hypothesis"] = top.get("claim", str(top))
+
+        llm_intro = await self._generate_llm_narrative("introduction", llm_context)
+        if llm_intro:
+            cells.append(new_markdown_cell(llm_intro))
+
         return cells
+
+    # ─────────────────── 2. Domain Knowledge ────────────────────────────
+
+    def _generate_domain_knowledge(self, state: AnalysisState) -> list:
+        """Report domain knowledge agent findings."""
+        cells = []
+        dk = state.domain_knowledge
+
+        md = "## Domain Knowledge & Causal Framework\n\n"
+        md += "The domain knowledge agent extracted the following understanding from dataset metadata.\n\n"
+
+        # Hypotheses
+        hypotheses = dk.get("hypotheses", [])
+        if hypotheses:
+            md += "### Causal Hypotheses\n\n"
+            md += "| # | Hypothesis | Confidence | Evidence |\n"
+            md += "|---|-----------|------------|----------|\n"
+            for i, h in enumerate(hypotheses, 1):
+                if isinstance(h, dict):
+                    claim = h.get("claim", h.get("hypothesis", str(h)))
+                    conf = h.get("confidence", "unknown")
+                    evidence = h.get("evidence", "")
+                    md += f"| {i} | {claim} | {conf} | {evidence[:80]} |\n"
+                else:
+                    md += f"| {i} | {h} | - | - |\n"
+            md += "\n"
+
+        # Temporal ordering
+        temporal = dk.get("temporal_understanding")
+        if temporal:
+            md += "### Temporal Ordering\n\n"
+            if isinstance(temporal, dict):
+                for key, val in temporal.items():
+                    md += f"- **{key}**: {val}\n"
+            else:
+                md += f"{temporal}\n"
+            md += "\n"
+
+        # Immutable variables
+        immutable = dk.get("immutable_vars", [])
+        if immutable:
+            md += "### Immutable Variables\n\n"
+            md += "These variables cannot be caused by the treatment and are safe to condition on:\n\n"
+            for var in immutable:
+                if isinstance(var, dict):
+                    md += f"- **{var.get('name', var.get('variable', str(var)))}**: {var.get('reason', '')}\n"
+                else:
+                    md += f"- {var}\n"
+            md += "\n"
+
+        # Uncertainties
+        uncertainties = dk.get("uncertainties", [])
+        if uncertainties:
+            md += "### Uncertainties & Limitations\n\n"
+            for u in uncertainties:
+                if isinstance(u, dict):
+                    md += f"- {u.get('issue', u.get('description', str(u)))}\n"
+                else:
+                    md += f"- {u}\n"
+            md += "\n"
+
+        cells.append(new_markdown_cell(md))
+        return cells
+
+    # ──────────────────── 3. Setup & Imports ────────────────────────────
 
     def _generate_setup_cells(self) -> list:
         """Generate setup and import cells."""
         cells = []
+        cells.append(
+            new_markdown_cell("## Setup\n\nImport required libraries for visualizations.")
+        )
 
-        # Imports markdown
-        cells.append(new_markdown_cell("## Setup\n\nFirst, we import the required libraries."))
-
-        # Import code
-        imports = """# Standard libraries
-import numpy as np
+        imports = """import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-
-# Statistical libraries
 from scipy import stats
-import statsmodels.api as sm
-from sklearn.linear_model import LogisticRegression, LinearRegression
-from sklearn.ensemble import GradientBoostingRegressor, GradientBoostingClassifier
-from sklearn.neighbors import NearestNeighbors
-
-# Causal inference libraries (optional - install if needed)
-try:
-    from econml.dml import CausalForestDML, LinearDML
-    ECONML_AVAILABLE = True
-except ImportError:
-    ECONML_AVAILABLE = False
-    print("econml not available - some methods will be skipped")
-
-try:
-    from causallearn.search.ConstraintBased.PC import pc
-    CAUSALLEARN_AVAILABLE = True
-except ImportError:
-    CAUSALLEARN_AVAILABLE = False
-    print("causal-learn not available - causal discovery will be skipped")
-
-# Visualization settings
-plt.style.use('seaborn-v0_8-whitegrid')
-plt.rcParams['figure.figsize'] = (10, 6)
-plt.rcParams['font.size'] = 12
-
-# Suppress warnings
 import warnings
 warnings.filterwarnings('ignore')
 
+plt.style.use('seaborn-v0_8-whitegrid')
+plt.rcParams['figure.figsize'] = (10, 6)
+plt.rcParams['font.size'] = 12
 print("Setup complete!")"""
-
         cells.append(new_code_cell(imports))
-
         return cells
 
-    async def _generate_data_loading(self, state: AnalysisState) -> list:
-        """Generate data loading section."""
+    # ──────────────────── 4. Data Loading ───────────────────────────────
+
+    def _generate_data_loading(self, state: AnalysisState) -> list:
+        """Generate data loading cells using actual pipeline path."""
         cells = []
+        cells.append(new_markdown_cell("## Data Loading\n\nLoad the dataset used in the analysis."))
 
-        cells.append(new_markdown_cell("## Data Loading\n\nLoad and preview the dataset."))
+        data_path = state.dataset_info.local_path
+        if not data_path and hasattr(state, "dataframe_path") and state.dataframe_path:
+            data_path = state.dataframe_path
 
-        # Data loading code
-        load_code = f'''# Load the dataset
-# Note: Update the path to your local file or use the Kaggle API
-DATA_PATH = "{state.dataset_info.local_path or state.dataset_info.url}"
+        if data_path:
+            if str(data_path).endswith(".parquet"):
+                read_call = f'df = pd.read_parquet("{data_path}")'
+            else:
+                read_call = f'df = pd.read_csv("{data_path}")'
 
-try:
-    df = pd.read_csv(DATA_PATH)
-except (FileNotFoundError, pd.errors.ParserError) as e:
-    # If direct loading fails, you may need to download from Kaggle
-    # !pip install kaggle
-    # !kaggle datasets download -d <dataset_id>
-    raise FileNotFoundError(f"Could not load data from {{DATA_PATH}}")
+            load_code = f'''# Dataset path from pipeline
+DATA_PATH = "{data_path}"
+{read_call}
 
 print(f"Dataset shape: {{df.shape}}")
-print(f"\\nColumns: {{list(df.columns)}}")'''
+print(f"Columns: {{list(df.columns)}}")
+df.head()'''
+        else:
+            url = state.dataset_info.url or "unknown"
+            load_code = f'''# NOTE: Update DATA_PATH to your local copy of the dataset.
+# Original source: {url}
+DATA_PATH = "UPDATE_THIS_PATH.csv"
+
+df = pd.read_csv(DATA_PATH)
+print(f"Dataset shape: {{df.shape}}")
+print(f"Columns: {{list(df.columns)}}")
+df.head()'''
 
         cells.append(new_code_cell(load_code))
-
-        # Preview code
-        preview_code = """# Preview the data
-df.head(10)"""
-        cells.append(new_code_cell(preview_code))
-
-        # Data info
-        info_code = """# Data types and missing values
-print("Data Types:")
-print(df.dtypes)
-print(f"\\nMissing Values:")
-print(df.isnull().sum())"""
-        cells.append(new_code_cell(info_code))
-
         return cells
 
-    async def _generate_eda(self, state: AnalysisState) -> list:
-        """Generate EDA section."""
+    # ──────────────────── 5. Data Profile Report ────────────────────────
+
+    def _generate_data_profile_report(self, state: AnalysisState) -> list:
+        """Report data profiler agent findings."""
         cells = []
+        profile = state.data_profile
+        if not profile:
+            return cells
 
-        cells.append(new_markdown_cell("## Exploratory Data Analysis\n\nExamine the key variables."))
+        md = "## Data Profile\n\n"
+        md += "*Findings from the Data Profiler agent.*\n\n"
 
-        # Treatment variable analysis
-        treatment_code = f'''# Treatment Variable: {state.treatment_variable}
-treatment_var = "{state.treatment_variable}"
+        # Overview
+        md += f"| Property | Value |\n"
+        md += f"|----------|-------|\n"
+        md += f"| Samples | {profile.n_samples:,} |\n"
+        md += f"| Features | {profile.n_features} |\n"
+        md += f"| Has Time Dimension | {'Yes' if profile.has_time_dimension else 'No'} |\n"
+        if profile.time_column:
+            md += f"| Time Column | {profile.time_column} |\n"
+        md += "\n"
 
-print(f"Treatment variable: {{treatment_var}}")
-print(f"\\nValue counts:")
-print(df[treatment_var].value_counts())
-print(f"\\nBasic statistics:")
-print(df[treatment_var].describe())
+        # Feature types
+        if profile.feature_types:
+            md += "### Feature Types\n\n"
+            md += "| Feature | Type |\n|---------|------|\n"
+            for feat, ftype in sorted(profile.feature_types.items()):
+                md += f"| {feat} | {ftype} |\n"
+            md += "\n"
 
-# Visualize treatment distribution
-fig, ax = plt.subplots(figsize=(8, 5))
-if df[treatment_var].nunique() <= 10:
-    df[treatment_var].value_counts().plot(kind='bar', ax=ax)
-    ax.set_title(f'Distribution of {{treatment_var}}')
-else:
-    df[treatment_var].hist(bins=30, ax=ax)
-    ax.set_title(f'Distribution of {{treatment_var}}')
-ax.set_xlabel(treatment_var)
-ax.set_ylabel('Count')
-plt.tight_layout()
-plt.show()'''
-        cells.append(new_code_cell(treatment_code))
+        # Missing values
+        if profile.missing_values:
+            has_missing = {k: v for k, v in profile.missing_values.items() if v > 0}
+            if has_missing:
+                md += "### Missing Values\n\n"
+                md += "| Feature | Missing Count | % Missing |\n"
+                md += "|---------|--------------|----------|\n"
+                for feat, count in sorted(has_missing.items(), key=lambda x: -x[1]):
+                    pct = 100 * count / profile.n_samples if profile.n_samples > 0 else 0
+                    md += f"| {feat} | {count} | {pct:.1f}% |\n"
+                md += "\n"
+            else:
+                md += "**No missing values detected.**\n\n"
 
-        # Outcome variable analysis
-        outcome_code = f'''# Outcome Variable: {state.outcome_variable}
-outcome_var = "{state.outcome_variable}"
+        # Causal candidates
+        md += "### Variable Roles (Identified by Profiler)\n\n"
+        md += f"- **Treatment**: {state.treatment_variable}\n"
+        md += f"- **Outcome**: {state.outcome_variable}\n"
+        if profile.treatment_candidates:
+            md += f"- **Treatment candidates**: {', '.join(profile.treatment_candidates)}\n"
+        if profile.outcome_candidates:
+            md += f"- **Outcome candidates**: {', '.join(profile.outcome_candidates)}\n"
+        if profile.potential_confounders:
+            md += f"- **Potential confounders**: {', '.join(profile.potential_confounders)}\n"
+        if profile.potential_instruments:
+            md += f"- **Potential instruments**: {', '.join(profile.potential_instruments)}\n"
+        if profile.discontinuity_candidates:
+            md += f"- **Discontinuity candidates**: {', '.join(profile.discontinuity_candidates)}\n"
+        md += "\n"
 
-print(f"Outcome variable: {{outcome_var}}")
-print(f"\\nBasic statistics:")
-print(df[outcome_var].describe())
-
-# Visualize outcome distribution
-fig, ax = plt.subplots(figsize=(8, 5))
-df[outcome_var].hist(bins=30, ax=ax)
-ax.set_title(f'Distribution of {{outcome_var}}')
-ax.set_xlabel(outcome_var)
-ax.set_ylabel('Frequency')
-plt.tight_layout()
-plt.show()'''
-        cells.append(new_code_cell(outcome_code))
-
-        # Treatment vs outcome
-        comparison_code = '''# Treatment vs Outcome
-fig, ax = plt.subplots(figsize=(10, 6))
-
-if df[treatment_var].nunique() <= 5:
-    # Box plot for categorical treatment
-    df.boxplot(column=outcome_var, by=treatment_var, ax=ax)
-    ax.set_title(f'{outcome_var} by {treatment_var}')
-else:
-    # Scatter plot for continuous treatment
-    ax.scatter(df[treatment_var], df[outcome_var], alpha=0.5)
-    ax.set_xlabel(treatment_var)
-    ax.set_ylabel(outcome_var)
-    ax.set_title(f'{outcome_var} vs {treatment_var}')
-
-plt.tight_layout()
-plt.show()
-
-# Simple correlation
-if df[treatment_var].dtype in ['int64', 'float64']:
-    corr = df[[treatment_var, outcome_var]].corr().iloc[0, 1]
-    print(f"\\nCorrelation between {treatment_var} and {outcome_var}: {corr:.3f}")'''
-        cells.append(new_code_cell(comparison_code))
-
+        cells.append(new_markdown_cell(md))
         return cells
 
-    async def _generate_comprehensive_eda(self, state: AnalysisState) -> list:
-        """Generate comprehensive EDA section with visualizations."""
+    # ──────────────────── 6. Data Repairs ──────────────────────────────
+
+    def _generate_data_repairs(self, state: AnalysisState) -> list:
+        """Report data repair agent findings — what preprocessing was applied."""
+        cells = []
+        repairs = state.data_repairs
+        if not repairs:
+            return cells
+
+        md = "## Data Preprocessing & Repairs\n\n"
+        md += "*Findings from the Data Repair agent. "
+        md += "These repairs were applied before causal analysis.*\n\n"
+
+        # Repairs summary table
+        md += "### Repairs Applied\n\n"
+        md += "| # | Type | Strategy | Columns |\n"
+        md += "|---|------|----------|---------|\n"
+        for i, repair in enumerate(repairs, 1):
+            rtype = repair.get("type", "unknown")
+            strategy = repair.get("strategy", "unknown")
+            columns = repair.get("columns", [])
+            col_str = ", ".join(columns[:5])
+            if len(columns) > 5:
+                col_str += f" (+{len(columns) - 5} more)"
+            md += f"| {i} | {rtype} | {strategy} | {col_str} |\n"
+        md += "\n"
+
+        # Detail each repair type
+        missing_repairs = [r for r in repairs if r.get("type") == "missing"]
+        outlier_repairs = [r for r in repairs if r.get("type") == "outliers"]
+        collinearity_repairs = [r for r in repairs if r.get("type") == "collinearity"]
+
+        if missing_repairs:
+            md += "### Missing Value Handling\n\n"
+            for r in missing_repairs:
+                strategy = r.get("strategy", "unknown")
+                columns = r.get("columns", [])
+                md += f"- **Strategy**: {strategy}\n"
+                md += f"- **Columns**: {', '.join(columns)}\n"
+                if r.get("rows_dropped"):
+                    md += f"- **Rows dropped**: {r['rows_dropped']:,}\n"
+                if r.get("before") is not None and r.get("after") is not None:
+                    md += f"- **Missing values**: {r['before']:,} → {r['after']:,}\n"
+                md += "\n"
+
+        if outlier_repairs:
+            md += "### Outlier Treatment\n\n"
+            for r in outlier_repairs:
+                strategy = r.get("strategy", "unknown")
+                columns = r.get("columns", [])
+                md += f"- **Strategy**: {strategy}\n"
+                md += f"- **Columns**: {', '.join(columns)}\n\n"
+
+        if collinearity_repairs:
+            md += "### Collinearity Resolution\n\n"
+            for r in collinearity_repairs:
+                strategy = r.get("strategy", "unknown")
+                columns = r.get("columns", [])
+                md += f"- **Strategy**: {strategy}\n"
+                md += f"- **Columns removed/adjusted**: {', '.join(columns)}\n\n"
+
+        # Quality assessment and cautions (from finalize_repairs)
+        # These may be stored in the last repair entry or via add_agent_result
+        # Check if any repair dict contains these fields
+        quality = None
+        summary_lines = None
+        cautions = None
+        for r in repairs:
+            if "quality_assessment" in r:
+                quality = r["quality_assessment"]
+            if "repairs_summary" in r:
+                summary_lines = r["repairs_summary"]
+            if "cautions" in r:
+                cautions = r["cautions"]
+
+        if quality:
+            md += f"### Data Quality Assessment\n\n{quality}\n\n"
+
+        if cautions:
+            md += "### Cautions\n\n"
+            md += "*These caveats may affect the validity of downstream results.*\n\n"
+            for c in cautions:
+                md += f"- {c}\n"
+            md += "\n"
+
+        cells.append(new_markdown_cell(md))
+        return cells
+
+    # ──────────────────── 7. EDA Report ─────────────────────────────────
+
+    def _generate_eda_report(self, state: AnalysisState) -> list:
+        """Report EDA agent findings with visualizations from pipeline data."""
         cells = []
 
-        cells.append(new_markdown_cell("""## Exploratory Data Analysis
+        cells.append(new_markdown_cell(
+            "## Exploratory Data Analysis\n\n*Findings from the EDA agent.*"
+        ))
 
-This section provides comprehensive exploratory analysis to assess data quality
-and readiness for causal inference."""))
+        eda = state.eda_result
 
-        # Data Quality Summary
-        if state.eda_result:
-            quality_md = f"""### Data Quality Summary
-
-**Overall Quality Score**: {state.eda_result.data_quality_score:.1f}/100
-
-"""
-            if state.eda_result.data_quality_issues:
-                quality_md += "**Issues Identified:**\n"
-                for issue in state.eda_result.data_quality_issues:
+        # Quality summary
+        if eda:
+            quality_md = f"### Data Quality\n\n"
+            quality_md += f"**Overall Quality Score**: {eda.data_quality_score:.1f}/100\n\n"
+            if eda.data_quality_issues:
+                quality_md += "**Issues Found:**\n"
+                for issue in eda.data_quality_issues:
                     quality_md += f"- {issue}\n"
             else:
                 quality_md += "No significant data quality issues detected.\n"
-
+            quality_md += "\n"
             cells.append(new_markdown_cell(quality_md))
 
-        # Distribution Analysis
-        cells.append(new_markdown_cell("### Distribution Analysis"))
-        dist_code = f'''# Distribution analysis for key variables
-import matplotlib.pyplot as plt
-import seaborn as sns
-from scipy import stats
+        # High correlations
+        if eda and eda.high_correlations:
+            corr_md = "### High Correlations (|r| > 0.7)\n\n"
+            corr_md += "| Variable 1 | Variable 2 | Correlation |\n"
+            corr_md += "|-----------|-----------|------------|\n"
+            for hc in eda.high_correlations[:15]:
+                if isinstance(hc, dict):
+                    v1 = hc.get("var1", hc.get("column1", "?"))
+                    v2 = hc.get("var2", hc.get("column2", "?"))
+                    r = hc.get("correlation", hc.get("r", "?"))
+                    r_str = f"{r:.3f}" if isinstance(r, (int, float)) else str(r)
+                    corr_md += f"| {v1} | {v2} | {r_str} |\n"
+            corr_md += "\n"
+            cells.append(new_markdown_cell(corr_md))
 
-# Select numeric columns
-numeric_cols = df.select_dtypes(include=['int64', 'float64']).columns.tolist()
+        # Multicollinearity
+        if eda and (eda.vif_scores or eda.multicollinearity_warnings):
+            vif_md = "### Multicollinearity\n\n"
+            if eda.multicollinearity_warnings:
+                for w in eda.multicollinearity_warnings:
+                    vif_md += f"- {w}\n"
+                vif_md += "\n"
+            if eda.vif_scores:
+                vif_md += "| Variable | VIF |\n|----------|-----|\n"
+                for var, vif in sorted(
+                    eda.vif_scores.items(), key=lambda x: -x[1]
+                )[:10]:
+                    severity = " **SEVERE**" if vif > 10 else " (moderate)" if vif > 5 else ""
+                    vif_md += f"| {var} | {vif:.2f}{severity} |\n"
+                vif_md += "\n"
+            cells.append(new_markdown_cell(vif_md))
 
-# Treatment and outcome
+        # Covariate balance
+        if eda and eda.covariate_balance:
+            bal_md = "### Covariate Balance\n\n"
+            if eda.balance_summary:
+                bal_md += f"{eda.balance_summary}\n\n"
+            bal_md += "| Covariate | Treated Mean | Control Mean | SMD | Balanced |\n"
+            bal_md += "|-----------|-------------|-------------|-----|----------|\n"
+            for cov, vals in eda.covariate_balance.items():
+                if isinstance(vals, dict):
+                    t_mean = vals.get("treated_mean", vals.get("mean_treated", "?"))
+                    c_mean = vals.get("control_mean", vals.get("mean_control", "?"))
+                    smd = vals.get("smd", vals.get("std_mean_diff", "?"))
+                    balanced = vals.get("is_balanced", vals.get("balanced", "?"))
+                    t_str = f"{t_mean:.3f}" if isinstance(t_mean, (int, float)) else str(t_mean)
+                    c_str = f"{c_mean:.3f}" if isinstance(c_mean, (int, float)) else str(c_mean)
+                    s_str = f"{smd:.3f}" if isinstance(smd, (int, float)) else str(smd)
+                    b_str = "Yes" if balanced else "No"
+                    bal_md += f"| {cov} | {t_str} | {c_str} | {s_str} | {b_str} |\n"
+            bal_md += "\n"
+            cells.append(new_markdown_cell(bal_md))
+
+        # EDA summary findings
+        if eda and eda.summary_table:
+            if isinstance(eda.summary_table, dict):
+                findings = eda.summary_table.get("key_findings", [])
+                recs = eda.summary_table.get("recommendations", [])
+                readiness = eda.summary_table.get("causal_readiness", "")
+
+                if findings or recs or readiness:
+                    summary_md = "### EDA Summary\n\n"
+                    if findings:
+                        summary_md += "**Key Findings:**\n"
+                        for f in findings:
+                            summary_md += f"- {f}\n"
+                        summary_md += "\n"
+                    if recs:
+                        summary_md += "**Recommendations:**\n"
+                        for r in recs:
+                            summary_md += f"- {r}\n"
+                        summary_md += "\n"
+                    if readiness:
+                        summary_md += f"**Causal Readiness**: {readiness}\n\n"
+                    cells.append(new_markdown_cell(summary_md))
+
+        # Visualization: Distribution plots for treatment & outcome
+        cells.append(new_markdown_cell("### Distribution Visualizations"))
+        dist_code = f'''# Distribution plots for treatment and outcome
 treatment_var = "{state.treatment_variable}"
 outcome_var = "{state.outcome_variable}"
 
-# Plot distributions for treatment and outcome
-fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 
 # Treatment distribution
-ax = axes[0, 0]
+ax = axes[0]
 if df[treatment_var].nunique() <= 10:
-    df[treatment_var].value_counts().plot(kind='bar', ax=ax, color='steelblue', alpha=0.7)
+    df[treatment_var].value_counts().sort_index().plot(kind='bar', ax=ax, color='steelblue', alpha=0.7)
 else:
     df[treatment_var].hist(bins=30, ax=ax, color='steelblue', alpha=0.7, edgecolor='black')
-ax.set_title(f'Distribution of {{treatment_var}} (Treatment)')
+ax.set_title(f'{{treatment_var}} (Treatment)')
 ax.set_xlabel(treatment_var)
 ax.set_ylabel('Count')
 
 # Outcome distribution
-ax = axes[0, 1]
+ax = axes[1]
 df[outcome_var].hist(bins=30, ax=ax, color='coral', alpha=0.7, edgecolor='black')
-ax.set_title(f'Distribution of {{outcome_var}} (Outcome)')
+ax.set_title(f'{{outcome_var}} (Outcome)')
 ax.set_xlabel(outcome_var)
 ax.set_ylabel('Count')
 
-# QQ plot for outcome (normality check)
-ax = axes[1, 0]
-stats.probplot(df[outcome_var].dropna(), dist="norm", plot=ax)
-ax.set_title(f'Q-Q Plot: {{outcome_var}}')
-
-# Box plots by treatment group
-ax = axes[1, 1]
-if df[treatment_var].nunique() <= 5:
-    df.boxplot(column=outcome_var, by=treatment_var, ax=ax)
-    ax.set_title(f'{{outcome_var}} by {{treatment_var}}')
-else:
-    # Scatter for continuous treatment
-    ax.scatter(df[treatment_var], df[outcome_var], alpha=0.3)
-    ax.set_xlabel(treatment_var)
-    ax.set_ylabel(outcome_var)
-    ax.set_title(f'{{outcome_var}} vs {{treatment_var}}')
-
-plt.suptitle('Key Variable Distributions', y=1.02, fontsize=14)
 plt.tight_layout()
-plt.show()
-
-# Print distribution statistics
-print("\\nDistribution Statistics:")
-print(f"{{outcome_var}}:")
-print(f"  Skewness: {{df[outcome_var].skew():.3f}}")
-print(f"  Kurtosis: {{df[outcome_var].kurtosis():.3f}}")'''
+plt.show()'''
         cells.append(new_code_cell(dist_code))
 
-        # Correlation Matrix
-        cells.append(new_markdown_cell("### Correlation Analysis"))
-        corr_code = '''# Correlation matrix heatmap
-numeric_df = df.select_dtypes(include=['int64', 'float64'])
+        # Correlation heatmap from pipeline data
+        if eda and eda.correlation_matrix:
+            cells.append(new_markdown_cell("### Correlation Heatmap"))
+            corr_data = json.dumps(eda.correlation_matrix)
+            heatmap_code = f'''# Correlation matrix from pipeline
+import json
+corr_data = json.loads('{corr_data}')
+corr_df = pd.DataFrame(corr_data)
 
-# Limit to top 15 variables if too many
-if len(numeric_df.columns) > 15:
-    # Select most correlated with outcome
-    correlations = numeric_df.corr()[outcome_var].abs().sort_values(ascending=False)
-    top_cols = correlations.head(15).index.tolist()
-    numeric_df = numeric_df[top_cols]
+# Limit display to 15 variables
+if len(corr_df.columns) > 15:
+    cols = corr_df.columns[:15]
+    corr_df = corr_df.loc[cols, cols]
 
-# Compute correlation matrix
-corr_matrix = numeric_df.corr()
-
-# Plot heatmap
 fig, ax = plt.subplots(figsize=(12, 10))
-mask = np.triu(np.ones_like(corr_matrix, dtype=bool))
-sns.heatmap(corr_matrix, mask=mask, annot=True, fmt='.2f', cmap='RdBu_r',
-            center=0, square=True, linewidths=0.5, ax=ax,
-            cbar_kws={'shrink': 0.8})
-ax.set_title('Correlation Matrix (Lower Triangle)', fontsize=14)
+mask = np.triu(np.ones_like(corr_df, dtype=bool))
+sns.heatmap(corr_df, mask=mask, annot=True, fmt='.2f', cmap='RdBu_r',
+            center=0, square=True, linewidths=0.5, ax=ax)
+ax.set_title('Correlation Matrix (from EDA agent)')
 plt.tight_layout()
-plt.show()
-
-# Identify high correlations
-print("\\nHigh Correlations (|r| > 0.7):")
-for i in range(len(corr_matrix.columns)):
-    for j in range(i+1, len(corr_matrix.columns)):
-        r = corr_matrix.iloc[i, j]
-        if abs(r) > 0.7:
-            print(f"  {corr_matrix.columns[i]} <-> {corr_matrix.columns[j]}: {r:.3f}")'''
-        cells.append(new_code_cell(corr_code))
-
-        # Outlier Detection
-        cells.append(new_markdown_cell("### Outlier Detection"))
-        outlier_code = '''# Outlier detection using IQR method
-def detect_outliers_iqr(series):
-    Q1 = series.quantile(0.25)
-    Q3 = series.quantile(0.75)
-    IQR = Q3 - Q1
-    lower = Q1 - 1.5 * IQR
-    upper = Q3 + 1.5 * IQR
-    return (series < lower) | (series > upper)
-
-# Check outliers in key numeric variables
-outlier_summary = {}
-for col in numeric_df.columns[:10]:  # Limit to first 10
-    mask = detect_outliers_iqr(df[col].dropna())
-    outlier_pct = mask.sum() / len(mask) * 100
-    if outlier_pct > 0:
-        outlier_summary[col] = outlier_pct
-
-# Visualize
-if outlier_summary:
-    fig, ax = plt.subplots(figsize=(10, 5))
-    cols = list(outlier_summary.keys())
-    pcts = list(outlier_summary.values())
-    bars = ax.barh(cols, pcts, color='coral', alpha=0.7)
-    ax.set_xlabel('Outlier Percentage (%)')
-    ax.set_title('Outlier Prevalence by Variable')
-    ax.axvline(x=5, color='red', linestyle='--', label='5% threshold')
-    ax.legend()
-    for bar, pct in zip(bars, pcts):
-        ax.text(bar.get_width() + 0.5, bar.get_y() + bar.get_height()/2,
-                f'{pct:.1f}%', va='center', fontsize=9)
-    plt.tight_layout()
-    plt.show()
-else:
-    print("No significant outliers detected.")
-
-# Box plots for variables with outliers
-if outlier_summary:
-    n_plots = min(4, len(outlier_summary))
-    fig, axes = plt.subplots(1, n_plots, figsize=(4*n_plots, 5))
-    if n_plots == 1:
-        axes = [axes]
-    for i, col in enumerate(list(outlier_summary.keys())[:n_plots]):
-        axes[i].boxplot(df[col].dropna())
-        axes[i].set_title(f'{col}')
-    plt.suptitle('Box Plots of Variables with Outliers', y=1.02)
-    plt.tight_layout()
-    plt.show()'''
-        cells.append(new_code_cell(outlier_code))
-
-        # Covariate Balance (if treatment is binary)
-        cells.append(new_markdown_cell("### Covariate Balance Assessment"))
-        balance_code = f'''# Covariate balance between treatment groups
-treatment_var = "{state.treatment_variable}"
-
-if df[treatment_var].nunique() == 2:
-    # Split into treatment and control
-    treated = df[df[treatment_var] == df[treatment_var].max()]
-    control = df[df[treatment_var] == df[treatment_var].min()]
-
-    print(f"Treatment Group: n={{len(treated)}}")
-    print(f"Control Group: n={{len(control)}}")
-
-    # Calculate Standardized Mean Difference (SMD) for covariates
-    balance_results = []
-    covariates = [c for c in numeric_df.columns if c not in [treatment_var, outcome_var]][:10]
-
-    for cov in covariates:
-        t_mean = treated[cov].mean()
-        c_mean = control[cov].mean()
-        pooled_std = np.sqrt((treated[cov].std()**2 + control[cov].std()**2) / 2)
-
-        if pooled_std > 0:
-            smd = abs(t_mean - c_mean) / pooled_std
-        else:
-            smd = 0
-
-        balance_results.append({{
-            'Covariate': cov,
-            'Treated Mean': t_mean,
-            'Control Mean': c_mean,
-            'SMD': smd,
-            'Balanced': 'Yes' if smd < 0.1 else 'No'
-        }})
-
-    balance_df = pd.DataFrame(balance_results)
-    print("\\nCovariate Balance Summary:")
-    print(balance_df.to_string(index=False))
-
-    # Love plot
-    fig, ax = plt.subplots(figsize=(10, 6))
-    y_pos = range(len(balance_df))
-    colors = ['green' if b == 'Yes' else 'red' for b in balance_df['Balanced']]
-    ax.barh(y_pos, balance_df['SMD'], color=colors, alpha=0.7)
-    ax.set_yticks(y_pos)
-    ax.set_yticklabels(balance_df['Covariate'])
-    ax.axvline(x=0.1, color='red', linestyle='--', label='SMD = 0.1 threshold')
-    ax.set_xlabel('Standardized Mean Difference (SMD)')
-    ax.set_title('Covariate Balance (Love Plot)')
-    ax.legend()
-    plt.tight_layout()
-    plt.show()
-
-    n_imbalanced = (balance_df['Balanced'] == 'No').sum()
-    if n_imbalanced > 0:
-        print(f"\\n⚠️ {{n_imbalanced}} covariates are imbalanced (SMD >= 0.1)")
-    else:
-        print("\\n✓ All covariates are well-balanced (SMD < 0.1)")
-else:
-    print("Treatment is not binary. Skipping balance assessment.")'''
-        cells.append(new_code_cell(balance_code))
-
-        # Multicollinearity Check
-        cells.append(new_markdown_cell("### Multicollinearity Check (VIF)"))
-        vif_code = '''# Variance Inflation Factor (VIF) for multicollinearity
-from statsmodels.stats.outliers_influence import variance_inflation_factor
-
-# Prepare covariates matrix
-covariates = [c for c in numeric_df.columns if c not in [treatment_var, outcome_var]][:10]
-X = df[covariates].dropna()
-
-if len(X) > 10 and len(covariates) >= 2:
-    # Add constant
-    X_with_const = np.column_stack([np.ones(len(X)), X.values])
-
-    vif_data = []
-    for i, col in enumerate(covariates):
-        try:
-            vif = variance_inflation_factor(X_with_const, i + 1)
-            vif_data.append({'Variable': col, 'VIF': vif})
-        except (ValueError, np.linalg.LinAlgError):
-            pass  # Skip columns that cause numerical issues
-
-    vif_df = pd.DataFrame(vif_data).sort_values('VIF', ascending=False)
-
-    print("Variance Inflation Factors:")
-    print(vif_df.to_string(index=False))
-
-    # Flag high VIF
-    high_vif = vif_df[vif_df['VIF'] > 5]
-    if len(high_vif) > 0:
-        print(f"\\n⚠️ Variables with VIF > 5 (potential multicollinearity):")
-        for _, row in high_vif.iterrows():
-            severity = "SEVERE" if row['VIF'] > 10 else "moderate"
-            print(f"  - {row['Variable']}: VIF = {row['VIF']:.2f} ({severity})")
-    else:
-        print("\\n✓ No severe multicollinearity detected (all VIF < 5)")
-
-    # Visualization
-    fig, ax = plt.subplots(figsize=(10, 5))
-    colors = ['red' if v > 10 else 'orange' if v > 5 else 'green' for v in vif_df['VIF']]
-    ax.barh(vif_df['Variable'], vif_df['VIF'], color=colors, alpha=0.7)
-    ax.axvline(x=5, color='orange', linestyle='--', label='VIF = 5')
-    ax.axvline(x=10, color='red', linestyle='--', label='VIF = 10')
-    ax.set_xlabel('Variance Inflation Factor')
-    ax.set_title('Multicollinearity Assessment')
-    ax.legend()
-    plt.tight_layout()
-    plt.show()
-else:
-    print("Insufficient data for VIF calculation.")'''
-        cells.append(new_code_cell(vif_code))
-
-        # Missing Data Analysis
-        cells.append(new_markdown_cell("### Missing Data Analysis"))
-        missing_code = '''# Missing data analysis
-missing = df.isnull().sum()
-missing_pct = (missing / len(df)) * 100
-missing_df = pd.DataFrame({
-    'Variable': missing.index,
-    'Missing Count': missing.values,
-    'Missing %': missing_pct.values
-}).sort_values('Missing %', ascending=False)
-
-# Only show variables with missing data
-missing_df = missing_df[missing_df['Missing Count'] > 0]
-
-if len(missing_df) > 0:
-    print("Variables with Missing Data:")
-    print(missing_df.to_string(index=False))
-
-    # Visualization
-    if len(missing_df) <= 20:
-        fig, ax = plt.subplots(figsize=(10, 6))
-        colors = ['red' if p > 30 else 'orange' if p > 10 else 'green' for p in missing_df['Missing %']]
-        ax.barh(missing_df['Variable'], missing_df['Missing %'], color=colors, alpha=0.7)
-        ax.set_xlabel('Missing Percentage (%)')
-        ax.set_title('Missing Data by Variable')
-        ax.axvline(x=10, color='orange', linestyle='--', alpha=0.7)
-        ax.axvline(x=30, color='red', linestyle='--', alpha=0.7)
-        plt.tight_layout()
-        plt.show()
-else:
-    print("✓ No missing data in the dataset!")
-
-# Overall summary
-total_missing = df.isnull().sum().sum()
-total_cells = df.shape[0] * df.shape[1]
-print(f"\\nOverall: {total_missing:,} missing values out of {total_cells:,} total ({100*total_missing/total_cells:.2f}%)")'''
-        cells.append(new_code_cell(missing_code))
-
-        # EDA Summary
-        if state.eda_result and state.eda_result.summary_table:
-            summary_md = "### EDA Summary\n\n"
-
-            if "key_findings" in state.eda_result.summary_table:
-                summary_md += "**Key Findings:**\n"
-                for finding in state.eda_result.summary_table["key_findings"]:
-                    summary_md += f"- {finding}\n"
-                summary_md += "\n"
-
-            if "recommendations" in state.eda_result.summary_table:
-                summary_md += "**Recommendations for Causal Analysis:**\n"
-                for rec in state.eda_result.summary_table["recommendations"]:
-                    summary_md += f"- {rec}\n"
-                summary_md += "\n"
-
-            if "causal_readiness" in state.eda_result.summary_table:
-                readiness = state.eda_result.summary_table["causal_readiness"]
-                emoji = "✅" if readiness == "ready" else "⚠️" if readiness == "needs_attention" else "❌"
-                summary_md += f"**Causal Inference Readiness**: {emoji} {readiness.replace('_', ' ').title()}\n"
-
-            cells.append(new_markdown_cell(summary_md))
+plt.show()'''
+            cells.append(new_code_cell(heatmap_code))
 
         return cells
 
-    async def _generate_causal_structure(self, state: AnalysisState) -> list:
-        """Generate causal structure section."""
-        cells = []
+    # ──────────────────── 8. Causal Structure ───────────────────────────
 
+    def _generate_causal_structure(self, state: AnalysisState) -> list:
+        """Report causal discovery agent findings."""
+        cells = []
         dag = state.proposed_dag
 
-        cells.append(new_markdown_cell(f"""## Causal Structure
-
-The causal graph was discovered using the **{dag.discovery_method}** algorithm.
-
-This graph represents our hypothesis about the causal relationships between variables.
-**Important**: The discovered structure is a hypothesis based on statistical associations
-and should be validated with domain knowledge.
-"""))
+        md = f"## Causal Structure\n\n"
+        md += f"*Discovered by the Causal Discovery agent using **{dag.discovery_method}**.*\n\n"
+        md += "The graph below represents the discovered causal relationships.\n"
+        md += "**Green** = treatment, **Red** = outcome, **Blue** = other variables.\n"
+        cells.append(new_markdown_cell(md))
 
         # DAG visualization code
-        dag_code = f'''# Causal Graph Visualization
+        edges_json = json.dumps([(e.source, e.target) for e in dag.edges])
+        nodes_json = json.dumps(dag.nodes)
+
+        dag_code = f'''# Causal graph from pipeline
 import networkx as nx
 
-# Create directed graph
 G = nx.DiGraph()
+G.add_nodes_from({nodes_json})
+G.add_edges_from({edges_json})
 
-# Add nodes
-nodes = {json.dumps(dag.nodes)}
-G.add_nodes_from(nodes)
-
-# Add edges
-edges = {json.dumps([(e.source, e.target) for e in dag.edges])}
-G.add_edges_from(edges)
-
-# Draw the graph
 fig, ax = plt.subplots(figsize=(12, 8))
 pos = nx.spring_layout(G, k=2, iterations=50, seed=42)
 
-# Draw nodes
 treatment_node = "{state.treatment_variable}"
 outcome_node = "{state.outcome_variable}"
 
@@ -777,80 +754,352 @@ nx.draw_networkx_nodes(G, pos, node_color=node_colors, node_size=2000, alpha=0.9
 nx.draw_networkx_edges(G, pos, edge_color='gray', arrows=True, arrowsize=20,
                        connectionstyle="arc3,rad=0.1", ax=ax)
 nx.draw_networkx_labels(G, pos, font_size=10, font_weight='bold', ax=ax)
-
-ax.set_title('Discovered Causal Graph\\n(Green=Treatment, Red=Outcome, Blue=Other)')
+ax.set_title('Discovered Causal Graph')
 ax.axis('off')
 plt.tight_layout()
 plt.show()
 
-print(f"Number of nodes: {{len(G.nodes())}}")
-print(f"Number of edges: {{len(G.edges())}}")'''
+print(f"Nodes: {{len(G.nodes())}}, Edges: {{len(G.edges())}}")'''
         cells.append(new_code_cell(dag_code))
+
+        # DAG interpretation
+        if dag.interpretation:
+            cells.append(new_markdown_cell(
+                f"### Causal Graph Interpretation\n\n{dag.interpretation}\n"
+            ))
+
+        # Edge details
+        if dag.edges:
+            edge_md = "### Edge Details\n\n"
+            edge_md += "| Source | Target | Type | Confidence |\n"
+            edge_md += "|--------|--------|------|------------|\n"
+            for e in dag.edges:
+                conf_str = f"{e.confidence:.2f}" if isinstance(e.confidence, (int, float)) else str(e.confidence)
+                edge_md += f"| {e.source} | {e.target} | {e.edge_type} | {conf_str} |\n"
+            edge_md += "\n"
+            cells.append(new_markdown_cell(edge_md))
 
         return cells
 
-    async def _generate_treatment_effects(self, state: AnalysisState) -> list:
-        """Generate treatment effect estimation section."""
+    # ──────────────────── 9. Confounder Analysis ────────────────────────
+
+    def _generate_confounder_analysis(self, state: AnalysisState) -> list:
+        """Report confounder identification from the pipeline."""
         cells = []
 
-        cells.append(new_markdown_cell(f"""## Treatment Effect Estimation
+        md = "## Confounder Analysis\n\n"
+        md += "*Variables identified as potential confounders by the pipeline.*\n\n"
 
-We estimate the causal effect of **{state.treatment_variable}** on **{state.outcome_variable}**
-using multiple methods for robustness.
+        # From confounder_discovery if available
+        if state.confounder_discovery:
+            cd = state.confounder_discovery
+            ranked = cd.get("ranked_confounders", [])
+            if ranked:
+                md += "### Ranked Confounders\n\n"
+                if isinstance(ranked[0], dict):
+                    md += "| Rank | Variable | Evidence |\n|------|----------|----------|\n"
+                    for i, c in enumerate(ranked, 1):
+                        name = c.get("variable", c.get("name", str(c)))
+                        evidence = c.get("evidence", c.get("reason", "-"))
+                        md += f"| {i} | {name} | {evidence} |\n"
+                else:
+                    md += "| Rank | Variable |\n|------|----------|\n"
+                    for i, c in enumerate(ranked, 1):
+                        md += f"| {i} | {c} |\n"
+                md += "\n"
 
-**Treatment**: {state.treatment_variable}
-**Outcome**: {state.outcome_variable}
-"""))
+            strategy = cd.get("adjustment_strategy", "")
+            if strategy:
+                md += f"**Adjustment Strategy**: {strategy}\n\n"
 
-        # Setup variables
-        setup_code = f'''# Define treatment and outcome
+        # From data profile
+        elif state.data_profile and state.data_profile.potential_confounders:
+            confounders = state.data_profile.potential_confounders
+            md += "### Potential Confounders (from Data Profile)\n\n"
+            for c in confounders:
+                ftype = state.data_profile.feature_types.get(c, "unknown") if state.data_profile.feature_types else "unknown"
+                md += f"- **{c}** ({ftype})\n"
+            md += "\n"
+
+        # Analyzed pairs
+        if state.analyzed_pairs:
+            md += "### Analyzed Treatment-Outcome Pairs\n\n"
+            md += "| Treatment | Outcome | Priority | Rationale |\n"
+            md += "|-----------|---------|----------|-----------|\n"
+            for pair in state.analyzed_pairs:
+                md += f"| {pair.treatment} | {pair.outcome} | {pair.priority} | {pair.rationale} |\n"
+            md += "\n"
+
+        cells.append(new_markdown_cell(md))
+        return cells
+
+    # ──────────────────── 10. Propensity Score Diagnostics ─────────────
+
+    def _generate_ps_diagnostics(self, state: AnalysisState) -> list:
+        """Report propensity score diagnostics agent findings."""
+        cells = []
+        ps = state.ps_diagnostics
+        if not ps:
+            return cells
+
+        md = "## Propensity Score Diagnostics\n\n"
+        md += "*Assessment from the PS Diagnostics agent — validates whether "
+        md += "propensity-score-based estimation methods are reliable for this data.*\n\n"
+
+        # Model quality badge
+        quality = ps.get("model_quality", "unknown")
+        proceed = ps.get("proceed_with_analysis", True)
+        recommended = ps.get("recommended_method", "unknown")
+
+        md += "### Summary\n\n"
+        md += "| Diagnostic | Result |\n"
+        md += "|-----------|--------|\n"
+        md += f"| PS Model Quality | **{quality.replace('_', ' ').title()}** |\n"
+        md += f"| Proceed with Analysis | **{'Yes' if proceed else 'No'}** |\n"
+        md += f"| Recommended Method | **{recommended.upper().replace('_', ' ')}** |\n"
+
+        # Trimming bounds
+        trimming = ps.get("trimming_bounds")
+        if trimming:
+            md += f"| PS Trimming Bounds | [{trimming[0]:.3f}, {trimming[1]:.3f}] |\n"
+        else:
+            md += f"| PS Trimming Bounds | None (no trimming needed) |\n"
+        md += "\n"
+
+        # Warnings
+        warnings_list = ps.get("warnings", [])
+        if warnings_list:
+            md += "### Warnings\n\n"
+            for w in warnings_list:
+                md += f"- {w}\n"
+            md += "\n"
+
+        # Reasoning
+        reasoning = ps.get("reasoning", "")
+        if reasoning:
+            md += "### Diagnostic Reasoning\n\n"
+            md += f"{reasoning}\n\n"
+
+        # Not-proceed warning box
+        if not proceed:
+            md += "> **WARNING**: The PS diagnostics agent recommends **not proceeding** "
+            md += "with propensity-score-based methods for this dataset. Treatment effect "
+            md += "estimates using IPW or matching should be interpreted with extreme caution.\n\n"
+
+        cells.append(new_markdown_cell(md))
+
+        # PS distribution visualization code (if we have the data)
+        cells.append(new_markdown_cell(
+            "### Propensity Score Distribution\n\n"
+            "Visualize the estimated propensity scores by treatment group to assess overlap."
+        ))
+
+        trimming_code = ""
+        if trimming:
+            trimming_code = (
+                f"\n    # Apply trimming bounds from PS diagnostics\n"
+                f"    trim_lower, trim_upper = {trimming[0]}, {trimming[1]}\n"
+                f"    mask = (ps_scores >= trim_lower) & (ps_scores <= trim_upper)\n"
+                f"    print(f\"Trimming: {{{{(~mask).sum()}}}} observations outside "
+                f"[{trimming[0]:.3f}, {trimming[1]:.3f}]\")\n"
+            )
+
+        ps_code = f'''# Propensity score estimation and overlap check
+from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import StandardScaler
+
 treatment_var = "{state.treatment_variable}"
 outcome_var = "{state.outcome_variable}"
 
-# Prepare data
-df_analysis = df[[treatment_var, outcome_var]].dropna()
-
-# Get covariates (potential confounders)
-covariates = {json.dumps(state.data_profile.potential_confounders[:10] if state.data_profile else [])}
-covariates = [c for c in covariates if c in df.columns and c not in [treatment_var, outcome_var]]
+# Get covariates (all numeric columns except treatment and outcome)
+covariates = [c for c in df.select_dtypes(include=[np.number]).columns
+              if c != treatment_var and c != outcome_var]
 
 if covariates:
-    df_analysis = df[[treatment_var, outcome_var] + covariates].dropna()
-    X = df_analysis[covariates].values
+    X = df[covariates].fillna(df[covariates].median())
+    T = df[treatment_var].values
+
+    # Binarize treatment if continuous
+    if len(np.unique(T)) > 2:
+        T = (T > np.median(T)).astype(int)
+
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+
+    lr = LogisticRegression(max_iter=1000, random_state=42)
+    lr.fit(X_scaled, T)
+    ps_scores = lr.predict_proba(X_scaled)[:, 1]
+{trimming_code}
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+
+    # Distribution by group
+    ax = axes[0]
+    ax.hist(ps_scores[T == 0], bins=30, alpha=0.6, label="Control", color="steelblue", edgecolor="black")
+    ax.hist(ps_scores[T == 1], bins=30, alpha=0.6, label="Treated", color="coral", edgecolor="black")
+    ax.set_xlabel("Propensity Score")
+    ax.set_ylabel("Count")
+    ax.set_title("PS Distribution by Treatment Group")
+    ax.legend()
+
+    # Overlap assessment
+    ax = axes[1]
+    ax.boxplot([ps_scores[T == 0], ps_scores[T == 1]], labels=["Control", "Treated"])
+    ax.set_ylabel("Propensity Score")
+    ax.set_title("PS Overlap Assessment")
+
+    plt.tight_layout()
+    plt.show()
+
+    # Print diagnostics
+    print(f"PS Model Quality: {quality}")
+    print(f"Recommended Method: {recommended}")
+    print(f"Overlap: ({{ps_scores[T == 1].min():.3f}}-{{ps_scores[T == 1].max():.3f}}) treated, "
+          f"({{ps_scores[T == 0].min():.3f}}-{{ps_scores[T == 0].max():.3f}}) control")
 else:
-    X = None
+    print("No numeric covariates available for PS estimation.")'''
+        cells.append(new_code_cell(ps_code))
 
-T = df_analysis[treatment_var].values
-Y = df_analysis[outcome_var].values
+        return cells
 
-# Binarize treatment if needed
+    # ──────────────────── 11. Treatment Effects ──────────────────────────
+
+    def _generate_treatment_effects(self, state: AnalysisState) -> list:
+        """Report treatment effect estimation results."""
+        cells = []
+
+        effects = self._deduplicate_effects(state.treatment_effects)
+
+        md = f"## Treatment Effect Estimation\n\n"
+        md += f"*Results from the Effect Estimator agent.*\n\n"
+        md += f"**Treatment**: {state.treatment_variable}\n"
+        md += f"**Outcome**: {state.outcome_variable}\n"
+        md += f"**Methods applied**: {len(effects)}\n\n"
+        cells.append(new_markdown_cell(md))
+
+        # Results table
+        if effects:
+            table_md = "### Results Summary\n\n"
+            table_md += "| Method | Estimand | Estimate | Std Error | 95% CI | p-value |\n"
+            table_md += "|--------|----------|----------|-----------|--------|--------|\n"
+            for e in effects:
+                pval = f"{e.p_value:.4f}" if e.p_value is not None else "N/A"
+                table_md += (
+                    f"| {e.method} | {e.estimand} | {e.estimate:.4f} | "
+                    f"{e.std_error:.4f} | [{e.ci_lower:.4f}, {e.ci_upper:.4f}] | {pval} |\n"
+                )
+            table_md += "\n"
+            cells.append(new_markdown_cell(table_md))
+
+        # Per-method details
+        for e in effects:
+            if e.details or e.assumptions_tested:
+                detail_md = f"#### {e.method} Details\n\n"
+                if e.assumptions_tested:
+                    detail_md += "**Assumptions tested:**\n"
+                    for a in e.assumptions_tested:
+                        detail_md += f"- {a}\n"
+                    detail_md += "\n"
+                if e.details:
+                    detail_md += "**Diagnostics:**\n"
+                    for k, v in e.details.items():
+                        if isinstance(v, float):
+                            detail_md += f"- {k}: {v:.4f}\n"
+                        elif not isinstance(v, (list, dict)):
+                            detail_md += f"- {k}: {v}\n"
+                    detail_md += "\n"
+                cells.append(new_markdown_cell(detail_md))
+
+        # Forest plot
+        if effects:
+            cells.append(new_markdown_cell("### Treatment Effect Comparison"))
+            results_json = json.dumps([
+                {
+                    "method": e.method,
+                    "estimate": e.estimate,
+                    "ci_lower": e.ci_lower,
+                    "ci_upper": e.ci_upper,
+                }
+                for e in effects
+            ])
+
+            plot_code = f'''# Forest plot of treatment effect estimates
+import json
+results = json.loads('{results_json}')
+
+fig, ax = plt.subplots(figsize=(10, max(4, len(results) * 1.2)))
+
+methods = [r['method'] for r in results]
+estimates = [r['estimate'] for r in results]
+ci_lower = [r['ci_lower'] for r in results]
+ci_upper = [r['ci_upper'] for r in results]
+
+y_pos = list(range(len(methods)))
+xerr_lower = [e - l for e, l in zip(estimates, ci_lower)]
+xerr_upper = [u - e for e, u in zip(estimates, ci_upper)]
+
+# Traditional forest plot: point estimates with CI whiskers
+ax.errorbar(estimates, y_pos, xerr=[xerr_lower, xerr_upper],
+            fmt='o', color='steelblue', markersize=8, capsize=6,
+            elinewidth=2, markeredgewidth=2)
+ax.axvline(x=0, color='red', linestyle='--', alpha=0.5, label='Zero effect')
+ax.set_yticks(y_pos)
+ax.set_yticklabels(methods)
+ax.set_xlabel('Treatment Effect Estimate')
+ax.set_title('Forest Plot: Treatment Effect Estimates Across Methods')
+ax.legend()
+ax.grid(axis='x', alpha=0.3)
+plt.tight_layout()
+plt.show()'''
+            cells.append(new_code_cell(plot_code))
+
+        # Verification OLS code (reproducibility check)
+        if effects:
+            # Get numeric covariates only
+            numeric_confounders: list[str] = []
+            if state.data_profile and state.data_profile.potential_confounders:
+                numeric_types = {"numeric", "binary", "ordinal"}
+                ft = state.data_profile.feature_types or {}
+                numeric_confounders = [
+                    c
+                    for c in state.data_profile.potential_confounders[:10]
+                    if ft.get(c) in numeric_types
+                    and c != state.treatment_variable
+                    and c != state.outcome_variable
+                ]
+
+            cells.append(new_markdown_cell(
+                "### Verification: OLS Regression\n\n"
+                "Run this cell to independently verify the OLS estimate."
+            ))
+
+            covariates_json = json.dumps(numeric_confounders)
+            verify_code = f'''# Verification: OLS regression
+import statsmodels.api as sm
+
+treatment_var = "{state.treatment_variable}"
+outcome_var = "{state.outcome_variable}"
+covariates = {covariates_json}
+
+# Filter to numeric covariates only (safety check)
+covariates = [c for c in covariates if c in df.columns
+              and pd.api.types.is_numeric_dtype(df[c])]
+
+all_cols = [treatment_var, outcome_var] + covariates
+df_clean = df[all_cols].dropna()
+
+T = df_clean[treatment_var].values.astype(float)
+Y = df_clean[outcome_var].values.astype(float)
+
+# Binarize continuous treatment at median
 if len(np.unique(T)) > 2:
-    T_binary = (T > np.median(T)).astype(int)
-    print(f"Treatment binarized at median ({{np.median(T):.2f}})")
+    median_t = np.median(T)
+    T_binary = (T > median_t).astype(int)
+    print(f"Treatment binarized at median ({{median_t:.2f}})")
 else:
     T_binary = T
 
-print(f"Sample size: {{len(T)}}")
-print(f"Treated: {{np.sum(T_binary == 1)}}")
-print(f"Control: {{np.sum(T_binary == 0)}}")'''
-        cells.append(new_code_cell(setup_code))
-
-        # Results summary from actual analysis
-        results_md = "### Results Summary\n\n"
-        results_md += "| Method | Estimand | Estimate | 95% CI | p-value |\n"
-        results_md += "|--------|----------|----------|--------|--------|\n"
-
-        for effect in state.treatment_effects:
-            pval = f"{effect.p_value:.4f}" if effect.p_value else "N/A"
-            results_md += f"| {effect.method} | {effect.estimand} | "
-            results_md += f"{effect.estimate:.4f} | [{effect.ci_lower:.4f}, {effect.ci_upper:.4f}] | {pval} |\n"
-
-        cells.append(new_markdown_cell(results_md))
-
-        # OLS Regression code
-        cells.append(new_markdown_cell("### Method 1: OLS Regression"))
-        ols_code = '''# OLS Regression with covariates
-if X is not None and len(X) > 0:
+if covariates:
+    X = df_clean[covariates].values.astype(float)
     design = np.column_stack([np.ones(len(T_binary)), T_binary, X])
 else:
     design = np.column_stack([np.ones(len(T_binary)), T_binary])
@@ -858,172 +1107,259 @@ else:
 model = sm.OLS(Y, design)
 results = model.fit()
 
-ate_ols = results.params[1]
-se_ols = results.bse[1]
-ci_ols = results.conf_int()[1]
-pval_ols = results.pvalues[1]
+print(f"\\nVerification OLS Results:")
+print(f"  ATE:      {{results.params[1]:.4f}}")
+print(f"  SE:       {{results.bse[1]:.4f}}")
+print(f"  95% CI:   [{{results.conf_int()[1][0]:.4f}}, {{results.conf_int()[1][1]:.4f}}]")
+print(f"  p-value:  {{results.pvalues[1]:.4f}}")
+print(f"  R-squared: {{results.rsquared:.4f}}")
+print(f"  N:        {{len(df_clean)}}")'''
+            cells.append(new_code_cell(verify_code))
 
-print("OLS Regression Results:")
-print(f"  ATE: {ate_ols:.4f}")
-print(f"  SE: {se_ols:.4f}")
-print(f"  95% CI: [{ci_ols[0]:.4f}, {ci_ols[1]:.4f}]")
-print(f"  p-value: {pval_ols:.4f}")
-print(f"  R-squared: {results.rsquared:.4f}")'''
-        cells.append(new_code_cell(ols_code))
+        return cells
 
-        # IPW code
-        cells.append(new_markdown_cell("### Method 2: Inverse Probability Weighting"))
-        ipw_code = '''# Inverse Probability Weighting
-if X is not None and len(X) > 0:
-    # Estimate propensity scores
-    ps_model = LogisticRegression(max_iter=1000, random_state=42)
-    ps_model.fit(X, T_binary)
-    ps = ps_model.predict_proba(X)[:, 1]
-    ps = np.clip(ps, 0.01, 0.99)
+    # ──────────────────── 12. Sensitivity Analysis ──────────────────────
 
-    # IPW estimator
-    weights_treated = T_binary / ps
-    weights_control = (1 - T_binary) / (1 - ps)
+    def _generate_sensitivity(self, state: AnalysisState) -> list:
+        """Report sensitivity analysis results with executable verification code."""
+        cells = []
+        sensitivity_results = self._deduplicate_sensitivity(state.sensitivity_results)
 
-    ate_ipw = np.mean(weights_treated * Y) - np.mean(weights_control * Y)
+        cells.append(new_markdown_cell(
+            "## Sensitivity Analysis\n\n*Findings from the Sensitivity Analyst agent.*"
+        ))
 
-    # Bootstrap for SE
-    n_bootstrap = 500
-    bootstrap_estimates = []
-    n = len(Y)
-    for _ in range(n_bootstrap):
-        idx = np.random.choice(n, size=n, replace=True)
-        w_t = weights_treated[idx]
-        w_c = weights_control[idx]
-        y_b = Y[idx]
-        bootstrap_estimates.append(np.mean(w_t * y_b) - np.mean(w_c * y_b))
+        # Results summary table
+        if sensitivity_results:
+            table_md = "### Results Summary\n\n"
+            table_md += "| Analysis | Robustness Value | Interpretation |\n"
+            table_md += "|----------|------------------|----------------|\n"
+            for s in sensitivity_results:
+                interp = s.interpretation[:100] + ("..." if len(s.interpretation) > 100 else "")
+                table_md += f"| {s.method} | {s.robustness_value:.2f} | {interp} |\n"
+            table_md += "\n"
+            cells.append(new_markdown_cell(table_md))
 
-    se_ipw = np.std(bootstrap_estimates)
-    ci_ipw = (np.percentile(bootstrap_estimates, 2.5), np.percentile(bootstrap_estimates, 97.5))
+        # Per-method details
+        for s in sensitivity_results:
+            if s.details:
+                detail_md = f"#### {s.method}\n\n"
+                detail_md += f"**Interpretation**: {s.interpretation}\n\n"
+                detail_md += "**Details:**\n"
+                for k, v in s.details.items():
+                    if isinstance(v, float):
+                        detail_md += f"- {k}: {v:.4f}\n"
+                    elif isinstance(v, (str, int, bool)):
+                        detail_md += f"- {k}: {v}\n"
+                detail_md += "\n"
+                cells.append(new_markdown_cell(detail_md))
 
-    print("IPW Results:")
-    print(f"  ATE: {ate_ipw:.4f}")
-    print(f"  SE: {se_ipw:.4f}")
-    print(f"  95% CI: [{ci_ipw[0]:.4f}, {ci_ipw[1]:.4f}]")
+        # Executable: E-value computation
+        cells.append(new_markdown_cell(
+            "### Verification: E-value Computation\n\n"
+            "The E-value quantifies how strong unmeasured confounding "
+            "would need to be to explain away the observed effect."
+        ))
+
+        evalue_code = '''# E-value computation
+def compute_e_value(ate, se, y_std):
+    """Compute E-value from treatment effect estimate."""
+    if abs(ate) < 1e-10 or y_std < 1e-10:
+        return 1.0, 1.0
+
+    # Approximate risk ratio
+    rr = np.exp(0.91 * ate / y_std)
+    if rr < 1:
+        rr = 1 / rr
+
+    e_val = rr + np.sqrt(rr * (rr - 1))
+
+    # E-value for CI bound
+    ci_bound = abs(ate) - 1.96 * se
+    if ci_bound > 0:
+        rr_ci = np.exp(0.91 * ci_bound / y_std)
+        if rr_ci < 1:
+            rr_ci = 1 / rr_ci
+        e_val_ci = rr_ci + np.sqrt(rr_ci * (rr_ci - 1))
+    else:
+        e_val_ci = 1.0
+
+    return e_val, e_val_ci
+
+# Use the verification OLS results
+e_val, e_val_ci = compute_e_value(results.params[1], results.bse[1], np.std(Y))
+print(f"E-value (point estimate): {e_val:.2f}")
+print(f"E-value (CI bound):       {e_val_ci:.2f}")
+print()
+if e_val > 3:
+    print("STRONG robustness: A very strong unmeasured confounder would be needed.")
+elif e_val > 2:
+    print("MODERATE robustness: A moderately strong confounder could explain this.")
 else:
-    print("IPW requires covariates for propensity score estimation")'''
-        cells.append(new_code_cell(ipw_code))
+    print("WEAK robustness: A relatively weak confounder could explain the effect.")'''
+        cells.append(new_code_cell(evalue_code))
 
-        # Results comparison visualization
-        cells.append(new_markdown_cell("### Results Comparison"))
-        viz_code = f'''# Visualize results comparison
-results_data = {json.dumps([
-    {"method": e.method, "estimate": e.estimate, "ci_lower": e.ci_lower, "ci_upper": e.ci_upper}
-    for e in state.treatment_effects
-])}
+        # Executable: Placebo test
+        cells.append(new_markdown_cell(
+            "### Verification: Placebo Test\n\n"
+            "Checks whether the treatment effect disappears under random treatment assignment."
+        ))
 
-fig, ax = plt.subplots(figsize=(10, 6))
+        placebo_code = '''# Placebo test: permutation-based
+n_permutations = 500
+placebo_effects = []
 
-methods = [r['method'] for r in results_data]
-estimates = [r['estimate'] for r in results_data]
-ci_lower = [r['ci_lower'] for r in results_data]
-ci_upper = [r['ci_upper'] for r in results_data]
+for _ in range(n_permutations):
+    T_placebo = np.random.permutation(T_binary)
+    if covariates:
+        X_p = df_clean[covariates].values.astype(float)
+        design_p = np.column_stack([np.ones(len(T_placebo)), T_placebo, X_p])
+    else:
+        design_p = np.column_stack([np.ones(len(T_placebo)), T_placebo])
 
-# Calculate error bars
-yerr_lower = [e - l for e, l in zip(estimates, ci_lower)]
-yerr_upper = [u - e for e, u in zip(estimates, ci_upper)]
+    try:
+        res_p = sm.OLS(Y, design_p).fit()
+        placebo_effects.append(res_p.params[1])
+    except Exception:
+        pass
 
-y_pos = range(len(methods))
-ax.barh(y_pos, estimates, xerr=[yerr_lower, yerr_upper], capsize=5, alpha=0.7)
-ax.axvline(x=0, color='red', linestyle='--', alpha=0.5)
-ax.set_yticks(y_pos)
-ax.set_yticklabels(methods)
-ax.set_xlabel('Treatment Effect Estimate')
-ax.set_title('Treatment Effect Estimates Across Methods')
+real_ate = results.params[1]
+p_value_perm = np.mean(np.abs(placebo_effects) >= np.abs(real_ate))
+
+print(f"Real ATE:             {real_ate:.4f}")
+print(f"Mean placebo effect:  {np.mean(placebo_effects):.4f}")
+print(f"Permutation p-value:  {p_value_perm:.4f}")
+
+fig, ax = plt.subplots(figsize=(10, 5))
+ax.hist(placebo_effects, bins=50, alpha=0.7, color='gray', edgecolor='black', label='Placebo effects')
+ax.axvline(x=real_ate, color='red', linewidth=2, label=f'Real ATE: {real_ate:.4f}')
+ax.set_xlabel('Effect Estimate')
+ax.set_ylabel('Frequency')
+ax.set_title('Placebo Test: Real Effect vs Permuted Effects')
+ax.legend()
 plt.tight_layout()
 plt.show()'''
-        cells.append(new_code_cell(viz_code))
+        cells.append(new_code_cell(placebo_code))
 
         return cells
 
-    async def _generate_sensitivity(self, state: AnalysisState) -> list:
-        """Generate sensitivity analysis section."""
+    # ──────────────────── 13. Critique Section ──────────────────────────
+
+    def _generate_critique_section(self, state: AnalysisState) -> list:
+        """Report critique agent findings."""
         cells = []
 
-        cells.append(new_markdown_cell("""## Sensitivity Analysis
+        md = "## Analysis Quality & Critique\n\n"
+        md += "*Assessment from the automated Critique agent.*\n\n"
 
-We assess the robustness of our findings to potential violations of causal assumptions.
-"""))
+        for critique in state.critique_history:
+            md += f"### Iteration {critique.iteration}\n\n"
+            md += f"**Decision**: **{critique.decision.value}**\n\n"
 
-        # Sensitivity results summary
-        sens_md = "### Sensitivity Results\n\n"
-        sens_md += "| Analysis | Robustness Value | Interpretation |\n"
-        sens_md += "|----------|------------------|----------------|\n"
+            # Quality scores
+            if critique.scores:
+                md += "**Quality Scores:**\n\n"
+                md += "| Dimension | Score |\n|-----------|-------|\n"
+                for dim, score in critique.scores.items():
+                    bar = "█" * score + "░" * (5 - score)
+                    md += f"| {dim.replace('_', ' ').title()} | {bar} {score}/5 |\n"
+                md += "\n"
 
-        for sens in state.sensitivity_results:
-            sens_md += f"| {sens.method} | {sens.robustness_value:.2f} | {sens.interpretation[:50]}... |\n"
+            # Issues
+            if critique.issues:
+                md += "**Issues Identified:**\n"
+                for issue in critique.issues:
+                    md += f"- {issue}\n"
+                md += "\n"
 
-        cells.append(new_markdown_cell(sens_md))
+            # Improvements
+            if critique.improvements:
+                md += "**Improvements:**\n"
+                for imp in critique.improvements:
+                    md += f"- {imp}\n"
+                md += "\n"
 
-        # E-value interpretation
-        cells.append(new_markdown_cell("""### Understanding Sensitivity Metrics
+            # Reasoning
+            if critique.reasoning:
+                md += f"**Reasoning**: {critique.reasoning[:500]}\n\n"
 
-**E-value**: The minimum strength of association (on the risk ratio scale) that an unmeasured
-confounder would need to have with both treatment and outcome to explain away the observed effect.
-- E-value > 2: Moderate robustness
-- E-value > 3: Good robustness
+            md += "---\n\n"
 
-**Specification Curve**: Shows how the estimate varies across reasonable analytical choices.
-Higher stability (less variation) indicates more robust findings.
-"""))
-
+        cells.append(new_markdown_cell(md))
         return cells
+
+    # ──────────────────── 14. Conclusions ───────────────────────────────
 
     async def _generate_conclusions(self, state: AnalysisState) -> list:
-        """Generate conclusions section."""
+        """Generate conclusions section with LLM narrative."""
         cells = []
 
-        # Build conclusions based on results
-        avg_effect = np.mean([e.estimate for e in state.treatment_effects]) if state.treatment_effects else 0
-        all_positive = all(e.estimate > 0 for e in state.treatment_effects) if state.treatment_effects else False
-        all_negative = all(e.estimate < 0 for e in state.treatment_effects) if state.treatment_effects else False
+        effects = self._deduplicate_effects(state.treatment_effects)
+        avg_effect = np.mean([e.estimate for e in effects]) if effects else 0
+        all_positive = all(e.estimate > 0 for e in effects) if effects else False
+        all_negative = all(e.estimate < 0 for e in effects) if effects else False
 
-        conclusion_text = f"""## Conclusions
+        # Try LLM-generated conclusion
+        llm_context = {
+            "treatment": state.treatment_variable,
+            "outcome": state.outcome_variable,
+            "n_methods": len(effects),
+            "avg_effect": f"{avg_effect:.4f}",
+            "direction": "positive" if all_positive else "negative" if all_negative else "mixed",
+        }
 
-### Key Findings
+        if state.sensitivity_results:
+            llm_context["sensitivity"] = "; ".join(
+                f"{s.method}: {s.robustness_value:.2f}" for s in state.sensitivity_results
+            )
 
-Based on our analysis of the effect of **{state.treatment_variable}** on **{state.outcome_variable}**:
+        if state.critique_history:
+            latest = state.critique_history[-1]
+            llm_context["critique_decision"] = latest.decision.value
+            if latest.issues:
+                llm_context["key_issues"] = "; ".join(latest.issues[:3])
 
-1. **Average Treatment Effect**: The estimated effect across {len(state.treatment_effects)} methods
-   is approximately **{avg_effect:.4f}**.
+        if state.domain_knowledge and state.domain_knowledge.get("uncertainties"):
+            uncerts = state.domain_knowledge["uncertainties"]
+            if uncerts:
+                first = uncerts[0]
+                if isinstance(first, dict):
+                    llm_context["uncertainty"] = first.get("issue", str(first))
+                else:
+                    llm_context["uncertainty"] = str(first)
 
-2. **Consistency**: """
+        llm_conclusion = await self._generate_llm_narrative("conclusions", llm_context)
 
-        if all_positive:
-            conclusion_text += "All methods agree on a **positive** effect."
-        elif all_negative:
-            conclusion_text += "All methods agree on a **negative** effect."
+        # Build conclusions section
+        conclusion_md = "## Conclusions\n\n"
+
+        if llm_conclusion:
+            conclusion_md += llm_conclusion + "\n\n"
         else:
-            conclusion_text += "Methods show **mixed** results regarding the direction of effect."
+            # Fallback: template conclusion
+            conclusion_md += f"### Key Findings\n\n"
+            conclusion_md += f"The analysis estimated the effect of **{state.treatment_variable}** "
+            conclusion_md += f"on **{state.outcome_variable}** using {len(effects)} method(s).\n\n"
+            conclusion_md += f"- **Average Treatment Effect**: {avg_effect:.4f}\n"
+            direction = "positive" if all_positive else "negative" if all_negative else "mixed"
+            conclusion_md += f"- **Direction consistency**: All methods agree on a **{direction}** effect.\n\n"
 
-        conclusion_text += """
+        # Recommendations (from orchestrator)
+        if state.recommendations:
+            conclusion_md += "### Recommendations\n\n"
+            for i, rec in enumerate(state.recommendations, 1):
+                conclusion_md += f"{i}. {rec}\n"
+            conclusion_md += "\n"
 
-### Limitations
+        # Standard limitations
+        conclusion_md += "### Limitations\n\n"
+        conclusion_md += "- **Observational data**: Cannot rule out unmeasured confounding\n"
+        conclusion_md += "- **Model assumptions**: Each method relies on specific assumptions\n"
+        conclusion_md += "- **External validity**: Results may not generalize to other populations\n\n"
 
-- **Observational data**: We cannot rule out unmeasured confounding
-- **Model assumptions**: Each method relies on specific assumptions
-- **External validity**: Results may not generalize to other populations
+        cells.append(new_markdown_cell(conclusion_md))
 
-### Recommendations
-
-"""
-        for i, rec in enumerate(state.recommendations, 1):
-            conclusion_text += f"{i}. {rec}\n"
-
-        if not state.recommendations:
-            conclusion_text += """1. Validate findings with domain experts
-2. Consider collecting additional data to address unmeasured confounding
-3. Replicate analysis on independent datasets
-"""
-
-        cells.append(new_markdown_cell(conclusion_text))
-
-        # Reproducibility info
+        # Reproducibility footer
         repro_md = f"""---
 
 ### Reproducibility Information
@@ -1040,21 +1376,13 @@ This notebook was automatically generated by the Causal Inference Orchestrator.
 
         return cells
 
+    # ──────────────────── Save Notebook ─────────────────────────────────
+
     def _save_notebook(self, nb: nbformat.NotebookNode, job_id: str) -> str:
-        """Save the notebook to disk.
-
-        Args:
-            nb: The notebook object
-            job_id: Job ID for filename
-
-        Returns:
-            Path to saved notebook
-        """
-        # Create directory
+        """Save the notebook to disk."""
         output_dir = Path(tempfile.gettempdir()) / "causal_orchestrator" / "notebooks"
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        # Save notebook
         filename = f"causal_analysis_{job_id}.ipynb"
         filepath = output_dir / filename
 

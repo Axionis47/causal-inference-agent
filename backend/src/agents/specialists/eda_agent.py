@@ -11,7 +11,6 @@ Key features:
 - Focus on causal inference: Balance, confounding, data quality
 """
 
-import pickle
 import time
 from pathlib import Path
 from typing import Any
@@ -29,12 +28,14 @@ from src.agents.base import (
     ToolResultStatus,
 )
 from src.agents.base.context_tools import ContextTools
+from src.agents.registry import register_agent
 from src.agents.base.react_agent import ReActAgent
 from src.logging_config.structured import get_logger
 
 logger = get_logger(__name__)
 
 
+@register_agent("eda_agent")
 class EDAAgent(ReActAgent, ContextTools):
     """ReAct-based EDA agent that investigates data quality for causal inference.
 
@@ -363,10 +364,9 @@ Finalize when you have assessed data quality for causal analysis."""
         return state
 
     def _load_dataframe(self, state: AnalysisState) -> pd.DataFrame | None:
-        """Load DataFrame from pickle path."""
+        """Load DataFrame from parquet path."""
         if state.dataframe_path and Path(state.dataframe_path).exists():
-            with open(state.dataframe_path, "rb") as f:
-                return pickle.load(f)
+            return pd.read_parquet(state.dataframe_path)
         return None
 
     # =========================================================================

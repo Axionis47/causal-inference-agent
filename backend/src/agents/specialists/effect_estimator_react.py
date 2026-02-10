@@ -8,7 +8,6 @@ This agent uses the ReAct paradigm to autonomously:
 5. Synthesize findings
 """
 
-import pickle
 
 import numpy as np
 import pandas as pd
@@ -217,8 +216,7 @@ Start by inspecting the data overview to understand what you're working with."""
         # Load the dataframe
         if state.dataframe_path:
             try:
-                with open(state.dataframe_path, "rb") as f:
-                    self._df = pickle.load(f)
+                self._df = pd.read_parquet(state.dataframe_path)
                 obs += f"\n\nData loaded: {len(self._df)} rows, {len(self._df.columns)} columns"
             except Exception as e:
                 obs += f"\n\nWarning: Could not load data: {e}"

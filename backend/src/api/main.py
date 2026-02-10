@@ -1,9 +1,12 @@
 """FastAPI application entry point."""
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
+from src.api.rate_limit import limiter
 from src.api.routes import health_router, jobs_router
 from src.config import get_settings
 from src.logging_config.structured import get_logger, setup_logging
@@ -11,6 +14,15 @@ from src.logging_config.structured import get_logger, setup_logging
 # Set up logging
 setup_logging()
 logger = get_logger(__name__)
+
+
+async def verify_api_key(x_api_key: str = Header(default=None)):
+    """Verify API key if configured. Skip in dev mode when no key is set."""
+    settings = get_settings()
+    if settings.api_key_value is None:
+        return  # No key configured = dev mode, skip auth
+    if x_api_key != settings.api_key_value:
+        raise HTTPException(status_code=401, detail="Invalid or missing API key")
 
 
 def create_app() -> FastAPI:
@@ -23,15 +35,20 @@ def create_app() -> FastAPI:
         description="Agentic causal inference orchestration system",
         docs_url="/docs" if settings.enable_api_docs else None,
         redoc_url="/redoc" if settings.enable_api_docs else None,
+        dependencies=[Depends(verify_api_key)],
     )
+
+    # Rate limiting
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
     # Configure CORS
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+        allow_headers=["Content-Type", "X-API-Key", "Accept"],
     )
 
     # Include routers

@@ -9,7 +9,6 @@ This agent reviews causal analysis quality using multi-perspective debate AND da
 Not just summaries - critics can actually look at the data!
 """
 
-import pickle
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -25,6 +24,7 @@ from src.agents.base import (
     CritiqueFeedback,
     JobStatus,
 )
+from src.agents.registry import register_agent
 from src.logging_config.structured import get_logger
 
 logger = get_logger(__name__)
@@ -41,6 +41,7 @@ class PerspectiveArgument:
     confidence: float  # 0-1
 
 
+@register_agent("critique")
 class CritiqueAgent(BaseAgent):
     """Truly agentic critique agent with data investigation capabilities.
 
@@ -301,8 +302,7 @@ Use the investigation tools to gather evidence, then call finalize_critique."""
         """Load dataframe for investigation."""
         if state.dataframe_path and Path(state.dataframe_path).exists():
             try:
-                with open(state.dataframe_path, "rb") as f:
-                    return pickle.load(f)
+                return pd.read_parquet(state.dataframe_path)
             except Exception:
                 pass
         return None

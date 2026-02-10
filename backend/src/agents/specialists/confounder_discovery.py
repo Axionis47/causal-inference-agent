@@ -4,7 +4,6 @@ This agent uses TRUE agentic tool-use: the LLM decides what evidence to compute,
 calls tools to gather that evidence, and iteratively reasons about confounders.
 """
 
-import pickle
 import time
 
 import numpy as np
@@ -446,11 +445,10 @@ Use the tools to systematically investigate each candidate:
         """Load dataframe from state."""
         if state.dataframe_path:
             try:
-                if state.dataframe_path.endswith(".pkl"):
-                    with open(state.dataframe_path, "rb") as f:
-                        return pickle.load(f)
-                else:
+                if state.dataframe_path.endswith(".csv"):
                     return pd.read_csv(state.dataframe_path)
+                else:
+                    return pd.read_parquet(state.dataframe_path)
             except Exception as e:
                 self.logger.error("load_failed", error=str(e))
         return None

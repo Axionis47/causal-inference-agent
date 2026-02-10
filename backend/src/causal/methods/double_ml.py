@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
 from sklearn.linear_model import LinearRegression, LogisticRegression
-from sklearn.model_selection import KFold
+from sklearn.model_selection import StratifiedKFold
 
 from .base import BaseCausalMethod, MethodResult
 
@@ -113,15 +113,22 @@ class DoubleMLMethod(BaseCausalMethod):
         valid_covs = [c for c in covariates if c in df_clean.columns]
         self._X = df_clean[valid_covs].select_dtypes(include=[np.number]).values.astype(float)
 
+        # Detect if treatment is binary/discrete
+        is_discrete = len(np.unique(self._T)) <= 2
+
         self._model = LinearDML(
             model_y=self._get_outcome_model(),
-            model_t=self._get_propensity_model(),
+            model_t=self._get_propensity_model() if is_discrete else self._get_outcome_model(),
+            discrete_treatment=is_discrete,
             cv=self.n_folds,
             random_state=42,
         )
 
-        T_reshaped = self._T.reshape(-1, 1)
-        self._model.fit(self._Y, T_reshaped, X=self._X)
+        if is_discrete:
+            self._model.fit(self._Y, self._T, X=self._X)
+        else:
+            T_reshaped = self._T.reshape(-1, 1)
+            self._model.fit(self._Y, T_reshaped, X=self._X)
 
         self._n_treated = int(self._T.sum())
         self._n_control = int(len(self._T) - self._T.sum())
@@ -149,14 +156,14 @@ class DoubleMLMethod(BaseCausalMethod):
 
         n = len(self._Y)
 
-        # Cross-fitting
-        kf = KFold(n_splits=self.n_folds, shuffle=True, random_state=42)
+        # Cross-fitting with stratification on treatment
+        kf = StratifiedKFold(n_splits=self.n_folds, shuffle=True, random_state=42)
 
         # Residualized outcomes and treatments
         Y_residual = np.zeros(n)
         T_residual = np.zeros(n)
 
-        for train_idx, test_idx in kf.split(self._X):
+        for train_idx, test_idx in kf.split(self._X, self._T):
             X_train, X_test = self._X[train_idx], self._X[test_idx]
             Y_train, Y_test = self._Y[train_idx], self._Y[test_idx]
             T_train, T_test = self._T[train_idx], self._T[test_idx]
@@ -183,9 +190,10 @@ class DoubleMLMethod(BaseCausalMethod):
         # theta = (T_residual' T_residual)^{-1} T_residual' Y_residual
         self._theta = np.sum(T_residual * Y_residual) / np.sum(T_residual ** 2)
 
-        # Compute influence function for SE
+        # Compute SE using Chernozhukov et al. formula
+        # psi = (Y_residual - theta * T_residual) * T_residual
         psi = (Y_residual - self._theta * T_residual) * T_residual
-        self._se = np.sqrt(np.var(psi) / n)
+        self._se = np.sqrt(np.mean(psi ** 2)) / np.mean(T_residual ** 2)
 
         self._n_treated = int(self._T.sum())
         self._n_control = int(len(self._T) - self._T.sum())

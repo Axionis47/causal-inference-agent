@@ -1,0 +1,14 @@
+# Copy to terraform.tfvars and fill in your values:
+#   cp terraform.tfvars.example terraform.tfvars
+
+project_id          = "your-gcp-project-id"
+region              = "us-central1"
+environment         = "staging"
+environment_suffix  = "-staging"
+image_tag           = "latest"
+
+# For production:
+# environment         = "production"
+# environment_suffix  = ""
+# backend_min_instances = 1
+# frontend_min_instances = 1

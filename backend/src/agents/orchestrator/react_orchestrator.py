@@ -10,9 +10,11 @@ This orchestrator uses the ReAct paradigm to autonomously:
 NO HARDCODED WORKFLOW - the LLM decides everything.
 """
 
+import asyncio
 import time
 
 from src.agents.base import (
+    AgentTrace,
     AnalysisState,
     BaseAgent,
     CritiqueDecision,
@@ -21,6 +23,7 @@ from src.agents.base import (
     ToolResult,
     ToolResultStatus,
 )
+from src.config.settings import get_settings
 from src.logging_config.structured import get_logger
 
 logger = get_logger(__name__)
@@ -118,6 +121,7 @@ BE AUTONOMOUS:
                     "agent_name": {
                         "type": "string",
                         "enum": [
+                            "domain_knowledge",
                             "data_profiler",
                             "eda_agent",
                             "causal_discovery",
@@ -309,14 +313,60 @@ Start by understanding the current state, then decide what to do.
             reasoning=reasoning[:100],
         )
 
-        # Execute the specialist
+        # Define which fields each agent is allowed to update
+        AGENT_OUTPUT_FIELDS = {
+            "data_profiler": ["data_profile", "dataframe_path", "dataset_info", "treatment_variable", "outcome_variable"],
+            "eda_agent": ["eda_result"],
+            "causal_discovery": ["proposed_dag"],
+            "effect_estimator": ["treatment_effects", "analyzed_pairs"],
+            "sensitivity_analyst": ["sensitivity_results"],
+            "notebook_generator": ["notebook_path"],
+            "critique": ["critique_history", "debate_history"],
+            "domain_knowledge": ["domain_knowledge"],
+        }
+
+        settings = get_settings()
+
+        # Execute the specialist with timeout
         try:
             start_time = time.time()
-            updated_state = await specialist.execute_with_tracing(state)
+            try:
+                updated_state = await asyncio.wait_for(
+                    specialist.execute_with_tracing(state),
+                    timeout=settings.agent_timeout_seconds,
+                )
+            except asyncio.TimeoutError:
+                logger.warning(
+                    "agent_timeout",
+                    agent=agent_name,
+                    timeout=settings.agent_timeout_seconds,
+                )
+                state.add_trace(AgentTrace(
+                    agent_name=agent_name,
+                    action="timeout",
+                    reasoning=f"Agent {agent_name} timed out after {settings.agent_timeout_seconds}s",
+                ))
+                return ToolResult(
+                    status=ToolResultStatus.ERROR,
+                    output=None,
+                    error=f"Agent {agent_name} timed out after {settings.agent_timeout_seconds}s",
+                )
+
             duration_ms = int((time.time() - start_time) * 1000)
 
-            # Copy updates back to state
-            state.__dict__.update(updated_state.__dict__)
+            # Merge only the relevant fields (not full __dict__)
+            fields_to_merge = AGENT_OUTPUT_FIELDS.get(agent_name, [])
+            for field_name in fields_to_merge:
+                value = getattr(updated_state, field_name, None)
+                if value is not None:
+                    setattr(state, field_name, value)
+            # Always merge traces, status, timestamps
+            state.agent_traces = updated_state.agent_traces
+            state.updated_at = updated_state.updated_at
+            state.status = updated_state.status
+            if updated_state.error_message:
+                state.error_message = updated_state.error_message
+                state.error_agent = updated_state.error_agent
 
             # Build result summary based on what changed
             result_summary = {"agent": agent_name, "duration_ms": duration_ms}
@@ -378,7 +428,7 @@ Start by understanding the current state, then decide what to do.
                         "decision": latest.decision.value,
                         "issues": latest.issues,
                         "improvements": latest.improvements,
-                        "confidence": latest.confidence_score,
+                        "confidence": latest.scores.get("overall", 0),
                     },
                 )
             else:

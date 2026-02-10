@@ -17,7 +17,7 @@ KAGGLE_URL_PATTERN = re.compile(
 
 # Maximum lengths for string fields
 MAX_KAGGLE_URL_LENGTH = 500
-MAX_VARIABLE_NAME_LENGTH = 256
+MAX_VARIABLE_NAME_LENGTH = 100
 
 
 class OrchestratorMode(str, Enum):

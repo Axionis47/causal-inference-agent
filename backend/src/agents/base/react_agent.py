@@ -9,6 +9,7 @@ This implements the ReAct paradigm where agents:
 Reference: https://arxiv.org/abs/2210.03629
 """
 
+import asyncio
 import time
 from abc import abstractmethod
 from collections.abc import Callable, Coroutine
@@ -17,6 +18,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
+from src.config.settings import get_settings
 from src.llm import get_llm_client
 from src.logging_config.structured import get_logger
 
@@ -204,7 +206,33 @@ class ReActAgent:
         )
 
     async def execute(self, state: AnalysisState) -> AnalysisState:
-        """Execute the ReAct loop until task completion.
+        """Execute the ReAct loop with a timeout guard.
+
+        Args:
+            state: Current analysis state
+
+        Returns:
+            Updated analysis state
+        """
+        settings = get_settings()
+        timeout = settings.agent_timeout_seconds
+        try:
+            return await asyncio.wait_for(self._execute_inner(state), timeout=timeout)
+        except asyncio.TimeoutError:
+            self.logger.warning(
+                "agent_timeout",
+                agent=self.AGENT_NAME,
+                timeout=timeout,
+            )
+            state.add_trace(AgentTrace(
+                agent_name=self.AGENT_NAME,
+                action="timeout",
+                reasoning=f"Agent timed out after {timeout}s",
+            ))
+            return state
+
+    async def _execute_inner(self, state: AnalysisState) -> AnalysisState:
+        """Inner execution of the ReAct loop until task completion.
 
         Args:
             state: Current analysis state

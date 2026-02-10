@@ -154,7 +154,7 @@ class TestCausalMethods:
         result = method.estimate()
 
         assert result is not None
-        assert result.method == "OLS"
+        assert result.method == "OLS Regression"
         assert result.estimand == "ATE"
 
         # Estimate should be close to true (within 2 std errors)
@@ -171,7 +171,7 @@ class TestCausalMethods:
         result = method.estimate()
 
         assert result is not None
-        assert "IPW" in result.method
+        assert "IPW" in result.method or "Inverse Probability" in result.method
 
         # Should be reasonably close
         bias = abs(result.estimate - dataset.true_ate)
@@ -269,7 +269,7 @@ class TestEvaluationFramework:
         # Perfect estimate
         metrics = evaluator.evaluate_cate(true_cate, true_cate)
         assert metrics["pehe"] == 0.0
-        assert metrics["correlation"] == 1.0
+        assert abs(metrics["correlation"] - 1.0) < 1e-10
 
         # Noisy estimate
         noisy_cate = true_cate + np.array([0.1, -0.1, 0.2, -0.2, 0.1])

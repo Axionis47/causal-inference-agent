@@ -5,6 +5,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
+from scipy import stats
 
 from .base import BaseCausalMethod, MethodResult
 
@@ -63,6 +64,7 @@ class InstrumentalVariablesMethod(BaseCausalMethod):
 
         Y = df_clean[outcome_col].values
         T = df_clean[treatment_col].values
+        n = len(Y)
 
         # Get instruments
         Z = df_clean[instruments].select_dtypes(include=[np.number]).values
@@ -76,46 +78,85 @@ class InstrumentalVariablesMethod(BaseCausalMethod):
 
         # First stage: T ~ Z + X
         if X_exog is not None:
-            first_stage_X = np.column_stack([np.ones(len(T)), Z, X_exog])
+            first_stage_X = np.column_stack([np.ones(n), Z, X_exog])
         else:
-            first_stage_X = np.column_stack([np.ones(len(T)), Z])
+            first_stage_X = np.column_stack([np.ones(n), Z])
 
         self._first_stage = sm.OLS(T, first_stage_X).fit()
         T_hat = self._first_stage.fittedvalues
 
-        # Check first-stage F-statistic (instrument strength)
-        # F-stat for excluded instruments
+        # --- Partial F-statistic for excluded instruments ---
         n_instruments = Z.shape[1] if len(Z.shape) > 1 else 1
-        self._first_stage_f = self._first_stage.fvalue
+
+        # Restricted model: T ~ X_exog only (no instruments)
+        if X_exog is not None:
+            restricted_X = np.column_stack([np.ones(n), X_exog])
+        else:
+            restricted_X = np.ones((n, 1))
+        restricted_model = sm.OLS(T, restricted_X).fit()
+
+        RSS_restricted = np.sum(restricted_model.resid ** 2)
+        RSS_unrestricted = np.sum(self._first_stage.resid ** 2)
+        k_unrestricted = first_stage_X.shape[1]
+
+        self._first_stage_f = (
+            ((RSS_restricted - RSS_unrestricted) / n_instruments)
+            / (RSS_unrestricted / (n - k_unrestricted))
+        )
 
         # Second stage: Y ~ T_hat + X
         if X_exog is not None:
-            second_stage_X = np.column_stack([np.ones(len(Y)), T_hat, X_exog])
+            second_stage_X = np.column_stack([np.ones(n), T_hat, X_exog])
         else:
-            second_stage_X = np.column_stack([np.ones(len(Y)), T_hat])
+            second_stage_X = np.column_stack([np.ones(n), T_hat])
 
         self._second_stage = sm.OLS(Y, second_stage_X).fit()
 
-        # Correct standard errors for 2SLS
-        # Use residuals from second stage with original T
+        # --- Correct 2SLS standard errors ---
+        # Use residuals computed from original T, not T_hat
+        beta_2sls = self._second_stage.params
         if X_exog is not None:
-            original_X = np.column_stack([np.ones(len(Y)), T, X_exog])
+            original_X = np.column_stack([np.ones(n), T, X_exog])
         else:
-            original_X = np.column_stack([np.ones(len(Y)), T])
+            original_X = np.column_stack([np.ones(n), T])
 
-        residuals = Y - self._second_stage.predict(
-            np.column_stack([np.ones(len(Y)), T_hat, X_exog]) if X_exog is not None
-            else np.column_stack([np.ones(len(Y)), T_hat])
-        )
-        sigma_sq = np.sum(residuals**2) / (len(Y) - second_stage_X.shape[1])
+        residuals_2sls = Y - original_X @ beta_2sls
+        sigma_sq = np.sum(residuals_2sls ** 2) / (n - second_stage_X.shape[1])
 
-        # Correct variance-covariance matrix
-        XtX_inv = np.linalg.inv(second_stage_X.T @ second_stage_X)
-        self._corrected_se = np.sqrt(sigma_sq * np.diag(XtX_inv))
+        # Sandwich variance: (Z'X)^{-1} Z' sigma^2 I Z (X'Z)^{-1}
+        # Simplified: sigma^2 * (X_hat'X_hat)^{-1} where X_hat uses predicted T
+        XhXh_inv = np.linalg.inv(second_stage_X.T @ second_stage_X)
+        self._corrected_se = np.sqrt(sigma_sq * np.diag(XhXh_inv))
 
-        self._n_obs = len(Y)
+        # --- Hansen J-test (overidentification) ---
+        self._hansen_j = None
+        self._hansen_j_pvalue = None
+        if n_instruments > 1:
+            # Regress 2SLS residuals on all exogenous variables (instruments + covariates)
+            if X_exog is not None:
+                all_exog = np.column_stack([np.ones(n), Z, X_exog])
+            else:
+                all_exog = np.column_stack([np.ones(n), Z])
+            j_reg = sm.OLS(residuals_2sls, all_exog).fit()
+            self._hansen_j = float(n * j_reg.rsquared)
+            self._hansen_j_pvalue = float(1 - stats.chi2.cdf(self._hansen_j, n_instruments - 1))
+
+        # --- Durbin-Wu-Hausman endogeneity test ---
+        # Add first-stage residuals to second-stage equation; test their significance
+        first_stage_resid = self._first_stage.resid
+        if X_exog is not None:
+            dwh_X = np.column_stack([np.ones(n), T, X_exog, first_stage_resid])
+        else:
+            dwh_X = np.column_stack([np.ones(n), T, first_stage_resid])
+        dwh_model = sm.OLS(Y, dwh_X).fit()
+        # The coefficient on the first-stage residual is the last one
+        self._dwh_statistic = float(dwh_model.tvalues[-1] ** 2)
+        self._dwh_pvalue = float(dwh_model.pvalues[-1])
+
+        self._n_obs = n
         self._n_instruments = n_instruments
         self._instruments = instruments
+        self._residuals_2sls = residuals_2sls
 
         self._fitted = True
         return self
@@ -137,13 +178,30 @@ class InstrumentalVariablesMethod(BaseCausalMethod):
         p_value = self._compute_p_value(late, se)
 
         # Diagnostics
+        weak_instrument_severe = (
+            self._first_stage_f < 10 if self._first_stage_f else True
+        )
+        weak_instrument_moderate = (
+            self._first_stage_f < 16.38 if self._first_stage_f else True
+        )
+
         diagnostics = {
-            "first_stage_f": float(self._first_stage_f) if self._first_stage_f else None,
+            "first_stage_f_partial": float(self._first_stage_f) if self._first_stage_f else None,
             "first_stage_r2": float(self._first_stage.rsquared),
             "second_stage_r2": float(self._second_stage.rsquared),
             "n_instruments": self._n_instruments,
-            "weak_instrument": self._first_stage_f < 10 if self._first_stage_f else True,
+            "weak_instrument_severe": weak_instrument_severe,
+            "weak_instrument_moderate": weak_instrument_moderate,
+            "endogeneity_dwh_statistic": self._dwh_statistic,
+            "endogeneity_dwh_pvalue": self._dwh_pvalue,
+            "treatment_endogenous": self._dwh_pvalue < 0.05,
         }
+
+        # Hansen J-test (only for overidentified models)
+        if self._hansen_j is not None:
+            diagnostics["hansen_j_statistic"] = self._hansen_j
+            diagnostics["hansen_j_pvalue"] = self._hansen_j_pvalue
+            diagnostics["overid_rejected"] = self._hansen_j_pvalue < 0.05
 
         # First stage coefficients on instruments
         instrument_coeffs = {}
@@ -168,7 +226,8 @@ class InstrumentalVariablesMethod(BaseCausalMethod):
             diagnostics=diagnostics,
             details={
                 "instruments": self._instruments,
-                "first_stage_f_critical": 10,  # Stock-Yogo weak instrument threshold
+                "first_stage_f_critical_moderate": 16.38,
+                "first_stage_f_critical_severe": 10,
             },
         )
 
@@ -181,10 +240,15 @@ class InstrumentalVariablesMethod(BaseCausalMethod):
         violations = super().validate_assumptions(df, treatment_col, outcome_col)
 
         if self._fitted:
-            # Check for weak instruments
+            # Check for severely weak instruments (F < 10)
             if self._first_stage_f and self._first_stage_f < 10:
                 violations.append(
-                    f"Weak instrument: First-stage F = {self._first_stage_f:.2f} < 10"
+                    f"Severely weak instrument: Partial F = {self._first_stage_f:.2f} < 10"
+                )
+            elif self._first_stage_f and self._first_stage_f < 16.38:
+                violations.append(
+                    f"Weak instrument (Stock-Yogo 5% relative bias): "
+                    f"Partial F = {self._first_stage_f:.2f} < 16.38"
                 )
 
             # Check first-stage significance
@@ -195,5 +259,21 @@ class InstrumentalVariablesMethod(BaseCausalMethod):
                         f"Instrument {inst} not significant in first stage "
                         f"(p = {self._first_stage.pvalues[idx]:.4f})"
                     )
+
+            # Check Hansen J overidentification
+            if self._hansen_j is not None and self._hansen_j_pvalue < 0.05:
+                violations.append(
+                    f"Hansen J overidentification test rejected "
+                    f"(J = {self._hansen_j:.2f}, p = {self._hansen_j_pvalue:.4f}): "
+                    f"instruments may not be valid"
+                )
+
+            # Check endogeneity via DWH test
+            if self._dwh_pvalue > 0.05:
+                violations.append(
+                    f"DWH endogeneity test not significant "
+                    f"(p = {self._dwh_pvalue:.4f}): treatment may not be endogenous, "
+                    f"OLS may be preferred"
+                )
 
         return violations

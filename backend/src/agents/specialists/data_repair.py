@@ -10,7 +10,6 @@ This agent iteratively diagnoses and repairs data quality issues:
 No pre-computation - all diagnostics gathered through tool calls.
 """
 
-import pickle
 import time
 from pathlib import Path
 from typing import Any
@@ -373,8 +372,7 @@ Be conservative - only repair issues that would materially affect causal inferen
         """Load dataframe from state."""
         if state.dataframe_path and Path(state.dataframe_path).exists():
             try:
-                with open(state.dataframe_path, "rb") as f:
-                    return pickle.load(f)
+                return pd.read_parquet(state.dataframe_path)
             except Exception as e:
                 self.logger.error("load_failed", error=str(e))
         return None
@@ -383,8 +381,7 @@ Be conservative - only repair issues that would materially affect causal inferen
         """Save repaired dataframe."""
         if state.dataframe_path:
             try:
-                with open(state.dataframe_path, "wb") as f:
-                    pickle.dump(df, f)
+                df.to_parquet(state.dataframe_path)
             except Exception as e:
                 self.logger.error("save_failed", error=str(e))
 

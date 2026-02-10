@@ -1,10 +1,13 @@
 """Base class for causal inference methods."""
 
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any
 
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -121,36 +124,70 @@ class BaseCausalMethod(ABC):
 
         return violations
 
-    def _compute_ci(self, estimate: float, std_error: float) -> tuple[float, float]:
+    def _compute_ci(
+        self,
+        estimate: float,
+        std_error: float,
+        n: int | None = None,
+        k: int = 2,
+    ) -> tuple[float, float]:
         """Compute confidence interval.
+
+        Uses t-distribution critical values for small samples (n < 100)
+        and z-distribution for large samples (n >= 100).
 
         Args:
             estimate: Point estimate
             std_error: Standard error
+            n: Total sample size (if None, uses z-distribution)
+            k: Number of estimated parameters (for degrees of freedom)
 
         Returns:
             Tuple of (lower, upper) bounds
         """
         from scipy import stats
-        z = stats.norm.ppf(1 - self.alpha / 2)
-        return estimate - z * std_error, estimate + z * std_error
 
-    def _compute_p_value(self, estimate: float, std_error: float, null_value: float = 0) -> float:
+        if n is not None and n < 100:
+            df = max(n - k, 1)
+            crit = stats.t.ppf(1 - self.alpha / 2, df)
+        else:
+            crit = stats.norm.ppf(1 - self.alpha / 2)
+        return estimate - crit * std_error, estimate + crit * std_error
+
+    def _compute_p_value(
+        self,
+        estimate: float,
+        std_error: float,
+        null_value: float = 0,
+        n: int | None = None,
+        k: int = 2,
+    ) -> float:
         """Compute two-sided p-value.
+
+        Uses t-distribution for small samples (n < 100) and
+        z-distribution for large samples (n >= 100).
 
         Args:
             estimate: Point estimate
             std_error: Standard error
             null_value: Null hypothesis value
+            n: Total sample size (if None, uses z-distribution)
+            k: Number of estimated parameters (for degrees of freedom)
 
         Returns:
             P-value
         """
         from scipy import stats
+
         if std_error <= 0:
             return 1.0
-        z = (estimate - null_value) / std_error
-        return 2 * (1 - stats.norm.cdf(abs(z)))
+        t_stat = (estimate - null_value) / std_error
+
+        if n is not None and n < 100:
+            df = max(n - k, 1)
+            return 2 * (1 - stats.t.cdf(abs(t_stat), df))
+        else:
+            return 2 * (1 - stats.norm.cdf(abs(t_stat)))
 
     def _binarize_treatment(self, treatment: pd.Series) -> pd.Series:
         """Binarize treatment if continuous.
@@ -162,6 +199,14 @@ class BaseCausalMethod(ABC):
             Binary treatment series
         """
         if treatment.nunique() > 2:
+            logger.warning(
+                "Continuous treatment variable '%s' with %d unique values "
+                "was median-split into binary treatment. This discards dose-response "
+                "information and may bias estimates. Consider using a method that "
+                "supports continuous treatments.",
+                treatment.name,
+                treatment.nunique(),
+            )
             return (treatment > treatment.median()).astype(int)
         return treatment.astype(int)
 

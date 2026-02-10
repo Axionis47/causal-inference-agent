@@ -1,14 +1,73 @@
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
+import toast from 'react-hot-toast';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+// Runtime config (from docker-entrypoint.sh) > build-time config > fallback
+const API_BASE_URL =
+  (window as any).__CONFIG__?.API_URL ||
+  import.meta.env.VITE_API_URL ||
+  '/api';
+const API_KEY =
+  (window as any).__CONFIG__?.API_KEY ||
+  import.meta.env.VITE_API_KEY ||
+  '';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000, // 30 second timeout for API requests
   headers: {
     'Content-Type': 'application/json',
+    ...(API_KEY ? { 'X-API-Key': API_KEY } : {}),
   },
 });
+
+// --- Structured error handling ---
+
+export interface ApiError {
+  status: number;
+  message: string;
+  details?: unknown;
+}
+
+function toApiError(error: AxiosError): ApiError {
+  if (error.response) {
+    const data = error.response.data as Record<string, unknown> | undefined;
+    return {
+      status: error.response.status,
+      message:
+        (data?.detail as string) ||
+        (data?.message as string) ||
+        `Request failed with status ${error.response.status}`,
+      details: data,
+    };
+  }
+  if (error.code === 'ECONNABORTED') {
+    return { status: 0, message: 'Request timed out. Please try again.' };
+  }
+  if (error.code === 'ERR_CANCELED') {
+    return { status: 0, message: 'Request was cancelled.' };
+  }
+  return { status: 0, message: error.message || 'Network error. Please check your connection.' };
+}
+
+api.interceptors.response.use(
+  (response) => response,
+  (error: AxiosError) => {
+    const apiError = toApiError(error);
+
+    // Don't toast for cancelled requests or network errors during polling
+    if (error.code !== 'ERR_CANCELED' && apiError.status !== 0) {
+      if (apiError.status === 401) {
+        toast.error('Authentication failed. Check your API key.');
+      } else if (apiError.status === 429) {
+        toast.error('Rate limit exceeded. Please wait a moment.');
+      } else if (apiError.status >= 500) {
+        toast.error('Server error. Please try again later.');
+      }
+    }
+
+    return Promise.reject(apiError);
+  }
+);
 
 export type OrchestratorMode = 'standard' | 'react';
 
@@ -184,4 +243,9 @@ export function getNotebookUrl(jobId: string): string {
   return `${API_BASE_URL}/jobs/${jobId}/notebook`;
 }
 
+export function getStreamUrl(jobId: string): string {
+  return `${API_BASE_URL}/jobs/${jobId}/stream`;
+}
+
+export { API_BASE_URL };
 export default api;

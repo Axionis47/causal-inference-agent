@@ -1,12 +1,15 @@
 /**
- * Job Store - Zustand state management for causal analysis jobs
+ * Job Store - Zustand state management for causal analysis jobs.
+ *
+ * NOTE: Polling is handled exclusively by React Query's refetchInterval
+ * in the page components. This store is for shared state only — no manual
+ * setInterval polling.
  */
 
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import {
   createJob as apiCreateJob,
-  getJob as apiGetJob,
   listJobs as apiListJobs,
   cancelJob as apiCancelJob,
   getResults as apiGetResults,
@@ -33,29 +36,20 @@ interface JobState {
   // Loading states
   isLoading: boolean;
   isCreating: boolean;
-  isPolling: boolean;
 
   // Error state
   error: string | null;
-
-  // Polling
-  pollInterval: ReturnType<typeof setInterval> | null;
 }
 
 interface JobActions {
   // Job CRUD
   createJob: (kaggleUrl: string, treatment?: string, outcome?: string) => Promise<string>;
-  fetchJob: (jobId: string) => Promise<void>;
   fetchJobs: (status?: string, limit?: number, offset?: number) => Promise<void>;
   cancelJob: (jobId: string) => Promise<void>;
 
   // Results and traces
   fetchResults: (jobId: string) => Promise<void>;
   fetchTraces: (jobId: string) => Promise<void>;
-
-  // Polling
-  startPolling: (jobId: string, intervalMs?: number) => void;
-  stopPolling: () => void;
 
   // State management
   setCurrentJob: (job: JobDetail | null) => void;
@@ -72,15 +66,13 @@ const initialState: JobState = {
   totalJobs: 0,
   isLoading: false,
   isCreating: false,
-  isPolling: false,
   error: null,
-  pollInterval: null,
 };
 
 export const useJobStore = create<JobState & JobActions>()(
   devtools(
     persist(
-      (set, get) => ({
+      (set, _get) => ({
         ...initialState,
 
         createJob: async (kaggleUrl: string, treatment?: string, outcome?: string) => {
@@ -92,37 +84,13 @@ export const useJobStore = create<JobState & JobActions>()(
               outcome_variable: outcome,
             });
             set({ isCreating: false, currentJobId: job.id });
-
-            // Start polling for the new job
-            get().startPolling(job.id);
-
             return job.id;
           } catch (error) {
-            const message = error instanceof Error ? error.message : 'Failed to create job';
+            const message =
+              error instanceof Error ? error.message :
+              (error as { message?: string })?.message || 'Failed to create job';
             set({ isCreating: false, error: message });
             throw error;
-          }
-        },
-
-        fetchJob: async (jobId: string) => {
-          set({ isLoading: true, error: null });
-          try {
-            const job = await apiGetJob(jobId);
-            set({
-              currentJob: job,
-              currentJobId: jobId,
-              isLoading: false
-            });
-
-            // If job is completed, fetch results
-            if (job.status === 'completed') {
-              get().fetchResults(jobId);
-              get().fetchTraces(jobId);
-              get().stopPolling();
-            }
-          } catch (error) {
-            const message = error instanceof Error ? error.message : 'Failed to fetch job';
-            set({ isLoading: false, error: message });
           }
         },
 
@@ -133,10 +101,12 @@ export const useJobStore = create<JobState & JobActions>()(
             set({
               jobs: response.jobs,
               totalJobs: response.total,
-              isLoading: false
+              isLoading: false,
             });
           } catch (error) {
-            const message = error instanceof Error ? error.message : 'Failed to fetch jobs';
+            const message =
+              error instanceof Error ? error.message :
+              (error as { message?: string })?.message || 'Failed to fetch jobs';
             set({ isLoading: false, error: message });
           }
         },
@@ -144,10 +114,11 @@ export const useJobStore = create<JobState & JobActions>()(
         cancelJob: async (jobId: string) => {
           try {
             await apiCancelJob(jobId);
-            get().stopPolling();
-            get().fetchJob(jobId);
+            // React Query will refetch automatically via invalidation in the component
           } catch (error) {
-            const message = error instanceof Error ? error.message : 'Failed to cancel job';
+            const message =
+              error instanceof Error ? error.message :
+              (error as { message?: string })?.message || 'Failed to cancel job';
             set({ error: message });
           }
         },
@@ -170,36 +141,6 @@ export const useJobStore = create<JobState & JobActions>()(
           }
         },
 
-        startPolling: (jobId: string, intervalMs = 3000) => {
-          // Stop any existing polling
-          get().stopPolling();
-
-          set({ isPolling: true });
-
-          const pollInterval = setInterval(async () => {
-            const { currentJob } = get();
-
-            // Stop polling if job is complete or failed
-            if (currentJob?.status === 'completed' || currentJob?.status === 'failed') {
-              get().stopPolling();
-              return;
-            }
-
-            // Fetch latest job status
-            await get().fetchJob(jobId);
-          }, intervalMs);
-
-          set({ pollInterval });
-        },
-
-        stopPolling: () => {
-          const { pollInterval } = get();
-          if (pollInterval) {
-            clearInterval(pollInterval);
-          }
-          set({ pollInterval: null, isPolling: false });
-        },
-
         setCurrentJob: (job: JobDetail | null) => {
           set({ currentJob: job, currentJobId: job?.id || null });
         },
@@ -209,7 +150,6 @@ export const useJobStore = create<JobState & JobActions>()(
         },
 
         reset: () => {
-          get().stopPolling();
           set(initialState);
         },
       }),

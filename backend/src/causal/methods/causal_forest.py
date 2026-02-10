@@ -18,7 +18,7 @@ class CausalForestMethod(BaseCausalMethod):
     "Generalized Random Forests"
 
     Uses econml's CausalForestDML implementation when available,
-    falls back to manual implementation otherwise.
+    falls back to T-Learner implementation otherwise.
     """
 
     METHOD_NAME = "Causal Forest"
@@ -83,27 +83,34 @@ class CausalForestMethod(BaseCausalMethod):
         try:
             from econml.dml import CausalForestDML
 
+            # Detect if treatment is binary/discrete
+            is_discrete = len(np.unique(self._T)) <= 2
+
             self._model = CausalForestDML(
                 n_estimators=self.n_estimators,
                 min_samples_leaf=self.min_samples_leaf,
                 max_depth=self.max_depth,
                 random_state=42,
+                discrete_treatment=is_discrete,
+                inference='blb',  # Bayesian bootstrap for valid CIs
             )
 
-            # Reshape for econml
-            T_reshaped = self._T.reshape(-1, 1)
-            self._model.fit(self._Y, T_reshaped, X=self._X)
+            if is_discrete:
+                self._model.fit(self._Y, self._T, X=self._X)
+            else:
+                T_reshaped = self._T.reshape(-1, 1)
+                self._model.fit(self._Y, T_reshaped, X=self._X)
             self._use_econml = True
 
         except ImportError:
-            # Fallback to simple forest-based CATE estimation
+            # Fallback to T-Learner-style CATE estimation
             self._fit_fallback()
 
         self._fitted = True
         return self
 
     def _fit_fallback(self):
-        """Fallback implementation using sklearn."""
+        """Fallback T-Learner implementation using sklearn RandomForest."""
         from sklearn.ensemble import RandomForestRegressor
 
         # Split into treated and control
@@ -139,44 +146,96 @@ class CausalForestMethod(BaseCausalMethod):
             raise ValueError("Model must be fitted before estimating")
 
         if self._use_econml:
-            # Use econml inference
+            # Use econml inference with BLB
             cate = self._model.effect(self._X).flatten()
 
-            # Get confidence intervals
+            # Get confidence intervals from BLB inference
             try:
                 cate_lower, cate_upper = self._model.effect_interval(
                     self._X, alpha=self.alpha
                 )
                 cate_lower = cate_lower.flatten()
                 cate_upper = cate_upper.flatten()
-            except Exception:
-                se = np.std(cate) / np.sqrt(len(cate))
-                cate_lower = cate - 1.96 * se
-                cate_upper = cate + 1.96 * se
 
-            ate = float(np.mean(cate))
-            ate_se = float(np.std(cate) / np.sqrt(len(cate)))
+                # Derive ATE SE from the interval
+                ate = float(np.mean(cate))
+                # Use model's inference for ATE SE
+                try:
+                    ate_inf = self._model.ate_interval(self._X, alpha=self.alpha)
+                    ate_se = float((ate_inf[1] - ate_inf[0]) / (2 * 1.96))
+                except Exception:
+                    # Fallback: SE from individual CATE SEs
+                    cate_se = (cate_upper - cate_lower) / (2 * 1.96)
+                    ate_se = float(np.sqrt(np.mean(cate_se ** 2) / len(cate)))
+
+            except Exception:
+                # If BLB inference fails, use std-based estimate
+                ate = float(np.mean(cate))
+                ate_se = float(np.std(cate) / np.sqrt(len(cate)))
+                cate_lower = cate - 1.96 * np.std(cate)
+                cate_upper = cate + 1.96 * np.std(cate)
+
+            method_name = self.METHOD_NAME
 
         else:
-            # Fallback estimation
+            # Fallback T-Learner estimation with proper bootstrap SE
+            from sklearn.ensemble import RandomForestRegressor
+
             mu1 = self._model_treated.predict(self._X)
             mu0 = self._model_control.predict(self._X)
             cate = mu1 - mu0
 
             ate = float(np.mean(cate))
 
-            # Bootstrap for SE
-            n_bootstrap = 200
+            # --- Bootstrap SE: resample observations, refit both models ---
+            n_bootstrap = 100
+            n = len(self._X)
             bootstrap_ates = []
-            n = len(cate)
+            rng = np.random.RandomState(123)
 
-            for _ in range(n_bootstrap):
-                idx = np.random.choice(n, size=n, replace=True)
-                bootstrap_ates.append(np.mean(cate[idx]))
+            for b in range(n_bootstrap):
+                idx = rng.choice(n, size=n, replace=True)
+                X_b = self._X[idx]
+                T_b = self._T[idx]
+                Y_b = self._Y[idx]
 
-            ate_se = float(np.std(bootstrap_ates))
-            cate_lower = cate - 1.96 * np.std(cate)
-            cate_upper = cate + 1.96 * np.std(cate)
+                treated_b = T_b == 1
+                control_b = T_b == 0
+
+                if treated_b.sum() < 2 or control_b.sum() < 2:
+                    continue
+
+                try:
+                    m1 = RandomForestRegressor(
+                        n_estimators=self.n_estimators,
+                        min_samples_leaf=self.min_samples_leaf,
+                        max_depth=self.max_depth,
+                        random_state=b,
+                    )
+                    m0 = RandomForestRegressor(
+                        n_estimators=self.n_estimators,
+                        min_samples_leaf=self.min_samples_leaf,
+                        max_depth=self.max_depth,
+                        random_state=b,
+                    )
+                    m1.fit(X_b[treated_b], Y_b[treated_b])
+                    m0.fit(X_b[control_b], Y_b[control_b])
+                    cate_b = m1.predict(self._X) - m0.predict(self._X)
+                    bootstrap_ates.append(np.mean(cate_b))
+                except Exception:
+                    continue
+
+            if len(bootstrap_ates) >= 10:
+                ate_se = float(np.std(bootstrap_ates))
+            else:
+                ate_se = float(np.std(cate) / np.sqrt(len(cate)))
+
+            cate_se_individual = np.std(cate)
+            cate_lower = cate - 1.96 * cate_se_individual
+            cate_upper = cate + 1.96 * cate_se_individual
+
+            # Label fallback correctly
+            method_name = "T-Learner Fallback (not Causal Forest)"
 
         self._cate = cate
 
@@ -196,6 +255,12 @@ class CausalForestMethod(BaseCausalMethod):
             "used_econml": self._use_econml,
         }
 
+        if not self._use_econml:
+            diagnostics["note"] = (
+                "econml not available; using T-Learner fallback with bootstrap SE. "
+                "Install econml for proper causal forest with BLB inference."
+            )
+
         # Variable importance (if available)
         if self._use_econml and hasattr(self._model, 'feature_importances_'):
             try:
@@ -208,7 +273,7 @@ class CausalForestMethod(BaseCausalMethod):
                 pass
 
         self._result = MethodResult(
-            method=self.METHOD_NAME,
+            method=method_name,
             estimand="ATE",
             estimate=ate,
             std_error=ate_se,

@@ -3,6 +3,8 @@ dist
 .git
 .gitignore
 *.md
+.env
+.env.local
 .env*
 .vscode
 coverage

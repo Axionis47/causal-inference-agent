@@ -24,6 +24,14 @@ logger = get_logger(__name__)
 
 T = TypeVar("T", bound=BaseModel)
 
+# Build tuple of transient error types for retry
+_TRANSIENT_ERRORS: tuple[type[Exception], ...] = (ConnectionError, TimeoutError, OSError)
+try:
+    from google.api_core.exceptions import ResourceExhausted, ServiceUnavailable
+    _TRANSIENT_ERRORS = _TRANSIENT_ERRORS + (ResourceExhausted, ServiceUnavailable)
+except ImportError:
+    pass
+
 
 class GeminiClient:
     """Client for interacting with Google Gemini API."""
@@ -51,7 +59,7 @@ class GeminiClient:
         return self._model
 
     @retry(
-        retry=retry_if_exception_type(Exception),
+        retry=retry_if_exception_type(_TRANSIENT_ERRORS),
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
     )

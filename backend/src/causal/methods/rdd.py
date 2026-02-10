@@ -5,6 +5,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
+from scipy import stats
 
 from .base import BaseCausalMethod, MethodResult
 
@@ -87,10 +88,34 @@ class RegressionDiscontinuityMethod(BaseCausalMethod):
         # Center running variable at cutoff
         R_centered = R - cutoff
 
-        # Determine bandwidth
+        # Store full data for covariate balance tests
+        self._df_clean = df_clean
+        self._covariates = covariates
+        self._treatment_col = treatment_col
+        self._outcome_col = outcome_col
+
+        # --- IK-style optimal bandwidth using IQR ---
         if self.bandwidth is None:
-            # Simple rule-of-thumb bandwidth (IK optimal would be better)
-            self.bandwidth = 1.5 * np.std(R_centered) * (len(R) ** (-1/5))
+            iqr = np.percentile(R_centered, 75) - np.percentile(R_centered, 25)
+            # Guard against zero IQR (e.g., discrete running variable)
+            if iqr < 1e-10:
+                iqr = np.std(R_centered)
+            bandwidth = 2.5 * iqr * (len(R_centered) ** (-1 / 5))
+
+            # Ensure minimum bandwidth captures at least 10% of observations per side
+            sorted_below = np.sort(np.abs(R_centered[R_centered < 0]))
+            sorted_above = np.sort(R_centered[R_centered >= 0])
+            min_n_per_side = max(int(0.1 * len(R_centered[R_centered < 0])), 5)
+            if len(sorted_below) > min_n_per_side:
+                min_bw_below = sorted_below[min_n_per_side - 1]
+            else:
+                min_bw_below = sorted_below[-1] if len(sorted_below) > 0 else bandwidth
+            if len(sorted_above) > min_n_per_side:
+                min_bw_above = sorted_above[min_n_per_side - 1]
+            else:
+                min_bw_above = sorted_above[-1] if len(sorted_above) > 0 else bandwidth
+            min_bw = max(min_bw_below, min_bw_above)
+            self.bandwidth = max(bandwidth, min_bw)
 
         # Filter to observations within bandwidth
         in_bandwidth = np.abs(R_centered) <= self.bandwidth
@@ -131,20 +156,177 @@ class RegressionDiscontinuityMethod(BaseCausalMethod):
             self._model = sm.OLS(Y_bw, X)
             self._results = self._model.fit(cov_type='HC1')
 
-        # Store counts
+        # Store counts and data for diagnostics
         self._n_below = int((R_bw < 0).sum())
         self._n_above = int((R_bw >= 0).sum())
         self._n_total = len(Y_bw)
         self._cutoff = cutoff
         self._running_var = running_var
 
-        # For diagnostic plots
+        # For diagnostic plots and bandwidth sensitivity
         self._R_bw = R_bw
         self._Y_bw = Y_bw
         self._above = above
+        self._R_centered_full = R_centered
+        self._Y_full = Y
+        self._T_full = T
+        self._in_bandwidth = in_bandwidth
 
         self._fitted = True
         return self
+
+    def _fit_at_bandwidth(self, R_centered, Y, T, bw):
+        """Fit RDD at a specific bandwidth and return estimate and SE."""
+        in_bw = np.abs(R_centered) <= bw
+        Y_bw = Y[in_bw]
+        R_bw = R_centered[in_bw]
+        above = (R_bw >= 0).astype(float)
+
+        if np.sum(R_bw < 0) < 5 or np.sum(R_bw >= 0) < 5:
+            return None, None, int(in_bw.sum())
+
+        X_list = [np.ones(len(Y_bw)), above, R_bw, above * R_bw]
+        for p in range(2, self.polynomial_order + 1):
+            X_list.append(R_bw ** p)
+            X_list.append(above * (R_bw ** p))
+        X = np.column_stack(X_list)
+
+        try:
+            results = sm.OLS(Y_bw, X).fit(cov_type='HC1')
+            return float(results.params[1]), float(results.bse[1]), int(in_bw.sum())
+        except Exception:
+            return None, None, int(in_bw.sum())
+
+    def _mccrary_density_test(self, R_centered):
+        """McCrary density test using local polynomial density estimation.
+
+        Bins the running variable near the cutoff, fits local polynomial
+        separately on each side, and tests for a discontinuity in density.
+
+        Returns:
+            Tuple of (test_statistic, p_value, log_density_ratio)
+        """
+        # Create bins near cutoff
+        n = len(R_centered)
+        n_bins = max(int(np.sqrt(n)), 20)
+
+        # Use data within 2x bandwidth for density estimation
+        bw_density = 2 * self.bandwidth
+        near_cutoff = R_centered[(np.abs(R_centered) <= bw_density)]
+
+        if len(near_cutoff) < 20:
+            return 0.0, 1.0, 0.0
+
+        # Bin the data
+        bins = np.linspace(-bw_density, bw_density, n_bins + 1)
+        bin_centers = (bins[:-1] + bins[1:]) / 2
+        bin_width = bins[1] - bins[0]
+        counts, _ = np.histogram(R_centered, bins=bins)
+
+        # Normalize to density
+        density = counts / (len(R_centered) * bin_width)
+
+        # Separate bins below and above cutoff
+        below_mask = bin_centers < 0
+        above_mask = bin_centers >= 0
+
+        if np.sum(below_mask) < 3 or np.sum(above_mask) < 3:
+            return 0.0, 1.0, 0.0
+
+        # Fit local polynomial (quadratic) on each side using kernel weights
+        def fit_local_poly(centers, dens, target=0.0):
+            """Fit local polynomial and predict density at target."""
+            h = bw_density / 2
+            weights = np.exp(-0.5 * ((centers - target) / h) ** 2)
+            X = np.column_stack([np.ones(len(centers)), centers, centers ** 2])
+            W = np.diag(weights)
+            try:
+                beta = np.linalg.lstsq(W @ X, W @ dens, rcond=None)[0]
+                pred = beta[0] + beta[1] * target + beta[2] * target ** 2
+                # SE via delta method
+                XWX_inv = np.linalg.inv(X.T @ W @ X)
+                residuals = dens - X @ beta
+                sigma2 = np.sum(weights * residuals ** 2) / max(len(centers) - 3, 1)
+                se = np.sqrt(sigma2 * XWX_inv[0, 0])
+                return pred, se
+            except (np.linalg.LinAlgError, ValueError):
+                return np.mean(dens), np.std(dens) / np.sqrt(len(dens))
+
+        pred_below, se_below = fit_local_poly(
+            bin_centers[below_mask], density[below_mask], target=0.0
+        )
+        pred_above, se_above = fit_local_poly(
+            bin_centers[above_mask], density[above_mask], target=0.0
+        )
+
+        # Test statistic for discontinuity
+        diff = pred_above - pred_below
+        se_diff = np.sqrt(se_below ** 2 + se_above ** 2)
+
+        if se_diff < 1e-10:
+            return 0.0, 1.0, 0.0
+
+        t_stat = diff / se_diff
+        p_value = 2 * (1 - stats.norm.cdf(abs(t_stat)))
+
+        # Log density ratio
+        if pred_below > 0 and pred_above > 0:
+            log_ratio = float(np.log(pred_above / pred_below))
+        else:
+            log_ratio = 0.0
+
+        return float(t_stat), float(p_value), log_ratio
+
+    def _covariate_balance_test(self, df_clean, covariates, running_var, cutoff):
+        """Test covariate balance at the cutoff.
+
+        For each covariate, run the RDD specification with the covariate
+        as outcome. Significant effects indicate imbalance.
+
+        Returns:
+            Dict mapping covariate name to (estimate, p_value, balanced).
+        """
+        results = {}
+        if not covariates:
+            return results
+
+        R_centered = df_clean[running_var].values - cutoff
+        in_bw = np.abs(R_centered) <= self.bandwidth
+        R_bw = R_centered[in_bw]
+        above = (R_bw >= 0).astype(float)
+
+        if np.sum(R_bw < 0) < 5 or np.sum(R_bw >= 0) < 5:
+            return results
+
+        for cov in covariates:
+            if cov not in df_clean.columns:
+                continue
+            cov_vals = df_clean[cov].values
+            if not np.issubdtype(cov_vals.dtype, np.number):
+                continue
+            C_bw = cov_vals[in_bw]
+            if np.std(C_bw) < 1e-10:
+                continue
+
+            X_list = [np.ones(len(C_bw)), above, R_bw, above * R_bw]
+            for p in range(2, self.polynomial_order + 1):
+                X_list.append(R_bw ** p)
+                X_list.append(above * (R_bw ** p))
+            X = np.column_stack(X_list)
+
+            try:
+                cov_model = sm.OLS(C_bw, X).fit(cov_type='HC1')
+                est = float(cov_model.params[1])
+                pval = float(cov_model.pvalues[1])
+                results[cov] = {
+                    "estimate": est,
+                    "p_value": pval,
+                    "balanced": pval > 0.05,
+                }
+            except Exception:
+                continue
+
+        return results
 
     def estimate(self) -> MethodResult:
         """Compute RDD estimate at the cutoff.
@@ -183,6 +365,43 @@ class RegressionDiscontinuityMethod(BaseCausalMethod):
         else:
             diagnostics["fuzzy"] = False
 
+        # --- McCrary density test ---
+        mccrary_stat, mccrary_pval, log_ratio = self._mccrary_density_test(
+            self._R_centered_full
+        )
+        diagnostics["mccrary_test_statistic"] = mccrary_stat
+        diagnostics["mccrary_p_value"] = mccrary_pval
+        diagnostics["mccrary_log_density_ratio"] = log_ratio
+        diagnostics["manipulation_detected"] = mccrary_pval < 0.05
+
+        # --- Covariate balance test ---
+        cov_balance = self._covariate_balance_test(
+            self._df_clean, self._covariates, self._running_var, self._cutoff
+        )
+        if cov_balance:
+            diagnostics["covariate_balance"] = cov_balance
+            n_imbalanced = sum(
+                1 for v in cov_balance.values() if not v["balanced"]
+            )
+            diagnostics["n_covariates_imbalanced"] = n_imbalanced
+
+        # --- Bandwidth sensitivity analysis ---
+        h = self.bandwidth
+        bw_multipliers = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]
+        sensitivity = {}
+        for mult in bw_multipliers:
+            bw_test = h * mult
+            est, est_se, est_n = self._fit_at_bandwidth(
+                self._R_centered_full, self._Y_full, self._T_full, bw_test
+            )
+            sensitivity[f"{mult:.2f}h"] = {
+                "bandwidth": float(bw_test),
+                "estimate": est,
+                "std_error": est_se,
+                "n_obs": est_n,
+            }
+        diagnostics["bandwidth_sensitivity"] = sensitivity
+
         self._result = MethodResult(
             method=self.METHOD_NAME,
             estimand=self.ESTIMAND,
@@ -217,15 +436,27 @@ class RegressionDiscontinuityMethod(BaseCausalMethod):
                     f"Few observations near cutoff: {self._n_below} below, {self._n_above} above"
                 )
 
-            # McCrary density test (simplified version)
-            # Check if density of running variable is continuous at cutoff
-            density_below = self._n_below / self._n_total
-            density_above = self._n_above / self._n_total
-
-            if abs(density_below - density_above) > 0.3:
+            # McCrary density test
+            mccrary_stat, mccrary_pval, _ = self._mccrary_density_test(
+                self._R_centered_full
+            )
+            if mccrary_pval < 0.05:
                 violations.append(
-                    f"Possible manipulation: density ratio = {density_above/density_below:.2f}"
+                    f"McCrary density test detects possible manipulation "
+                    f"(t = {mccrary_stat:.2f}, p = {mccrary_pval:.4f})"
                 )
+
+            # Covariate balance
+            cov_balance = self._covariate_balance_test(
+                self._df_clean, self._covariates, self._running_var, self._cutoff
+            )
+            for cov_name, cov_result in cov_balance.items():
+                if not cov_result["balanced"]:
+                    violations.append(
+                        f"Covariate '{cov_name}' shows imbalance at cutoff "
+                        f"(est = {cov_result['estimate']:.4f}, "
+                        f"p = {cov_result['p_value']:.4f})"
+                    )
 
             # For fuzzy RDD, check first stage
             if self.fuzzy and hasattr(self, '_first_stage_f'):

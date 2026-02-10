@@ -1,10 +1,17 @@
 """Anthropic Claude client with function calling support."""
 
 import json
+import time
 from typing import Any, TypeVar
 
 import httpx
 from pydantic import BaseModel
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from src.config import get_settings
 from src.logging_config.structured import get_logger
@@ -12,6 +19,42 @@ from src.logging_config.structured import get_logger
 logger = get_logger(__name__)
 
 T = TypeVar("T", bound=BaseModel)
+
+# Simple circuit breaker state
+_consecutive_failures = 0
+_circuit_open_until = 0.0
+MAX_CONSECUTIVE_FAILURES = 5
+CIRCUIT_OPEN_DURATION = 60.0  # seconds
+
+
+def _check_circuit_breaker() -> None:
+    """Check if circuit breaker is open and raise if so."""
+    global _circuit_open_until
+    if _circuit_open_until > 0.0 and time.time() < _circuit_open_until:
+        raise RuntimeError(
+            f"Claude API circuit breaker is open. "
+            f"Resumes at {time.strftime('%H:%M:%S', time.localtime(_circuit_open_until))}"
+        )
+
+
+def _record_success() -> None:
+    """Record a successful call, resetting the circuit breaker."""
+    global _consecutive_failures, _circuit_open_until
+    _consecutive_failures = 0
+    _circuit_open_until = 0.0
+
+
+def _record_failure() -> None:
+    """Record a failed call, potentially opening the circuit breaker."""
+    global _consecutive_failures, _circuit_open_until
+    _consecutive_failures += 1
+    if _consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
+        _circuit_open_until = time.time() + CIRCUIT_OPEN_DURATION
+        logger.warning(
+            "circuit_breaker_opened",
+            failures=_consecutive_failures,
+            open_until=_circuit_open_until,
+        )
 
 
 class ClaudeClient:
@@ -32,6 +75,11 @@ class ClaudeClient:
 
         self._client = httpx.AsyncClient(timeout=120.0)
 
+    @retry(
+        retry=retry_if_exception_type((httpx.ConnectError, httpx.ReadTimeout, httpx.WriteTimeout, ConnectionError, TimeoutError, OSError)),
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+    )
     async def generate(
         self,
         prompt: str,
@@ -48,6 +96,8 @@ class ClaudeClient:
         Returns:
             The model response
         """
+        _check_circuit_breaker()
+
         logger.debug(
             "generating_content_claude",
             prompt_length=len(prompt),
@@ -74,10 +124,14 @@ class ClaudeClient:
         if tools:
             payload["tools"] = [self._convert_tool(t) for t in tools]
 
-        response = await self._client.post(self.API_URL, headers=headers, json=payload)
-        response.raise_for_status()
-
-        result = response.json()
+        try:
+            response = await self._client.post(self.API_URL, headers=headers, json=payload)
+            response.raise_for_status()
+            result = response.json()
+            _record_success()
+        except Exception:
+            _record_failure()
+            raise
 
         logger.debug(
             "content_generated_claude",
@@ -86,6 +140,11 @@ class ClaudeClient:
 
         return result
 
+    @retry(
+        retry=retry_if_exception_type((httpx.ConnectError, httpx.ReadTimeout, httpx.WriteTimeout, ConnectionError, TimeoutError, OSError)),
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+    )
     async def generate_with_function_calling(
         self,
         prompt: str,
@@ -104,6 +163,8 @@ class ClaudeClient:
         Returns:
             Dict containing the final response and all tool calls made
         """
+        _check_circuit_breaker()
+
         logger.info(
             "starting_function_calling_claude",
             tools=[t["name"] for t in tools],

@@ -10,7 +10,6 @@ Key features:
 - Statistical verification: Validates domain hints with actual data patterns
 """
 
-import pickle
 import tempfile
 import time
 from pathlib import Path
@@ -29,11 +28,13 @@ from src.agents.base import (
 )
 from src.agents.base.context_tools import ContextTools
 from src.agents.base.react_agent import ReActAgent
+from src.agents.registry import register_agent
 from src.logging_config.structured import get_logger
 
 logger = get_logger(__name__)
 
 
+@register_agent("data_profiler")
 class DataProfilerAgent(ReActAgent, ContextTools):
     """ReAct-based data profiler that identifies causal structure through investigation.
 
@@ -829,16 +830,10 @@ Use the available tools to gather evidence before finalizing the profile."""
         # If dataframe_path already exists, load from there
         if state.dataframe_path:
             try:
-                if state.dataframe_path.endswith(".pkl"):
-                    with open(state.dataframe_path, "rb") as f:
-                        return pickle.load(f)
-                elif state.dataframe_path.endswith(".csv"):
+                if state.dataframe_path.endswith(".csv"):
                     return pd.read_csv(state.dataframe_path)
-                elif state.dataframe_path.endswith(".parquet"):
-                    return pd.read_parquet(state.dataframe_path)
                 else:
-                    with open(state.dataframe_path, "rb") as f:
-                        return pickle.load(f)
+                    return pd.read_parquet(state.dataframe_path)
             except Exception as e:
                 self.logger.error("dataframe_path_load_failed", error=str(e), path=state.dataframe_path)
 
@@ -1109,8 +1104,7 @@ Use the available tools to gather evidence before finalizing the profile."""
         temp_dir = Path(tempfile.gettempdir()) / "causal_orchestrator"
         temp_dir.mkdir(exist_ok=True)
 
-        file_path = temp_dir / f"{job_id}_data.pkl"
-        with open(file_path, "wb") as f:
-            pickle.dump(df, f)
+        file_path = temp_dir / f"{job_id}_data.parquet"
+        df.to_parquet(file_path)
 
         return str(file_path)

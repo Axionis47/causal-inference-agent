@@ -1,12 +1,16 @@
 """Job management API routes."""
 
+import asyncio
+import json
 import os
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, Request, status
 from fastapi.responses import FileResponse
+from sse_starlette.sse import EventSourceResponse
 
 from src.agents.base import JobStatus
+from src.api.rate_limit import limiter
 from src.api.schemas import (
     AgentTracesResponse,
     AnalysisResultsResponse,
@@ -39,19 +43,22 @@ VALID_STATUSES = {s.value for s in JobStatus}
 
 
 @router.post("", response_model=JobResponse, status_code=status.HTTP_201_CREATED)
-async def create_job(request: CreateJobRequest) -> JobResponse:
+@limiter.limit("10/minute")
+async def create_job(request: Request, body: CreateJobRequest) -> JobResponse:
     """Create a new analysis job.
 
     Submit a Kaggle dataset URL to start causal inference analysis.
     """
+    # slowapi requires 'request' as first param with type starlette.requests.Request
+    # FastAPI will inject the Pydantic body via the 'body' parameter
     manager = get_job_manager()
 
     try:
         job_id = await manager.create_job(
-            kaggle_url=request.kaggle_url,
-            treatment_variable=request.treatment_variable,
-            outcome_variable=request.outcome_variable,
-            preferences=request.analysis_preferences,
+            kaggle_url=body.kaggle_url,
+            treatment_variable=body.treatment_variable,
+            outcome_variable=body.outcome_variable,
+            preferences=body.analysis_preferences,
         )
 
         # Get the created job
@@ -167,6 +174,67 @@ async def get_job_status(job_id: str) -> JobStatusResponse:
         progress_percentage=status_data["progress_percentage"],
         current_agent=status_data.get("current_agent"),
     )
+
+
+@router.get("/{job_id}/stream")
+async def stream_job_status(job_id: str, request: Request):
+    """SSE stream for real-time job status updates.
+
+    Streams status change events until the job reaches a terminal state.
+    Includes heartbeat every 15 seconds to keep connection alive through proxies.
+    """
+    from src.config import get_settings
+    settings = get_settings()
+
+    if not settings.sse_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="SSE streaming is disabled",
+        )
+
+    manager = get_job_manager()
+
+    # Verify job exists
+    job = await manager.get_job(job_id)
+    if job is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Job {job_id} not found",
+        )
+
+    async def event_generator():
+        last_status = None
+        heartbeat_counter = 0
+        heartbeat_interval = settings.sse_heartbeat_seconds
+
+        while True:
+            # Check if client disconnected
+            if await request.is_disconnected():
+                break
+
+            status_data = await manager.get_job_status(job_id)
+
+            if status_data and status_data.get("status") != last_status:
+                last_status = status_data["status"]
+                yield {
+                    "event": "status",
+                    "data": json.dumps(status_data),
+                }
+
+                # Terminal states end the stream
+                if last_status in ("completed", "failed", "cancelled"):
+                    yield {"event": "done", "data": ""}
+                    break
+
+            # Send heartbeat to keep connection alive
+            heartbeat_counter += 1
+            if heartbeat_counter >= heartbeat_interval:
+                yield {"event": "heartbeat", "data": ""}
+                heartbeat_counter = 0
+
+            await asyncio.sleep(1)
+
+    return EventSourceResponse(event_generator())
 
 
 @router.post("/{job_id}/cancel", response_model=CancelJobResponse)

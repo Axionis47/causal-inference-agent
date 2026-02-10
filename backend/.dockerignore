@@ -7,4 +7,6 @@ __pycache__
 .vscode
 .pytest_cache
 .mypy_cache
+.venv/
+tests/
 data

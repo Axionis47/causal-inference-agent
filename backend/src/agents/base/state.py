@@ -213,7 +213,7 @@ class AnalysisState(BaseModel):
 
     # Populated by Data Profiler
     data_profile: DataProfile | None = None
-    dataframe_path: str | None = None  # Path to pickled DataFrame
+    dataframe_path: str | None = None  # Path to parquet DataFrame
 
     # Populated by EDA Agent
     eda_result: EDAResult | None = None
@@ -276,8 +276,8 @@ class AnalysisState(BaseModel):
         self.agent_traces.append(trace)
         self.updated_at = datetime.utcnow()
 
-        # Compress if we exceed max traces
-        if len(self.agent_traces) > self.MAX_TRACES:
+        # Only compress when significantly over limit (prevents running on every add)
+        if len(self.agent_traces) > 2 * self.MAX_TRACES:
             self._compress_traces()
 
     def _truncate_trace(self, trace: AgentTrace) -> AgentTrace:

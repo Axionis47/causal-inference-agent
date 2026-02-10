@@ -9,7 +9,6 @@ This agent uses the ReAct pattern to iteratively:
 Uses pull-based context - queries for information on demand.
 """
 
-import pickle
 import time
 from typing import Any
 
@@ -25,11 +24,13 @@ from src.agents.base import (
 )
 from src.agents.base.context_tools import ContextTools
 from src.agents.base.react_agent import ReActAgent
+from src.agents.registry import register_agent
 from src.logging_config.structured import get_logger
 
 logger = get_logger(__name__)
 
 
+@register_agent("sensitivity_analyst")
 class SensitivityAnalystAgent(ReActAgent, ContextTools):
     """ReAct-based sensitivity analyst.
 
@@ -339,8 +340,7 @@ WORKFLOW:
             if state.dataframe_path is None:
                 return state
 
-            with open(state.dataframe_path, "rb") as f:
-                self._df = pickle.load(f)
+            self._df = pd.read_parquet(state.dataframe_path)
 
             self._current_state = state
             self._results = []

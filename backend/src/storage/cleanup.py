@@ -14,7 +14,7 @@ def cleanup_local_artifacts(job_id: str) -> dict[str, bool]:
     """Clean up local temp files for a job.
 
     Removes:
-    - Pickled DataFrame: {job_id}_data.pkl
+    - Parquet DataFrame: {job_id}_data.parquet
     - Generated notebook: causal_analysis_{job_id}.ipynb
 
     Args:
@@ -25,8 +25,8 @@ def cleanup_local_artifacts(job_id: str) -> dict[str, bool]:
     """
     cleaned = {"dataframe": False, "notebook": False}
 
-    # Clean up pickled DataFrame
-    df_path = CAUSAL_TEMP_DIR / f"{job_id}_data.pkl"
+    # Clean up parquet DataFrame
+    df_path = CAUSAL_TEMP_DIR / f"{job_id}_data.parquet"
     if df_path.exists():
         try:
             df_path.unlink()

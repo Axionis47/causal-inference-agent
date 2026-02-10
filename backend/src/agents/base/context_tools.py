@@ -1121,12 +1121,44 @@ class ContextTools:
 
         # Build adjacency structures for DAG analysis
         nodes = set(dag.nodes)
-        if treatment not in nodes or outcome not in nodes:
+
+        # Fuzzy match treatment/outcome to DAG nodes (handles case mismatches)
+        def _match_node(name: str, node_set: set[str]) -> str | None:
+            if name in node_set:
+                return name
+            name_lower = name.lower()
+            for n in node_set:
+                if n.lower() == name_lower:
+                    return n
+            for n in node_set:
+                if name_lower in n.lower() or n.lower() in name_lower:
+                    return n
+            return None
+
+        matched_treatment = _match_node(treatment, nodes)
+        matched_outcome = _match_node(outcome, nodes)
+
+        if not matched_treatment or not matched_outcome:
+            # Graceful fallback instead of hard ERROR
             return ToolResult(
-                status=ToolResultStatus.ERROR,
-                output=None,
-                error=f"Treatment '{treatment}' or outcome '{outcome}' not in DAG nodes"
+                status=ToolResultStatus.SUCCESS,
+                output={
+                    "available": False,
+                    "message": (
+                        f"Treatment '{treatment}' or outcome '{outcome}' not found in "
+                        f"DAG nodes ({sorted(nodes)}). Use confounder analysis as fallback."
+                    ),
+                    "dag_nodes": sorted(nodes),
+                    "fallback_confounders": (
+                        state.data_profile.potential_confounders[:10]
+                        if state.data_profile else []
+                    )
+                }
             )
+
+        # Use matched names for the rest of the function
+        treatment = matched_treatment
+        outcome = matched_outcome
 
         # Build parent/child maps
         parents: dict[str, set[str]] = {n: set() for n in nodes}

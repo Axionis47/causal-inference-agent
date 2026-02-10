@@ -11,7 +11,6 @@ Uses pull-based context - queries for information on demand.
 """
 
 import json
-import pickle
 import time
 from typing import Any
 
@@ -29,6 +28,7 @@ from src.agents.base import (
 )
 from src.agents.base.context_tools import ContextTools
 from src.agents.base.react_agent import ReActAgent
+from src.agents.registry import register_agent
 from src.logging_config.structured import get_logger
 
 logger = get_logger(__name__)
@@ -154,6 +154,7 @@ def _find_closest_column(name: str, columns: list[str]) -> str | None:
     return None
 
 
+@register_agent("effect_estimator")
 class EffectEstimatorAgent(ReActAgent, ContextTools):
     """ReAct-based treatment effect estimator.
 
@@ -175,39 +176,30 @@ class EffectEstimatorAgent(ReActAgent, ContextTools):
     SYSTEM_PROMPT = """You are an expert econometrician and causal inference practitioner.
 Your task is to estimate treatment effects using rigorous statistical methods.
 
-WORKFLOW:
-1. FIRST: Query previous agent findings (domain_knowledge, data_profiler, eda_agent)
-2. THEN: Get data summary to understand the dataset
-3. THEN: Check covariate balance between treatment groups
-4. THEN: Check propensity score overlap (for observational studies)
-5. THEN: Run estimation methods one by one, checking diagnostics after each
-6. FINALLY: Compare results and finalize with your best estimate
+CRITICAL WORKFLOW - Follow this order strictly:
+1. Steps 1-3: Quick data gathering (get_treatment_outcome, get_data_summary, get_dag_adjustment_set)
+2. Steps 4-5: Run your FIRST estimation method using run_estimation_method (start with "ols")
+3. Steps 6+: Run additional methods (ipw, aipw, matching) and compare results
+4. Final step: Call finalize_estimation or finish
 
-CONTEXT TOOLS:
-- ask_domain_knowledge: Query domain knowledge for causal constraints
-- get_previous_finding: Get findings from previous agents
-- get_eda_finding: Query specific EDA results (balance, correlations, etc.)
-- get_treatment_outcome: Get current treatment/outcome variables
+⚠️ CRITICAL RULE: You MUST call run_estimation_method by step 5 at the latest.
+Do NOT spend more than 3 steps on information gathering. The primary goal is to
+produce treatment effect estimates, not to gather information indefinitely.
 
-IMPORTANT GUIDELINES:
-- Start with simpler methods (OLS, IPW) before complex ones (Causal Forest, DML)
-- Always check diagnostics after running a method
-- If propensity scores have poor overlap, note this limitation
-- If methods disagree significantly, investigate why
-- Use at least 2-3 methods for robustness before finalizing
+ESTIMATION TOOLS (use these - they are your primary tools):
+- run_estimation_method: Run OLS, IPW, AIPW, matching, etc. ALWAYS start with "ols"
+- check_method_diagnostics: Check quality of last estimate
+- compare_estimates: Compare results across methods
+- finalize_estimation: Finalize with best estimate
 
-Method selection guidance:
-- OLS: Always a good baseline, but may be biased with confounding
-- IPW: Good when propensity model is well-specified
-- AIPW/Doubly Robust: Robust to misspecification of either model
-- Matching: Good for interpretability, requires common support
-- Meta-learners (S/T/X): Good for heterogeneous effects
-- Causal Forest: Best for discovering heterogeneity, needs large N
-- DiD: Only if panel data with pre/post periods
-- IV: Only if valid instruments available
-- RDD: Only if running variable with cutoff exists
+CONTEXT TOOLS (use sparingly, max 2-3 calls total):
+- get_treatment_outcome: Get treatment/outcome variable names
+- get_data_summary: Quick data overview
+- get_dag_adjustment_set: Get confounders from causal DAG
 
-Call tools iteratively. Analyze each result before deciding next steps."""
+Method selection: Start with OLS (always works), then try IPW and AIPW if covariates available.
+
+Call tools iteratively. After running each method, decide whether to run another or finalize."""
 
     def __init__(self) -> None:
         """Initialize the effect estimator agent."""
@@ -386,15 +378,16 @@ Call tools iteratively. Analyze each result before deciding next steps."""
 Treatment variable: {self._treatment_var}
 Outcome variable: {self._outcome_var}
 Available covariates: {self._covariates[:20]}{'...' if len(self._covariates) > 20 else ''}
+Number of samples: {len(self._df) if self._df is not None else 'unknown'}
 
-WORKFLOW:
-1. First, query domain knowledge and previous agent findings for context
-2. Get data summary to understand sample sizes and distributions
-3. Check covariate balance between treatment groups
-4. Estimate propensity scores and check overlap
-5. Run estimation methods (start simple: OLS, IPW, AIPW)
-6. Compare results across methods
-7. Finalize with your best estimate when you have 2-3 consistent estimates"""
+⚠️ ACTION PLAN - Follow this exactly:
+Step 1: Call run_estimation_method with method="ols" (no other tools first!)
+Step 2: Call run_estimation_method with method="ipw" (if covariates available)
+Step 3: Call run_estimation_method with method="aipw" (if covariates available)
+Step 4: Call compare_estimates to see results
+Step 5: Call finalize_estimation with your best estimate
+
+START NOW: Call run_estimation_method with method="ols"."""
 
         # Add context from state if available
         if state.confounder_discovery:
@@ -403,13 +396,63 @@ WORKFLOW:
                 obs += f"\n\nConfounders identified: {confounders[:5]}"
 
         if state.data_profile:
-            obs += f"\n\nData has {state.data_profile.n_samples} samples."
             if state.data_profile.has_time_dimension:
                 obs += " Has time dimension (DiD may be applicable)."
             if state.data_profile.potential_instruments:
                 obs += f" Potential instruments: {state.data_profile.potential_instruments}"
 
         return obs
+
+    def _build_react_prompt(
+        self,
+        state: AnalysisState,
+        observation: str,
+        step_num: int,
+    ) -> str:
+        """Build the prompt for a ReAct step with urgency for estimation."""
+        prompt = f"""Step {step_num}/{self.MAX_STEPS}
+
+OBSERVATION:
+{observation}
+
+"""
+        # Add previous steps context (last 3 steps)
+        if self._steps:
+            prompt += "PREVIOUS STEPS:\n"
+            for step in self._steps[-3:]:
+                prompt += f"Step {step.step_number}: Action={step.action}, "
+                prompt += f"Result={'Success' if step.result and step.result.status == ToolResultStatus.SUCCESS else 'Failed'}\n"
+            prompt += "\n"
+
+        # Add urgency based on step number and whether estimation has been done
+        has_run_estimation = any(
+            s.action == "run_estimation_method" for s in self._steps
+        )
+
+        if not has_run_estimation and step_num >= 3:
+            prompt += """⚠️ URGENT: You have NOT called run_estimation_method yet!
+You MUST call run_estimation_method with method="ols" RIGHT NOW.
+Do NOT call any more information-gathering tools.
+
+"""
+        elif not has_run_estimation and step_num >= 2:
+            prompt += """REMINDER: Call run_estimation_method with method="ols" on this step.
+Information gathering is complete enough to proceed.
+
+"""
+        elif has_run_estimation and len(self._results) >= 2:
+            prompt += """You have multiple estimates. Consider calling finalize_estimation or compare_estimates.
+
+"""
+
+        prompt += """Based on the observation, think step by step:
+1. What does this observation tell me?
+2. What should I do next to make progress?
+3. Which tool should I use?
+
+Then call the appropriate tool."""
+
+        return prompt
 
     async def is_task_complete(self, state: AnalysisState) -> bool:
         """Check if estimation task is complete."""
@@ -613,23 +656,27 @@ IMPORTANT:
         outcome: str,
     ) -> list[str]:
         """Get covariates for a specific treatment-outcome pair."""
+        numeric_cols = set(self._df.select_dtypes(include=[np.number]).columns)
+
         # Priority 1: Use discovered confounders
         if state.confounder_discovery and state.confounder_discovery.get("ranked_confounders"):
             return [
                 c for c in state.confounder_discovery["ranked_confounders"]
-                if c in self._df.columns and c != treatment and c != outcome
+                if c in self._df.columns and c in numeric_cols
+                and c != treatment and c != outcome
             ]
 
         # Priority 2: Use profile's potential confounders
         if state.data_profile and state.data_profile.potential_confounders:
             return [
                 c for c in state.data_profile.potential_confounders
-                if c in self._df.columns and c != treatment and c != outcome
+                if c in self._df.columns and c in numeric_cols
+                and c != treatment and c != outcome
             ]
 
         # Priority 3: Use all numeric columns except treatment and outcome
         return [
-            c for c in self._df.select_dtypes(include=[np.number]).columns
+            c for c in numeric_cols
             if c != treatment and c != outcome
         ]
 
@@ -661,8 +708,7 @@ IMPORTANT:
                 state.mark_failed("No data available for estimation", self.AGENT_NAME)
                 return state
 
-            with open(state.dataframe_path, "rb") as f:
-                self._df = pickle.load(f)
+            self._df = pd.read_parquet(state.dataframe_path)
 
             # Store state reference
             self._current_state = state
@@ -768,6 +814,20 @@ IMPORTANT:
     def _auto_finalize(self) -> dict[str, Any]:
         """Auto-finalize when LLM doesn't explicitly finalize."""
         if not self._results:
+            # Emergency fallback: run at least OLS as a baseline estimation
+            try:
+                covariates = self._covariates or []
+                ols_result = self._run_method("ols", covariates)
+                if ols_result:
+                    self._results.append(ols_result)
+                    self.logger.info(
+                        "auto_finalize_ols_fallback",
+                        estimate=ols_result.estimate,
+                    )
+            except Exception as e:
+                self.logger.warning("auto_finalize_ols_failed", error=str(e))
+
+        if not self._results:
             return {
                 "preferred_method": "none",
                 "preferred_estimate": 0.0,
@@ -854,10 +914,18 @@ IMPORTANT:
     ) -> ToolResult:
         """Check covariate balance between treatment groups."""
         df = self._df
-        T = df[self._treatment_var].values
+        T = df[self._treatment_var].values.astype(float)
+
+        # Binarize continuous treatment using median split
+        if len(np.unique(T)) > 2:
+            T = (T > np.median(T)).astype(int)
 
         if not covariates:
             covariates = self._covariates[:15]  # Check top 15
+
+        # Filter to numeric covariates only
+        numeric_cols = set(df.select_dtypes(include=[np.number]).columns)
+        covariates = [c for c in covariates if c in numeric_cols]
 
         balance_results = []
         imbalanced = []
@@ -867,7 +935,7 @@ IMPORTANT:
                 continue
 
             try:
-                x = df[cov].values
+                x = df[cov].values.astype(float)
                 treated_mean = np.nanmean(x[T == 1])
                 control_mean = np.nanmean(x[T == 0])
 
@@ -918,21 +986,26 @@ IMPORTANT:
         from sklearn.linear_model import LogisticRegression
 
         df = self._df
-        T = df[self._treatment_var].values
+        T = df[self._treatment_var].values.astype(float)
+
+        # Binarize continuous treatment using median split
+        if len(np.unique(T)) > 2:
+            T = (T > np.median(T)).astype(int)
 
         if not covariates:
             covariates = self._covariates[:15]
 
-        # Filter to valid covariates
-        valid_covs = [c for c in covariates if c in df.columns]
+        # Filter to valid numeric covariates
+        numeric_cols = set(df.select_dtypes(include=[np.number]).columns)
+        valid_covs = [c for c in covariates if c in df.columns and c in numeric_cols]
         if not valid_covs:
             return ToolResult(
                 status=ToolResultStatus.ERROR,
                 output=None,
-                error="No valid covariates for propensity model."
+                error="No valid numeric covariates for propensity model."
             )
 
-        X = df[valid_covs].values
+        X = df[valid_covs].values.astype(float)
 
         # Handle missing values
         mask = ~np.any(np.isnan(X), axis=1)
@@ -1267,6 +1340,10 @@ IMPORTANT:
         T_col = self._treatment_var
         Y_col = self._outcome_var
 
+        # Filter covariates to numeric-only columns to prevent type errors
+        numeric_cols = set(df.select_dtypes(include=[np.number]).columns)
+        covariates = [c for c in covariates if c in df.columns and c in numeric_cols]
+
         # Prepare clean data
         all_cols = [T_col, Y_col] + [c for c in covariates if c in df.columns]
         df_clean = df[all_cols].dropna()
@@ -1274,9 +1351,9 @@ IMPORTANT:
         if len(df_clean) < 50:
             return None
 
-        T = df_clean[T_col].values
-        Y = df_clean[Y_col].values
-        X = df_clean[covariates].values if covariates else None
+        T = df_clean[T_col].values.astype(float)
+        Y = df_clean[Y_col].values.astype(float)
+        X = df_clean[covariates].values.astype(float) if covariates else None
 
         # Ensure binary treatment
         if len(np.unique(T)) > 2:

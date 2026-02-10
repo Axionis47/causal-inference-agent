@@ -16,11 +16,13 @@ from __future__ import annotations
 from typing import Any
 
 from src.agents.base import AnalysisState, ReActAgent, ToolResult, ToolResultStatus
+from src.agents.registry import register_agent
 from src.logging_config.structured import get_logger
 
 logger = get_logger(__name__)
 
 
+@register_agent("domain_knowledge")
 class DomainKnowledgeAgent(ReActAgent):
     """
     Investigates dataset metadata to build causal understanding.
