@@ -52,12 +52,20 @@ jobs:
           gcloud run services update causal-backend-staging \
             --region ${{ env.REGION }} \
             --remove-secrets KAGGLE_USERNAME,API_KEY 2>/dev/null || true
+          # Build env vars, only including optional secrets when non-empty
+          ENV_VARS="ENVIRONMENT=staging,SSE_ENABLED=true"
+          if [ -n "${{ secrets.KAGGLE_USERNAME }}" ]; then
+            ENV_VARS="$ENV_VARS,KAGGLE_USERNAME=${{ secrets.KAGGLE_USERNAME }}"
+          fi
+          if [ -n "${{ secrets.API_KEY }}" ]; then
+            ENV_VARS="$ENV_VARS,API_KEY=${{ secrets.API_KEY }}"
+          fi
           BACKEND_URL=$(gcloud run deploy causal-backend-staging \
             --image ${{ env.REGISTRY }}/${{ steps.gcp.outputs.project_id }}/causal-backend:${{ github.sha }} \
             --region ${{ env.REGION }} \
             --platform managed \
             --allow-unauthenticated \
-            --set-env-vars "ENVIRONMENT=staging,SSE_ENABLED=true,KAGGLE_USERNAME=${{ secrets.KAGGLE_USERNAME }},API_KEY=${{ secrets.API_KEY }}" \
+            --set-env-vars "$ENV_VARS" \
             --set-secrets CLAUDE_API_KEY=anthropic-api-key:latest,KAGGLE_KEY=kaggle-key:latest \
             --format='value(status.url)')
           echo "backend_url=$BACKEND_URL" >> "$GITHUB_OUTPUT"
@@ -67,12 +75,16 @@ jobs:
         id: deploy-frontend
         run: |
           BACKEND_URL="${{ steps.deploy-backend.outputs.backend_url }}"
+          FE_VARS="API_URL=$BACKEND_URL"
+          if [ -n "${{ secrets.API_KEY }}" ]; then
+            FE_VARS="$FE_VARS,VITE_API_KEY=${{ secrets.API_KEY }}"
+          fi
           FRONTEND_URL=$(gcloud run deploy causal-frontend-staging \
             --image ${{ env.REGISTRY }}/${{ steps.gcp.outputs.project_id }}/causal-frontend:${{ github.sha }} \
             --region ${{ env.REGION }} \
             --platform managed \
             --allow-unauthenticated \
-            --set-env-vars API_URL=$BACKEND_URL \
+            --set-env-vars "$FE_VARS" \
             --format='value(status.url)')
           echo "frontend_url=$FRONTEND_URL" >> "$GITHUB_OUTPUT"
           echo "Frontend deployed to: $FRONTEND_URL"
@@ -146,6 +158,14 @@ jobs:
           gcloud run services update causal-backend \
             --region ${{ env.REGION }} \
             --remove-secrets KAGGLE_USERNAME,API_KEY 2>/dev/null || true
+          # Build env vars, only including optional secrets when non-empty
+          ENV_VARS="ENVIRONMENT=production,SSE_ENABLED=true,USE_FIRESTORE=true,GCP_PROJECT_ID=${{ steps.gcp.outputs.project_id }}"
+          if [ -n "${{ secrets.KAGGLE_USERNAME }}" ]; then
+            ENV_VARS="$ENV_VARS,KAGGLE_USERNAME=${{ secrets.KAGGLE_USERNAME }}"
+          fi
+          if [ -n "${{ secrets.API_KEY }}" ]; then
+            ENV_VARS="$ENV_VARS,API_KEY=${{ secrets.API_KEY }}"
+          fi
           BACKEND_URL=$(gcloud run deploy causal-backend \
             --image ${{ env.REGISTRY }}/${{ steps.gcp.outputs.project_id }}/causal-backend:${{ github.sha }} \
             --region ${{ env.REGION }} \
@@ -153,7 +173,7 @@ jobs:
             --allow-unauthenticated \
             --min-instances 1 \
             --max-instances 10 \
-            --set-env-vars "ENVIRONMENT=production,SSE_ENABLED=true,USE_FIRESTORE=true,GCP_PROJECT_ID=${{ steps.gcp.outputs.project_id }},KAGGLE_USERNAME=${{ secrets.KAGGLE_USERNAME }},API_KEY=${{ secrets.API_KEY }}" \
+            --set-env-vars "$ENV_VARS" \
             --set-secrets CLAUDE_API_KEY=anthropic-api-key:latest,KAGGLE_KEY=kaggle-key:latest \
             --format='value(status.url)')
           echo "backend_url=$BACKEND_URL" >> "$GITHUB_OUTPUT"
@@ -163,13 +183,17 @@ jobs:
         id: deploy-frontend-prod
         run: |
           BACKEND_URL="${{ steps.deploy-backend-prod.outputs.backend_url }}"
+          FE_VARS="API_URL=$BACKEND_URL"
+          if [ -n "${{ secrets.API_KEY }}" ]; then
+            FE_VARS="$FE_VARS,VITE_API_KEY=${{ secrets.API_KEY }}"
+          fi
           FRONTEND_URL=$(gcloud run deploy causal-frontend \
             --image ${{ env.REGISTRY }}/${{ steps.gcp.outputs.project_id }}/causal-frontend:${{ github.sha }} \
             --region ${{ env.REGION }} \
             --platform managed \
             --allow-unauthenticated \
             --min-instances 1 \
-            --set-env-vars API_URL=$BACKEND_URL \
+            --set-env-vars "$FE_VARS" \
             --format='value(status.url)')
           echo "frontend_url=$FRONTEND_URL" >> "$GITHUB_OUTPUT"
           echo "Frontend deployed to: $FRONTEND_URL"

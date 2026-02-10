@@ -102,6 +102,9 @@ class Settings(BaseSettings):
         """Resolve ANTHROPIC_API_KEY as alias for claude_api_key."""
         if self.claude_api_key is None and self.anthropic_api_key is not None:
             self.claude_api_key = self.anthropic_api_key
+        # Treat empty-string secrets as None (e.g. API_KEY="" from CI/CD)
+        if self.api_key is not None and not self.api_key.get_secret_value():
+            self.api_key = None
         return self
 
     @model_validator(mode="after")
