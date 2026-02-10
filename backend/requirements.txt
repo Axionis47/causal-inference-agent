@@ -19,9 +19,12 @@ causalml>=0.15.0
 # Data science
 numpy==1.26.4
 pandas==2.2.3
+pyarrow>=14.0.0
 scipy==1.14.1
 scikit-learn==1.5.2
 statsmodels==0.14.4
+matplotlib>=3.5.0
+seaborn>=0.12.0
 
 # DAG and graphs
 networkx==3.4.2
