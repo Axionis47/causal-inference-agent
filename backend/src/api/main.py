@@ -35,7 +35,6 @@ def create_app() -> FastAPI:
         description="Agentic causal inference orchestration system",
         docs_url="/docs" if settings.enable_api_docs else None,
         redoc_url="/redoc" if settings.enable_api_docs else None,
-        dependencies=[Depends(verify_api_key)],
     )
 
     # Rate limiting
@@ -51,9 +50,10 @@ def create_app() -> FastAPI:
         allow_headers=["Content-Type", "X-API-Key", "Accept"],
     )
 
-    # Include routers
+    # Health routes are unauthenticated (needed for Cloud Run probes and load balancers)
     app.include_router(health_router)
-    app.include_router(jobs_router)
+    # Job routes require API key auth
+    app.include_router(jobs_router, dependencies=[Depends(verify_api_key)])
 
     @app.get("/")
     async def root():
