@@ -53,8 +53,8 @@ jobs:
             --region ${{ env.REGION }} \
             --platform managed \
             --allow-unauthenticated \
-            --set-env-vars ENVIRONMENT=staging,SSE_ENABLED=true \
-            --set-secrets CLAUDE_API_KEY=anthropic-api-key:latest,KAGGLE_KEY=kaggle-key:latest,KAGGLE_USERNAME=kaggle-username:latest,API_KEY=api-key:latest \
+            --set-env-vars "ENVIRONMENT=staging,SSE_ENABLED=true,KAGGLE_USERNAME=${{ secrets.KAGGLE_USERNAME }},API_KEY=${{ secrets.API_KEY }}" \
+            --set-secrets CLAUDE_API_KEY=anthropic-api-key:latest,KAGGLE_KEY=kaggle-key:latest \
             --format='value(status.url)')
           echo "backend_url=$BACKEND_URL" >> "$GITHUB_OUTPUT"
           echo "Backend deployed to: $BACKEND_URL"
@@ -145,8 +145,8 @@ jobs:
             --allow-unauthenticated \
             --min-instances 1 \
             --max-instances 10 \
-            --set-env-vars ENVIRONMENT=production,SSE_ENABLED=true,USE_FIRESTORE=true \
-            --set-secrets CLAUDE_API_KEY=anthropic-api-key:latest,KAGGLE_KEY=kaggle-key:latest,KAGGLE_USERNAME=kaggle-username:latest,API_KEY=api-key:latest \
+            --set-env-vars "ENVIRONMENT=production,SSE_ENABLED=true,USE_FIRESTORE=true,KAGGLE_USERNAME=${{ secrets.KAGGLE_USERNAME }},API_KEY=${{ secrets.API_KEY }}" \
+            --set-secrets CLAUDE_API_KEY=anthropic-api-key:latest,KAGGLE_KEY=kaggle-key:latest \
             --format='value(status.url)')
           echo "backend_url=$BACKEND_URL" >> "$GITHUB_OUTPUT"
           echo "Backend deployed to: $BACKEND_URL"
