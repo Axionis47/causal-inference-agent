@@ -218,7 +218,7 @@ class ReActAgent:
         timeout = settings.agent_timeout_seconds
         try:
             return await asyncio.wait_for(self._execute_inner(state), timeout=timeout)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             self.logger.warning(
                 "agent_timeout",
                 agent=self.AGENT_NAME,

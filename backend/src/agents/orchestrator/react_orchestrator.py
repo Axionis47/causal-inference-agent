@@ -335,7 +335,7 @@ Start by understanding the current state, then decide what to do.
                     specialist.execute_with_tracing(state),
                     timeout=settings.agent_timeout_seconds,
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.warning(
                     "agent_timeout",
                     agent=agent_name,

@@ -1,13 +1,13 @@
 """Shared state management for the agentic system."""
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field
 
 
-class JobStatus(str, Enum):
+class JobStatus(StrEnum):
     """Status of an analysis job."""
 
     PENDING = "pending"
@@ -152,7 +152,7 @@ class EDAResult(BaseModel):
     summary_table: dict[str, dict[str, Any]] = Field(default_factory=dict)
 
 
-class CritiqueDecision(str, Enum):
+class CritiqueDecision(StrEnum):
     """Decision from the critique agent."""
 
     APPROVE = "APPROVE"

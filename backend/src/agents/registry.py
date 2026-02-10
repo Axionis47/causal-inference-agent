@@ -1,10 +1,9 @@
 """Agent registry for modular agent discovery and instantiation."""
 
-from typing import Type
 
 from src.agents.base import BaseAgent
 
-_REGISTRY: dict[str, Type[BaseAgent]] = {}
+_REGISTRY: dict[str, type[BaseAgent]] = {}
 
 
 def register_agent(name: str):
@@ -15,13 +14,13 @@ def register_agent(name: str):
         class DataProfilerAgent(ReActAgent):
             ...
     """
-    def decorator(cls: Type[BaseAgent]) -> Type[BaseAgent]:
+    def decorator(cls: type[BaseAgent]) -> type[BaseAgent]:
         _REGISTRY[name] = cls
         return cls
     return decorator
 
 
-def get_agent_registry() -> dict[str, Type[BaseAgent]]:
+def get_agent_registry() -> dict[str, type[BaseAgent]]:
     """Return a copy of the current agent registry."""
     return dict(_REGISTRY)
 

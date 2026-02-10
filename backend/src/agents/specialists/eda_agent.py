@@ -28,8 +28,8 @@ from src.agents.base import (
     ToolResultStatus,
 )
 from src.agents.base.context_tools import ContextTools
-from src.agents.registry import register_agent
 from src.agents.base.react_agent import ReActAgent
+from src.agents.registry import register_agent
 from src.logging_config.structured import get_logger
 
 logger = get_logger(__name__)

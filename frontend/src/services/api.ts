@@ -2,14 +2,13 @@ import axios, { AxiosError } from 'axios';
 import toast from 'react-hot-toast';
 
 // Runtime config (from docker-entrypoint.sh) > build-time config > fallback
-const API_BASE_URL =
-  (window as any).__CONFIG__?.API_URL ||
-  import.meta.env.VITE_API_URL ||
-  '/api';
-const API_KEY =
-  (window as any).__CONFIG__?.API_KEY ||
-  import.meta.env.VITE_API_KEY ||
-  '';
+interface RuntimeConfig {
+  API_URL?: string;
+  API_KEY?: string;
+}
+const runtimeConfig = (window as unknown as { __CONFIG__?: RuntimeConfig }).__CONFIG__;
+const API_BASE_URL = runtimeConfig?.API_URL || import.meta.env.VITE_API_URL || '/api';
+const API_KEY = runtimeConfig?.API_KEY || import.meta.env.VITE_API_KEY || '';
 
 const api = axios.create({
   baseURL: API_BASE_URL,

@@ -635,12 +635,12 @@ Do not just provide text - you MUST call a tool to proceed."""
         start_time = time.time()
         tasks = [
             specialist.execute_with_tracing(branch)
-            for (_, specialist), branch in zip(specialists, branches)
+            for (_, specialist), branch in zip(specialists, branches, strict=True)
         ]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         # Merge results back into main state
-        for (name, _), result in zip(specialists, results):
+        for (name, _), result in zip(specialists, results, strict=True):
             if isinstance(result, Exception):
                 self.logger.error(
                     "parallel_agent_failed", agent=name, error=str(result)

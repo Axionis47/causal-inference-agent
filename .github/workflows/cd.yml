@@ -6,7 +6,6 @@ on:
   workflow_dispatch:
 
 env:
-  PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
   REGION: us-central1
   REGISTRY: gcr.io
 
@@ -29,24 +28,28 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
+      - name: Resolve project ID
+        id: gcp
+        run: echo "project_id=$(gcloud config get-value project)" >> "$GITHUB_OUTPUT"
+
       - name: Configure Docker
         run: gcloud auth configure-docker gcr.io
 
       - name: Build and push backend
         run: |
-          docker build -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/causal-backend:${{ github.sha }} ./backend
-          docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/causal-backend:${{ github.sha }}
+          docker build -t ${{ env.REGISTRY }}/${{ steps.gcp.outputs.project_id }}/causal-backend:${{ github.sha }} ./backend
+          docker push ${{ env.REGISTRY }}/${{ steps.gcp.outputs.project_id }}/causal-backend:${{ github.sha }}
 
       - name: Build and push frontend
         run: |
-          docker build -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/causal-frontend:${{ github.sha }} ./frontend
-          docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/causal-frontend:${{ github.sha }}
+          docker build -t ${{ env.REGISTRY }}/${{ steps.gcp.outputs.project_id }}/causal-frontend:${{ github.sha }} ./frontend
+          docker push ${{ env.REGISTRY }}/${{ steps.gcp.outputs.project_id }}/causal-frontend:${{ github.sha }}
 
       - name: Deploy backend to Cloud Run
         id: deploy-backend
         run: |
           BACKEND_URL=$(gcloud run deploy causal-backend-staging \
-            --image ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/causal-backend:${{ github.sha }} \
+            --image ${{ env.REGISTRY }}/${{ steps.gcp.outputs.project_id }}/causal-backend:${{ github.sha }} \
             --region ${{ env.REGION }} \
             --platform managed \
             --allow-unauthenticated \
@@ -61,7 +64,7 @@ jobs:
         run: |
           BACKEND_URL="${{ steps.deploy-backend.outputs.backend_url }}"
           FRONTEND_URL=$(gcloud run deploy causal-frontend-staging \
-            --image ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/causal-frontend:${{ github.sha }} \
+            --image ${{ env.REGISTRY }}/${{ steps.gcp.outputs.project_id }}/causal-frontend:${{ github.sha }} \
             --region ${{ env.REGION }} \
             --platform managed \
             --allow-unauthenticated \
@@ -125,6 +128,10 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
+      - name: Resolve project ID
+        id: gcp
+        run: echo "project_id=$(gcloud config get-value project)" >> "$GITHUB_OUTPUT"
+
       - name: Configure Docker
         run: gcloud auth configure-docker gcr.io
 
@@ -132,7 +139,7 @@ jobs:
         id: deploy-backend-prod
         run: |
           BACKEND_URL=$(gcloud run deploy causal-backend \
-            --image ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/causal-backend:${{ github.sha }} \
+            --image ${{ env.REGISTRY }}/${{ steps.gcp.outputs.project_id }}/causal-backend:${{ github.sha }} \
             --region ${{ env.REGION }} \
             --platform managed \
             --allow-unauthenticated \
@@ -149,7 +156,7 @@ jobs:
         run: |
           BACKEND_URL="${{ steps.deploy-backend-prod.outputs.backend_url }}"
           FRONTEND_URL=$(gcloud run deploy causal-frontend \
-            --image ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/causal-frontend:${{ github.sha }} \
+            --image ${{ env.REGISTRY }}/${{ steps.gcp.outputs.project_id }}/causal-frontend:${{ github.sha }} \
             --region ${{ env.REGION }} \
             --platform managed \
             --allow-unauthenticated \

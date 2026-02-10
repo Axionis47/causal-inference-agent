@@ -216,7 +216,7 @@ Output markdown only, no code fences. 2-3 paragraphs maximum."""
         """Generate title and introduction."""
         cells = []
 
-        title = f"# Causal Inference Analysis Report\n\n"
+        title = "# Causal Inference Analysis Report\n\n"
         title += f"**Dataset**: {state.dataset_info.name or state.dataset_info.url}\n\n"
         title += f"**Generated**: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}\n\n"
         title += f"**Job ID**: {state.job_id}\n"
@@ -224,7 +224,7 @@ Output markdown only, no code fences. 2-3 paragraphs maximum."""
 
         # Static intro
         intro = "## Introduction\n\n"
-        intro += f"This notebook reports the results of an automated causal inference analysis "
+        intro += "This notebook reports the results of an automated causal inference analysis "
         intro += f"estimating the effect of **{state.treatment_variable}** on **{state.outcome_variable}**.\n\n"
 
         if state.data_profile:
@@ -418,8 +418,8 @@ df.head()'''
         md += "*Findings from the Data Profiler agent.*\n\n"
 
         # Overview
-        md += f"| Property | Value |\n"
-        md += f"|----------|-------|\n"
+        md += "| Property | Value |\n"
+        md += "|----------|-------|\n"
         md += f"| Samples | {profile.n_samples:,} |\n"
         md += f"| Features | {profile.n_features} |\n"
         md += f"| Has Time Dimension | {'Yes' if profile.has_time_dimension else 'No'} |\n"
@@ -570,7 +570,7 @@ df.head()'''
 
         # Quality summary
         if eda:
-            quality_md = f"### Data Quality\n\n"
+            quality_md = "### Data Quality\n\n"
             quality_md += f"**Overall Quality Score**: {eda.data_quality_score:.1f}/100\n\n"
             if eda.data_quality_issues:
                 quality_md += "**Issues Found:**\n"
@@ -718,7 +718,7 @@ plt.show()'''
         cells = []
         dag = state.proposed_dag
 
-        md = f"## Causal Structure\n\n"
+        md = "## Causal Structure\n\n"
         md += f"*Discovered by the Causal Discovery agent using **{dag.discovery_method}**.*\n\n"
         md += "The graph below represents the discovered causal relationships.\n"
         md += "**Green** = treatment, **Red** = outcome, **Blue** = other variables.\n"
@@ -863,7 +863,7 @@ print(f"Nodes: {{len(G.nodes())}}, Edges: {{len(G.edges())}}")'''
         if trimming:
             md += f"| PS Trimming Bounds | [{trimming[0]:.3f}, {trimming[1]:.3f}] |\n"
         else:
-            md += f"| PS Trimming Bounds | None (no trimming needed) |\n"
+            md += "| PS Trimming Bounds | None (no trimming needed) |\n"
         md += "\n"
 
         # Warnings
@@ -969,8 +969,8 @@ else:
 
         effects = self._deduplicate_effects(state.treatment_effects)
 
-        md = f"## Treatment Effect Estimation\n\n"
-        md += f"*Results from the Effect Estimator agent.*\n\n"
+        md = "## Treatment Effect Estimation\n\n"
+        md += "*Results from the Effect Estimator agent.*\n\n"
         md += f"**Treatment**: {state.treatment_variable}\n"
         md += f"**Outcome**: {state.outcome_variable}\n"
         md += f"**Methods applied**: {len(effects)}\n\n"
@@ -1337,7 +1337,7 @@ plt.show()'''
             conclusion_md += llm_conclusion + "\n\n"
         else:
             # Fallback: template conclusion
-            conclusion_md += f"### Key Findings\n\n"
+            conclusion_md += "### Key Findings\n\n"
             conclusion_md += f"The analysis estimated the effect of **{state.treatment_variable}** "
             conclusion_md += f"on **{state.outcome_variable}** using {len(effects)} method(s).\n\n"
             conclusion_md += f"- **Average Treatment Effect**: {avg_effect:.4f}\n"

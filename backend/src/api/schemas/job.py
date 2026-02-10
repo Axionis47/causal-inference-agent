@@ -2,7 +2,7 @@
 
 import re
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
@@ -20,7 +20,7 @@ MAX_KAGGLE_URL_LENGTH = 500
 MAX_VARIABLE_NAME_LENGTH = 100
 
 
-class OrchestratorMode(str, Enum):
+class OrchestratorMode(StrEnum):
     """Orchestrator mode selection."""
     STANDARD = "standard"  # Original orchestrator with fixed workflow
     REACT = "react"  # Fully autonomous ReAct orchestrator

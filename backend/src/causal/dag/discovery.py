@@ -12,7 +12,7 @@ Supports:
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 import numpy as np
@@ -21,7 +21,7 @@ from scipy import optimize, stats
 from scipy.linalg import expm
 
 
-class EdgeType(str, Enum):
+class EdgeType(StrEnum):
     """Types of edges in causal graphs."""
     DIRECTED = "directed"      # X -> Y
     UNDIRECTED = "undirected"  # X - Y
@@ -29,7 +29,7 @@ class EdgeType(str, Enum):
     PARTIALLY_DIRECTED = "partially_directed"  # X o-> Y
 
 
-class CITest(str, Enum):
+class CITest(StrEnum):
     """Conditional independence test types."""
     FISHERZ = "fisherz"           # Linear/Gaussian
     KERNEL = "kernel"             # Nonlinear (HSIC-based)
