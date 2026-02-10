@@ -48,6 +48,10 @@ jobs:
       - name: Deploy backend to Cloud Run
         id: deploy-backend
         run: |
+          # Clear any previous secret-type env vars before setting as plain env vars
+          gcloud run services update causal-backend-staging \
+            --region ${{ env.REGION }} \
+            --remove-secrets KAGGLE_USERNAME,API_KEY 2>/dev/null || true
           BACKEND_URL=$(gcloud run deploy causal-backend-staging \
             --image ${{ env.REGISTRY }}/${{ steps.gcp.outputs.project_id }}/causal-backend:${{ github.sha }} \
             --region ${{ env.REGION }} \
@@ -138,6 +142,10 @@ jobs:
       - name: Deploy backend to Production
         id: deploy-backend-prod
         run: |
+          # Clear any previous secret-type env vars before setting as plain env vars
+          gcloud run services update causal-backend \
+            --region ${{ env.REGION }} \
+            --remove-secrets KAGGLE_USERNAME,API_KEY 2>/dev/null || true
           BACKEND_URL=$(gcloud run deploy causal-backend \
             --image ${{ env.REGISTRY }}/${{ steps.gcp.outputs.project_id }}/causal-backend:${{ github.sha }} \
             --region ${{ env.REGION }} \
