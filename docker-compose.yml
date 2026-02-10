@@ -22,6 +22,7 @@ services:
     ports:
       - "8000:8000"
     environment:
+      - PORT=8000
       - ENVIRONMENT=development
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - CLAUDE_API_KEY=${CLAUDE_API_KEY:-${ANTHROPIC_API_KEY}}

@@ -82,7 +82,7 @@ jobs:
           FRONTEND_URL="${{ steps.deploy-frontend.outputs.frontend_url }}"
           gcloud run services update causal-backend-staging \
             --region ${{ env.REGION }} \
-            --update-env-vars "CORS_ORIGINS=[\"$FRONTEND_URL\",\"http://localhost:3000\",\"http://localhost:5173\"]"
+            --update-env-vars "^##^CORS_ORIGINS=[\"$FRONTEND_URL\",\"http://localhost:3000\",\"http://localhost:5173\"]"
 
       - name: Validate staging deployment
         run: |
@@ -179,7 +179,7 @@ jobs:
           FRONTEND_URL="${{ steps.deploy-frontend-prod.outputs.frontend_url }}"
           gcloud run services update causal-backend \
             --region ${{ env.REGION }} \
-            --update-env-vars "CORS_ORIGINS=[\"$FRONTEND_URL\",\"http://localhost:3000\",\"http://localhost:5173\"]"
+            --update-env-vars "^##^CORS_ORIGINS=[\"$FRONTEND_URL\",\"http://localhost:3000\",\"http://localhost:5173\"]"
 
       - name: Validate production deployment
         run: |
