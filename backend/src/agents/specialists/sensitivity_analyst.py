@@ -842,7 +842,17 @@ WORKFLOW:
             method="Subgroup Analysis",
             robustness_value=float(1 - min(cv, 1)),
             interpretation=interpretation,
-            details={"subgroup_variable": subgroup_var, "n_subgroups": len(subgroup_effects), "cv": float(cv)},
+            details={
+                "subgroup_variable": subgroup_var,
+                "n_subgroups": len(subgroup_effects),
+                "cv": float(cv),
+                "subgroup_effects": [
+                    {"label": l, "effect": round(float(e), 4)}
+                    for l, e in zip(subgroup_labels, subgroup_effects, strict=False)
+                ],
+                "mean_effect": round(float(effect_mean), 4),
+                "std_effect": round(float(effect_std), 4),
+            },
         )
         self._results.append(sens_result)
 

@@ -197,10 +197,15 @@ Output markdown only, no code fences. 2-3 paragraphs maximum."""
     # ─────────────────────── Helper: Dedup Effects ──────────────────────
 
     def _deduplicate_effects(self, effects: list) -> list:
-        """Deduplicate treatment effects by method name, keeping last occurrence."""
-        seen: dict[str, Any] = {}
+        """Deduplicate treatment effects by (method, treatment, outcome), case-insensitive."""
+        seen: dict[tuple, Any] = {}
         for effect in effects:
-            seen[effect.method] = effect
+            key = (
+                effect.method.lower().strip(),
+                getattr(effect, "treatment", ""),
+                getattr(effect, "outcome", ""),
+            )
+            seen[key] = effect
         return list(seen.values())
 
     def _deduplicate_sensitivity(self, results: list) -> list:
@@ -1147,7 +1152,15 @@ print(f"  N:        {{len(df_clean)}}")'''
                 detail_md += f"**Interpretation**: {s.interpretation}\n\n"
                 detail_md += "**Details:**\n"
                 for k, v in s.details.items():
-                    if isinstance(v, float):
+                    if k == "subgroup_effects" and isinstance(v, list):
+                        detail_md += "\n**Per-subgroup Effects:**\n\n"
+                        detail_md += "| Subgroup | Effect |\n|----------|--------|\n"
+                        for sg in v:
+                            label = sg.get("label", "?")
+                            effect = sg.get("effect", 0)
+                            detail_md += f"| {label} | {effect:.4f} |\n"
+                        detail_md += "\n"
+                    elif isinstance(v, float):
                         detail_md += f"- {k}: {v:.4f}\n"
                     elif isinstance(v, (str, int, bool)):
                         detail_md += f"- {k}: {v}\n"

@@ -381,11 +381,15 @@ Available covariates: {self._covariates[:20]}{'...' if len(self._covariates) > 2
 Number of samples: {len(self._df) if self._df is not None else 'unknown'}
 
 ⚠️ ACTION PLAN - Follow this exactly:
-Step 1: Call run_estimation_method with method="ols" (no other tools first!)
-Step 2: Call run_estimation_method with method="ipw" (if covariates available)
-Step 3: Call run_estimation_method with method="aipw" (if covariates available)
+Step 1: Call run_estimation_method with method="ols"
+Step 2: Call run_estimation_method with method="ipw"
+Step 3: Call run_estimation_method with method="aipw"
 Step 4: Call compare_estimates to see results
 Step 5: Call finalize_estimation with your best estimate
+
+You MUST attempt ALL three methods (OLS, IPW, AIPW). If a method fails due to
+missing covariates or other issues, the tool will return an error - that is fine,
+just proceed to the next method.
 
 START NOW: Call run_estimation_method with method="ols"."""
 
@@ -655,30 +659,60 @@ IMPORTANT:
         treatment: str,
         outcome: str,
     ) -> list[str]:
-        """Get covariates for a specific treatment-outcome pair."""
-        numeric_cols = set(self._df.select_dtypes(include=[np.number]).columns)
+        """Get covariates for a specific treatment-outcome pair.
+
+        Handles both numeric and categorical confounders. Categorical columns
+        are automatically one-hot encoded (drop_first) and the dummy columns
+        are added to self._df so downstream estimation tools can use them.
+        """
+        # Determine raw confounder list from best available source
+        raw_confounders: list[str] = []
 
         # Priority 1: Use discovered confounders
         if state.confounder_discovery and state.confounder_discovery.get("ranked_confounders"):
-            return [
+            raw_confounders = [
                 c for c in state.confounder_discovery["ranked_confounders"]
-                if c in self._df.columns and c in numeric_cols
-                and c != treatment and c != outcome
+                if c in self._df.columns and c != treatment and c != outcome
             ]
 
         # Priority 2: Use profile's potential confounders
-        if state.data_profile and state.data_profile.potential_confounders:
-            return [
+        elif state.data_profile and state.data_profile.potential_confounders:
+            raw_confounders = [
                 c for c in state.data_profile.potential_confounders
-                if c in self._df.columns and c in numeric_cols
-                and c != treatment and c != outcome
+                if c in self._df.columns and c != treatment and c != outcome
             ]
 
-        # Priority 3: Use all numeric columns except treatment and outcome
-        return [
-            c for c in numeric_cols
-            if c != treatment and c != outcome
+        # Priority 3: Use all non-ID columns except treatment and outcome
+        else:
+            raw_confounders = [
+                c for c in self._df.columns
+                if c != treatment and c != outcome
+            ]
+
+        # Separate numeric vs categorical confounders
+        numeric_covariates = [
+            c for c in raw_confounders
+            if pd.api.types.is_numeric_dtype(self._df[c])
         ]
+
+        cat_confounders = [
+            c for c in raw_confounders
+            if c in self._df.columns
+            and not pd.api.types.is_numeric_dtype(self._df[c])
+            and self._df[c].nunique() <= 20  # Only encode low-cardinality
+        ]
+
+        # One-hot encode categorical confounders and add to working dataframe
+        dummy_cols: list[str] = []
+        if cat_confounders:
+            dummies = pd.get_dummies(
+                self._df[cat_confounders], prefix_sep="_", drop_first=True,
+            )
+            for col in dummies.columns:
+                self._df[col] = dummies[col].astype(float)
+            dummy_cols = list(dummies.columns)
+
+        return numeric_covariates + dummy_cols
 
     # =========================================================================
     # Main execution
@@ -768,6 +802,12 @@ IMPORTANT:
                     outcome=outcome,
                     rationale=rationale[:50],
                 )
+
+                # Clear any previous results for this pair (from prior iterations)
+                state.treatment_effects = [
+                    e for e in state.treatment_effects
+                    if not (e.treatment == treatment and e.outcome == outcome)
+                ]
 
                 # Set current pair
                 self._treatment_var = treatment

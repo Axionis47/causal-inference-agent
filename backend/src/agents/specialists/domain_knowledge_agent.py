@@ -173,7 +173,7 @@ When confident, call finish with your findings.
                 "properties": {
                     "claim": {
                         "type": "string",
-                        "description": "Your hypothesis (e.g., 'treat is the treatment variable')"
+                        "description": "Your hypothesis about a causal relationship in this dataset"
                     },
                     "confidence": {
                         "type": "string",

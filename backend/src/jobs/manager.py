@@ -131,6 +131,16 @@ class JobManager:
             state.status = JobStatus.FETCHING_DATA
             await self.firestore.update_job(state)
 
+            # Set up status callback so the orchestrator can persist
+            # intermediate status updates to Firestore during the pipeline
+            async def _persist_status(s: AnalysisState) -> None:
+                try:
+                    await self.firestore.update_job(s)
+                except Exception:
+                    pass  # Non-critical
+
+            self.orchestrator.set_status_callback(_persist_status)
+
             # Run the orchestrator with timeout
             try:
                 final_state = await asyncio.wait_for(

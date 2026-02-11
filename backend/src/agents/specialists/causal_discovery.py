@@ -361,8 +361,8 @@ Workflow:
         # Prepare numeric columns
         numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
 
-        # Get relevant columns
-        relevant_cols = []
+        # Get relevant columns — start with profile hints, then add all numeric
+        relevant_cols: list[str] = []
         if profile:
             relevant_cols = (
                 profile.treatment_candidates[:2] +
@@ -370,6 +370,12 @@ Workflow:
                 profile.potential_confounders[:10]
             )
             relevant_cols = [c for c in relevant_cols if c in numeric_cols]
+
+        # Always include ALL numeric columns (up to limit) so the DAG
+        # can discover confounders the profiler may have missed
+        for col in numeric_cols:
+            if col not in relevant_cols:
+                relevant_cols.append(col)
 
         # CRITICAL: Ensure user-specified treatment/outcome are always included
         if state.treatment_variable and state.treatment_variable in numeric_cols:
@@ -382,7 +388,18 @@ Workflow:
         if not relevant_cols:
             relevant_cols = numeric_cols[:15]
 
-        df_subset = df[relevant_cols].dropna()
+        # Include low-cardinality categorical columns as dummies
+        cat_cols = df.select_dtypes(include=["object", "category"]).columns.tolist()
+        df_work = df.copy()
+        for col in cat_cols:
+            if df[col].nunique() <= 10:
+                dummies = pd.get_dummies(df[col], prefix=col, drop_first=True)
+                for dcol in dummies.columns:
+                    df_work[dcol] = dummies[dcol].astype(float)
+                    relevant_cols.append(dcol)
+
+        relevant_cols = relevant_cols[:20]  # Limit for computation
+        df_subset = df_work[relevant_cols].dropna()
 
         # Distribution analysis
         distributions = []
@@ -468,9 +485,10 @@ Workflow:
         df = self._df
         profile = state.data_profile
 
-        # Prepare data
+        # Prepare data — include all numeric columns, not just profiler picks
         numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
 
+        relevant_cols: list[str] = []
         if profile:
             relevant_cols = (
                 profile.treatment_candidates[:2] +
@@ -478,8 +496,12 @@ Workflow:
                 profile.potential_confounders[:10]
             )
             relevant_cols = [c for c in relevant_cols if c in numeric_cols]
-        else:
-            relevant_cols = numeric_cols
+
+        # Always include all numeric columns so the algorithm can discover
+        # confounders the profiler may have missed
+        for col in numeric_cols:
+            if col not in relevant_cols:
+                relevant_cols.append(col)
 
         # CRITICAL: Ensure user-specified treatment/outcome are always included
         if state.treatment_variable and state.treatment_variable in numeric_cols:
@@ -489,8 +511,18 @@ Workflow:
             if state.outcome_variable not in relevant_cols:
                 relevant_cols.insert(1, state.outcome_variable)
 
+        # Include low-cardinality categorical columns as dummies
+        cat_cols = df.select_dtypes(include=["object", "category"]).columns.tolist()
+        df_work = df.copy()
+        for col in cat_cols:
+            if df[col].nunique() <= 10:
+                dummies = pd.get_dummies(df[col], prefix=col, drop_first=True)
+                for dcol in dummies.columns:
+                    df_work[dcol] = dummies[dcol].astype(float)
+                    relevant_cols.append(dcol)
+
         relevant_cols = relevant_cols[:20]  # Limit for computation
-        df_subset = df[relevant_cols].dropna()
+        df_subset = df_work[relevant_cols].dropna()
 
         if len(df_subset) < 50:
             return ToolResult(

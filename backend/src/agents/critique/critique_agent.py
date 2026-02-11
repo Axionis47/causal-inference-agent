@@ -854,7 +854,7 @@ After gathering evidence, call finalize_critique with your assessment."""
         return output
 
     def _auto_finalize(self) -> dict[str, Any]:
-        """Auto-generate final critique."""
+        """Auto-generate final critique based on actual evidence."""
         self.logger.info("critique_auto_finalize")
 
         state = self._state
@@ -872,32 +872,68 @@ After gathering evidence, call finalize_critique with your assessment."""
         issues = []
         improvements = []
 
-        # Adjust based on evidence
-        n_methods = len(state.treatment_effects)
-        if n_methods >= 3:
-            scores["method_selection"] = 4
-        elif n_methods == 1:
-            scores["method_selection"] = 2
-            improvements.append("Use multiple estimation methods")
+        # --- Method selection scoring ---
+        # Count distinct methods (case-insensitive)
+        method_names = set()
+        for e in state.treatment_effects:
+            method_names.add(e.method.lower().strip())
+        n_distinct_methods = len(method_names)
 
-        if state.sensitivity_results:
+        if n_distinct_methods >= 3:
+            scores["method_selection"] = 5
+        elif n_distinct_methods == 2:
+            scores["method_selection"] = 4
+        elif n_distinct_methods == 1:
+            scores["method_selection"] = 2
+            improvements.append("Run additional estimation methods (IPW, AIPW, matching) for triangulation")
+        else:
+            scores["method_selection"] = 1
+            improvements.append("No treatment effects estimated — re-run effect estimation")
+
+        # --- Completeness scoring ---
+        if state.sensitivity_results and len(state.sensitivity_results) >= 3:
+            scores["completeness"] = 5
+        elif state.sensitivity_results:
             scores["completeness"] = 4
         else:
-            improvements.append("Add sensitivity analysis")
+            scores["completeness"] = 2
+            improvements.append("Add sensitivity analysis (E-value, placebo tests)")
+
+        # --- Assumption checking ---
+        # Check if confounders were controlled for
+        has_confounders = bool(
+            (state.confounder_discovery and state.confounder_discovery.get("ranked_confounders"))
+            or (state.data_profile and state.data_profile.potential_confounders)
+        )
+        if has_confounders and n_distinct_methods >= 2:
+            scores["assumption_checking"] = 4
+        elif not has_confounders:
+            scores["assumption_checking"] = 2
+            improvements.append("Identify and control for confounders in estimation")
+
+        # --- Statistical validity ---
+        if state.proposed_dag and state.proposed_dag.edges:
+            scores["statistical_validity"] = 4
+        else:
+            scores["statistical_validity"] = 2
+            improvements.append("Run causal discovery to identify DAG structure")
 
         # Check investigation evidence for concerns
         for evidence in self._investigation_evidence:
             if "CONCERN" in evidence or "WARNING" in evidence:
                 issues.append(evidence)
 
-        # Determine decision
+        # --- Determine decision ---
         avg_score = sum(scores.values()) / len(scores)
         if avg_score >= 4 and len(issues) == 0:
             decision = "APPROVE"
-        elif avg_score >= 3 or len(issues) <= 2:
-            decision = "ITERATE"
+        elif avg_score >= 3 and len(improvements) <= 1:
+            decision = "APPROVE"
+        elif state.iteration_count >= 2:
+            # After 2+ iterations, approve with best effort to avoid infinite loops
+            decision = "APPROVE"
         else:
-            decision = "REJECT"
+            decision = "ITERATE"
 
         return {
             "scores": scores,
@@ -905,7 +941,12 @@ After gathering evidence, call finalize_critique with your assessment."""
             "issues": issues,
             "improvements": improvements,
             "evidence_summary": " | ".join(self._investigation_evidence[:5]),
-            "reasoning": f"Auto-critique based on investigation. Methods: {n_methods}, Issues: {len(issues)}",
+            "reasoning": (
+                f"Auto-critique: {n_distinct_methods} distinct methods, "
+                f"{len(state.sensitivity_results)} sensitivity tests, "
+                f"confounders={'yes' if has_confounders else 'no'}, "
+                f"Issues: {len(issues)}"
+            ),
         }
 
     def _create_feedback(self, result: dict[str, Any], iteration: int) -> CritiqueFeedback:

@@ -203,6 +203,12 @@ When making decisions, output your reasoning step-by-step, then specify which ag
         """Initialize the orchestrator."""
         super().__init__()
         self._specialist_agents: dict[str, BaseAgent] = {}
+        self._critique_feedback_for_prompt: str = ""
+        self._status_callback = None
+
+    def set_status_callback(self, callback) -> None:
+        """Set a callback for persisting status updates (e.g. to Firestore)."""
+        self._status_callback = callback
 
     def register_specialist(self, name: str, agent: BaseAgent) -> None:
         """Register a specialist agent.
@@ -446,6 +452,13 @@ Think step by step:
         """Build a continuation prompt after an agent has completed."""
         prompt = self._build_context_prompt(state)
         prompt += "\n\nAn agent just completed. Review the updated state and decide the next action."
+
+        # Include critique feedback if available, so the orchestrator
+        # knows to re-dispatch specialists to address issues
+        if self._critique_feedback_for_prompt:
+            prompt += self._critique_feedback_for_prompt
+            self._critique_feedback_for_prompt = ""  # Clear after use
+
         return prompt
 
     def _build_action_request_prompt(self, state: AnalysisState) -> str:
@@ -545,7 +558,7 @@ Do not just provide text - you MUST call a tool to proceed."""
             task=task_description[:100],
         )
 
-        # Update status based on agent
+        # Update status and progress based on agent
         status_map = {
             "domain_knowledge": JobStatus.PROFILING,  # Part of early profiling phase
             "data_profiler": JobStatus.PROFILING,
@@ -555,7 +568,26 @@ Do not just provide text - you MUST call a tool to proceed."""
             "sensitivity_analyst": JobStatus.SENSITIVITY_ANALYSIS,
             "notebook_generator": JobStatus.GENERATING_NOTEBOOK,
         }
+        progress_map = {
+            JobStatus.PROFILING: 15,
+            JobStatus.EXPLORATORY_ANALYSIS: 30,
+            JobStatus.DISCOVERING_CAUSAL: 45,
+            JobStatus.ESTIMATING_EFFECTS: 60,
+            JobStatus.SENSITIVITY_ANALYSIS: 75,
+            JobStatus.CRITIQUE_REVIEW: 85,
+            JobStatus.GENERATING_NOTEBOOK: 95,
+        }
         state.status = status_map.get(agent_name, state.status)
+        state.progress_percentage = progress_map.get(
+            state.status, state.progress_percentage
+        )
+
+        # Persist status to Firestore so API consumers can track progress
+        if self._status_callback:
+            try:
+                await self._status_callback(state)
+            except Exception:
+                pass  # Non-critical — don't fail pipeline for status updates
 
         # Get the specialist agent
         specialist = self._specialist_agents.get(agent_name)
@@ -717,11 +749,35 @@ Do not just provide text - you MUST call a tool to proceed."""
         if state.should_iterate():
             state.iteration_count += 1
             state.status = JobStatus.ITERATING
+
+            latest = state.get_latest_critique()
+            issues = latest.issues if latest else []
+            improvements = latest.improvements if latest else []
+
             self.logger.info(
                 "iteration_required",
                 iteration=state.iteration_count,
-                feedback=state.get_latest_critique().issues if state.get_latest_critique() else [],
+                feedback=issues,
             )
+
+            # Inject critique feedback so the orchestrator LLM re-dispatches
+            # the relevant specialist agents instead of just re-running critique
+            if improvements:
+                improvement_text = "\n".join(f"- {imp}" for imp in improvements)
+                self._critique_feedback_for_prompt = (
+                    f"\n\nCRITIQUE FEEDBACK (iteration {state.iteration_count}):\n"
+                    f"Issues found:\n{improvement_text}\n"
+                    f"You MUST re-dispatch the relevant specialist agents to "
+                    f"address these issues before requesting another critique."
+                )
+            elif issues:
+                issue_text = "\n".join(f"- {iss}" for iss in issues)
+                self._critique_feedback_for_prompt = (
+                    f"\n\nCRITIQUE FEEDBACK (iteration {state.iteration_count}):\n"
+                    f"Issues found:\n{issue_text}\n"
+                    f"You MUST re-dispatch the relevant specialist agents to "
+                    f"address these issues before requesting another critique."
+                )
 
         return state
 
