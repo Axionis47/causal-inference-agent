@@ -1,0 +1,4 @@
+[
+  {"title":"Orchard accounts","csv":"examples/context/orchard.csv","document":"examples/context/orchard.md"},
+  {"title":"Sensor comparison","csv":"examples/context/sensors.csv","document":"examples/context/sensors.md"}
+]
