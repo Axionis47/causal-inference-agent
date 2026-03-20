@@ -1,6 +1,7 @@
 """Application configuration using Pydantic Settings."""
 
 import logging
+import uuid
 from functools import lru_cache
 from typing import Literal
 
@@ -31,6 +32,9 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8000
 
+    # Observability
+    log_llm_prompts: bool = False  # Log full LLM prompts at DEBUG level (disable in prod)
+
     # GCP Configuration
     gcp_project_id: str = Field(default="")
     gcp_region: str = "us-central1"
@@ -40,12 +44,8 @@ class Settings(BaseSettings):
     local_storage_path: str = "./data"  # Path for local JSON storage when use_firestore=False
     firestore_database: str = "(default)"
 
-    # Cloud Storage
-    gcs_bucket_datasets: str = Field(default="causal-datasets")
-    gcs_bucket_notebooks: str = Field(default="causal-notebooks")
-
     # LLM Configuration
-    llm_provider: Literal["gemini", "vertex", "claude"] = "claude"  # Which LLM provider to use
+    llm_provider: Literal["gemini", "vertex", "claude"] = "vertex"  # Which LLM provider to use
 
     # Gemini API (direct API key access)
     gemini_api_key: SecretStr | None = Field(default=None)
@@ -54,7 +54,9 @@ class Settings(BaseSettings):
     gemini_max_tokens: int = 8192
 
     # Vertex AI (GCP-managed, uses service account or ADC)
-    vertex_model: str = "gemini-2.0-flash-exp"  # Experimental model (has rate limits)
+    vertex_model: str = "gemini-2.0-flash"  # Stable model
+    vertex_temperature: float = 0.1
+    vertex_max_tokens: int = 8192
 
     # Claude API (Anthropic)
     claude_api_key: SecretStr | None = Field(
@@ -74,17 +76,21 @@ class Settings(BaseSettings):
     # API Authentication
     api_key: SecretStr | None = Field(default=None)  # Set to enable API key auth
 
+    # Redis (optional — for distributed rate limiting across instances)
+    redis_url: str = ""  # e.g. "redis://redis:6379"
+    redis_enabled: bool = False  # Set True when Redis is available
+
+    # Instance identity (unique per process, for distributed coordination)
+    instance_id: str = Field(default_factory=lambda: str(uuid.uuid4())[:8])
+
     # Agent Configuration
     max_agent_iterations: int = 3
     agent_timeout_seconds: int = 300
+    max_concurrent_jobs: int = 3
 
     # SSE (Server-Sent Events)
     sse_enabled: bool = True
     sse_heartbeat_seconds: int = 15
-
-    # Redis (opt-in for future job queue scaling)
-    redis_url: str = "redis://localhost:6379"
-    redis_enabled: bool = False
 
     # CORS - Set via CORS_ORIGINS env var in production with actual Cloud Run URLs
     cors_origins: list[str] = [

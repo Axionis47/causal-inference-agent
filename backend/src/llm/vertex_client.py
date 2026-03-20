@@ -46,8 +46,8 @@ class VertexAIClient:
 
         settings = get_settings()
         self.model_name = settings.vertex_model
-        self.temperature = settings.gemini_temperature
-        self.max_tokens = settings.gemini_max_tokens
+        self.temperature = settings.vertex_temperature
+        self.max_tokens = settings.vertex_max_tokens
         self._model = None
 
     @property
@@ -66,7 +66,7 @@ class VertexAIClient:
         return self._model
 
     @retry(
-        retry=retry_if_exception_type(Exception),
+        retry=retry_if_exception_type((ConnectionError, TimeoutError, OSError)),
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
     )
