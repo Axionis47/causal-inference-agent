@@ -1,4 +1,4 @@
-import { Activity, Check } from 'lucide-react';
+import { Check } from 'lucide-react';
 
 interface JobProgressProps {
   status: string;
@@ -7,88 +7,78 @@ interface JobProgressProps {
 }
 
 const STAGES = [
-  { key: 'fetching_data', label: 'Fetching Data', agent: 'data_loader' },
-  { key: 'profiling', label: 'Data Profiling', agent: 'data_profiler' },
-  { key: 'exploratory_analysis', label: 'Exploratory Analysis', agent: 'eda_agent' },
-  { key: 'discovering_causal', label: 'Causal Discovery', agent: 'causal_discovery' },
-  { key: 'estimating_effects', label: 'Effect Estimation', agent: 'effect_estimator' },
-  { key: 'sensitivity_analysis', label: 'Sensitivity Analysis', agent: 'sensitivity_analyst' },
-  { key: 'critique_review', label: 'Quality Review', agent: 'critique' },
-  { key: 'generating_notebook', label: 'Generating Notebook', agent: 'notebook_generator' },
+  { key: 'fetching_data', label: 'Data Fetch' },
+  { key: 'profiling', label: 'Profiling' },
+  { key: 'exploratory_analysis', label: 'EDA' },
+  { key: 'discovering_causal', label: 'Causal Discovery' },
+  { key: 'estimating_effects', label: 'Effect Estimation' },
+  { key: 'sensitivity_analysis', label: 'Sensitivity' },
+  { key: 'critique_review', label: 'Quality Review' },
+  { key: 'generating_notebook', label: 'Notebook' },
 ];
 
 export default function JobProgress({ status, progress, currentAgent }: JobProgressProps) {
   const currentStageIndex = STAGES.findIndex((s) => s.key === status);
 
   return (
-    <div className="card">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-lg font-semibold text-gray-900">Analysis Progress</h2>
-        <span className="text-sm font-medium text-gray-600">{progress}%</span>
+    <div className="section">
+      <div className="flex items-baseline justify-between mb-6">
+        <h2 className="font-serif text-lg font-600 text-ink-900">Analysis Progress</h2>
+        <span className="font-mono text-sm text-ink-500">{progress}%</span>
       </div>
 
-      {/* Progress bar */}
-      <div className="w-full bg-gray-200 rounded-full h-2 mb-8">
+      {/* Thin progress bar */}
+      <div className="w-full bg-ink-100 h-px mb-6 relative">
         <div
-          className="bg-primary-600 h-2 rounded-full transition-all duration-1000 ease-out"
+          className="bg-accent h-0.5 absolute top-0 left-0 transition-all duration-1000"
           style={{ width: `${progress}%` }}
         />
       </div>
 
-      {/* Stages */}
-      <div className="relative">
-        {/* Connector line */}
-        <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200" />
+      {/* Vertical timeline */}
+      <div className="space-y-0">
+        {STAGES.map((stage, index) => {
+          const isComplete = index < currentStageIndex;
+          const isCurrent = index === currentStageIndex;
 
-        <div className="space-y-6">
-          {STAGES.map((stage, index) => {
-            const isComplete = index < currentStageIndex;
-            const isCurrent = index === currentStageIndex;
+          return (
+            <div key={stage.key} className="flex items-start gap-3 relative">
+              {/* Vertical line */}
+              {index < STAGES.length - 1 && (
+                <div className={`absolute left-[7px] top-5 w-px h-full ${
+                  isComplete ? 'bg-accent' : 'bg-ink-100'
+                }`} />
+              )}
 
-            return (
-              <div key={stage.key} className="relative flex items-start pl-10">
-                {/* Status indicator */}
-                <div
-                  className={`absolute left-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                    isComplete
-                      ? 'bg-green-100'
-                      : isCurrent
-                      ? 'bg-primary-100'
-                      : 'bg-gray-100'
-                  }`}
-                >
-                  {isComplete ? (
-                    <Check className="w-4 h-4 text-green-600" />
-                  ) : isCurrent ? (
-                    <Activity className="w-4 h-4 text-primary-600 animate-pulse" />
-                  ) : (
-                    <div className="w-2 h-2 rounded-full bg-gray-300" />
-                  )}
-                </div>
-
-                {/* Stage info */}
-                <div>
-                  <p
-                    className={`font-medium ${
-                      isComplete
-                        ? 'text-green-700'
-                        : isCurrent
-                        ? 'text-primary-700'
-                        : 'text-gray-400'
-                    }`}
-                  >
-                    {stage.label}
-                  </p>
-                  {isCurrent && currentAgent && (
-                    <p className="text-sm text-gray-500 mt-1">
-                      Agent: {currentAgent.replace('_', ' ')}
-                    </p>
-                  )}
-                </div>
+              {/* Marker */}
+              <div className="flex-shrink-0 relative z-10 mt-0.5">
+                {isComplete ? (
+                  <div className="w-4 h-4 bg-accent flex items-center justify-center">
+                    <Check className="w-3 h-3 text-white" strokeWidth={3} />
+                  </div>
+                ) : isCurrent ? (
+                  <div className="w-4 h-4 border-2 border-accent bg-white">
+                    <div className="w-1.5 h-1.5 bg-accent m-[3px] animate-pulse" />
+                  </div>
+                ) : (
+                  <div className="w-4 h-4 border border-ink-200 bg-white" />
+                )}
               </div>
-            );
-          })}
-        </div>
+
+              {/* Label */}
+              <div className={`pb-4 ${isCurrent ? 'text-ink-900' : isComplete ? 'text-ink-500' : 'text-ink-300'}`}>
+                <span className={`text-sm ${isCurrent ? 'font-medium' : ''}`}>
+                  {stage.label}
+                </span>
+                {isCurrent && currentAgent && (
+                  <span className="ml-2 font-mono text-xs text-accent">
+                    {currentAgent}
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
