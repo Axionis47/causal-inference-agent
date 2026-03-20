@@ -186,6 +186,21 @@ class CritiqueFeedback(BaseModel):
     reasoning: str
 
 
+class AnalysisDecision(BaseModel):
+    """A recorded decision made by an agent during analysis."""
+
+    agent: str
+    decision_type: str  # method_selected, method_rejected, confounder_selected, dag_edge_added, quality_gate, iteration_decision, agent_dispatched
+    choice: str
+    reason: str
+    alternatives: list[dict[str, str]] = Field(default_factory=list)  # [{"option": "IPW", "reason": "poor overlap"}]
+    timestamp: str = ""
+
+    def model_post_init(self, __context: Any) -> None:
+        if not self.timestamp:
+            self.timestamp = datetime.now(timezone.utc).isoformat()
+
+
 class AgentTrace(BaseModel):
     """Trace of an agent action for observability."""
 
@@ -274,6 +289,9 @@ class AnalysisState(BaseModel):
 
     # SSE event stream for real-time agent-level updates
     sse_events: list[dict] = Field(default_factory=list)
+
+    # Decision audit trail
+    decisions: list[AnalysisDecision] = Field(default_factory=list)
 
     # Progress tracking
     progress_percentage: int = 0
@@ -456,6 +474,28 @@ class AnalysisState(BaseModel):
         # FIFO: keep only the last 100 events
         if len(self.sse_events) > 100:
             self.sse_events = self.sse_events[-100:]
+
+    def push_decision(
+        self,
+        agent: str,
+        decision_type: str,
+        choice: str,
+        reason: str,
+        alternatives: list[dict[str, str]] | None = None,
+    ) -> None:
+        """Record a decision for the audit trail."""
+        self.decisions.append(
+            AnalysisDecision(
+                agent=agent,
+                decision_type=decision_type,
+                choice=choice,
+                reason=reason,
+                alternatives=alternatives or [],
+            )
+        )
+        # Cap at 100 decisions
+        if len(self.decisions) > 100:
+            self.decisions = self.decisions[-100:]
 
     def get_primary_pair(self) -> tuple[str | None, str | None]:
         """Get the primary treatment-outcome pair for analysis.

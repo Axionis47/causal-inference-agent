@@ -479,6 +479,7 @@ async def get_results(job_id: str) -> AnalysisResultsResponse:
         sensitivity_analysis=sensitivity,
         recommendations=results.get("recommendations", []),
         notebook_url=f"/jobs/{job_id}/notebook" if results.get("notebook_path") else None,
+        decision_log=results.get("decisions", []),
     )
 
 

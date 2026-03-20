@@ -656,6 +656,12 @@ Do not just provide text - you MUST call a tool to proceed."""
         try:
             state = await specialist.execute_with_tracing(state)
             state.push_sse_event("agent_completed", {"agent_name": agent_name, "success": True})
+            state.push_decision(
+                agent="orchestrator",
+                decision_type="agent_dispatched",
+                choice=agent_name,
+                reason=f"Dispatched based on pipeline state and LLM reasoning: {reasoning[:200]}" if reasoning else "Dispatched based on pipeline state and LLM reasoning",
+            )
         except Exception as e:
             self.logger.error(
                 "specialist_execution_failed",
@@ -820,6 +826,17 @@ Do not just provide text - you MUST call a tool to proceed."""
             self.logger.error("critique_failed", error=str(e))
             state.push_sse_event("agent_completed", {"agent_name": "critique", "success": False})
             # Continue without critique if it fails
+
+        # Record critique decision in the audit trail
+        latest_critique = state.get_latest_critique()
+        if latest_critique:
+            feedback_summary = "; ".join(latest_critique.issues[:3]) if latest_critique.issues else "No issues"
+            state.push_decision(
+                agent="orchestrator",
+                decision_type="iteration_decision",
+                choice=latest_critique.decision.value,
+                reason=f"Critique review: {feedback_summary}",
+            )
 
         # Check if we need to iterate
         if state.should_iterate():

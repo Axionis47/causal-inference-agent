@@ -197,6 +197,9 @@ class AnalysisResultsResponse(BaseModel):
     recommendations: list[str] = []
     notebook_url: str | None = None
 
+    # Decision audit trail
+    decision_log: list[dict] = Field(default_factory=list)
+
 
 class AgentTraceResponse(BaseModel):
     """Agent trace for observability."""

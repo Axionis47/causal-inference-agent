@@ -1,10 +1,12 @@
 """Base agent module."""
 
-from .agent import BaseAgent, ToolExecutionError
+from .agent import BaseAgent
+from .errors import AgentError, ToolExecutionError
 from .context_tools import ContextTools
 from .react_agent import ReActAgent, ReActStep, ToolResult, ToolResultStatus
 from .state import (
     AgentTrace,
+    AnalysisDecision,
     AnalysisState,
     CausalDAG,
     CausalEdge,
@@ -17,12 +19,12 @@ from .state import (
     JobStatus,
     SensitivityResult,
     TreatmentEffectResult,
+    TreatmentEncoding,
 )
-from .tool import BaseTool, ToolDefinition, ToolParameter, ToolRegistry
-
 __all__ = [
     # Base agents
     "BaseAgent",
+    "AgentError",
     "ToolExecutionError",
     # ReAct agent
     "ReActAgent",
@@ -33,6 +35,7 @@ __all__ = [
     "ContextTools",
     # State
     "AgentTrace",
+    "AnalysisDecision",
     "AnalysisState",
     "CausalDAG",
     "CausalEdge",
@@ -45,9 +48,5 @@ __all__ = [
     "JobStatus",
     "SensitivityResult",
     "TreatmentEffectResult",
-    # Tools
-    "BaseTool",
-    "ToolDefinition",
-    "ToolParameter",
-    "ToolRegistry",
+    "TreatmentEncoding",
 ]
