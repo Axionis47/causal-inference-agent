@@ -1,27 +1,30 @@
-import { Link } from 'react-router-dom';
-import { Activity } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
 
 export default function Header() {
+  const location = useLocation();
+  const isActive = (path: string) => location.pathname === path;
+
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200">
-      <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
-          <Link to="/" className="flex items-center space-x-2">
-            <Activity className="w-8 h-8 text-primary-600" />
-            <span className="text-xl font-bold text-gray-900">
-              Causal Inference Orchestrator
-            </span>
+    <header className="border-b border-ink-200">
+      <div className="max-w-4xl mx-auto px-6">
+        <div className="flex items-center justify-between h-14">
+          <Link to="/" className="font-serif text-lg font-bold text-ink-900 hover:text-accent transition-colors">
+            Causal Inference Orchestrator
           </Link>
-          <nav className="flex items-center space-x-4">
+          <nav className="flex items-center gap-6">
             <Link
               to="/"
-              className="text-gray-600 hover:text-gray-900 font-medium"
+              className={`text-sm font-medium transition-colors ${
+                isActive('/') ? 'text-accent' : 'text-ink-500 hover:text-ink-900'
+              }`}
             >
               New Analysis
             </Link>
             <Link
               to="/jobs"
-              className="text-gray-600 hover:text-gray-900 font-medium"
+              className={`text-sm font-medium transition-colors ${
+                isActive('/jobs') ? 'text-accent' : 'text-ink-500 hover:text-ink-900'
+              }`}
             >
               Jobs
             </Link>

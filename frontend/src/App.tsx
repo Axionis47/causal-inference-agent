@@ -10,9 +10,9 @@ function App() {
   return (
     <ErrorBoundary>
       <BrowserRouter>
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-white">
           <Header />
-          <main className="container mx-auto px-4 py-8">
+          <main className="max-w-4xl mx-auto px-6 py-10">
             <ErrorBoundary>
               <Routes>
                 <Route path="/" element={<HomePage />} />
@@ -27,9 +27,11 @@ function App() {
           toastOptions={{
             duration: 4000,
             style: {
-              borderRadius: '8px',
-              background: '#333',
+              borderRadius: '0',
+              background: '#1a1a2e',
               color: '#fff',
+              fontFamily: 'Inter, system-ui, sans-serif',
+              fontSize: '14px',
             },
             success: { duration: 3000 },
             error: { duration: 5000 },

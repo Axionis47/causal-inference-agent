@@ -3,10 +3,11 @@
 @tailwind utilities;
 
 :root {
-  font-family: 'Plus Jakarta Sans', system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
+  font-family: 'Inter', system-ui, sans-serif;
+  line-height: 1.6;
   font-weight: 400;
-  color-scheme: light;
+  color: #1a1a2e;
+  background-color: #ffffff;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -16,49 +17,120 @@
 body {
   margin: 0;
   min-height: 100vh;
+  background: #ffffff;
 }
 
 @layer components {
+  /* Primary action button */
   .btn-primary {
-    @apply bg-gray-900 text-white px-5 py-2.5 rounded-xl font-semibold
-           shadow-md
-           hover:bg-gray-800 hover:shadow-lg
-           focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2
-           transition-all duration-200
+    @apply bg-accent text-white px-5 py-2.5 font-sans font-medium text-sm
+           border border-accent
+           hover:bg-accent-hover
+           focus:outline-none focus:ring-2 focus:ring-accent/30 focus:ring-offset-2
+           transition-colors duration-150
            disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
+  /* Secondary button */
   .btn-secondary {
-    @apply bg-white text-gray-800 px-5 py-2.5 rounded-xl font-semibold
-           border border-gray-200 shadow-sm
-           hover:bg-gray-50 hover:shadow-md
-           focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2
-           transition-all duration-200;
+    @apply bg-white text-ink-700 px-5 py-2.5 font-sans font-medium text-sm
+           border border-ink-200
+           hover:bg-ink-50 hover:border-ink-300
+           focus:outline-none focus:ring-2 focus:ring-ink-200 focus:ring-offset-2
+           transition-colors duration-150;
   }
 
+  /* Danger button */
+  .btn-danger {
+    @apply bg-white text-sig-no px-5 py-2.5 font-sans font-medium text-sm
+           border border-sig-no/30
+           hover:bg-red-50
+           transition-colors duration-150;
+  }
+
+  /* Text input */
   .input-field {
-    @apply w-full px-4 py-2.5 border border-gray-200 rounded-xl bg-white
-           shadow-sm placeholder:text-gray-400
-           focus:outline-none focus:ring-2 focus:ring-gray-900/20 focus:border-gray-400
-           transition-all duration-200;
+    @apply w-full px-4 py-2.5 font-sans text-sm text-ink-900
+           border border-ink-200 bg-white
+           placeholder:text-ink-300
+           focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20
+           transition-colors duration-150;
   }
 
-  .card {
-    @apply bg-white rounded-2xl shadow-lg border border-gray-100/50 p-6;
+  /* Section container — replaces cards. No shadows, no rounded corners. */
+  .section {
+    @apply border-b border-ink-100 pb-8 mb-8;
+  }
+
+  /* Section heading — serif */
+  .section-title {
+    @apply font-serif text-xl font-bold text-ink-900 mb-4;
+  }
+
+  /* Data table — journal style */
+  .journal-table {
+    @apply w-full text-sm font-sans;
+  }
+  .journal-table thead {
+    @apply border-t-2 border-b border-ink-900;
+  }
+  .journal-table thead th {
+    @apply py-2 px-3 text-left font-semibold text-ink-900 text-xs uppercase tracking-wider;
+  }
+  .journal-table tbody tr {
+    @apply border-b border-ink-100;
+  }
+  .journal-table tbody td {
+    @apply py-2.5 px-3 text-ink-700;
+  }
+  .journal-table tbody tr:last-child {
+    @apply border-b-2 border-ink-900;
+  }
+
+  /* Monospace data values */
+  .data-value {
+    @apply font-mono text-sm text-ink-900;
+  }
+
+  /* Status badges */
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 text-xs font-medium font-sans;
+  }
+  .badge-sig {
+    @apply badge bg-green-50 text-sig-yes border border-green-200;
+  }
+  .badge-nonsig {
+    @apply badge bg-ink-50 text-ink-500 border border-ink-200;
+  }
+  .badge-robust {
+    @apply badge bg-blue-50 text-accent border border-blue-200;
+  }
+  .badge-fragile {
+    @apply badge bg-red-50 text-sig-no border border-red-200;
   }
 }
 
+/* Animations */
 @keyframes slide-in-left {
-  from {
-    opacity: 0;
-    transform: translateX(-12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+  from { opacity: 0; transform: translateX(-12px); }
+  to { opacity: 1; transform: translateX(0); }
 }
-
 .animate-slide-in-left {
   animation: slide-in-left 0.3s ease-out both;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fade-in 0.4s ease-out both;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+.pulse-dot {
+  animation: pulse-dot 1.5s ease-in-out infinite;
 }
