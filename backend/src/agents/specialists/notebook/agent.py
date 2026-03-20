@@ -12,13 +12,14 @@ from src.agents.base import AnalysisState, BaseAgent, JobStatus
 from src.agents.registry import register_agent
 from src.logging_config.structured import get_logger
 
-from .helpers import save_notebook
+from .helpers import save_notebook_async
 from .sections import (
     render_causal_structure,
     render_conclusions,
     render_confounder_analysis,
     render_critique_section,
     render_data_loading,
+    render_decisions,
     render_data_profile_report,
     render_data_repairs,
     render_domain_knowledge,
@@ -88,8 +89,12 @@ When generating narratives:
             if state.domain_knowledge:
                 cells.extend(render_domain_knowledge(state))
 
-            # 3. Setup & Imports
-            cells.extend(render_setup_cells())
+            # 3. Setup & Imports (method-aware for correct dependencies)
+            methods_used = [e.method for e in state.treatment_effects]
+            cells.extend(render_setup_cells(
+                methods_used=methods_used,
+                has_dag=bool(state.proposed_dag),
+            ))
 
             # 4. Data Loading
             cells.extend(render_data_loading(state))
@@ -126,17 +131,26 @@ When generating narratives:
             if state.sensitivity_results:
                 cells.extend(render_sensitivity(state))
 
-            # 13. Analysis Quality & Critique
+            # 13. Methodology Decisions (decision audit trail)
+            if hasattr(state, "decisions") and state.decisions:
+                cells.extend(render_decisions(state))
+
+            # 14. Analysis Quality & Critique
             if state.critique_history:
                 cells.extend(render_critique_section(state))
 
-            # 14. Conclusions (async — uses LLM)
+            # 15. Conclusions (async — uses LLM)
             cells.extend(await render_conclusions(
                 state, llm=self.llm, system_prompt=self.SYSTEM_PROMPT
             ))
 
             nb.cells = cells
-            notebook_path = save_notebook(nb, state.job_id)
+            data_source = state.dataframe_path or (
+                state.dataset_info.local_path if state.dataset_info else None
+            )
+            notebook_path = await save_notebook_async(
+                nb, state.job_id, data_source_path=data_source
+            )
             state.notebook_path = notebook_path
 
             duration_ms = int((time.time() - start_time) * 1000)

@@ -37,6 +37,10 @@ function ResultsDisplay({ results }: ResultsDisplayProps) {
     () => results.recommendations ?? [],
     [results.recommendations]
   );
+  const decisionLog = useMemo(
+    () => results.decision_log ?? [],
+    [results.decision_log]
+  );
 
   // Determine if any method is significant
   const anySignificant = useMemo(
@@ -283,7 +287,58 @@ function ResultsDisplay({ results }: ResultsDisplayProps) {
       )}
 
       {/* ------------------------------------------------------------------ */}
-      {/* 6. DISCUSSION                                                      */}
+      {/* 6. METHODOLOGY DECISIONS                                           */}
+      {/* ------------------------------------------------------------------ */}
+      {decisionLog.length > 0 && (
+        <section className="border-t border-ink-200 pt-6 pb-8">
+          <h2 className="font-serif text-xl font-bold text-ink-900 mb-6">Methodology Decisions</h2>
+
+          <div className="overflow-x-auto">
+            <table className="journal-table">
+              <thead>
+                <tr>
+                  <th className="text-left">Agent</th>
+                  <th className="text-left">Decision</th>
+                  <th className="text-left">Reason</th>
+                </tr>
+              </thead>
+              <tbody>
+                {decisionLog.map((d, index) => {
+                  const isRejected = d.decision_type.includes('rejected') || d.decision_type.includes('failed');
+                  const isQualityGate = d.decision_type === 'quality_gate';
+                  const displayType = d.decision_type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+                  return (
+                    <tr key={index}>
+                      <td className="font-mono text-sm text-ink-900">{d.agent}</td>
+                      <td className={`font-sans ${isRejected ? 'text-sig-no' : isQualityGate ? 'text-accent' : 'text-ink-900'}`}>
+                        {displayType}: {d.choice}
+                      </td>
+                      <td className="font-sans text-ink-700">
+                        {d.reason}
+                        {d.alternatives && d.alternatives.length > 0 && (
+                          <div className="mt-2 text-sm text-ink-500">
+                            <span className="font-medium">Alternatives considered:</span>
+                            <ul className="list-disc list-inside mt-1 space-y-0.5 pl-1">
+                              {d.alternatives.map((alt, altIdx) => (
+                                <li key={altIdx}>
+                                  <span className="font-mono">{alt.option}</span> — {alt.reason}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {/* ------------------------------------------------------------------ */}
+      {/* 7. DISCUSSION                                                      */}
       {/* ------------------------------------------------------------------ */}
       {(results.executive_summary || recommendations.length > 0 || results.method_consensus) && (
         <section className="border-t border-ink-200 pt-6 pb-8">

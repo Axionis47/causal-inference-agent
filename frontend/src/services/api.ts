@@ -151,6 +151,20 @@ export interface ExecutiveSummary {
   key_findings: string[];
 }
 
+export interface DecisionAlternative {
+  option: string;
+  reason: string;
+}
+
+export interface MethodologyDecision {
+  agent: string;
+  decision_type: string;
+  choice: string;
+  reason: string;
+  alternatives?: DecisionAlternative[];
+  timestamp: string;
+}
+
 export interface AnalysisResults {
   job_id: string;
   treatment_variable?: string;
@@ -164,6 +178,7 @@ export interface AnalysisResults {
   sensitivity_analysis: SensitivityResult[];
   recommendations: string[];
   notebook_url?: string;
+  decision_log?: MethodologyDecision[];
 }
 
 export interface AgentEvent {

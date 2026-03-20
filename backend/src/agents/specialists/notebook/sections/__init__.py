@@ -4,6 +4,7 @@ from .causal_structure import render_causal_structure
 from .conclusions import render_conclusions
 from .confounder_analysis import render_confounder_analysis
 from .critique import render_critique_section
+from .decisions import render_decisions
 from .data_loading import render_data_loading
 from .data_profile import render_data_profile_report
 from .data_repairs import render_data_repairs
@@ -29,5 +30,6 @@ __all__ = [
     "render_treatment_effects",
     "render_sensitivity",
     "render_critique_section",
+    "render_decisions",
     "render_conclusions",
 ]
