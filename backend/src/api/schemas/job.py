@@ -2,10 +2,9 @@
 
 import re
 from datetime import datetime
-from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.agents.base import JobStatus
 
@@ -18,12 +17,6 @@ KAGGLE_URL_PATTERN = re.compile(
 # Maximum lengths for string fields
 MAX_KAGGLE_URL_LENGTH = 500
 MAX_VARIABLE_NAME_LENGTH = 100
-
-
-class OrchestratorMode(StrEnum):
-    """Orchestrator mode selection."""
-    STANDARD = "standard"  # Original orchestrator with fixed workflow
-    REACT = "react"  # Fully autonomous ReAct orchestrator
 
 
 class CreateJobRequest(BaseModel):
@@ -45,12 +38,6 @@ class CreateJobRequest(BaseModel):
         description="Optional outcome variable hint",
         max_length=MAX_VARIABLE_NAME_LENGTH,
     )
-    analysis_preferences: dict[str, Any] | None = Field(None, description="Optional analysis preferences")
-    orchestrator_mode: OrchestratorMode = Field(
-        default=OrchestratorMode.STANDARD,
-        description="Orchestrator mode: 'standard' for fixed workflow, 'react' for autonomous (experimental)"
-    )
-
     @field_validator("kaggle_url")
     @classmethod
     def validate_kaggle_url(cls, v: str) -> str:
@@ -90,8 +77,7 @@ class JobResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class JobDetailResponse(JobResponse):
@@ -201,6 +187,9 @@ class AnalysisResultsResponse(BaseModel):
     # New: Data context
     data_context: DataContextResponse | None = None
 
+    # New: Plain-English narrative summary
+    narrative_summary: str | None = None
+
     # Existing fields
     causal_graph: CausalGraphResponse | None = None
     treatment_effects: list[TreatmentEffectResponse] = []
@@ -217,6 +206,10 @@ class AgentTraceResponse(BaseModel):
     action: str
     reasoning: str
     duration_ms: int
+    inputs: dict[str, Any] = Field(default_factory=dict)
+    outputs: dict[str, Any] = Field(default_factory=dict)
+    tools_called: list[str] = Field(default_factory=list)
+    token_usage: dict[str, int] = Field(default_factory=dict)
 
 
 class AgentTracesResponse(BaseModel):
@@ -224,20 +217,10 @@ class AgentTracesResponse(BaseModel):
 
     job_id: str
     traces: list[AgentTraceResponse]
-
-
-class DatasetValidationRequest(BaseModel):
-    """Request to validate a Kaggle URL."""
-
-    kaggle_url: str
-
-
-class DatasetValidationResponse(BaseModel):
-    """Dataset validation result."""
-
-    valid: bool
-    dataset_name: str | None = None
-    error: str | None = None
+    total_traces: int = 0
+    total_duration_ms: int = 0
+    total_input_tokens: int = 0
+    total_output_tokens: int = 0
 
 
 class CancelJobResponse(BaseModel):

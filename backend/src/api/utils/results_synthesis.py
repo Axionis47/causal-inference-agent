@@ -6,6 +6,7 @@ from src.api.schemas.job import (
     DataContextResponse,
     ExecutiveSummaryResponse,
     MethodConsensusResponse,
+    SensitivityResponse,
     TreatmentEffectResponse,
 )
 
@@ -198,6 +199,109 @@ def generate_executive_summary(
         confidence_level=confidence_level,
         key_findings=key_findings,
     )
+
+
+def generate_narrative_summary(
+    treatment_effects: list[TreatmentEffectResponse],
+    sensitivity_results: list[SensitivityResponse],
+    treatment_var: str | None,
+    outcome_var: str | None,
+) -> str:
+    """Generate a plain-English narrative summary of causal analysis results.
+
+    This is template-based string construction, NOT an LLM call.
+    Prefers AIPW > IPW > OLS for the best estimate.
+
+    Args:
+        treatment_effects: List of treatment effect results
+        sensitivity_results: List of sensitivity analysis results
+        treatment_var: Name of treatment variable
+        outcome_var: Name of outcome variable
+
+    Returns:
+        A 2-3 sentence narrative summary string
+    """
+    if not treatment_effects:
+        return "Analysis complete. See detailed results below."
+
+    treatment = treatment_var or "Treatment"
+    outcome = outcome_var or "outcome"
+
+    # Pick best estimate: prefer AIPW > IPW > OLS, then fall back to first
+    METHOD_PRIORITY = {"aipw": 0, "ipw": 1, "ols": 2}
+    best = None
+    best_priority = 999
+    for effect in treatment_effects:
+        method_key = effect.method.lower()
+        priority = METHOD_PRIORITY.get(method_key, 100)
+        if priority < best_priority:
+            best = effect
+            best_priority = priority
+    if best is None:
+        best = treatment_effects[0]
+
+    # Direction
+    if best.estimate > 0:
+        direction = "increases"
+    elif best.estimate < 0:
+        direction = "decreases"
+    else:
+        direction = "has no effect on"
+
+    # Sentence 1: effect description
+    sentence1 = (
+        f"{treatment} {direction} {outcome} by {best.estimate:+.4f} "
+        f"(95% CI: {best.ci_lower:.4f} to {best.ci_upper:.4f})."
+    )
+
+    # Sentence 2: significance
+    if best.p_value is not None:
+        if best.p_value < 0.05:
+            sig_word = "statistically significant"
+        else:
+            sig_word = "not statistically significant"
+        sentence2 = f"This result is {sig_word} (p = {best.p_value:.4f})."
+    else:
+        sentence2 = "Statistical significance could not be assessed (p-value unavailable)."
+
+    # Sentence 3: sensitivity interpretation (if available)
+    sentence3 = ""
+    if sensitivity_results:
+        # Look for E-value first
+        e_value_result = None
+        for s in sensitivity_results:
+            if "e-value" in s.method.lower() or "evalue" in s.method.lower():
+                e_value_result = s
+                break
+
+        if e_value_result is not None:
+            if e_value_result.robustness_value > 2.0:
+                sentence3 = (
+                    f"Sensitivity analysis (E-value = {e_value_result.robustness_value:.2f}) "
+                    "suggests the result is robust to unmeasured confounding."
+                )
+            elif e_value_result.robustness_value > 1.0:
+                sentence3 = (
+                    f"Sensitivity analysis (E-value = {e_value_result.robustness_value:.2f}) "
+                    "suggests moderate robustness to unmeasured confounding."
+                )
+            else:
+                sentence3 = (
+                    f"Sensitivity analysis (E-value = {e_value_result.robustness_value:.2f}) "
+                    "suggests the result may be sensitive to unmeasured confounding."
+                )
+        else:
+            # Use first sensitivity result's interpretation
+            first_sens = sensitivity_results[0]
+            if first_sens.robustness_value > 1.0:
+                sentence3 = "Sensitivity analysis suggests the result is robust to unmeasured confounding."
+            else:
+                sentence3 = "Sensitivity analysis suggests the result may be sensitive to unmeasured confounding."
+
+    parts = [sentence1, sentence2]
+    if sentence3:
+        parts.append(sentence3)
+    return " ".join(parts)
 
 
 def build_data_context(results: dict) -> DataContextResponse | None:

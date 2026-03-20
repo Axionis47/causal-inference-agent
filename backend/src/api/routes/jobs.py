@@ -1,12 +1,14 @@
 """Job management API routes."""
 
 import asyncio
+import io
 import json
 import os
+import zipfile
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query, Request, status
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from sse_starlette.sse import EventSourceResponse
 
 from src.agents.base import JobStatus
@@ -29,6 +31,7 @@ from src.api.utils import (
     build_data_context,
     calculate_method_consensus,
     generate_executive_summary,
+    generate_narrative_summary,
 )
 from src.jobs.manager import get_job_manager
 from src.logging_config.structured import get_logger
@@ -58,7 +61,6 @@ async def create_job(request: Request, body: CreateJobRequest) -> JobResponse:
             kaggle_url=body.kaggle_url,
             treatment_variable=body.treatment_variable,
             outcome_variable=body.outcome_variable,
-            preferences=body.analysis_preferences,
         )
 
         # Get the created job
@@ -77,6 +79,12 @@ async def create_job(request: Request, body: CreateJobRequest) -> JobResponse:
             updated_at=job["updated_at"],
         )
 
+    except RuntimeError as e:
+        # Backpressure: server at capacity
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=str(e),
+        )
     except Exception as e:
         logger.error("create_job_failed", error=str(e), error_type=type(e).__name__)
         # Don't expose internal error details to clients
@@ -84,6 +92,23 @@ async def create_job(request: Request, body: CreateJobRequest) -> JobResponse:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create job. Please check your Kaggle URL and try again.",
         )
+
+
+@router.get("/agents")
+async def list_agents():
+    """List all registered specialist agents and their metadata."""
+    from src.agents.registry import get_agent_registry
+
+    registry = get_agent_registry()
+    agents = []
+    for name, cls in registry.items():
+        agents.append({
+            "name": name,
+            "writes": getattr(cls, "WRITES_STATE_FIELDS", []),
+            "requires": getattr(cls, "REQUIRED_STATE_FIELDS", []),
+            "progress_weight": getattr(cls, "PROGRESS_WEIGHT", 0),
+        })
+    return {"agents": agents}
 
 
 @router.get("", response_model=JobListResponse)
@@ -102,7 +127,7 @@ async def list_jobs(
         if status:  # Non-empty after stripping
             if status not in VALID_STATUSES:
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
+                    status_code=400,
                     detail=f"Invalid status '{status}'. Valid values: {sorted(VALID_STATUSES)}",
                 )
             validated_status = status
@@ -202,37 +227,63 @@ async def stream_job_status(job_id: str, request: Request):
             detail=f"Job {job_id} not found",
         )
 
+    # SSE TTL: max duration to prevent zombie connections (1 hour)
+    max_sse_seconds = 3600
+
     async def event_generator():
+        import time
+
         last_status = None
+        last_seen_event_index = 0
         heartbeat_counter = 0
         heartbeat_interval = settings.sse_heartbeat_seconds
+        start_time = time.monotonic()
 
-        while True:
-            # Check if client disconnected
-            if await request.is_disconnected():
-                break
-
-            status_data = await manager.get_job_status(job_id)
-
-            if status_data and status_data.get("status") != last_status:
-                last_status = status_data["status"]
-                yield {
-                    "event": "status",
-                    "data": json.dumps(status_data),
-                }
-
-                # Terminal states end the stream
-                if last_status in ("completed", "failed", "cancelled"):
-                    yield {"event": "done", "data": ""}
+        try:
+            while True:
+                # TTL guard: close if stream exceeds max duration
+                if time.monotonic() - start_time > max_sse_seconds:
+                    yield {"event": "timeout", "data": json.dumps({"reason": "SSE TTL exceeded"})}
                     break
 
-            # Send heartbeat to keep connection alive
-            heartbeat_counter += 1
-            if heartbeat_counter >= heartbeat_interval:
-                yield {"event": "heartbeat", "data": ""}
-                heartbeat_counter = 0
+                # Check if client disconnected
+                if await request.is_disconnected():
+                    break
 
-            await asyncio.sleep(1)
+                status_data = await manager.get_job_status(job_id)
+
+                if status_data and status_data.get("status") != last_status:
+                    last_status = status_data["status"]
+                    yield {
+                        "event": "status",
+                        "data": json.dumps(status_data),
+                    }
+
+                    # Terminal states end the stream
+                    if last_status in ("completed", "failed", "cancelled"):
+                        yield {"event": "done", "data": ""}
+                        break
+
+                # Emit new agent-level SSE events
+                new_events = manager.get_sse_events(job_id, after_index=last_seen_event_index)
+                for event in new_events:
+                    yield {
+                        "event": "agent_event",
+                        "data": json.dumps(event),
+                    }
+                last_seen_event_index += len(new_events)
+
+                # Send heartbeat to keep connection alive
+                heartbeat_counter += 1
+                if heartbeat_counter >= heartbeat_interval:
+                    yield {"event": "heartbeat", "data": ""}
+                    heartbeat_counter = 0
+
+                await asyncio.sleep(1)
+        except (asyncio.CancelledError, GeneratorExit):
+            pass
+        finally:
+            logger.debug("sse_stream_closed", job_id=job_id)
 
     return EventSourceResponse(event_generator())
 
@@ -407,6 +458,14 @@ async def get_results(job_id: str) -> AnalysisResultsResponse:
     # Build data context
     data_context = build_data_context(results)
 
+    # Generate narrative summary
+    narrative_summary = generate_narrative_summary(
+        treatment_effects=treatment_effects,
+        sensitivity_results=sensitivity,
+        treatment_var=results.get("treatment_variable"),
+        outcome_var=results.get("outcome_variable"),
+    )
+
     return AnalysisResultsResponse(
         job_id=job_id,
         treatment_variable=results.get("treatment_variable"),
@@ -414,6 +473,7 @@ async def get_results(job_id: str) -> AnalysisResultsResponse:
         executive_summary=executive_summary,
         method_consensus=method_consensus,
         data_context=data_context,
+        narrative_summary=narrative_summary,
         causal_graph=causal_graph,
         treatment_effects=treatment_effects,
         sensitivity_analysis=sensitivity,
@@ -516,8 +576,55 @@ async def download_notebook(job_id: str):
     )
 
 
+@router.get("/{job_id}/notebook/bundle")
+async def download_notebook_bundle(job_id: str):
+    """Download notebook + data as a reproducible zip bundle."""
+    manager = get_job_manager()
+
+    results = await manager.get_results(job_id)
+    if results is None or not results.get("notebook_path"):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Notebook not found for job {job_id}",
+        )
+
+    notebook_path = Path(results["notebook_path"])
+    if not notebook_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Notebook file not found for job {job_id}",
+        )
+
+    # Create in-memory zip with notebook + data file
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        # Add notebook
+        zf.write(str(notebook_path), f"causal_analysis_{job_id}.ipynb")
+
+        # Find and add co-located data file
+        notebook_dir = notebook_path.parent
+        for ext in (".parquet", ".csv"):
+            data_file = notebook_dir / f"data_{job_id}{ext}"
+            if data_file.exists():
+                zf.write(str(data_file), data_file.name)
+                break
+
+    zip_buffer.seek(0)
+    return StreamingResponse(
+        zip_buffer,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="causal_analysis_{job_id}.zip"'
+        },
+    )
+
+
 @router.get("/{job_id}/traces", response_model=AgentTracesResponse)
-async def get_traces(job_id: str) -> AgentTracesResponse:
+async def get_traces(
+    job_id: str,
+    agent_name: str | None = Query(None, description="Filter by agent name"),
+    limit: int = Query(200, ge=1, le=500, description="Max traces to return"),
+) -> AgentTracesResponse:
     """Get agent reasoning traces for a job."""
     manager = get_job_manager()
 
@@ -531,16 +638,43 @@ async def get_traces(job_id: str) -> AgentTracesResponse:
 
     traces = await manager.get_traces(job_id)
 
+    # Optional agent filtering
+    if agent_name:
+        traces = [t for t in traces if t.get("agent_name") == agent_name]
+
+    # Apply limit
+    traces = traces[:limit]
+
+    # Build response with all fields
+    trace_responses = []
+    total_duration_ms = 0
+    total_input_tokens = 0
+    total_output_tokens = 0
+
+    for t in traces:
+        duration = t.get("duration_ms", 0)
+        token_usage = t.get("token_usage", {})
+        total_duration_ms += duration
+        total_input_tokens += token_usage.get("input_tokens", 0)
+        total_output_tokens += token_usage.get("output_tokens", 0)
+
+        trace_responses.append({
+            "agent_name": t["agent_name"],
+            "timestamp": t["timestamp"],
+            "action": t["action"],
+            "reasoning": t.get("reasoning", ""),
+            "duration_ms": duration,
+            "inputs": t.get("inputs", {}),
+            "outputs": t.get("outputs", {}),
+            "tools_called": t.get("tools_called", []),
+            "token_usage": token_usage,
+        })
+
     return AgentTracesResponse(
         job_id=job_id,
-        traces=[
-            {
-                "agent_name": t["agent_name"],
-                "timestamp": t["timestamp"],
-                "action": t["action"],
-                "reasoning": t["reasoning"],
-                "duration_ms": t.get("duration_ms", 0),
-            }
-            for t in traces
-        ],
+        traces=trace_responses,
+        total_traces=len(trace_responses),
+        total_duration_ms=total_duration_ms,
+        total_input_tokens=total_input_tokens,
+        total_output_tokens=total_output_tokens,
     )

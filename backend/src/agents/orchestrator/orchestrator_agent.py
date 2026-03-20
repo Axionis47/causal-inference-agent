@@ -5,7 +5,6 @@ CRITICAL: All decisions are made through Gemini reasoning - NO hardcoded if-else
 """
 
 import asyncio
-import copy
 import time
 from typing import Any
 
@@ -34,13 +33,18 @@ class OrchestratorAgent(BaseAgent):
 
     AGENT_NAME = "orchestrator"
 
-    # Maps each agent to the state fields it writes (used for safe parallel merging)
-    AGENT_WRITES: dict[str, list[str]] = {
+    # Baseline mapping of agent → state fields it writes (for safe parallel merging).
+    # Agents that declare WRITES_STATE_FIELDS override their entry at registration time.
+    _DEFAULT_AGENT_WRITES: dict[str, list[str]] = {
         "domain_knowledge": ["domain_knowledge"],
         "data_profiler": ["data_profile"],
+        "data_repair": ["data_repairs"],
         "eda_agent": ["eda_result"],
         "causal_discovery": ["proposed_dag"],
+        "dag_expert": ["proposed_dag"],
+        "confounder_discovery": ["confounder_discovery"],
         "effect_estimator": ["treatment_effects"],
+        "ps_diagnostics": ["ps_diagnostics"],
         "sensitivity_analyst": ["sensitivity_results"],
         "notebook_generator": ["notebook_path"],
         "critique": ["critique_history"],
@@ -54,7 +58,11 @@ You have access to the following specialist agents:
 - data_profiler: Analyzes dataset characteristics, identifies treatment/outcome candidates. Uses domain knowledge if available.
 - eda_agent: Performs comprehensive exploratory data analysis (correlations, outliers, distributions, covariate balance, multicollinearity). Uses domain knowledge for context.
 - causal_discovery: Learns causal graph structure from data using algorithms like PC, GES, NOTEARS. Uses domain knowledge for constraints.
+- dag_expert: Refines the causal DAG using domain expertise and LLM reasoning. Fuses data-driven discovery with domain knowledge, enforces forbidden edges, and computes adjustment sets. Run AFTER causal_discovery.
+- confounder_discovery: Identifies confounders through statistical tests and causal reasoning. Run AFTER data_profiler.
+- data_repair: Diagnoses and repairs data quality issues (missing data, outliers, encoding). Run AFTER data_profiler.
 - effect_estimator: Estimates treatment effects (ATE, ATT, CATE) using appropriate methods
+- ps_diagnostics: Validates propensity score models (overlap, balance, calibration). Run AFTER effect_estimator.
 - sensitivity_analyst: Performs robustness checks (Rosenbaum bounds, E-values, placebo tests)
 - notebook_generator: Creates reproducible Jupyter notebooks documenting the analysis
 
@@ -106,9 +114,13 @@ When making decisions, output your reasoning step-by-step, then specify which ag
                                     "enum": [
                                         "domain_knowledge",
                                         "data_profiler",
+                                        "data_repair",
                                         "eda_agent",
                                         "causal_discovery",
+                                        "dag_expert",
+                                        "confounder_discovery",
                                         "effect_estimator",
+                                        "ps_diagnostics",
                                         "sensitivity_analyst",
                                         "notebook_generator",
                                     ],
@@ -139,9 +151,13 @@ When making decisions, output your reasoning step-by-step, then specify which ag
                         "enum": [
                             "domain_knowledge",
                             "data_profiler",
+                            "data_repair",
                             "eda_agent",
                             "causal_discovery",
+                            "dag_expert",
+                            "confounder_discovery",
                             "effect_estimator",
+                            "ps_diagnostics",
                             "sensitivity_analyst",
                             "notebook_generator",
                         ],
@@ -205,6 +221,8 @@ When making decisions, output your reasoning step-by-step, then specify which ag
         self._specialist_agents: dict[str, BaseAgent] = {}
         self._critique_feedback_for_prompt: str = ""
         self._status_callback = None
+        # Start from baseline; agent-declared metadata overrides at registration
+        self.AGENT_WRITES: dict[str, list[str]] = dict(self._DEFAULT_AGENT_WRITES)
 
     def set_status_callback(self, callback) -> None:
         """Set a callback for persisting status updates (e.g. to Firestore)."""
@@ -213,11 +231,18 @@ When making decisions, output your reasoning step-by-step, then specify which ag
     def register_specialist(self, name: str, agent: BaseAgent) -> None:
         """Register a specialist agent.
 
+        Agent-declared WRITES_STATE_FIELDS overrides the baseline mapping,
+        keeping a single source of truth for which state fields each agent writes.
+
         Args:
             name: Name to register the agent under
             agent: The specialist agent instance
         """
         self._specialist_agents[name] = agent
+        # Prefer agent-declared metadata over static baseline
+        declared = getattr(agent, "WRITES_STATE_FIELDS", None)
+        if declared:
+            self.AGENT_WRITES[name] = list(declared)
         self.logger.info("specialist_registered", agent_name=name)
 
     async def execute(self, state: AnalysisState) -> AnalysisState:
@@ -564,6 +589,7 @@ Do not just provide text - you MUST call a tool to proceed."""
             "data_profiler": JobStatus.PROFILING,
             "eda_agent": JobStatus.EXPLORATORY_ANALYSIS,
             "causal_discovery": JobStatus.DISCOVERING_CAUSAL,
+            "dag_expert": JobStatus.DISCOVERING_CAUSAL,
             "effect_estimator": JobStatus.ESTIMATING_EFFECTS,
             "sensitivity_analyst": JobStatus.SENSITIVITY_ANALYSIS,
             "notebook_generator": JobStatus.GENERATING_NOTEBOOK,
@@ -587,7 +613,7 @@ Do not just provide text - you MUST call a tool to proceed."""
             try:
                 await self._status_callback(state)
             except Exception:
-                pass  # Non-critical — don't fail pipeline for status updates
+                self.logger.debug("status_callback_failed", exc_info=True)
 
         # Get the specialist agent
         specialist = self._specialist_agents.get(agent_name)
@@ -605,14 +631,17 @@ Do not just provide text - you MUST call a tool to proceed."""
         state.add_trace(trace)
 
         # Execute the specialist
+        state.push_sse_event("agent_started", {"agent_name": agent_name})
         try:
             state = await specialist.execute_with_tracing(state)
+            state.push_sse_event("agent_completed", {"agent_name": agent_name, "success": True})
         except Exception as e:
             self.logger.error(
                 "specialist_execution_failed",
                 agent=agent_name,
                 error=str(e),
             )
+            state.push_sse_event("agent_completed", {"agent_name": agent_name, "success": False})
             state.mark_failed(str(e), agent_name)
 
         return state
@@ -624,7 +653,7 @@ Do not just provide text - you MUST call a tool to proceed."""
     ) -> AnalysisState:
         """Dispatch multiple agents to run concurrently.
 
-        Uses copy-on-write: each agent gets a shallow copy of state,
+        Uses copy-on-write: each agent gets a deep copy of state,
         then results are merged back using AGENT_WRITES field mapping.
         """
         agent_configs = args.get("agents", [])
@@ -660,8 +689,12 @@ Do not just provide text - you MUST call a tool to proceed."""
             if specialist is None:
                 self.logger.error("parallel_specialist_not_found", agent=name)
                 continue
-            branches.append(copy.copy(state))
+            branches.append(state.model_copy(deep=True))
             specialists.append((name, specialist))
+
+        # Emit agent_started SSE events for all parallel agents
+        for name, _ in specialists:
+            state.push_sse_event("agent_started", {"agent_name": name})
 
         # Execute all agents concurrently
         start_time = time.time()
@@ -677,6 +710,7 @@ Do not just provide text - you MUST call a tool to proceed."""
                 self.logger.error(
                     "parallel_agent_failed", agent=name, error=str(result)
                 )
+                state.push_sse_event("agent_completed", {"agent_name": name, "success": False})
                 error_trace = self.create_trace(
                     action=f"parallel_{name}_failed",
                     reasoning=str(result),
@@ -684,19 +718,35 @@ Do not just provide text - you MUST call a tool to proceed."""
                 state.add_trace(error_trace)
                 continue
 
-            # Merge the fields this agent writes
+            state.push_sse_event("agent_completed", {"agent_name": name, "success": True})
+
+            # Merge the fields this agent writes (validate against model)
+            valid_fields = set(state.model_fields)
             for field in self.AGENT_WRITES.get(name, []):
+                if field not in valid_fields:
+                    self.logger.warning(
+                        "invalid_merge_field", agent=name, field=field
+                    )
+                    continue
                 value = getattr(result, field, None)
                 if value is not None:
                     setattr(state, field, value)
 
             # Merge traces from branch (last 5 per agent)
             if result.agent_traces:
-                new_traces = [
-                    t for t in result.agent_traces
-                    if t not in state.agent_traces
-                ]
-                state.agent_traces.extend(new_traces[-5:])
+                state.agent_traces.extend(result.agent_traces[-5:])
+
+        # INT3: Update status/progress from branch results
+        # These aren't in AGENT_WRITES so whitelist merge misses them
+        branch_results = [r for r in results if not isinstance(r, (str, Exception))]
+        if branch_results:
+            # Take the highest progress from any branch
+            branch_progress = [
+                getattr(r, 'progress_percentage', 0)
+                for r in branch_results
+            ]
+            if branch_progress:
+                state.progress_percentage = max(state.progress_percentage, max(branch_progress))
 
         duration_ms = int((time.time() - start_time) * 1000)
         self.logger.info(
@@ -739,10 +789,13 @@ Do not just provide text - you MUST call a tool to proceed."""
         state.add_trace(trace)
 
         # Execute critique
+        state.push_sse_event("agent_started", {"agent_name": "critique"})
         try:
             state = await critique_agent.execute_with_tracing(state)
+            state.push_sse_event("agent_completed", {"agent_name": "critique", "success": True})
         except Exception as e:
             self.logger.error("critique_failed", error=str(e))
+            state.push_sse_event("agent_completed", {"agent_name": "critique", "success": False})
             # Continue without critique if it fails
 
         # Check if we need to iterate

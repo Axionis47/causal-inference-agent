@@ -1,6 +1,6 @@
 """Shared state management for the agentic system."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import StrEnum
 from typing import Any
 
@@ -64,6 +64,20 @@ class DataProfile(BaseModel):
     discontinuity_candidates: list[str] = Field(default_factory=list)
 
 
+class TreatmentEncoding(BaseModel):
+    """Profiler-determined encoding for categorical treatments.
+
+    When the treatment variable is a multi-level categorical (string),
+    the data profiler LLM decides how to encode it. This encoding is stored
+    in state and applied deterministically by all downstream methods.
+    """
+
+    original_type: str  # "binary", "multi_categorical", "continuous"
+    strategy: str  # "none", "label_encode", "collapse_to_binary"
+    control_value: str | None = None  # e.g., "No E-Mail"
+    value_mapping: dict[str, int] | None = None  # e.g., {"No E-Mail": 0, "Mens E-Mail": 1}
+
+
 class CausalPair(BaseModel):
     """A treatment-outcome pair that was analyzed."""
 
@@ -91,6 +105,10 @@ class CausalDAG(BaseModel):
     treatment_variable: str | None = None
     outcome_variable: str | None = None
     interpretation: str = ""  # LLM-generated interpretation of the graph
+    # dag_expert outputs (pullable by downstream agents via context tools)
+    forbidden_edges: list[dict[str, str]] | None = None  # [{"source": ..., "target": ..., "reason": ...}]
+    variable_roles: dict[str, str] | None = None  # {"age": "confounder", "treat": "treatment", ...}
+    adjustment_set: list[str] | None = None  # ["age", "education", "race"]
 
 
 class TreatmentEffectResult(BaseModel):
@@ -145,9 +163,6 @@ class EDAResult(BaseModel):
     data_quality_score: float = 0.0
     data_quality_issues: list[str] = Field(default_factory=list)
 
-    # Visualizations (paths to generated plots)
-    plot_paths: dict[str, str] = Field(default_factory=dict)
-
     # Summary statistics
     summary_table: dict[str, dict[str, Any]] = Field(default_factory=dict)
 
@@ -175,7 +190,7 @@ class AgentTrace(BaseModel):
     """Trace of an agent action for observability."""
 
     agent_name: str
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     action: str
     reasoning: str
     inputs: dict[str, Any] = Field(default_factory=dict)
@@ -192,8 +207,8 @@ class AnalysisState(BaseModel):
     """
 
     # Trace management constants
-    MAX_TRACES: int = 50  # Keep last 50 detailed traces
-    MAX_TRACE_OUTPUT_LEN: int = 500  # Truncate large outputs
+    MAX_TRACES: int = 100  # Keep last 100 detailed traces (12-agent pipeline needs room)
+    MAX_TRACE_OUTPUT_LEN: int = 1000  # Truncate large outputs (method diagnostics need ~800 chars)
     MAX_TRACE_REASONING_LEN: int = 1000  # Truncate long reasoning
 
     job_id: str
@@ -224,6 +239,8 @@ class AnalysisState(BaseModel):
     # Populated by Effect Estimator
     treatment_effects: list[TreatmentEffectResult] = Field(default_factory=list)
     analyzed_pairs: list[CausalPair] = Field(default_factory=list)  # Pairs that were analyzed
+    treatment_binarization_threshold: float | None = None  # MED3: shared median-split threshold
+    treatment_encoding: TreatmentEncoding | None = None  # Profiler-guided categorical encoding
 
     # Populated by Sensitivity Analyst
     sensitivity_results: list[SensitivityResult] = Field(default_factory=list)
@@ -236,9 +253,6 @@ class AnalysisState(BaseModel):
 
     # Populated by DataRepairAgent
     data_repairs: list[dict[str, Any]] = Field(default_factory=list)
-
-    # Populated by CritiqueAgent (multi-perspective debate)
-    debate_history: list[dict[str, Any]] = Field(default_factory=list)
 
     # Critique feedback history
     critique_history: list[CritiqueFeedback] = Field(default_factory=list)
@@ -258,9 +272,15 @@ class AnalysisState(BaseModel):
     error_message: str | None = None
     error_agent: str | None = None
 
+    # SSE event stream for real-time agent-level updates
+    sse_events: list[dict] = Field(default_factory=list)
+
+    # Progress tracking
+    progress_percentage: int = 0
+
     # Timestamps
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     completed_at: datetime | None = None
 
     def add_trace(self, trace: AgentTrace) -> None:
@@ -274,7 +294,7 @@ class AnalysisState(BaseModel):
 
         # Add to main list
         self.agent_traces.append(trace)
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
         # Only compress when significantly over limit (prevents running on every add)
         if len(self.agent_traces) > 2 * self.MAX_TRACES:
@@ -316,25 +336,45 @@ class AnalysisState(BaseModel):
         self.agent_traces = [summary] + recent_traces
 
     def _create_trace_summary(self, traces: list[AgentTrace]) -> AgentTrace:
-        """Create a summary trace from multiple traces."""
-        # Group by agent
-        agent_actions: dict[str, list[str]] = {}
+        """Create a rich summary trace from multiple traces.
+
+        Preserves per-agent tools used, last reasoning preview,
+        and duration breakdown so compressed traces remain useful.
+        """
+        # Group by agent with richer detail
+        agent_info: dict[str, dict] = {}
         total_duration = 0
         total_tokens: dict[str, int] = {"input": 0, "output": 0}
 
         for trace in traces:
             agent = trace.agent_name
-            if agent not in agent_actions:
-                agent_actions[agent] = []
-            agent_actions[agent].append(trace.action)
+            if agent not in agent_info:
+                agent_info[agent] = {
+                    "actions": [],
+                    "duration_ms": 0,
+                    "tools": set(),
+                    "last_reasoning": "",
+                }
+            info = agent_info[agent]
+            info["actions"].append(trace.action)
+            info["duration_ms"] += trace.duration_ms
+            if trace.tools_called:
+                info["tools"].update(trace.tools_called)
+            if trace.reasoning:
+                info["last_reasoning"] = trace.reasoning[:200]
+
             total_duration += trace.duration_ms
-            total_tokens["input"] += trace.token_usage.get("input", 0)
-            total_tokens["output"] += trace.token_usage.get("output", 0)
+            total_tokens["input"] += trace.token_usage.get("input_tokens", trace.token_usage.get("input", 0))
+            total_tokens["output"] += trace.token_usage.get("output_tokens", trace.token_usage.get("output", 0))
 
         # Build summary text
         summary_text = f"Summary of {len(traces)} compressed traces:\n"
-        for agent, actions in agent_actions.items():
-            summary_text += f"  {agent}: {len(actions)} actions\n"
+        for agent, info in agent_info.items():
+            tools_str = f", tools={list(info['tools'])}" if info["tools"] else ""
+            summary_text += (
+                f"  {agent}: {len(info['actions'])} actions, "
+                f"{info['duration_ms']}ms{tools_str}\n"
+            )
 
         return AgentTrace(
             agent_name="trace_summary",
@@ -342,21 +382,21 @@ class AnalysisState(BaseModel):
             reasoning=summary_text,
             outputs={
                 "trace_count": len(traces),
-                "agents": list(agent_actions.keys()),
+                "agents": {
+                    a: {
+                        "n_actions": len(info["actions"]),
+                        "duration_ms": info["duration_ms"],
+                        "tools_used": sorted(info["tools"]),
+                        "last_reasoning_preview": info["last_reasoning"],
+                    }
+                    for a, info in agent_info.items()
+                },
                 "total_duration_ms": total_duration,
-                "compressed_at": datetime.utcnow().isoformat()
+                "compressed_at": datetime.now(timezone.utc).isoformat(),
             },
             duration_ms=0,
-            token_usage=total_tokens
+            token_usage=total_tokens,
         )
-
-    def get_recent_traces(self, n: int = 10) -> list[AgentTrace]:
-        """Get the N most recent traces for context injection."""
-        return self.agent_traces[-n:]
-
-    def get_traces_for_agent(self, agent_name: str) -> list[AgentTrace]:
-        """Get traces for a specific agent."""
-        return [t for t in self.agent_traces if t.agent_name == agent_name]
 
     def get_latest_critique(self) -> CritiqueFeedback | None:
         """Get the most recent critique feedback."""
@@ -384,24 +424,38 @@ class AnalysisState(BaseModel):
         self.status = JobStatus.FAILED
         self.error_message = error
         self.error_agent = agent
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
     def mark_completed(self) -> None:
         """Mark the analysis as completed."""
         self.status = JobStatus.COMPLETED
-        self.completed_at = datetime.utcnow()
-        self.updated_at = datetime.utcnow()
-
-    def mark_cancelling(self) -> None:
-        """Mark the analysis as being cancelled (graceful shutdown in progress)."""
-        self.status = JobStatus.CANCELLING
-        self.updated_at = datetime.utcnow()
+        self.completed_at = datetime.now(timezone.utc)
+        self.updated_at = datetime.now(timezone.utc)
 
     def mark_cancelled(self, reason: str = "Cancelled by user") -> None:
         """Mark the analysis as cancelled."""
         self.status = JobStatus.CANCELLED
         self.error_message = reason
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
+
+    def push_sse_event(self, event_type: str, data: dict) -> None:
+        """Push an SSE event for real-time streaming to clients.
+
+        Maintains a FIFO buffer of max 100 events.
+
+        Args:
+            event_type: Type of event (e.g. "agent_started", "agent_completed")
+            data: Event payload dict
+        """
+        event = {
+            "event_type": event_type,
+            "data": data,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        self.sse_events.append(event)
+        # FIFO: keep only the last 100 events
+        if len(self.sse_events) > 100:
+            self.sse_events = self.sse_events[-100:]
 
     def get_primary_pair(self) -> tuple[str | None, str | None]:
         """Get the primary treatment-outcome pair for analysis.
@@ -448,19 +502,3 @@ class AnalysisState(BaseModel):
             e for e in self.treatment_effects
             if e.treatment_variable == treatment and e.outcome_variable == outcome
         ]
-
-    def get_all_pairs(self) -> list[tuple[str, str]]:
-        """Get all unique treatment-outcome pairs that were analyzed.
-
-        Returns:
-            List of (treatment, outcome) tuples
-        """
-        if self.analyzed_pairs:
-            return [(p.treatment, p.outcome) for p in self.analyzed_pairs]
-
-        # Fallback: extract from effects
-        pairs = set()
-        for e in self.treatment_effects:
-            if e.treatment_variable and e.outcome_variable:
-                pairs.add((e.treatment_variable, e.outcome_variable))
-        return list(pairs)
