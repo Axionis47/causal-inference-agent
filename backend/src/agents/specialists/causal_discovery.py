@@ -52,6 +52,12 @@ class CausalDiscoveryAgent(ReActAgent, ContextTools):
     AGENT_NAME = "causal_discovery"
     MAX_STEPS = 15
 
+    # Agent metadata (used by registry and orchestrator)
+    WRITES_STATE_FIELDS = ["proposed_dag"]
+    REQUIRED_STATE_FIELDS = ["data_profile", "dataframe_path"]
+    JOB_STATUS = JobStatus.DISCOVERING_CAUSAL
+    PROGRESS_WEIGHT = 0.10
+
     SYSTEM_PROMPT = """You are an expert in causal discovery and graphical models.
 Your role is to learn the causal structure from observational data.
 
@@ -96,11 +102,12 @@ DATA CONSIDERATIONS:
 - Gaussian data: Avoid LiNGAM
 - Non-linear relationships: Linear methods may be unreliable
 
-DOMAIN KNOWLEDGE:
-- Use ask_domain_knowledge to query for prior information
-- Check for immutable variables (can't be caused by others)
-- Check for temporal ordering constraints
-- Domain knowledge can help validate discovered edges
+CONTEXT TOOLS (pull upstream results if needed):
+- ask_domain_knowledge: Query domain knowledge for immutable variables, temporal ordering, causal constraints
+- get_eda_finding: Query EDA results (e.g. "correlations", "multicollinearity")
+
+Use ask_domain_knowledge to check for immutable variables (can't be caused by others),
+temporal ordering constraints, and to validate discovered edges.
 
 VALIDATION CRITERIA:
 - Does treatment → outcome path exist?
@@ -235,28 +242,25 @@ VALIDATION CRITERIA:
         )
 
     def _get_initial_observation(self, state: AnalysisState) -> str:
-        """Generate lean initial observation for causal discovery."""
+        """Get LEAN initial observation - minimal context, use tools for details."""
         treatment, outcome = state.get_primary_pair()
-        treatment = treatment or "unknown"
-        outcome = outcome or "unknown"
+        treatment = treatment or "use tools to identify"
+        outcome = outcome or "use tools to identify"
 
-        n_samples = state.dataset_info.n_samples or "unknown"
-        n_features = state.dataset_info.n_features or "unknown"
+        # Prefer data_profile dimensions, fall back to dataset_info
+        if state.data_profile:
+            n_samples = state.data_profile.n_samples
+            n_features = state.data_profile.n_features
+        else:
+            n_samples = state.dataset_info.n_samples or "unknown"
+            n_features = state.dataset_info.n_features or "unknown"
 
-        obs = f"""Discover the causal structure for causal inference analysis.
-Treatment: {treatment}
-Outcome: {outcome}
-Dataset: {n_samples} samples x {n_features} features
-
-Workflow:
-1. Query domain knowledge for constraints (temporal ordering, immutable vars)
-2. Get data characteristics to guide algorithm selection
-3. Run appropriate discovery algorithm
-4. Inspect and validate the graph
-5. Optionally try another algorithm and compare
-6. Finalize when satisfied with the discovered structure"""
-
-        return obs
+        return (
+            f"Job: {state.job_id}\n"
+            f"Treatment: {treatment} | Outcome: {outcome}\n"
+            f"Dataset: {n_samples} samples, {n_features} features\n"
+            f"Use get_data_characteristics to inspect the data before choosing algorithms."
+        )
 
     async def is_task_complete(self, state: AnalysisState) -> bool:
         """Check if discovery task is complete."""
@@ -547,6 +551,21 @@ Workflow:
                 directed = [e for e in dag.edges if e.edge_type == "directed"]
                 undirected = [e for e in dag.edges if e.edge_type == "undirected"]
 
+                # INT5: Check for empty graph before marking SUCCESS
+                if not dag.edges:
+                    return ToolResult(
+                        status=ToolResultStatus.SUCCESS,
+                        output={
+                            "algorithm": algorithm.upper(),
+                            "n_nodes": len(dag.nodes),
+                            "n_edges": 0,
+                            "partial": True,
+                            "message": "Algorithm returned a graph with no edges. Results may be unreliable.",
+                            "variables_used": len(relevant_cols),
+                            "samples_used": len(df_subset),
+                        },
+                    )
+
                 # Check treatment-outcome path
                 has_direct_edge = False
                 if self._treatment_var and self._outcome_var:
@@ -570,7 +589,7 @@ Workflow:
                     },
                 )
             else:
-                # Fallback to simple DAG
+                # Fallback to simple DAG — mark as fallback, not algorithm success
                 dag = self._create_simple_dag()
                 self._discovered_graphs[algorithm] = dag
                 self._current_graph = dag
