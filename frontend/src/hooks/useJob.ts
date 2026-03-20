@@ -5,9 +5,9 @@
  * with automatic fallback to React Query polling.
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { getJob, getStreamUrl, JobDetail } from '../services/api';
+import { getJob, getStreamUrl, JobDetail, AgentEvent } from '../services/api';
 
 interface UseJobOptions {
   /** Whether to auto-subscribe for updates (default: true) */
@@ -25,6 +25,12 @@ export function useJob(jobId: string | null, options: UseJobOptions = {}) {
   const queryClient = useQueryClient();
   const sseRef = useRef<EventSource | null>(null);
   const sseFailedRef = useRef(false);
+  const [agentEvents, setAgentEvents] = useState<AgentEvent[]>([]);
+  const prevStatusRef = useRef<string | null>(null);
+
+  const addAgentEvent = useCallback((event: AgentEvent) => {
+    setAgentEvents((prev) => [...prev.slice(-19), event]);
+  }, []);
 
   // Close SSE on unmount or when jobId changes
   useEffect(() => {
@@ -65,6 +71,15 @@ export function useJob(jobId: string | null, options: UseJobOptions = {}) {
         }
       });
 
+      es.addEventListener('agent_event', (event: MessageEvent) => {
+        try {
+          const parsed = JSON.parse(event.data) as AgentEvent;
+          addAgentEvent(parsed);
+        } catch {
+          // Ignore parse errors
+        }
+      });
+
       es.addEventListener('done', () => {
         es.close();
         sseRef.current = null;
@@ -88,7 +103,7 @@ export function useJob(jobId: string | null, options: UseJobOptions = {}) {
         es.close();
       }
     };
-  }, [jobId, autoPolling, queryClient]);
+  }, [jobId, autoPolling, queryClient, addAgentEvent]);
 
   // React Query for initial fetch + fallback polling
   const query = useQuery({
@@ -118,6 +133,21 @@ export function useJob(jobId: string | null, options: UseJobOptions = {}) {
   const isRunning = !!job && !['completed', 'failed', 'cancelled'].includes(job.status);
   const progress = job?.progress_percentage ?? 0;
 
+  // Fallback: derive activity from status changes when SSE agent_events are unavailable
+  useEffect(() => {
+    if (!job) return;
+    const prev = prevStatusRef.current;
+    if (prev && prev !== job.status) {
+      addAgentEvent({
+        timestamp: new Date().toISOString(),
+        agent_name: job.current_agent || 'orchestrator',
+        event_type: 'agent_started',
+        data: { fallback: true, status: job.status },
+      });
+    }
+    prevStatusRef.current = job.status;
+  }, [job?.status, job?.current_agent, addAgentEvent, job]);
+
   return {
     job,
     isLoading: query.isLoading,
@@ -125,6 +155,7 @@ export function useJob(jobId: string | null, options: UseJobOptions = {}) {
     isComplete,
     isFailed,
     progress,
+    agentEvents,
     error: query.error ? String((query.error as { message?: string })?.message || query.error) : null,
     refetch: () => query.refetch(),
   };

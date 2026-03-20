@@ -12,6 +12,7 @@ export type {
   SensitivityResult,
   AnalysisResults,
   AgentTrace,
+  AgentEvent,
   CreateJobRequest,
 } from '../services/api';
 

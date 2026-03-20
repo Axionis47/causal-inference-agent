@@ -14,14 +14,19 @@ import {
 } from 'lucide-react';
 import { getJob, getResults, getNotebookUrl, cancelJob, deleteJob } from '../services/api';
 import JobProgress from '../components/job/JobProgress';
+import ActivityFeed from '../components/job/ActivityFeed';
 import ResultsDisplay from '../components/results/ResultsDisplay';
 import AgentTraces from '../components/agents/AgentTraces';
+import { useJob } from '../hooks/useJob';
 
 export default function JobPage() {
   const { jobId } = useParams<{ jobId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  // useJob hook for SSE-driven agent activity events
+  const { agentEvents } = useJob(jobId ?? null);
 
   const jobQuery = useQuery({
     queryKey: ['job', jobId],
@@ -60,7 +65,7 @@ export default function JobPage() {
   if (jobQuery.isLoading) {
     return (
       <div className="flex items-center justify-center min-h-96">
-        <div className="w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-4 border-gray-900 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -89,10 +94,10 @@ export default function JobPage() {
       <div className="card">
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight mb-2">
               Analysis Job: {job.id}
             </h1>
-            <p className="text-gray-600 break-all">{job.kaggle_url}</p>
+            <p className="text-gray-500 break-all">{job.kaggle_url}</p>
           </div>
           <StatusBadge status={job.status} />
         </div>
@@ -132,7 +137,7 @@ export default function JobPage() {
         )}
 
         {isFailed && job.error_message && (
-          <div className="mt-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-start space-x-3">
+          <div className="mt-6 bg-red-50 border border-red-200 rounded-xl p-4 flex items-start space-x-3">
             <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
             <div>
               <p className="font-medium text-red-800">Analysis Failed</p>
@@ -142,7 +147,7 @@ export default function JobPage() {
         )}
 
         {isCancelled && (
-          <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start space-x-3">
+          <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex items-start space-x-3">
             <Ban className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
             <div>
               <p className="font-medium text-yellow-800">Job Cancelled</p>
@@ -157,7 +162,7 @@ export default function JobPage() {
             <button
               onClick={() => cancelMutation.mutate()}
               disabled={cancelMutation.isPending}
-              className="inline-flex items-center space-x-2 px-4 py-2 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200 disabled:opacity-50 transition-colors"
+              className="inline-flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-xl shadow-sm hover:shadow-md hover:bg-gray-200 disabled:opacity-50 transition-all"
             >
               <StopCircle className="w-5 h-5" />
               <span>{cancelMutation.isPending ? 'Cancelling...' : 'Stop Job'}</span>
@@ -166,7 +171,7 @@ export default function JobPage() {
 
           <button
             onClick={() => setShowDeleteConfirm(true)}
-            className="inline-flex items-center space-x-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+            className="inline-flex items-center space-x-2 px-4 py-2 bg-red-50 text-red-700 rounded-xl shadow-sm hover:shadow-md hover:bg-red-100 transition-all"
           >
             <Trash2 className="w-5 h-5" />
             <span>Delete Job</span>
@@ -185,8 +190,8 @@ export default function JobPage() {
             if (e.key === 'Escape') setShowDeleteConfirm(false);
           }}
         >
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
-            <h3 id="delete-job-title" className="text-lg font-semibold text-gray-900 mb-2">Delete Job?</h3>
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <h3 id="delete-job-title" className="text-lg font-bold text-gray-900 mb-2">Delete Job?</h3>
             <p className="text-gray-600 mb-4">
               This will permanently delete the job record, analysis results, and all associated data.
               {isRunning && ' The job will be cancelled first.'}
@@ -194,7 +199,7 @@ export default function JobPage() {
             <div className="flex justify-end space-x-3">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-all"
                 autoFocus
               >
                 Cancel
@@ -205,7 +210,7 @@ export default function JobPage() {
                   setShowDeleteConfirm(false);
                 }}
                 disabled={deleteMutation.isPending}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
+                className="px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 disabled:opacity-50 transition-all shadow-md"
               >
                 {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
               </button>
@@ -216,11 +221,14 @@ export default function JobPage() {
 
       {/* Progress */}
       {isRunning && (
-        <JobProgress
-          status={job.status}
-          progress={job.progress_percentage ?? 0}
-          currentAgent={job.current_agent}
-        />
+        <>
+          <JobProgress
+            status={job.status}
+            progress={job.progress_percentage ?? 0}
+            currentAgent={job.current_agent}
+          />
+          <ActivityFeed events={agentEvents} />
+        </>
       )}
 
       {/* Results */}
@@ -229,7 +237,7 @@ export default function JobPage() {
           {resultsQuery.isLoading && (
             <div className="card">
               <div className="flex items-center justify-center py-12">
-                <div className="w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin" />
+                <div className="w-8 h-8 border-4 border-gray-900 border-t-transparent rounded-full animate-spin" />
                 <span className="ml-3 text-gray-600">Loading analysis results...</span>
               </div>
             </div>
@@ -260,42 +268,42 @@ export default function JobPage() {
 function StatusBadge({ status }: { status: string }) {
   const config: Record<string, { icon: React.ReactNode; class: string; label: string }> = {
     pending: {
-      icon: <Clock className="w-4 h-4" />,
-      class: 'bg-gray-100 text-gray-700',
+      icon: <Clock className="w-3.5 h-3.5" />,
+      class: 'bg-gray-100 text-gray-600 border border-gray-200',
       label: 'Pending',
     },
     completed: {
-      icon: <CheckCircle className="w-4 h-4" />,
-      class: 'bg-green-100 text-green-700',
+      icon: <CheckCircle className="w-3.5 h-3.5" />,
+      class: 'bg-green-50 text-green-700 border border-green-200',
       label: 'Completed',
     },
     failed: {
-      icon: <XCircle className="w-4 h-4" />,
-      class: 'bg-red-100 text-red-700',
+      icon: <XCircle className="w-3.5 h-3.5" />,
+      class: 'bg-red-50 text-red-700 border border-red-200',
       label: 'Failed',
     },
     cancelled: {
-      icon: <Ban className="w-4 h-4" />,
-      class: 'bg-yellow-100 text-yellow-700',
+      icon: <Ban className="w-3.5 h-3.5" />,
+      class: 'bg-yellow-50 text-yellow-700 border border-yellow-200',
       label: 'Cancelled',
     },
     cancelling: {
-      icon: <StopCircle className="w-4 h-4" />,
-      class: 'bg-yellow-100 text-yellow-700',
+      icon: <StopCircle className="w-3.5 h-3.5" />,
+      class: 'bg-yellow-50 text-yellow-700 border border-yellow-200',
       label: 'Cancelling...',
     },
   };
 
   const defaultConfig = {
-    icon: <Activity className="w-4 h-4" />,
-    class: 'bg-blue-100 text-blue-700',
+    icon: <Activity className="w-3.5 h-3.5" />,
+    class: 'bg-gray-900 text-white shadow-md',
     label: status.replace('_', ' ').replace(/\b\w/g, (l) => l.toUpperCase()),
   };
 
   const { icon, class: className, label } = config[status] || defaultConfig;
 
   return (
-    <span className={`inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-sm font-medium ${className}`}>
+    <span className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-semibold shadow-sm ${className}`}>
       {icon}
       <span>{label}</span>
     </span>

@@ -3,10 +3,10 @@
 @tailwind utilities;
 
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: 'Plus Jakarta Sans', system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  color-scheme: light dark;
+  color-scheme: light;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -20,25 +20,45 @@ body {
 
 @layer components {
   .btn-primary {
-    @apply bg-primary-600 text-white px-4 py-2 rounded-lg font-medium
-           hover:bg-primary-700 focus:outline-none focus:ring-2
-           focus:ring-primary-500 focus:ring-offset-2 transition-colors
+    @apply bg-gray-900 text-white px-5 py-2.5 rounded-xl font-semibold
+           shadow-md
+           hover:bg-gray-800 hover:shadow-lg
+           focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2
+           transition-all duration-200
            disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
   .btn-secondary {
-    @apply bg-gray-200 text-gray-800 px-4 py-2 rounded-lg font-medium
-           hover:bg-gray-300 focus:outline-none focus:ring-2
-           focus:ring-gray-500 focus:ring-offset-2 transition-colors;
+    @apply bg-white text-gray-800 px-5 py-2.5 rounded-xl font-semibold
+           border border-gray-200 shadow-sm
+           hover:bg-gray-50 hover:shadow-md
+           focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2
+           transition-all duration-200;
   }
 
   .input-field {
-    @apply w-full px-4 py-2 border border-gray-300 rounded-lg
-           focus:outline-none focus:ring-2 focus:ring-primary-500
-           focus:border-transparent transition-shadow;
+    @apply w-full px-4 py-2.5 border border-gray-200 rounded-xl bg-white
+           shadow-sm placeholder:text-gray-400
+           focus:outline-none focus:ring-2 focus:ring-gray-900/20 focus:border-gray-400
+           transition-all duration-200;
   }
 
   .card {
-    @apply bg-white rounded-xl shadow-sm border border-gray-200 p-6;
+    @apply bg-white rounded-2xl shadow-lg border border-gray-100/50 p-6;
   }
+}
+
+@keyframes slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in-left {
+  animation: slide-in-left 0.3s ease-out both;
 }
