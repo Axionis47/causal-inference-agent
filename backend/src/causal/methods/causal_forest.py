@@ -5,7 +5,11 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+import logging
+
 from .base import BaseCausalMethod, MethodResult
+
+logger = logging.getLogger(__name__)
 
 
 class CausalForestMethod(BaseCausalMethod):
@@ -68,6 +72,7 @@ class CausalForestMethod(BaseCausalMethod):
             raise ValueError("Causal Forest requires covariates")
 
         # Prepare data
+        covariates = self._validate_covariates(df, covariates)
         df_clean = df.dropna(subset=[treatment_col, outcome_col] + covariates)
         self._T = self._binarize_treatment(df_clean[treatment_col]).values.astype(float)
         self._Y = df_clean[outcome_col].values.astype(float)
@@ -270,7 +275,7 @@ class CausalForestMethod(BaseCausalMethod):
                     for i, imp in enumerate(importances[:len(self._covariates)])
                 }
             except Exception:
-                pass
+                logger.debug("feature_importances_skipped", exc_info=True)
 
         self._result = MethodResult(
             method=method_name,

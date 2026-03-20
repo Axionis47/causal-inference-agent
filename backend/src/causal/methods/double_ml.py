@@ -4,6 +4,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+from scipy import stats
 from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
 from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.model_selection import StratifiedKFold
@@ -106,6 +107,7 @@ class DoubleMLMethod(BaseCausalMethod):
         from econml.dml import LinearDML
 
         # Prepare data
+        covariates = self._validate_covariates(df, covariates)
         df_clean = df.dropna(subset=[treatment_col, outcome_col] + covariates)
         self._T = self._binarize_treatment(df_clean[treatment_col]).values.astype(float)
         self._Y = df_clean[outcome_col].values.astype(float)
@@ -147,6 +149,7 @@ class DoubleMLMethod(BaseCausalMethod):
     ) -> "DoubleMLMethod":
         """Manual implementation of Double ML with cross-fitting."""
         # Prepare data
+        covariates = self._validate_covariates(df, covariates)
         df_clean = df.dropna(subset=[treatment_col, outcome_col] + covariates)
         self._T = self._binarize_treatment(df_clean[treatment_col]).values
         self._Y = df_clean[outcome_col].values
@@ -188,12 +191,31 @@ class DoubleMLMethod(BaseCausalMethod):
 
         # Compute ATE using residualized regression
         # theta = (T_residual' T_residual)^{-1} T_residual' Y_residual
-        self._theta = np.sum(T_residual * Y_residual) / np.sum(T_residual ** 2)
+        t_resid_ss = np.sum(T_residual ** 2)
+        if t_resid_ss < 1e-10:
+            self._result = MethodResult(
+                method=self.METHOD_NAME,
+                estimand=self.ESTIMAND,
+                estimate=float('nan'),
+                std_error=float('nan'),
+                ci_lower=float('nan'),
+                ci_upper=float('nan'),
+                p_value=float('nan'),
+                n_treated=int(self._T.sum()),
+                n_control=int((1 - self._T).sum()),
+            )
+            self._fitted = True
+            return self
+        self._theta = np.sum(T_residual * Y_residual) / t_resid_ss
 
         # Compute SE using Chernozhukov et al. formula
         # psi = (Y_residual - theta * T_residual) * T_residual
         psi = (Y_residual - self._theta * T_residual) * T_residual
-        self._se = np.sqrt(np.mean(psi ** 2)) / np.mean(T_residual ** 2)
+        t_resid_mean_sq = np.mean(T_residual ** 2)
+        if t_resid_mean_sq < 1e-10:
+            raise ValueError("Treatment residual variance too small for SE computation.")
+        n = len(Y_residual)
+        self._se = (1 / np.sqrt(n)) * np.sqrt(np.mean(psi ** 2)) / t_resid_mean_sq
 
         self._n_treated = int(self._T.sum())
         self._n_control = int(len(self._T) - self._T.sum())
@@ -218,7 +240,8 @@ class DoubleMLMethod(BaseCausalMethod):
 
             try:
                 ate_lower, ate_upper = self._model.ate_interval(self._X, alpha=self.alpha)
-                ate_se = (ate_upper - ate_lower) / (2 * 1.96)
+                z = stats.norm.ppf(1 - self.alpha / 2)
+                ate_se = (ate_upper - ate_lower) / (2 * z)
             except Exception:
                 ate_se = 0.1 * abs(ate)  # Fallback
                 ate_lower, ate_upper = self._compute_ci(ate, ate_se)

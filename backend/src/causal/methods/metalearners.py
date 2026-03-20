@@ -120,6 +120,7 @@ class SLearner(BaseCausalMethod):
             raise ValueError("S-Learner requires covariates")
 
         # Prepare data
+        covariates = self._validate_covariates(df, covariates)
         df_clean = df.dropna(subset=[treatment_col, outcome_col] + covariates)
         T = self._binarize_treatment(df_clean[treatment_col]).values
         Y = df_clean[outcome_col].values
@@ -265,6 +266,7 @@ class TLearner(BaseCausalMethod):
             raise ValueError("T-Learner requires covariates")
 
         # Prepare data
+        covariates = self._validate_covariates(df, covariates)
         df_clean = df.dropna(subset=[treatment_col, outcome_col] + covariates)
         T = self._binarize_treatment(df_clean[treatment_col]).values
         Y = df_clean[outcome_col].values
@@ -424,6 +426,7 @@ class XLearner(BaseCausalMethod):
         from sklearn.linear_model import LogisticRegression
 
         # Prepare data
+        covariates = self._validate_covariates(df, covariates)
         df_clean = df.dropna(subset=[treatment_col, outcome_col] + covariates)
         T = self._binarize_treatment(df_clean[treatment_col]).values
         Y = df_clean[outcome_col].values

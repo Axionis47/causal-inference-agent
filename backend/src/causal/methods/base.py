@@ -68,6 +68,7 @@ class BaseCausalMethod(ABC):
         self.alpha = 1 - confidence_level
         self._fitted = False
         self._result: MethodResult | None = None
+        self._binarize_threshold: float | None = None  # MED3: shared threshold across methods
 
     @abstractmethod
     def fit(
@@ -147,6 +148,11 @@ class BaseCausalMethod(ABC):
         """
         from scipy import stats
 
+        import numpy as np
+
+        if np.isnan(std_error) or np.isinf(std_error):
+            return (float('nan'), float('nan'))
+
         if n is not None and n < 100:
             df = max(n - k, 1)
             crit = stats.t.ppf(1 - self.alpha / 2, df)
@@ -179,8 +185,10 @@ class BaseCausalMethod(ABC):
         """
         from scipy import stats
 
-        if std_error <= 0:
-            return 1.0
+        import numpy as np
+
+        if np.isnan(std_error) or np.isinf(std_error) or std_error <= 0:
+            return float('nan')
         t_stat = (estimate - null_value) / std_error
 
         if n is not None and n < 100:
@@ -189,26 +197,67 @@ class BaseCausalMethod(ABC):
         else:
             return 2 * (1 - stats.norm.cdf(abs(t_stat)))
 
-    def _binarize_treatment(self, treatment: pd.Series) -> pd.Series:
+    def _binarize_treatment(
+        self, treatment: pd.Series, threshold: float | None = None
+    ) -> pd.Series:
         """Binarize treatment if continuous.
 
         Args:
             treatment: Treatment series
+            threshold: Optional pre-computed threshold for consistent
+                binarization across methods. If None, uses the median.
 
         Returns:
             Binary treatment series
         """
+        # Fallback: handle string-typed treatments that weren't encoded by the profiler
+        if treatment.dtype == object:
+            unique_vals = treatment.unique()
+            if len(unique_vals) == 2:
+                mapping = {unique_vals[0]: 0, unique_vals[1]: 1}
+                logger.warning(
+                    "String treatment '%s' auto-encoded: %s",
+                    treatment.name,
+                    mapping,
+                )
+                return treatment.map(mapping).astype(int)
+            else:
+                raise TypeError(
+                    f"Treatment '{treatment.name}' is categorical with {len(unique_vals)} levels "
+                    f"({list(unique_vals[:5])}). The data profiler should have determined an encoding "
+                    f"strategy. Consider re-running with profiler-guided encoding."
+                )
+
         if treatment.nunique() > 2:
+            if threshold is None:
+                # MED3: Use shared threshold if available, else compute median
+                threshold = self._binarize_threshold if self._binarize_threshold is not None else float(treatment.median())
             logger.warning(
                 "Continuous treatment variable '%s' with %d unique values "
-                "was median-split into binary treatment. This discards dose-response "
-                "information and may bias estimates. Consider using a method that "
-                "supports continuous treatments.",
+                "was median-split at threshold %.4f into binary treatment. "
+                "This discards dose-response information and may bias estimates.",
                 treatment.name,
                 treatment.nunique(),
+                threshold,
             )
-            return (treatment > treatment.median()).astype(int)
+            return (treatment > threshold).astype(int)
         return treatment.astype(int)
+
+    def _validate_covariates(self, df: pd.DataFrame, covariates: list[str]) -> list[str]:
+        """Filter covariates to only columns present in the dataframe.
+
+        Args:
+            df: DataFrame to check against
+            covariates: List of covariate column names
+
+        Returns:
+            Filtered list containing only columns that exist in df
+        """
+        valid_covariates = [c for c in covariates if c in df.columns]
+        if len(valid_covariates) < len(covariates):
+            missing = set(covariates) - set(valid_covariates)
+            logger.debug("covariates_not_in_dataframe", extra={"missing": list(missing)})
+        return valid_covariates
 
     @property
     def result(self) -> MethodResult | None:

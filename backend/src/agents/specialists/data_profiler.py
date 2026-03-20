@@ -51,6 +51,12 @@ class DataProfilerAgent(ReActAgent, ContextTools):
     AGENT_NAME = "data_profiler"
     MAX_STEPS = 15
 
+    # Agent metadata (used by registry and orchestrator)
+    WRITES_STATE_FIELDS = ["data_profile"]
+    REQUIRED_STATE_FIELDS = ["dataset_info"]
+    JOB_STATUS = JobStatus.PROFILING
+    PROGRESS_WEIGHT = 0.08
+
     SYSTEM_PROMPT = """You are an expert data scientist profiling a dataset for causal inference.
 
 Your goal is to identify the causal structure: treatment variables, outcome variables,
@@ -70,6 +76,13 @@ KEY PRINCIPLES:
 - Numeric columns with variance are good outcome candidates
 - Pre-treatment variables (demographics, baseline measures) are potential confounders
 - Column NAMES often reveal their role (treat, outcome, age, income, etc.)
+
+CATEGORICAL TREATMENT ENCODING:
+If the treatment variable is categorical with string values (e.g., 'Control', 'Treatment A', 'Treatment B'):
+- Identify which value represents the control/reference group (look for "no", "control", "placebo", or the smallest group)
+- If there are 2 string levels, set treatment_encoding_strategy="label_encode"
+- If there are 3+ levels, set treatment_encoding_strategy="collapse_to_binary" and specify treatment_control_value
+- For collapse_to_binary: the control_value becomes 0, all other values become 1
 
 Be systematic. Don't guess - investigate and verify."""
 
@@ -221,6 +234,15 @@ Be systematic. Don't guess - investigate and verify."""
                         "items": {"type": "string"},
                         "description": "Causal inference methods suitable for this data",
                     },
+                    "treatment_encoding_strategy": {
+                        "type": "string",
+                        "enum": ["none", "label_encode", "collapse_to_binary"],
+                        "description": "How to encode the treatment variable. 'none' for numeric/binary treatments, 'label_encode' for 2-level string treatments, 'collapse_to_binary' for 3+ level categorical treatments",
+                    },
+                    "treatment_control_value": {
+                        "type": "string",
+                        "description": "For collapse_to_binary: the string value representing the control/reference group (e.g., 'No E-Mail', 'Control', 'Placebo'). This value becomes 0, all others become 1.",
+                    },
                 },
                 "required": ["treatment_candidates", "outcome_candidates", "potential_confounders"],
             },
@@ -305,6 +327,84 @@ Use the available tools to gather evidence before finalizing the profile."""
             state.data_profile = self._profile
             state.dataset_info.n_samples = self._profile.n_samples
             state.dataset_info.n_features = self._profile.n_features
+
+            # Build treatment encoding from profiler's LLM decision
+            enc_strategy = self._final_result.get("treatment_encoding_strategy")
+            if enc_strategy and enc_strategy != "none":
+                from src.agents.base.state import TreatmentEncoding
+
+                control_val = self._final_result.get("treatment_control_value")
+                treatment_col = (
+                    self._final_result.get("treatment_candidates", [None])[0]
+                    if self._final_result.get("treatment_candidates")
+                    else None
+                )
+                value_mapping = None
+                if treatment_col and self._df is not None and treatment_col in self._df.columns:
+                    unique_vals = self._df[treatment_col].dropna().unique().tolist()
+                    if enc_strategy == "collapse_to_binary" and control_val:
+                        value_mapping = {
+                            v: 0 if str(v) == str(control_val) else 1
+                            for v in unique_vals
+                        }
+                    elif enc_strategy == "label_encode" and len(unique_vals) == 2:
+                        value_mapping = {unique_vals[0]: 0, unique_vals[1]: 1}
+
+                state.treatment_encoding = TreatmentEncoding(
+                    original_type="multi_categorical" if enc_strategy == "collapse_to_binary" else "binary",
+                    strategy=enc_strategy,
+                    control_value=control_val,
+                    value_mapping=value_mapping,
+                )
+                self.logger.info(
+                    "treatment_encoding_set",
+                    strategy=enc_strategy,
+                    control_value=control_val,
+                    mapping=value_mapping,
+                )
+
+            # Deterministic fallback: if LLM didn't set encoding but treatment is string-typed
+            if (
+                state.treatment_encoding is None
+                and self._df is not None
+                and self._profile.treatment_candidates
+            ):
+                tc = state.treatment_variable or self._profile.treatment_candidates[0]
+                if tc in self._df.columns and self._df[tc].dtype == object:
+                    from src.agents.base.state import TreatmentEncoding
+
+                    unique_vals = self._df[tc].dropna().unique().tolist()
+                    if len(unique_vals) == 2:
+                        mapping = {unique_vals[0]: 0, unique_vals[1]: 1}
+                        state.treatment_encoding = TreatmentEncoding(
+                            original_type="binary",
+                            strategy="label_encode",
+                            control_value=str(unique_vals[0]),
+                            value_mapping=mapping,
+                        )
+                    elif 2 < len(unique_vals) <= 10:
+                        control_keywords = ["control", "no", "placebo", "none", "baseline", "reference"]
+                        control_val = None
+                        for val in unique_vals:
+                            if any(kw in str(val).lower() for kw in control_keywords):
+                                control_val = str(val)
+                                break
+                        if control_val is None:
+                            control_val = str(self._df[tc].value_counts().idxmax())
+                        mapping = {v: 0 if str(v) == control_val else 1 for v in unique_vals}
+                        state.treatment_encoding = TreatmentEncoding(
+                            original_type="multi_categorical",
+                            strategy="collapse_to_binary",
+                            control_value=control_val,
+                            value_mapping=mapping,
+                        )
+                    if state.treatment_encoding:
+                        self.logger.info(
+                            "treatment_encoding_auto_detected",
+                            strategy=state.treatment_encoding.strategy,
+                            control_value=state.treatment_encoding.control_value,
+                            mapping=state.treatment_encoding.value_mapping,
+                        )
 
             duration_ms = int((time.time() - start_time) * 1000)
             self.logger.info(
@@ -408,7 +508,8 @@ Use the available tools to gather evidence before finalizing the profile."""
 
         # Missing summary
         cols_with_missing = {c: v for c, v in profile.missing_values.items() if v > 0}
-        total_missing_pct = sum(cols_with_missing.values()) / (df.shape[0] * df.shape[1]) * 100
+        total_cells = df.shape[0] * df.shape[1]
+        total_missing_pct = (sum(cols_with_missing.values()) / total_cells * 100) if total_cells > 0 else 0.0
 
         overview = {
             "n_samples": profile.n_samples,
@@ -560,11 +661,20 @@ Use the available tools to gather evidence before finalizing the profile."""
         elif 2 < n_unique <= 5:
             result["treatment_type"] = "multi-level"
             result["assessment"] = "USABLE"
-            result["note"] = "Can be used for multi-valued treatment or collapsed to binary"
+            result["values"] = [str(v) for v in unique_vals]
+            result["note"] = (
+                "Multi-level categorical treatment. Set treatment_encoding_strategy='collapse_to_binary' "
+                "and treatment_control_value to the control/reference category (e.g., the 'no treatment' group). "
+                f"Available values: {[str(v) for v in unique_vals]}"
+            )
+            # Check if values are strings (need encoding)
+            if data.dtype == object:
+                result["requires_encoding"] = True
 
         elif n_unique > 5 and n_unique <= 20:
             result["treatment_type"] = "categorical"
             result["assessment"] = "CONSIDER_COLLAPSING"
+            result["values"] = [str(v) for v in unique_vals[:10]]
             result["note"] = "Consider collapsing categories for treatment analysis"
 
         else:
@@ -786,6 +896,8 @@ Use the available tools to gather evidence before finalizing the profile."""
         time_column: str | None = None,
         discontinuity_candidates: list[str] | None = None,
         recommended_methods: list[str] | None = None,
+        treatment_encoding_strategy: str | None = None,
+        treatment_control_value: str | None = None,
     ) -> ToolResult:
         """Finalize the data profile."""
         self.logger.info(
@@ -794,6 +906,7 @@ Use the available tools to gather evidence before finalizing the profile."""
             outcome_candidates=outcome_candidates,
             confounders=potential_confounders[:5],
             recommended_methods=recommended_methods or [],
+            treatment_encoding_strategy=treatment_encoding_strategy,
         )
 
         self._final_result = {
@@ -805,6 +918,8 @@ Use the available tools to gather evidence before finalizing the profile."""
             "time_column": time_column,
             "discontinuity_candidates": discontinuity_candidates or [],
             "recommended_methods": recommended_methods or ["IPW", "AIPW", "Matching"],
+            "treatment_encoding_strategy": treatment_encoding_strategy,
+            "treatment_control_value": treatment_control_value,
         }
         self._finalized = True
 
@@ -816,6 +931,7 @@ Use the available tools to gather evidence before finalizing the profile."""
                 "outcome_candidates": outcome_candidates,
                 "n_confounders": len(potential_confounders),
                 "recommended_methods": recommended_methods or ["IPW", "AIPW", "Matching"],
+                "treatment_encoding_strategy": treatment_encoding_strategy or "none",
             },
         )
 
@@ -885,7 +1001,7 @@ Use the available tools to gather evidence before finalizing the profile."""
                     kaggle_username = kaggle_creds.get("username", kaggle_username)
                     kaggle_key = kaggle_creds.get("key", kaggle_key)
                 except json.JSONDecodeError:
-                    pass
+                    self.logger.debug("kaggle_key_json_parse_failed", exc_info=True)
 
             if not kaggle_username:
                 self._load_error = "KAGGLE_USERNAME is not configured. Cannot download datasets."
@@ -1083,6 +1199,26 @@ Use the available tools to gather evidence before finalizing the profile."""
                 time_column = col
                 break
 
+        # Auto-detect categorical treatment encoding
+        enc_strategy = None
+        enc_control = None
+        top_treatment = treatment_candidates[0] if treatment_candidates else None
+        if top_treatment and top_treatment in df.columns and df[top_treatment].dtype == object:
+            unique_vals = df[top_treatment].dropna().unique()
+            if len(unique_vals) == 2:
+                enc_strategy = "label_encode"
+            elif 2 < len(unique_vals) <= 10:
+                enc_strategy = "collapse_to_binary"
+                # Heuristic: pick the value that looks like a control group
+                control_keywords = ["control", "no", "placebo", "none", "baseline", "reference"]
+                for val in unique_vals:
+                    if any(kw in str(val).lower() for kw in control_keywords):
+                        enc_control = str(val)
+                        break
+                if enc_control is None:
+                    # Pick the most frequent value as control
+                    enc_control = str(df[top_treatment].value_counts().idxmax())
+
         return {
             "treatment_candidates": treatment_candidates[:5],
             "outcome_candidates": outcome_candidates[:5],
@@ -1092,6 +1228,8 @@ Use the available tools to gather evidence before finalizing the profile."""
             "time_column": time_column,
             "discontinuity_candidates": [],
             "recommended_methods": ["IPW", "AIPW", "Matching"],
+            "treatment_encoding_strategy": enc_strategy,
+            "treatment_control_value": enc_control,
         }
 
     def _populate_profile(self, final_result: dict[str, Any]) -> None:

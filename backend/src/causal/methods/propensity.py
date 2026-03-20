@@ -70,6 +70,7 @@ class PSMMethod(BaseCausalMethod):
             raise ValueError("PSM requires covariates for propensity score estimation")
 
         # Prepare data
+        covariates = self._validate_covariates(df, covariates)
         df_clean = df.dropna(subset=[treatment_col, outcome_col] + covariates)
         T = self._binarize_treatment(df_clean[treatment_col])
         Y = df_clean[outcome_col].values
@@ -93,6 +94,16 @@ class PSMMethod(BaseCausalMethod):
 
         # Clip propensity scores to avoid extreme weights
         self._propensity_scores = np.clip(self._propensity_scores, 0.01, 0.99)
+        # Ensure no exact 0 or 1 after float rounding
+        self._propensity_scores = np.where(self._propensity_scores <= 0, 0.01, self._propensity_scores)
+        self._propensity_scores = np.where(self._propensity_scores >= 1, 0.99, self._propensity_scores)
+
+        # Check for NaN propensity scores before logit
+        if np.any(np.isnan(self._propensity_scores)):
+            valid_mask = ~np.isnan(self._propensity_scores)
+            if valid_mask.sum() < 10:
+                raise ValueError("Propensity score model produced too many NaN values")
+            self._propensity_scores = self._propensity_scores[valid_mask]
 
         # Compute logit of propensity scores for matching
         logit_ps = np.log(self._propensity_scores / (1 - self._propensity_scores))
@@ -327,6 +338,7 @@ class IPWMethod(BaseCausalMethod):
             raise ValueError("IPW requires covariates for propensity score estimation")
 
         # Prepare data
+        covariates = self._validate_covariates(df, covariates)
         df_clean = df.dropna(subset=[treatment_col, outcome_col] + covariates)
         self._T = self._binarize_treatment(df_clean[treatment_col]).values
         self._Y = df_clean[outcome_col].values
@@ -334,6 +346,9 @@ class IPWMethod(BaseCausalMethod):
         # Get covariates
         valid_covs = [c for c in covariates if c in df_clean.columns]
         X = df_clean[valid_covs].select_dtypes(include=[np.number])
+
+        # Store raw covariates for proper bootstrap re-estimation
+        self._raw_X = X.values.copy()
 
         # Estimate propensity scores
         ps_model = LogisticRegression(max_iter=1000, random_state=42)
@@ -387,13 +402,22 @@ class IPWMethod(BaseCausalMethod):
         n_bootstrap = 500
         bootstrap_estimates = []
         n = len(Y)
+        X = self._raw_X
 
         for _ in range(n_bootstrap):
             idx = np.random.choice(n, size=n, replace=True)
+            boot_X = X[idx]
             boot_T = T[idx]
             boot_Y = Y[idx]
-            boot_ps = ps[idx]
             try:
+                # Re-estimate propensity scores on bootstrap sample
+                boot_model = LogisticRegression(max_iter=1000, solver='lbfgs')
+                boot_model.fit(boot_X, boot_T)
+                boot_ps = np.clip(
+                    boot_model.predict_proba(boot_X)[:, 1],
+                    self.trim_threshold,
+                    1 - self.trim_threshold,
+                )
                 boot_ate = self._hajek_ate(boot_T, boot_Y, boot_ps)
                 if np.isfinite(boot_ate):
                     bootstrap_estimates.append(boot_ate)
@@ -416,6 +440,38 @@ class IPWMethod(BaseCausalMethod):
         n_extreme_treated = int(np.sum(w_treated[T == 1] > 10 * median_w_treated))
         n_extreme_control = int(np.sum(w_control[T == 0] > 10 * median_w_control))
 
+        # L9: Auto-trim extreme weights if >5% are extreme
+        weight_trimming = {"applied": False}
+        n_total = len(Y)
+        total_extreme = n_extreme_treated + n_extreme_control
+        if total_extreme > 0.05 * n_total:
+            # Clip treated and control weights at their respective 95th percentiles
+            cap_treated = float(np.percentile(w_treated[T == 1], 95))
+            cap_control = float(np.percentile(w_control[T == 0], 95))
+            w_treated = np.where(T == 1, np.clip(w_treated, None, cap_treated), w_treated)
+            w_control = np.where(T == 0, np.clip(w_control, None, cap_control), w_control)
+
+            # Recompute trimmed Hajek ATE
+            mu1 = np.sum(w_treated * Y) / np.sum(w_treated)
+            mu0 = np.sum(w_control * Y) / np.sum(w_control)
+            ate = mu1 - mu0
+
+            # Recompute ESS with trimmed weights
+            ess_treated = np.sum(w_treated)**2 / np.sum(w_treated**2)
+            ess_control = np.sum(w_control)**2 / np.sum(w_control**2)
+
+            weight_trimming = {
+                "applied": True,
+                "cap_treated": cap_treated,
+                "cap_control": cap_control,
+                "n_trimmed": int(total_extreme),
+            }
+            logger.info(
+                "IPW weights auto-trimmed: %d extreme weights clipped "
+                "(treated cap=%.2f, control cap=%.2f)",
+                total_extreme, cap_treated, cap_control,
+            )
+
         # Diagnostics
         diagnostics = {
             "ps_min": float(ps.min()),
@@ -425,13 +481,13 @@ class IPWMethod(BaseCausalMethod):
             "ess_control": float(ess_control),
             "n_extreme_weights_treated": n_extreme_treated,
             "n_extreme_weights_control": n_extreme_control,
+            "weight_trimming": weight_trimming,
         }
 
-        if n_extreme_treated + n_extreme_control > 0:
+        if total_extreme > 0 and not weight_trimming["applied"]:
             logger.warning(
                 "Extreme IPW weights detected: %d treated, %d control "
-                "observations have weights > 10x median. Consider stronger "
-                "trimming or stabilized weights.",
+                "observations have weights > 10x median.",
                 n_extreme_treated,
                 n_extreme_control,
             )
@@ -502,9 +558,10 @@ class AIPWMethod(BaseCausalMethod):
             raise ValueError("AIPW requires covariates")
 
         from sklearn.linear_model import LinearRegression
-        from sklearn.model_selection import KFold
+        from sklearn.model_selection import StratifiedKFold
 
         # Prepare data
+        covariates = self._validate_covariates(df, covariates)
         df_clean = df.dropna(subset=[treatment_col, outcome_col] + covariates)
         self._T = self._binarize_treatment(df_clean[treatment_col]).values
         self._Y = df_clean[outcome_col].values
@@ -518,10 +575,10 @@ class AIPWMethod(BaseCausalMethod):
         self._mu1 = np.zeros(n)
         self._mu0 = np.zeros(n)
 
-        # K-fold cross-fitting
-        kf = KFold(n_splits=n_folds, shuffle=True, random_state=42)
+        # Stratified K-fold to ensure both treatment groups in each fold
+        kf = StratifiedKFold(n_splits=n_folds, shuffle=True, random_state=42)
 
-        for train_idx, test_idx in kf.split(self._X):
+        for train_idx, test_idx in kf.split(self._X, self._T):
             X_train, X_test = self._X[train_idx], self._X[test_idx]
             T_train, T_test = self._T[train_idx], self._T[test_idx]
             Y_train = self._Y[train_idx]

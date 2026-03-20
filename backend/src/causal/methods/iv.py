@@ -125,7 +125,23 @@ class InstrumentalVariablesMethod(BaseCausalMethod):
 
         # Sandwich variance: (Z'X)^{-1} Z' sigma^2 I Z (X'Z)^{-1}
         # Simplified: sigma^2 * (X_hat'X_hat)^{-1} where X_hat uses predicted T
-        XhXh_inv = np.linalg.inv(second_stage_X.T @ second_stage_X)
+        try:
+            XhXh_inv = np.linalg.inv(second_stage_X.T @ second_stage_X)
+        except np.linalg.LinAlgError:
+            # Singular matrix — instruments are collinear or weak
+            self._result = MethodResult(
+                method=self.METHOD_NAME,
+                estimand=self.ESTIMAND,
+                estimate=float('nan'),
+                std_error=float('nan'),
+                ci_lower=float('nan'),
+                ci_upper=float('nan'),
+                p_value=float('nan'),
+                n_treated=int(T.sum()),
+                n_control=int((1 - T).sum()),
+            )
+            self._fitted = True
+            return self
         self._corrected_se = np.sqrt(sigma_sq * np.diag(XhXh_inv))
 
         # --- Hansen J-test (overidentification) ---
@@ -252,8 +268,8 @@ class InstrumentalVariablesMethod(BaseCausalMethod):
                 )
 
             # Check first-stage significance
-            for inst in self._instruments:
-                idx = self._instruments.index(inst) + 1
+            for i, inst in enumerate(self._instruments):
+                idx = i + 1  # +1 for intercept
                 if self._first_stage.pvalues[idx] > 0.05:
                     violations.append(
                         f"Instrument {inst} not significant in first stage "
