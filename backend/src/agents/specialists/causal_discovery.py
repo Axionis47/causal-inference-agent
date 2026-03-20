@@ -584,6 +584,13 @@ VALIDATION CRITERIA:
                         for e in directed
                     )
 
+                state.push_decision(
+                    agent="causal_discovery",
+                    decision_type="algorithm_succeeded",
+                    choice=algorithm.upper(),
+                    reason=f"{algorithm.upper()} produced {len(directed)} directed and {len(undirected)} undirected edges across {len(dag.nodes)} nodes using {len(df_subset)} samples",
+                )
+
                 return ToolResult(
                     status=ToolResultStatus.SUCCESS,
                     output={
@@ -621,6 +628,13 @@ VALIDATION CRITERIA:
             dag = self._create_simple_dag()
             self._discovered_graphs[algorithm] = dag
             self._current_graph = dag
+
+            state.push_decision(
+                agent="causal_discovery",
+                decision_type="algorithm_failed",
+                choice=f"{algorithm.upper()} (fallback to simple DAG)",
+                reason=f"{algorithm.upper()} failed with error: {str(e)[:200]}; falling back to simple treatment-outcome DAG",
+            )
 
             return ToolResult(
                 status=ToolResultStatus.SUCCESS,
@@ -1014,6 +1028,16 @@ VALIDATION CRITERIA:
             "confidence": confidence,
         }
         self._finalized = True
+
+        n_algorithms_run = len(self._discovered_graphs)
+        chosen_dag = self._discovered_graphs.get(chosen_algorithm)
+        n_edges = len(chosen_dag.edges) if chosen_dag else 0
+        state.push_decision(
+            agent="causal_discovery",
+            decision_type="final_dag_selected",
+            choice=chosen_algorithm,
+            reason=f"Selected {chosen_algorithm.upper()} (confidence: {confidence}) from {n_algorithms_run} algorithm(s) run; graph has {n_edges} edges, {len(confounders or [])} confounders identified",
+        )
 
         return ToolResult(
             status=ToolResultStatus.SUCCESS,

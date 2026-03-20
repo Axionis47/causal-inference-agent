@@ -20,6 +20,7 @@ from sklearn.linear_model import LogisticRegression
 
 from src.agents.base import (
     AnalysisState,
+    CausalDAG,
     CausalPair,
     JobStatus,
     ToolResult,
@@ -40,6 +41,93 @@ from .estimation_methods import run_method
 from .method_selector import SampleSizeThresholds, find_closest_column
 
 logger = get_logger(__name__)
+
+
+def _compute_adjustment_set(
+    dag: CausalDAG,
+    treatment: str,
+    outcome: str,
+) -> list[str] | None:
+    """Compute the backdoor adjustment set from a CausalDAG.
+
+    Uses the backdoor criterion: adjust for all non-descendants of treatment
+    that are ancestors of either treatment or outcome (i.e., that lie on
+    backdoor paths from T to Y).
+
+    Returns None if the DAG doesn't contain both treatment and outcome nodes.
+    """
+    import networkx as nx
+
+    G = nx.DiGraph()
+    for edge in dag.edges:
+        if edge.edge_type == "directed":
+            G.add_edge(edge.source, edge.target)
+        else:
+            # Undirected/bidirected edges: add both directions conservatively
+            G.add_edge(edge.source, edge.target)
+            G.add_edge(edge.target, edge.source)
+
+    if treatment not in G.nodes or outcome not in G.nodes:
+        return None
+
+    # Descendants of treatment — never adjust for these (includes mediators)
+    descendants_of_t = nx.descendants(G, treatment)
+    # Treatment itself should not be in the adjustment set
+    descendants_of_t.add(treatment)
+    descendants_of_t.add(outcome)
+
+    # Ancestors of outcome OR treatment — potential confounders
+    ancestors_of_y = nx.ancestors(G, outcome)
+    ancestors_of_t = nx.ancestors(G, treatment)
+    relevant_ancestors = ancestors_of_y | ancestors_of_t
+
+    # Backdoor adjustment set: ancestors that are NOT descendants of T
+    adjustment_set = [
+        node for node in relevant_ancestors
+        if node not in descendants_of_t
+    ]
+
+    return sorted(adjustment_set) if adjustment_set else None
+
+
+def _classify_causal_role(
+    dag: CausalDAG,
+    variable: str,
+    treatment: str,
+    outcome: str,
+) -> str:
+    """Classify a variable's causal role relative to treatment and outcome.
+
+    Returns one of: "confounder", "potential_mediator", "potential_collider", "unknown".
+    """
+    import networkx as nx
+
+    G = nx.DiGraph()
+    for edge in dag.edges:
+        if edge.edge_type == "directed":
+            G.add_edge(edge.source, edge.target)
+
+    if variable not in G.nodes:
+        return "unknown"
+
+    is_ancestor_of_t = variable in nx.ancestors(G, treatment)
+    is_ancestor_of_y = variable in nx.ancestors(G, outcome)
+    is_descendant_of_t = variable in nx.descendants(G, treatment)
+    is_descendant_of_y = variable in nx.descendants(G, outcome)
+
+    # Confounder: ancestor of both T and Y (causes both)
+    if is_ancestor_of_t and is_ancestor_of_y:
+        return "confounder"
+
+    # Mediator: on causal path T → ... → variable → ... → Y
+    if is_descendant_of_t and is_ancestor_of_y:
+        return "potential_mediator"
+
+    # Collider: descendant of both T and Y
+    if is_descendant_of_t and is_descendant_of_y:
+        return "potential_collider"
+
+    return "unknown"
 
 
 @register_agent("effect_estimator")
@@ -109,6 +197,7 @@ Call tools iteratively. After running each method, decide whether to run another
         self._results: list[TreatmentEffectResult] = []
         self._propensity_scores: np.ndarray | None = None
         self._last_method_result: TreatmentEffectResult | None = None
+        self._overlap_quality: str | None = None  # L6: track PS overlap quality
         self._current_state: AnalysisState | None = None
         self._finalized: bool = False
         self._final_result: dict[str, Any] = {}
@@ -265,7 +354,7 @@ Call tools iteratively. After running each method, decide whether to run another
     # =========================================================================
 
     def _get_initial_observation(self, state: AnalysisState) -> str:
-        """Get the initial observation for the ReAct loop."""
+        """Get lean initial observation — agents pull context via tools."""
         obs = f"""You are estimating treatment effects for a causal analysis.
 
 Treatment variable: {self._treatment_var}
@@ -273,7 +362,12 @@ Outcome variable: {self._outcome_var}
 Available covariates: {self._covariates[:20]}{'...' if len(self._covariates) > 20 else ''}
 Number of samples: {len(self._df) if self._df is not None else 'unknown'}
 
-⚠️ ACTION PLAN - Follow this exactly:
+BEFORE RUNNING METHODS, pull context you need:
+- Call get_dag_adjustment_set to get the proper covariate adjustment set
+- Call get_confounder_analysis for ranked confounders
+- Call ask_domain_knowledge with "Are there any immutable or post-treatment variables?"
+
+Then follow the estimation workflow:
 Step 1: Call run_estimation_method with method="ols"
 Step 2: Call run_estimation_method with method="ipw"
 Step 3: Call run_estimation_method with method="aipw"
@@ -284,19 +378,7 @@ You MUST attempt ALL three methods (OLS, IPW, AIPW). If a method fails due to
 missing covariates or other issues, the tool will return an error - that is fine,
 just proceed to the next method.
 
-START NOW: Call run_estimation_method with method="ols"."""
-
-        # Add context from state if available
-        if state.confounder_discovery:
-            confounders = state.confounder_discovery.get("ranked_confounders", [])
-            if confounders:
-                obs += f"\n\nConfounders identified: {confounders[:5]}"
-
-        if state.data_profile:
-            if state.data_profile.has_time_dimension:
-                obs += " Has time dimension (DiD may be applicable)."
-            if state.data_profile.potential_instruments:
-                obs += f" Potential instruments: {state.data_profile.potential_instruments}"
+START NOW: First call get_dag_adjustment_set, then proceed to estimation."""
 
         return obs
 
@@ -553,8 +635,44 @@ IMPORTANT:
         """
         raw_confounders: list[str] = []
 
-        # Priority 1: Use discovered confounders
-        if state.confounder_discovery and state.confounder_discovery.get("ranked_confounders"):
+        # Priority 0a: Use dag_expert's pre-computed adjustment set (fastest, most informed)
+        if (
+            state.proposed_dag
+            and state.proposed_dag.adjustment_set
+            and len(state.proposed_dag.adjustment_set) > 0
+        ):
+            raw_confounders = [
+                c for c in state.proposed_dag.adjustment_set
+                if c in self._df.columns and c != treatment and c != outcome
+            ]
+            if raw_confounders:
+                self.logger.info(
+                    "using_dag_expert_adjustment_set",
+                    n_vars=len(raw_confounders),
+                    vars=raw_confounders[:5],
+                )
+
+        # Priority 0b: Recompute from DAG edges (fallback if dag_expert didn't run)
+        if not raw_confounders and state.proposed_dag and state.proposed_dag.edges:
+            adjustment_set = _compute_adjustment_set(
+                dag=state.proposed_dag,
+                treatment=treatment,
+                outcome=outcome,
+            )
+            if adjustment_set:
+                raw_confounders = [
+                    c for c in adjustment_set
+                    if c in self._df.columns and c != treatment and c != outcome
+                ]
+                if raw_confounders:
+                    self.logger.info(
+                        "using_dag_adjustment_set",
+                        n_vars=len(raw_confounders),
+                        vars=raw_confounders[:5],
+                    )
+
+        # Priority 1: Use discovered confounders (if DAG didn't produce a set)
+        if not raw_confounders and state.confounder_discovery and state.confounder_discovery.get("ranked_confounders"):
             raw_confounders = [
                 c for c in state.confounder_discovery["ranked_confounders"]
                 if c in self._df.columns and c != treatment and c != outcome
@@ -567,11 +685,18 @@ IMPORTANT:
                 if c in self._df.columns and c != treatment and c != outcome
             ]
 
-        # Priority 3: Use all non-ID columns except treatment and outcome
+        # Priority 3: Use all non-ID/non-date columns except treatment and outcome
         else:
+            import re
+            _id_pattern = re.compile(
+                r'(^id$|_id$|^index$|^row_?num|^unnamed|^Unnamed)', re.IGNORECASE
+            )
             raw_confounders = [
                 c for c in self._df.columns
-                if c != treatment and c != outcome
+                if c != treatment
+                and c != outcome
+                and not _id_pattern.search(c)
+                and not pd.api.types.is_datetime64_any_dtype(self._df[c])
             ]
 
         # Separate numeric vs categorical confounders
@@ -587,15 +712,18 @@ IMPORTANT:
             and self._df[c].nunique() <= 20
         ]
 
-        # One-hot encode categorical confounders and add to working dataframe
+        # One-hot encode categorical confounders on a COPY to avoid mutating
+        # the shared DataFrame (subsequent agents would see extra dummy columns)
         dummy_cols: list[str] = []
         if cat_confounders:
+            working_df = self._df.copy()
             dummies = pd.get_dummies(
-                self._df[cat_confounders], prefix_sep="_", drop_first=True,
+                working_df[cat_confounders], prefix_sep="_", drop_first=True,
             )
             for col in dummies.columns:
-                self._df[col] = dummies[col].astype(float)
+                working_df[col] = dummies[col].astype(float)
             dummy_cols = list(dummies.columns)
+            self._df = working_df
 
         return numeric_covariates + dummy_cols
 
@@ -722,6 +850,14 @@ IMPORTANT:
             # Update state with all results
             state.treatment_effects = all_results
 
+            # CR4: If all methods failed across all pairs, mark as failed
+            if not all_results:
+                state.mark_failed(
+                    "All estimation methods failed across all causal pairs. Cannot produce results.",
+                    self.AGENT_NAME,
+                )
+                return state
+
             duration_ms = int((time.time() - start_time) * 1000)
             self.logger.info(
                 "estimation_complete",
@@ -843,9 +979,12 @@ IMPORTANT:
         df = self._df
         T = df[self._treatment_var].values.astype(float)
 
-        # Binarize continuous treatment using median split
+        # MED3: Binarize using shared threshold (stored in state for PS diagnostics)
         if len(np.unique(T)) > 2:
-            T = (T > np.median(T)).astype(int)
+            threshold = np.median(T)
+            T = (T > threshold).astype(int)
+            if self._current_state and self._current_state.treatment_binarization_threshold is None:
+                self._current_state.treatment_binarization_threshold = float(threshold)
 
         if not covariates:
             covariates = self._covariates[:15]
@@ -888,7 +1027,7 @@ IMPORTANT:
                 if abs(smd) >= 0.1:
                     imbalanced.append(cov)
             except Exception:
-                pass
+                logger.debug("covariate_balance_check_skipped", covariate=cov, exc_info=True)
 
         recommendation = "Adjustment needed for imbalanced covariates" if imbalanced else "Good balance, simple methods may suffice"
 
@@ -912,9 +1051,12 @@ IMPORTANT:
         df = self._df
         T = df[self._treatment_var].values.astype(float)
 
-        # Binarize continuous treatment using median split
+        # MED3: Binarize using shared threshold
         if len(np.unique(T)) > 2:
-            T = (T > np.median(T)).astype(int)
+            threshold = np.median(T)
+            T = (T > threshold).astype(int)
+            if self._current_state and self._current_state.treatment_binarization_threshold is None:
+                self._current_state.treatment_binarization_threshold = float(threshold)
 
         if not covariates:
             covariates = self._covariates[:15]
@@ -969,6 +1111,9 @@ IMPORTANT:
         in_support = float(np.mean((ps >= overlap_min) & (ps <= overlap_max)))
         overlap_quality = "GOOD" if in_support > 0.9 else ("MODERATE" if in_support > 0.7 else "POOR")
 
+        # L6: Store overlap quality for method gating
+        self._overlap_quality = overlap_quality
+
         if in_support > 0.9:
             recommendation = "Good overlap supports IPW and matching methods"
         elif in_support > 0.7:
@@ -1011,6 +1156,53 @@ IMPORTANT:
         # Filter covariates
         valid_covs = [c for c in covariates if c in self._df.columns]
 
+        method_lower = method.lower().replace("-", "_").replace(" ", "_")
+        ps_methods = {"ipw", "aipw", "psm", "matching"}
+
+        # L6: Block PS-dependent methods when overlap is poor
+        if self._overlap_quality == "POOR" and method_lower in ps_methods:
+            state.push_decision(
+                agent="effect_estimator",
+                decision_type="method_rejected",
+                choice=method_lower,
+                reason=f"PS overlap is POOR, blocking {method}. Only OLS and Double ML are valid with poor propensity score overlap.",
+                alternatives=["ols", "double_ml"],
+            )
+            return ToolResult(
+                status=ToolResultStatus.ERROR,
+                output=None,
+                error=(
+                    f"Skipping {method} due to positivity violation (overlap quality: POOR). "
+                    "Only OLS and Double ML are valid with poor propensity score overlap."
+                ),
+            )
+
+        # L8: Per-group sample size enforcement for PS methods
+        if method_lower in ps_methods:
+            T = self._df[self._treatment_var].values.astype(float)
+            if len(np.unique(T)) > 2:
+                threshold = getattr(state, "treatment_binarization_threshold", None) or np.median(T)
+                T = (T > threshold).astype(int)
+            n_treated = int(np.sum(T == 1))
+            n_control = int(np.sum(T == 0))
+            min_arm = min(n_treated, n_control)
+            if min_arm < 30:
+                state.push_decision(
+                    agent="effect_estimator",
+                    decision_type="method_rejected",
+                    choice=method_lower,
+                    reason=f"Smallest arm has {min_arm} samples, but {method} requires 30+ per arm (treated={n_treated}, control={n_control}).",
+                    alternatives=["ols"],
+                )
+                return ToolResult(
+                    status=ToolResultStatus.ERROR,
+                    output=None,
+                    error=(
+                        f"Insufficient samples in smaller group ({min_arm}) for {method}. "
+                        f"Need at least 30 per arm. (treated={n_treated}, control={n_control})"
+                    ),
+                )
+
         try:
             result = run_method(
                 method, self._treatment_var, self._outcome_var,
@@ -1019,6 +1211,18 @@ IMPORTANT:
             if result:
                 self._results.append(result)
                 self._last_method_result = result
+
+                # Extract key diagnostics for trace visibility
+                diagnostics_summary = self._extract_key_diagnostics(
+                    result.method, result.diagnostics
+                )
+
+                state.push_decision(
+                    agent="effect_estimator",
+                    decision_type="method_succeeded",
+                    choice=result.method,
+                    reason=f"Estimate={result.estimate:.4f}, SE={result.std_error:.4f}, 95% CI=[{result.ci_lower:.4f}, {result.ci_upper:.4f}], p={result.p_value:.4f}" if result.p_value else f"Estimate={result.estimate:.4f}, SE={result.std_error:.4f}, 95% CI=[{result.ci_lower:.4f}, {result.ci_upper:.4f}]",
+                )
 
                 return ToolResult(
                     status=ToolResultStatus.SUCCESS,
@@ -1031,21 +1235,104 @@ IMPORTANT:
                         "ci_upper": round(result.ci_upper, 4),
                         "p_value": round(result.p_value, 4) if result.p_value else None,
                         "assumptions": result.assumptions_tested,
+                        "diagnostics_summary": diagnostics_summary,
                         "details": result.details,
                     }
                 )
             else:
+                state.push_decision(
+                    agent="effect_estimator",
+                    decision_type="method_failed",
+                    choice=method_lower,
+                    reason=f"Method {method} returned no result (insufficient data or inapplicable).",
+                )
                 return ToolResult(
                     status=ToolResultStatus.ERROR,
                     output=None,
                     error=f"Method {method} failed to produce results."
                 )
         except Exception as e:
+            state.push_decision(
+                agent="effect_estimator",
+                decision_type="method_failed",
+                choice=method_lower,
+                reason=f"Method {method} raised exception: {str(e)}",
+            )
             return ToolResult(
                 status=ToolResultStatus.ERROR,
                 output=None,
                 error=f"Method {method} failed with error: {str(e)}"
             )
+
+    @staticmethod
+    def _extract_key_diagnostics(method_name: str, diagnostics: dict) -> dict:
+        """Extract the most important diagnostics for trace visibility.
+
+        Returns a compact dict of key metrics suitable for trace output.
+        Each method type has its own set of critical diagnostic fields.
+        """
+        if not diagnostics:
+            return {}
+
+        key: dict = {}
+        method_lower = method_name.lower().replace("-", "_").replace(" ", "_")
+
+        # Define which keys to extract per method family
+        method_keys: dict[str, list[str]] = {
+            "ols": [
+                "r_squared", "adj_r_squared", "reset_f_pval",
+                "vif_warning", "vif_max", "n_covariates",
+            ],
+            "ipw": [
+                "ess_treated", "ess_control", "ps_mean",
+                "n_extreme_weights_treated", "n_extreme_weights_control",
+                "weight_trimming", "overlap_quality",
+            ],
+            "aipw": [
+                "ps_overlap", "outcome_r2_treated", "outcome_r2_control",
+                "cross_fitting_folds", "overlap_quality",
+            ],
+            "psm": [
+                "n_matched", "n_unmatched", "match_rate",
+                "common_support", "ps_mean_treated", "ps_mean_control",
+            ],
+            "dml": [
+                "n_folds", "ml_method", "outcome_residual_var",
+                "treatment_residual_var", "residual_correlation",
+            ],
+            "iv": [
+                "first_stage_f_partial", "weak_instrument_severe",
+                "hansen_j_pvalue", "endogeneity_dwh_pvalue",
+                "treatment_endogenous", "instruments",
+            ],
+            "rdd": [
+                "bandwidth", "effective_n_left", "effective_n_right",
+                "mccrary_pvalue", "kernel", "cutoff",
+            ],
+            "did": [
+                "parallel_trends_pvalue", "n_pre_periods", "n_post_periods",
+                "used_median_cutoff",
+            ],
+        }
+
+        # Find matching method family
+        matched_keys: list[str] = []
+        for family, keys in method_keys.items():
+            if family in method_lower:
+                matched_keys = keys
+                break
+
+        # Extract matching fields from diagnostics
+        for field_name in matched_keys:
+            if field_name in diagnostics:
+                val = diagnostics[field_name]
+                # Round floats for readability
+                if isinstance(val, float):
+                    key[field_name] = round(val, 4)
+                else:
+                    key[field_name] = val
+
+        return key
 
     async def _tool_check_method_diagnostics(
         self,
@@ -1165,6 +1452,29 @@ IMPORTANT:
         caveats: list[str] | None = None,
     ) -> ToolResult:
         """Finalize the estimation with conclusions."""
+        # INT4: Validate preferred_estimate against actual results
+        # LLM can hallucinate a number that doesn't match any method's output
+        if self._results:
+            actual_estimates = [r.estimate for r in self._results]
+            if not any(abs(preferred_estimate - e) < 1e-4 for e in actual_estimates):
+                # LLM hallucinated — use auto-selected preferred
+                preferred_r = None
+                for r in self._results:
+                    if "doubly" in r.method.lower() or "aipw" in r.method.lower():
+                        preferred_r = r
+                        break
+                if not preferred_r:
+                    estimates = sorted(self._results, key=lambda x: x.estimate)
+                    preferred_r = estimates[len(estimates) // 2]
+                preferred_estimate = preferred_r.estimate
+                preferred_method = preferred_r.method
+                self.logger.warning(
+                    "preferred_estimate_corrected",
+                    original=preferred_estimate,
+                    corrected_to=preferred_r.estimate,
+                    method=preferred_r.method,
+                )
+
         self._finalized = True
         self._final_result = {
             "preferred_method": preferred_method,

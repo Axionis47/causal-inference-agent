@@ -535,6 +535,13 @@ Call finalize_diagnostics when you have sufficient evidence."""
             else "Consider trimming extreme PS values or using doubly robust methods"
         )
 
+        state.push_decision(
+            agent="ps_diagnostics",
+            decision_type="quality_gate",
+            choice=f"overlap_{quality.lower()}",
+            reason=f"Propensity score overlap is {quality} ({pct_overlap:.1f}% common support, {positivity_violations} positivity violations). {'PS methods recommended.' if quality in ['EXCELLENT', 'GOOD'] else 'Consider alternative methods.'}",
+        )
+
         overlap_result = {
             "treated_stats": {
                 "mean": float(ps_treated.mean()),

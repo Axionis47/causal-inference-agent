@@ -39,6 +39,12 @@ class EffectEstimatorReActAgent(ReActAgent):
     AGENT_NAME = "effect_estimator_react"
     MAX_STEPS = 15
 
+    # Agent metadata (used by registry and orchestrator)
+    WRITES_STATE_FIELDS = ["treatment_effects"]
+    REQUIRED_STATE_FIELDS = ["data_profile", "dataframe_path"]
+    JOB_STATUS = JobStatus.ESTIMATING_EFFECTS
+    PROGRESS_WEIGHT = 0.15
+
     SYSTEM_PROMPT = """You are an expert econometrician and causal inference practitioner.
 Your role is to estimate treatment effects using rigorous statistical methods.
 
@@ -48,7 +54,6 @@ You have tools to:
 3. check_assumptions - Check assumptions for specific methods
 4. run_method - Execute a causal inference method
 5. compare_results - Compare estimates across methods
-6. finish - Complete the task with a summary
 
 WORKFLOW:
 1. First, ALWAYS inspect the data to understand what you're working with
@@ -205,13 +210,8 @@ Key variables:
             obs += f"- Samples: {state.data_profile.n_samples}, Features: {state.data_profile.n_features}\n"
 
         obs += """
-Use context query tools to pull specific information as needed:
-- get_confounder_analysis: Get ranked confounders when running methods
-- get_profile_for_variables: Get stats for specific columns
-- ask_domain_knowledge: Query domain understanding
-- analyze_variable_semantics: Understand what variables represent
-
-Start by inspecting the data overview to understand what you're working with."""
+Start by inspecting the data overview to understand what you're working with.
+Then analyze the treatment variable, check assumptions, and run estimation methods."""
 
         # Load the dataframe
         if state.dataframe_path:
@@ -427,57 +427,35 @@ Start by inspecting the data overview to understand what you're working with."""
         outcome_col: str,
         covariates: list[str] | None = None,
     ) -> ToolResult:
-        """Run a causal inference method."""
+        """Run a causal inference method via the unified engine."""
         if self._df is None:
             return ToolResult(status=ToolResultStatus.ERROR, output=None, error="No data loaded")
 
-        df = self._df
-        covariates = covariates or []
-
-        # Filter to available columns
-        available_covariates = [c for c in covariates if c in df.columns]
-
         try:
-            from src.causal.estimators import EffectEstimatorEngine
+            from src.causal.estimators.effect_estimator import EffectEstimatorEngine
 
             engine = EffectEstimatorEngine(confidence_level=0.95)
-
-            # Prepare kwargs for special methods
-            kwargs = {}
-            if method == "did" and state.data_profile and state.data_profile.time_column:
-                kwargs["time_col"] = state.data_profile.time_column
-            if method == "iv" and state.data_profile and state.data_profile.potential_instruments:
-                kwargs["instruments"] = state.data_profile.potential_instruments
-            if method == "rdd" and state.data_profile and state.data_profile.discontinuity_candidates:
-                kwargs["running_var"] = state.data_profile.discontinuity_candidates[0]
-
-            # Run the method
-            result = engine.run_method(
-                method_name=method,
-                df=df,
+            effect_result = engine.run_method_safe(
+                method=method,
+                df=self._df,
                 treatment_col=treatment_col,
                 outcome_col=outcome_col,
-                covariates=available_covariates if available_covariates else None,
-                **kwargs,
+                covariates=covariates or [],
+                current_state=state,
             )
 
-            # Convert to TreatmentEffectResult
-            effect_result = TreatmentEffectResult(
-                method=result.method,
-                estimand=result.estimand,
-                estimate=result.estimate,
-                std_error=result.std_error,
-                ci_lower=result.ci_lower,
-                ci_upper=result.ci_upper,
-                p_value=result.p_value,
-                assumptions_tested=result.assumptions_tested,
-                details={
-                    "n_treated": result.n_treated,
-                    "n_control": result.n_control,
-                    "diagnostics": result.diagnostics,
-                    **result.details,
-                },
-            )
+            if effect_result is None:
+                state.push_decision(
+                    agent="effect_estimator_react",
+                    decision_type="method_failed",
+                    choice=method,
+                    reason=f"Method {method} returned no result (insufficient data or inapplicable).",
+                )
+                return ToolResult(
+                    status=ToolResultStatus.ERROR,
+                    output=None,
+                    error=f"Method {method} returned no result (insufficient data or inapplicable)",
+                )
 
             # Store result
             self._results.append(effect_result)
@@ -487,23 +465,37 @@ Start by inspecting the data overview to understand what you're working with."""
             state.treatment_variable = treatment_col
             state.outcome_variable = outcome_col
 
+            state.push_decision(
+                agent="effect_estimator_react",
+                decision_type="method_succeeded",
+                choice=effect_result.method,
+                reason=f"Estimate={effect_result.estimate:.4f}, SE={effect_result.std_error:.4f}, 95% CI=[{effect_result.ci_lower:.4f}, {effect_result.ci_upper:.4f}]"
+                + (f", p={effect_result.p_value:.4f}" if effect_result.p_value else ""),
+            )
+
             return ToolResult(
                 status=ToolResultStatus.SUCCESS,
                 output={
-                    "method": result.method,
-                    "estimand": result.estimand,
-                    "estimate": f"{result.estimate:.4f}",
-                    "std_error": f"{result.std_error:.4f}",
-                    "ci": f"[{result.ci_lower:.4f}, {result.ci_upper:.4f}]",
-                    "p_value": f"{result.p_value:.4f}" if result.p_value else "N/A",
-                    "n_treated": result.n_treated,
-                    "n_control": result.n_control,
-                    "significant": result.p_value < 0.05 if result.p_value else None,
+                    "method": effect_result.method,
+                    "estimand": effect_result.estimand,
+                    "estimate": f"{effect_result.estimate:.4f}",
+                    "std_error": f"{effect_result.std_error:.4f}",
+                    "ci": f"[{effect_result.ci_lower:.4f}, {effect_result.ci_upper:.4f}]",
+                    "p_value": f"{effect_result.p_value:.4f}" if effect_result.p_value else "N/A",
+                    "n_treated": effect_result.details.get("n_treated"),
+                    "n_control": effect_result.details.get("n_control"),
+                    "significant": effect_result.p_value < 0.05 if effect_result.p_value else None,
                 },
             )
 
         except Exception as e:
             self.logger.warning("method_failed", method=method, error=str(e))
+            state.push_decision(
+                agent="effect_estimator_react",
+                decision_type="method_failed",
+                choice=method,
+                reason=f"Method {method} raised exception: {str(e)}",
+            )
             return ToolResult(
                 status=ToolResultStatus.ERROR,
                 output=None,

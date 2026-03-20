@@ -10,14 +10,70 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
-from src.agents.base import AnalysisState, ToolResult, ToolResultStatus
+from src.agents.base import AnalysisState, CausalDAG, JobStatus, ToolResult, ToolResultStatus
 from src.agents.base.context_tools import ContextTools
 from src.agents.base.react_agent import ReActAgent
+from src.agents.registry import register_agent
 from src.logging_config.structured import get_logger
 
 logger = get_logger(__name__)
 
 
+def _classify_variable_role(
+    dag: CausalDAG | None,
+    variable: str,
+    treatment: str,
+    outcome: str,
+    domain_knowledge: dict | None = None,
+) -> str:
+    """Classify a variable's causal role relative to treatment and outcome.
+
+    Uses DAG topology if available, otherwise falls back to domain knowledge
+    temporal ordering.
+
+    Returns: "confounder", "potential_mediator", "potential_collider", or "unknown".
+    """
+    # Strategy 1: Use DAG topology if available
+    if dag and dag.edges:
+        import networkx as nx
+
+        G = nx.DiGraph()
+        for edge in dag.edges:
+            if edge.edge_type == "directed":
+                G.add_edge(edge.source, edge.target)
+
+        if variable in G.nodes and treatment in G.nodes and outcome in G.nodes:
+            is_ancestor_of_t = variable in nx.ancestors(G, treatment)
+            is_ancestor_of_y = variable in nx.ancestors(G, outcome)
+            is_descendant_of_t = variable in nx.descendants(G, treatment)
+            is_descendant_of_y = variable in nx.descendants(G, outcome)
+
+            if is_ancestor_of_t and is_ancestor_of_y:
+                return "confounder"
+            if is_descendant_of_t and is_ancestor_of_y:
+                return "potential_mediator"
+            if is_descendant_of_t and is_descendant_of_y:
+                return "potential_collider"
+            # Ancestor of T only, or ancestor of Y only — still safe to adjust for
+            if is_ancestor_of_t or is_ancestor_of_y:
+                return "confounder"
+            return "unknown"
+
+    # Strategy 2: Use domain knowledge temporal ordering
+    if domain_knowledge:
+        temporal = domain_knowledge.get("temporal_understanding", {})
+        pre_treatment = temporal.get("pre_treatment_vars", [])
+        post_treatment = temporal.get("post_treatment_vars", [])
+
+        if variable in post_treatment:
+            return "potential_mediator"
+        if variable in pre_treatment:
+            return "confounder"
+
+    return "unknown"
+
+
+@register_agent("confounder_discovery")
 class ConfounderDiscoveryAgent(ReActAgent, ContextTools):
     """Agent that discovers confounders through iterative tool-based reasoning.
 
@@ -32,6 +88,10 @@ class ConfounderDiscoveryAgent(ReActAgent, ContextTools):
 
     AGENT_NAME = "confounder_discovery"
     MAX_STEPS = 15
+    WRITES_STATE_FIELDS = ["confounder_discovery"]
+    REQUIRED_STATE_FIELDS = ["data_profile", "dataframe_path"]
+    JOB_STATUS = JobStatus.DISCOVERING_CAUSAL
+    PROGRESS_WEIGHT = 0.06
 
     SYSTEM_PROMPT = """You are an expert causal inference researcher investigating confounders.
 
@@ -55,7 +115,11 @@ INVESTIGATION STRATEGY:
 5. Rank confounders by the strength of their confounding effect
 
 Be THOROUGH - missing a true confounder leads to biased causal estimates.
-Call tools to gather evidence, don't just guess."""
+Call tools to gather evidence, don't just guess.
+
+CONTEXT TOOLS (pull upstream results if needed):
+- ask_domain_knowledge: Query domain knowledge for immutable variables, temporal ordering
+- get_eda_finding: Query EDA results (e.g. "covariate balance", "outliers")"""
 
     def __init__(self) -> None:
         super().__init__()
@@ -352,8 +416,24 @@ Use the tools to systematically investigate each candidate:
 
         affects_treatment = abs(corr_t) > 0.05 and pval_t < 0.1
         affects_outcome = abs(corr_y) > 0.05 and pval_y < 0.1
-        is_confounder = affects_treatment and affects_outcome
+        statistically_associated = affects_treatment and affects_outcome
         confounder_strength = abs(corr_t) * abs(corr_y)
+
+        # Classify causal role using DAG or domain knowledge
+        causal_role = _classify_variable_role(
+            dag=state.proposed_dag,
+            variable=variable,
+            treatment=self._treatment_var,
+            outcome=self._outcome_var,
+            domain_knowledge=state.domain_knowledge if hasattr(state, "domain_knowledge") else None,
+        )
+
+        # A variable is a safe confounder only if it's statistically associated
+        # AND not classified as a mediator or collider
+        is_confounder = (
+            statistically_associated
+            and causal_role not in ("potential_mediator", "potential_collider")
+        )
 
         result = {
             "variable": variable,
@@ -365,6 +445,7 @@ Use the tools to systematically investigate each candidate:
             "corr_with_outcome": float(corr_y),
             "pval_outcome": float(pval_y),
             "affects_outcome": affects_outcome,
+            "causal_role": causal_role,
             "is_confounder": is_confounder,
             "confounder_strength": float(confounder_strength) if is_confounder else 0.0,
         }
@@ -408,6 +489,13 @@ Use the tools to systematically investigate each candidate:
         }
 
         self._finalized = True
+
+        state.push_decision(
+            agent="confounder_discovery",
+            decision_type="confounders_selected",
+            choice=", ".join(confounders) if confounders else "(none)",
+            reason=f"Selected {len(confounders)} confounder(s) based on statistical criteria (correlation with both {self._treatment_var} and {self._outcome_var}) and domain knowledge; excluded {len(excluded)} variable(s) as mediators/colliders/noise",
+        )
 
         self.logger.info(
             "confounder_discovery_complete",
@@ -462,6 +550,7 @@ Use the tools to systematically investigate each candidate:
 
         candidates = self._get_candidates()
         confounders = []
+        excluded = []
 
         for col in candidates:
             try:
@@ -470,9 +559,25 @@ Use the tools to systematically investigate each candidate:
 
                 # Include if associated with both
                 if corr_t > 0.03 and corr_y > 0.03:
-                    confounders.append((col, corr_t * corr_y))
+                    # Check causal role — exclude mediators and colliders
+                    role = _classify_variable_role(
+                        dag=state.proposed_dag,
+                        variable=col,
+                        treatment=self._treatment_var,
+                        outcome=self._outcome_var,
+                        domain_knowledge=state.domain_knowledge if hasattr(state, "domain_knowledge") else None,
+                    )
+                    if role in ("potential_mediator", "potential_collider"):
+                        excluded.append(col)
+                        logger.info(
+                            "fallback_excluded_variable",
+                            variable=col,
+                            causal_role=role,
+                        )
+                    else:
+                        confounders.append((col, corr_t * corr_y))
             except Exception:
-                pass
+                logger.debug("correlation_computation_skipped", column=col, exc_info=True)
 
         # Sort by confounder strength
         confounders.sort(key=lambda x: x[1], reverse=True)
@@ -483,8 +588,8 @@ Use the tools to systematically investigate each candidate:
 
         state.confounder_discovery = {
             "ranked_confounders": ranked,
-            "excluded_variables": [],
-            "adjustment_strategy": "Statistical fallback - variables correlated with both T and Y",
+            "excluded_variables": excluded,
+            "adjustment_strategy": "Statistical fallback - variables correlated with both T and Y, filtered by causal role",
             "investigation_log": [],
         }
 

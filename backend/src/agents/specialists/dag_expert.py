@@ -16,16 +16,19 @@ from src.agents.base import (
     AnalysisState,
     CausalDAG,
     CausalEdge,
+    JobStatus,
     ReActAgent,
     ToolResult,
     ToolResultStatus,
 )
 from src.agents.base.context_tools import ContextTools
+from src.agents.registry import register_agent
 from src.logging_config.structured import get_logger
 
 logger = get_logger(__name__)
 
 
+@register_agent("dag_expert")
 class DAGExpertAgent(ReActAgent, ContextTools):
     """Domain expert agent that constructs validated causal DAGs.
 
@@ -43,6 +46,10 @@ class DAGExpertAgent(ReActAgent, ContextTools):
 
     AGENT_NAME = "dag_expert"
     MAX_STEPS = 12
+    WRITES_STATE_FIELDS = ["proposed_dag"]
+    REQUIRED_STATE_FIELDS = ["dataset_info"]
+    JOB_STATUS = JobStatus.DISCOVERING_CAUSAL
+    PROGRESS_WEIGHT = 0.08
 
     SYSTEM_PROMPT = """You are a domain expert in causal inference, acting as a consultant
 who designs causal DAGs based on domain knowledge and data evidence.
@@ -66,7 +73,13 @@ FORBIDDEN PATTERNS (domain knowledge):
 - Treatment → Demographics (impossible)
 - Post-treatment variable → Pre-treatment variable
 
-OUTPUT: A validated DAG with confidence scores for each edge."""
+OUTPUT: A validated DAG with confidence scores for each edge.
+
+CONTEXT TOOLS (pull upstream results if needed):
+- ask_domain_knowledge: Query domain knowledge for causal constraints, temporal ordering
+- get_eda_finding: Query EDA results (e.g. "correlations", "distributions")
+- get_previous_finding: Get findings from a specific previous agent
+- get_confounder_analysis: Get ranked confounders from confounder discovery"""
 
     def __init__(self) -> None:
         """Initialize the DAG expert agent."""
@@ -74,8 +87,7 @@ OUTPUT: A validated DAG with confidence scores for each edge."""
         self.register_context_tools()
         self._domain_edges: list[dict] = []
         self._data_edges: list[dict] = []
-        self._forbidden_edges: list[tuple[str, str]] = []
-        self._required_edges: list[tuple[str, str]] = []
+        self._forbidden_edges: list[tuple[str, str, str]] = []  # (source, target, reason)
         self._variable_roles: dict[str, str] = {}
         self._register_dag_tools()
 
@@ -227,10 +239,15 @@ Start by analyzing the domain to understand the causal context."""
         return obs
 
     async def is_task_complete(self, state: AnalysisState) -> bool:
-        """Check if DAG construction is complete."""
+        """Check if DAG construction is complete.
+
+        Requires fuse_and_validate (variable_roles persisted) AND
+        get_adjustment_set (adjustment_set persisted) to have run.
+        """
         return (
             state.proposed_dag is not None
-            and len(self._variable_roles) > 0
+            and state.proposed_dag.variable_roles is not None
+            and state.proposed_dag.adjustment_set is not None
         )
 
     async def _analyze_domain(self, state: AnalysisState) -> ToolResult:
@@ -360,7 +377,8 @@ Start by analyzing the domain to understand the causal context."""
     ) -> ToolResult:
         """Propose a causal edge based on domain reasoning."""
         # Check if edge is forbidden
-        if (source, target) in self._forbidden_edges:
+        forbidden_pairs = {(s, t) for s, t, _r in self._forbidden_edges}
+        if (source, target) in forbidden_pairs:
             return ToolResult(
                 status=ToolResultStatus.ERROR,
                 output=None,
@@ -405,7 +423,7 @@ Start by analyzing the domain to understand the causal context."""
         self, state: AnalysisState, source: str, target: str, reason: str
     ) -> ToolResult:
         """Mark an edge as forbidden."""
-        self._forbidden_edges.append((source, target))
+        self._forbidden_edges.append((source, target, reason))
 
         return ToolResult(
             status=ToolResultStatus.SUCCESS,
@@ -459,6 +477,9 @@ Start by analyzing the domain to understand the causal context."""
         conflicts = []
         edge_sources: dict[tuple[str, str], str] = {}
 
+        # Build forbidden pairs set for fast lookup
+        forbidden_pairs = {(s, t) for s, t, _r in self._forbidden_edges}
+
         # Collect all nodes
         all_nodes = set()
         for edge in self._domain_edges + self._data_edges:
@@ -491,7 +512,7 @@ Start by analyzing the domain to understand the causal context."""
             key = (edge["source"], edge["target"])
             reverse_key = (edge["target"], edge["source"])
 
-            if key in self._forbidden_edges:
+            if key in forbidden_pairs:
                 continue
 
             if key in processed:
@@ -524,7 +545,7 @@ Start by analyzing the domain to understand the causal context."""
 
             if key in processed or reverse_key in processed:
                 continue
-            if key in self._forbidden_edges:
+            if key in forbidden_pairs:
                 continue
 
             final_edges.append(CausalEdge(
@@ -536,7 +557,7 @@ Start by analyzing the domain to understand the causal context."""
             edge_sources[key] = "data"
             processed.add(key)
 
-        # Create the validated DAG
+        # Create the validated DAG with persisted dag_expert outputs
         validated_dag = CausalDAG(
             nodes=list(all_nodes),
             edges=final_edges,
@@ -546,10 +567,25 @@ Start by analyzing the domain to understand the causal context."""
             interpretation=self._generate_interpretation(
                 final_edges, conflicts, edge_sources
             ),
+            # Persist domain knowledge for downstream agents to pull
+            forbidden_edges=[
+                {"source": s, "target": t, "reason": r}
+                for s, t, r in self._forbidden_edges
+            ] if self._forbidden_edges else None,
+            variable_roles=dict(self._variable_roles) if self._variable_roles else None,
         )
 
         # Update state
         state.proposed_dag = validated_dag
+
+        n_domain = len([e for e in edge_sources.values() if e == "domain"])
+        n_data = len([e for e in edge_sources.values() if e == "data"])
+        state.push_decision(
+            agent="dag_expert",
+            decision_type="dag_fused",
+            choice=f"domain_expert_fusion ({conflict_resolution})",
+            reason=f"Fused {n_domain} domain-derived and {n_data} data-derived edges into {len(final_edges)}-edge DAG; resolved {len(conflicts)} conflict(s); applied {len(self._forbidden_edges)} forbidden edge constraint(s)",
+        )
 
         return ToolResult(
             status=ToolResultStatus.SUCCESS,
@@ -561,6 +597,7 @@ Start by analyzing the domain to understand the causal context."""
                 "n_conflicts_resolved": len(conflicts),
                 "conflicts": conflicts,
                 "forbidden_edges_applied": len(self._forbidden_edges),
+                "variable_roles_classified": len(self._variable_roles),
                 "interpretation": validated_dag.interpretation[:500],
             },
         )
@@ -655,7 +692,18 @@ Start by analyzing the domain to understand the causal context."""
         colliders = t_descendants & o_descendants
 
         # Adjustment set for total effect: confounders only (not mediators)
-        adjustment_set = list(confounders - {treatment, outcome})
+        adjustment_set = sorted(confounders - {treatment, outcome})
+
+        # Persist to state so downstream agents can pull it
+        if state.proposed_dag is not None:
+            state.proposed_dag.adjustment_set = adjustment_set
+
+        state.push_decision(
+            agent="dag_expert",
+            decision_type="adjustment_set_selected",
+            choice=", ".join(adjustment_set) if adjustment_set else "(empty set)",
+            reason=f"Backdoor criterion identifies {len(adjustment_set)} variable(s) to block all non-causal paths from {treatment} to {outcome}; excluded {len(sorted(mediators))} mediator(s) and {len(sorted(colliders))} collider(s)",
+        )
 
         return ToolResult(
             status=ToolResultStatus.SUCCESS,
@@ -663,13 +711,13 @@ Start by analyzing the domain to understand the causal context."""
                 "treatment": treatment,
                 "outcome": outcome,
                 "adjustment_set": adjustment_set,
-                "confounders": list(confounders),
-                "mediators": list(mediators),
-                "colliders_do_not_adjust": list(colliders),
+                "confounders": sorted(confounders),
+                "mediators": sorted(mediators),
+                "colliders_do_not_adjust": sorted(colliders),
                 "recommendation": (
                     f"Adjust for {adjustment_set} to block backdoor paths. "
-                    f"Do NOT adjust for {list(mediators)} (mediators) or "
-                    f"{list(colliders)} (colliders)."
+                    f"Do NOT adjust for {sorted(mediators)} (mediators) or "
+                    f"{sorted(colliders)} (colliders)."
                 ),
             },
         )
@@ -682,10 +730,10 @@ Start by analyzing the domain to understand the causal context."""
             has_discovery_dag=state.proposed_dag is not None,
         )
 
-        # Reset internal state
+        # Reset internal state for fresh job
         self._domain_edges = []
         self._data_edges = []
-        self._forbidden_edges = []
+        self._forbidden_edges = []  # list[tuple[str, str, str]]
         self._variable_roles = {}
 
         # Run the ReAct loop
