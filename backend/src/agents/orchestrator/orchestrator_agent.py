@@ -228,6 +228,21 @@ When making decisions, output your reasoning step-by-step, then specify which ag
         """Set a callback for persisting status updates (e.g. to Firestore)."""
         self._status_callback = callback
 
+    def _validate_required_fields(self, agent_name: str, state: AnalysisState) -> list[str]:
+        """Check if state has the fields this agent requires. Returns list of missing fields."""
+        agent = self._specialist_agents.get(agent_name)
+        if not agent:
+            return []
+        required = getattr(agent, "REQUIRED_STATE_FIELDS", [])
+        missing = [f for f in required if getattr(state, f, None) is None]
+        if missing:
+            self.logger.warning(
+                "required_fields_missing",
+                agent=agent_name,
+                missing_fields=missing,
+            )
+        return missing
+
     def register_specialist(self, name: str, agent: BaseAgent) -> None:
         """Register a specialist agent.
 
@@ -331,6 +346,18 @@ When making decisions, output your reasoning step-by-step, then specify which ag
             final_status=state.status.value,
             decisions_made=decisions_made,
         )
+
+        # Guard: if we exhausted MAX_TURNS without the LLM calling finalize_analysis, warn and auto-finalize
+        if decisions_made >= max_decisions and state.status not in (
+            JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED
+        ):
+            self.logger.warning(
+                "max_turns_without_finalize",
+                decisions_made=decisions_made,
+                max_decisions=max_decisions,
+                status=state.status.value,
+                msg="LLM did not call finalize_analysis within turn limit — auto-finalizing",
+            )
 
         # If loop ended without explicit finalization but we have results, generate notebook then complete
         if state.status not in [JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED]:
@@ -577,13 +604,16 @@ Do not just provide text - you MUST call a tool to proceed."""
             self.logger.error("dispatch_missing_agent_name", args=args)
             return state
 
+        # Warn-only: check if required state fields are populated
+        self._validate_required_fields(agent_name, state)
+
         self.logger.info(
             "dispatching_to_specialist",
             agent=agent_name,
             task=task_description[:100],
         )
 
-        # Update status and progress based on agent
+        # Update status based on agent (informational phase mapping)
         status_map = {
             "domain_knowledge": JobStatus.PROFILING,  # Part of early profiling phase
             "data_profiler": JobStatus.PROFILING,
@@ -594,19 +624,10 @@ Do not just provide text - you MUST call a tool to proceed."""
             "sensitivity_analyst": JobStatus.SENSITIVITY_ANALYSIS,
             "notebook_generator": JobStatus.GENERATING_NOTEBOOK,
         }
-        progress_map = {
-            JobStatus.PROFILING: 15,
-            JobStatus.EXPLORATORY_ANALYSIS: 30,
-            JobStatus.DISCOVERING_CAUSAL: 45,
-            JobStatus.ESTIMATING_EFFECTS: 60,
-            JobStatus.SENSITIVITY_ANALYSIS: 75,
-            JobStatus.CRITIQUE_REVIEW: 85,
-            JobStatus.GENERATING_NOTEBOOK: 95,
-        }
         state.status = status_map.get(agent_name, state.status)
-        state.progress_percentage = progress_map.get(
-            state.status, state.progress_percentage
-        )
+
+        # Dynamic progress: count completed agent traces vs expected total
+        state.progress_percentage = self._compute_progress(state)
 
         # Persist status to Firestore so API consumers can track progress
         if self._status_callback:
@@ -689,6 +710,8 @@ Do not just provide text - you MUST call a tool to proceed."""
             if specialist is None:
                 self.logger.error("parallel_specialist_not_found", agent=name)
                 continue
+            # Warn-only: check if required state fields are populated
+            self._validate_required_fields(name, state)
             branches.append(state.model_copy(deep=True))
             specialists.append((name, specialist))
 
@@ -887,29 +910,85 @@ Do not just provide text - you MUST call a tool to proceed."""
         return state
 
     def _should_finalize(self, state: AnalysisState, response: str) -> bool:
-        """Determine if we should finalize based on state and response.
+        """Determine if we should finalize based on state only.
+
+        The LLM should call the `finalize_analysis` tool explicitly to trigger
+        finalization. This method only returns True for terminal states and
+        safety limits — never by scanning response text for keywords.
 
         Args:
             state: Current analysis state
-            response: LLM response text
+            response: LLM response text (unused — kept for call-site compat)
 
         Returns:
             True if we should finalize
         """
-        # Finalize if approved by critique
-        if state.is_approved():
+        # Already in a terminal status
+        if state.status in (JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED):
             return True
 
-        # Finalize if max iterations reached
+        # Safety: max iterations reached
         if state.iteration_count >= state.max_iterations:
-            self.logger.warning("max_iterations_reached", finalizing=True)
+            self.logger.warning(
+                "max_iterations_reached",
+                iteration=state.iteration_count,
+                max_iterations=state.max_iterations,
+                finalizing=True,
+            )
             return True
 
-        # Check response for finalization signals
-        finalize_signals = [
-            "analysis complete",
-            "ready to finalize",
-            "generate notebook",
-            "all steps completed",
-        ]
-        return any(signal in response.lower() for signal in finalize_signals)
+        return False
+
+    # Expected number of specialist agents in a full pipeline run
+    _EXPECTED_AGENTS = 12
+
+    def _compute_progress(self, state: AnalysisState) -> int:
+        """Compute progress dynamically from completed agent traces.
+
+        Progress ranges from 5 (just started) to 95 (notebook phase).
+        Final 100% is set by mark_completed().
+
+        Formula: completed_agents / expected_agents * 90 + 5
+        """
+        # Count unique agents that have completed (traces with "dispatch_to_" prefix)
+        completed_agents: set[str] = set()
+        for trace in state.agent_traces:
+            action = getattr(trace, "action", "") or ""
+            if action.startswith("dispatch_to_"):
+                agent_name = action[len("dispatch_to_"):]
+                completed_agents.add(agent_name)
+            elif action.startswith("parallel_dispatch_"):
+                # Parallel dispatches encode agent names joined by underscore
+                # but individual agent completions are also traced
+                pass
+            elif action.startswith("parallel_") and action.endswith("_failed"):
+                # Still counts as dispatched (attempted)
+                agent_name = action[len("parallel_"):-len("_failed")]
+                completed_agents.add(agent_name)
+
+        # Also count agents from parallel dispatch completion SSE events
+        # by checking state fields that are populated (more reliable)
+        field_to_agent = {
+            "domain_knowledge": "domain_knowledge",
+            "data_profile": "data_profiler",
+            "eda_result": "eda_agent",
+            "proposed_dag": "causal_discovery",
+            "confounder_discovery": "confounder_discovery",
+            "data_repairs": "data_repair",
+            "treatment_effects": "effect_estimator",
+            "ps_diagnostics": "ps_diagnostics",
+            "sensitivity_results": "sensitivity_analyst",
+            "notebook_path": "notebook_generator",
+        }
+        for field, agent_name in field_to_agent.items():
+            value = getattr(state, field, None)
+            if value is not None:
+                # For list fields, check non-empty
+                if isinstance(value, list) and not value:
+                    continue
+                completed_agents.add(agent_name)
+
+        n_completed = len(completed_agents)
+        progress = int(n_completed / self._EXPECTED_AGENTS * 90) + 5
+        # Clamp to [5, 95] — final 100% is set by mark_completed()
+        return max(5, min(95, progress))
