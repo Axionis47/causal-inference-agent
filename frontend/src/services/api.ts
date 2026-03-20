@@ -155,6 +155,7 @@ export interface AnalysisResults {
   job_id: string;
   treatment_variable?: string;
   outcome_variable?: string;
+  narrative_summary?: string;
   executive_summary?: ExecutiveSummary;
   method_consensus?: MethodConsensus;
   data_context?: DataContext;
@@ -165,12 +166,23 @@ export interface AnalysisResults {
   notebook_url?: string;
 }
 
+export interface AgentEvent {
+  timestamp: string;
+  agent_name: string;
+  event_type: 'agent_started' | 'agent_completed';
+  data: Record<string, unknown>;
+}
+
 export interface AgentTrace {
   agent_name: string;
   timestamp: string;
   action: string;
   reasoning: string;
   duration_ms: number;
+  inputs: Record<string, unknown>;
+  outputs: Record<string, unknown>;
+  tools_called: string[];
+  token_usage: { input_tokens?: number; output_tokens?: number };
 }
 
 export interface CancelJobResponse {
