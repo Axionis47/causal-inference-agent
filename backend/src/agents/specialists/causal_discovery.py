@@ -392,6 +392,13 @@ VALIDATION CRITERIA:
         if not relevant_cols:
             relevant_cols = numeric_cols[:15]
 
+        if not relevant_cols:
+            return ToolResult(
+                status=ToolResultStatus.ERROR,
+                output=None,
+                error="No relevant columns found for data characteristics analysis.",
+            )
+
         # Include low-cardinality categorical columns as dummies
         cat_cols = df.select_dtypes(include=["object", "category"]).columns.tolist()
         df_work = df.copy()
@@ -426,8 +433,11 @@ VALIDATION CRITERIA:
                 })
 
         # Correlation summary
-        corr_matrix = df_subset.corr().abs()
         high_corrs = []
+        if df_subset.empty or len(df_subset.columns) < 2:
+            corr_matrix = pd.DataFrame()
+        else:
+            corr_matrix = df_subset.corr().abs()
         for i, c1 in enumerate(corr_matrix.columns):
             for j, c2 in enumerate(corr_matrix.columns):
                 if i < j and corr_matrix.iloc[i, j] > 0.7:
