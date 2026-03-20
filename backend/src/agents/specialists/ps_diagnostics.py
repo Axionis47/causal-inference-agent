@@ -17,14 +17,16 @@ from scipy import stats
 from sklearn.calibration import calibration_curve
 from sklearn.linear_model import LogisticRegression
 
-from src.agents.base import AnalysisState, ToolResult, ToolResultStatus
+from src.agents.base import AnalysisState, JobStatus, ToolResult, ToolResultStatus
 from src.agents.base.context_tools import ContextTools
 from src.agents.base.react_agent import ReActAgent
+from src.agents.registry import register_agent
 from src.logging_config.structured import get_logger
 
 logger = get_logger(__name__)
 
 
+@register_agent("ps_diagnostics")
 class PSDiagnosticsAgent(ReActAgent, ContextTools):
     """Truly agentic propensity score diagnostics using ReAct pattern.
 
@@ -41,6 +43,10 @@ class PSDiagnosticsAgent(ReActAgent, ContextTools):
 
     AGENT_NAME = "ps_diagnostics"
     MAX_STEPS = 15
+    WRITES_STATE_FIELDS = ["ps_diagnostics"]
+    REQUIRED_STATE_FIELDS = ["data_profile", "dataframe_path"]
+    JOB_STATUS = JobStatus.ESTIMATING_EFFECTS
+    PROGRESS_WEIGHT = 0.06
 
     SYSTEM_PROMPT = """You are an expert in propensity score methods for causal inference.
 Your task is to diagnose and validate propensity score models.
@@ -67,7 +73,13 @@ WHAT TO LOOK FOR:
 - High SMD after weighting means PS model is misspecified
 - Poor calibration suggests model is not well-fitted
 
-Investigate issues before making final recommendations."""
+Investigate issues before making final recommendations.
+
+CONTEXT TOOLS (pull upstream results if needed):
+- ask_domain_knowledge: Query domain knowledge for causal constraints
+- get_previous_finding: Get findings from previous agents (e.g. effect_estimator)
+- get_confounder_analysis: Get ranked confounders from confounder discovery
+- get_dag_adjustment_set: Get the DAG-based adjustment set"""
 
     def __init__(self) -> None:
         super().__init__()
@@ -210,16 +222,22 @@ Investigate issues before making final recommendations."""
         )
 
     def _get_initial_observation(self, state: AnalysisState) -> str:
-        """Build initial observation for PS diagnostics."""
+        """Build initial observation with pre-resolved covariates.
+
+        PS diagnostics needs the full covariate list upfront since every
+        tool (estimate_propensity_scores, check_overlap, etc.) uses it.
+        Covariates are resolved in execute() using dag_expert > confounder_discovery > fallback.
+        """
         return f"""PROPENSITY SCORE DIAGNOSTICS TASK
 Treatment variable: {self._treatment_var}
 Outcome variable: {self._outcome_var}
-Available confounders ({len(self._confounders)}): {self._confounders[:15]}{'...' if len(self._confounders) > 15 else ''}
+Covariates for PS model ({len(self._confounders)}): {self._confounders[:15]}{'...' if len(self._confounders) > 15 else ''}
 
-Start by estimating propensity scores, then systematically check:
-1. Overlap between treatment groups
-2. Covariate balance (with and without IPW weighting)
-3. Model calibration
+Systematically check:
+1. Estimate propensity scores using estimate_propensity_scores
+2. Check overlap between treatment groups
+3. Check covariate balance (with and without IPW weighting)
+4. Check model calibration
 
 If diagnostics are poor, try alternative specifications (interactions, polynomials, trimming).
 Call finalize_diagnostics when you have sufficient evidence."""
@@ -257,8 +275,13 @@ Call finalize_diagnostics when you have sufficient evidence."""
                 self.logger.warning("no_treatment_outcome_vars")
                 return state
 
-            # Get confounders
-            if state.confounder_discovery and state.confounder_discovery.get("ranked_confounders"):
+            # Get confounders (priority: dag_expert > confounder_discovery > profile > fallback)
+            if (state.proposed_dag and state.proposed_dag.adjustment_set
+                    and len(state.proposed_dag.adjustment_set) > 0):
+                self._confounders = list(state.proposed_dag.adjustment_set)
+                self.logger.info("using_dag_expert_adjustment_set",
+                                 n_vars=len(self._confounders))
+            elif state.confounder_discovery and state.confounder_discovery.get("ranked_confounders"):
                 self._confounders = state.confounder_discovery["ranked_confounders"]
             elif state.data_profile and state.data_profile.potential_confounders:
                 self._confounders = state.data_profile.potential_confounders
@@ -512,29 +535,43 @@ Call finalize_diagnostics when you have sufficient evidence."""
             else "Consider trimming extreme PS values or using doubly robust methods"
         )
 
+        overlap_result = {
+            "treated_stats": {
+                "mean": float(ps_treated.mean()),
+                "std": float(ps_treated.std()),
+                "median": float(np.median(ps_treated)),
+            },
+            "control_stats": {
+                "mean": float(ps_control.mean()),
+                "std": float(ps_control.std()),
+                "median": float(np.median(ps_control)),
+            },
+            "ks_statistic": float(ks_stat),
+            "ks_pvalue": float(ks_pval),
+            "common_support": [float(overlap_min), float(overlap_max)],
+            "pct_overlap": float(pct_overlap),
+            "quality": quality,
+            "ps_near_zero": near_zero,
+            "ps_near_one": near_one,
+            "positivity_violations": positivity_violations,
+            "recommendation": recommendation,
+        }
+
+        if quality == "CRITICAL":
+            return ToolResult(
+                status=ToolResultStatus.ERROR,
+                output=overlap_result,
+                error=f"CRITICAL: Propensity score overlap is very poor ({pct_overlap:.1f}%). PS-based methods (IPW, AIPW, PSM) may produce unreliable estimates.",
+            )
+
+        if quality == "MODERATE":
+            overlap_result["warning"] = (
+                f"Moderate overlap ({pct_overlap:.1f}%). Consider trimming or doubly robust methods."
+            )
+
         return ToolResult(
             status=ToolResultStatus.SUCCESS,
-            output={
-                "treated_stats": {
-                    "mean": float(ps_treated.mean()),
-                    "std": float(ps_treated.std()),
-                    "median": float(np.median(ps_treated)),
-                },
-                "control_stats": {
-                    "mean": float(ps_control.mean()),
-                    "std": float(ps_control.std()),
-                    "median": float(np.median(ps_control)),
-                },
-                "ks_statistic": float(ks_stat),
-                "ks_pvalue": float(ks_pval),
-                "common_support": [float(overlap_min), float(overlap_max)],
-                "pct_overlap": float(pct_overlap),
-                "quality": quality,
-                "ps_near_zero": near_zero,
-                "ps_near_one": near_one,
-                "positivity_violations": positivity_violations,
-                "recommendation": recommendation,
-            },
+            output=overlap_result,
         )
 
     async def _tool_check_balance(
@@ -559,60 +596,69 @@ Call finalize_diagnostics when you have sufficient evidence."""
         cov_list = specific_covariates if specific_covariates else self._confounders[:15]
         cov_list = [c for c in cov_list if c in df.columns]
 
-        smd_results = {}
-        smd_values = []
-        imbalanced = []
-        severely_imbalanced = []
+        try:
+            smd_results = {}
+            smd_values = []
+            imbalanced = []
+            severely_imbalanced = []
 
-        df_subset = df[mask].copy()
+            df_subset = df[mask].copy()
 
-        for cov in cov_list:
-            x = df_subset[cov].values
+            for cov in cov_list:
+                x = df_subset[cov].values
 
-            if weighted:
-                # IPW weights
-                weights_t = T / ps
-                weights_c = (1 - T) / (1 - ps)
+                if weighted:
+                    # IPW weights
+                    weights_t = T / ps
+                    weights_c = (1 - T) / (1 - ps)
 
-                # Clip extreme weights
-                weights_t = np.clip(weights_t, 0, 10)
-                weights_c = np.clip(weights_c, 0, 10)
+                    # Clip extreme weights
+                    weights_t = np.clip(weights_t, 0, 10)
+                    weights_c = np.clip(weights_c, 0, 10)
 
-                treated_mean = np.average(x[T == 1], weights=weights_t[T == 1])
-                control_mean = np.average(x[T == 0], weights=weights_c[T == 0])
+                    treated_mean = np.average(x[T == 1], weights=weights_t[T == 1])
+                    control_mean = np.average(x[T == 0], weights=weights_c[T == 0])
+                else:
+                    treated_mean = np.mean(x[T == 1])
+                    control_mean = np.mean(x[T == 0])
+
+                pooled_std = np.sqrt((np.var(x[T == 1]) + np.var(x[T == 0])) / 2)
+                smd = (treated_mean - control_mean) / pooled_std if pooled_std > 0 else 0
+
+                smd_values.append(abs(smd))
+
+                if abs(smd) >= 0.25:
+                    status = "SEVERE"
+                    severely_imbalanced.append(cov)
+                    imbalanced.append(cov)
+                elif abs(smd) >= 0.1:
+                    status = "IMBALANCED"
+                    imbalanced.append(cov)
+                else:
+                    status = "OK"
+
+                smd_results[cov] = {"smd": float(smd), "status": status}
+
+            mean_smd = float(np.mean(smd_values))
+            max_smd = float(np.max(smd_values))
+
+            # Overall assessment
+            if mean_smd < 0.05 and len(imbalanced) == 0:
+                quality = "EXCELLENT"
+            elif mean_smd < 0.1 and len(severely_imbalanced) == 0:
+                quality = "GOOD"
+            elif mean_smd < 0.15:
+                quality = "MODERATE"
             else:
-                treated_mean = np.mean(x[T == 1])
-                control_mean = np.mean(x[T == 0])
+                quality = "POOR"
 
-            pooled_std = np.sqrt((np.var(x[T == 1]) + np.var(x[T == 0])) / 2)
-            smd = (treated_mean - control_mean) / pooled_std if pooled_std > 0 else 0
-
-            smd_values.append(abs(smd))
-
-            if abs(smd) >= 0.25:
-                status = "SEVERE"
-                severely_imbalanced.append(cov)
-                imbalanced.append(cov)
-            elif abs(smd) >= 0.1:
-                status = "IMBALANCED"
-                imbalanced.append(cov)
-            else:
-                status = "OK"
-
-            smd_results[cov] = {"smd": float(smd), "status": status}
-
-        mean_smd = float(np.mean(smd_values))
-        max_smd = float(np.max(smd_values))
-
-        # Overall assessment
-        if mean_smd < 0.05 and len(imbalanced) == 0:
-            quality = "EXCELLENT"
-        elif mean_smd < 0.1 and len(severely_imbalanced) == 0:
-            quality = "GOOD"
-        elif mean_smd < 0.15:
-            quality = "MODERATE"
-        else:
-            quality = "POOR"
+        except Exception as e:
+            self.logger.warning("balance_computation_failed", error=str(e), exc_info=True)
+            return ToolResult(
+                status=ToolResultStatus.ERROR,
+                output=None,
+                error=f"Balance computation failed: {str(e)}",
+            )
 
         return ToolResult(
             status=ToolResultStatus.SUCCESS,

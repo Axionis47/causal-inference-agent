@@ -47,6 +47,12 @@ class SensitivityAnalystAgent(ReActAgent, ContextTools):
     AGENT_NAME = "sensitivity_analyst"
     MAX_STEPS = 15
 
+    # Agent metadata (used by registry and orchestrator)
+    WRITES_STATE_FIELDS = ["sensitivity_results"]
+    REQUIRED_STATE_FIELDS = ["treatment_effects"]
+    JOB_STATUS = JobStatus.SENSITIVITY_ANALYSIS
+    PROGRESS_WEIGHT = 0.08
+
     SYSTEM_PROMPT = """You are an expert in sensitivity analysis for causal inference.
 Your task is to assess how robust the causal estimates are to potential assumption violations.
 
@@ -265,34 +271,22 @@ If specification curve shows instability, investigate further."""
     # =========================================================================
 
     def _get_initial_observation(self, state: AnalysisState) -> str:
-        """Get the initial observation for the ReAct loop."""
-        # Get primary pair
+        """Get lean initial observation — agents pull context via tools."""
         treatment_var, outcome_var = state.get_primary_pair()
-
-        # Get effects for the primary pair
-        if treatment_var and outcome_var:
-            effects = state.get_effects_for_pair(treatment_var, outcome_var)
-        else:
-            effects = state.treatment_effects
-
-        effects_summary = ""
-        for i, effect in enumerate(effects[:5]):  # Limit to first 5
-            effects_summary += f"  {i}. {effect.method}: {effect.estimate:.4f} (SE: {effect.std_error:.4f})\n"
 
         obs = f"""You are assessing the robustness of causal effect estimates.
 
 Treatment: {treatment_var or 'Unknown'}
 Outcome: {outcome_var or 'Unknown'}
-Sample size: {state.data_profile.n_samples if state.data_profile else 'Unknown'}
-
-Treatment Effects to assess:
-{effects_summary}
 
 WORKFLOW:
-1. First, query previous findings from effect_estimator
-2. Run E-value analysis (most fundamental sensitivity test)
-3. Based on results, run additional analyses as needed
-4. Finalize with overall robustness assessment"""
+1. Call get_previous_finding with agent="effect_estimator" to review estimates
+2. Call ask_domain_knowledge with "What are potential unmeasured confounders?"
+3. Run E-value analysis (most fundamental sensitivity test)
+4. Based on results, run additional analyses as needed
+5. Finalize with overall robustness assessment
+
+START NOW: Call get_previous_finding with agent="effect_estimator"."""
 
         return obs
 
@@ -467,11 +461,19 @@ WORKFLOW:
         estimate = effect.estimate
         se = effect.std_error
 
-        # Convert to approximate risk ratio for E-value calculation
-        if estimate >= 0:
-            rr = max(1.01, 1 + estimate / (se * 2 + 0.01))
-        else:
-            rr = max(1.01, 1 / (1 + abs(estimate) / (se * 2 + 0.01)))
+        if se <= 0 or np.isnan(se):
+            return ToolResult(
+                status=ToolResultStatus.ERROR,
+                output=None,
+                error="Cannot compute E-value: standard error is zero or NaN. The estimate may be unreliable.",
+            )
+
+        # CR3: Proper E-value conversion using VanderWeele (2017) approximation
+        # For continuous outcomes: convert to Cohen's d, then RR ≈ exp(0.91 * d)
+        n_total = len(self._df) if self._df is not None else 1000
+        pooled_sd = se * np.sqrt(n_total) if se > 0 else 1.0
+        d = abs(estimate) / pooled_sd if pooled_sd > 0 else abs(estimate)
+        rr = max(1.01, float(np.exp(0.91 * d)))
 
         # E-value formula: E = RR + sqrt(RR * (RR - 1))
         e_value = rr + np.sqrt(rr * (rr - 1))
@@ -479,7 +481,8 @@ WORKFLOW:
         # E-value for CI bound
         ci_bound = effect.ci_lower if estimate > 0 else effect.ci_upper
         if (estimate > 0 and ci_bound > 0) or (estimate < 0 and ci_bound < 0):
-            rr_ci = max(1.01, 1 + abs(ci_bound) / (se * 2 + 0.01))
+            d_ci = abs(ci_bound) / pooled_sd if pooled_sd > 0 else abs(ci_bound)
+            rr_ci = max(1.01, float(np.exp(0.91 * d_ci)))
             e_value_ci = rr_ci + np.sqrt(rr_ci * (rr_ci - 1))
         else:
             e_value_ci = 1.0
@@ -544,6 +547,13 @@ WORKFLOW:
         # Approximate Gamma calculation
         z_score = abs(estimate / se) if se > 0 else 0
         gamma = 1 + z_score / 2
+
+        if np.isnan(gamma) or np.isinf(gamma):
+            return ToolResult(
+                status=ToolResultStatus.ERROR,
+                output=None,
+                error="Cannot compute Rosenbaum bounds: standard error is NaN or Inf.",
+            )
 
         # Interpretation
         if gamma >= 3:
@@ -620,6 +630,7 @@ WORKFLOW:
         specs.append("No controls")
 
         # Different covariate sets
+        skipped = 0
         for i in range(min(n_specifications - 1, len(covariates))):
             cov_subset = covariates[: i + 1]
             try:
@@ -633,8 +644,9 @@ WORKFLOW:
                     model.fit(X_cov, Y_cov)
                     estimates.append(model.coef_[0])
                     specs.append(f"+{cov_subset[-1]}")
-            except Exception:
-                continue
+            except Exception as e:
+                self.logger.debug("spec_curve_iteration_failed", iteration=i, error=str(e))
+                skipped += 1
 
         if len(estimates) < 2:
             return ToolResult(status=ToolResultStatus.ERROR, output=None, error="Could not compute multiple specifications.")
@@ -678,6 +690,7 @@ WORKFLOW:
                 "range": [round(min(estimates), 4), round(max(estimates), 4)],
                 "all_same_sign": all_same_sign,
                 "cv": round(cv, 4),
+                "specifications_skipped": skipped,
                 "interpretation": interpretation,
             }
         )
@@ -697,12 +710,11 @@ WORKFLOW:
         if not T_col or not Y_col:
             return ToolResult(status=ToolResultStatus.ERROR, output=None, error="Treatment or outcome not identified.")
 
-        T = df[T_col].dropna().values
-        Y = df[Y_col].dropna().values
-
-        n = min(len(T), len(Y))
-        T = T[:n]
-        Y = Y[:n]
+        # CR2: Drop NaN from both columns simultaneously to keep rows aligned
+        # Independent dropna() on T and Y misaligns rows when NaN positions differ
+        mask = df[[T_col, Y_col]].notna().all(axis=1)
+        T = df.loc[mask, T_col].values
+        Y = df.loc[mask, Y_col].values
 
         actual_effect = abs(self._current_state.treatment_effects[0].estimate) if self._current_state.treatment_effects else 0
 
@@ -805,6 +817,7 @@ WORKFLOW:
 
         subgroup_effects = []
         subgroup_labels = []
+        skipped_groups = 0
 
         for sg_val in df[subgroup_var].unique():
             mask = df[subgroup_var] == sg_val
@@ -816,6 +829,7 @@ WORKFLOW:
             Y_sg = Y_sg[valid]
 
             if len(T_sg) < 20:
+                skipped_groups += 1
                 continue
 
             model = LinearRegression()
@@ -866,6 +880,8 @@ WORKFLOW:
                 "std_effect": round(effect_std, 4),
                 "all_same_sign": all_same_sign,
                 "cv": round(cv, 4),
+                "subgroups_skipped": skipped_groups,
+                "skip_reason": "fewer than 20 observations" if skipped_groups > 0 else None,
                 "interpretation": interpretation,
             }
         )
