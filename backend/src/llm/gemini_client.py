@@ -30,7 +30,7 @@ try:
     from google.api_core.exceptions import ResourceExhausted, ServiceUnavailable
     _TRANSIENT_ERRORS = _TRANSIENT_ERRORS + (ResourceExhausted, ServiceUnavailable)
 except ImportError:
-    pass
+    logger.debug("google_api_core_not_available", detail="Optional google.api_core.exceptions not installed")
 
 
 class GeminiClient:
