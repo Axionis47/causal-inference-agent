@@ -49,7 +49,11 @@ AVAILABLE SPECIALISTS:
 - data_profiler: Analyzes dataset, identifies treatment/outcome candidates
 - eda_agent: Exploratory data analysis (distributions, correlations, outliers)
 - causal_discovery: Learns causal graph structure (PC, GES, NOTEARS algorithms)
+- dag_expert: Refines the DAG using domain expertise, enforces forbidden edges, computes adjustment sets. Run AFTER causal_discovery.
+- confounder_discovery: Identifies confounders through statistical tests and causal reasoning. Run AFTER data_profiler.
+- data_repair: Diagnoses and repairs data quality issues (missing data, outliers, encoding). Run AFTER data_profiler.
 - effect_estimator: Estimates treatment effects (PSM, IPW, AIPW, DiD, etc.)
+- ps_diagnostics: Validates propensity score models (overlap, balance, calibration). Run AFTER effect_estimator.
 - sensitivity_analyst: Tests robustness (Rosenbaum bounds, E-values)
 - critique_agent: Reviews analysis quality, identifies issues
 - notebook_generator: Creates reproducible Jupyter notebook
@@ -83,12 +87,32 @@ BE AUTONOMOUS:
         super().__init__()
         self._specialists: dict[str, BaseAgent] = {}
         self._iteration_count = 0
+        self._status_callback = None
         self._register_orchestration_tools()
+
+    def set_status_callback(self, callback) -> None:
+        """Set a callback for persisting status updates (e.g. to Firestore)."""
+        self._status_callback = callback
 
     def register_specialist(self, name: str, agent: BaseAgent) -> None:
         """Register a specialist agent."""
         self._specialists[name] = agent
         self.logger.info("specialist_registered", agent_name=name)
+
+    def _validate_required_fields(self, agent_name: str, state: AnalysisState) -> list[str]:
+        """Check if state has the fields this agent requires. Returns list of missing fields."""
+        agent = self._specialists.get(agent_name)
+        if not agent:
+            return []
+        required = getattr(agent, "REQUIRED_STATE_FIELDS", [])
+        missing = [f for f in required if getattr(state, f, None) is None]
+        if missing:
+            self.logger.warning(
+                "required_fields_missing",
+                agent=agent_name,
+                missing_fields=missing,
+            )
+        return missing
 
     def _register_orchestration_tools(self) -> None:
         """Register orchestration-specific tools."""
@@ -123,9 +147,13 @@ BE AUTONOMOUS:
                         "enum": [
                             "domain_knowledge",
                             "data_profiler",
+                            "data_repair",
                             "eda_agent",
                             "causal_discovery",
+                            "dag_expert",
+                            "confounder_discovery",
                             "effect_estimator",
+                            "ps_diagnostics",
                             "sensitivity_analyst",
                         ],
                         "description": "Which specialist to dispatch to",
@@ -297,11 +325,15 @@ Start by understanding the current state, then decide what to do.
                 error=f"Specialist '{agent_name}' not registered. Available: {list(self._specialists.keys())}",
             )
 
+        # Warn-only: check if required state fields are populated
+        self._validate_required_fields(agent_name, state)
+
         # Update status based on agent
         status_map = {
             "data_profiler": JobStatus.PROFILING,
             "eda_agent": JobStatus.EXPLORATORY_ANALYSIS,
             "causal_discovery": JobStatus.DISCOVERING_CAUSAL,
+            "dag_expert": JobStatus.DISCOVERING_CAUSAL,
             "effect_estimator": JobStatus.ESTIMATING_EFFECTS,
             "sensitivity_analyst": JobStatus.SENSITIVITY_ANALYSIS,
         }
@@ -313,26 +345,17 @@ Start by understanding the current state, then decide what to do.
             reasoning=reasoning[:100],
         )
 
-        # Define which fields each agent is allowed to update
-        AGENT_OUTPUT_FIELDS = {
-            "data_profiler": ["data_profile", "dataframe_path", "dataset_info", "treatment_variable", "outcome_variable"],
-            "eda_agent": ["eda_result"],
-            "causal_discovery": ["proposed_dag"],
-            "effect_estimator": ["treatment_effects", "analyzed_pairs"],
-            "sensitivity_analyst": ["sensitivity_results"],
-            "notebook_generator": ["notebook_path"],
-            "critique": ["critique_history", "debate_history"],
-            "domain_knowledge": ["domain_knowledge"],
-        }
-
         settings = get_settings()
 
         # Execute the specialist with timeout
         try:
             start_time = time.time()
             try:
+                # INT1: Deep-copy state so agent mutations don't bypass
+                # WRITES_STATE_FIELDS whitelist merge
+                state_copy = state.model_copy(deep=True)
                 updated_state = await asyncio.wait_for(
-                    specialist.execute_with_tracing(state),
+                    specialist.execute_with_tracing(state_copy),
                     timeout=settings.agent_timeout_seconds,
                 )
             except TimeoutError:
@@ -354,9 +377,21 @@ Start by understanding the current state, then decide what to do.
 
             duration_ms = int((time.time() - start_time) * 1000)
 
-            # Merge only the relevant fields (not full __dict__)
-            fields_to_merge = AGENT_OUTPUT_FIELDS.get(agent_name, [])
+            # Merge only the fields declared by the agent's WRITES_STATE_FIELDS
+            valid_fields = set(state.model_fields)
+            fields_to_merge = getattr(specialist, "WRITES_STATE_FIELDS", None) or []
+            if not fields_to_merge:
+                self.logger.warning(
+                    "agent_no_writes_declared",
+                    agent=agent_name,
+                    note="Agent does not declare WRITES_STATE_FIELDS; no fields will be merged",
+                )
             for field_name in fields_to_merge:
+                if field_name not in valid_fields:
+                    self.logger.warning(
+                        "invalid_merge_field", agent=agent_name, field=field_name
+                    )
+                    continue
                 value = getattr(updated_state, field_name, None)
                 if value is not None:
                     setattr(state, field_name, value)
@@ -404,7 +439,6 @@ Start by understanding the current state, then decide what to do.
         self,
         state: AnalysisState,
         summary: str,
-        focus_areas: list[str] | None = None,
     ) -> ToolResult:
         """Request critique of the analysis."""
         critique_agent = self._specialists.get("critique")
@@ -525,8 +559,15 @@ Start by understanding the current state, then decide what to do.
         # Run the ReAct loop
         state = await super().execute(state)
 
-        # Mark as completed if not already failed
-        if state.status != JobStatus.FAILED:
+        # INT2: Mark completed only if pipeline produced meaningful results
+        if state.status == JobStatus.FAILED:
+            pass  # already failed
+        elif not state.treatment_effects:
+            state.mark_failed(
+                "Pipeline completed but produced no treatment effect estimates.",
+                "react_orchestrator",
+            )
+        else:
             state.mark_completed()
 
         self.logger.info(
