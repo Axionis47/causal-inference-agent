@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
-import { Upload, AlertCircle, ArrowRight } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { createJob, CreateJobRequest } from '../services/api';
 import { validateKaggleUrl } from '../utils';
 
@@ -14,25 +14,15 @@ export default function HomePage() {
 
   const createJobMutation = useMutation({
     mutationFn: (request: CreateJobRequest) => createJob(request),
-    onSuccess: (job) => {
-      navigate(`/jobs/${job.id}`);
-    },
-    onError: (err: Error) => {
-      setError(err.message || 'Failed to create job');
-    },
+    onSuccess: (job) => navigate(`/jobs/${job.id}`),
+    onError: (err: Error) => setError(err.message || 'Failed to create job'),
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-
-    // Use centralized validation
     const validationError = validateKaggleUrl(kaggleUrl.trim());
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
-
+    if (validationError) { setError(validationError); return; }
     createJobMutation.mutate({
       kaggle_url: kaggleUrl.trim(),
       treatment_variable: treatmentVar.trim() || undefined,
@@ -41,133 +31,92 @@ export default function HomePage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto">
-      <div className="text-center mb-12">
-        <h1 className="text-4xl font-bold text-gray-900 mb-4">
-          Causal Inference Analysis
+    <div className="max-w-2xl mx-auto">
+      {/* Title block — journal style */}
+      <div className="border-b-2 border-ink-900 pb-6 mb-10">
+        <h1 className="font-serif text-3xl font-700 text-ink-900 mb-3">
+          Automated Causal Inference Analysis
         </h1>
-        <p className="text-lg text-gray-600">
-          Enter a Kaggle dataset URL to automatically analyze causal relationships
-          using AI-powered agents.
+        <p className="text-ink-500 text-sm leading-relaxed max-w-lg">
+          Submit a Kaggle dataset to run a multi-agent pipeline: data profiling,
+          causal discovery, treatment effect estimation, sensitivity analysis,
+          and reproducible notebook generation.
         </p>
       </div>
 
-      <div className="card">
-        <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Form — clean, no card wrapper */}
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div>
+          <label htmlFor="kaggle-url" className="block text-sm font-medium text-ink-700 mb-1.5">
+            Dataset URL
+          </label>
+          <input
+            id="kaggle-url"
+            type="text"
+            value={kaggleUrl}
+            onChange={(e) => setKaggleUrl(e.target.value)}
+            placeholder="https://www.kaggle.com/datasets/owner/dataset-name"
+            className="input-field font-mono text-sm"
+          />
+          <p className="mt-1.5 text-xs text-ink-300">
+            Full URL to a public Kaggle dataset
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
           <div>
-            <label
-              htmlFor="kaggle-url"
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
-              Kaggle Dataset URL *
+            <label htmlFor="treatment-var" className="block text-sm font-medium text-ink-700 mb-1.5">
+              Treatment variable <span className="text-ink-300 font-normal">(optional)</span>
             </label>
             <input
-              id="kaggle-url"
+              id="treatment-var"
               type="text"
-              value={kaggleUrl}
-              onChange={(e) => setKaggleUrl(e.target.value)}
-              placeholder="https://www.kaggle.com/datasets/username/dataset-name"
-              className="input-field"
+              value={treatmentVar}
+              onChange={(e) => setTreatmentVar(e.target.value)}
+              placeholder="e.g. treatment"
+              className="input-field font-mono text-sm"
             />
-            <p className="mt-1 text-sm text-gray-500">
-              Paste the full URL of a Kaggle dataset
-            </p>
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label
-                htmlFor="treatment-var"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
-                Treatment Variable (optional)
-              </label>
-              <input
-                id="treatment-var"
-                type="text"
-                value={treatmentVar}
-                onChange={(e) => setTreatmentVar(e.target.value)}
-                placeholder="e.g., treatment, intervention"
-                className="input-field"
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="outcome-var"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
-                Outcome Variable (optional)
-              </label>
-              <input
-                id="outcome-var"
-                type="text"
-                value={outcomeVar}
-                onChange={(e) => setOutcomeVar(e.target.value)}
-                placeholder="e.g., outcome, response"
-                className="input-field"
-              />
-            </div>
+          <div>
+            <label htmlFor="outcome-var" className="block text-sm font-medium text-ink-700 mb-1.5">
+              Outcome variable <span className="text-ink-300 font-normal">(optional)</span>
+            </label>
+            <input
+              id="outcome-var"
+              type="text"
+              value={outcomeVar}
+              onChange={(e) => setOutcomeVar(e.target.value)}
+              placeholder="e.g. earnings"
+              className="input-field font-mono text-sm"
+            />
           </div>
-
-          {error && (
-            <div className="flex items-center space-x-2 text-red-600 bg-red-50 p-3 rounded-lg">
-              <AlertCircle className="w-5 h-5 flex-shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={createJobMutation.isPending}
-            className="btn-primary w-full flex items-center justify-center space-x-2"
-          >
-            {createJobMutation.isPending ? (
-              <>
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                <span>Starting Analysis...</span>
-              </>
-            ) : (
-              <>
-                <Upload className="w-5 h-5" />
-                <span>Start Causal Analysis</span>
-                <ArrowRight className="w-5 h-5" />
-              </>
-            )}
-          </button>
-        </form>
-      </div>
-
-      <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="text-center">
-          <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-2xl">1</span>
-          </div>
-          <h3 className="font-semibold text-gray-900 mb-2">Data Profiling</h3>
-          <p className="text-sm text-gray-600">
-            AI agents analyze your dataset to identify treatment and outcome variables
-          </p>
         </div>
 
-        <div className="text-center">
-          <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-2xl">2</span>
+        {error && (
+          <div className="flex items-start gap-2 text-sig-no bg-red-50 border border-red-200 p-3 text-sm">
+            <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+            <span>{error}</span>
           </div>
-          <h3 className="font-semibold text-gray-900 mb-2">Effect Estimation</h3>
-          <p className="text-sm text-gray-600">
-            Multiple causal inference methods estimate treatment effects
-          </p>
-        </div>
+        )}
 
-        <div className="text-center">
-          <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-2xl">3</span>
-          </div>
-          <h3 className="font-semibold text-gray-900 mb-2">Reproducible Report</h3>
-          <p className="text-sm text-gray-600">
-            Download a Jupyter notebook with all analysis code and results
-          </p>
-        </div>
+        <button
+          type="submit"
+          disabled={createJobMutation.isPending}
+          className="btn-primary w-full"
+        >
+          {createJobMutation.isPending ? 'Starting Analysis...' : 'Run Causal Analysis'}
+        </button>
+      </form>
+
+      {/* Method summary — like a journal abstract footer */}
+      <div className="mt-12 pt-6 border-t border-ink-100">
+        <p className="text-xs text-ink-300 leading-relaxed">
+          <span className="font-medium text-ink-500">Pipeline:</span>{' '}
+          13 specialist agents coordinated by an LLM orchestrator.
+          12 estimation methods (OLS, IPW, AIPW, PSM, DiD, IV, RDD, S/T/X-Learner, Causal Forest, Double ML).
+          5 discovery algorithms (PC, FCI, GES, NOTEARS, LiNGAM).
+          Sensitivity analysis via E-value, Rosenbaum bounds, placebo tests, and specification curves.
+        </p>
       </div>
     </div>
   );
