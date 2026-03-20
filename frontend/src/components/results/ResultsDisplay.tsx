@@ -4,30 +4,16 @@ import CausalGraphView from './CausalGraphView';
 import ForestPlot from './ForestPlot';
 import Tooltip from '../common/Tooltip';
 import glossary from '../../utils/glossary';
-import {
-  BarChart3,
-  GitBranch,
-  Shield,
-  Lightbulb,
-  TrendingUp,
-  TrendingDown,
-  Minus,
-  HelpCircle,
-  CheckCircle,
-  AlertTriangle,
-  Database,
-  Users,
-} from 'lucide-react';
 
 interface ResultsDisplayProps {
   results: AnalysisResults;
 }
 
 function ResultsDisplay({ results }: ResultsDisplayProps) {
-  // Fade-in animation for hero card
-  const [heroVisible, setHeroVisible] = useState(false);
+  // Fade-in animation for abstract
+  const [visible, setVisible] = useState(false);
   useEffect(() => {
-    const t = setTimeout(() => setHeroVisible(true), 50);
+    const t = setTimeout(() => setVisible(true), 50);
     return () => clearTimeout(t);
   }, []);
 
@@ -35,10 +21,8 @@ function ResultsDisplay({ results }: ResultsDisplayProps) {
   const tip = (term: string, label?: string) =>
     glossary[term] ? <Tooltip term={term}>{label ?? term}</Tooltip> : <>{label ?? term}</>;
 
-  // Derive hero card content
+  // Derive abstract content
   const heroText = results.narrative_summary || results.executive_summary?.headline || '';
-  const heroDirection = results.executive_summary?.effect_direction ?? 'null';
-  const heroConfidence = results.executive_summary?.confidence_level ?? 'low';
 
   // Safely access arrays with fallbacks - memoize to maintain stable references
   const treatmentEffects = useMemo(
@@ -54,287 +38,123 @@ function ResultsDisplay({ results }: ResultsDisplayProps) {
     [results.recommendations]
   );
 
-  // Get effect direction icon
-  const getDirectionIcon = (direction: string) => {
-    switch (direction) {
-      case 'positive':
-        return <TrendingUp className="w-5 h-5 text-green-600" />;
-      case 'negative':
-        return <TrendingDown className="w-5 h-5 text-red-600" />;
-      case 'null':
-        return <Minus className="w-5 h-5 text-gray-500" />;
-      default:
-        return <HelpCircle className="w-5 h-5 text-yellow-500" />;
-    }
-  };
+  // Determine if any method is significant
+  const anySignificant = useMemo(
+    () => treatmentEffects.some((e) => e.p_value != null && e.p_value < 0.05),
+    [treatmentEffects]
+  );
 
-  // Get confidence badge style
-  const getConfidenceBadge = (level: string) => {
-    switch (level) {
-      case 'high':
-        return { bg: 'bg-green-100', text: 'text-green-800', label: 'High Confidence' };
-      case 'medium':
-        return { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Medium Confidence' };
-      default:
-        return { bg: 'bg-red-100', text: 'text-red-800', label: 'Low Confidence' };
-    }
-  };
-
-  // Get consensus strength badge
-  const getConsensusBadge = (strength: string) => {
-    switch (strength) {
-      case 'strong':
-        return { bg: 'bg-green-100', text: 'text-green-700', icon: CheckCircle };
-      case 'moderate':
-        return { bg: 'bg-yellow-100', text: 'text-yellow-700', icon: AlertTriangle };
-      default:
-        return { bg: 'bg-red-100', text: 'text-red-700', icon: AlertTriangle };
-    }
-  };
+  // Figure counter
+  let figureCount = 0;
 
   return (
-    <div className="space-y-6">
-      {/* Narrative Summary Hero Card */}
+    <article
+      className="max-w-3xl mx-auto"
+      style={{
+        opacity: visible ? 1 : 0,
+        transform: visible ? 'translateY(0)' : 'translateY(8px)',
+        transition: 'opacity 0.5s ease-out, transform 0.5s ease-out',
+      }}
+    >
+      {/* ------------------------------------------------------------------ */}
+      {/* 1. ABSTRACT                                                        */}
+      {/* ------------------------------------------------------------------ */}
       {heroText && (
-        <div
-          className="w-full rounded-xl p-6 md:p-8"
-          style={{
-            backgroundColor: '#f0f4f8',
-            opacity: heroVisible ? 1 : 0,
-            transform: heroVisible ? 'translateY(0)' : 'translateY(8px)',
-            transition: 'opacity 0.5s ease-out, transform 0.5s ease-out',
-          }}
-        >
-          <div className="flex items-start gap-4">
-            {/* Direction indicator */}
-            <span className="flex-shrink-0 mt-1 text-2xl" aria-hidden="true">
-              {heroDirection === 'positive' && <TrendingUp className="w-7 h-7 text-green-600" />}
-              {heroDirection === 'negative' && <TrendingDown className="w-7 h-7 text-red-600" />}
-              {(heroDirection === 'null' || heroDirection === 'mixed') && (
-                <Minus className="w-7 h-7 text-gray-400" />
-              )}
-            </span>
-
-            <div className="flex-1 min-w-0">
-              <p
-                className="text-gray-800 font-medium"
-                style={{
-                  fontSize: '1.2rem',
-                  lineHeight: '1.75',
-                  fontFamily: 'Georgia, "Times New Roman", serif',
-                }}
-              >
-                {heroText}
-              </p>
-            </div>
-
-            {/* Confidence badge */}
-            <span
-              className={`flex-shrink-0 px-3 py-1 rounded-full text-sm font-medium ${
-                heroConfidence === 'high'
-                  ? 'bg-green-100 text-green-800'
-                  : heroConfidence === 'medium'
-                  ? 'bg-yellow-100 text-yellow-800'
-                  : 'bg-red-100 text-red-800'
-              }`}
-            >
-              {heroConfidence === 'high'
-                ? 'High Confidence'
-                : heroConfidence === 'medium'
-                ? 'Moderate'
-                : 'Low'}
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* Executive Summary - The Key Finding */}
-      {results.executive_summary && (
-        <div className="card border-l-4 border-gray-900">
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex items-center space-x-3">
-              {getDirectionIcon(results.executive_summary.effect_direction)}
-              <h2 className="text-lg font-semibold text-gray-900">Key Finding</h2>
-            </div>
-            <span
-              className={`px-3 py-1 rounded-full text-sm font-medium ${
-                getConfidenceBadge(results.executive_summary.confidence_level).bg
-              } ${getConfidenceBadge(results.executive_summary.confidence_level).text}`}
-            >
-              {getConfidenceBadge(results.executive_summary.confidence_level).label}
-            </span>
-          </div>
-
-          <p className="text-lg text-gray-800 font-medium mb-4">
-            {results.executive_summary.headline}
+        <section className="pb-8 mb-0">
+          <p
+            className="font-serif text-ink-900 leading-relaxed"
+            style={{ fontSize: '1.25rem', lineHeight: '1.9' }}
+          >
+            {heroText}
           </p>
 
-          {results.executive_summary.key_findings.length > 0 && (
-            <ul className="space-y-2">
-              {results.executive_summary.key_findings.map((finding, idx) => (
-                <li key={idx} className="flex items-start space-x-2 text-sm text-gray-600">
-                  <CheckCircle className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
-                  <span>{finding}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+          <p className="font-mono text-xs text-ink-500 mt-4 tracking-wide">
+            {results.treatment_variable && (
+              <>Treatment: {results.treatment_variable}</>
+            )}
+            {results.outcome_variable && (
+              <> &nbsp;|&nbsp; Outcome: {results.outcome_variable}</>
+            )}
+            {treatmentEffects.length > 0 && (
+              <> &nbsp;|&nbsp; Methods: {treatmentEffects.length}</>
+            )}
+            <> &nbsp;|&nbsp; Significance: {anySignificant ? 'yes' : 'no'}</>
+          </p>
+
+          <hr className="border-ink-200 mt-6" />
+        </section>
       )}
 
-      {/* Data Context & Method Consensus Row */}
-      {(results.data_context || results.method_consensus) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Data Context */}
-          {results.data_context && (
-            <div className="card">
-              <div className="flex items-center space-x-2 mb-3">
-                <Database className="w-5 h-5 text-gray-900" />
-                <h3 className="font-semibold text-gray-900">Data Context</h3>
-              </div>
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <span className="text-gray-500">Sample Size</span>
-                  <p className="font-medium text-gray-900">
-                    {results.data_context.n_samples.toLocaleString()}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-gray-500">Features</span>
-                  <p className="font-medium text-gray-900">{results.data_context.n_features}</p>
-                </div>
-                {results.data_context.n_treated != null && results.data_context.n_control != null && (
-                  <>
-                    <div>
-                      <span className="text-gray-500">Treated</span>
-                      <p className="font-medium text-gray-900">
-                        {results.data_context.n_treated.toLocaleString()}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Control</span>
-                      <p className="font-medium text-gray-900">
-                        {results.data_context.n_control.toLocaleString()}
-                      </p>
-                    </div>
-                  </>
-                )}
-                {results.data_context.missing_data_pct > 0 && (
-                  <div className="col-span-2">
-                    <span className="text-gray-500">Missing Data</span>
-                    <p className="font-medium text-yellow-600">
-                      {results.data_context.missing_data_pct.toFixed(1)}%
-                    </p>
-                  </div>
-                )}
-              </div>
-              {results.data_context.data_quality_issues.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-gray-100">
-                  <span className="text-xs text-gray-500 uppercase tracking-wide">Quality Issues</span>
-                  <ul className="mt-1 space-y-1">
-                    {results.data_context.data_quality_issues.map((issue, idx) => (
-                      <li key={idx} className="text-sm text-yellow-600 flex items-start space-x-1">
-                        <AlertTriangle className="w-3 h-3 flex-shrink-0 mt-0.5" />
-                        <span>{issue}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          )}
+      {/* ------------------------------------------------------------------ */}
+      {/* 2. DATA                                                            */}
+      {/* ------------------------------------------------------------------ */}
+      {results.data_context && (
+        <section className="border-t border-ink-200 pt-6 pb-8">
+          <h2 className="font-serif text-xl font-bold text-ink-900 mb-4">Data</h2>
 
-          {/* Method Consensus */}
-          {results.method_consensus && (
-            <div className="card">
-              <div className="flex items-center space-x-2 mb-3">
-                <Users className="w-5 h-5 text-gray-900" />
-                <h3 className="font-semibold text-gray-900">Method Consensus</h3>
-              </div>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-500">Agreement</span>
-                  <div className="flex items-center space-x-2">
-                    {(() => {
-                      const badge = getConsensusBadge(results.method_consensus!.consensus_strength);
-                      const Icon = badge.icon;
-                      return (
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${badge.bg} ${badge.text} flex items-center space-x-1`}>
-                          <Icon className="w-3 h-3" />
-                          <span className="capitalize">{results.method_consensus!.consensus_strength}</span>
-                        </span>
-                      );
-                    })()}
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <span className="text-gray-500">Methods Used</span>
-                    <p className="font-medium text-gray-900">{results.method_consensus.n_methods}</p>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Direction Agreement</span>
-                    <p className="font-medium text-gray-900">
-                      {Math.round(results.method_consensus.direction_agreement * 100)}%
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Median Estimate</span>
-                    <p className="font-mono font-medium text-gray-900">
-                      {results.method_consensus.median_estimate.toFixed(4)}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Estimate Range</span>
-                    <p className="font-mono text-xs text-gray-600">
-                      {results.method_consensus.estimate_range ? (
-                        <>
-                          [{results.method_consensus.estimate_range[0]?.toFixed(3) ?? 'N/A'},{' '}
-                          {results.method_consensus.estimate_range[1]?.toFixed(3) ?? 'N/A'}]
-                        </>
-                      ) : (
-                        'N/A'
-                      )}
-                    </p>
-                  </div>
-                </div>
-                {results.method_consensus.all_significant && (
-                  <div className="pt-2 border-t border-gray-100">
-                    <span className="text-sm text-green-600 flex items-center space-x-1">
-                      <CheckCircle className="w-4 h-4" />
-                      <span>All methods show statistical significance</span>
-                    </span>
-                  </div>
-                )}
-              </div>
+          <p className="font-sans text-ink-700 leading-relaxed">
+            The dataset contains{' '}
+            <span className="font-mono">{results.data_context.n_samples.toLocaleString()}</span>{' '}
+            observations with{' '}
+            <span className="font-mono">{results.data_context.n_features}</span> features.
+            {results.data_context.n_treated != null && results.data_context.n_control != null && (
+              <>
+                {' '}The treatment group has{' '}
+                <span className="font-mono">{results.data_context.n_treated.toLocaleString()}</span>{' '}
+                units and the control group has{' '}
+                <span className="font-mono">{results.data_context.n_control.toLocaleString()}</span>{' '}
+                units.
+              </>
+            )}
+            {results.data_context.missing_data_pct > 0 && (
+              <>
+                {' '}Missing data accounts for{' '}
+                <span className="font-mono">{results.data_context.missing_data_pct.toFixed(1)}%</span>{' '}
+                of all values.
+              </>
+            )}
+          </p>
+
+          {results.data_context.data_quality_issues.length > 0 && (
+            <div className="mt-4">
+              <p className="font-sans text-ink-700 text-sm mb-1">Data quality issues:</p>
+              <ul className="list-disc list-inside text-sm text-ink-700 space-y-1 pl-1">
+                {results.data_context.data_quality_issues.map((issue, idx) => (
+                  <li key={idx}>{issue}</li>
+                ))}
+              </ul>
             </div>
           )}
-        </div>
+        </section>
       )}
 
-      {/* Treatment Effects */}
-      <div className="card">
-        <div className="flex items-center space-x-2 mb-4">
-          <BarChart3 className="w-5 h-5 text-gray-900" />
-          <h2 className="text-lg font-semibold text-gray-900">Treatment Effect Estimates</h2>
-        </div>
+      {/* ------------------------------------------------------------------ */}
+      {/* 3. METHODS AND RESULTS                                             */}
+      {/* ------------------------------------------------------------------ */}
+      <section className="border-t border-ink-200 pt-6 pb-8">
+        <h2 className="font-serif text-xl font-bold text-ink-900 mb-6">Results</h2>
+
+        {/* Table 1. Treatment Effect Estimates */}
+        <p className="font-sans text-sm font-semibold text-ink-900 mb-2">
+          Table 1. Treatment Effect Estimates
+        </p>
 
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="journal-table">
             <thead>
-              <tr className="border-b border-gray-200 bg-gray-50/80">
-                <th className="text-left py-3 px-5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Method</th>
-                <th className="text-left py-3 px-5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Estimand</th>
-                <th className="text-right py-3 px-5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Estimate</th>
-                <th className="text-right py-3 px-5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Std. Error</th>
-                <th className="text-center py-3 px-5 text-xs font-semibold text-gray-500 uppercase tracking-wider">{tip('95% CI')}</th>
-                <th className="text-right py-3 px-5 text-xs font-semibold text-gray-500 uppercase tracking-wider">{tip('p-value')}</th>
+              <tr>
+                <th className="text-left">Method</th>
+                <th className="text-left">{tip('estimand', 'Estimand')}</th>
+                <th className="text-right">Estimate</th>
+                <th className="text-right">Std. Error</th>
+                <th className="text-center">{tip('95% CI', '95% CI')}</th>
+                <th className="text-right">{tip('p-value', 'p-value')}</th>
               </tr>
             </thead>
             <tbody>
               {treatmentEffects.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-gray-500">
+                  <td colSpan={6} className="py-8 text-center text-ink-500">
                     No treatment effect estimates available
                   </td>
                 </tr>
@@ -344,44 +164,25 @@ function ResultsDisplay({ results }: ResultsDisplayProps) {
                   return (
                     <tr
                       key={index}
-                      className={`border-b border-gray-100 hover:bg-gray-100/50 ${
-                        isSignificant ? 'bg-green-50/50' : index % 2 === 1 ? 'bg-gray-50/50' : ''
-                      }`}
+                      style={isSignificant ? { borderLeft: '2px solid #15803d' } : undefined}
                     >
-                      <td className="py-3.5 px-5 text-sm font-medium text-gray-900">
-                        <div className="flex items-center space-x-2">
-                          <span>{tip(effect.method)}</span>
-                          {isSignificant && (
-                            <span className="px-1.5 py-0.5 text-xs bg-green-100 text-green-700 rounded">
-                              Sig.
-                            </span>
-                          )}
-                        </div>
-                        {effect.assumptions_tested && effect.assumptions_tested.length > 0 && (
-                          <div className="mt-1 flex flex-wrap gap-1">
-                            {effect.assumptions_tested.map((assumption, aIdx) => (
-                              <span
-                                key={aIdx}
-                                className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded"
-                              >
-                                {assumption}
-                              </span>
-                            ))}
-                          </div>
-                        )}
+                      <td className="font-sans text-ink-900 font-medium">
+                        {tip(effect.method)}
                       </td>
-                      <td className="py-3.5 px-5 text-sm text-gray-600">{tip(effect.estimand)}</td>
-                      <td className={`py-3.5 px-5 text-sm text-right font-mono ${isSignificant ? 'font-semibold' : ''}`}>
+                      <td className="font-sans text-ink-700">
+                        {tip(effect.estimand)}
+                      </td>
+                      <td className="text-right font-mono text-ink-900">
                         {effect.estimate?.toFixed(4) ?? 'N/A'}
                       </td>
-                      <td className="py-3.5 px-5 text-sm text-right font-mono text-gray-600">
+                      <td className="text-right font-mono text-ink-700">
                         {effect.std_error?.toFixed(4) ?? 'N/A'}
                       </td>
-                      <td className="py-3.5 px-5 text-sm text-center font-mono text-gray-600">
+                      <td className="text-center font-mono text-ink-700">
                         [{effect.ci_lower?.toFixed(4) ?? '?'}, {effect.ci_upper?.toFixed(4) ?? '?'}]
                       </td>
-                      <td className={`py-3.5 px-5 text-sm text-right font-mono ${
-                        isSignificant ? 'text-green-600 font-semibold' : ''
+                      <td className={`text-right font-mono ${
+                        isSignificant ? 'text-sig-yes font-semibold' : 'text-ink-700'
                       }`}>
                         {effect.p_value != null ? (
                           effect.p_value < 0.001 ? '<0.001' : effect.p_value.toFixed(4)
@@ -396,102 +197,148 @@ function ResultsDisplay({ results }: ResultsDisplayProps) {
         </div>
 
         {/* Forest Plot */}
-        {treatmentEffects.length > 0 && (
-        <div className="mt-6">
-          <h3 className="text-sm font-medium text-gray-700 mb-3">Forest Plot</h3>
-          <ForestPlot effects={treatmentEffects} />
-        </div>
-        )}
-      </div>
-
-      {/* Causal Graph */}
-      {results.causal_graph && (
-        <div className="card">
-          <div className="flex items-center space-x-2 mb-4">
-            <GitBranch className="w-5 h-5 text-gray-900" />
-            <h2 className="text-lg font-semibold text-gray-900">Causal Graph</h2>
-          </div>
-          <p className="text-sm text-gray-600 mb-4">
-            Discovered using: {results.causal_graph.discovery_method}
-          </p>
-
-          {/* Interactive SVG Graph */}
-          <CausalGraphView
-            graph={results.causal_graph}
-            treatmentVariable={results.treatment_variable}
-            outcomeVariable={results.outcome_variable}
-          />
-
-          {/* Legend */}
-          <div className="flex flex-wrap gap-4 mt-4 justify-center text-xs text-gray-600">
-            <span className="flex items-center gap-1.5">
-              <span className="inline-block w-3 h-3 rounded-full bg-[#22c55e]" /> Treatment
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="inline-block w-3 h-3 rounded-full bg-[#ef4444]" /> Outcome
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="inline-block w-3 h-3 rounded-full bg-[#6b7280]" /> Other
-            </span>
-          </div>
-
-          {/* LLM Interpretation */}
-          {results.causal_graph.interpretation && (
-            <div className="mt-4 p-4 bg-gray-50 rounded-xl">
-              <span className="text-sm font-medium text-gray-700 block mb-2">
-                Interpretation:
-              </span>
-              <p className="text-sm text-gray-600 whitespace-pre-wrap">
-                {results.causal_graph.interpretation}
+        {treatmentEffects.length > 0 && (() => {
+          figureCount++;
+          const figNum = figureCount;
+          return (
+            <div className="mt-8">
+              <ForestPlot effects={treatmentEffects} />
+              <p className="font-sans text-sm text-ink-500 italic mt-2">
+                Figure {figNum}. Forest plot of treatment effect estimates with 95% confidence intervals.
               </p>
             </div>
-          )}
-        </div>
-      )}
+          );
+        })()}
+      </section>
 
-      {/* Sensitivity Analysis */}
+      {/* ------------------------------------------------------------------ */}
+      {/* 4. CAUSAL STRUCTURE                                                */}
+      {/* ------------------------------------------------------------------ */}
+      {results.causal_graph && (() => {
+        figureCount++;
+        const figNum = figureCount;
+        return (
+          <section className="border-t border-ink-200 pt-6 pb-8">
+            <h2 className="font-serif text-xl font-bold text-ink-900 mb-6">Causal Structure</h2>
+
+            <CausalGraphView
+              graph={results.causal_graph}
+              treatmentVariable={results.treatment_variable}
+              outcomeVariable={results.outcome_variable}
+            />
+
+            <p className="font-sans text-sm text-ink-500 italic mt-2">
+              Figure {figNum}. Estimated causal directed acyclic graph.
+            </p>
+
+            <p className="font-sans text-ink-700 mt-4 leading-relaxed">
+              The graph was discovered using the{' '}
+              <span className="font-mono text-sm">{results.causal_graph.discovery_method}</span>{' '}
+              algorithm.
+            </p>
+
+            {results.causal_graph.interpretation && (
+              <p className="font-sans text-ink-700 mt-3 leading-relaxed">
+                {results.causal_graph.interpretation}
+              </p>
+            )}
+          </section>
+        );
+      })()}
+
+      {/* ------------------------------------------------------------------ */}
+      {/* 5. SENSITIVITY ANALYSIS                                            */}
+      {/* ------------------------------------------------------------------ */}
       {sensitivityAnalysis.length > 0 && (
-        <div className="card">
-          <div className="flex items-center space-x-2 mb-4">
-            <Shield className="w-5 h-5 text-gray-900" />
-            <h2 className="text-lg font-semibold text-gray-900">Sensitivity Analysis</h2>
+        <section className="border-t border-ink-200 pt-6 pb-8">
+          <h2 className="font-serif text-xl font-bold text-ink-900 mb-6">Sensitivity Analysis</h2>
+
+          <div className="overflow-x-auto">
+            <table className="journal-table">
+              <thead>
+                <tr>
+                  <th className="text-left">Method</th>
+                  <th className="text-right">Robustness</th>
+                  <th className="text-left">Interpretation</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sensitivityAnalysis.map((sens, index) => (
+                  <tr key={index}>
+                    <td className="font-sans text-ink-900 font-medium">
+                      {tip(sens.method)}
+                    </td>
+                    <td className="text-right font-mono text-ink-900">
+                      {sens.robustness_value?.toFixed(2) ?? 'N/A'}
+                    </td>
+                    <td className="font-sans text-ink-700">
+                      {sens.interpretation}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-          <div className="space-y-4">
-            {sensitivityAnalysis.map((sens, index) => (
-              <div key={index} className="border-b border-gray-100 pb-4 last:border-0 last:pb-0">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-medium text-gray-900">{tip(sens.method)}</span>
-                  <span className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">
-                    {sens.robustness_value?.toFixed(2) ?? 'N/A'}
-                  </span>
-                </div>
-                <p className="text-sm text-gray-600">{sens.interpretation}</p>
-              </div>
-            ))}
-          </div>
-        </div>
+        </section>
       )}
 
-      {/* Recommendations */}
-      {recommendations.length > 0 && (
-        <div className="card">
-          <div className="flex items-center space-x-2 mb-4">
-            <Lightbulb className="w-5 h-5 text-gray-900" />
-            <h2 className="text-lg font-semibold text-gray-900">Recommendations</h2>
-          </div>
-          <ul className="space-y-2">
-            {recommendations.map((rec, index) => (
-              <li key={index} className="flex items-start space-x-2">
-                <span className="w-5 h-5 rounded-full bg-gray-900 text-white flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">
-                  {index + 1}
-                </span>
-                <span className="text-gray-700">{rec}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
+      {/* ------------------------------------------------------------------ */}
+      {/* 6. DISCUSSION                                                      */}
+      {/* ------------------------------------------------------------------ */}
+      {(results.executive_summary || recommendations.length > 0 || results.method_consensus) && (
+        <section className="border-t border-ink-200 pt-6 pb-8">
+          <h2 className="font-serif text-xl font-bold text-ink-900 mb-6">Discussion</h2>
+
+          {/* Key findings as paragraphs */}
+          {results.executive_summary?.key_findings && results.executive_summary.key_findings.length > 0 && (
+            <div className="space-y-3 mb-6">
+              {results.executive_summary.key_findings.map((finding, idx) => (
+                <p key={idx} className="font-sans text-ink-700 leading-relaxed">
+                  {finding}
+                </p>
+              ))}
+            </div>
+          )}
+
+          {/* Method consensus summary */}
+          {results.method_consensus && (
+            <p className="font-sans text-ink-700 leading-relaxed mb-6">
+              Across{' '}
+              <span className="font-mono">{results.method_consensus.n_methods}</span>{' '}
+              estimation methods, direction agreement is{' '}
+              <span className="font-mono">
+                {Math.round(results.method_consensus.direction_agreement * 100)}%
+              </span>{' '}
+              with a median effect estimate of{' '}
+              <span className="font-mono">
+                {results.method_consensus.median_estimate.toFixed(4)}
+              </span>{' '}
+              (range:{' '}
+              <span className="font-mono">
+                {results.method_consensus.estimate_range
+                  ? `${results.method_consensus.estimate_range[0]?.toFixed(3) ?? 'N/A'} to ${results.method_consensus.estimate_range[1]?.toFixed(3) ?? 'N/A'}`
+                  : 'N/A'}
+              </span>
+              ). The consensus strength is{' '}
+              <span className="font-mono">{results.method_consensus.consensus_strength}</span>.
+              {results.method_consensus.all_significant &&
+                ' All methods show statistical significance at the 0.05 level.'}
+            </p>
+          )}
+
+          {/* Recommendations as numbered list */}
+          {recommendations.length > 0 && (
+            <ol className="list-decimal list-inside space-y-2">
+              {recommendations.map((rec, index) => (
+                <li key={index} className="font-sans text-ink-700 leading-relaxed">
+                  {rec}
+                </li>
+              ))}
+            </ol>
+          )}
+        </section>
       )}
-    </div>
+    </article>
   );
 }
 

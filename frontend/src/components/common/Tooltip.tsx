@@ -14,19 +14,18 @@ export default function Tooltip({ term, children }: TooltipProps) {
   return (
     <span
       className="relative inline-flex items-center cursor-help"
-      style={{ borderBottom: '1px dotted #9ca3af' }}
+      style={{ borderBottom: '1px dotted #94a3b8' }}
       onMouseEnter={() => setShow(true)}
       onMouseLeave={() => setShow(false)}
     >
       {children}
       {show && (
         <span
-          className="absolute z-50 text-xs text-white rounded-lg shadow-lg"
+          className="absolute z-50 font-sans text-xs text-white bg-ink-900"
           style={{
             bottom: 'calc(100% + 8px)',
             left: '50%',
             transform: 'translateX(-50%)',
-            backgroundColor: '#1f2937',
             padding: '8px 12px',
             width: '260px',
             lineHeight: '1.5',
@@ -45,7 +44,7 @@ export default function Tooltip({ term, children }: TooltipProps) {
               height: 0,
               borderLeft: '6px solid transparent',
               borderRight: '6px solid transparent',
-              borderTop: '6px solid #1f2937',
+              borderTop: '6px solid #1a1a2e',
             }}
           />
         </span>
