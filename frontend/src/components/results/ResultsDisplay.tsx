@@ -1,5 +1,9 @@
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useEffect, useState } from 'react';
 import { AnalysisResults } from '../../services/api';
+import CausalGraphView from './CausalGraphView';
+import ForestPlot from './ForestPlot';
+import Tooltip from '../common/Tooltip';
+import glossary from '../../utils/glossary';
 import {
   BarChart3,
   GitBranch,
@@ -20,6 +24,22 @@ interface ResultsDisplayProps {
 }
 
 function ResultsDisplay({ results }: ResultsDisplayProps) {
+  // Fade-in animation for hero card
+  const [heroVisible, setHeroVisible] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setHeroVisible(true), 50);
+    return () => clearTimeout(t);
+  }, []);
+
+  // Helper to wrap a term in a Tooltip if it exists in the glossary
+  const tip = (term: string, label?: string) =>
+    glossary[term] ? <Tooltip term={term}>{label ?? term}</Tooltip> : <>{label ?? term}</>;
+
+  // Derive hero card content
+  const heroText = results.narrative_summary || results.executive_summary?.headline || '';
+  const heroDirection = results.executive_summary?.effect_direction ?? 'null';
+  const heroConfidence = results.executive_summary?.confidence_level ?? 'low';
+
   // Safely access arrays with fallbacks - memoize to maintain stable references
   const treatmentEffects = useMemo(
     () => results.treatment_effects ?? [],
@@ -33,16 +53,6 @@ function ResultsDisplay({ results }: ResultsDisplayProps) {
     () => results.recommendations ?? [],
     [results.recommendations]
   );
-
-  // Memoize maxAbs calculation to avoid O(n²) complexity
-  const maxAbs = useMemo(() => {
-    if (treatmentEffects.length === 0) return 1;
-    return Math.max(
-      ...treatmentEffects.map((e) =>
-        Math.max(Math.abs(e.ci_lower ?? 0), Math.abs(e.ci_upper ?? 0))
-      )
-    );
-  }, [treatmentEffects]);
 
   // Get effect direction icon
   const getDirectionIcon = (direction: string) => {
@@ -84,9 +94,63 @@ function ResultsDisplay({ results }: ResultsDisplayProps) {
 
   return (
     <div className="space-y-6">
+      {/* Narrative Summary Hero Card */}
+      {heroText && (
+        <div
+          className="w-full rounded-xl p-6 md:p-8"
+          style={{
+            backgroundColor: '#f0f4f8',
+            opacity: heroVisible ? 1 : 0,
+            transform: heroVisible ? 'translateY(0)' : 'translateY(8px)',
+            transition: 'opacity 0.5s ease-out, transform 0.5s ease-out',
+          }}
+        >
+          <div className="flex items-start gap-4">
+            {/* Direction indicator */}
+            <span className="flex-shrink-0 mt-1 text-2xl" aria-hidden="true">
+              {heroDirection === 'positive' && <TrendingUp className="w-7 h-7 text-green-600" />}
+              {heroDirection === 'negative' && <TrendingDown className="w-7 h-7 text-red-600" />}
+              {(heroDirection === 'null' || heroDirection === 'mixed') && (
+                <Minus className="w-7 h-7 text-gray-400" />
+              )}
+            </span>
+
+            <div className="flex-1 min-w-0">
+              <p
+                className="text-gray-800 font-medium"
+                style={{
+                  fontSize: '1.2rem',
+                  lineHeight: '1.75',
+                  fontFamily: 'Georgia, "Times New Roman", serif',
+                }}
+              >
+                {heroText}
+              </p>
+            </div>
+
+            {/* Confidence badge */}
+            <span
+              className={`flex-shrink-0 px-3 py-1 rounded-full text-sm font-medium ${
+                heroConfidence === 'high'
+                  ? 'bg-green-100 text-green-800'
+                  : heroConfidence === 'medium'
+                  ? 'bg-yellow-100 text-yellow-800'
+                  : 'bg-red-100 text-red-800'
+              }`}
+            >
+              {heroConfidence === 'high'
+                ? 'High Confidence'
+                : heroConfidence === 'medium'
+                ? 'Moderate'
+                : 'Low'}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Executive Summary - The Key Finding */}
       {results.executive_summary && (
-        <div className="card bg-gradient-to-r from-primary-50 to-white border-l-4 border-primary-500">
+        <div className="card border-l-4 border-gray-900">
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center space-x-3">
               {getDirectionIcon(results.executive_summary.effect_direction)}
@@ -109,7 +173,7 @@ function ResultsDisplay({ results }: ResultsDisplayProps) {
             <ul className="space-y-2">
               {results.executive_summary.key_findings.map((finding, idx) => (
                 <li key={idx} className="flex items-start space-x-2 text-sm text-gray-600">
-                  <CheckCircle className="w-4 h-4 text-primary-500 flex-shrink-0 mt-0.5" />
+                  <CheckCircle className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
                   <span>{finding}</span>
                 </li>
               ))}
@@ -125,7 +189,7 @@ function ResultsDisplay({ results }: ResultsDisplayProps) {
           {results.data_context && (
             <div className="card">
               <div className="flex items-center space-x-2 mb-3">
-                <Database className="w-5 h-5 text-primary-600" />
+                <Database className="w-5 h-5 text-gray-900" />
                 <h3 className="font-semibold text-gray-900">Data Context</h3>
               </div>
               <div className="grid grid-cols-2 gap-3 text-sm">
@@ -184,7 +248,7 @@ function ResultsDisplay({ results }: ResultsDisplayProps) {
           {results.method_consensus && (
             <div className="card">
               <div className="flex items-center space-x-2 mb-3">
-                <Users className="w-5 h-5 text-primary-600" />
+                <Users className="w-5 h-5 text-gray-900" />
                 <h3 className="font-semibold text-gray-900">Method Consensus</h3>
               </div>
               <div className="space-y-3">
@@ -251,20 +315,20 @@ function ResultsDisplay({ results }: ResultsDisplayProps) {
       {/* Treatment Effects */}
       <div className="card">
         <div className="flex items-center space-x-2 mb-4">
-          <BarChart3 className="w-5 h-5 text-primary-600" />
+          <BarChart3 className="w-5 h-5 text-gray-900" />
           <h2 className="text-lg font-semibold text-gray-900">Treatment Effect Estimates</h2>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-gray-200">
-                <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Method</th>
-                <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Estimand</th>
-                <th className="text-right py-3 px-4 text-sm font-medium text-gray-500">Estimate</th>
-                <th className="text-right py-3 px-4 text-sm font-medium text-gray-500">Std. Error</th>
-                <th className="text-center py-3 px-4 text-sm font-medium text-gray-500">95% CI</th>
-                <th className="text-right py-3 px-4 text-sm font-medium text-gray-500">p-value</th>
+              <tr className="border-b border-gray-200 bg-gray-50/80">
+                <th className="text-left py-3 px-5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Method</th>
+                <th className="text-left py-3 px-5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Estimand</th>
+                <th className="text-right py-3 px-5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Estimate</th>
+                <th className="text-right py-3 px-5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Std. Error</th>
+                <th className="text-center py-3 px-5 text-xs font-semibold text-gray-500 uppercase tracking-wider">{tip('95% CI')}</th>
+                <th className="text-right py-3 px-5 text-xs font-semibold text-gray-500 uppercase tracking-wider">{tip('p-value')}</th>
               </tr>
             </thead>
             <tbody>
@@ -280,13 +344,13 @@ function ResultsDisplay({ results }: ResultsDisplayProps) {
                   return (
                     <tr
                       key={index}
-                      className={`border-b border-gray-100 hover:bg-gray-50 ${
-                        isSignificant ? 'bg-green-50/50' : ''
+                      className={`border-b border-gray-100 hover:bg-gray-100/50 ${
+                        isSignificant ? 'bg-green-50/50' : index % 2 === 1 ? 'bg-gray-50/50' : ''
                       }`}
                     >
-                      <td className="py-3 px-4 text-sm font-medium text-gray-900">
+                      <td className="py-3.5 px-5 text-sm font-medium text-gray-900">
                         <div className="flex items-center space-x-2">
-                          <span>{effect.method}</span>
+                          <span>{tip(effect.method)}</span>
                           {isSignificant && (
                             <span className="px-1.5 py-0.5 text-xs bg-green-100 text-green-700 rounded">
                               Sig.
@@ -306,17 +370,17 @@ function ResultsDisplay({ results }: ResultsDisplayProps) {
                           </div>
                         )}
                       </td>
-                      <td className="py-3 px-4 text-sm text-gray-600">{effect.estimand}</td>
-                      <td className={`py-3 px-4 text-sm text-right font-mono ${isSignificant ? 'font-semibold' : ''}`}>
+                      <td className="py-3.5 px-5 text-sm text-gray-600">{tip(effect.estimand)}</td>
+                      <td className={`py-3.5 px-5 text-sm text-right font-mono ${isSignificant ? 'font-semibold' : ''}`}>
                         {effect.estimate?.toFixed(4) ?? 'N/A'}
                       </td>
-                      <td className="py-3 px-4 text-sm text-right font-mono text-gray-600">
+                      <td className="py-3.5 px-5 text-sm text-right font-mono text-gray-600">
                         {effect.std_error?.toFixed(4) ?? 'N/A'}
                       </td>
-                      <td className="py-3 px-4 text-sm text-center font-mono text-gray-600">
+                      <td className="py-3.5 px-5 text-sm text-center font-mono text-gray-600">
                         [{effect.ci_lower?.toFixed(4) ?? '?'}, {effect.ci_upper?.toFixed(4) ?? '?'}]
                       </td>
-                      <td className={`py-3 px-4 text-sm text-right font-mono ${
+                      <td className={`py-3.5 px-5 text-sm text-right font-mono ${
                         isSignificant ? 'text-green-600 font-semibold' : ''
                       }`}>
                         {effect.p_value != null ? (
@@ -331,38 +395,11 @@ function ResultsDisplay({ results }: ResultsDisplayProps) {
           </table>
         </div>
 
-        {/* Visual comparison */}
+        {/* Forest Plot */}
         {treatmentEffects.length > 0 && (
         <div className="mt-6">
-          <h3 className="text-sm font-medium text-gray-700 mb-3">Estimate Comparison</h3>
-          <div className="space-y-2" role="list" aria-label="Treatment effect comparison">
-            {treatmentEffects.map((effect, index) => {
-              const scale = 100 / maxAbs;
-              const left = 50 + effect.ci_lower * scale * 0.5;
-              const width = (effect.ci_upper - effect.ci_lower) * scale * 0.5;
-              const center = 50 + effect.estimate * scale * 0.5;
-
-              return (
-                <div key={`effect-${effect.method}-${index}`} className="flex items-center" role="listitem">
-                  <div className="w-32 sm:w-40 text-xs text-gray-600 truncate pr-2">{effect.method}</div>
-                  <div className="flex-1 relative h-6 bg-gray-100 rounded">
-                    {/* Zero line */}
-                    <div className="absolute top-0 bottom-0 left-1/2 w-px bg-gray-300" />
-                    {/* CI bar */}
-                    <div
-                      className="absolute top-1 bottom-1 bg-primary-200 rounded"
-                      style={{ left: `${left}%`, width: `${width}%` }}
-                    />
-                    {/* Point estimate */}
-                    <div
-                      className="absolute top-1/2 w-2 h-2 -mt-1 bg-primary-600 rounded-full"
-                      style={{ left: `${center}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <h3 className="text-sm font-medium text-gray-700 mb-3">Forest Plot</h3>
+          <ForestPlot effects={treatmentEffects} />
         </div>
         )}
       </div>
@@ -371,56 +408,36 @@ function ResultsDisplay({ results }: ResultsDisplayProps) {
       {results.causal_graph && (
         <div className="card">
           <div className="flex items-center space-x-2 mb-4">
-            <GitBranch className="w-5 h-5 text-primary-600" />
+            <GitBranch className="w-5 h-5 text-gray-900" />
             <h2 className="text-lg font-semibold text-gray-900">Causal Graph</h2>
           </div>
           <p className="text-sm text-gray-600 mb-4">
             Discovered using: {results.causal_graph.discovery_method}
           </p>
 
-          {/* Nodes */}
-          <div className="flex flex-wrap gap-2 mb-4">
-            <span className="text-sm font-medium text-gray-700">Nodes:</span>
-            {(results.causal_graph.nodes ?? []).map((node) => (
-              <span
-                key={node}
-                className={`px-2 py-1 text-xs rounded-full ${
-                  node === results.treatment_variable
-                    ? 'bg-green-100 text-green-700'
-                    : node === results.outcome_variable
-                    ? 'bg-red-100 text-red-700'
-                    : 'bg-gray-100 text-gray-700'
-                }`}
-              >
-                {node}
-              </span>
-            ))}
-          </div>
+          {/* Interactive SVG Graph */}
+          <CausalGraphView
+            graph={results.causal_graph}
+            treatmentVariable={results.treatment_variable}
+            outcomeVariable={results.outcome_variable}
+          />
 
-          {/* Edges */}
-          {(results.causal_graph.edges?.length ?? 0) > 0 && (
-            <div className="mb-4">
-              <span className="text-sm font-medium text-gray-700 block mb-2">
-                Discovered Edges ({results.causal_graph.edges?.length ?? 0}):
-              </span>
-              <div className="flex flex-wrap gap-2">
-                {(results.causal_graph.edges ?? []).map((edge, idx) => (
-                  <span
-                    key={idx}
-                    className="inline-flex items-center px-3 py-1 text-xs bg-blue-50 text-blue-700 rounded-full"
-                  >
-                    <span className="font-medium">{edge.source}</span>
-                    <span className="mx-1">→</span>
-                    <span className="font-medium">{edge.target}</span>
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Legend */}
+          <div className="flex flex-wrap gap-4 mt-4 justify-center text-xs text-gray-600">
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block w-3 h-3 rounded-full bg-[#22c55e]" /> Treatment
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block w-3 h-3 rounded-full bg-[#ef4444]" /> Outcome
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block w-3 h-3 rounded-full bg-[#6b7280]" /> Other
+            </span>
+          </div>
 
           {/* LLM Interpretation */}
           {results.causal_graph.interpretation && (
-            <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+            <div className="mt-4 p-4 bg-gray-50 rounded-xl">
               <span className="text-sm font-medium text-gray-700 block mb-2">
                 Interpretation:
               </span>
@@ -436,14 +453,14 @@ function ResultsDisplay({ results }: ResultsDisplayProps) {
       {sensitivityAnalysis.length > 0 && (
         <div className="card">
           <div className="flex items-center space-x-2 mb-4">
-            <Shield className="w-5 h-5 text-primary-600" />
+            <Shield className="w-5 h-5 text-gray-900" />
             <h2 className="text-lg font-semibold text-gray-900">Sensitivity Analysis</h2>
           </div>
           <div className="space-y-4">
             {sensitivityAnalysis.map((sens, index) => (
               <div key={index} className="border-b border-gray-100 pb-4 last:border-0 last:pb-0">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="font-medium text-gray-900">{sens.method}</span>
+                  <span className="font-medium text-gray-900">{tip(sens.method)}</span>
                   <span className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">
                     {sens.robustness_value?.toFixed(2) ?? 'N/A'}
                   </span>
@@ -459,13 +476,13 @@ function ResultsDisplay({ results }: ResultsDisplayProps) {
       {recommendations.length > 0 && (
         <div className="card">
           <div className="flex items-center space-x-2 mb-4">
-            <Lightbulb className="w-5 h-5 text-primary-600" />
+            <Lightbulb className="w-5 h-5 text-gray-900" />
             <h2 className="text-lg font-semibold text-gray-900">Recommendations</h2>
           </div>
           <ul className="space-y-2">
             {recommendations.map((rec, index) => (
               <li key={index} className="flex items-start space-x-2">
-                <span className="w-5 h-5 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
+                <span className="w-5 h-5 rounded-full bg-gray-900 text-white flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">
                   {index + 1}
                 </span>
                 <span className="text-gray-700">{rec}</span>
