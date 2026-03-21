@@ -207,7 +207,7 @@ class AgentTrace(BaseModel):
     agent_name: str
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     action: str
-    reasoning: str
+    reasoning: str | None = ""
     inputs: dict[str, Any] = Field(default_factory=dict)
     outputs: dict[str, Any] = Field(default_factory=dict)
     tools_called: list[str] = Field(default_factory=list)

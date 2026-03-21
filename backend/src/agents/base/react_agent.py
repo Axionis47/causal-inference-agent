@@ -14,7 +14,7 @@ import time
 from abc import abstractmethod
 from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
@@ -67,7 +67,7 @@ class ReActStep:
     action: str | None
     action_input: dict[str, Any] | None
     result: ToolResult | None
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     duration_ms: int = 0
 
 
@@ -88,9 +88,13 @@ class ReActAgent:
     FINISH_TOOL = "finish"
     REFLECT_TOOL = "reflect"
 
+    @property
+    def llm(self):
+        """Return the current LLM client (always reflects reset_llm_client())."""
+        return get_llm_client()
+
     def __init__(self) -> None:
         """Initialize the ReAct agent."""
-        self.llm = get_llm_client()
         self.logger = get_logger(self.AGENT_NAME)
         self._tools: dict[str, Callable[..., Coroutine[Any, Any, ToolResult]]] = {}
         self._tool_schemas: list[dict[str, Any]] = []
@@ -175,7 +179,7 @@ class ReActAgent:
     def create_trace(
         self,
         action: str,
-        reasoning: str,
+        reasoning: str | None = None,
         inputs: dict[str, Any] | None = None,
         outputs: dict[str, Any] | None = None,
         tools_called: list[str] | None = None,
@@ -196,9 +200,9 @@ class ReActAgent:
         """
         return AgentTrace(
             agent_name=self.AGENT_NAME,
-            timestamp=datetime.now(datetime.UTC),
+            timestamp=datetime.now(timezone.utc),
             action=action,
-            reasoning=reasoning,
+            reasoning=reasoning or "",
             inputs=inputs or {},
             outputs=outputs or {},
             tools_called=tools_called or [],
@@ -399,6 +403,9 @@ class ReActAgent:
             max_iterations=1,  # Single turn - we handle the loop ourselves
         )
 
+        # Store token usage for trace recording
+        self._last_token_usage = result.get("_token_usage", {})
+
         # Extract thought from response
         thought = result.get("response", "")
 
@@ -546,6 +553,7 @@ Then call the appropriate tool."""
             },
             tools_called=[step.action] if step.action else [],
             duration_ms=step.duration_ms,
+            token_usage=getattr(self, "_last_token_usage", {}),
         )
         state.add_trace(trace)
 
@@ -611,7 +619,7 @@ Then call the appropriate tool."""
 
             error_trace = AgentTrace(
                 agent_name=self.AGENT_NAME,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(timezone.utc),
                 action="execution_failed",
                 reasoning=f"Agent failed with error: {str(e)}",
                 outputs={"error": str(e)},

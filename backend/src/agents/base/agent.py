@@ -5,7 +5,7 @@ import traceback
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from src.llm import get_llm_client
@@ -66,10 +66,18 @@ class BaseAgent(ABC):
     SYSTEM_PROMPT: str = ""
     TOOLS: list[dict[str, Any]] = []
 
+    # State contract metadata (optional, used for validation)
+    REQUIRED_STATE_FIELDS: list[str] = []
+    WRITES_STATE_FIELDS: list[str] = []
+
     def __init__(self) -> None:
         """Initialize the agent."""
-        self.llm = get_llm_client()
         self.logger = get_logger(self.AGENT_NAME)
+
+    @property
+    def llm(self):
+        """Return the current LLM client (always reflects reset_llm_client())."""
+        return get_llm_client()
 
     @abstractmethod
     async def execute(self, state: AnalysisState) -> AnalysisState:
@@ -164,7 +172,7 @@ class BaseAgent(ABC):
     def create_trace(
         self,
         action: str,
-        reasoning: str,
+        reasoning: str | None = None,
         inputs: dict[str, Any] | None = None,
         outputs: dict[str, Any] | None = None,
         tools_called: list[str] | None = None,
@@ -185,9 +193,9 @@ class BaseAgent(ABC):
         """
         return AgentTrace(
             agent_name=self.AGENT_NAME,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             action=action,
-            reasoning=reasoning,
+            reasoning=reasoning or "",
             inputs=inputs or {},
             outputs=outputs or {},
             tools_called=tools_called or [],
@@ -204,6 +212,20 @@ class BaseAgent(ABC):
             Updated analysis state with traces added
         """
         start_time = time.time()
+
+        # Warn-only state contract validation
+        if self.REQUIRED_STATE_FIELDS:
+            missing = [
+                f for f in self.REQUIRED_STATE_FIELDS
+                if getattr(state, f, None) is None
+            ]
+            if missing:
+                self.logger.warning(
+                    "missing_required_state_fields",
+                    agent=self.AGENT_NAME,
+                    missing=missing,
+                )
+
         self.logger.info(
             "agent_execution_start",
             agent=self.AGENT_NAME,
@@ -326,7 +348,7 @@ class BaseAgent(ABC):
             if strategy:
                 return strategy
         except Exception:
-            pass
+            self.logger.debug("llm_recovery_selection_failed", exc_info=True)
 
         # Fallback: use heuristic matching
         return self._heuristic_select_recovery(debug_context, available)
@@ -356,7 +378,7 @@ Available strategies:
                 if str(i) in text or s.name.lower() in text.lower():
                     return s
         except Exception:
-            pass
+            self.logger.debug("llm_recovery_parse_failed", exc_info=True)
 
         return None
 
@@ -407,9 +429,6 @@ Available strategies:
         ]
 
 
-class ToolExecutionError(Exception):
-    """Error raised when a tool execution fails."""
-
-    def __init__(self, tool_name: str, message: str):
-        self.tool_name = tool_name
-        super().__init__(f"Tool '{tool_name}' failed: {message}")
+# MOD3: ToolExecutionError moved to errors.py with richer hierarchy (AgentError base)
+# Re-export for backward compatibility
+from src.agents.base.errors import AgentError, ToolExecutionError  # noqa: E402,F811
