@@ -436,10 +436,33 @@ Use the tools to systematically investigate each candidate:
         # Test association with outcome
         corr_y, pval_y = stats.pearsonr(self._df[variable], self._df[self._outcome_var])
 
-        affects_treatment = abs(corr_t) > 0.05 and pval_t < 0.1
-        affects_outcome = abs(corr_y) > 0.05 and pval_y < 0.1
-        statistically_associated = affects_treatment and affects_outcome
-        confounder_strength = abs(corr_t) * abs(corr_y)
+        # Criterion 1: Classic confounder (low threshold for RCT compatibility)
+        affects_treatment = abs(corr_t) > 0.03
+        affects_outcome = abs(corr_y) > 0.03
+        is_classic = affects_treatment and affects_outcome
+
+        # Criterion 2: Prognostic variable (strongly predicts Y)
+        is_prognostic = abs(corr_y) > 0.1
+
+        # Criterion 3: Imbalanced between treatment groups (t-test)
+        try:
+            treated_mask = self._df[self._treatment_var] == 1
+            if treated_mask.sum() == 0 or (~treated_mask).sum() == 0:
+                treated_mask = self._df[self._treatment_var] > self._df[self._treatment_var].median()
+            treated_vals = self._df.loc[treated_mask, variable].dropna()
+            control_vals = self._df.loc[~treated_mask, variable].dropna()
+            if len(treated_vals) > 2 and len(control_vals) > 2:
+                _, balance_p = stats.ttest_ind(treated_vals, control_vals, equal_var=False)
+                is_imbalanced = balance_p < 0.1
+            else:
+                is_imbalanced = False
+                balance_p = 1.0
+        except Exception:
+            is_imbalanced = False
+            balance_p = 1.0
+
+        statistically_associated = is_classic or is_prognostic or is_imbalanced
+        confounder_strength = abs(corr_y)  # rank by outcome prediction strength
 
         # Classify causal role using DAG or domain knowledge
         causal_role = _classify_variable_role(
@@ -450,12 +473,20 @@ Use the tools to systematically investigate each candidate:
             domain_knowledge=state.domain_knowledge if hasattr(state, "domain_knowledge") else None,
         )
 
-        # A variable is a safe confounder only if it's statistically associated
+        # A variable is a safe confounder only if it meets any criterion
         # AND not classified as a mediator or collider
         is_confounder = (
             statistically_associated
             and causal_role not in ("potential_mediator", "potential_collider")
         )
+
+        reasons = []
+        if is_classic:
+            reasons.append(f"correlated with T ({abs(corr_t):.3f}) and Y ({abs(corr_y):.3f})")
+        if is_prognostic:
+            reasons.append(f"prognostic variable (corr_Y={abs(corr_y):.3f})")
+        if is_imbalanced:
+            reasons.append(f"imbalanced across groups (p={balance_p:.3f})")
 
         result = {
             "variable": variable,
@@ -467,6 +498,10 @@ Use the tools to systematically investigate each candidate:
             "corr_with_outcome": float(corr_y),
             "pval_outcome": float(pval_y),
             "affects_outcome": affects_outcome,
+            "is_prognostic": is_prognostic,
+            "is_imbalanced": is_imbalanced,
+            "balance_p_value": float(balance_p),
+            "reasons": reasons,
             "causal_role": causal_role,
             "is_confounder": is_confounder,
             "confounder_strength": float(confounder_strength) if is_confounder else 0.0,
@@ -486,36 +521,106 @@ Use the tools to systematically investigate each candidate:
     async def _statistical_confounder_scan(
         self, state: AnalysisState, df: pd.DataFrame, treatment_col: str, outcome_col: str
     ) -> list[dict]:
-        """Fallback: identify confounders via correlation with both T and Y."""
+        """Fallback: identify confounders via multiple statistical criteria.
+
+        Uses three criteria (any one sufficient):
+        1. CLASSIC CONFOUNDER: correlated with both T and Y (threshold: 0.03)
+        2. PROGNOSTIC VARIABLE: strongly predicts Y (|corr| > 0.1), even if weakly related to T
+           (adjusting for prognostic variables reduces variance and improves precision)
+        3. BALANCE INDICATOR: different means between treatment groups (t-test p < 0.1)
+        """
         confounders = []
         numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-        candidate_cols = [c for c in numeric_cols if c not in (treatment_col, outcome_col)]
+        # Exclude oracle/ground-truth columns
+        oracle_patterns = ['y0_true', 'y1_true', 'y0', 'y1', 'cate_true', 'cate', 'ite',
+                           'propensity_true', 'propensity_score', 'true_propensity', 'counterfactual']
+        candidate_cols = [
+            c for c in numeric_cols
+            if c not in (treatment_col, outcome_col)
+            and not any(p in c.lower() for p in oracle_patterns)
+        ]
+
+        treatment_vals = df[treatment_col].values.astype(float)
+        outcome_vals = df[outcome_col].values.astype(float)
+
+        # Split treatment groups for balance check
+        treated_mask = treatment_vals == 1
+        if treated_mask.sum() == 0 or (~treated_mask).sum() == 0:
+            # Can't do balance check with no variation in treatment
+            treated_mask = treatment_vals > np.median(treatment_vals)
 
         for col in candidate_cols:
             try:
-                col_data = df[col].dropna()
-                t_data = df.loc[col_data.index, treatment_col]
-                y_data = df.loc[col_data.index, outcome_col]
+                col_data = df[col].values.astype(float)
+                valid = ~(np.isnan(col_data) | np.isnan(treatment_vals) | np.isnan(outcome_vals))
+                if valid.sum() < 20:
+                    continue
 
-                # Correlation with treatment
-                corr_t = abs(np.corrcoef(col_data, t_data)[0, 1])
-                # Correlation with outcome
-                corr_y = abs(np.corrcoef(col_data, y_data)[0, 1])
+                c = col_data[valid]
+                t = treatment_vals[valid]
+                y = outcome_vals[valid]
 
-                # Confounder = correlated with BOTH T and Y (threshold: 0.05)
-                if corr_t > 0.05 and corr_y > 0.05:
+                corr_t = abs(np.corrcoef(c, t)[0, 1]) if not np.isnan(np.corrcoef(c, t)[0, 1]) else 0
+                corr_y = abs(np.corrcoef(c, y)[0, 1]) if not np.isnan(np.corrcoef(c, y)[0, 1]) else 0
+
+                # Criterion 1: Classic confounder (lower threshold)
+                is_classic = corr_t > 0.03 and corr_y > 0.03
+
+                # Criterion 2: Prognostic variable (strongly predicts Y)
+                is_prognostic = corr_y > 0.1
+
+                # Criterion 3: Imbalanced between treatment groups
+                try:
+                    treated_vals_col = c[treated_mask[valid]]
+                    control_vals_col = c[~treated_mask[valid]]
+                    if len(treated_vals_col) > 2 and len(control_vals_col) > 2:
+                        _, balance_p = stats.ttest_ind(treated_vals_col, control_vals_col, equal_var=False)
+                        is_imbalanced = balance_p < 0.1
+                    else:
+                        is_imbalanced = False
+                        balance_p = 1.0
+                except Exception:
+                    is_imbalanced = False
+                    balance_p = 1.0
+
+                if is_classic or is_prognostic or is_imbalanced:
+                    reasons = []
+                    if is_classic:
+                        reasons.append(f"correlated with T ({corr_t:.3f}) and Y ({corr_y:.3f})")
+                    if is_prognostic:
+                        reasons.append(f"prognostic variable (corr_Y={corr_y:.3f})")
+                    if is_imbalanced:
+                        reasons.append(f"imbalanced across groups (p={balance_p:.3f})")
+
                     confounders.append({
                         "variable": col,
                         "corr_with_treatment": round(float(corr_t), 3),
                         "corr_with_outcome": round(float(corr_y), 3),
-                        "strength": round(float(corr_t * corr_y), 4),
+                        "balance_p_value": round(float(balance_p), 3),
+                        "strength": round(float(corr_y), 4),  # rank by outcome prediction strength
+                        "reasons": reasons,
                         "source": "statistical_fallback",
                     })
+
+                    self.logger.info(
+                        "statistical_scan_confounder_found",
+                        variable=col,
+                        corr_t=round(float(corr_t), 3),
+                        corr_y=round(float(corr_y), 3),
+                        balance_p=round(float(balance_p), 3),
+                        reasons=reasons,
+                    )
             except Exception:
                 continue
 
-        # Sort by strength (product of correlations)
+        # Sort by outcome prediction strength (most prognostic first)
         confounders.sort(key=lambda x: x["strength"], reverse=True)
+
+        self.logger.info(
+            "statistical_scan_complete",
+            n_candidates=len(candidate_cols),
+            n_confounders=len(confounders),
+        )
         return confounders
 
     async def _tool_finalize_confounders(
@@ -639,7 +744,13 @@ Use the tools to systematically investigate each candidate:
         return None
 
     def _fallback_confounder_identification(self, state: AnalysisState) -> AnalysisState:
-        """Fallback when agentic loop fails - use statistical heuristics."""
+        """Fallback when agentic loop fails - use statistical heuristics.
+
+        Uses three criteria (any one sufficient):
+        1. Classic confounder: correlated with both T and Y (threshold: 0.03)
+        2. Prognostic variable: strongly predicts Y (|corr| > 0.1)
+        3. Balance indicator: different means between treatment groups (t-test p < 0.1)
+        """
         self.logger.info("using_statistical_fallback")
 
         if self._df is None:
@@ -649,14 +760,38 @@ Use the tools to systematically investigate each candidate:
         confounders = []
         excluded = []
 
+        treatment_vals = self._df[self._treatment_var].values.astype(float)
+
+        # Split treatment groups for balance check
+        treated_mask = treatment_vals == 1
+        if treated_mask.sum() == 0 or (~treated_mask).sum() == 0:
+            treated_mask = treatment_vals > np.median(treatment_vals)
+
         for col in candidates:
             try:
                 corr_t = abs(stats.pearsonr(self._df[col], self._df[self._treatment_var])[0])
                 corr_y = abs(stats.pearsonr(self._df[col], self._df[self._outcome_var])[0])
 
-                # Include if associated with both
-                if corr_t > 0.03 and corr_y > 0.03:
-                    # Check causal role — exclude mediators and colliders
+                # Criterion 1: Classic confounder
+                is_classic = corr_t > 0.03 and corr_y > 0.03
+
+                # Criterion 2: Prognostic variable
+                is_prognostic = corr_y > 0.1
+
+                # Criterion 3: Imbalanced between treatment groups
+                try:
+                    treated_vals_col = self._df.loc[treated_mask, col].dropna()
+                    control_vals_col = self._df.loc[~treated_mask, col].dropna()
+                    if len(treated_vals_col) > 2 and len(control_vals_col) > 2:
+                        _, balance_p = stats.ttest_ind(treated_vals_col, control_vals_col, equal_var=False)
+                        is_imbalanced = balance_p < 0.1
+                    else:
+                        is_imbalanced = False
+                except Exception:
+                    is_imbalanced = False
+
+                if is_classic or is_prognostic or is_imbalanced:
+                    # Check causal role -- exclude mediators and colliders
                     role = _classify_variable_role(
                         dag=state.proposed_dag,
                         variable=col,
@@ -672,13 +807,26 @@ Use the tools to systematically investigate each candidate:
                             causal_role=role,
                         )
                     else:
-                        confounders.append((col, corr_t * corr_y))
+                        reasons = []
+                        if is_classic:
+                            reasons.append(f"correlated with T ({corr_t:.3f}) and Y ({corr_y:.3f})")
+                        if is_prognostic:
+                            reasons.append(f"prognostic (corr_Y={corr_y:.3f})")
+                        if is_imbalanced:
+                            reasons.append("imbalanced across groups")
+                        confounders.append((col, corr_y, reasons))
+                        logger.info(
+                            "fallback_confounder_found",
+                            variable=col,
+                            corr_y=round(corr_y, 3),
+                            reasons=reasons,
+                        )
             except Exception:
                 logger.debug("correlation_computation_skipped", column=col, exc_info=True)
 
-        # Sort by confounder strength
+        # Sort by outcome prediction strength
         confounders.sort(key=lambda x: x[1], reverse=True)
-        ranked = [c for c, _ in confounders]
+        ranked = [c for c, _, _ in confounders]
 
         if state.data_profile:
             state.data_profile.potential_confounders = ranked
@@ -686,8 +834,18 @@ Use the tools to systematically investigate each candidate:
         state.confounder_discovery = {
             "ranked_confounders": ranked,
             "excluded_variables": excluded,
-            "adjustment_strategy": "Statistical fallback - variables correlated with both T and Y, filtered by causal role",
+            "adjustment_strategy": (
+                "Statistical fallback - three criteria (classic confounder, prognostic variable, "
+                "balance indicator), filtered by causal role"
+            ),
             "investigation_log": [],
         }
+
+        self.logger.info(
+            "fallback_confounder_identification_complete",
+            n_confounders=len(ranked),
+            n_excluded=len(excluded),
+            top_confounders=ranked[:5],
+        )
 
         return state
