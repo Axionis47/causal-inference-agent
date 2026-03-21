@@ -109,6 +109,10 @@ CONTEXT TOOLS (pull upstream results if needed):
 Use ask_domain_knowledge to check for immutable variables (can't be caused by others),
 temporal ordering constraints, and to validate discovered edges.
 
+IMPORTANT: Always run at least 2 discovery algorithms and compare results.
+If the first algorithm produces fewer than 2 edges, try a different algorithm class
+(constraint-based vs score-based vs continuous optimization).
+
 VALIDATION CRITERIA:
 - Does treatment → outcome path exist?
 - Are confounders properly placed?
@@ -550,6 +554,9 @@ VALIDATION CRITERIA:
                 error=f"Not enough complete cases ({len(df_subset)}) for discovery",
             )
 
+        # Retry order for empty/sparse DAGs
+        retry_order = {"pc": "ges", "ges": "notears", "notears": None, "lingam": "ges"}
+
         try:
             dag = self._run_algorithm(df_subset, algorithm, alpha, threshold)
 
@@ -563,23 +570,67 @@ VALIDATION CRITERIA:
                 self._discovered_graphs[algorithm] = dag
                 self._current_graph = dag
 
+                n_edges = len(dag.edges)
+                n_nodes = len(dag.nodes)
+                n_samples = len(df_subset)
+
+                # FIX 1: Empty DAG detection + automatic retry
+                if n_edges < 2:
+                    next_algo = retry_order.get(algorithm)
+                    if next_algo and next_algo not in self._discovered_graphs:
+                        state.push_decision(
+                            agent="causal_discovery",
+                            decision_type="algorithm_retry",
+                            choice=f"retrying with {next_algo}",
+                            reason=f"{algorithm} produced only {n_edges} edges on {n_samples} samples — insufficient for causal structure",
+                        )
+                        self.logger.warning(
+                            "discovery_sparse_dag_retry",
+                            algorithm=algorithm,
+                            n_edges=n_edges,
+                            next_algo=next_algo,
+                        )
+
+                        # Recursively try the next algorithm
+                        return await self._tool_run_discovery_algorithm(
+                            state=state,
+                            algorithm=next_algo,
+                            alpha=alpha,
+                            threshold=threshold,
+                        )
+                    else:
+                        # All retries exhausted — produce minimal DAG
+                        self.logger.warning(
+                            "discovery_all_retries_exhausted",
+                            algorithm=algorithm,
+                            n_edges=n_edges,
+                        )
+                        fallback_dag = self._create_simple_dag()
+                        self._discovered_graphs["fallback"] = fallback_dag
+                        self._current_graph = fallback_dag
+
+                        state.push_decision(
+                            agent="causal_discovery",
+                            decision_type="algorithm_retry",
+                            choice="fallback to minimal DAG",
+                            reason=f"All algorithms produced fewer than 2 edges — using minimal treatment→outcome DAG",
+                        )
+
+                        return ToolResult(
+                            status=ToolResultStatus.SUCCESS,
+                            output={
+                                "algorithm": "FALLBACK",
+                                "fallback": True,
+                                "message": "All algorithms produced sparse graphs. Using minimal treatment→outcome DAG.",
+                                "n_nodes": len(fallback_dag.nodes),
+                                "n_edges": len(fallback_dag.edges),
+                                "variables_used": len(relevant_cols),
+                                "samples_used": n_samples,
+                            },
+                        )
+
                 directed = [e for e in dag.edges if e.edge_type == "directed"]
                 undirected = [e for e in dag.edges if e.edge_type == "undirected"]
-
-                # INT5: Check for empty graph before marking SUCCESS
-                if not dag.edges:
-                    return ToolResult(
-                        status=ToolResultStatus.SUCCESS,
-                        output={
-                            "algorithm": algorithm.upper(),
-                            "n_nodes": len(dag.nodes),
-                            "n_edges": 0,
-                            "partial": True,
-                            "message": "Algorithm returned a graph with no edges. Results may be unreliable.",
-                            "variables_used": len(relevant_cols),
-                            "samples_used": len(df_subset),
-                        },
-                    )
 
                 # Check treatment-outcome path
                 has_direct_edge = False
@@ -593,19 +644,19 @@ VALIDATION CRITERIA:
                     agent="causal_discovery",
                     decision_type="algorithm_succeeded",
                     choice=algorithm.upper(),
-                    reason=f"{algorithm.upper()} produced {len(directed)} directed and {len(undirected)} undirected edges across {len(dag.nodes)} nodes using {len(df_subset)} samples",
+                    reason=f"{algorithm.upper()} produced {len(directed)} directed and {len(undirected)} undirected edges across {n_nodes} nodes using {n_samples} samples",
                 )
 
                 return ToolResult(
                     status=ToolResultStatus.SUCCESS,
                     output={
                         "algorithm": algorithm.upper(),
-                        "n_nodes": len(dag.nodes),
-                        "n_edges": len(dag.edges),
+                        "n_nodes": n_nodes,
+                        "n_edges": n_edges,
                         "n_directed": len(directed),
                         "n_undirected": len(undirected),
                         "variables_used": len(relevant_cols),
-                        "samples_used": len(df_subset),
+                        "samples_used": n_samples,
                         "treatment_outcome_edge": has_direct_edge,
                         "message": "Discovery completed. Call inspect_graph for details.",
                     },
@@ -1034,23 +1085,60 @@ VALIDATION CRITERIA:
             confidence=confidence,
         )
 
+        n_algorithms_run = len(self._discovered_graphs)
+        chosen_dag = self._discovered_graphs.get(chosen_algorithm)
+        n_edges = len(chosen_dag.edges) if chosen_dag else 0
+        n_nodes = len(chosen_dag.nodes) if chosen_dag else 0
+
+        # FIX 3: DAG quality assessment
+        quality = self._assess_dag_quality(n_edges, n_nodes)
+
+        state.push_decision(
+            agent="causal_discovery",
+            decision_type="dag_quality_assessment",
+            choice=quality,
+            reason=f"DAG has {n_edges} edges across {n_nodes} nodes — quality: {quality}",
+        )
+
+        # Append warning to interpretation for poor/empty DAGs
+        final_interpretation = interpretation
+        if quality in ("poor", "empty"):
+            quality_warning = (
+                " Warning: The discovered graph has very few edges, suggesting "
+                "the algorithm may lack power for this dataset. Downstream "
+                "confounder selection will rely on statistical methods."
+            )
+            final_interpretation = interpretation + quality_warning
+
+        # FIX 2: Warn if only 1 algorithm was run with enough samples
+        n_samples = len(self._df) if self._df is not None else 0
+        if n_algorithms_run == 1 and n_samples > 100:
+            state.push_decision(
+                agent="causal_discovery",
+                decision_type="single_algorithm_warning",
+                choice=chosen_algorithm,
+                reason=f"Only 1 algorithm was run on {n_samples} samples — consider running a second algorithm for robustness",
+            )
+            self.logger.warning(
+                "discovery_single_algorithm",
+                chosen_algorithm=chosen_algorithm,
+                n_samples=n_samples,
+            )
+
         self._final_result = {
             "chosen_algorithm": chosen_algorithm,
             "confounders": confounders or [],
             "mediators": mediators or [],
-            "interpretation": interpretation,
+            "interpretation": final_interpretation,
             "confidence": confidence,
         }
         self._finalized = True
 
-        n_algorithms_run = len(self._discovered_graphs)
-        chosen_dag = self._discovered_graphs.get(chosen_algorithm)
-        n_edges = len(chosen_dag.edges) if chosen_dag else 0
         state.push_decision(
             agent="causal_discovery",
             decision_type="final_dag_selected",
             choice=chosen_algorithm,
-            reason=f"Selected {chosen_algorithm.upper()} (confidence: {confidence}) from {n_algorithms_run} algorithm(s) run; graph has {n_edges} edges, {len(confounders or [])} confounders identified",
+            reason=f"Selected {chosen_algorithm.upper()} (confidence: {confidence}) from {n_algorithms_run} algorithm(s) run; graph has {n_edges} edges, {len(confounders or [])} confounders identified; quality: {quality}",
         )
 
         return ToolResult(
@@ -1061,8 +1149,28 @@ VALIDATION CRITERIA:
                 "confidence": confidence,
                 "n_confounders": len(confounders or []),
                 "n_mediators": len(mediators or []),
+                "dag_quality": quality,
+                "n_algorithms_run": n_algorithms_run,
             },
         )
+
+    def _assess_dag_quality(self, edges: int, n_nodes: int) -> str:
+        """Assess the quality of a discovered DAG based on edge count.
+
+        Args:
+            edges: Number of edges in the DAG.
+            n_nodes: Number of nodes in the DAG.
+
+        Returns:
+            Quality level: "good", "sparse", "poor", or "empty".
+        """
+        if edges == 0:
+            return "empty"
+        if edges < 2:
+            return "poor"
+        if edges < n_nodes * 0.5:
+            return "sparse"
+        return "good"
 
     def _create_simple_dag(self) -> CausalDAG:
         """Create a simple treatment → outcome DAG with confounders."""

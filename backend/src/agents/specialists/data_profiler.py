@@ -86,6 +86,54 @@ If the treatment variable is categorical with string values (e.g., 'Control', 'T
 
 Be systematic. Don't guess - investigate and verify."""
 
+    # Known oracle/ground-truth column name patterns found in benchmark datasets.
+    # These columns contain information that would not be available in real
+    # observational data and must be excluded before profiling/DAG discovery.
+    ORACLE_PATTERNS = [
+        "y0_true", "y1_true", "y0", "y1",          # potential outcomes
+        "cate_true", "cate", "ite", "ite_true",     # treatment effects
+        "propensity_true", "propensity_score", "true_propensity",  # propensity
+        "counterfactual", "cf_",                     # counterfactuals
+    ]
+
+    @staticmethod
+    def _is_oracle_column(col_name: str) -> bool:
+        """Check if a column name matches known oracle/ground-truth patterns."""
+        lower = col_name.lower()
+        return any(pattern in lower for pattern in DataProfilerAgent.ORACLE_PATTERNS)
+
+    def _exclude_oracle_columns(
+        self, df: pd.DataFrame, state: AnalysisState
+    ) -> pd.DataFrame:
+        """Drop suspected oracle/ground-truth columns from the dataframe.
+
+        Columns that match oracle patterns are removed UNLESS they are the
+        user-specified treatment or outcome variable.
+        """
+        # Columns the user explicitly chose — never drop these
+        protected: set[str] = set()
+        if state.treatment_variable:
+            protected.add(state.treatment_variable)
+        if state.outcome_variable:
+            protected.add(state.outcome_variable)
+
+        excluded = [
+            col for col in df.columns
+            if self._is_oracle_column(col) and col not in protected
+        ]
+
+        if excluded:
+            self.logger.info("oracle_columns_excluded", columns=excluded)
+            state.push_decision(
+                agent="data_profiler",
+                decision_type="columns_excluded",
+                choice=", ".join(excluded),
+                reason="Excluded suspected oracle/ground-truth columns that would leak into causal analysis",
+            )
+            df = df.drop(columns=excluded)
+
+        return df
+
     def __init__(self) -> None:
         """Initialize the data profiler agent."""
         super().__init__()
@@ -300,6 +348,9 @@ Use the available tools to gather evidence before finalizing the profile."""
                 error_msg = self._load_error or "Failed to load dataset"
                 state.mark_failed(error_msg, self.AGENT_NAME)
                 return state
+
+            # Filter out oracle/ground-truth columns that would leak into causal analysis
+            self._df = self._exclude_oracle_columns(self._df, state)
 
             # Compute basic profile (shape, types, missing) - needed for tools
             self._profile = self._compute_basic_profile(self._df)

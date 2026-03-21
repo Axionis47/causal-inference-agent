@@ -219,10 +219,24 @@ CONTEXT TOOLS (pull upstream results if needed):
         treatment = self._treatment_var or "unknown"
         outcome = self._outcome_var or "unknown"
 
+        # Check if DAG is empty or missing
+        dag_available = (
+            state.proposed_dag is not None
+            and hasattr(state.proposed_dag, "edges")
+            and len(state.proposed_dag.edges) > 0
+        )
+        dag_note = ""
+        if not dag_available:
+            dag_note = (
+                "\n\nIMPORTANT: No causal graph available (DAG is empty or missing). "
+                "Use statistical methods to identify confounders. Focus on correlations "
+                "with both treatment and outcome variables."
+            )
+
         return f"""CONFOUNDER DISCOVERY TASK
 Treatment variable: {treatment}
 Outcome variable: {outcome}
-Candidate variables to investigate: {candidates}
+Candidate variables to investigate: {candidates}{dag_note}
 
 Your goal is to identify which candidates are confounders (affect both treatment and outcome).
 Use the tools to systematically investigate each candidate:
@@ -469,6 +483,41 @@ Use the tools to systematically investigate each candidate:
             output=result,
         )
 
+    async def _statistical_confounder_scan(
+        self, state: AnalysisState, df: pd.DataFrame, treatment_col: str, outcome_col: str
+    ) -> list[dict]:
+        """Fallback: identify confounders via correlation with both T and Y."""
+        confounders = []
+        numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+        candidate_cols = [c for c in numeric_cols if c not in (treatment_col, outcome_col)]
+
+        for col in candidate_cols:
+            try:
+                col_data = df[col].dropna()
+                t_data = df.loc[col_data.index, treatment_col]
+                y_data = df.loc[col_data.index, outcome_col]
+
+                # Correlation with treatment
+                corr_t = abs(np.corrcoef(col_data, t_data)[0, 1])
+                # Correlation with outcome
+                corr_y = abs(np.corrcoef(col_data, y_data)[0, 1])
+
+                # Confounder = correlated with BOTH T and Y (threshold: 0.05)
+                if corr_t > 0.05 and corr_y > 0.05:
+                    confounders.append({
+                        "variable": col,
+                        "corr_with_treatment": round(float(corr_t), 3),
+                        "corr_with_outcome": round(float(corr_y), 3),
+                        "strength": round(float(corr_t * corr_y), 4),
+                        "source": "statistical_fallback",
+                    })
+            except Exception:
+                continue
+
+        # Sort by strength (product of correlations)
+        confounders.sort(key=lambda x: x["strength"], reverse=True)
+        return confounders
+
     async def _tool_finalize_confounders(
         self,
         state: AnalysisState,
@@ -482,6 +531,37 @@ Use the tools to systematically investigate each candidate:
             logger.debug("tool_ignored_kwargs", tool="finalize_confounders", extra_keys=list(kwargs.keys()))
         confounders = confounders or []
         excluded = excluded or []
+
+        # --- Statistical fallback when 0 confounders found ---
+        fallback_details = None
+        if len(confounders) == 0 and self._df is not None and self._treatment_var and self._outcome_var:
+            self.logger.info("finalize_zero_confounders_triggering_statistical_fallback")
+
+            scan_results = await self._statistical_confounder_scan(
+                state, self._df, self._treatment_var, self._outcome_var
+            )
+
+            if scan_results:
+                confounders = [r["variable"] for r in scan_results]
+                fallback_details = scan_results
+                reasoning = (
+                    f"Statistical fallback: DAG-based confounder identification produced no results. "
+                    f"Correlation scan found {len(confounders)} variable(s) associated with both "
+                    f"treatment ({self._treatment_var}) and outcome ({self._outcome_var})."
+                )
+
+                state.push_decision(
+                    agent="confounder_discovery",
+                    decision_type="statistical_fallback",
+                    choice=f"Found {len(confounders)} confounders via correlation scan",
+                    reason="DAG-based confounder identification produced no results, falling back to statistical correlation with T and Y",
+                )
+
+                self.logger.info(
+                    "statistical_fallback_confounders_found",
+                    n_confounders=len(confounders),
+                    top_confounders=confounders[:5],
+                )
 
         self.logger.info(
             "confounder_finalizing",
@@ -499,6 +579,10 @@ Use the tools to systematically investigate each candidate:
             "adjustment_strategy": reasoning,
             "investigation_log": self._investigation_log,
         }
+
+        # Include fallback details so downstream agents know the source
+        if fallback_details:
+            state.confounder_discovery["statistical_fallback_details"] = fallback_details
 
         self._finalized = True
 
@@ -521,6 +605,7 @@ Use the tools to systematically investigate each candidate:
                 "confounders": confounders,
                 "excluded": excluded,
                 "reasoning": reasoning,
+                **({"fallback_scan": fallback_details} if fallback_details else {}),
             },
         )
 
