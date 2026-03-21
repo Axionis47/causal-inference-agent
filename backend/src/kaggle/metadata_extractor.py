@@ -51,7 +51,7 @@ class KaggleMetadataExtractor:
                     kaggle_username = kaggle_creds.get("username", kaggle_username)
                     kaggle_key = kaggle_creds.get("key", kaggle_key)
                 except json.JSONDecodeError:
-                    pass
+                    logger.debug("kaggle_creds_json_parse_skipped", exc_info=True)
 
             os.environ["KAGGLE_USERNAME"] = kaggle_username
             os.environ["KAGGLE_KEY"] = kaggle_key
@@ -221,7 +221,7 @@ class KaggleMetadataExtractor:
                         "columns": self._extract_column_descriptions(metadata),
                     }
             except Exception:
-                pass
+                logger.debug("metadata_parse_skipped", exc_info=True)
 
             return {"title": dataset_name}
 
@@ -255,7 +255,7 @@ class KaggleMetadataExtractor:
                         if col.description:
                             columns[col.name] = col.description
         except Exception:
-            pass
+            logger.debug("column_description_extract_skipped", exc_info=True)
 
         return columns
 
@@ -370,10 +370,18 @@ class KaggleMetadataExtractor:
         """
         import asyncio
 
+        created_loop = False
         try:
             loop = asyncio.get_event_loop()
+            if loop.is_closed():
+                raise RuntimeError("closed")
         except RuntimeError:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
+            created_loop = True
 
-        return loop.run_until_complete(self.extract(dataset_url))
+        try:
+            return loop.run_until_complete(self.extract(dataset_url))
+        finally:
+            if created_loop:
+                loop.close()

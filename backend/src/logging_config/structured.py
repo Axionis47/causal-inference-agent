@@ -18,6 +18,7 @@ def add_app_context(
     event_dict["app"] = settings.app_name
     event_dict["version"] = settings.app_version
     event_dict["environment"] = settings.environment
+    event_dict["instance_id"] = settings.instance_id
     return event_dict
 
 

@@ -135,6 +135,41 @@ plt.tight_layout()
 plt.show()'''
     cells.append(new_code_cell(dist_code))
 
+    # Outcome distribution by treatment group
+    cells.append(new_markdown_cell("### Outcome Distribution by Treatment Group"))
+    outcome_by_group_code = f'''# Outcome by treatment group
+treatment_var = "{state.treatment_variable}"
+outcome_var = "{state.outcome_variable}"
+
+T = df[treatment_var].copy()
+# Binarize if needed
+if T.nunique() > 2 and pd.api.types.is_numeric_dtype(T):
+    T = (T > T.median()).astype(int)
+
+fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+
+# Box plot
+ax = axes[0]
+groups = [df.loc[T == g, outcome_var].dropna() for g in sorted(T.unique())]
+labels = [f"Group {{g}}" for g in sorted(T.unique())]
+ax.boxplot(groups, labels=labels)
+ax.set_ylabel(outcome_var)
+ax.set_title(f'{{outcome_var}} by Treatment Group')
+
+# Overlaid histograms
+ax = axes[1]
+for g in sorted(T.unique()):
+    subset = df.loc[T == g, outcome_var].dropna()
+    ax.hist(subset, bins=30, alpha=0.5, label=f"Group {{g}}", edgecolor='black')
+ax.set_xlabel(outcome_var)
+ax.set_ylabel('Count')
+ax.set_title(f'{{outcome_var}} Distribution by Group')
+ax.legend()
+
+plt.tight_layout()
+plt.show()'''
+    cells.append(new_code_cell(outcome_by_group_code))
+
     # Correlation heatmap from pipeline data
     if eda and eda.correlation_matrix:
         cells.append(new_markdown_cell("### Correlation Heatmap"))
@@ -157,5 +192,45 @@ ax.set_title('Correlation Matrix (from EDA agent)')
 plt.tight_layout()
 plt.show()'''
         cells.append(new_code_cell(heatmap_code))
+
+    # Love plot: standardized mean differences by covariate
+    if eda and eda.covariate_balance:
+        love_data = {}
+        for cov, vals in eda.covariate_balance.items():
+            if isinstance(vals, dict):
+                smd = vals.get("smd", vals.get("std_mean_diff"))
+                if isinstance(smd, (int, float)):
+                    love_data[cov] = smd
+
+        if love_data:
+            cells.append(new_markdown_cell("### Love Plot: Covariate Balance"))
+            love_json = json.dumps(love_data)
+            love_code = f'''# Love plot: Standardized Mean Differences
+import json
+smd_data = json.loads('{love_json}')
+
+covariates_lp = list(smd_data.keys())
+smds = [abs(smd_data[c]) for c in covariates_lp]
+
+# Sort by absolute SMD
+sorted_pairs = sorted(zip(covariates_lp, smds), key=lambda x: x[1], reverse=True)
+if sorted_pairs:
+    covariates_lp, smds = zip(*sorted_pairs)
+else:
+    covariates_lp, smds = [], []
+
+fig, ax = plt.subplots(figsize=(10, max(4, len(covariates_lp) * 0.4)))
+y_pos = range(len(covariates_lp))
+colors = ['#e74c3c' if s > 0.1 else '#2ecc71' for s in smds]
+ax.barh(list(y_pos), list(smds), color=colors, edgecolor='black', alpha=0.7)
+ax.axvline(x=0.1, color='red', linestyle='--', alpha=0.7, label='Threshold (0.1)')
+ax.set_yticks(list(y_pos))
+ax.set_yticklabels(list(covariates_lp))
+ax.set_xlabel('|Standardized Mean Difference|')
+ax.set_title('Love Plot: Covariate Balance (Red = Imbalanced)')
+ax.legend()
+plt.tight_layout()
+plt.show()'''
+            cells.append(new_code_cell(love_code))
 
     return cells

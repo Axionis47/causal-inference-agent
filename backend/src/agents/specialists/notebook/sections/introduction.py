@@ -1,6 +1,6 @@
 """Introduction section renderer."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from nbformat.v4 import new_markdown_cell
 
@@ -15,7 +15,7 @@ async def render_introduction(state: AnalysisState, *, llm=None, system_prompt: 
 
     title = "# Causal Inference Analysis Report\n\n"
     title += f"**Dataset**: {state.dataset_info.name or state.dataset_info.url}\n\n"
-    title += f"**Generated**: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}\n\n"
+    title += f"**Generated**: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}\n\n"
     title += f"**Job ID**: {state.job_id}\n"
     cells.append(new_markdown_cell(title))
 
@@ -23,6 +23,14 @@ async def render_introduction(state: AnalysisState, *, llm=None, system_prompt: 
     intro = "## Introduction\n\n"
     intro += "This notebook reports the results of an automated causal inference analysis "
     intro += f"estimating the effect of **{state.treatment_variable}** on **{state.outcome_variable}**.\n\n"
+
+    # L12: Front-load observational analysis caveat
+    intro += (
+        "> **Note**: This is an automated observational causal analysis. "
+        "All results depend on the assumption that relevant confounders "
+        "have been measured. Results should not be interpreted as evidence "
+        "of causation without additional domain expertise and validation.\n\n"
+    )
 
     if state.data_profile:
         intro += f"The dataset contains **{state.data_profile.n_samples:,}** observations "

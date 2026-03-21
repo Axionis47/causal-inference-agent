@@ -66,17 +66,3 @@ def analysis_state():
         treatment_variable="treatment",
         outcome_variable="outcome",
     )
-
-
-@pytest.fixture
-def mock_gemini_response():
-    """Create mock Gemini API response."""
-    return {
-        "candidates": [{
-            "content": {
-                "parts": [{
-                    "text": "This is a test response from Gemini."
-                }]
-            }
-        }]
-    }

@@ -485,12 +485,12 @@ class TestContextToolsRegistration:
 
         expected_tools = [
             "ask_domain_knowledge",
-            "get_column_info",
-            "get_dataset_summary",
-            "list_columns",
             "get_eda_finding",
             "get_previous_finding",
             "get_treatment_outcome",
+            "get_confounder_analysis",
+            "analyze_variable_semantics",
+            "get_dag_adjustment_set",
             "finish",  # Built-in ReAct tool
             "reflect",  # Built-in ReAct tool
         ]

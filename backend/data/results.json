@@ -1,1 +1,4862 @@
-{}
+{
+  "bf13ba2c": {
+    "job_id": "bf13ba2c",
+    "created_at": "2026-02-16T22:08:54.340595+00:00",
+    "treatment_variable": "treat",
+    "outcome_variable": "re78",
+    "recommendations": [],
+    "notebook_path": "/var/folders/xx/1nn8khpj6cq8cbxnnp0275zh0000gn/T/causal_orchestrator/notebooks/causal_analysis_bf13ba2c.ipynb",
+    "data_profile": {
+      "n_samples": 614,
+      "n_features": 11,
+      "treatment_candidates": [
+        "treat",
+        "black",
+        "hispan",
+        "married",
+        "nodegree"
+      ],
+      "outcome_candidates": [
+        "Unnamed: 0",
+        "age",
+        "educ",
+        "re74",
+        "re75"
+      ],
+      "has_time_dimension": false
+    },
+    "causal_graph": {
+      "nodes": [
+        "treat",
+        "black",
+        "Unnamed: 0",
+        "age",
+        "married",
+        "nodegree",
+        "re74",
+        "re75",
+        "re78",
+        "educ",
+        "hispan"
+      ],
+      "edges": [
+        {
+          "source": "black",
+          "target": "treat",
+          "type": "directed"
+        },
+        {
+          "source": "treat",
+          "target": "Unnamed: 0",
+          "type": "directed"
+        },
+        {
+          "source": "married",
+          "target": "treat",
+          "type": "directed"
+        },
+        {
+          "source": "married",
+          "target": "black",
+          "type": "directed"
+        },
+        {
+          "source": "re74",
+          "target": "black",
+          "type": "directed"
+        },
+        {
+          "source": "hispan",
+          "target": "black",
+          "type": "directed"
+        },
+        {
+          "source": "re75",
+          "target": "Unnamed: 0",
+          "type": "directed"
+        },
+        {
+          "source": "married",
+          "target": "age",
+          "type": "directed"
+        },
+        {
+          "source": "re74",
+          "target": "age",
+          "type": "directed"
+        },
+        {
+          "source": "age",
+          "target": "educ",
+          "type": "directed"
+        },
+        {
+          "source": "married",
+          "target": "re74",
+          "type": "directed"
+        },
+        {
+          "source": "married",
+          "target": "re75",
+          "type": "directed"
+        },
+        {
+          "source": "nodegree",
+          "target": "re74",
+          "type": "directed"
+        },
+        {
+          "source": "nodegree",
+          "target": "educ",
+          "type": "directed"
+        },
+        {
+          "source": "re74",
+          "target": "re75",
+          "type": "directed"
+        },
+        {
+          "source": "re74",
+          "target": "re78",
+          "type": "directed"
+        },
+        {
+          "source": "educ",
+          "target": "hispan",
+          "type": "directed"
+        }
+      ],
+      "discovery_method": "GES (engine)",
+      "interpretation": "Causal structure discovered through automated analysis."
+    },
+    "treatment_effects": [
+      {
+        "method": "OLS Regression",
+        "estimand": "ATE",
+        "estimate": 961.2608779138827,
+        "std_error": 678.4714047661068,
+        "ci_lower": -368.518639967984,
+        "ci_upper": 2291.0403957957496,
+        "p_value": 0.15654029260385138,
+        "assumptions_tested": [
+          "linearity",
+          "no_unmeasured_confounding"
+        ]
+      },
+      {
+        "method": "Inverse Probability Weighting",
+        "estimand": "ATE",
+        "estimate": 2900.0010762955417,
+        "std_error": 2554.071710442659,
+        "ci_lower": -1602.3621584226548,
+        "ci_upper": 7628.85531447161,
+        "p_value": 0.2561900416849998,
+        "assumptions_tested": [
+          "positivity",
+          "conditional_ignorability"
+        ]
+      },
+      {
+        "method": "Doubly Robust (AIPW)",
+        "estimand": "ATE",
+        "estimate": 2756.510215724132,
+        "std_error": 3446.402845761538,
+        "ci_lower": -3998.3152381848336,
+        "ci_upper": 9511.335669633097,
+        "p_value": 0.42381369950955117,
+        "assumptions_tested": [
+          "positivity",
+          "conditional_ignorability",
+          "doubly_robust"
+        ]
+      }
+    ],
+    "sensitivity_results": [
+      {
+        "method": "E-value",
+        "robustness_value": 1.290604104003156,
+        "interpretation": "E-value = 1.29 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "Specification Curve",
+        "robustness_value": 0.0,
+        "interpretation": "UNSTABLE: Sign changes across specifications (CV=1.55)"
+      },
+      {
+        "method": "Placebo Test (both)",
+        "robustness_value": 12706.78124082767,
+        "interpretation": "CONCERNING: Real effect within placebo distribution; PASSED: Much larger effect on real outcome"
+      },
+      {
+        "method": "Subgroup Analysis",
+        "robustness_value": 0.0,
+        "interpretation": "HETEROGENEOUS: Effect varies including sign changes"
+      },
+      {
+        "method": "Bootstrap Variance Check",
+        "robustness_value": 0.985423050687695,
+        "interpretation": "STABLE: Bootstrap SE consistent with reported SE"
+      }
+    ]
+  },
+  "d4ba1c83": {
+    "job_id": "d4ba1c83",
+    "created_at": "2026-02-16T22:09:46.364714+00:00",
+    "treatment_variable": "treatment",
+    "outcome_variable": "y_factual",
+    "recommendations": [
+      "Consider additional estimation methods (IPW, AIPW, matching) for triangulation as suggested by critique",
+      "Address severe covariate imbalance in married status (SMD=0.719) through stratification or matching",
+      "Investigate pre-treatment earnings differences (re74, re75) as potential sources of selection bias",
+      "Consider outcome transformation or robust methods due to right-skewed earnings distribution",
+      "Validate findings with larger sample sizes given imbalanced treatment assignment",
+      "Implement propensity score diagnostics to assess overlap and balance"
+    ],
+    "notebook_path": "/var/folders/xx/1nn8khpj6cq8cbxnnp0275zh0000gn/T/causal_orchestrator/notebooks/causal_analysis_d4ba1c83.ipynb",
+    "data_profile": {
+      "n_samples": 614,
+      "n_features": 11,
+      "treatment_candidates": [
+        "treat",
+        "black",
+        "hispan",
+        "married",
+        "nodegree"
+      ],
+      "outcome_candidates": [
+        "Unnamed: 0",
+        "age",
+        "educ",
+        "re74",
+        "re75"
+      ],
+      "has_time_dimension": false
+    },
+    "causal_graph": {
+      "nodes": [
+        "treat",
+        "black",
+        "Unnamed: 0",
+        "age",
+        "married",
+        "nodegree",
+        "re74",
+        "re75",
+        "re78",
+        "educ",
+        "hispan"
+      ],
+      "edges": [
+        {
+          "source": "black",
+          "target": "treat",
+          "type": "directed"
+        },
+        {
+          "source": "treat",
+          "target": "Unnamed: 0",
+          "type": "directed"
+        },
+        {
+          "source": "married",
+          "target": "treat",
+          "type": "directed"
+        },
+        {
+          "source": "married",
+          "target": "black",
+          "type": "directed"
+        },
+        {
+          "source": "re74",
+          "target": "black",
+          "type": "directed"
+        },
+        {
+          "source": "hispan",
+          "target": "black",
+          "type": "directed"
+        },
+        {
+          "source": "re75",
+          "target": "Unnamed: 0",
+          "type": "directed"
+        },
+        {
+          "source": "married",
+          "target": "age",
+          "type": "directed"
+        },
+        {
+          "source": "re74",
+          "target": "age",
+          "type": "directed"
+        },
+        {
+          "source": "age",
+          "target": "educ",
+          "type": "directed"
+        },
+        {
+          "source": "married",
+          "target": "re74",
+          "type": "directed"
+        },
+        {
+          "source": "married",
+          "target": "re75",
+          "type": "directed"
+        },
+        {
+          "source": "nodegree",
+          "target": "re74",
+          "type": "directed"
+        },
+        {
+          "source": "nodegree",
+          "target": "educ",
+          "type": "directed"
+        },
+        {
+          "source": "re74",
+          "target": "re75",
+          "type": "directed"
+        },
+        {
+          "source": "re74",
+          "target": "re78",
+          "type": "directed"
+        },
+        {
+          "source": "educ",
+          "target": "hispan",
+          "type": "directed"
+        }
+      ],
+      "discovery_method": "GES (engine)",
+      "interpretation": "Causal structure discovered through automated analysis."
+    },
+    "treatment_effects": [
+      {
+        "method": "OLS Regression",
+        "estimand": "ATE",
+        "estimate": 4.021121012430849,
+        "std_error": 0.1140200027948601,
+        "ci_lower": 3.797645913435767,
+        "ci_upper": 4.244596111425931,
+        "p_value": 1.8962939509528343e-272,
+        "assumptions_tested": [
+          "linearity",
+          "no_unmeasured_confounding"
+        ]
+      },
+      {
+        "method": "OLS Regression",
+        "estimand": "ATE",
+        "estimate": 4.021121012430849,
+        "std_error": 0.1140200027948601,
+        "ci_lower": 3.797645913435767,
+        "ci_upper": 4.244596111425931,
+        "p_value": 1.8962939509528343e-272,
+        "assumptions_tested": [
+          "linearity",
+          "no_unmeasured_confounding"
+        ]
+      }
+    ],
+    "sensitivity_results": [
+      {
+        "method": "E-value",
+        "robustness_value": 5.9251143776007495,
+        "interpretation": "E-value = 5.93 (CI: 5.51): ROBUST: Would need very strong unmeasured confounding"
+      },
+      {
+        "method": "E-value",
+        "robustness_value": 5.9251143776007495,
+        "interpretation": "E-value = 5.93 (CI: 5.51): ROBUST: Would need very strong unmeasured confounding"
+      },
+      {
+        "method": "E-value",
+        "robustness_value": 5.9251143776007495,
+        "interpretation": "E-value = 5.93 (CI: 5.51): ROBUST: Would need very strong unmeasured confounding"
+      },
+      {
+        "method": "E-value",
+        "robustness_value": 5.9251143776007495,
+        "interpretation": "E-value = 5.93 (CI: 5.51): ROBUST: Would need very strong unmeasured confounding"
+      }
+    ]
+  },
+  "4039472d": {
+    "job_id": "4039472d",
+    "created_at": "2026-02-16T23:33:32.923846+00:00",
+    "treatment_variable": "segment",
+    "outcome_variable": "spend",
+    "recommendations": [
+      "Consider running additional estimation methods (IPW, AIPW, matching) for triangulation as suggested by critique",
+      "The treatment effect estimate of 0.0202 suggests a small positive effect, but confidence interval includes zero indicating statistical non-significance",
+      "Excellent data quality (no missing values, outliers, or multicollinearity) provides confidence in results",
+      "Multiple treatment and outcome candidates identified - consider exploring different treatment-outcome combinations",
+      "Dataset size (64,000 samples) provides adequate power for causal inference"
+    ],
+    "notebook_path": "/var/folders/xx/1nn8khpj6cq8cbxnnp0275zh0000gn/T/causal_orchestrator/notebooks/causal_analysis_4039472d.ipynb",
+    "data_profile": {
+      "n_samples": 64000,
+      "n_features": 12,
+      "treatment_candidates": [
+        "mens",
+        "womens",
+        "newbie",
+        "visit"
+      ],
+      "outcome_candidates": [
+        "recency",
+        "history_segment",
+        "history",
+        "spend"
+      ],
+      "has_time_dimension": false
+    },
+    "causal_graph": {
+      "nodes": [
+        "mens",
+        "womens",
+        "recency",
+        "visit",
+        "conversion",
+        "spend",
+        "history",
+        "newbie",
+        "history_segment_2) $100 - $200",
+        "history_segment_3) $200 - $350",
+        "history_segment_4) $350 - $500",
+        "history_segment_5) $500 - $750",
+        "history_segment_6) $750 - $1,000",
+        "history_segment_7) $1,000 +",
+        "zip_code_Surburban",
+        "zip_code_Urban",
+        "channel_Phone",
+        "channel_Web",
+        "segment_No E-Mail",
+        "segment_Womens E-Mail"
+      ],
+      "edges": [
+        {
+          "source": "mens",
+          "target": "womens",
+          "type": "directed"
+        },
+        {
+          "source": "history",
+          "target": "mens",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_2) $100 - $200",
+          "target": "mens",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_3) $200 - $350",
+          "target": "mens",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_7) $1,000 +",
+          "target": "mens",
+          "type": "directed"
+        },
+        {
+          "source": "visit",
+          "target": "womens",
+          "type": "directed"
+        },
+        {
+          "source": "history",
+          "target": "womens",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_3) $200 - $350",
+          "target": "womens",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_4) $350 - $500",
+          "target": "womens",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_5) $500 - $750",
+          "target": "womens",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_6) $750 - $1,000",
+          "target": "womens",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_7) $1,000 +",
+          "target": "womens",
+          "type": "directed"
+        },
+        {
+          "source": "visit",
+          "target": "recency",
+          "type": "directed"
+        },
+        {
+          "source": "history",
+          "target": "recency",
+          "type": "directed"
+        },
+        {
+          "source": "recency",
+          "target": "history_segment_2) $100 - $200",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_7) $1,000 +",
+          "target": "recency",
+          "type": "directed"
+        },
+        {
+          "source": "visit",
+          "target": "conversion",
+          "type": "undirected"
+        },
+        {
+          "source": "visit",
+          "target": "history",
+          "type": "directed"
+        },
+        {
+          "source": "visit",
+          "target": "newbie",
+          "type": "directed"
+        },
+        {
+          "source": "visit",
+          "target": "history_segment_3) $200 - $350",
+          "type": "directed"
+        },
+        {
+          "source": "visit",
+          "target": "history_segment_6) $750 - $1,000",
+          "type": "undirected"
+        },
+        {
+          "source": "visit",
+          "target": "history_segment_7) $1,000 +",
+          "type": "undirected"
+        },
+        {
+          "source": "visit",
+          "target": "zip_code_Urban",
+          "type": "directed"
+        },
+        {
+          "source": "visit",
+          "target": "channel_Web",
+          "type": "directed"
+        },
+        {
+          "source": "visit",
+          "target": "segment_No E-Mail",
+          "type": "directed"
+        },
+        {
+          "source": "conversion",
+          "target": "spend",
+          "type": "directed"
+        },
+        {
+          "source": "history",
+          "target": "newbie",
+          "type": "undirected"
+        },
+        {
+          "source": "history",
+          "target": "history_segment_2) $100 - $200",
+          "type": "directed"
+        },
+        {
+          "source": "history",
+          "target": "history_segment_3) $200 - $350",
+          "type": "directed"
+        },
+        {
+          "source": "history",
+          "target": "history_segment_4) $350 - $500",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_5) $500 - $750",
+          "target": "history",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_6) $750 - $1,000",
+          "target": "history",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_7) $1,000 +",
+          "target": "history",
+          "type": "directed"
+        },
+        {
+          "source": "history",
+          "target": "channel_Web",
+          "type": "directed"
+        },
+        {
+          "source": "newbie",
+          "target": "history_segment_3) $200 - $350",
+          "type": "directed"
+        },
+        {
+          "source": "newbie",
+          "target": "history_segment_4) $350 - $500",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_5) $500 - $750",
+          "target": "newbie",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_6) $750 - $1,000",
+          "target": "newbie",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_7) $1,000 +",
+          "target": "newbie",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_3) $200 - $350",
+          "target": "history_segment_2) $100 - $200",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_4) $350 - $500",
+          "target": "history_segment_2) $100 - $200",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_5) $500 - $750",
+          "target": "history_segment_2) $100 - $200",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_6) $750 - $1,000",
+          "target": "history_segment_2) $100 - $200",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_7) $1,000 +",
+          "target": "history_segment_2) $100 - $200",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_4) $350 - $500",
+          "target": "history_segment_3) $200 - $350",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_5) $500 - $750",
+          "target": "history_segment_3) $200 - $350",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_6) $750 - $1,000",
+          "target": "history_segment_3) $200 - $350",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_7) $1,000 +",
+          "target": "history_segment_3) $200 - $350",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_3) $200 - $350",
+          "target": "channel_Phone",
+          "type": "directed"
+        },
+        {
+          "source": "channel_Web",
+          "target": "history_segment_3) $200 - $350",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_5) $500 - $750",
+          "target": "history_segment_4) $350 - $500",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_6) $750 - $1,000",
+          "target": "history_segment_4) $350 - $500",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_7) $1,000 +",
+          "target": "history_segment_4) $350 - $500",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_4) $350 - $500",
+          "target": "channel_Phone",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_5) $500 - $750",
+          "target": "history_segment_6) $750 - $1,000",
+          "type": "undirected"
+        },
+        {
+          "source": "history_segment_5) $500 - $750",
+          "target": "history_segment_7) $1,000 +",
+          "type": "undirected"
+        },
+        {
+          "source": "history_segment_5) $500 - $750",
+          "target": "channel_Phone",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_6) $750 - $1,000",
+          "target": "history_segment_7) $1,000 +",
+          "type": "undirected"
+        },
+        {
+          "source": "history_segment_6) $750 - $1,000",
+          "target": "channel_Phone",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_6) $750 - $1,000",
+          "target": "channel_Web",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_7) $1,000 +",
+          "target": "channel_Phone",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_7) $1,000 +",
+          "target": "channel_Web",
+          "type": "directed"
+        },
+        {
+          "source": "zip_code_Surburban",
+          "target": "zip_code_Urban",
+          "type": "directed"
+        },
+        {
+          "source": "channel_Web",
+          "target": "channel_Phone",
+          "type": "directed"
+        },
+        {
+          "source": "segment_Womens E-Mail",
+          "target": "segment_No E-Mail",
+          "type": "directed"
+        }
+      ],
+      "discovery_method": "GES (engine)",
+      "interpretation": "Causal structure discovered through automated analysis."
+    },
+    "treatment_effects": [
+      {
+        "method": "OLS Regression",
+        "estimand": "ATE",
+        "estimate": 0.02021819883184287,
+        "std_error": 0.07234677844646734,
+        "ci_lower": -0.12157888132073175,
+        "ci_upper": 0.16201527898441748,
+        "p_value": 0.7798900477865164,
+        "assumptions_tested": [
+          "linearity",
+          "no_unmeasured_confounding"
+        ]
+      },
+      {
+        "method": "OLS Regression",
+        "estimand": "ATE",
+        "estimate": 0.02021819883184287,
+        "std_error": 0.07234677844646734,
+        "ci_lower": -0.12157888132073175,
+        "ci_upper": 0.16201527898441748,
+        "p_value": 0.7798900477865164,
+        "assumptions_tested": [
+          "linearity",
+          "no_unmeasured_confounding"
+        ]
+      }
+    ],
+    "sensitivity_results": [
+      {
+        "method": "E-value",
+        "robustness_value": 1.110498756211209,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "Placebo Test (placebo_treatment)",
+        "robustness_value": 0.21215923747057397,
+        "interpretation": "CONCERNING: Real effect within placebo distribution"
+      },
+      {
+        "method": "E-value",
+        "robustness_value": 1.110498756211209,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "Placebo Test (placebo_treatment)",
+        "robustness_value": 0.21215923747057397,
+        "interpretation": "CONCERNING: Real effect within placebo distribution"
+      },
+      {
+        "method": "E-value",
+        "robustness_value": 1.110498756211209,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      }
+    ]
+  },
+  "f90e5b0d": {
+    "job_id": "f90e5b0d",
+    "created_at": "2026-02-16T23:45:42.322353+00:00",
+    "treatment_variable": "treatment",
+    "outcome_variable": "y_factual",
+    "recommendations": [
+      "Consider running additional estimation methods (IPW, AIPW, matching) for robustness and triangulation of results",
+      "The treatment effect estimate is small and not statistically significant - consider power analysis for future studies",
+      "Excellent data quality suggests results are reliable and not confounded by measurement issues",
+      "Multiple treatment and outcome candidates were identified - consider exploring alternative treatment-outcome pairs",
+      "The causal DAG should be validated with domain experts before making policy decisions"
+    ],
+    "notebook_path": "/var/folders/xx/1nn8khpj6cq8cbxnnp0275zh0000gn/T/causal_orchestrator/notebooks/causal_analysis_f90e5b0d.ipynb",
+    "data_profile": {
+      "n_samples": 64000,
+      "n_features": 12,
+      "treatment_candidates": [
+        "mens",
+        "womens",
+        "newbie",
+        "visit"
+      ],
+      "outcome_candidates": [
+        "recency",
+        "history_segment",
+        "history",
+        "spend"
+      ],
+      "has_time_dimension": false
+    },
+    "causal_graph": {
+      "nodes": [
+        "y_factual",
+        "y_cfactual",
+        "mu0",
+        "mu1",
+        "x1",
+        "x2",
+        "x3",
+        "x4",
+        "x5",
+        "x6",
+        "x7",
+        "x8",
+        "x9",
+        "x10",
+        "x11",
+        "x12",
+        "x13",
+        "x14",
+        "x15",
+        "x16"
+      ],
+      "edges": [
+        {
+          "source": "y_cfactual",
+          "target": "y_factual",
+          "type": "directed"
+        },
+        {
+          "source": "mu0",
+          "target": "y_factual",
+          "type": "directed"
+        },
+        {
+          "source": "y_cfactual",
+          "target": "mu0",
+          "type": "undirected"
+        },
+        {
+          "source": "mu0",
+          "target": "mu1",
+          "type": "directed"
+        },
+        {
+          "source": "mu1",
+          "target": "x6",
+          "type": "directed"
+        },
+        {
+          "source": "mu1",
+          "target": "x10",
+          "type": "undirected"
+        },
+        {
+          "source": "x1",
+          "target": "x2",
+          "type": "directed"
+        },
+        {
+          "source": "x1",
+          "target": "x3",
+          "type": "directed"
+        },
+        {
+          "source": "x2",
+          "target": "x3",
+          "type": "undirected"
+        },
+        {
+          "source": "x2",
+          "target": "x7",
+          "type": "undirected"
+        },
+        {
+          "source": "x3",
+          "target": "x5",
+          "type": "undirected"
+        },
+        {
+          "source": "x4",
+          "target": "x6",
+          "type": "undirected"
+        },
+        {
+          "source": "x4",
+          "target": "x13",
+          "type": "undirected"
+        },
+        {
+          "source": "x4",
+          "target": "x14",
+          "type": "undirected"
+        },
+        {
+          "source": "x5",
+          "target": "x7",
+          "type": "undirected"
+        },
+        {
+          "source": "x6",
+          "target": "x9",
+          "type": "undirected"
+        },
+        {
+          "source": "x6",
+          "target": "x10",
+          "type": "undirected"
+        },
+        {
+          "source": "x8",
+          "target": "x14",
+          "type": "undirected"
+        },
+        {
+          "source": "x9",
+          "target": "x10",
+          "type": "directed"
+        },
+        {
+          "source": "x9",
+          "target": "x13",
+          "type": "undirected"
+        },
+        {
+          "source": "x11",
+          "target": "x10",
+          "type": "directed"
+        },
+        {
+          "source": "x11",
+          "target": "x12",
+          "type": "undirected"
+        },
+        {
+          "source": "x12",
+          "target": "x10",
+          "type": "directed"
+        },
+        {
+          "source": "x15",
+          "target": "x13",
+          "type": "directed"
+        },
+        {
+          "source": "x15",
+          "target": "x16",
+          "type": "undirected"
+        },
+        {
+          "source": "x16",
+          "target": "x13",
+          "type": "directed"
+        }
+      ],
+      "discovery_method": "PC (engine)",
+      "interpretation": "Causal structure discovered through automated analysis."
+    },
+    "treatment_effects": [
+      {
+        "method": "OLS Regression",
+        "estimand": "ATE",
+        "estimate": 0.02021819883184287,
+        "std_error": 0.07234677844646734,
+        "ci_lower": -0.12157888132073175,
+        "ci_upper": 0.16201527898441748,
+        "p_value": 0.7798900477865164,
+        "assumptions_tested": [
+          "linearity",
+          "no_unmeasured_confounding"
+        ]
+      },
+      {
+        "method": "OLS Regression",
+        "estimand": "ATE",
+        "estimate": 0.02021819883184287,
+        "std_error": 0.07234677844646734,
+        "ci_lower": -0.12157888132073175,
+        "ci_upper": 0.16201527898441748,
+        "p_value": 0.7798900477865164,
+        "assumptions_tested": [
+          "linearity",
+          "no_unmeasured_confounding"
+        ]
+      },
+      {
+        "method": "OLS Regression",
+        "estimand": "ATE",
+        "estimate": 0.02021819883184287,
+        "std_error": 0.07234677844646734,
+        "ci_lower": -0.12157888132073175,
+        "ci_upper": 0.16201527898441748,
+        "p_value": 0.7798900477865164,
+        "assumptions_tested": [
+          "linearity",
+          "no_unmeasured_confounding"
+        ]
+      }
+    ],
+    "sensitivity_results": [
+      {
+        "method": "E-value",
+        "robustness_value": 1.1124062049161474,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "E-value",
+        "robustness_value": 1.1124062049161474,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "E-value",
+        "robustness_value": 1.1124062049161474,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "Placebo Test (placebo_treatment)",
+        "robustness_value": 3.9738731998504215e-05,
+        "interpretation": "CONCERNING: Real effect within placebo distribution"
+      },
+      {
+        "method": "E-value",
+        "robustness_value": 1.1124062049161474,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "E-value",
+        "robustness_value": 1.1124062049161474,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "Placebo Test (placebo_outcome)",
+        "robustness_value": 0.27364127436355695,
+        "interpretation": "CONCERNING: Similar on real and placebo outcomes"
+      },
+      {
+        "method": "Placebo Test (placebo_treatment)",
+        "robustness_value": 3.9738731998504215e-05,
+        "interpretation": "CONCERNING: Real effect within placebo distribution"
+      },
+      {
+        "method": "E-value",
+        "robustness_value": 1.1124062049161474,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "Placebo Test (placebo_outcome)",
+        "robustness_value": 0.27364127436355695,
+        "interpretation": "CONCERNING: Similar on real and placebo outcomes"
+      },
+      {
+        "method": "E-value",
+        "robustness_value": 1.1124062049161474,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "Placebo Test (placebo_treatment)",
+        "robustness_value": 3.9738731998504215e-05,
+        "interpretation": "CONCERNING: Real effect within placebo distribution"
+      },
+      {
+        "method": "Placebo Test (placebo_treatment)",
+        "robustness_value": 3.9738731998504215e-05,
+        "interpretation": "CONCERNING: Real effect within placebo distribution"
+      },
+      {
+        "method": "Placebo Test (placebo_outcome)",
+        "robustness_value": 0.27364127436355695,
+        "interpretation": "CONCERNING: Similar on real and placebo outcomes"
+      },
+      {
+        "method": "Bootstrap Variance Check",
+        "robustness_value": 0.00010970492832368739,
+        "interpretation": "UNSTABLE: Bootstrap SE larger than reported"
+      },
+      {
+        "method": "E-value",
+        "robustness_value": 1.1124062049161474,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "Placebo Test (placebo_treatment)",
+        "robustness_value": 3.9738731998504215e-05,
+        "interpretation": "CONCERNING: Real effect within placebo distribution"
+      },
+      {
+        "method": "E-value",
+        "robustness_value": 1.1124062049161474,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "E-value",
+        "robustness_value": 1.1124062049161474,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "Placebo Test (placebo_treatment)",
+        "robustness_value": 3.9738731998504215e-05,
+        "interpretation": "CONCERNING: Real effect within placebo distribution"
+      }
+    ]
+  },
+  "e517ebdd": {
+    "job_id": "e517ebdd",
+    "created_at": "2026-02-16T23:45:43.482717+00:00",
+    "treatment_variable": "treat",
+    "outcome_variable": "re78",
+    "recommendations": [
+      "The estimated Average Treatment Effect is 0.0202 with 95% CI [-0.1216, 0.1620], suggesting a small positive but statistically non-significant effect",
+      "Data quality is excellent (100/100 score) with no missing values, outliers, or multicollinearity issues detected",
+      "Consider implementing additional estimation methods (IPW, AIPW, matching) for robustness triangulation in future analyses",
+      "The causal DAG should be validated with domain experts to ensure structural assumptions are appropriate",
+      "Sensitivity analysis results should be reviewed to understand the robustness of findings to unmeasured confounding"
+    ],
+    "notebook_path": "/var/folders/xx/1nn8khpj6cq8cbxnnp0275zh0000gn/T/causal_orchestrator/notebooks/causal_analysis_e517ebdd.ipynb",
+    "data_profile": {
+      "n_samples": 64000,
+      "n_features": 12,
+      "treatment_candidates": [
+        "mens",
+        "womens",
+        "newbie",
+        "visit"
+      ],
+      "outcome_candidates": [
+        "recency",
+        "history_segment",
+        "history",
+        "spend"
+      ],
+      "has_time_dimension": false
+    },
+    "causal_graph": {
+      "nodes": [
+        "y_factual",
+        "y_cfactual",
+        "mu0",
+        "mu1",
+        "x1",
+        "x2",
+        "x3",
+        "x4",
+        "x5",
+        "x6",
+        "x7",
+        "x8",
+        "x9",
+        "x10",
+        "x11",
+        "x12",
+        "x13",
+        "x14",
+        "x15",
+        "x16"
+      ],
+      "edges": [
+        {
+          "source": "y_cfactual",
+          "target": "y_factual",
+          "type": "directed"
+        },
+        {
+          "source": "mu0",
+          "target": "y_factual",
+          "type": "directed"
+        },
+        {
+          "source": "y_cfactual",
+          "target": "mu0",
+          "type": "undirected"
+        },
+        {
+          "source": "mu0",
+          "target": "mu1",
+          "type": "directed"
+        },
+        {
+          "source": "mu1",
+          "target": "x6",
+          "type": "directed"
+        },
+        {
+          "source": "mu1",
+          "target": "x10",
+          "type": "undirected"
+        },
+        {
+          "source": "x1",
+          "target": "x2",
+          "type": "directed"
+        },
+        {
+          "source": "x1",
+          "target": "x3",
+          "type": "directed"
+        },
+        {
+          "source": "x2",
+          "target": "x3",
+          "type": "undirected"
+        },
+        {
+          "source": "x2",
+          "target": "x7",
+          "type": "undirected"
+        },
+        {
+          "source": "x3",
+          "target": "x5",
+          "type": "undirected"
+        },
+        {
+          "source": "x4",
+          "target": "x6",
+          "type": "undirected"
+        },
+        {
+          "source": "x4",
+          "target": "x13",
+          "type": "undirected"
+        },
+        {
+          "source": "x4",
+          "target": "x14",
+          "type": "undirected"
+        },
+        {
+          "source": "x5",
+          "target": "x7",
+          "type": "undirected"
+        },
+        {
+          "source": "x6",
+          "target": "x9",
+          "type": "undirected"
+        },
+        {
+          "source": "x6",
+          "target": "x10",
+          "type": "undirected"
+        },
+        {
+          "source": "x8",
+          "target": "x14",
+          "type": "undirected"
+        },
+        {
+          "source": "x9",
+          "target": "x10",
+          "type": "directed"
+        },
+        {
+          "source": "x9",
+          "target": "x13",
+          "type": "undirected"
+        },
+        {
+          "source": "x11",
+          "target": "x10",
+          "type": "directed"
+        },
+        {
+          "source": "x11",
+          "target": "x12",
+          "type": "undirected"
+        },
+        {
+          "source": "x12",
+          "target": "x10",
+          "type": "directed"
+        },
+        {
+          "source": "x15",
+          "target": "x13",
+          "type": "directed"
+        },
+        {
+          "source": "x15",
+          "target": "x16",
+          "type": "undirected"
+        },
+        {
+          "source": "x16",
+          "target": "x13",
+          "type": "directed"
+        }
+      ],
+      "discovery_method": "PC (engine)",
+      "interpretation": "Causal structure discovered through automated analysis."
+    },
+    "treatment_effects": [
+      {
+        "method": "OLS Regression",
+        "estimand": "ATE",
+        "estimate": 0.02021819883184287,
+        "std_error": 0.07234677844646734,
+        "ci_lower": -0.12157888132073175,
+        "ci_upper": 0.16201527898441748,
+        "p_value": 0.7798900477865164,
+        "assumptions_tested": [
+          "linearity",
+          "no_unmeasured_confounding"
+        ]
+      },
+      {
+        "method": "OLS Regression",
+        "estimand": "ATE",
+        "estimate": 0.02021819883184287,
+        "std_error": 0.07234677844646734,
+        "ci_lower": -0.12157888132073175,
+        "ci_upper": 0.16201527898441748,
+        "p_value": 0.7798900477865164,
+        "assumptions_tested": [
+          "linearity",
+          "no_unmeasured_confounding"
+        ]
+      },
+      {
+        "method": "OLS Regression",
+        "estimand": "ATE",
+        "estimate": 0.02021819883184287,
+        "std_error": 0.07234677844646734,
+        "ci_lower": -0.12157888132073175,
+        "ci_upper": 0.16201527898441748,
+        "p_value": 0.7798900477865164,
+        "assumptions_tested": [
+          "linearity",
+          "no_unmeasured_confounding"
+        ]
+      }
+    ],
+    "sensitivity_results": [
+      {
+        "method": "E-value",
+        "robustness_value": 1.1124062049161474,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "E-value",
+        "robustness_value": 1.1124062049161474,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "E-value",
+        "robustness_value": 1.1124062049161474,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "Placebo Test (placebo_treatment)",
+        "robustness_value": 3.9738731998504215e-05,
+        "interpretation": "CONCERNING: Real effect within placebo distribution"
+      },
+      {
+        "method": "E-value",
+        "robustness_value": 1.1124062049161474,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "E-value",
+        "robustness_value": 1.1124062049161474,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "Placebo Test (placebo_outcome)",
+        "robustness_value": 0.27364127436355695,
+        "interpretation": "CONCERNING: Similar on real and placebo outcomes"
+      },
+      {
+        "method": "Placebo Test (placebo_treatment)",
+        "robustness_value": 3.9738731998504215e-05,
+        "interpretation": "CONCERNING: Real effect within placebo distribution"
+      },
+      {
+        "method": "E-value",
+        "robustness_value": 1.1124062049161474,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "Placebo Test (placebo_outcome)",
+        "robustness_value": 0.27364127436355695,
+        "interpretation": "CONCERNING: Similar on real and placebo outcomes"
+      },
+      {
+        "method": "E-value",
+        "robustness_value": 1.1124062049161474,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "Placebo Test (placebo_treatment)",
+        "robustness_value": 3.9738731998504215e-05,
+        "interpretation": "CONCERNING: Real effect within placebo distribution"
+      },
+      {
+        "method": "Placebo Test (placebo_treatment)",
+        "robustness_value": 3.9738731998504215e-05,
+        "interpretation": "CONCERNING: Real effect within placebo distribution"
+      },
+      {
+        "method": "Placebo Test (placebo_outcome)",
+        "robustness_value": 0.27364127436355695,
+        "interpretation": "CONCERNING: Similar on real and placebo outcomes"
+      },
+      {
+        "method": "Bootstrap Variance Check",
+        "robustness_value": 0.00010970492832368739,
+        "interpretation": "UNSTABLE: Bootstrap SE larger than reported"
+      },
+      {
+        "method": "E-value",
+        "robustness_value": 1.1124062049161474,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "Placebo Test (placebo_treatment)",
+        "robustness_value": 3.9738731998504215e-05,
+        "interpretation": "CONCERNING: Real effect within placebo distribution"
+      },
+      {
+        "method": "E-value",
+        "robustness_value": 1.1124062049161474,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "E-value",
+        "robustness_value": 1.1124062049161474,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "Placebo Test (placebo_treatment)",
+        "robustness_value": 3.9738731998504215e-05,
+        "interpretation": "CONCERNING: Real effect within placebo distribution"
+      }
+    ]
+  },
+  "a972219c": {
+    "job_id": "a972219c",
+    "created_at": "2026-02-16T23:45:48.077746+00:00",
+    "treatment_variable": "segment",
+    "outcome_variable": "spend",
+    "recommendations": [],
+    "notebook_path": "/var/folders/xx/1nn8khpj6cq8cbxnnp0275zh0000gn/T/causal_orchestrator/notebooks/causal_analysis_a972219c.ipynb",
+    "data_profile": {
+      "n_samples": 64000,
+      "n_features": 12,
+      "treatment_candidates": [
+        "mens",
+        "womens",
+        "newbie",
+        "visit"
+      ],
+      "outcome_candidates": [
+        "recency",
+        "history_segment",
+        "history",
+        "spend"
+      ],
+      "has_time_dimension": false
+    },
+    "causal_graph": {
+      "nodes": [
+        "y_factual",
+        "y_cfactual",
+        "mu0",
+        "mu1",
+        "x1",
+        "x2",
+        "x3",
+        "x4",
+        "x5",
+        "x6",
+        "x7",
+        "x8",
+        "x9",
+        "x10",
+        "x11",
+        "x12",
+        "x13",
+        "x14",
+        "x15",
+        "x16"
+      ],
+      "edges": [
+        {
+          "source": "y_cfactual",
+          "target": "y_factual",
+          "type": "directed"
+        },
+        {
+          "source": "mu0",
+          "target": "y_factual",
+          "type": "directed"
+        },
+        {
+          "source": "y_cfactual",
+          "target": "mu0",
+          "type": "undirected"
+        },
+        {
+          "source": "mu0",
+          "target": "mu1",
+          "type": "directed"
+        },
+        {
+          "source": "mu1",
+          "target": "x6",
+          "type": "directed"
+        },
+        {
+          "source": "mu1",
+          "target": "x10",
+          "type": "undirected"
+        },
+        {
+          "source": "x1",
+          "target": "x2",
+          "type": "directed"
+        },
+        {
+          "source": "x1",
+          "target": "x3",
+          "type": "directed"
+        },
+        {
+          "source": "x2",
+          "target": "x3",
+          "type": "undirected"
+        },
+        {
+          "source": "x2",
+          "target": "x7",
+          "type": "undirected"
+        },
+        {
+          "source": "x3",
+          "target": "x5",
+          "type": "undirected"
+        },
+        {
+          "source": "x4",
+          "target": "x6",
+          "type": "undirected"
+        },
+        {
+          "source": "x4",
+          "target": "x13",
+          "type": "undirected"
+        },
+        {
+          "source": "x4",
+          "target": "x14",
+          "type": "undirected"
+        },
+        {
+          "source": "x5",
+          "target": "x7",
+          "type": "undirected"
+        },
+        {
+          "source": "x6",
+          "target": "x9",
+          "type": "undirected"
+        },
+        {
+          "source": "x6",
+          "target": "x10",
+          "type": "undirected"
+        },
+        {
+          "source": "x8",
+          "target": "x14",
+          "type": "undirected"
+        },
+        {
+          "source": "x9",
+          "target": "x10",
+          "type": "directed"
+        },
+        {
+          "source": "x9",
+          "target": "x13",
+          "type": "undirected"
+        },
+        {
+          "source": "x11",
+          "target": "x10",
+          "type": "directed"
+        },
+        {
+          "source": "x11",
+          "target": "x12",
+          "type": "undirected"
+        },
+        {
+          "source": "x12",
+          "target": "x10",
+          "type": "directed"
+        },
+        {
+          "source": "x15",
+          "target": "x13",
+          "type": "directed"
+        },
+        {
+          "source": "x15",
+          "target": "x16",
+          "type": "undirected"
+        },
+        {
+          "source": "x16",
+          "target": "x13",
+          "type": "directed"
+        }
+      ],
+      "discovery_method": "PC (engine)",
+      "interpretation": "Causal structure discovered through automated analysis."
+    },
+    "treatment_effects": [
+      {
+        "method": "OLS Regression",
+        "estimand": "ATE",
+        "estimate": 0.02021819883184287,
+        "std_error": 0.07234677844646734,
+        "ci_lower": -0.12157888132073175,
+        "ci_upper": 0.16201527898441748,
+        "p_value": 0.7798900477865164,
+        "assumptions_tested": [
+          "linearity",
+          "no_unmeasured_confounding"
+        ]
+      },
+      {
+        "method": "OLS Regression",
+        "estimand": "ATE",
+        "estimate": 0.02021819883184287,
+        "std_error": 0.07234677844646734,
+        "ci_lower": -0.12157888132073175,
+        "ci_upper": 0.16201527898441748,
+        "p_value": 0.7798900477865164,
+        "assumptions_tested": [
+          "linearity",
+          "no_unmeasured_confounding"
+        ]
+      },
+      {
+        "method": "OLS Regression",
+        "estimand": "ATE",
+        "estimate": 0.02021819883184287,
+        "std_error": 0.07234677844646734,
+        "ci_lower": -0.12157888132073175,
+        "ci_upper": 0.16201527898441748,
+        "p_value": 0.7798900477865164,
+        "assumptions_tested": [
+          "linearity",
+          "no_unmeasured_confounding"
+        ]
+      }
+    ],
+    "sensitivity_results": [
+      {
+        "method": "E-value",
+        "robustness_value": 1.1124062049161474,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "E-value",
+        "robustness_value": 1.1124062049161474,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "E-value",
+        "robustness_value": 1.1124062049161474,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "Placebo Test (placebo_treatment)",
+        "robustness_value": 3.9738731998504215e-05,
+        "interpretation": "CONCERNING: Real effect within placebo distribution"
+      },
+      {
+        "method": "E-value",
+        "robustness_value": 1.1124062049161474,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "E-value",
+        "robustness_value": 1.1124062049161474,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "Placebo Test (placebo_outcome)",
+        "robustness_value": 0.27364127436355695,
+        "interpretation": "CONCERNING: Similar on real and placebo outcomes"
+      },
+      {
+        "method": "Placebo Test (placebo_treatment)",
+        "robustness_value": 3.9738731998504215e-05,
+        "interpretation": "CONCERNING: Real effect within placebo distribution"
+      },
+      {
+        "method": "E-value",
+        "robustness_value": 1.1124062049161474,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "Placebo Test (placebo_outcome)",
+        "robustness_value": 0.27364127436355695,
+        "interpretation": "CONCERNING: Similar on real and placebo outcomes"
+      },
+      {
+        "method": "E-value",
+        "robustness_value": 1.1124062049161474,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "Placebo Test (placebo_treatment)",
+        "robustness_value": 3.9738731998504215e-05,
+        "interpretation": "CONCERNING: Real effect within placebo distribution"
+      },
+      {
+        "method": "Placebo Test (placebo_treatment)",
+        "robustness_value": 3.9738731998504215e-05,
+        "interpretation": "CONCERNING: Real effect within placebo distribution"
+      },
+      {
+        "method": "Placebo Test (placebo_outcome)",
+        "robustness_value": 0.27364127436355695,
+        "interpretation": "CONCERNING: Similar on real and placebo outcomes"
+      },
+      {
+        "method": "Bootstrap Variance Check",
+        "robustness_value": 0.00010970492832368739,
+        "interpretation": "UNSTABLE: Bootstrap SE larger than reported"
+      },
+      {
+        "method": "E-value",
+        "robustness_value": 1.1124062049161474,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "Placebo Test (placebo_treatment)",
+        "robustness_value": 3.9738731998504215e-05,
+        "interpretation": "CONCERNING: Real effect within placebo distribution"
+      },
+      {
+        "method": "E-value",
+        "robustness_value": 1.1124062049161474,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "E-value",
+        "robustness_value": 1.1124062049161474,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "Placebo Test (placebo_treatment)",
+        "robustness_value": 3.9738731998504215e-05,
+        "interpretation": "CONCERNING: Real effect within placebo distribution"
+      }
+    ]
+  },
+  "ecfeb2f2": {
+    "job_id": "ecfeb2f2",
+    "created_at": "2026-02-17T00:43:57.502271+00:00",
+    "treatment_variable": "treatment",
+    "outcome_variable": "y_factual",
+    "recommendations": [
+      "Investigate the extreme Doubly Robust estimate (-2.26 billion) which suggests potential model misspecification or numerical instability",
+      "Consider alternative effect estimation methods given the inconsistency between OLS and IPW vs Doubly Robust results",
+      "Validate propensity score model assumptions more thoroughly given the divergent estimates",
+      "Examine potential unmeasured confounding that could explain the inconsistent effect estimates",
+      "Consider sensitivity analyses specifically targeting the assumption violations that may be causing the inconsistent estimates",
+      "Document the methodological limitations and uncertainty in effect estimates clearly for stakeholders"
+    ],
+    "notebook_path": "/var/folders/xx/1nn8khpj6cq8cbxnnp0275zh0000gn/T/causal_orchestrator/notebooks/causal_analysis_ecfeb2f2.ipynb",
+    "data_profile": {
+      "n_samples": 747,
+      "n_features": 30,
+      "treatment_candidates": [
+        "treatment",
+        "x7",
+        "x9",
+        "x10",
+        "x11"
+      ],
+      "outcome_candidates": [
+        "y_factual",
+        "y_cfactual",
+        "mu0",
+        "mu1",
+        "x1"
+      ],
+      "has_time_dimension": false
+    },
+    "causal_graph": {
+      "nodes": [
+        "x7",
+        "y_factual",
+        "y_cfactual",
+        "mu1",
+        "x1",
+        "x2",
+        "x3",
+        "x4",
+        "x5",
+        "x6",
+        "x8",
+        "x10",
+        "x11",
+        "mu0",
+        "x9",
+        "x12",
+        "x13",
+        "x14",
+        "x15",
+        "x16"
+      ],
+      "edges": [
+        {
+          "source": "x7",
+          "target": "x2",
+          "type": "directed"
+        },
+        {
+          "source": "y_cfactual",
+          "target": "y_factual",
+          "type": "directed"
+        },
+        {
+          "source": "mu0",
+          "target": "y_factual",
+          "type": "directed"
+        },
+        {
+          "source": "mu0",
+          "target": "y_cfactual",
+          "type": "directed"
+        },
+        {
+          "source": "x4",
+          "target": "mu1",
+          "type": "directed"
+        },
+        {
+          "source": "x6",
+          "target": "mu1",
+          "type": "directed"
+        },
+        {
+          "source": "x8",
+          "target": "mu1",
+          "type": "directed"
+        },
+        {
+          "source": "x10",
+          "target": "mu1",
+          "type": "directed"
+        },
+        {
+          "source": "mu1",
+          "target": "mu0",
+          "type": "directed"
+        },
+        {
+          "source": "x15",
+          "target": "mu1",
+          "type": "directed"
+        },
+        {
+          "source": "x1",
+          "target": "x2",
+          "type": "directed"
+        },
+        {
+          "source": "x1",
+          "target": "x3",
+          "type": "directed"
+        },
+        {
+          "source": "x3",
+          "target": "x2",
+          "type": "directed"
+        },
+        {
+          "source": "x8",
+          "target": "x2",
+          "type": "directed"
+        },
+        {
+          "source": "x5",
+          "target": "x3",
+          "type": "directed"
+        },
+        {
+          "source": "x4",
+          "target": "x6",
+          "type": "directed"
+        },
+        {
+          "source": "x4",
+          "target": "x10",
+          "type": "directed"
+        },
+        {
+          "source": "x4",
+          "target": "x14",
+          "type": "undirected"
+        },
+        {
+          "source": "x6",
+          "target": "x10",
+          "type": "directed"
+        },
+        {
+          "source": "x9",
+          "target": "x6",
+          "type": "directed"
+        },
+        {
+          "source": "x6",
+          "target": "x12",
+          "type": "directed"
+        },
+        {
+          "source": "x15",
+          "target": "x6",
+          "type": "directed"
+        },
+        {
+          "source": "x8",
+          "target": "x14",
+          "type": "undirected"
+        },
+        {
+          "source": "x11",
+          "target": "x10",
+          "type": "directed"
+        },
+        {
+          "source": "x10",
+          "target": "mu0",
+          "type": "directed"
+        },
+        {
+          "source": "x9",
+          "target": "x10",
+          "type": "directed"
+        },
+        {
+          "source": "x12",
+          "target": "x10",
+          "type": "directed"
+        },
+        {
+          "source": "x12",
+          "target": "x11",
+          "type": "directed"
+        },
+        {
+          "source": "x14",
+          "target": "mu0",
+          "type": "directed"
+        },
+        {
+          "source": "x9",
+          "target": "x13",
+          "type": "directed"
+        },
+        {
+          "source": "x15",
+          "target": "x13",
+          "type": "directed"
+        },
+        {
+          "source": "x13",
+          "target": "x16",
+          "type": "directed"
+        }
+      ],
+      "discovery_method": "GES (engine)",
+      "interpretation": "Causal structure discovered through automated analysis."
+    },
+    "treatment_effects": [
+      {
+        "method": "OLS Regression",
+        "estimand": "ATE",
+        "estimate": 3.9189249448244325,
+        "std_error": 0.11929101064542955,
+        "ci_lower": 3.6851188602800065,
+        "ci_upper": 4.152731029368859,
+        "p_value": 1.0734033480134158e-236,
+        "assumptions_tested": [
+          "linearity",
+          "no_unmeasured_confounding"
+        ]
+      },
+      {
+        "method": "Inverse Probability Weighting",
+        "estimand": "ATE",
+        "estimate": 4.017272550925395,
+        "std_error": 0.10312377755733684,
+        "ci_lower": 3.82448587292516,
+        "ci_upper": 4.223340603097449,
+        "p_value": 0.0,
+        "assumptions_tested": [
+          "positivity",
+          "conditional_ignorability"
+        ]
+      },
+      {
+        "method": "Doubly Robust (AIPW)",
+        "estimand": "ATE",
+        "estimate": -2257695198.6734266,
+        "std_error": 2751374687.203089,
+        "ci_lower": -7650290493.566638,
+        "ci_upper": 3134900096.2197847,
+        "p_value": 0.4118913096797514,
+        "assumptions_tested": [
+          "positivity",
+          "conditional_ignorability",
+          "doubly_robust"
+        ]
+      }
+    ],
+    "sensitivity_results": [
+      {
+        "method": "E-value",
+        "robustness_value": 5.420423090854323,
+        "interpretation": "E-value = 5.42 (CI: 5.04): ROBUST: Would need very strong unmeasured confounding"
+      },
+      {
+        "method": "Specification Curve",
+        "robustness_value": 0.992752162445369,
+        "interpretation": "HIGHLY STABLE: Estimates consistent across specifications (CV=0.01)"
+      },
+      {
+        "method": "Placebo Test (both)",
+        "robustness_value": 51.2464429829355,
+        "interpretation": "PASSED: Real effect far exceeds placebo; PASSED: Much larger effect on real outcome"
+      },
+      {
+        "method": "Subgroup Analysis",
+        "robustness_value": 0.9745884777323696,
+        "interpretation": "CONSISTENT: Effect similar across subgroups"
+      },
+      {
+        "method": "Bootstrap Variance Check",
+        "robustness_value": 0.9849552538635421,
+        "interpretation": "STABLE: Bootstrap SE consistent with reported SE"
+      },
+      {
+        "method": "E-value",
+        "robustness_value": 5.420423090854323,
+        "interpretation": "E-value = 5.42 (CI: 5.04): ROBUST: Would need very strong unmeasured confounding"
+      },
+      {
+        "method": "Specification Curve",
+        "robustness_value": 0.992752162445369,
+        "interpretation": "HIGHLY STABLE: Estimates consistent across specifications (CV=0.01)"
+      },
+      {
+        "method": "Placebo Test (both)",
+        "robustness_value": 51.2464429829355,
+        "interpretation": "PASSED: Real effect far exceeds placebo; PASSED: Much larger effect on real outcome"
+      },
+      {
+        "method": "Subgroup Analysis",
+        "robustness_value": 0.9745884777323696,
+        "interpretation": "CONSISTENT: Effect similar across subgroups"
+      },
+      {
+        "method": "Bootstrap Variance Check",
+        "robustness_value": 0.9849552538635421,
+        "interpretation": "STABLE: Bootstrap SE consistent with reported SE"
+      }
+    ]
+  },
+  "2f806fd8": {
+    "job_id": "2f806fd8",
+    "created_at": "2026-02-17T00:45:20.189155+00:00",
+    "treatment_variable": "segment",
+    "outcome_variable": "spend",
+    "recommendations": [
+      "The estimated average treatment effect is 0.0202 with confidence interval [-0.1216, 0.1620], suggesting a small positive but statistically non-significant effect",
+      "Data quality is high (92/100) with only minor outlier issues in 4 columns that do not significantly impact the analysis",
+      "Consider running additional estimation methods (IPW, AIPW, matching) for robustness checking and triangulation of results",
+      "The causal DAG and domain knowledge extraction provide solid foundation for causal identification",
+      "Sensitivity analyses support the robustness of the main findings"
+    ],
+    "notebook_path": "/var/folders/xx/1nn8khpj6cq8cbxnnp0275zh0000gn/T/causal_orchestrator/notebooks/causal_analysis_2f806fd8.ipynb",
+    "data_profile": {
+      "n_samples": 64000,
+      "n_features": 12,
+      "treatment_candidates": [
+        "mens",
+        "womens",
+        "newbie",
+        "visit"
+      ],
+      "outcome_candidates": [
+        "recency",
+        "history_segment",
+        "history",
+        "spend"
+      ],
+      "has_time_dimension": false
+    },
+    "causal_graph": {
+      "nodes": [
+        "mens",
+        "womens",
+        "recency",
+        "visit",
+        "conversion",
+        "spend",
+        "history",
+        "newbie",
+        "history_segment_2) $100 - $200",
+        "history_segment_3) $200 - $350",
+        "history_segment_4) $350 - $500",
+        "history_segment_5) $500 - $750",
+        "history_segment_6) $750 - $1,000",
+        "history_segment_7) $1,000 +",
+        "zip_code_Surburban",
+        "zip_code_Urban",
+        "channel_Phone",
+        "channel_Web",
+        "segment_No E-Mail",
+        "segment_Womens E-Mail"
+      ],
+      "edges": [
+        {
+          "source": "mens",
+          "target": "womens",
+          "type": "directed"
+        },
+        {
+          "source": "history",
+          "target": "mens",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_2) $100 - $200",
+          "target": "mens",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_3) $200 - $350",
+          "target": "mens",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_7) $1,000 +",
+          "target": "mens",
+          "type": "directed"
+        },
+        {
+          "source": "visit",
+          "target": "womens",
+          "type": "directed"
+        },
+        {
+          "source": "history",
+          "target": "womens",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_3) $200 - $350",
+          "target": "womens",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_4) $350 - $500",
+          "target": "womens",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_5) $500 - $750",
+          "target": "womens",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_6) $750 - $1,000",
+          "target": "womens",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_7) $1,000 +",
+          "target": "womens",
+          "type": "directed"
+        },
+        {
+          "source": "visit",
+          "target": "recency",
+          "type": "directed"
+        },
+        {
+          "source": "history",
+          "target": "recency",
+          "type": "directed"
+        },
+        {
+          "source": "recency",
+          "target": "history_segment_2) $100 - $200",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_7) $1,000 +",
+          "target": "recency",
+          "type": "directed"
+        },
+        {
+          "source": "visit",
+          "target": "conversion",
+          "type": "undirected"
+        },
+        {
+          "source": "visit",
+          "target": "history",
+          "type": "directed"
+        },
+        {
+          "source": "visit",
+          "target": "newbie",
+          "type": "directed"
+        },
+        {
+          "source": "visit",
+          "target": "history_segment_3) $200 - $350",
+          "type": "directed"
+        },
+        {
+          "source": "visit",
+          "target": "history_segment_6) $750 - $1,000",
+          "type": "undirected"
+        },
+        {
+          "source": "visit",
+          "target": "history_segment_7) $1,000 +",
+          "type": "undirected"
+        },
+        {
+          "source": "visit",
+          "target": "zip_code_Urban",
+          "type": "directed"
+        },
+        {
+          "source": "visit",
+          "target": "channel_Web",
+          "type": "directed"
+        },
+        {
+          "source": "visit",
+          "target": "segment_No E-Mail",
+          "type": "directed"
+        },
+        {
+          "source": "conversion",
+          "target": "spend",
+          "type": "directed"
+        },
+        {
+          "source": "history",
+          "target": "newbie",
+          "type": "undirected"
+        },
+        {
+          "source": "history",
+          "target": "history_segment_2) $100 - $200",
+          "type": "directed"
+        },
+        {
+          "source": "history",
+          "target": "history_segment_3) $200 - $350",
+          "type": "directed"
+        },
+        {
+          "source": "history",
+          "target": "history_segment_4) $350 - $500",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_5) $500 - $750",
+          "target": "history",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_6) $750 - $1,000",
+          "target": "history",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_7) $1,000 +",
+          "target": "history",
+          "type": "directed"
+        },
+        {
+          "source": "history",
+          "target": "channel_Web",
+          "type": "directed"
+        },
+        {
+          "source": "newbie",
+          "target": "history_segment_3) $200 - $350",
+          "type": "directed"
+        },
+        {
+          "source": "newbie",
+          "target": "history_segment_4) $350 - $500",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_5) $500 - $750",
+          "target": "newbie",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_6) $750 - $1,000",
+          "target": "newbie",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_7) $1,000 +",
+          "target": "newbie",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_3) $200 - $350",
+          "target": "history_segment_2) $100 - $200",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_4) $350 - $500",
+          "target": "history_segment_2) $100 - $200",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_5) $500 - $750",
+          "target": "history_segment_2) $100 - $200",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_6) $750 - $1,000",
+          "target": "history_segment_2) $100 - $200",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_7) $1,000 +",
+          "target": "history_segment_2) $100 - $200",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_4) $350 - $500",
+          "target": "history_segment_3) $200 - $350",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_5) $500 - $750",
+          "target": "history_segment_3) $200 - $350",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_6) $750 - $1,000",
+          "target": "history_segment_3) $200 - $350",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_7) $1,000 +",
+          "target": "history_segment_3) $200 - $350",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_3) $200 - $350",
+          "target": "channel_Phone",
+          "type": "directed"
+        },
+        {
+          "source": "channel_Web",
+          "target": "history_segment_3) $200 - $350",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_5) $500 - $750",
+          "target": "history_segment_4) $350 - $500",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_6) $750 - $1,000",
+          "target": "history_segment_4) $350 - $500",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_7) $1,000 +",
+          "target": "history_segment_4) $350 - $500",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_4) $350 - $500",
+          "target": "channel_Phone",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_5) $500 - $750",
+          "target": "history_segment_6) $750 - $1,000",
+          "type": "undirected"
+        },
+        {
+          "source": "history_segment_5) $500 - $750",
+          "target": "history_segment_7) $1,000 +",
+          "type": "undirected"
+        },
+        {
+          "source": "history_segment_5) $500 - $750",
+          "target": "channel_Phone",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_6) $750 - $1,000",
+          "target": "history_segment_7) $1,000 +",
+          "type": "undirected"
+        },
+        {
+          "source": "history_segment_6) $750 - $1,000",
+          "target": "channel_Phone",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_6) $750 - $1,000",
+          "target": "channel_Web",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_7) $1,000 +",
+          "target": "channel_Phone",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_7) $1,000 +",
+          "target": "channel_Web",
+          "type": "directed"
+        },
+        {
+          "source": "zip_code_Surburban",
+          "target": "zip_code_Urban",
+          "type": "directed"
+        },
+        {
+          "source": "channel_Web",
+          "target": "channel_Phone",
+          "type": "directed"
+        },
+        {
+          "source": "segment_Womens E-Mail",
+          "target": "segment_No E-Mail",
+          "type": "directed"
+        }
+      ],
+      "discovery_method": "GES (engine)",
+      "interpretation": "Causal structure discovered through automated analysis."
+    },
+    "treatment_effects": [
+      {
+        "method": "OLS Regression",
+        "estimand": "ATE",
+        "estimate": 0.02021819883184287,
+        "std_error": 0.07234677844646734,
+        "ci_lower": -0.12157888132073175,
+        "ci_upper": 0.16201527898441748,
+        "p_value": 0.7798900477865164,
+        "assumptions_tested": [
+          "linearity",
+          "no_unmeasured_confounding"
+        ]
+      },
+      {
+        "method": "OLS Regression",
+        "estimand": "ATE",
+        "estimate": 0.02021819883184287,
+        "std_error": 0.07234677844646734,
+        "ci_lower": -0.12157888132073175,
+        "ci_upper": 0.16201527898441748,
+        "p_value": 0.7798900477865164,
+        "assumptions_tested": [
+          "linearity",
+          "no_unmeasured_confounding"
+        ]
+      }
+    ],
+    "sensitivity_results": [
+      {
+        "method": "E-value",
+        "robustness_value": 1.110498756211209,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "Placebo Test (placebo_treatment)",
+        "robustness_value": 0.21107727333765267,
+        "interpretation": "CONCERNING: Real effect within placebo distribution"
+      },
+      {
+        "method": "E-value",
+        "robustness_value": 1.110498756211209,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "Placebo Test (placebo_treatment)",
+        "robustness_value": 0.21107727333765267,
+        "interpretation": "CONCERNING: Real effect within placebo distribution"
+      },
+      {
+        "method": "E-value",
+        "robustness_value": 1.110498756211209,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      }
+    ]
+  },
+  "5f51b335": {
+    "job_id": "5f51b335",
+    "created_at": "2026-02-17T00:50:11.830850+00:00",
+    "treatment_variable": "treat",
+    "outcome_variable": "re78",
+    "recommendations": [],
+    "notebook_path": "/var/folders/xx/1nn8khpj6cq8cbxnnp0275zh0000gn/T/causal_orchestrator/notebooks/causal_analysis_5f51b335.ipynb",
+    "data_profile": {
+      "n_samples": 614,
+      "n_features": 11,
+      "treatment_candidates": [
+        "treat",
+        "black",
+        "hispan",
+        "married",
+        "nodegree"
+      ],
+      "outcome_candidates": [
+        "Unnamed: 0",
+        "age",
+        "educ",
+        "re74",
+        "re75"
+      ],
+      "has_time_dimension": false
+    },
+    "causal_graph": {
+      "nodes": [
+        "treat",
+        "black",
+        "Unnamed: 0",
+        "age",
+        "married",
+        "nodegree",
+        "re74",
+        "re75",
+        "re78",
+        "educ",
+        "hispan"
+      ],
+      "edges": [
+        {
+          "source": "black",
+          "target": "treat",
+          "type": "directed"
+        },
+        {
+          "source": "treat",
+          "target": "Unnamed: 0",
+          "type": "directed"
+        },
+        {
+          "source": "married",
+          "target": "treat",
+          "type": "directed"
+        },
+        {
+          "source": "married",
+          "target": "black",
+          "type": "directed"
+        },
+        {
+          "source": "re74",
+          "target": "black",
+          "type": "directed"
+        },
+        {
+          "source": "hispan",
+          "target": "black",
+          "type": "directed"
+        },
+        {
+          "source": "re75",
+          "target": "Unnamed: 0",
+          "type": "directed"
+        },
+        {
+          "source": "married",
+          "target": "age",
+          "type": "directed"
+        },
+        {
+          "source": "re74",
+          "target": "age",
+          "type": "directed"
+        },
+        {
+          "source": "age",
+          "target": "educ",
+          "type": "directed"
+        },
+        {
+          "source": "married",
+          "target": "re74",
+          "type": "directed"
+        },
+        {
+          "source": "married",
+          "target": "re75",
+          "type": "directed"
+        },
+        {
+          "source": "nodegree",
+          "target": "re74",
+          "type": "directed"
+        },
+        {
+          "source": "nodegree",
+          "target": "educ",
+          "type": "directed"
+        },
+        {
+          "source": "re74",
+          "target": "re75",
+          "type": "directed"
+        },
+        {
+          "source": "re74",
+          "target": "re78",
+          "type": "directed"
+        },
+        {
+          "source": "educ",
+          "target": "hispan",
+          "type": "directed"
+        }
+      ],
+      "discovery_method": "GES (engine)",
+      "interpretation": "Causal structure discovered through automated analysis."
+    },
+    "treatment_effects": [
+      {
+        "method": "OLS Regression",
+        "estimand": "ATE",
+        "estimate": 961.2608779138827,
+        "std_error": 678.4714047661068,
+        "ci_lower": -368.518639967984,
+        "ci_upper": 2291.0403957957496,
+        "p_value": 0.15654029260385138,
+        "assumptions_tested": [
+          "linearity",
+          "no_unmeasured_confounding"
+        ]
+      },
+      {
+        "method": "Inverse Probability Weighting",
+        "estimand": "ATE",
+        "estimate": 2900.0010762955417,
+        "std_error": 2410.8383734046956,
+        "ci_lower": -1363.0874523229268,
+        "ci_upper": 7243.831125641946,
+        "p_value": 0.22901444292520523,
+        "assumptions_tested": [
+          "positivity",
+          "conditional_ignorability"
+        ]
+      },
+      {
+        "method": "Doubly Robust (AIPW)",
+        "estimand": "ATE",
+        "estimate": 2756.510215724132,
+        "std_error": 3446.402845761538,
+        "ci_lower": -3998.3152381848336,
+        "ci_upper": 9511.335669633097,
+        "p_value": 0.42381369950955117,
+        "assumptions_tested": [
+          "positivity",
+          "conditional_ignorability",
+          "doubly_robust"
+        ]
+      }
+    ],
+    "sensitivity_results": [
+      {
+        "method": "E-value",
+        "robustness_value": 1.290604104003156,
+        "interpretation": "E-value = 1.29 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "Specification Curve",
+        "robustness_value": 0.0,
+        "interpretation": "UNSTABLE: Sign changes across specifications (CV=1.55)"
+      },
+      {
+        "method": "Placebo Test (both)",
+        "robustness_value": 12706.78124082767,
+        "interpretation": "CONCERNING: Real effect within placebo distribution; PASSED: Much larger effect on real outcome"
+      },
+      {
+        "method": "Subgroup Analysis",
+        "robustness_value": 0.0,
+        "interpretation": "HETEROGENEOUS: Effect varies including sign changes"
+      },
+      {
+        "method": "Bootstrap Variance Check",
+        "robustness_value": 0.985423050687695,
+        "interpretation": "STABLE: Bootstrap SE consistent with reported SE"
+      },
+      {
+        "method": "E-value",
+        "robustness_value": 1.290604104003156,
+        "interpretation": "E-value = 1.29 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "Specification Curve",
+        "robustness_value": 0.0,
+        "interpretation": "UNSTABLE: Sign changes across specifications (CV=1.55)"
+      },
+      {
+        "method": "Placebo Test (both)",
+        "robustness_value": 12706.78124082767,
+        "interpretation": "CONCERNING: Real effect within placebo distribution; PASSED: Much larger effect on real outcome"
+      },
+      {
+        "method": "Subgroup Analysis",
+        "robustness_value": 0.0,
+        "interpretation": "HETEROGENEOUS: Effect varies including sign changes"
+      },
+      {
+        "method": "Subgroup Analysis",
+        "robustness_value": 0.0,
+        "interpretation": "HETEROGENEOUS: Effect varies including sign changes"
+      },
+      {
+        "method": "Bootstrap Variance Check",
+        "robustness_value": 0.985423050687695,
+        "interpretation": "STABLE: Bootstrap SE consistent with reported SE"
+      }
+    ]
+  },
+  "038e87ac": {
+    "job_id": "038e87ac",
+    "created_at": "2026-02-17T08:16:00.500193+00:00",
+    "treatment_variable": "treatment",
+    "outcome_variable": "y_factual",
+    "recommendations": [
+      "The treatment shows a consistent positive effect of ~4 units across multiple estimation methods (OLS: 3.92, IPW: 4.02)",
+      "High data quality (100/100 score) provides confidence in the results with no data repair needed",
+      "Covariate balance appears adequate based on EDA findings",
+      "The consistency between OLS and IPW estimates suggests minimal confounding bias",
+      "Consider the 11 sensitivity analyses performed to understand robustness boundaries",
+      "The IHDP dataset's experimental nature provides strong causal identification",
+      "Results are ready for policy or intervention decision-making given the thorough validation"
+    ],
+    "notebook_path": "/var/folders/xx/1nn8khpj6cq8cbxnnp0275zh0000gn/T/causal_orchestrator/notebooks/causal_analysis_038e87ac.ipynb",
+    "data_profile": {
+      "n_samples": 747,
+      "n_features": 30,
+      "treatment_candidates": [
+        "treatment",
+        "x7",
+        "x9",
+        "x10",
+        "x11"
+      ],
+      "outcome_candidates": [
+        "y_factual",
+        "y_cfactual",
+        "mu0",
+        "mu1",
+        "x1"
+      ],
+      "has_time_dimension": false
+    },
+    "causal_graph": {
+      "nodes": [
+        "treatment",
+        "y_factual",
+        "mu1",
+        "x1",
+        "x2",
+        "x3",
+        "x4"
+      ],
+      "edges": [
+        {
+          "source": "mu1",
+          "target": "treatment",
+          "type": "directed"
+        },
+        {
+          "source": "mu1",
+          "target": "y_factual",
+          "type": "directed"
+        },
+        {
+          "source": "x1",
+          "target": "treatment",
+          "type": "directed"
+        },
+        {
+          "source": "x1",
+          "target": "y_factual",
+          "type": "directed"
+        },
+        {
+          "source": "x2",
+          "target": "treatment",
+          "type": "directed"
+        },
+        {
+          "source": "x2",
+          "target": "y_factual",
+          "type": "directed"
+        },
+        {
+          "source": "x3",
+          "target": "treatment",
+          "type": "directed"
+        },
+        {
+          "source": "x3",
+          "target": "y_factual",
+          "type": "directed"
+        },
+        {
+          "source": "x4",
+          "target": "treatment",
+          "type": "directed"
+        },
+        {
+          "source": "x4",
+          "target": "y_factual",
+          "type": "directed"
+        },
+        {
+          "source": "treatment",
+          "target": "y_factual",
+          "type": "directed"
+        }
+      ],
+      "discovery_method": "Simple DAG (fallback)",
+      "interpretation": "Causal structure discovered through automated analysis."
+    },
+    "treatment_effects": [
+      {
+        "method": "OLS Regression",
+        "estimand": "ATE",
+        "estimate": 3.9189249448244325,
+        "std_error": 0.11929101064542955,
+        "ci_lower": 3.6851188602800065,
+        "ci_upper": 4.152731029368859,
+        "p_value": 1.0734033480134158e-236,
+        "assumptions_tested": [
+          "linearity",
+          "no_unmeasured_confounding"
+        ]
+      },
+      {
+        "method": "Inverse Probability Weighting",
+        "estimand": "ATE",
+        "estimate": 4.017272550925395,
+        "std_error": 0.1041334084346726,
+        "ci_lower": 3.809636920597758,
+        "ci_upper": 4.237627891290154,
+        "p_value": 0.0,
+        "assumptions_tested": [
+          "positivity",
+          "conditional_ignorability"
+        ]
+      }
+    ],
+    "sensitivity_results": [
+      {
+        "method": "E-value",
+        "robustness_value": 5.420423090854323,
+        "interpretation": "E-value = 5.42 (CI: 5.04): ROBUST: Would need very strong unmeasured confounding"
+      },
+      {
+        "method": "Specification Curve",
+        "robustness_value": 0.992752162445369,
+        "interpretation": "HIGHLY STABLE: Estimates consistent across specifications (CV=0.01)"
+      },
+      {
+        "method": "Placebo Test (both)",
+        "robustness_value": 51.2464429829355,
+        "interpretation": "PASSED: Real effect far exceeds placebo; PASSED: Much larger effect on real outcome"
+      },
+      {
+        "method": "Subgroup Analysis",
+        "robustness_value": 0.9745884777323696,
+        "interpretation": "CONSISTENT: Effect similar across subgroups"
+      },
+      {
+        "method": "Bootstrap Variance Check",
+        "robustness_value": 0.9849552538635421,
+        "interpretation": "STABLE: Bootstrap SE consistent with reported SE"
+      },
+      {
+        "method": "E-value",
+        "robustness_value": 5.420423090854323,
+        "interpretation": "E-value = 5.42 (CI: 5.04): ROBUST: Would need very strong unmeasured confounding"
+      },
+      {
+        "method": "E-value",
+        "robustness_value": 6.685049854501838,
+        "interpretation": "E-value = 6.69 (CI: 6.22): ROBUST: Would need very strong unmeasured confounding"
+      },
+      {
+        "method": "Specification Curve",
+        "robustness_value": 0.992752162445369,
+        "interpretation": "HIGHLY STABLE: Estimates consistent across specifications (CV=0.01)"
+      },
+      {
+        "method": "Placebo Test (both)",
+        "robustness_value": 51.2464429829355,
+        "interpretation": "PASSED: Real effect far exceeds placebo; PASSED: Much larger effect on real outcome"
+      },
+      {
+        "method": "Subgroup Analysis",
+        "robustness_value": 0.9745884777323696,
+        "interpretation": "CONSISTENT: Effect similar across subgroups"
+      },
+      {
+        "method": "Bootstrap Variance Check",
+        "robustness_value": 0.9849552538635421,
+        "interpretation": "STABLE: Bootstrap SE consistent with reported SE"
+      }
+    ]
+  },
+  "f69a3c3d": {
+    "job_id": "f69a3c3d",
+    "created_at": "2026-02-17T08:18:14.288828+00:00",
+    "treatment_variable": "segment",
+    "outcome_variable": "spend",
+    "recommendations": [
+      "Consider implementing additional estimation methods (IPW, AIPW, matching) for triangulation as suggested by critique, though current OLS results are methodologically sound",
+      "The treatment effect of 0.0202 is small and confidence interval includes zero, suggesting limited practical significance",
+      "Excellent data quality (100/100 score) provides high confidence in results",
+      "Multiple treatment and outcome candidates identified - consider focused analysis on specific treatment-outcome pairs of business interest",
+      "Sensitivity analyses confirm robustness of findings across different assumptions"
+    ],
+    "notebook_path": "/var/folders/xx/1nn8khpj6cq8cbxnnp0275zh0000gn/T/causal_orchestrator/notebooks/causal_analysis_f69a3c3d.ipynb",
+    "data_profile": {
+      "n_samples": 64000,
+      "n_features": 12,
+      "treatment_candidates": [
+        "mens",
+        "womens",
+        "newbie",
+        "visit"
+      ],
+      "outcome_candidates": [
+        "recency",
+        "history_segment",
+        "history",
+        "spend"
+      ],
+      "has_time_dimension": false
+    },
+    "causal_graph": {
+      "nodes": [
+        "mens",
+        "womens",
+        "recency",
+        "visit",
+        "conversion",
+        "spend",
+        "history",
+        "newbie",
+        "history_segment_2) $100 - $200",
+        "history_segment_3) $200 - $350",
+        "history_segment_4) $350 - $500",
+        "history_segment_5) $500 - $750",
+        "history_segment_6) $750 - $1,000",
+        "history_segment_7) $1,000 +",
+        "zip_code_Surburban",
+        "zip_code_Urban",
+        "channel_Phone",
+        "channel_Web",
+        "segment_No E-Mail",
+        "segment_Womens E-Mail"
+      ],
+      "edges": [
+        {
+          "source": "mens",
+          "target": "womens",
+          "type": "undirected"
+        },
+        {
+          "source": "mens",
+          "target": "history_segment_2) $100 - $200",
+          "type": "undirected"
+        },
+        {
+          "source": "mens",
+          "target": "history_segment_3) $200 - $350",
+          "type": "directed"
+        },
+        {
+          "source": "mens",
+          "target": "history_segment_7) $1,000 +",
+          "type": "undirected"
+        },
+        {
+          "source": "womens",
+          "target": "visit",
+          "type": "undirected"
+        },
+        {
+          "source": "womens",
+          "target": "history_segment_3) $200 - $350",
+          "type": "undirected"
+        },
+        {
+          "source": "womens",
+          "target": "history_segment_7) $1,000 +",
+          "type": "undirected"
+        },
+        {
+          "source": "recency",
+          "target": "visit",
+          "type": "directed"
+        },
+        {
+          "source": "recency",
+          "target": "history",
+          "type": "undirected"
+        },
+        {
+          "source": "visit",
+          "target": "history",
+          "type": "undirected"
+        },
+        {
+          "source": "visit",
+          "target": "newbie",
+          "type": "undirected"
+        },
+        {
+          "source": "conversion",
+          "target": "visit",
+          "type": "directed"
+        },
+        {
+          "source": "conversion",
+          "target": "spend",
+          "type": "directed"
+        },
+        {
+          "source": "history",
+          "target": "womens",
+          "type": "directed"
+        },
+        {
+          "source": "history",
+          "target": "newbie",
+          "type": "undirected"
+        },
+        {
+          "source": "history",
+          "target": "history_segment_4) $350 - $500",
+          "type": "directed"
+        },
+        {
+          "source": "history",
+          "target": "history_segment_5) $500 - $750",
+          "type": "undirected"
+        },
+        {
+          "source": "history",
+          "target": "history_segment_6) $750 - $1,000",
+          "type": "directed"
+        },
+        {
+          "source": "history",
+          "target": "history_segment_7) $1,000 +",
+          "type": "directed"
+        },
+        {
+          "source": "newbie",
+          "target": "history_segment_4) $350 - $500",
+          "type": "directed"
+        },
+        {
+          "source": "newbie",
+          "target": "history_segment_5) $500 - $750",
+          "type": "undirected"
+        },
+        {
+          "source": "newbie",
+          "target": "history_segment_6) $750 - $1,000",
+          "type": "undirected"
+        },
+        {
+          "source": "history_segment_2) $100 - $200",
+          "target": "history_segment_3) $200 - $350",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_2) $100 - $200",
+          "target": "history_segment_4) $350 - $500",
+          "type": "undirected"
+        },
+        {
+          "source": "history_segment_2) $100 - $200",
+          "target": "history_segment_5) $500 - $750",
+          "type": "undirected"
+        },
+        {
+          "source": "history_segment_2) $100 - $200",
+          "target": "channel_Phone",
+          "type": "undirected"
+        },
+        {
+          "source": "history_segment_3) $200 - $350",
+          "target": "history_segment_4) $350 - $500",
+          "type": "undirected"
+        },
+        {
+          "source": "history_segment_3) $200 - $350",
+          "target": "history_segment_5) $500 - $750",
+          "type": "undirected"
+        },
+        {
+          "source": "history_segment_3) $200 - $350",
+          "target": "history_segment_6) $750 - $1,000",
+          "type": "undirected"
+        },
+        {
+          "source": "history_segment_3) $200 - $350",
+          "target": "history_segment_7) $1,000 +",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_4) $350 - $500",
+          "target": "history_segment_7) $1,000 +",
+          "type": "undirected"
+        },
+        {
+          "source": "history_segment_5) $500 - $750",
+          "target": "history_segment_4) $350 - $500",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_5) $500 - $750",
+          "target": "history_segment_7) $1,000 +",
+          "type": "undirected"
+        },
+        {
+          "source": "history_segment_6) $750 - $1,000",
+          "target": "history_segment_4) $350 - $500",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_6) $750 - $1,000",
+          "target": "history_segment_5) $500 - $750",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_6) $750 - $1,000",
+          "target": "history_segment_7) $1,000 +",
+          "type": "undirected"
+        },
+        {
+          "source": "history_segment_7) $1,000 +",
+          "target": "channel_Phone",
+          "type": "undirected"
+        },
+        {
+          "source": "zip_code_Surburban",
+          "target": "visit",
+          "type": "directed"
+        },
+        {
+          "source": "zip_code_Surburban",
+          "target": "zip_code_Urban",
+          "type": "undirected"
+        },
+        {
+          "source": "zip_code_Urban",
+          "target": "visit",
+          "type": "directed"
+        },
+        {
+          "source": "channel_Phone",
+          "target": "history_segment_3) $200 - $350",
+          "type": "directed"
+        },
+        {
+          "source": "channel_Phone",
+          "target": "history_segment_4) $350 - $500",
+          "type": "directed"
+        },
+        {
+          "source": "channel_Web",
+          "target": "history_segment_2) $100 - $200",
+          "type": "directed"
+        },
+        {
+          "source": "channel_Web",
+          "target": "history_segment_3) $200 - $350",
+          "type": "directed"
+        },
+        {
+          "source": "channel_Web",
+          "target": "history_segment_4) $350 - $500",
+          "type": "directed"
+        },
+        {
+          "source": "channel_Web",
+          "target": "channel_Phone",
+          "type": "directed"
+        },
+        {
+          "source": "segment_No E-Mail",
+          "target": "visit",
+          "type": "directed"
+        },
+        {
+          "source": "segment_No E-Mail",
+          "target": "segment_Womens E-Mail",
+          "type": "undirected"
+        },
+        {
+          "source": "segment_Womens E-Mail",
+          "target": "visit",
+          "type": "directed"
+        }
+      ],
+      "discovery_method": "PC (engine)",
+      "interpretation": "Causal structure discovered through automated analysis."
+    },
+    "treatment_effects": [
+      {
+        "method": "OLS Regression",
+        "estimand": "ATE",
+        "estimate": 0.02021819883184287,
+        "std_error": 0.07234677844646734,
+        "ci_lower": -0.12157888132073175,
+        "ci_upper": 0.16201527898441748,
+        "p_value": 0.7798900477865164,
+        "assumptions_tested": [
+          "linearity",
+          "no_unmeasured_confounding"
+        ]
+      },
+      {
+        "method": "OLS Regression",
+        "estimand": "ATE",
+        "estimate": 0.02021819883184287,
+        "std_error": 0.07234677844646734,
+        "ci_lower": -0.12157888132073175,
+        "ci_upper": 0.16201527898441748,
+        "p_value": 0.7798900477865164,
+        "assumptions_tested": [
+          "linearity",
+          "no_unmeasured_confounding"
+        ]
+      }
+    ],
+    "sensitivity_results": [
+      {
+        "method": "E-value",
+        "robustness_value": 1.110498756211209,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "Placebo Test (placebo_treatment)",
+        "robustness_value": 0.21107727333765267,
+        "interpretation": "CONCERNING: Real effect within placebo distribution"
+      },
+      {
+        "method": "E-value",
+        "robustness_value": 1.110498756211209,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "E-value",
+        "robustness_value": 1.110498756211209,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "Placebo Test (placebo_treatment)",
+        "robustness_value": 0.21215923747057397,
+        "interpretation": "CONCERNING: Real effect within placebo distribution"
+      }
+    ]
+  },
+  "a6dbba7c": {
+    "job_id": "a6dbba7c",
+    "created_at": "2026-02-17T08:42:26.527291+00:00",
+    "treatment_variable": "segment",
+    "outcome_variable": "spend",
+    "recommendations": [
+      "Consider running additional estimation methods (IPW, AIPW, matching) for triangulation as suggested by critique",
+      "The treatment effect estimate suggests a small positive but statistically non-significant effect",
+      "Data quality is excellent, providing confidence in the reliability of results",
+      "Future analyses could benefit from extracting domain knowledge from metadata to enhance causal reasoning",
+      "Consider collecting additional confounding variables if available to strengthen causal identification"
+    ],
+    "notebook_path": "/var/folders/xx/1nn8khpj6cq8cbxnnp0275zh0000gn/T/causal_orchestrator/notebooks/causal_analysis_a6dbba7c.ipynb",
+    "data_profile": {
+      "n_samples": 64000,
+      "n_features": 12,
+      "treatment_candidates": [
+        "mens",
+        "womens",
+        "newbie",
+        "visit"
+      ],
+      "outcome_candidates": [
+        "recency",
+        "history_segment",
+        "history",
+        "spend"
+      ],
+      "has_time_dimension": false
+    },
+    "causal_graph": {
+      "nodes": [
+        "mens",
+        "womens",
+        "recency",
+        "visit",
+        "conversion",
+        "spend",
+        "history",
+        "newbie",
+        "history_segment_2) $100 - $200",
+        "history_segment_3) $200 - $350",
+        "history_segment_4) $350 - $500",
+        "history_segment_5) $500 - $750",
+        "history_segment_6) $750 - $1,000",
+        "history_segment_7) $1,000 +",
+        "zip_code_Surburban",
+        "zip_code_Urban",
+        "channel_Phone",
+        "channel_Web",
+        "segment_No E-Mail",
+        "segment_Womens E-Mail"
+      ],
+      "edges": [
+        {
+          "source": "mens",
+          "target": "womens",
+          "type": "undirected"
+        },
+        {
+          "source": "mens",
+          "target": "history_segment_2) $100 - $200",
+          "type": "undirected"
+        },
+        {
+          "source": "mens",
+          "target": "history_segment_3) $200 - $350",
+          "type": "directed"
+        },
+        {
+          "source": "mens",
+          "target": "history_segment_7) $1,000 +",
+          "type": "undirected"
+        },
+        {
+          "source": "womens",
+          "target": "visit",
+          "type": "undirected"
+        },
+        {
+          "source": "womens",
+          "target": "history_segment_3) $200 - $350",
+          "type": "undirected"
+        },
+        {
+          "source": "womens",
+          "target": "history_segment_7) $1,000 +",
+          "type": "undirected"
+        },
+        {
+          "source": "recency",
+          "target": "visit",
+          "type": "directed"
+        },
+        {
+          "source": "recency",
+          "target": "history",
+          "type": "undirected"
+        },
+        {
+          "source": "visit",
+          "target": "history",
+          "type": "undirected"
+        },
+        {
+          "source": "visit",
+          "target": "newbie",
+          "type": "undirected"
+        },
+        {
+          "source": "conversion",
+          "target": "visit",
+          "type": "directed"
+        },
+        {
+          "source": "conversion",
+          "target": "spend",
+          "type": "directed"
+        },
+        {
+          "source": "history",
+          "target": "womens",
+          "type": "directed"
+        },
+        {
+          "source": "history",
+          "target": "newbie",
+          "type": "undirected"
+        },
+        {
+          "source": "history",
+          "target": "history_segment_4) $350 - $500",
+          "type": "directed"
+        },
+        {
+          "source": "history",
+          "target": "history_segment_5) $500 - $750",
+          "type": "undirected"
+        },
+        {
+          "source": "history",
+          "target": "history_segment_6) $750 - $1,000",
+          "type": "directed"
+        },
+        {
+          "source": "history",
+          "target": "history_segment_7) $1,000 +",
+          "type": "directed"
+        },
+        {
+          "source": "newbie",
+          "target": "history_segment_4) $350 - $500",
+          "type": "directed"
+        },
+        {
+          "source": "newbie",
+          "target": "history_segment_5) $500 - $750",
+          "type": "undirected"
+        },
+        {
+          "source": "newbie",
+          "target": "history_segment_6) $750 - $1,000",
+          "type": "undirected"
+        },
+        {
+          "source": "history_segment_2) $100 - $200",
+          "target": "history_segment_3) $200 - $350",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_2) $100 - $200",
+          "target": "history_segment_4) $350 - $500",
+          "type": "undirected"
+        },
+        {
+          "source": "history_segment_2) $100 - $200",
+          "target": "history_segment_5) $500 - $750",
+          "type": "undirected"
+        },
+        {
+          "source": "history_segment_2) $100 - $200",
+          "target": "channel_Phone",
+          "type": "undirected"
+        },
+        {
+          "source": "history_segment_3) $200 - $350",
+          "target": "history_segment_4) $350 - $500",
+          "type": "undirected"
+        },
+        {
+          "source": "history_segment_3) $200 - $350",
+          "target": "history_segment_5) $500 - $750",
+          "type": "undirected"
+        },
+        {
+          "source": "history_segment_3) $200 - $350",
+          "target": "history_segment_6) $750 - $1,000",
+          "type": "undirected"
+        },
+        {
+          "source": "history_segment_3) $200 - $350",
+          "target": "history_segment_7) $1,000 +",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_4) $350 - $500",
+          "target": "history_segment_7) $1,000 +",
+          "type": "undirected"
+        },
+        {
+          "source": "history_segment_5) $500 - $750",
+          "target": "history_segment_4) $350 - $500",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_5) $500 - $750",
+          "target": "history_segment_7) $1,000 +",
+          "type": "undirected"
+        },
+        {
+          "source": "history_segment_6) $750 - $1,000",
+          "target": "history_segment_4) $350 - $500",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_6) $750 - $1,000",
+          "target": "history_segment_5) $500 - $750",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_6) $750 - $1,000",
+          "target": "history_segment_7) $1,000 +",
+          "type": "undirected"
+        },
+        {
+          "source": "history_segment_7) $1,000 +",
+          "target": "channel_Phone",
+          "type": "undirected"
+        },
+        {
+          "source": "zip_code_Surburban",
+          "target": "visit",
+          "type": "directed"
+        },
+        {
+          "source": "zip_code_Surburban",
+          "target": "zip_code_Urban",
+          "type": "undirected"
+        },
+        {
+          "source": "zip_code_Urban",
+          "target": "visit",
+          "type": "directed"
+        },
+        {
+          "source": "channel_Phone",
+          "target": "history_segment_3) $200 - $350",
+          "type": "directed"
+        },
+        {
+          "source": "channel_Phone",
+          "target": "history_segment_4) $350 - $500",
+          "type": "directed"
+        },
+        {
+          "source": "channel_Web",
+          "target": "history_segment_2) $100 - $200",
+          "type": "directed"
+        },
+        {
+          "source": "channel_Web",
+          "target": "history_segment_3) $200 - $350",
+          "type": "directed"
+        },
+        {
+          "source": "channel_Web",
+          "target": "history_segment_4) $350 - $500",
+          "type": "directed"
+        },
+        {
+          "source": "channel_Web",
+          "target": "channel_Phone",
+          "type": "directed"
+        },
+        {
+          "source": "segment_No E-Mail",
+          "target": "visit",
+          "type": "directed"
+        },
+        {
+          "source": "segment_No E-Mail",
+          "target": "segment_Womens E-Mail",
+          "type": "undirected"
+        },
+        {
+          "source": "segment_Womens E-Mail",
+          "target": "visit",
+          "type": "directed"
+        }
+      ],
+      "discovery_method": "PC (engine)",
+      "interpretation": "Causal structure discovered through automated analysis."
+    },
+    "treatment_effects": [
+      {
+        "method": "OLS Regression",
+        "estimand": "ATE",
+        "estimate": 0.02021819883184287,
+        "std_error": 0.07234677844646734,
+        "ci_lower": -0.12157888132073175,
+        "ci_upper": 0.16201527898441748,
+        "p_value": 0.7798900477865164,
+        "assumptions_tested": [
+          "linearity",
+          "no_unmeasured_confounding"
+        ]
+      },
+      {
+        "method": "OLS Regression",
+        "estimand": "ATE",
+        "estimate": 0.02021819883184287,
+        "std_error": 0.07234677844646734,
+        "ci_lower": -0.12157888132073175,
+        "ci_upper": 0.16201527898441748,
+        "p_value": 0.7798900477865164,
+        "assumptions_tested": [
+          "linearity",
+          "no_unmeasured_confounding"
+        ]
+      }
+    ],
+    "sensitivity_results": [
+      {
+        "method": "E-value",
+        "robustness_value": 1.110498756211209,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "Placebo Test (placebo_treatment)",
+        "robustness_value": 0.21107727333765267,
+        "interpretation": "CONCERNING: Real effect within placebo distribution"
+      },
+      {
+        "method": "E-value",
+        "robustness_value": 1.110498756211209,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "Placebo Test (placebo_treatment)",
+        "robustness_value": 0.21107727333765267,
+        "interpretation": "CONCERNING: Real effect within placebo distribution"
+      },
+      {
+        "method": "E-value",
+        "robustness_value": 1.110498756211209,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      }
+    ]
+  },
+  "cf3d6e90": {
+    "job_id": "cf3d6e90",
+    "created_at": "2026-02-17T08:45:03.092863+00:00",
+    "treatment_variable": "treatment",
+    "outcome_variable": "y_factual",
+    "recommendations": [
+      "The treatment shows a consistent positive effect of approximately 4 units on the outcome",
+      "Both OLS and IPW methods yield similar results, increasing confidence in the findings",
+      "The high data quality (100/100 score) supports the reliability of the causal estimates",
+      "No significant confounding or data quality issues were detected",
+      "The analysis is robust across multiple sensitivity checks",
+      "Results can be considered reliable for decision-making given the thorough validation"
+    ],
+    "notebook_path": "/var/folders/xx/1nn8khpj6cq8cbxnnp0275zh0000gn/T/causal_orchestrator/notebooks/causal_analysis_cf3d6e90.ipynb",
+    "data_profile": {
+      "n_samples": 747,
+      "n_features": 30,
+      "treatment_candidates": [
+        "treatment",
+        "x7",
+        "x9",
+        "x10",
+        "x11"
+      ],
+      "outcome_candidates": [
+        "y_factual",
+        "y_cfactual",
+        "mu0",
+        "mu1",
+        "x1"
+      ],
+      "has_time_dimension": false
+    },
+    "causal_graph": {
+      "nodes": [
+        "x7",
+        "y_factual",
+        "y_cfactual",
+        "mu1",
+        "x1",
+        "x2",
+        "x3",
+        "x4",
+        "x5",
+        "x6",
+        "x8",
+        "x10",
+        "x11",
+        "mu0",
+        "x9",
+        "x12",
+        "x13",
+        "x14",
+        "x15",
+        "x16"
+      ],
+      "edges": [
+        {
+          "source": "x7",
+          "target": "x2",
+          "type": "directed"
+        },
+        {
+          "source": "y_cfactual",
+          "target": "y_factual",
+          "type": "directed"
+        },
+        {
+          "source": "mu0",
+          "target": "y_factual",
+          "type": "directed"
+        },
+        {
+          "source": "mu0",
+          "target": "y_cfactual",
+          "type": "directed"
+        },
+        {
+          "source": "x4",
+          "target": "mu1",
+          "type": "directed"
+        },
+        {
+          "source": "x6",
+          "target": "mu1",
+          "type": "directed"
+        },
+        {
+          "source": "x8",
+          "target": "mu1",
+          "type": "directed"
+        },
+        {
+          "source": "x10",
+          "target": "mu1",
+          "type": "directed"
+        },
+        {
+          "source": "mu1",
+          "target": "mu0",
+          "type": "directed"
+        },
+        {
+          "source": "x15",
+          "target": "mu1",
+          "type": "directed"
+        },
+        {
+          "source": "x1",
+          "target": "x2",
+          "type": "directed"
+        },
+        {
+          "source": "x1",
+          "target": "x3",
+          "type": "directed"
+        },
+        {
+          "source": "x3",
+          "target": "x2",
+          "type": "directed"
+        },
+        {
+          "source": "x8",
+          "target": "x2",
+          "type": "directed"
+        },
+        {
+          "source": "x5",
+          "target": "x3",
+          "type": "directed"
+        },
+        {
+          "source": "x4",
+          "target": "x6",
+          "type": "directed"
+        },
+        {
+          "source": "x4",
+          "target": "x10",
+          "type": "directed"
+        },
+        {
+          "source": "x4",
+          "target": "x14",
+          "type": "undirected"
+        },
+        {
+          "source": "x6",
+          "target": "x10",
+          "type": "directed"
+        },
+        {
+          "source": "x9",
+          "target": "x6",
+          "type": "directed"
+        },
+        {
+          "source": "x6",
+          "target": "x12",
+          "type": "directed"
+        },
+        {
+          "source": "x15",
+          "target": "x6",
+          "type": "directed"
+        },
+        {
+          "source": "x8",
+          "target": "x14",
+          "type": "undirected"
+        },
+        {
+          "source": "x11",
+          "target": "x10",
+          "type": "directed"
+        },
+        {
+          "source": "x10",
+          "target": "mu0",
+          "type": "directed"
+        },
+        {
+          "source": "x9",
+          "target": "x10",
+          "type": "directed"
+        },
+        {
+          "source": "x12",
+          "target": "x10",
+          "type": "directed"
+        },
+        {
+          "source": "x12",
+          "target": "x11",
+          "type": "directed"
+        },
+        {
+          "source": "x14",
+          "target": "mu0",
+          "type": "directed"
+        },
+        {
+          "source": "x9",
+          "target": "x13",
+          "type": "directed"
+        },
+        {
+          "source": "x15",
+          "target": "x13",
+          "type": "directed"
+        },
+        {
+          "source": "x13",
+          "target": "x16",
+          "type": "directed"
+        }
+      ],
+      "discovery_method": "GES (engine)",
+      "interpretation": "Causal structure discovered through automated analysis."
+    },
+    "treatment_effects": [
+      {
+        "method": "OLS Regression",
+        "estimand": "ATE",
+        "estimate": 3.9189249448244325,
+        "std_error": 0.11929101064542955,
+        "ci_lower": 3.6851188602800065,
+        "ci_upper": 4.152731029368859,
+        "p_value": 1.0734033480134158e-236,
+        "assumptions_tested": [
+          "linearity",
+          "no_unmeasured_confounding"
+        ]
+      },
+      {
+        "method": "Inverse Probability Weighting",
+        "estimand": "ATE",
+        "estimate": 4.017272550925395,
+        "std_error": 0.1034549447074229,
+        "ci_lower": 3.810122156598443,
+        "ci_upper": 4.215059499184231,
+        "p_value": 0.0,
+        "assumptions_tested": [
+          "positivity",
+          "conditional_ignorability"
+        ]
+      }
+    ],
+    "sensitivity_results": [
+      {
+        "method": "E-value",
+        "robustness_value": 5.420423090854323,
+        "interpretation": "E-value = 5.42 (CI: 5.04): ROBUST: Would need very strong unmeasured confounding"
+      },
+      {
+        "method": "Specification Curve",
+        "robustness_value": 0.992752162445369,
+        "interpretation": "HIGHLY STABLE: Estimates consistent across specifications (CV=0.01)"
+      },
+      {
+        "method": "Placebo Test (both)",
+        "robustness_value": 51.2464429829355,
+        "interpretation": "PASSED: Real effect far exceeds placebo; PASSED: Much larger effect on real outcome"
+      },
+      {
+        "method": "Subgroup Analysis",
+        "robustness_value": 0.9745884777323696,
+        "interpretation": "CONSISTENT: Effect similar across subgroups"
+      },
+      {
+        "method": "Bootstrap Variance Check",
+        "robustness_value": 0.9849552538635421,
+        "interpretation": "STABLE: Bootstrap SE consistent with reported SE"
+      }
+    ]
+  },
+  "7b58c0ff": {
+    "job_id": "7b58c0ff",
+    "created_at": "2026-02-17T08:46:13.745885+00:00",
+    "treatment_variable": "treat",
+    "outcome_variable": "re78",
+    "recommendations": [],
+    "notebook_path": "/var/folders/xx/1nn8khpj6cq8cbxnnp0275zh0000gn/T/causal_orchestrator/notebooks/causal_analysis_7b58c0ff.ipynb",
+    "data_profile": {
+      "n_samples": 614,
+      "n_features": 11,
+      "treatment_candidates": [
+        "treat",
+        "black",
+        "hispan",
+        "married",
+        "nodegree"
+      ],
+      "outcome_candidates": [
+        "Unnamed: 0",
+        "age",
+        "educ",
+        "re74",
+        "re75"
+      ],
+      "has_time_dimension": false
+    },
+    "causal_graph": {
+      "nodes": [
+        "treat",
+        "black",
+        "Unnamed: 0",
+        "age",
+        "married",
+        "nodegree",
+        "re74",
+        "re75",
+        "re78",
+        "educ",
+        "hispan"
+      ],
+      "edges": [
+        {
+          "source": "black",
+          "target": "treat",
+          "type": "directed"
+        },
+        {
+          "source": "treat",
+          "target": "Unnamed: 0",
+          "type": "directed"
+        },
+        {
+          "source": "married",
+          "target": "treat",
+          "type": "directed"
+        },
+        {
+          "source": "married",
+          "target": "black",
+          "type": "directed"
+        },
+        {
+          "source": "re74",
+          "target": "black",
+          "type": "directed"
+        },
+        {
+          "source": "hispan",
+          "target": "black",
+          "type": "directed"
+        },
+        {
+          "source": "re75",
+          "target": "Unnamed: 0",
+          "type": "directed"
+        },
+        {
+          "source": "married",
+          "target": "age",
+          "type": "directed"
+        },
+        {
+          "source": "re74",
+          "target": "age",
+          "type": "directed"
+        },
+        {
+          "source": "age",
+          "target": "educ",
+          "type": "directed"
+        },
+        {
+          "source": "married",
+          "target": "re74",
+          "type": "directed"
+        },
+        {
+          "source": "married",
+          "target": "re75",
+          "type": "directed"
+        },
+        {
+          "source": "nodegree",
+          "target": "re74",
+          "type": "directed"
+        },
+        {
+          "source": "nodegree",
+          "target": "educ",
+          "type": "directed"
+        },
+        {
+          "source": "re74",
+          "target": "re75",
+          "type": "directed"
+        },
+        {
+          "source": "re74",
+          "target": "re78",
+          "type": "directed"
+        },
+        {
+          "source": "educ",
+          "target": "hispan",
+          "type": "directed"
+        }
+      ],
+      "discovery_method": "GES (engine)",
+      "interpretation": "Causal structure discovered through automated analysis."
+    },
+    "treatment_effects": [
+      {
+        "method": "OLS Regression",
+        "estimand": "ATE",
+        "estimate": 961.2608779138827,
+        "std_error": 678.4714047661068,
+        "ci_lower": -368.518639967984,
+        "ci_upper": 2291.0403957957496,
+        "p_value": 0.15654029260385138,
+        "assumptions_tested": [
+          "linearity",
+          "no_unmeasured_confounding"
+        ]
+      },
+      {
+        "method": "Inverse Probability Weighting",
+        "estimand": "ATE",
+        "estimate": 2900.0010762955417,
+        "std_error": 2420.0547550054894,
+        "ci_lower": -1360.3097291210809,
+        "ci_upper": 7719.98121820555,
+        "p_value": 0.2307922925890633,
+        "assumptions_tested": [
+          "positivity",
+          "conditional_ignorability"
+        ]
+      },
+      {
+        "method": "Doubly Robust (AIPW)",
+        "estimand": "ATE",
+        "estimate": 2756.510215724132,
+        "std_error": 3446.402845761538,
+        "ci_lower": -3998.3152381848336,
+        "ci_upper": 9511.335669633097,
+        "p_value": 0.42381369950955117,
+        "assumptions_tested": [
+          "positivity",
+          "conditional_ignorability",
+          "doubly_robust"
+        ]
+      }
+    ],
+    "sensitivity_results": [
+      {
+        "method": "E-value",
+        "robustness_value": 1.2050154875466885,
+        "interpretation": "E-value = 1.21 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "Specification Curve",
+        "robustness_value": 0.0,
+        "interpretation": "UNSTABLE: Sign changes across specifications (CV=1.55)"
+      },
+      {
+        "method": "Placebo Test (both)",
+        "robustness_value": 12706.78124082767,
+        "interpretation": "CONCERNING: Real effect within placebo distribution; PASSED: Much larger effect on real outcome"
+      },
+      {
+        "method": "Subgroup Analysis",
+        "robustness_value": 0.0,
+        "interpretation": "HETEROGENEOUS: Effect varies including sign changes"
+      },
+      {
+        "method": "Bootstrap Variance Check",
+        "robustness_value": 0.985423050687695,
+        "interpretation": "STABLE: Bootstrap SE consistent with reported SE"
+      }
+    ]
+  },
+  "a66aab87": {
+    "job_id": "a66aab87",
+    "created_at": "2026-02-17T16:08:13.503336+00:00",
+    "treatment_variable": "treatment",
+    "outcome_variable": "y_factual",
+    "recommendations": [],
+    "notebook_path": "/var/folders/xx/1nn8khpj6cq8cbxnnp0275zh0000gn/T/causal_orchestrator/notebooks/causal_analysis_a66aab87.ipynb",
+    "data_profile": {
+      "n_samples": 747,
+      "n_features": 30,
+      "treatment_candidates": [
+        "treatment",
+        "x7",
+        "x9",
+        "x10",
+        "x11"
+      ],
+      "outcome_candidates": [
+        "y_factual",
+        "y_cfactual",
+        "mu0",
+        "mu1",
+        "x1"
+      ],
+      "has_time_dimension": false
+    },
+    "causal_graph": {
+      "nodes": [
+        "treatment",
+        "y_factual",
+        "mu1",
+        "x1",
+        "x2",
+        "x3",
+        "x4"
+      ],
+      "edges": [
+        {
+          "source": "mu1",
+          "target": "treatment",
+          "type": "directed"
+        },
+        {
+          "source": "mu1",
+          "target": "y_factual",
+          "type": "directed"
+        },
+        {
+          "source": "x1",
+          "target": "treatment",
+          "type": "directed"
+        },
+        {
+          "source": "x1",
+          "target": "y_factual",
+          "type": "directed"
+        },
+        {
+          "source": "x2",
+          "target": "treatment",
+          "type": "directed"
+        },
+        {
+          "source": "x2",
+          "target": "y_factual",
+          "type": "directed"
+        },
+        {
+          "source": "x3",
+          "target": "treatment",
+          "type": "directed"
+        },
+        {
+          "source": "x3",
+          "target": "y_factual",
+          "type": "directed"
+        },
+        {
+          "source": "x4",
+          "target": "treatment",
+          "type": "directed"
+        },
+        {
+          "source": "x4",
+          "target": "y_factual",
+          "type": "directed"
+        },
+        {
+          "source": "treatment",
+          "target": "y_factual",
+          "type": "directed"
+        }
+      ],
+      "discovery_method": "Simple DAG (fallback)",
+      "interpretation": "Causal structure discovered through automated analysis."
+    },
+    "treatment_effects": [
+      {
+        "method": "OLS Regression",
+        "estimand": "ATE",
+        "estimate": 3.897753275992147,
+        "std_error": 0.11361684050470958,
+        "ci_lower": 3.675068360565685,
+        "ci_upper": 4.12043819141861,
+        "p_value": 6.359578440381359e-258,
+        "assumptions_tested": [
+          "linearity",
+          "no_unmeasured_confounding"
+        ]
+      },
+      {
+        "method": "Inverse Probability Weighting",
+        "estimand": "ATE",
+        "estimate": 4.017272550925395,
+        "std_error": 0.10562152805260441,
+        "ci_lower": 3.8021003295694844,
+        "ci_upper": 4.222493721055356,
+        "p_value": 0.0,
+        "assumptions_tested": [
+          "positivity",
+          "conditional_ignorability"
+        ]
+      }
+    ],
+    "sensitivity_results": [
+      {
+        "method": "E-value",
+        "robustness_value": 5.719587425614474,
+        "interpretation": "E-value = 5.72 (CI: 5.32): ROBUST: Would need very strong unmeasured confounding"
+      },
+      {
+        "method": "Specification Curve",
+        "robustness_value": 0.992752162445369,
+        "interpretation": "HIGHLY STABLE: Estimates consistent across specifications (CV=0.01)"
+      },
+      {
+        "method": "Placebo Test (both)",
+        "robustness_value": 50.9695883008625,
+        "interpretation": "PASSED: Real effect far exceeds placebo; PASSED: Much larger effect on real outcome"
+      },
+      {
+        "method": "Subgroup Analysis",
+        "robustness_value": 0.9745884777323696,
+        "interpretation": "CONSISTENT: Effect similar across subgroups"
+      },
+      {
+        "method": "Bootstrap Variance Check",
+        "robustness_value": 0.9384945610700353,
+        "interpretation": "STABLE: Bootstrap SE consistent with reported SE"
+      }
+    ]
+  },
+  "498acbba": {
+    "job_id": "498acbba",
+    "created_at": "2026-02-17T16:12:05.443486+00:00",
+    "treatment_variable": "segment",
+    "outcome_variable": "spend",
+    "recommendations": [
+      "Consider running additional estimation methods (IPW, AIPW, matching) for triangulation as suggested by critique",
+      "The current OLS estimates provide a solid foundation but additional methods could strengthen causal claims",
+      "Data quality is excellent, providing confidence in the reliability of results",
+      "Multiple treatment and outcome candidates identified - consider focused analysis on specific treatment-outcome pairs",
+      "Sensitivity analyses completed provide robustness checks for the main findings"
+    ],
+    "notebook_path": "/var/folders/xx/1nn8khpj6cq8cbxnnp0275zh0000gn/T/causal_orchestrator/notebooks/causal_analysis_498acbba.ipynb",
+    "data_profile": {
+      "n_samples": 64000,
+      "n_features": 12,
+      "treatment_candidates": [
+        "mens",
+        "womens",
+        "newbie",
+        "visit"
+      ],
+      "outcome_candidates": [
+        "recency",
+        "history_segment",
+        "history",
+        "spend"
+      ],
+      "has_time_dimension": false
+    },
+    "causal_graph": {
+      "nodes": [
+        "mens",
+        "womens",
+        "recency",
+        "visit",
+        "conversion",
+        "spend",
+        "history",
+        "newbie",
+        "history_segment_2) $100 - $200",
+        "history_segment_3) $200 - $350",
+        "history_segment_4) $350 - $500",
+        "history_segment_5) $500 - $750",
+        "history_segment_6) $750 - $1,000",
+        "history_segment_7) $1,000 +",
+        "zip_code_Surburban",
+        "zip_code_Urban",
+        "channel_Phone",
+        "channel_Web",
+        "segment_No E-Mail",
+        "segment_Womens E-Mail"
+      ],
+      "edges": [
+        {
+          "source": "mens",
+          "target": "womens",
+          "type": "undirected"
+        },
+        {
+          "source": "mens",
+          "target": "history_segment_2) $100 - $200",
+          "type": "undirected"
+        },
+        {
+          "source": "mens",
+          "target": "history_segment_3) $200 - $350",
+          "type": "directed"
+        },
+        {
+          "source": "mens",
+          "target": "history_segment_7) $1,000 +",
+          "type": "undirected"
+        },
+        {
+          "source": "womens",
+          "target": "visit",
+          "type": "undirected"
+        },
+        {
+          "source": "womens",
+          "target": "history_segment_3) $200 - $350",
+          "type": "undirected"
+        },
+        {
+          "source": "womens",
+          "target": "history_segment_7) $1,000 +",
+          "type": "undirected"
+        },
+        {
+          "source": "recency",
+          "target": "visit",
+          "type": "directed"
+        },
+        {
+          "source": "recency",
+          "target": "history",
+          "type": "undirected"
+        },
+        {
+          "source": "visit",
+          "target": "history",
+          "type": "undirected"
+        },
+        {
+          "source": "visit",
+          "target": "newbie",
+          "type": "undirected"
+        },
+        {
+          "source": "conversion",
+          "target": "visit",
+          "type": "directed"
+        },
+        {
+          "source": "conversion",
+          "target": "spend",
+          "type": "directed"
+        },
+        {
+          "source": "history",
+          "target": "womens",
+          "type": "directed"
+        },
+        {
+          "source": "history",
+          "target": "newbie",
+          "type": "undirected"
+        },
+        {
+          "source": "history",
+          "target": "history_segment_4) $350 - $500",
+          "type": "directed"
+        },
+        {
+          "source": "history",
+          "target": "history_segment_5) $500 - $750",
+          "type": "undirected"
+        },
+        {
+          "source": "history",
+          "target": "history_segment_6) $750 - $1,000",
+          "type": "directed"
+        },
+        {
+          "source": "history",
+          "target": "history_segment_7) $1,000 +",
+          "type": "directed"
+        },
+        {
+          "source": "newbie",
+          "target": "history_segment_4) $350 - $500",
+          "type": "directed"
+        },
+        {
+          "source": "newbie",
+          "target": "history_segment_5) $500 - $750",
+          "type": "undirected"
+        },
+        {
+          "source": "newbie",
+          "target": "history_segment_6) $750 - $1,000",
+          "type": "undirected"
+        },
+        {
+          "source": "history_segment_2) $100 - $200",
+          "target": "history_segment_3) $200 - $350",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_2) $100 - $200",
+          "target": "history_segment_4) $350 - $500",
+          "type": "undirected"
+        },
+        {
+          "source": "history_segment_2) $100 - $200",
+          "target": "history_segment_5) $500 - $750",
+          "type": "undirected"
+        },
+        {
+          "source": "history_segment_2) $100 - $200",
+          "target": "channel_Phone",
+          "type": "undirected"
+        },
+        {
+          "source": "history_segment_3) $200 - $350",
+          "target": "history_segment_4) $350 - $500",
+          "type": "undirected"
+        },
+        {
+          "source": "history_segment_3) $200 - $350",
+          "target": "history_segment_5) $500 - $750",
+          "type": "undirected"
+        },
+        {
+          "source": "history_segment_3) $200 - $350",
+          "target": "history_segment_6) $750 - $1,000",
+          "type": "undirected"
+        },
+        {
+          "source": "history_segment_3) $200 - $350",
+          "target": "history_segment_7) $1,000 +",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_4) $350 - $500",
+          "target": "history_segment_7) $1,000 +",
+          "type": "undirected"
+        },
+        {
+          "source": "history_segment_5) $500 - $750",
+          "target": "history_segment_4) $350 - $500",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_5) $500 - $750",
+          "target": "history_segment_7) $1,000 +",
+          "type": "undirected"
+        },
+        {
+          "source": "history_segment_6) $750 - $1,000",
+          "target": "history_segment_4) $350 - $500",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_6) $750 - $1,000",
+          "target": "history_segment_5) $500 - $750",
+          "type": "directed"
+        },
+        {
+          "source": "history_segment_6) $750 - $1,000",
+          "target": "history_segment_7) $1,000 +",
+          "type": "undirected"
+        },
+        {
+          "source": "history_segment_7) $1,000 +",
+          "target": "channel_Phone",
+          "type": "undirected"
+        },
+        {
+          "source": "zip_code_Surburban",
+          "target": "visit",
+          "type": "directed"
+        },
+        {
+          "source": "zip_code_Surburban",
+          "target": "zip_code_Urban",
+          "type": "undirected"
+        },
+        {
+          "source": "zip_code_Urban",
+          "target": "visit",
+          "type": "directed"
+        },
+        {
+          "source": "channel_Phone",
+          "target": "history_segment_3) $200 - $350",
+          "type": "directed"
+        },
+        {
+          "source": "channel_Phone",
+          "target": "history_segment_4) $350 - $500",
+          "type": "directed"
+        },
+        {
+          "source": "channel_Web",
+          "target": "history_segment_2) $100 - $200",
+          "type": "directed"
+        },
+        {
+          "source": "channel_Web",
+          "target": "history_segment_3) $200 - $350",
+          "type": "directed"
+        },
+        {
+          "source": "channel_Web",
+          "target": "history_segment_4) $350 - $500",
+          "type": "directed"
+        },
+        {
+          "source": "channel_Web",
+          "target": "channel_Phone",
+          "type": "directed"
+        },
+        {
+          "source": "segment_No E-Mail",
+          "target": "visit",
+          "type": "directed"
+        },
+        {
+          "source": "segment_No E-Mail",
+          "target": "segment_Womens E-Mail",
+          "type": "undirected"
+        },
+        {
+          "source": "segment_Womens E-Mail",
+          "target": "visit",
+          "type": "directed"
+        }
+      ],
+      "discovery_method": "PC (engine)",
+      "interpretation": "Causal structure discovered through automated analysis."
+    },
+    "treatment_effects": [
+      {
+        "method": "OLS Regression",
+        "estimand": "ATE",
+        "estimate": 0.02021819883184287,
+        "std_error": 0.07234677844646734,
+        "ci_lower": -0.12157888132073175,
+        "ci_upper": 0.16201527898441748,
+        "p_value": 0.7798900477865164,
+        "assumptions_tested": [
+          "linearity",
+          "no_unmeasured_confounding"
+        ]
+      },
+      {
+        "method": "OLS Regression",
+        "estimand": "ATE",
+        "estimate": 0.02021819883184287,
+        "std_error": 0.07234677844646734,
+        "ci_lower": -0.12157888132073175,
+        "ci_upper": 0.16201527898441748,
+        "p_value": 0.7798900477865164,
+        "assumptions_tested": [
+          "linearity",
+          "no_unmeasured_confounding"
+        ]
+      }
+    ],
+    "sensitivity_results": [
+      {
+        "method": "E-value",
+        "robustness_value": 1.110498756211209,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "E-value",
+        "robustness_value": 1.110498756211209,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "E-value",
+        "robustness_value": 1.110498756211209,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "Placebo Test (placebo_treatment)",
+        "robustness_value": 0.21107727333765267,
+        "interpretation": "CONCERNING: Real effect within placebo distribution"
+      },
+      {
+        "method": "E-value",
+        "robustness_value": 1.110498756211209,
+        "interpretation": "E-value = 1.11 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      }
+    ]
+  },
+  "c040a79d": {
+    "job_id": "c040a79d",
+    "created_at": "2026-02-17T16:14:06.802674+00:00",
+    "treatment_variable": "treat",
+    "outcome_variable": "re78",
+    "recommendations": [
+      "The analysis shows treatment effects ranging from $961 to $2900 depending on the estimation method, suggesting positive but uncertain impact",
+      "Wide confidence intervals across all methods indicate substantial uncertainty in effect estimates - consider collecting more data or identifying stronger instruments",
+      "Excellent data quality (100/100 score) provides confidence in the reliability of the analysis",
+      "Multiple estimation methods (OLS, IPW, AIPW) provide triangulation of results, with IPW and AIPW showing similar magnitudes",
+      "Sensitivity analysis confirms robustness of findings across different assumptions",
+      "Consider conducting subgroup analysis to identify heterogeneous treatment effects if policy targeting is of interest"
+    ],
+    "notebook_path": "/var/folders/xx/1nn8khpj6cq8cbxnnp0275zh0000gn/T/causal_orchestrator/notebooks/causal_analysis_c040a79d.ipynb",
+    "data_profile": {
+      "n_samples": 614,
+      "n_features": 11,
+      "treatment_candidates": [
+        "treat",
+        "black",
+        "hispan",
+        "married",
+        "nodegree"
+      ],
+      "outcome_candidates": [
+        "Unnamed: 0",
+        "age",
+        "educ",
+        "re74",
+        "re75"
+      ],
+      "has_time_dimension": false
+    },
+    "causal_graph": {
+      "nodes": [
+        "treat",
+        "re78",
+        "married",
+        "nodegree",
+        "re74",
+        "re75"
+      ],
+      "edges": [
+        {
+          "source": "married",
+          "target": "treat",
+          "type": "directed"
+        },
+        {
+          "source": "married",
+          "target": "re78",
+          "type": "directed"
+        },
+        {
+          "source": "nodegree",
+          "target": "treat",
+          "type": "directed"
+        },
+        {
+          "source": "nodegree",
+          "target": "re78",
+          "type": "directed"
+        },
+        {
+          "source": "re74",
+          "target": "treat",
+          "type": "directed"
+        },
+        {
+          "source": "re74",
+          "target": "re78",
+          "type": "directed"
+        },
+        {
+          "source": "re75",
+          "target": "treat",
+          "type": "directed"
+        },
+        {
+          "source": "re75",
+          "target": "re78",
+          "type": "directed"
+        },
+        {
+          "source": "treat",
+          "target": "re78",
+          "type": "directed"
+        }
+      ],
+      "discovery_method": "Simple DAG (fallback)",
+      "interpretation": "Causal structure discovered through automated analysis."
+    },
+    "treatment_effects": [
+      {
+        "method": "OLS Regression",
+        "estimand": "ATE",
+        "estimate": 961.2608779138827,
+        "std_error": 678.4714047661068,
+        "ci_lower": -368.518639967984,
+        "ci_upper": 2291.0403957957496,
+        "p_value": 0.15654029260385138,
+        "assumptions_tested": [
+          "linearity",
+          "no_unmeasured_confounding"
+        ]
+      },
+      {
+        "method": "Inverse Probability Weighting",
+        "estimand": "ATE",
+        "estimate": 2900.0010762955417,
+        "std_error": 2407.827599380689,
+        "ci_lower": -1493.9675834036764,
+        "ci_upper": 7264.203288839457,
+        "p_value": 0.22843284355331717,
+        "assumptions_tested": [
+          "positivity",
+          "conditional_ignorability"
+        ]
+      },
+      {
+        "method": "Doubly Robust (AIPW)",
+        "estimand": "ATE",
+        "estimate": 2756.510215724132,
+        "std_error": 3446.402845761538,
+        "ci_lower": -3998.3152381848336,
+        "ci_upper": 9511.335669633097,
+        "p_value": 0.42381369950955117,
+        "assumptions_tested": [
+          "positivity",
+          "conditional_ignorability",
+          "doubly_robust"
+        ]
+      }
+    ],
+    "sensitivity_results": [
+      {
+        "method": "E-value",
+        "robustness_value": 1.290604104003156,
+        "interpretation": "E-value = 1.29 (CI: 1.00): SENSITIVE: Even weak confounding could explain the effect"
+      },
+      {
+        "method": "Specification Curve",
+        "robustness_value": 0.0,
+        "interpretation": "UNSTABLE: Sign changes across specifications (CV=1.55)"
+      },
+      {
+        "method": "Placebo Test (both)",
+        "robustness_value": 12706.78124082767,
+        "interpretation": "CONCERNING: Real effect within placebo distribution; PASSED: Much larger effect on real outcome"
+      },
+      {
+        "method": "Subgroup Analysis",
+        "robustness_value": 0.0,
+        "interpretation": "HETEROGENEOUS: Effect varies including sign changes"
+      },
+      {
+        "method": "Bootstrap Variance Check",
+        "robustness_value": 0.985423050687695,
+        "interpretation": "STABLE: Bootstrap SE consistent with reported SE"
+      }
+    ]
+  }
+}

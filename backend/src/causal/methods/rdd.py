@@ -147,7 +147,7 @@ class RegressionDiscontinuityMethod(BaseCausalMethod):
             X_second[:, 1] = T_hat
 
             self._model = sm.OLS(Y_bw, X_second)
-            self._results = self._model.fit()
+            self._results = self._model.fit(cov_type='HC1')
 
             self._first_stage_coef = first_stage.params[1]
             self._first_stage_f = first_stage.fvalue

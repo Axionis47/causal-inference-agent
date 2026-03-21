@@ -21,14 +21,16 @@ from sklearn.experimental import enable_iterative_imputer  # noqa
 from sklearn.impute import IterativeImputer, SimpleImputer
 from sklearn.preprocessing import RobustScaler
 
-from src.agents.base import AnalysisState, ToolResult, ToolResultStatus
+from src.agents.base import AnalysisState, JobStatus, ToolResult, ToolResultStatus
 from src.agents.base.context_tools import ContextTools
 from src.agents.base.react_agent import ReActAgent
+from src.agents.registry import register_agent
 from src.logging_config.structured import get_logger
 
 logger = get_logger(__name__)
 
 
+@register_agent("data_repair")
 class DataRepairAgent(ReActAgent, ContextTools):
     """Truly agentic data repair agent that iteratively fixes data quality issues.
 
@@ -43,6 +45,10 @@ class DataRepairAgent(ReActAgent, ContextTools):
 
     AGENT_NAME = "data_repair"
     MAX_STEPS = 20
+    WRITES_STATE_FIELDS = ["data_repairs"]
+    REQUIRED_STATE_FIELDS = ["data_profile", "dataframe_path"]
+    JOB_STATUS = JobStatus.PROFILING
+    PROGRESS_WEIGHT = 0.06
 
     SYSTEM_PROMPT = """You are an expert data scientist specializing in data preparation
 for causal inference. Your goal is to repair data quality issues while preserving
@@ -85,7 +91,11 @@ WORKFLOW:
 3. Call check_outliers for numeric variables
 4. Call check_collinearity if many covariates
 5. For each issue: repair -> validate -> decide if more repairs needed
-6. Call finalize_repairs when data quality is acceptable"""
+6. Call finalize_repairs when data quality is acceptable
+
+CONTEXT TOOLS (pull upstream results if needed):
+- ask_domain_knowledge: Query domain knowledge for which variables are immutable
+- get_eda_finding: Query EDA results (e.g. "missing data patterns", "outliers")"""
 
     def __init__(self) -> None:
         """Initialize the data repair agent."""
@@ -479,7 +489,7 @@ Be conservative - only repair issues that would materially affect causal inferen
                             "diff_pct": diff * 100,
                         })
                 except Exception:
-                    pass
+                    logger.debug("mcar_check_skipped", column=col, exc_info=True)
 
         results.sort(key=lambda x: x["pct"], reverse=True)
 
@@ -609,9 +619,9 @@ Be conservative - only repair issues that would materially affect causal inferen
                         if vif > 5:
                             vif_results.append({"variable": col, "vif": float(vif)})
                     except Exception:
-                        pass
+                        logger.debug("vif_single_var_skipped", variable=col, exc_info=True)
         except Exception:
-            pass
+            logger.debug("vif_computation_skipped", exc_info=True)
 
         vif_results.sort(key=lambda x: x["vif"], reverse=True)
 
@@ -907,7 +917,7 @@ Be conservative - only repair issues that would materially affect causal inferen
                             vif = variance_inflation_factor(X_with_const, i + 1)
                             vifs.append((col, vif))
                         except Exception:
-                            pass
+                            logger.debug("vif_computation_skipped", column=col, exc_info=True)
 
                     if not vifs:
                         break

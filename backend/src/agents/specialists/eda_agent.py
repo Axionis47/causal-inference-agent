@@ -52,6 +52,12 @@ class EDAAgent(ReActAgent, ContextTools):
     AGENT_NAME = "eda_agent"
     MAX_STEPS = 15
 
+    # Agent metadata (used by registry and orchestrator)
+    WRITES_STATE_FIELDS = ["eda_result"]
+    REQUIRED_STATE_FIELDS = ["data_profile", "dataframe_path"]
+    JOB_STATUS = JobStatus.EXPLORATORY_ANALYSIS
+    PROGRESS_WEIGHT = 0.08
+
     SYSTEM_PROMPT = """You are an expert data scientist performing exploratory data analysis
 for a causal inference study.
 
@@ -512,7 +518,7 @@ Finalize when you have assessed data quality for causal analysis."""
                     normality["jarque_bera_p"] = round(float(p), 4)
                     normality["jarque_bera_normal"] = p > 0.05
                 except Exception:
-                    pass
+                    logger.debug("normality_test_skipped", variable=variable, exc_info=True)
                 if normality:
                     result_dict["normality_tests"] = normality
 
@@ -739,7 +745,6 @@ Finalize when you have assessed data quality for causal analysis."""
                 except Exception as e:
                     # Log the exception for debugging
                     self.logger.debug("vif_computation_error", column=col, error=str(e))
-                    pass
 
             # Store
             self._eda_result.vif_scores = self._vif_results

@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.agents.base import AnalysisState, ReActAgent, ToolResult, ToolResultStatus
+from src.agents.base import AnalysisState, JobStatus, ReActAgent, ToolResult, ToolResultStatus
 from src.agents.registry import register_agent
 from src.logging_config.structured import get_logger
 
@@ -40,6 +40,12 @@ class DomainKnowledgeAgent(ReActAgent):
 
     AGENT_NAME = "domain_knowledge"
     MAX_STEPS = 12
+
+    # Agent metadata (used by registry and orchestrator)
+    WRITES_STATE_FIELDS = ["domain_knowledge"]
+    REQUIRED_STATE_FIELDS = ["dataset_info"]
+    JOB_STATUS = JobStatus.PROFILING
+    PROGRESS_WEIGHT = 0.04
 
     SYSTEM_PROMPT = """You are a causal inference researcher investigating a new dataset.
 

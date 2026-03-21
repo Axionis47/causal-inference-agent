@@ -60,7 +60,7 @@ backend/src/
       sensitivity_analyst.py
       effect_estimation/       # Package (decomposed from monolith)
         agent.py               # EffectEstimatorReActAgent
-        estimation_methods.py  # Inline method implementations
+        estimation_methods.py  # Thin delegation to src/causal/methods/ via run_method_safe()
         method_selector.py     # SampleSizeThresholds, method selection
       notebook/                # Package (decomposed from monolith)
         agent.py               # NotebookGeneratorAgent
@@ -134,7 +134,7 @@ Provider selection happens in `get_llm_client()` based on `settings.llm_provider
 - `"gemini"` -> `GeminiClient`
 - `"vertex"` -> `VertexAIClient`
 
-The client is cached as a module-level singleton.
+The client is cached as a module-level singleton. Agents access it via a `@property` on `BaseAgent` that calls `get_llm_client()` on every access, ensuring `reset_llm_client()` propagates immediately. The `ClaudeClient` implementation includes a per-instance circuit breaker (opens after 5 consecutive failures for 60 seconds).
 
 ### Storage Layer
 
@@ -238,7 +238,7 @@ The `BaseCausalMethod` abstract class requires:
 - `fit(df, treatment_col, outcome_col, covariates)` -- fit the model
 - `estimate()` -- return a `MethodResult` with estimate, SE, CI, p-value
 
-The method layer lives under `src/causal/methods/` and is separate from the agent layer. However, there is a known code duplication issue: `agents/specialists/effect_estimation/estimation_methods.py` contains inline reimplementations of several methods that do not use the registry.
+The method layer lives under `src/causal/methods/` and is used by both the effect estimator agents. The `EffectEstimatorEngine.run_method_safe()` adapter bridges `BaseCausalMethod` subclasses to the pipeline's `TreatmentEffectResult` contract, ensuring a single source of truth for all estimation logic.
 
 ---
 
@@ -266,9 +266,9 @@ Python `Protocol` (structural typing) allows swapping backends without touching 
 
 The system runs on a single asyncio event loop.
 
-1. **Job lifecycle**: Each `POST /jobs` request creates a background `asyncio.Task` managed by `JobManager`. The task runs the orchestrator, which dispatches agents sequentially (or in parallel for specific steps).
+1. **Job lifecycle**: Each `POST /jobs` request creates a background `asyncio.Task` managed by `JobManager`. The task acquires a semaphore slot (`max_concurrent_jobs`, default 3) before running the orchestrator. Jobs exceeding capacity are rejected with HTTP 429.
 
-2. **Parallel agent dispatch**: The orchestrator can run agents concurrently using `dispatch_parallel_agents`. It creates `copy.copy(state)` for each agent, runs them via `asyncio.gather`, then merges results by copying the declared `WRITES_STATE_FIELDS` from each agent's copy back to the main state.
+2. **Parallel agent dispatch**: The orchestrator can run agents concurrently using `dispatch_parallel_agents`. It creates `state.model_copy(deep=True)` for each agent (Pydantic v2 deep copy), runs them via `asyncio.gather`, then merges results by copying the declared `WRITES_STATE_FIELDS` from each agent's copy back to the main state.
 
 3. **Agent timeout**: Each `ReActAgent.execute()` is wrapped in `asyncio.wait_for(timeout=settings.agent_timeout_seconds)` (default 300 seconds).
 
@@ -322,18 +322,20 @@ sequenceDiagram
 
 ---
 
-## Known Architectural Issues
+## Resolved Architectural Issues
 
-1. **Shallow copy in parallel dispatch**: `copy.copy(state)` creates shallow copies. Nested mutable objects (lists of `TreatmentEffectResult`, dicts) are shared between copies. Mutations in one parallel agent can corrupt another's view of state.
+The following issues were identified during an architecture review and have been fixed:
 
-2. **LLM singleton not resettable in production**: `get_llm_client()` caches the client at module level. `reset_llm_client()` exists but is intended for tests. In production, switching providers requires a process restart.
+1. **~~Shallow copy in parallel dispatch~~** ✅ Fixed: `copy.copy(state)` replaced with `state.model_copy(deep=True)` (Pydantic v2 deep copy) in `orchestrator_agent.py`. Nested mutable objects are now fully independent across parallel agents.
 
-3. **Global circuit breaker state**: If the LLM provider has a global circuit breaker or retry counter, concurrent jobs share that state, meaning one job's failures can affect another's retry budget.
+2. **~~LLM singleton not resettable~~** ✅ Fixed: `BaseAgent.llm` is now a `@property` that calls `get_llm_client()` on every access. After `reset_llm_client()`, all agents immediately see the new client instance. Zero overhead since the singleton is already cached.
 
-4. **Silent exception swallowing**: The orchestrator's status persistence callback wraps updates in `try/except` with logging only. If storage writes fail, the job continues running but its state is lost.
+3. **~~Global circuit breaker state~~** ✅ Fixed: Circuit breaker state (`_consecutive_failures`, `_circuit_open_until`) moved from module-level globals into `ClaudeClient` instance attributes. Each singleton client has its own breaker; resetting the client resets the breaker. Bonus: fixed a gap where `generate_with_function_calling()` never recorded success/failure inside its API call loop.
 
-5. **State contract enforcement is advisory only**: `REQUIRED_STATE_FIELDS` and `WRITES_STATE_FIELDS` are validated at dispatch time (via `_validate_required_state`), but nothing prevents an agent from reading or writing fields outside its declared contract.
+4. **~~Silent exception swallowing~~** ✅ Fixed: All 9 bare `except: pass` blocks replaced with structured logging at appropriate levels (`logger.debug` for non-critical, `logger.warning` for significant). One `pass` intentionally retained for expected control flow (cancellation timeout in `manager.py`).
 
-6. **No backpressure on concurrent jobs**: `JobManager` spawns background tasks without limit. There is no queue or worker pool to bound concurrent pipeline executions.
+5. **~~State contracts advisory only~~** ✅ Fixed: `REQUIRED_STATE_FIELDS` and `WRITES_STATE_FIELDS` now have defaults on `BaseAgent`. `execute_with_tracing()` performs a warn-only validation before execution, logging missing required fields. The registry logs agents that lack `WRITES_STATE_FIELDS` declarations at registration time. Enforcement remains advisory to avoid breaking the 11 agents without full declarations.
 
-7. **Code duplication between causal layers**: `src/causal/methods/` contains the registered method implementations with `BaseCausalMethod`. `agents/specialists/effect_estimation/estimation_methods.py` contains separate inline implementations of overlapping methods (OLS, IPW, AIPW, PSM, meta-learners). These two codepaths can diverge.
+6. **~~No backpressure~~** ✅ Fixed: `JobManager` now uses `asyncio.Semaphore(settings.max_concurrent_jobs)` (default 3) to limit concurrent pipelines. `create_job()` rejects with `RuntimeError` when at capacity, surfaced as HTTP 429 by the API layer.
+
+7. **~~Code duplication between causal layers~~** ✅ Fixed: Created `EffectEstimatorEngine.run_method_safe()` adapter that bridges `BaseCausalMethod` classes to the pipeline's `TreatmentEffectResult` contract. Deleted 12 inline `_estimate_*` methods (~850 lines) from the effect estimator. `estimation_methods.py` rewritten as thin delegation to the registered method layer.

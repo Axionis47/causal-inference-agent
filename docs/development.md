@@ -332,7 +332,7 @@ def get_storage_client():
 ```bash
 cd backend
 
-# All unit tests (345 tests, ~3.5 minutes)
+# All unit tests (381 tests, ~3.5 minutes)
 pytest tests/ --ignore=tests/integration -x
 
 # Specific test file
@@ -442,9 +442,9 @@ self.logger.info(f"Agent completed job {state.job_id} in {elapsed}ms")
 ### Error handling
 
 - Agents should catch expected errors (numeric failures, convergence issues) and return graceful fallbacks
-- Do not use bare `except Exception: pass` without logging
+- **Never use bare `except: pass`** — always log with `logger.debug(event_name, exc_info=True)` at minimum. Use `logger.warning` for failures that affect observability (e.g., trace save failures, diagnostic computation failures)
 - Use `state.mark_failed(error, agent_name)` for unrecoverable errors
-- `StateValidationError` should be raised (not caught) when required state fields are missing
+- `execute_with_tracing()` performs warn-only validation of `REQUIRED_STATE_FIELDS` before execution. Missing fields are logged but do not block the agent
 
 ### LLM response handling
 

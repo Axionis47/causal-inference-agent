@@ -114,11 +114,14 @@ class TestInitialization:
             "check_covariate_balance",
             "check_missing_patterns",
             "finalize_eda",
-            # Context tools from mixin
+            # Context tools from mixin (active tools only)
             "ask_domain_knowledge",
-            "get_column_info",
-            "get_dataset_summary",
-            "list_columns",
+            "get_eda_finding",
+            "get_previous_finding",
+            "get_treatment_outcome",
+            "get_confounder_analysis",
+            "analyze_variable_semantics",
+            "get_dag_adjustment_set",
             # Built-in ReAct tools
             "finish",
             "reflect",
@@ -131,7 +134,7 @@ class TestInitialization:
         """Test that context tools mixin is properly integrated."""
         # Context tools should be available
         assert "ask_domain_knowledge" in agent._tools
-        assert "get_column_info" in agent._tools
+        assert "get_dag_adjustment_set" in agent._tools
 
 
 class TestToolGetOverview:

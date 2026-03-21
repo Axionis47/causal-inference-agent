@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 
 from src.agents.base import DataProfile, EDAResult
-from src.agents.specialists.effect_estimator import EffectEstimatorAgent
+from src.agents.specialists.effect_estimation import EffectEstimatorAgent
 from src.logging_config.structured import get_logger
 
 from .base import (

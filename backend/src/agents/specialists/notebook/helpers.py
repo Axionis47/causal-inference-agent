@@ -4,6 +4,7 @@ Contains LLM narrative generation, deduplication utilities,
 and notebook save logic used across section renderers.
 """
 
+import shutil
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -77,8 +78,21 @@ def deduplicate_sensitivity(results: list) -> list:
     return list(seen.values())
 
 
-def save_notebook(nb: nbformat.NotebookNode, job_id: str) -> str:
-    """Save the notebook to disk."""
+def save_notebook(
+    nb: nbformat.NotebookNode,
+    job_id: str,
+    data_source_path: str | None = None,
+) -> str:
+    """Save the notebook and bundle data alongside it.
+
+    Args:
+        nb: The notebook object to save.
+        job_id: Job identifier for filename.
+        data_source_path: Path to the dataset file (parquet/csv) to bundle.
+
+    Returns:
+        Path to the saved notebook file.
+    """
     output_dir = Path(tempfile.gettempdir()) / "causal_orchestrator" / "notebooks"
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -88,4 +102,27 @@ def save_notebook(nb: nbformat.NotebookNode, job_id: str) -> str:
     with open(filepath, "w", encoding="utf-8") as f:
         nbformat.write(nb, f)
 
+    # Bundle data file alongside notebook for reproducibility
+    if data_source_path:
+        src = Path(data_source_path)
+        if src.exists():
+            ext = src.suffix or ".parquet"
+            data_dest = output_dir / f"data_{job_id}{ext}"
+            try:
+                shutil.copy2(str(src), str(data_dest))
+                logger.info("notebook_data_bundled", src=str(src), dest=str(data_dest))
+            except Exception as e:
+                logger.warning("notebook_data_bundle_failed", error=str(e))
+
     return str(filepath)
+
+
+async def save_notebook_async(
+    nb: nbformat.NotebookNode,
+    job_id: str,
+    data_source_path: str | None = None,
+) -> str:
+    """Save the notebook to disk without blocking the event loop."""
+    import asyncio
+
+    return await asyncio.to_thread(save_notebook, nb, job_id, data_source_path)

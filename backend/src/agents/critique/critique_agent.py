@@ -10,7 +10,6 @@ Not just summaries - critics can actually look at the data!
 """
 
 import time
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -28,17 +27,6 @@ from src.agents.registry import register_agent
 from src.logging_config.structured import get_logger
 
 logger = get_logger(__name__)
-
-
-@dataclass
-class PerspectiveArgument:
-    """An argument from a specific perspective."""
-    perspective: str
-    position: str  # "support", "challenge", "neutral"
-    key_points: list[str]
-    evidence: list[str]
-    concerns: list[str]
-    confidence: float  # 0-1
 
 
 @register_agent("critique")
@@ -59,6 +47,12 @@ class CritiqueAgent(BaseAgent):
     - Compare estimates across subgroups
 
     Evidence-based debate leads to better critique.
+
+    Design note: Inherits BaseAgent (not ContextTools) intentionally.
+    As the final review stage, it has purpose-built investigation tools
+    (get_analysis_summary, check_covariate_balance, etc.) that directly
+    read state. Adding ContextTools would bloat its tool schema with
+    7 generic context tools that overlap with its specialized ones.
     """
 
     AGENT_NAME = "critique"
@@ -214,6 +208,7 @@ Use the investigation tools to gather evidence, then call finalize_critique."""
         self._investigation_evidence: list[str] = []
         self._treatment_var: str | None = None
         self._outcome_var: str | None = None
+        self._tool_call_history: list[str] = []
 
     def _resolve_treatment_outcome(self) -> tuple[str | None, str | None]:
         """Get treatment and outcome variables using state helper.
@@ -304,7 +299,7 @@ Use the investigation tools to gather evidence, then call finalize_critique."""
             try:
                 return pd.read_parquet(state.dataframe_path)
             except Exception:
-                pass
+                logger.debug("dataframe_load_failed", path=state.dataframe_path, exc_info=True)
         return None
 
     def _build_initial_prompt(self) -> str:
@@ -402,6 +397,20 @@ After gathering evidence, call finalize_critique with your assessment."""
                     tool=tool_name,
                     args=tool_args,
                 )
+
+                # MED2: Detect tool oscillation — same 2 tools alternating 3+ times
+                self._tool_call_history.append(tool_name)
+                if len(self._tool_call_history) >= 6:
+                    recent = self._tool_call_history[-6:]
+                    if (recent[0] == recent[2] == recent[4]
+                            and recent[1] == recent[3] == recent[5]
+                            and recent[0] != recent[1]):
+                        self.logger.warning(
+                            "critique_oscillation_detected",
+                            tool_a=recent[0],
+                            tool_b=recent[1],
+                        )
+                        return self._auto_finalize()
 
                 # Execute the tool
                 tool_result = self._execute_tool(tool_name, tool_args)

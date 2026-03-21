@@ -325,7 +325,7 @@ Estimates propensity scores and runs diagnostic checks: overlap/common support, 
 **MAX_STEPS**: 20
 **Pipeline position**: After PS diagnostics
 
-Selects and runs causal estimation methods. Uses inline method implementations from `estimation_methods.py` (not the registered `BaseCausalMethod` subclasses from `src/causal/methods/`).
+Selects and runs causal estimation methods. Uses `EffectEstimatorEngine.run_method_safe()` to delegate to the registered `BaseCausalMethod` subclasses from `src/causal/methods/`, bridging `MethodResult` to `TreatmentEffectResult`.
 
 **Tools**:
 

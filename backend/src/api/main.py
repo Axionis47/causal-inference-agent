@@ -1,5 +1,7 @@
 """FastAPI application entry point."""
 
+from contextlib import asynccontextmanager
+
 import uvicorn
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -29,12 +31,44 @@ def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
     settings = get_settings()
 
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        """Manage application startup and shutdown lifecycle."""
+        # --- Startup ---
+        logger.info(
+            "application_startup",
+            app=settings.app_name,
+            version=settings.app_version,
+            environment=settings.environment,
+            instance_id=settings.instance_id,
+        )
+
+        # Recover jobs orphaned by crashed instances
+        from src.jobs.manager import get_job_manager, recover_orphaned_jobs
+
+        await recover_orphaned_jobs()
+
+        # Start heartbeat loop for proactive dead-instance detection
+        manager = get_job_manager()
+        await manager.start_heartbeat()
+
+        yield
+
+        # --- Shutdown ---
+        await manager.stop_heartbeat()
+
+        from src.llm.client import close_llm_client
+
+        await close_llm_client()
+        logger.info("application_shutdown")
+
     app = FastAPI(
         title=settings.app_name,
         version=settings.app_version,
         description="Agentic causal inference orchestration system",
         docs_url="/docs" if settings.enable_api_docs else None,
         redoc_url="/redoc" if settings.enable_api_docs else None,
+        lifespan=lifespan,
     )
 
     # Rate limiting
@@ -69,21 +103,6 @@ def create_app() -> FastAPI:
                 "jobs": "/jobs",
             },
         }
-
-    @app.on_event("startup")
-    async def startup_event():
-        """Initialize resources on startup."""
-        logger.info(
-            "application_startup",
-            app=settings.app_name,
-            version=settings.app_version,
-            environment=settings.environment,
-        )
-
-    @app.on_event("shutdown")
-    async def shutdown_event():
-        """Clean up resources on shutdown."""
-        logger.info("application_shutdown")
 
     return app
 

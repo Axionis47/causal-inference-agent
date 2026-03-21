@@ -48,6 +48,9 @@ python-json-logger==2.0.7
 # API security
 slowapi==0.1.9
 
+# Distributed rate limiting (optional — in-memory fallback when disabled)
+redis>=5.0.0
+
 # Server-Sent Events
 sse-starlette==2.1.3
 

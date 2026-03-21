@@ -13,7 +13,7 @@ Metrics:
 import asyncio
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import numpy as np
@@ -96,7 +96,7 @@ class EvaluationResult:
     ci_lower: float | None = None
     ci_upper: float | None = None
     runtime_seconds: float = 0.0
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def is_successful(self) -> bool:

@@ -65,7 +65,7 @@ services:
       retries: 3
     restart: unless-stopped
 
-  # Redis (opt-in for future job queue scaling)
+  # Redis (opt-in for distributed rate limiting & coordination)
   redis:
     image: redis:7-alpine
     expose:
@@ -79,6 +79,46 @@ services:
       - full
     volumes:
       - redis-data:/data
+    restart: unless-stopped
+
+  # Backend with Redis enabled (full profile for multi-instance testing)
+  backend-full:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    expose:
+      - "8000"
+    ports:
+      - "8001:8000"
+    environment:
+      - PORT=8000
+      - ENVIRONMENT=development
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY:-${ANTHROPIC_API_KEY}}
+      - API_KEY=${API_KEY:-}
+      - KAGGLE_KEY=${KAGGLE_KEY}
+      - KAGGLE_USERNAME=${KAGGLE_USERNAME}
+      - GCP_PROJECT_ID=${GCP_PROJECT_ID:-plotpointe}
+      - USE_FIRESTORE=false
+      - LOCAL_STORAGE_PATH=/app/data
+      - LOG_LEVEL=INFO
+      - SSE_ENABLED=true
+      - REDIS_ENABLED=true
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - backend-data:/app/data
+      - ./backend/src:/app/src:ro
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    profiles:
+      - full
     restart: unless-stopped
 
   # Development services

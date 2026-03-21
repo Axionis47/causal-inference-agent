@@ -1,5 +1,6 @@
 """Anthropic Claude client with function calling support."""
 
+import asyncio
 import json
 import time
 from typing import Any, TypeVar
@@ -20,51 +21,18 @@ logger = get_logger(__name__)
 
 T = TypeVar("T", bound=BaseModel)
 
-# Simple circuit breaker state
-_consecutive_failures = 0
-_circuit_open_until = 0.0
-MAX_CONSECUTIVE_FAILURES = 5
-CIRCUIT_OPEN_DURATION = 60.0  # seconds
-
-
-def _check_circuit_breaker() -> None:
-    """Check if circuit breaker is open and raise if so."""
-    global _circuit_open_until
-    if _circuit_open_until > 0.0 and time.time() < _circuit_open_until:
-        raise RuntimeError(
-            f"Claude API circuit breaker is open. "
-            f"Resumes at {time.strftime('%H:%M:%S', time.localtime(_circuit_open_until))}"
-        )
-
-
-def _record_success() -> None:
-    """Record a successful call, resetting the circuit breaker."""
-    global _consecutive_failures, _circuit_open_until
-    _consecutive_failures = 0
-    _circuit_open_until = 0.0
-
-
-def _record_failure() -> None:
-    """Record a failed call, potentially opening the circuit breaker."""
-    global _consecutive_failures, _circuit_open_until
-    _consecutive_failures += 1
-    if _consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
-        _circuit_open_until = time.time() + CIRCUIT_OPEN_DURATION
-        logger.warning(
-            "circuit_breaker_opened",
-            failures=_consecutive_failures,
-            open_until=_circuit_open_until,
-        )
-
 
 class ClaudeClient:
     """Client for interacting with Anthropic Claude models."""
 
     API_URL = "https://api.anthropic.com/v1/messages"
+    MAX_CONSECUTIVE_FAILURES = 5
+    CIRCUIT_OPEN_DURATION = 60.0  # seconds
 
     def __init__(self) -> None:
         """Initialize the Claude client."""
         settings = get_settings()
+        self._settings = settings  # Keep reference for observability settings
         self.api_key = settings.claude_api_key.get_secret_value() if settings.claude_api_key else None
         self.model_name = settings.claude_model
         self.temperature = settings.claude_temperature
@@ -74,6 +42,37 @@ class ClaudeClient:
             raise ValueError("Claude API key is required. Set CLAUDE_API_KEY in environment.")
 
         self._client = httpx.AsyncClient(timeout=120.0)
+
+        # Circuit breaker state (per-instance, not global)
+        self._consecutive_failures = 0
+        self._circuit_open_until = 0.0
+        self._cb_lock = asyncio.Lock()  # Protects circuit breaker counters
+
+    def _check_circuit_breaker(self) -> None:
+        """Check if circuit breaker is open and raise if so."""
+        if self._circuit_open_until > 0.0 and time.time() < self._circuit_open_until:
+            raise RuntimeError(
+                f"Claude API circuit breaker is open. "
+                f"Resumes at {time.strftime('%H:%M:%S', time.localtime(self._circuit_open_until))}"
+            )
+
+    async def _record_success(self) -> None:
+        """Record a successful call, resetting the circuit breaker."""
+        async with self._cb_lock:
+            self._consecutive_failures = 0
+            self._circuit_open_until = 0.0
+
+    async def _record_failure(self) -> None:
+        """Record a failed call, potentially opening the circuit breaker."""
+        async with self._cb_lock:
+            self._consecutive_failures += 1
+            if self._consecutive_failures >= self.MAX_CONSECUTIVE_FAILURES:
+                self._circuit_open_until = time.time() + self.CIRCUIT_OPEN_DURATION
+                logger.warning(
+                    "circuit_breaker_opened",
+                    failures=self._consecutive_failures,
+                    open_until=self._circuit_open_until,
+                )
 
     @retry(
         retry=retry_if_exception_type((httpx.ConnectError, httpx.ReadTimeout, httpx.WriteTimeout, ConnectionError, TimeoutError, OSError)),
@@ -96,14 +95,20 @@ class ClaudeClient:
         Returns:
             The model response
         """
-        _check_circuit_breaker()
+        self._check_circuit_breaker()
 
-        logger.debug(
-            "generating_content_claude",
+        logger.info(
+            "llm_call_start",
+            method="generate",
             prompt_length=len(prompt),
+            prompt_preview=prompt[:200] + "..." if len(prompt) > 200 else prompt,
             has_system=system_instruction is not None,
             has_tools=tools is not None,
+            n_tools=len(tools) if tools else 0,
         )
+
+        if self._settings.log_llm_prompts:
+            logger.debug("llm_full_prompt", prompt=prompt)
 
         headers = {
             "Content-Type": "application/json",
@@ -128,14 +133,31 @@ class ClaudeClient:
             response = await self._client.post(self.API_URL, headers=headers, json=payload)
             response.raise_for_status()
             result = response.json()
-            _record_success()
+            await self._record_success()
         except Exception:
-            _record_failure()
+            await self._record_failure()
             raise
 
-        logger.debug(
-            "content_generated_claude",
+        # Extract token usage from Anthropic API response
+        usage = result.get("usage", {})
+        result["_token_usage"] = {
+            "input_tokens": usage.get("input_tokens", 0),
+            "output_tokens": usage.get("output_tokens", 0),
+        }
+
+        # Extract response text for logging
+        content_blocks = result.get("content", [])
+        response_text = "".join(
+            b.get("text", "") for b in content_blocks if b.get("type") == "text"
+        )
+
+        logger.info(
+            "llm_call_complete",
+            method="generate",
             stop_reason=result.get("stop_reason"),
+            input_tokens=usage.get("input_tokens", 0),
+            output_tokens=usage.get("output_tokens", 0),
+            response_preview=response_text[:200] + "..." if len(response_text) > 200 else response_text,
         )
 
         return result
@@ -163,7 +185,7 @@ class ClaudeClient:
         Returns:
             Dict containing the final response and all tool calls made
         """
-        _check_circuit_breaker()
+        self._check_circuit_breaker()
 
         logger.info(
             "starting_function_calling_claude",
@@ -179,6 +201,8 @@ class ClaudeClient:
 
         messages = [{"role": "user", "content": prompt}]
         tool_calls_made: list[dict[str, Any]] = []
+        total_input_tokens = 0
+        total_output_tokens = 0
 
         claude_tools = [self._convert_tool(t) for t in tools]
 
@@ -194,17 +218,37 @@ class ClaudeClient:
                 "tools": claude_tools,
             }
 
-            response = await self._client.post(self.API_URL, headers=headers, json=payload)
-            response.raise_for_status()
-            result = response.json()
+            try:
+                response = await self._client.post(self.API_URL, headers=headers, json=payload)
+                response.raise_for_status()
+                result = response.json()
+                await self._record_success()
+            except Exception:
+                await self._record_failure()
+                raise
+
+            # Accumulate token usage across iterations
+            iter_usage = result.get("usage", {})
+            total_input_tokens += iter_usage.get("input_tokens", 0)
+            total_output_tokens += iter_usage.get("output_tokens", 0)
 
             # Extract content blocks
             content_blocks = result.get("content", [])
             stop_reason = result.get("stop_reason")
 
-            # Check for tool use
             tool_uses = [block for block in content_blocks if block.get("type") == "tool_use"]
             text_blocks = [block for block in content_blocks if block.get("type") == "text"]
+
+            logger.info(
+                "llm_fc_iteration",
+                iteration=iteration + 1,
+                max_iterations=max_iterations,
+                input_tokens=iter_usage.get("input_tokens", 0),
+                output_tokens=iter_usage.get("output_tokens", 0),
+                n_tool_uses=len(tool_uses),
+                tools_called=[t.get("name") for t in tool_uses],
+                stop_reason=stop_reason,
+            )
 
             if not tool_uses:
                 # No more function calls, return final response
@@ -216,6 +260,10 @@ class ClaudeClient:
                     "response": final_text,
                     "tool_calls": tool_calls_made,
                     "iterations": iteration + 1,
+                    "_token_usage": {
+                        "input_tokens": total_input_tokens,
+                        "output_tokens": total_output_tokens,
+                    },
                 }
 
             # Process tool calls
@@ -239,6 +287,10 @@ class ClaudeClient:
                 "tool_calls": tool_calls_made,
                 "pending_calls": function_calls,
                 "iterations": iteration + 1,
+                "_token_usage": {
+                    "input_tokens": total_input_tokens,
+                    "output_tokens": total_output_tokens,
+                },
             }
 
         logger.warning("max_iterations_reached_claude", max_iterations=max_iterations)
@@ -247,6 +299,10 @@ class ClaudeClient:
             "tool_calls": tool_calls_made,
             "iterations": max_iterations,
             "error": "Max iterations reached",
+            "_token_usage": {
+                "input_tokens": total_input_tokens,
+                "output_tokens": total_output_tokens,
+            },
         }
 
     async def generate_structured(
@@ -299,6 +355,10 @@ Output only the JSON, no other text."""
         parsed = json.loads(response_text.strip())
         return response_schema.model_validate(parsed)
 
+    async def close(self) -> None:
+        """Close the underlying httpx client to release connections."""
+        await self._client.aclose()
+
     def _convert_tool(self, tool_def: dict[str, Any]) -> dict[str, Any]:
         """Convert a tool definition to Claude's tool format.
 
@@ -325,6 +385,13 @@ def get_claude_client() -> ClaudeClient:
     if _client is None:
         _client = ClaudeClient()
     return _client
+
+
+async def close_claude_client() -> None:
+    """Close the Claude client's httpx connection pool (call on shutdown)."""
+    global _client
+    if _client is not None:
+        await _client.close()
 
 
 def reset_claude_client() -> None:

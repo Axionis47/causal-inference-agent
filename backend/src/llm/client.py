@@ -81,6 +81,13 @@ def get_llm_client() -> LLMClient:
     return _llm_client
 
 
+async def close_llm_client() -> None:
+    """Close the LLM client's underlying connections (call on shutdown)."""
+    global _llm_client
+    if _llm_client is not None and hasattr(_llm_client, "close"):
+        await _llm_client.close()
+
+
 def reset_llm_client() -> None:
     """Reset the cached LLM client. Useful for testing."""
     global _llm_client

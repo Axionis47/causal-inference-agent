@@ -29,10 +29,12 @@ class ContextTools:
 
     This provides tools for agents to pull context on demand:
     - ask_domain_knowledge: Query domain knowledge findings
-    - get_column_info: Get info about a specific column
-    - get_dataset_summary: Get basic dataset stats
     - get_eda_finding: Query EDA results by topic
     - get_previous_finding: Get findings from previous agents
+    - get_treatment_outcome: Get current treatment/outcome variables
+    - get_confounder_analysis: Get ranked confounders
+    - analyze_variable_semantics: Semantic analysis of a variable
+    - get_dag_adjustment_set: Get proper adjustment set from causal DAG
     """
 
     def register_context_tools(self) -> None:
@@ -60,48 +62,8 @@ class ContextTools:
             handler=self._ask_domain_knowledge,
         )
 
-        # Data Profile queries
-        self.register_tool(
-            name="get_column_info",
-            description=(
-                "Get information about a specific column: dtype, basic stats, "
-                "unique values, missing count. Use this to investigate individual variables."
-            ),
-            parameters={
-                "type": "object",
-                "properties": {
-                    "column": {
-                        "type": "string",
-                        "description": "Name of the column to investigate"
-                    }
-                },
-                "required": ["column"]
-            },
-            handler=self._get_column_info,
-        )
-
-        self.register_tool(
-            name="get_dataset_summary",
-            description=(
-                "Get basic dataset summary: row count, column count, column names, "
-                "data types overview. Use this for initial orientation."
-            ),
-            parameters={
-                "type": "object",
-                "properties": {}
-            },
-            handler=self._get_dataset_summary,
-        )
-
-        self.register_tool(
-            name="list_columns",
-            description="Get list of all column names in the dataset.",
-            parameters={
-                "type": "object",
-                "properties": {}
-            },
-            handler=self._list_columns,
-        )
+        # Data Profile queries — handlers kept but not registered as tools
+        # (reduces tool-schema bloat; re-register if needed later)
 
         # EDA queries
         self.register_tool(
@@ -196,42 +158,8 @@ class ContextTools:
             handler=self._get_confounder_analysis,
         )
 
-        # Profile for specific variables (on-demand)
-        self.register_tool(
-            name="get_profile_for_variables",
-            description=(
-                "Get profile statistics for specific variables only. "
-                "More efficient than loading full profile when you only need "
-                "stats for a few columns (e.g., treatment, outcome, key confounders)."
-            ),
-            parameters={
-                "type": "object",
-                "properties": {
-                    "variables": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "List of variable names to get stats for"
-                    }
-                },
-                "required": ["variables"]
-            },
-            handler=self._get_profile_for_variables,
-        )
-
-        # Dataset context (semantic understanding)
-        self.register_tool(
-            name="get_dataset_context",
-            description=(
-                "Get semantic context about the dataset including domain, "
-                "variable descriptions from metadata, and study design hints. "
-                "Helps understand WHAT variables mean, not just their statistics."
-            ),
-            parameters={
-                "type": "object",
-                "properties": {}
-            },
-            handler=self._get_dataset_context,
-        )
+        # Profile for specific variables & dataset context — handlers kept but
+        # not registered as tools (reduces tool-schema bloat)
 
         # Variable semantics analysis
         self.register_tool(
@@ -1084,10 +1012,8 @@ class ContextTools:
         """
         Get proper adjustment set from causal DAG using backdoor criterion.
 
-        The backdoor criterion identifies variables that:
-        1. Block all backdoor paths between treatment and outcome
-        2. Do NOT include descendants of treatment (would block causal effect)
-        3. Do NOT include colliders (would open new confounding paths)
+        Fast path: if dag_expert already computed the adjustment set, return it
+        directly. Slow path: recompute from DAG edges using BFS.
 
         Returns adjustment set, mediators to avoid, and colliders.
         """
@@ -1104,8 +1030,25 @@ class ContextTools:
                 error="Treatment and outcome variables must be specified or available in state"
             )
 
-        # Check for DAG
+        # Fast path: dag_expert already computed the adjustment set
         dag = state.proposed_dag
+        if dag and dag.adjustment_set is not None:
+            return ToolResult(
+                status=ToolResultStatus.SUCCESS,
+                output={
+                    "treatment": treatment,
+                    "outcome": outcome,
+                    "adjustment_set": dag.adjustment_set,
+                    "source": "dag_expert_precomputed",
+                    "variable_roles": dag.variable_roles,
+                    "forbidden_edges": dag.forbidden_edges,
+                    "dag_method": dag.discovery_method,
+                    "total_dag_nodes": len(dag.nodes),
+                    "total_dag_edges": len(dag.edges),
+                }
+            )
+
+        # Slow path: recompute from DAG edges
         if not dag:
             return ToolResult(
                 status=ToolResultStatus.SUCCESS,

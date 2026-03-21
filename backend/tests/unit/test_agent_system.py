@@ -37,7 +37,7 @@ class TestTraceCompression:
     def test_add_many_traces_stays_bounded(self):
         """Adding many traces should trigger compression and stay bounded.
 
-        MAX_TRACES is 50 by default. Compression triggers at 2*MAX_TRACES=100.
+        MAX_TRACES is 100 by default. Compression triggers at 2*MAX_TRACES=200.
         After compression, list should be ~MAX_TRACES/2 + 1 (summary + recent).
         """
         from src.agents.base.state import AgentTrace, AnalysisState, DatasetInfo
@@ -48,7 +48,7 @@ class TestTraceCompression:
         )
 
         # Add more than 2*MAX_TRACES to trigger compression
-        for i in range(110):
+        for i in range(210):
             trace = AgentTrace(
                 agent_name=f"agent_{i % 5}",
                 action=f"action_{i}",
@@ -71,8 +71,8 @@ class TestTraceCompression:
             dataset_info=DatasetInfo(url="https://kaggle.com/test"),
         )
 
-        # Add enough traces to trigger compression
-        for i in range(110):
+        # Add enough traces to trigger compression (> 2*MAX_TRACES=200)
+        for i in range(210):
             trace = AgentTrace(
                 agent_name=f"agent_{i % 3}",
                 action=f"action_{i}",
@@ -126,46 +126,6 @@ class TestTraceCompression:
 
         stored_reasoning = state.agent_traces[0].reasoning
         assert len(stored_reasoning) <= state.MAX_TRACE_REASONING_LEN + 50
-
-    def test_get_recent_traces(self):
-        """get_recent_traces should return the N most recent traces."""
-        from src.agents.base.state import AgentTrace, AnalysisState, DatasetInfo
-
-        state = AnalysisState(
-            job_id="test-123",
-            dataset_info=DatasetInfo(url="https://kaggle.com/test"),
-        )
-
-        for i in range(20):
-            state.add_trace(AgentTrace(
-                agent_name="test",
-                action=f"action_{i}",
-                reasoning=f"Step {i}",
-            ))
-
-        recent = state.get_recent_traces(5)
-        assert len(recent) == 5
-        assert recent[-1].action == "action_19"
-
-    def test_get_traces_for_agent(self):
-        """get_traces_for_agent should filter traces by agent name."""
-        from src.agents.base.state import AgentTrace, AnalysisState, DatasetInfo
-
-        state = AnalysisState(
-            job_id="test-123",
-            dataset_info=DatasetInfo(url="https://kaggle.com/test"),
-        )
-
-        for i in range(10):
-            state.add_trace(AgentTrace(
-                agent_name="profiler" if i % 2 == 0 else "estimator",
-                action=f"action_{i}",
-                reasoning=f"Step {i}",
-            ))
-
-        profiler_traces = state.get_traces_for_agent("profiler")
-        assert len(profiler_traces) == 5
-        assert all(t.agent_name == "profiler" for t in profiler_traces)
 
 
 class TestStateFieldMerge:

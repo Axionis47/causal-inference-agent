@@ -1,6 +1,7 @@
 """Firestore storage client for jobs and results."""
 
-from datetime import datetime
+import asyncio
+from datetime import datetime, timezone
 from typing import Any
 
 from google.cloud import firestore
@@ -12,8 +13,17 @@ from src.logging_config.structured import get_logger
 logger = get_logger(__name__)
 
 
+def _utcnow() -> datetime:
+    """Return timezone-aware UTC datetime."""
+    return datetime.now(timezone.utc)
+
+
 class FirestoreClient:
-    """Client for Firestore database operations."""
+    """Client for Firestore database operations.
+
+    All synchronous Firestore SDK calls are wrapped in asyncio.to_thread()
+    to avoid blocking the event loop.
+    """
 
     def __init__(self) -> None:
         """Initialize the Firestore client."""
@@ -23,16 +33,10 @@ class FirestoreClient:
         self.results_collection = "results"
         self.traces_collection = "agent_traces"
 
-    async def create_job(self, state: AnalysisState) -> str:
-        """Create a new job document.
-
-        Args:
-            state: Initial analysis state
-
-        Returns:
-            Job ID
-        """
-        job_data = {
+    def _job_data_from_state(self, state: AnalysisState) -> dict[str, Any]:
+        """Build a job data dict from state, including instance_id."""
+        settings = get_settings()
+        return {
             "id": state.job_id,
             "kaggle_url": state.dataset_info.url,
             "dataset_name": state.dataset_info.name,
@@ -45,49 +49,139 @@ class FirestoreClient:
             "updated_at": state.updated_at,
             "error_message": state.error_message,
             "error_agent": state.error_agent,
+            "instance_id": settings.instance_id,
         }
 
-        doc_ref = self.db.collection(self.jobs_collection).document(state.job_id)
-        doc_ref.set(job_data)
+    async def create_job(self, state: AnalysisState) -> str:
+        """Create a new job document.
+
+        Args:
+            state: Initial analysis state
+
+        Returns:
+            Job ID
+        """
+        job_data = self._job_data_from_state(state)
+
+        def _sync():
+            doc_ref = self.db.collection(self.jobs_collection).document(state.job_id)
+            doc_ref.set(job_data)
+
+        await asyncio.to_thread(_sync)
 
         logger.info("job_created", job_id=state.job_id)
         return state.job_id
 
-    async def update_job(self, state: AnalysisState) -> None:
+    async def create_job_if_capacity(
+        self, state: AnalysisState, max_concurrent: int
+    ) -> bool:
+        """Atomically create a job only if under the global concurrency limit.
+
+        Uses a Firestore transaction to count active (non-terminal) jobs and
+        create the new job in a single atomic operation. This enforces the
+        concurrency limit across all Cloud Run instances.
+
+        Args:
+            state: Initial analysis state
+            max_concurrent: Maximum allowed concurrent jobs
+
+        Returns:
+            True if job was created, False if at capacity
+        """
+        job_data = self._job_data_from_state(state)
+        terminal = {"completed", "failed", "cancelled"}
+
+        def _sync():
+            @firestore.transactional
+            def _txn(transaction):
+                # Count non-terminal jobs
+                docs = list(
+                    self.db.collection(self.jobs_collection).stream(
+                        transaction=transaction
+                    )
+                )
+                active = sum(
+                    1 for d in docs if d.to_dict().get("status") not in terminal
+                )
+                if active >= max_concurrent:
+                    return False
+
+                doc_ref = self.db.collection(self.jobs_collection).document(
+                    state.job_id
+                )
+                transaction.set(doc_ref, job_data)
+                return True
+
+            transaction = self.db.transaction()
+            return _txn(transaction)
+
+        return await asyncio.to_thread(_sync)
+
+    async def update_job(
+        self,
+        state: AnalysisState,
+        expected_status: JobStatus | None = None,
+    ) -> bool:
         """Update a job document using a Firestore transaction for safety.
 
         Args:
             state: Updated analysis state
+            expected_status: If set, only update if current status matches.
+                Prevents race conditions between concurrent transitions.
+
+        Returns:
+            True if updated, False if rejected (status mismatch or not found).
         """
-        doc_ref = self.db.collection(self.jobs_collection).document(state.job_id)
+        settings = get_settings()
 
-        @firestore.transactional
-        def _update_in_transaction(transaction, doc_ref, state):
-            snapshot = doc_ref.get(transaction=transaction)
-            if not snapshot.exists:
-                logger.warning("job_not_found_for_update", job_id=state.job_id)
-                return
+        def _sync():
+            doc_ref = self.db.collection(self.jobs_collection).document(state.job_id)
 
-            job_data = {
-                "status": state.status.value,
-                "treatment_variable": state.treatment_variable,
-                "outcome_variable": state.outcome_variable,
-                "iteration_count": state.iteration_count,
-                "updated_at": datetime.utcnow(),
-                "error_message": state.error_message,
-                "error_agent": state.error_agent,
-                "notebook_path": state.notebook_path,
-            }
+            @firestore.transactional
+            def _update_in_transaction(transaction, doc_ref, state):
+                snapshot = doc_ref.get(transaction=transaction)
+                if not snapshot.exists:
+                    logger.warning("job_not_found_for_update", job_id=state.job_id)
+                    return False
 
-            if state.completed_at:
-                job_data["completed_at"] = state.completed_at
+                # Status guard: reject stale transitions
+                if expected_status is not None:
+                    current = snapshot.to_dict().get("status")
+                    if current != expected_status.value:
+                        logger.warning(
+                            "state_transition_rejected",
+                            job_id=state.job_id,
+                            expected=expected_status.value,
+                            actual=current,
+                            attempted=state.status.value,
+                        )
+                        return False
 
-            transaction.update(doc_ref, job_data)
+                job_data = {
+                    "status": state.status.value,
+                    "treatment_variable": state.treatment_variable,
+                    "outcome_variable": state.outcome_variable,
+                    "iteration_count": state.iteration_count,
+                    "updated_at": _utcnow(),
+                    "error_message": state.error_message,
+                    "error_agent": state.error_agent,
+                    "notebook_path": state.notebook_path,
+                    "instance_id": settings.instance_id,
+                }
 
-        transaction = self.db.transaction()
-        _update_in_transaction(transaction, doc_ref, state)
+                if state.completed_at:
+                    job_data["completed_at"] = state.completed_at
+
+                transaction.update(doc_ref, job_data)
+                return True
+
+            transaction = self.db.transaction()
+            return _update_in_transaction(transaction, doc_ref, state)
+
+        result = await asyncio.to_thread(_sync)
 
         logger.debug("job_updated", job_id=state.job_id, status=state.status.value)
+        return result
 
     async def get_job(self, job_id: str) -> dict[str, Any] | None:
         """Get a job by ID.
@@ -98,12 +192,14 @@ class FirestoreClient:
         Returns:
             Job data or None if not found
         """
-        doc_ref = self.db.collection(self.jobs_collection).document(job_id)
-        doc = doc_ref.get()
+        def _sync():
+            doc_ref = self.db.collection(self.jobs_collection).document(job_id)
+            doc = doc_ref.get()
+            if doc.exists:
+                return doc.to_dict()
+            return None
 
-        if doc.exists:
-            return doc.to_dict()
-        return None
+        return await asyncio.to_thread(_sync)
 
     async def list_jobs(
         self,
@@ -121,21 +217,25 @@ class FirestoreClient:
         Returns:
             Tuple of (jobs, total_count)
         """
-        query = self.db.collection(self.jobs_collection)
+        def _sync():
+            query = self.db.collection(self.jobs_collection)
 
-        if status:
-            query = query.where("status", "==", status.value)
+            if status:
+                query = query.where("status", "==", status.value)
 
-        # Get total count (simplified - in production use aggregation)
-        total_docs = list(query.stream())
-        total = len(total_docs)
+            # Use count aggregation instead of materializing all documents
+            count_query = query.count()
+            count_results = count_query.get()
+            total = count_results[0][0].value if count_results else 0
 
-        # Apply pagination
-        query = query.order_by("created_at", direction=firestore.Query.DESCENDING)
-        query = query.limit(limit).offset(offset)
+            # Apply pagination
+            query = query.order_by("created_at", direction=firestore.Query.DESCENDING)
+            query = query.limit(limit).offset(offset)
 
-        jobs = [doc.to_dict() for doc in query.stream()]
-        return jobs, total
+            jobs = [doc.to_dict() for doc in query.stream()]
+            return jobs, total
+
+        return await asyncio.to_thread(_sync)
 
     async def update_job_status(
         self,
@@ -153,22 +253,32 @@ class FirestoreClient:
         Returns:
             True if updated, False if job not found
         """
-        doc_ref = self.db.collection(self.jobs_collection).document(job_id)
-        doc = doc_ref.get()
+        def _sync():
+            doc_ref = self.db.collection(self.jobs_collection).document(job_id)
 
-        if not doc.exists:
-            return False
+            @firestore.transactional
+            def _update_in_transaction(transaction, doc_ref):
+                snapshot = doc_ref.get(transaction=transaction)
+                if not snapshot.exists:
+                    return False
 
-        update_data = {
-            "status": status.value,
-            "updated_at": datetime.utcnow(),
-        }
-        if error_message is not None:
-            update_data["error_message"] = error_message
+                update_data = {
+                    "status": status.value,
+                    "updated_at": _utcnow(),
+                }
+                if error_message is not None:
+                    update_data["error_message"] = error_message
 
-        doc_ref.update(update_data)
-        logger.info("job_status_updated", job_id=job_id, status=status.value)
-        return True
+                transaction.update(doc_ref, update_data)
+                return True
+
+            transaction = self.db.transaction()
+            return _update_in_transaction(transaction, doc_ref)
+
+        result = await asyncio.to_thread(_sync)
+        if result:
+            logger.info("job_status_updated", job_id=job_id, status=status.value)
+        return result
 
     async def delete_job(self, job_id: str, cascade: bool = True) -> dict[str, Any]:
         """Delete a job and optionally cascade to related data.
@@ -180,29 +290,33 @@ class FirestoreClient:
         Returns:
             Dict with deletion results
         """
-        result = {"job": False, "results": False, "traces": False}
+        def _sync():
+            result = {"job": False, "results": False, "traces": False}
 
-        doc_ref = self.db.collection(self.jobs_collection).document(job_id)
-        doc = doc_ref.get()
+            doc_ref = self.db.collection(self.jobs_collection).document(job_id)
+            doc = doc_ref.get()
 
-        if not doc.exists:
+            if not doc.exists:
+                return result
+
+            # Delete job document
+            doc_ref.delete()
+            result["job"] = True
+
+            if cascade:
+                # Delete results document
+                results_ref = self.db.collection(self.results_collection).document(job_id)
+                if results_ref.get().exists:
+                    results_ref.delete()
+                    result["results"] = True
+
+                # Delete traces subcollection
+                traces_deleted = self._delete_traces_collection(job_id)
+                result["traces"] = traces_deleted > 0
+
             return result
 
-        # Delete job document
-        doc_ref.delete()
-        result["job"] = True
-
-        if cascade:
-            # Delete results document
-            results_ref = self.db.collection(self.results_collection).document(job_id)
-            if results_ref.get().exists:
-                results_ref.delete()
-                result["results"] = True
-
-            # Delete traces subcollection
-            traces_deleted = self._delete_traces_collection(job_id)
-            result["traces"] = traces_deleted > 0
-
+        result = await asyncio.to_thread(_sync)
         logger.info("job_deleted", job_id=job_id, cascade=cascade, result=result)
         return result
 
@@ -242,7 +356,7 @@ class FirestoreClient:
         """
         results_data = {
             "job_id": state.job_id,
-            "created_at": datetime.utcnow(),
+            "created_at": _utcnow(),
             "treatment_variable": state.treatment_variable,
             "outcome_variable": state.outcome_variable,
             "recommendations": state.recommendations,
@@ -298,8 +412,11 @@ class FirestoreClient:
                 for s in state.sensitivity_results
             ]
 
-        doc_ref = self.db.collection(self.results_collection).document(state.job_id)
-        doc_ref.set(results_data)
+        def _sync():
+            doc_ref = self.db.collection(self.results_collection).document(state.job_id)
+            doc_ref.set(results_data)
+
+        await asyncio.to_thread(_sync)
 
         logger.info("results_saved", job_id=state.job_id)
 
@@ -312,12 +429,14 @@ class FirestoreClient:
         Returns:
             Results data or None
         """
-        doc_ref = self.db.collection(self.results_collection).document(job_id)
-        doc = doc_ref.get()
+        def _sync():
+            doc_ref = self.db.collection(self.results_collection).document(job_id)
+            doc = doc_ref.get()
+            if doc.exists:
+                return doc.to_dict()
+            return None
 
-        if doc.exists:
-            return doc.to_dict()
-        return None
+        return await asyncio.to_thread(_sync)
 
     async def save_traces(self, state: AnalysisState) -> None:
         """Save agent traces.
@@ -325,11 +444,9 @@ class FirestoreClient:
         Args:
             state: Analysis state with traces
         """
-        collection_ref = self.db.collection(self.traces_collection).document(state.job_id)
-        traces_ref = collection_ref.collection("traces")
-
+        trace_data_list = []
         for trace in state.agent_traces:
-            trace_data = {
+            trace_data_list.append({
                 "agent_name": trace.agent_name,
                 "timestamp": trace.timestamp,
                 "action": trace.action,
@@ -338,8 +455,16 @@ class FirestoreClient:
                 "outputs": trace.outputs,
                 "tools_called": trace.tools_called,
                 "duration_ms": trace.duration_ms,
-            }
-            traces_ref.add(trace_data)
+                "token_usage": trace.token_usage,
+            })
+
+        def _sync():
+            collection_ref = self.db.collection(self.traces_collection).document(state.job_id)
+            traces_ref = collection_ref.collection("traces")
+            for trace_data in trace_data_list:
+                traces_ref.add(trace_data)
+
+        await asyncio.to_thread(_sync)
 
         logger.debug("traces_saved", job_id=state.job_id, n_traces=len(state.agent_traces))
 
@@ -352,14 +477,12 @@ class FirestoreClient:
         Returns:
             List of trace data
         """
-        collection_ref = self.db.collection(self.traces_collection).document(job_id)
-        traces_ref = collection_ref.collection("traces")
+        def _sync():
+            collection_ref = self.db.collection(self.traces_collection).document(job_id)
+            traces_ref = collection_ref.collection("traces")
+            return [doc.to_dict() for doc in traces_ref.order_by("timestamp").stream()]
 
-        traces = []
-        for doc in traces_ref.order_by("timestamp").stream():
-            traces.append(doc.to_dict())
-
-        return traces
+        return await asyncio.to_thread(_sync)
 
     def _delete_collection(self, path: str, batch_size: int = 100) -> None:
         """Delete a collection (helper for cascading deletes)."""
@@ -375,7 +498,83 @@ class FirestoreClient:
             if deleted >= batch_size:
                 self._delete_collection(path, batch_size)
         except Exception:
-            pass  # Collection may not exist
+            logger.debug("subcollection_delete_skipped", exc_info=True)
+
+    # ── Distributed coordination ───────────────────────────────
+
+    async def get_orphaned_jobs(self, exclude_instance: str) -> list[dict[str, Any]]:
+        """Find jobs stuck in non-terminal status from dead instances.
+
+        Args:
+            exclude_instance: The current instance's ID (its jobs are NOT orphaned).
+
+        Returns:
+            List of job dicts whose owning instance is gone.
+        """
+        terminal = {"completed", "failed", "cancelled"}
+
+        def _sync():
+            docs = list(self.db.collection(self.jobs_collection).stream())
+            orphaned = []
+            for d in docs:
+                data = d.to_dict()
+                status = data.get("status")
+                inst = data.get("instance_id")
+                # Non-terminal + belongs to a different (or missing) instance
+                if status not in terminal and inst != exclude_instance:
+                    orphaned.append(data)
+            return orphaned
+
+        return await asyncio.to_thread(_sync)
+
+    async def upsert_heartbeat(self, instance_id: str, active_jobs: int) -> None:
+        """Write a heartbeat for this instance.
+
+        Args:
+            instance_id: The current instance's ID
+            active_jobs: Number of jobs currently running on this instance
+        """
+        def _sync():
+            doc_ref = self.db.collection("instances").document(instance_id)
+            doc_ref.set({
+                "instance_id": instance_id,
+                "last_heartbeat": _utcnow(),
+                "active_jobs": active_jobs,
+            })
+
+        await asyncio.to_thread(_sync)
+
+    async def get_stale_instances(self, threshold_seconds: int = 90) -> list[str]:
+        """Find instances whose heartbeat is older than threshold.
+
+        Args:
+            threshold_seconds: Seconds after which an instance is considered dead.
+
+        Returns:
+            List of stale instance IDs.
+        """
+        from datetime import timedelta
+
+        cutoff = _utcnow() - timedelta(seconds=threshold_seconds)
+
+        def _sync():
+            docs = list(self.db.collection("instances").stream())
+            stale = []
+            for d in docs:
+                data = d.to_dict()
+                hb = data.get("last_heartbeat")
+                if hb is not None and hb < cutoff:
+                    stale.append(data.get("instance_id", d.id))
+            return stale
+
+        return await asyncio.to_thread(_sync)
+
+    async def delete_heartbeat(self, instance_id: str) -> None:
+        """Remove a heartbeat document for a dead instance."""
+        def _sync():
+            self.db.collection("instances").document(instance_id).delete()
+
+        await asyncio.to_thread(_sync)
 
 
 # Singleton instance

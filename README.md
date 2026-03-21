@@ -13,7 +13,7 @@ Automated causal inference analysis using LLM-coordinated specialist agents.
 - **13 agents** coordinated by an LLM-based orchestrator
 - **12 estimation methods**: OLS, IPW, AIPW, PSM, DiD, IV/2SLS, RDD, S/T/X-Learner, Causal Forest, Double ML
 - **5 discovery algorithms**: PC, FCI, GES, NOTEARS, LiNGAM
-- **345 unit tests**
+- **381 unit tests**
 
 ## Architecture
 

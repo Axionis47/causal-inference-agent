@@ -417,9 +417,9 @@ sequenceDiagram
 
 ## Known Issues
 
-1. **Mutable state object**: `AnalysisState` is a regular Pydantic `BaseModel` (not frozen). Any code with a reference can mutate any field, regardless of `WRITES_STATE_FIELDS` declarations. The contracts are advisory, not enforced.
+1. **Mutable state object**: `AnalysisState` is a regular Pydantic `BaseModel` (not frozen). Any code with a reference can mutate any field, regardless of `WRITES_STATE_FIELDS` declarations. The contracts are advisory (with warn-only validation in `execute_with_tracing()`), not enforced.
 
-2. **Shallow copy in parallel dispatch**: When the orchestrator runs agents in parallel, it creates shallow copies of state. Mutations to nested objects (lists, dicts) in one copy can bleed into others.
+2. ~~**Shallow copy in parallel dispatch**~~: ✅ Fixed. The orchestrator now uses `state.model_copy(deep=True)` (Pydantic v2 deep copy) instead of `copy.copy(state)`. Nested mutable objects are fully independent across parallel agents.
 
 3. **Trace compression loses detail**: When traces exceed 100 entries, older traces are replaced by a single summary containing only agent names and action counts. Individual reasoning, outputs, and tool calls are discarded.
 

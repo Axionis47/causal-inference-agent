@@ -112,6 +112,7 @@ Vertex AI uses Application Default Credentials (ADC) or a service account. No ex
 |----------|------|---------|-------------|
 | `MAX_AGENT_ITERATIONS` | int | `3` | Maximum critique-iterate cycles per job |
 | `AGENT_TIMEOUT_SECONDS` | int | `300` | Timeout per agent execution (seconds). Total job timeout is 10x this value. |
+| `MAX_CONCURRENT_JOBS` | int | `3` | Maximum concurrent pipeline executions. Jobs beyond this limit receive HTTP 429. |
 
 ### SSE (Server-Sent Events)
 

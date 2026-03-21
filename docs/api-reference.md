@@ -52,7 +52,9 @@ Create a new analysis job. Rate limited to 10 requests per minute.
 }
 ```
 
-**Errors**: 422 (validation), 429 (rate limit), 500 (internal).
+**Errors**: 422 (validation), 429 (rate limit or server at capacity), 500 (internal).
+
+Note: HTTP 429 is returned both by the per-client rate limiter (10 req/min via slowapi) and by the server-wide concurrency limiter (`max_concurrent_jobs`, default 3). The response body's `detail` field distinguishes the two cases.
 
 ---
 

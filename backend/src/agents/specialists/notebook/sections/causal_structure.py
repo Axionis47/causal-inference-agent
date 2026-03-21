@@ -12,8 +12,12 @@ def render_causal_structure(state: AnalysisState) -> list:
     cells = []
     dag = state.proposed_dag
 
+    # Detect if dag_expert refined the graph
+    is_refined = "domain_expert_fusion" in (dag.discovery_method or "")
+    agent_label = "DAG Expert agent" if is_refined else "Causal Discovery agent"
+
     md = "## Causal Structure\n\n"
-    md += f"*Discovered by the Causal Discovery agent using **{dag.discovery_method}**.*\n\n"
+    md += f"*{'Refined' if is_refined else 'Discovered'} by the {agent_label} using **{dag.discovery_method}**.*\n\n"
     md += "The graph below represents the discovered causal relationships.\n"
     md += "**Green** = treatment, **Red** = outcome, **Blue** = other variables.\n"
     cells.append(new_markdown_cell(md))
@@ -72,5 +76,46 @@ print(f"Nodes: {{len(G.nodes())}}, Edges: {{len(G.edges())}}")'''
             edge_md += f"| {e.source} | {e.target} | {e.edge_type} | {conf_str} |\n"
         edge_md += "\n"
         cells.append(new_markdown_cell(edge_md))
+
+    # Variable roles table (from dag_expert)
+    if dag.variable_roles:
+        roles_md = "### Variable Roles\n\n"
+        roles_md += "*Classified by the DAG Expert using domain knowledge and metadata.*\n\n"
+        roles_md += "| Variable | Role |\n"
+        roles_md += "|----------|------|\n"
+        for var, role in sorted(dag.variable_roles.items()):
+            roles_md += f"| {var} | {role} |\n"
+        roles_md += "\n"
+        cells.append(new_markdown_cell(roles_md))
+
+    # Forbidden edges (from dag_expert)
+    if dag.forbidden_edges:
+        forbidden_md = "### Forbidden Edges\n\n"
+        forbidden_md += "*Domain constraints that prevent impossible causal directions.*\n\n"
+        forbidden_md += "| Forbidden Edge | Reason |\n"
+        forbidden_md += "|----------------|--------|\n"
+        for fe in dag.forbidden_edges:
+            src = fe.get("source", "?")
+            tgt = fe.get("target", "?")
+            reason = fe.get("reason", "Domain constraint")
+            forbidden_md += f"| {src} → {tgt} | {reason} |\n"
+        forbidden_md += "\n"
+        cells.append(new_markdown_cell(forbidden_md))
+
+    # Adjustment set (from dag_expert)
+    if dag.adjustment_set is not None:
+        adj_md = "### Adjustment Set (Backdoor Criterion)\n\n"
+        if dag.adjustment_set:
+            adj_md += (
+                "The following covariates were identified by the DAG Expert for "
+                "adjustment in effect estimation (blocks all backdoor paths):\n\n"
+            )
+            adj_md += f"**Adjust for**: {', '.join(dag.adjustment_set)}\n\n"
+        else:
+            adj_md += (
+                "No confounders identified by the backdoor criterion — "
+                "treatment and outcome have no common causes in the discovered DAG.\n\n"
+            )
+        cells.append(new_markdown_cell(adj_md))
 
     return cells

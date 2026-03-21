@@ -90,30 +90,20 @@ class SampleSizeThresholds:
 
 
 def find_closest_column(name: str, columns: list[str]) -> str | None:
-    """Find the closest matching column name using fuzzy matching.
+    """Find the matching column name using exact or case-insensitive match only.
 
-    Handles cases where LLM returns "treatment" but column is "treat".
+    No fuzzy/substring matching — prefix and substring matches can silently
+    pick the wrong variable (e.g., "income" matching "income_tax" instead of
+    "household_income").
     """
     if name in columns:
         return name
 
     name_lower = name.lower()
 
-    # Try exact lowercase match
+    # Try exact case-insensitive match
     for col in columns:
         if col.lower() == name_lower:
-            return col
-
-    # Try prefix matching (treatment -> treat)
-    for col in columns:
-        col_lower = col.lower()
-        if name_lower.startswith(col_lower) or col_lower.startswith(name_lower):
-            return col
-
-    # Try substring matching
-    for col in columns:
-        col_lower = col.lower()
-        if name_lower in col_lower or col_lower in name_lower:
             return col
 
     return None

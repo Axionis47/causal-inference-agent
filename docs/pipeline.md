@@ -201,13 +201,13 @@ Generates a Jupyter notebook with 14 sections, each corresponding to a pipeline 
 
 The orchestrator supports running agents concurrently via `dispatch_parallel_agents`. The merge strategy:
 
-1. Create `copy.copy(state)` for each agent
+1. Create `state.model_copy(deep=True)` for each agent (Pydantic v2 deep copy)
 2. Run all agents via `asyncio.gather()`
 3. For each completed agent, copy its declared `WRITES_STATE_FIELDS` values from the agent's state copy back to the main state
 
 Currently, only EDA + Causal Discovery are dispatched in parallel by default. Other agents have sequential dependencies.
 
-**Known issue**: `copy.copy()` creates shallow copies. Nested mutable objects (lists, dicts) are shared between copies. If two parallel agents both append to the same list field, results can be corrupted or lost.
+Deep copy ensures nested mutable objects (lists, dicts) are fully independent across parallel agents.
 
 ---
 
@@ -295,7 +295,7 @@ Each agent also declares a `PROGRESS_WEIGHT` (0-100) but this value is not curre
 
 ### Known pipeline issues
 
-1. **Orchestrator does not validate REQUIRED_STATE_FIELDS before dispatch**: The orchestrator's LLM reasoning decides dispatch order. If it dispatches an agent before its required upstream agent has run, `_validate_required_state` raises `StateValidationError` at execution time, which surfaces as a pipeline failure.
+1. **Orchestrator does not validate REQUIRED_STATE_FIELDS before dispatch**: The orchestrator's LLM reasoning decides dispatch order. If it dispatches an agent before its required upstream agent has run, `execute_with_tracing()` logs a warning (warn-only validation) but continues execution. This may produce downstream errors.
 
 2. **Treatment/outcome variable resolution inconsistency**: Some agents read `state.treatment_variable` directly. Others use `state.get_primary_pair()`. Others extract variables from `state.data_profile.treatment_candidates`. If these disagree, different agents may analyze different variable pairs.
 
@@ -303,4 +303,4 @@ Each agent also declares a `PROGRESS_WEIGHT` (0-100) but this value is not curre
 
 4. **Double finalization possible**: The orchestrator can call `finalize_analysis` even after the notebook has been generated if the LLM decision loop doesn't terminate cleanly. The second finalization overwrites `state.recommendations`.
 
-5. **Status persistence silently fails**: The `_persist_status` callback wraps `update_job()` in a bare `try/except: pass`. If storage writes fail mid-pipeline, the job runs to completion but the database shows a stale status.
+~~5. **Status persistence silently fails**~~: ✅ Fixed. The `_persist_status` callback now logs failures via `logger.debug("status_persist_failed", ...)` instead of bare `pass`. All silent exception swallowing has been replaced with structured logging.

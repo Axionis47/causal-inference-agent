@@ -376,7 +376,7 @@ See [development.md](development.md) for a full walkthrough.
 
 ## Known Issues
 
-1. **Code duplication between method layers**: `src/causal/methods/` contains `BaseCausalMethod` subclasses used by `EffectEstimatorReActAgent`. `agents/specialists/effect_estimation/estimation_methods.py` contains separate inline implementations used by `EffectEstimatorAgent`. These two codepaths implement overlapping methods (OLS, IPW, AIPW, PSM, meta-learners) and can diverge in behavior.
+1. ~~**Code duplication between method layers**~~: ✅ Fixed. Both effect estimator agents now use the `BaseCausalMethod` registry via `EffectEstimatorEngine.run_method_safe()`, which adapts `MethodResult` to `TreatmentEffectResult`. The ~850 lines of inline method reimplementations have been replaced with thin delegation.
 
 2. **Bootstrap iteration inconsistency**: Meta-learners use 100 bootstrap iterations for standard errors. PSM uses 500. This inconsistency affects the precision of reported standard errors differently across methods.
 
