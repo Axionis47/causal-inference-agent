@@ -221,10 +221,20 @@ class AnalysisState(BaseModel):
     This state is passed between agents and tracks the progress of the analysis.
     """
 
-    # Trace management constants
+    # Trace management constants (defaults match settings; overridden at init)
     MAX_TRACES: int = 100  # Keep last 100 detailed traces (12-agent pipeline needs room)
     MAX_TRACE_OUTPUT_LEN: int = 1000  # Truncate large outputs (method diagnostics need ~800 chars)
     MAX_TRACE_REASONING_LEN: int = 1000  # Truncate long reasoning
+
+    def model_post_init(self, __context: Any) -> None:
+        """Load trace limits from settings (if available) so they stay configurable."""
+        try:
+            from src.config.settings import get_settings
+            settings = get_settings()
+            self.MAX_TRACES = settings.max_agent_traces
+            self.MAX_TRACE_OUTPUT_LEN = settings.max_trace_output_len
+        except Exception:
+            pass  # Keep defaults during testing / import bootstrapping
 
     job_id: str
     dataset_info: DatasetInfo
@@ -471,9 +481,14 @@ class AnalysisState(BaseModel):
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
         self.sse_events.append(event)
-        # FIFO: keep only the last 100 events
-        if len(self.sse_events) > 100:
-            self.sse_events = self.sse_events[-100:]
+        # FIFO: keep only the last N events (configured via settings)
+        try:
+            from src.config.settings import get_settings
+            max_events = get_settings().max_sse_events
+        except Exception:
+            max_events = 100
+        if len(self.sse_events) > max_events:
+            self.sse_events = self.sse_events[-max_events:]
 
     def push_decision(
         self,
@@ -493,9 +508,14 @@ class AnalysisState(BaseModel):
                 alternatives=alternatives or [],
             )
         )
-        # Cap at 100 decisions
-        if len(self.decisions) > 100:
-            self.decisions = self.decisions[-100:]
+        # Cap decisions (configured via settings)
+        try:
+            from src.config.settings import get_settings
+            max_dec = get_settings().max_decisions
+        except Exception:
+            max_dec = 100
+        if len(self.decisions) > max_dec:
+            self.decisions = self.decisions[-max_dec:]
 
     def get_primary_pair(self) -> tuple[str | None, str | None]:
         """Get the primary treatment-outcome pair for analysis.

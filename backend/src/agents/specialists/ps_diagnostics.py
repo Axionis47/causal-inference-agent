@@ -368,13 +368,15 @@ Call finalize_diagnostics when you have sufficient evidence."""
         overlap_max = min(ps[control_idx].max(), ps[treated_idx].max())
         pct_overlap = np.mean((ps >= overlap_min) & (ps <= overlap_max)) * 100
 
-        positivity_violations = np.sum((ps < 0.01) | (ps > 0.99))
+        from src.config.settings import get_settings
+        _s = get_settings()
+        positivity_violations = np.sum((ps < _s.ps_clip_lower) | (ps > _s.ps_clip_upper))
 
-        if pct_overlap > 85 and positivity_violations < 10:
+        if pct_overlap > _s.ps_overlap_good_threshold and positivity_violations < 10:
             quality = "good"
             proceed = True
             method = "aipw"
-        elif pct_overlap > 70:
+        elif pct_overlap > _s.ps_overlap_acceptable_threshold:
             quality = "acceptable"
             proceed = True
             method = "aipw"

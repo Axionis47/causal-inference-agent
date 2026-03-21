@@ -88,6 +88,35 @@ class Settings(BaseSettings):
     agent_timeout_seconds: int = 300
     max_concurrent_jobs: int = 3
 
+    # Statistical thresholds
+    significance_alpha: float = 0.05
+    confounder_correlation_threshold: float = 0.03
+    confounder_prognostic_threshold: float = 0.1
+    balance_pvalue_threshold: float = 0.1
+
+    # Propensity score
+    ps_clip_lower: float = 0.01
+    ps_clip_upper: float = 0.99
+    ps_overlap_good_threshold: float = 85.0
+    ps_overlap_acceptable_threshold: float = 70.0
+
+    # Sample size thresholds
+    min_samples_per_arm_basic: int = 30
+    min_samples_per_arm_matching: int = 50
+    min_samples_per_arm_ml: int = 100
+    min_samples_per_arm_forest: int = 200
+
+    # Trace and state limits
+    max_agent_traces: int = 100
+    max_trace_output_len: int = 1000
+    max_sse_events: int = 100
+    max_decisions: int = 100
+
+    # Job management
+    job_timeout_multiplier: int = 10
+    heartbeat_stale_threshold_seconds: int = 90
+    heartbeat_interval_seconds: int = 30
+
     # SSE (Server-Sent Events)
     sse_enabled: bool = True
     sse_heartbeat_seconds: int = 15

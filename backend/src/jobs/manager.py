@@ -205,7 +205,7 @@ class JobManager:
         """Inner job execution (runs under semaphore)."""
         job_id = state.job_id
         settings = get_settings()
-        timeout_seconds = settings.agent_timeout_seconds * 10  # Total job timeout (10x agent timeout)
+        timeout_seconds = settings.agent_timeout_seconds * settings.job_timeout_multiplier  # Total job timeout
 
         logger.info("job_started", job_id=job_id, timeout_seconds=timeout_seconds)
 
@@ -339,7 +339,7 @@ class JobManager:
                 # Check for stale instances
                 if hasattr(self.firestore, "get_stale_instances"):
                     stale = await self.firestore.get_stale_instances(
-                        threshold_seconds=90
+                        threshold_seconds=settings.heartbeat_stale_threshold_seconds
                     )
                     for dead_instance in stale:
                         # Recover orphaned jobs from this dead instance
@@ -368,7 +368,7 @@ class JobManager:
             except Exception:
                 logger.debug("heartbeat_error", exc_info=True)
 
-            await asyncio.sleep(30)
+            await asyncio.sleep(settings.heartbeat_interval_seconds)
 
     async def get_job(self, job_id: str) -> dict[str, Any] | None:
         """Get a job by ID.

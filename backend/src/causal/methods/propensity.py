@@ -93,10 +93,13 @@ class PSMMethod(BaseCausalMethod):
         self._propensity_scores = ps_model.predict_proba(X)[:, 1]
 
         # Clip propensity scores to avoid extreme weights
-        self._propensity_scores = np.clip(self._propensity_scores, 0.01, 0.99)
+        from src.config.settings import get_settings
+        _s = get_settings()
+        _ps_lo, _ps_hi = _s.ps_clip_lower, _s.ps_clip_upper
+        self._propensity_scores = np.clip(self._propensity_scores, _ps_lo, _ps_hi)
         # Ensure no exact 0 or 1 after float rounding
-        self._propensity_scores = np.where(self._propensity_scores <= 0, 0.01, self._propensity_scores)
-        self._propensity_scores = np.where(self._propensity_scores >= 1, 0.99, self._propensity_scores)
+        self._propensity_scores = np.where(self._propensity_scores <= 0, _ps_lo, self._propensity_scores)
+        self._propensity_scores = np.where(self._propensity_scores >= 1, _ps_hi, self._propensity_scores)
 
         # Check for NaN propensity scores before logit
         if np.any(np.isnan(self._propensity_scores)):
@@ -186,7 +189,9 @@ class PSMMethod(BaseCausalMethod):
         try:
             ps_model = LogisticRegression(max_iter=1000, random_state=None)
             ps_model.fit(X, T)
-            ps = np.clip(ps_model.predict_proba(X)[:, 1], 0.01, 0.99)
+            from src.config.settings import get_settings
+            _s = get_settings()
+            ps = np.clip(ps_model.predict_proba(X)[:, 1], _s.ps_clip_lower, _s.ps_clip_upper)
 
             logit_ps = np.log(ps / (1 - ps))
             treated_idx = np.where(T == 1)[0]

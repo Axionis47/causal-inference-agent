@@ -5,14 +5,27 @@ used by the EffectEstimatorAgent to choose appropriate methods.
 """
 
 
+def _get_sample_thresholds() -> tuple[int, int, int, int]:
+    """Load per-arm sample size thresholds from settings.
+
+    Returns:
+        (basic, matching, ml, forest) minimum samples per arm.
+    """
+    try:
+        from src.config.settings import get_settings
+        s = get_settings()
+        return (
+            s.min_samples_per_arm_basic,
+            s.min_samples_per_arm_matching,
+            s.min_samples_per_arm_ml,
+            s.min_samples_per_arm_forest,
+        )
+    except Exception:
+        return 30, 50, 100, 200
+
+
 class SampleSizeThresholds:
     """Minimum sample sizes for reliable estimation by method type."""
-
-    # Minimum samples per treatment arm
-    MIN_SAMPLES_BASIC = 30  # OLS, IPW - simple parametric methods
-    MIN_SAMPLES_MATCHING = 50  # PSM - needs enough for good matches
-    MIN_SAMPLES_ML = 100  # T/X/S-Learner - ML methods prone to overfitting
-    MIN_SAMPLES_FOREST = 200  # Causal Forest, Double ML - complex ML
 
     # Total sample thresholds
     MIN_TOTAL_BASIC = 50
@@ -22,18 +35,19 @@ class SampleSizeThresholds:
     @classmethod
     def get_method_requirements(cls, method: str) -> dict:
         """Get sample size requirements for a method."""
+        basic, matching, ml, forest = _get_sample_thresholds()
         requirements = {
-            "ols": {"min_per_arm": cls.MIN_SAMPLES_BASIC, "min_total": cls.MIN_TOTAL_BASIC, "complexity": "low"},
-            "ipw": {"min_per_arm": cls.MIN_SAMPLES_BASIC, "min_total": cls.MIN_TOTAL_BASIC, "complexity": "low"},
-            "aipw": {"min_per_arm": cls.MIN_SAMPLES_BASIC, "min_total": cls.MIN_TOTAL_BASIC, "complexity": "medium"},
-            "matching": {"min_per_arm": cls.MIN_SAMPLES_MATCHING, "min_total": 100, "complexity": "medium"},
-            "s_learner": {"min_per_arm": cls.MIN_SAMPLES_ML, "min_total": cls.MIN_TOTAL_ML, "complexity": "high"},
-            "t_learner": {"min_per_arm": cls.MIN_SAMPLES_ML, "min_total": cls.MIN_TOTAL_ML, "complexity": "high"},
-            "x_learner": {"min_per_arm": cls.MIN_SAMPLES_ML, "min_total": cls.MIN_TOTAL_ML, "complexity": "high"},
-            "causal_forest": {"min_per_arm": cls.MIN_SAMPLES_FOREST, "min_total": cls.MIN_TOTAL_FOREST, "complexity": "very_high"},
-            "double_ml": {"min_per_arm": cls.MIN_SAMPLES_FOREST, "min_total": cls.MIN_TOTAL_FOREST, "complexity": "very_high"},
+            "ols": {"min_per_arm": basic, "min_total": cls.MIN_TOTAL_BASIC, "complexity": "low"},
+            "ipw": {"min_per_arm": basic, "min_total": cls.MIN_TOTAL_BASIC, "complexity": "low"},
+            "aipw": {"min_per_arm": basic, "min_total": cls.MIN_TOTAL_BASIC, "complexity": "medium"},
+            "matching": {"min_per_arm": matching, "min_total": 100, "complexity": "medium"},
+            "s_learner": {"min_per_arm": ml, "min_total": cls.MIN_TOTAL_ML, "complexity": "high"},
+            "t_learner": {"min_per_arm": ml, "min_total": cls.MIN_TOTAL_ML, "complexity": "high"},
+            "x_learner": {"min_per_arm": ml, "min_total": cls.MIN_TOTAL_ML, "complexity": "high"},
+            "causal_forest": {"min_per_arm": forest, "min_total": cls.MIN_TOTAL_FOREST, "complexity": "very_high"},
+            "double_ml": {"min_per_arm": forest, "min_total": cls.MIN_TOTAL_FOREST, "complexity": "very_high"},
         }
-        return requirements.get(method, {"min_per_arm": cls.MIN_SAMPLES_BASIC, "min_total": cls.MIN_TOTAL_BASIC, "complexity": "unknown"})
+        return requirements.get(method, {"min_per_arm": basic, "min_total": cls.MIN_TOTAL_BASIC, "complexity": "unknown"})
 
     @classmethod
     def check_method_viability(cls, method: str, n_treated: int, n_control: int) -> tuple[bool, str]:

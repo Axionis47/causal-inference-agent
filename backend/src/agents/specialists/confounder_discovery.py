@@ -436,13 +436,20 @@ Use the tools to systematically investigate each candidate:
         # Test association with outcome
         corr_y, pval_y = stats.pearsonr(self._df[variable], self._df[self._outcome_var])
 
+        # Load configurable thresholds
+        from src.config.settings import get_settings
+        _settings = get_settings()
+        _corr_thresh = _settings.confounder_correlation_threshold
+        _prog_thresh = _settings.confounder_prognostic_threshold
+        _bal_thresh = _settings.balance_pvalue_threshold
+
         # Criterion 1: Classic confounder (low threshold for RCT compatibility)
-        affects_treatment = abs(corr_t) > 0.03
-        affects_outcome = abs(corr_y) > 0.03
+        affects_treatment = abs(corr_t) > _corr_thresh
+        affects_outcome = abs(corr_y) > _corr_thresh
         is_classic = affects_treatment and affects_outcome
 
         # Criterion 2: Prognostic variable (strongly predicts Y)
-        is_prognostic = abs(corr_y) > 0.1
+        is_prognostic = abs(corr_y) > _prog_thresh
 
         # Criterion 3: Imbalanced between treatment groups (t-test)
         try:
@@ -453,7 +460,7 @@ Use the tools to systematically investigate each candidate:
             control_vals = self._df.loc[~treated_mask, variable].dropna()
             if len(treated_vals) > 2 and len(control_vals) > 2:
                 _, balance_p = stats.ttest_ind(treated_vals, control_vals, equal_var=False)
-                is_imbalanced = balance_p < 0.1
+                is_imbalanced = balance_p < _bal_thresh
             else:
                 is_imbalanced = False
                 balance_p = 1.0
@@ -549,6 +556,13 @@ Use the tools to systematically investigate each candidate:
             # Can't do balance check with no variation in treatment
             treated_mask = treatment_vals > np.median(treatment_vals)
 
+        # Load configurable thresholds
+        from src.config.settings import get_settings
+        _settings = get_settings()
+        _corr_thresh = _settings.confounder_correlation_threshold
+        _prog_thresh = _settings.confounder_prognostic_threshold
+        _bal_thresh = _settings.balance_pvalue_threshold
+
         for col in candidate_cols:
             try:
                 col_data = df[col].values.astype(float)
@@ -564,10 +578,10 @@ Use the tools to systematically investigate each candidate:
                 corr_y = abs(np.corrcoef(c, y)[0, 1]) if not np.isnan(np.corrcoef(c, y)[0, 1]) else 0
 
                 # Criterion 1: Classic confounder (lower threshold)
-                is_classic = corr_t > 0.03 and corr_y > 0.03
+                is_classic = corr_t > _corr_thresh and corr_y > _corr_thresh
 
                 # Criterion 2: Prognostic variable (strongly predicts Y)
-                is_prognostic = corr_y > 0.1
+                is_prognostic = corr_y > _prog_thresh
 
                 # Criterion 3: Imbalanced between treatment groups
                 try:
@@ -575,7 +589,7 @@ Use the tools to systematically investigate each candidate:
                     control_vals_col = c[~treated_mask[valid]]
                     if len(treated_vals_col) > 2 and len(control_vals_col) > 2:
                         _, balance_p = stats.ttest_ind(treated_vals_col, control_vals_col, equal_var=False)
-                        is_imbalanced = balance_p < 0.1
+                        is_imbalanced = balance_p < _bal_thresh
                     else:
                         is_imbalanced = False
                         balance_p = 1.0
@@ -767,16 +781,23 @@ Use the tools to systematically investigate each candidate:
         if treated_mask.sum() == 0 or (~treated_mask).sum() == 0:
             treated_mask = treatment_vals > np.median(treatment_vals)
 
+        # Load configurable thresholds
+        from src.config.settings import get_settings
+        _settings = get_settings()
+        _corr_thresh = _settings.confounder_correlation_threshold
+        _prog_thresh = _settings.confounder_prognostic_threshold
+        _bal_thresh = _settings.balance_pvalue_threshold
+
         for col in candidates:
             try:
                 corr_t = abs(stats.pearsonr(self._df[col], self._df[self._treatment_var])[0])
                 corr_y = abs(stats.pearsonr(self._df[col], self._df[self._outcome_var])[0])
 
                 # Criterion 1: Classic confounder
-                is_classic = corr_t > 0.03 and corr_y > 0.03
+                is_classic = corr_t > _corr_thresh and corr_y > _corr_thresh
 
                 # Criterion 2: Prognostic variable
-                is_prognostic = corr_y > 0.1
+                is_prognostic = corr_y > _prog_thresh
 
                 # Criterion 3: Imbalanced between treatment groups
                 try:
@@ -784,7 +805,7 @@ Use the tools to systematically investigate each candidate:
                     control_vals_col = self._df.loc[~treated_mask, col].dropna()
                     if len(treated_vals_col) > 2 and len(control_vals_col) > 2:
                         _, balance_p = stats.ttest_ind(treated_vals_col, control_vals_col, equal_var=False)
-                        is_imbalanced = balance_p < 0.1
+                        is_imbalanced = balance_p < _bal_thresh
                     else:
                         is_imbalanced = False
                 except Exception:
