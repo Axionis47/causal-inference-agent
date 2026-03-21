@@ -250,8 +250,10 @@ Start by analyzing the domain to understand the causal context."""
             and state.proposed_dag.adjustment_set is not None
         )
 
-    async def _analyze_domain(self, state: AnalysisState) -> ToolResult:
+    async def _analyze_domain(self, state: AnalysisState, **kwargs) -> ToolResult:
         """Analyze domain from metadata."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="analyze_domain", extra_keys=list(kwargs.keys()))
         domain_info = {
             "domain": state.dataset_info.kaggle_domain or "unknown",
             "tags": state.dataset_info.kaggle_tags or [],
@@ -303,9 +305,11 @@ Start by analyzing the domain to understand the causal context."""
         )
 
     async def _classify_variable_role(
-        self, state: AnalysisState, variable: str
+        self, state: AnalysisState, variable: str = "", **kwargs
     ) -> ToolResult:
         """Classify a variable's causal role."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="classify_variable_role", extra_keys=list(kwargs.keys()))
         var_lower = variable.lower()
 
         # Get semantic analysis
@@ -370,12 +374,15 @@ Start by analyzing the domain to understand the causal context."""
     async def _propose_edge(
         self,
         state: AnalysisState,
-        source: str,
-        target: str,
-        reasoning: str,
-        confidence: str,
+        source: str = "",
+        target: str = "",
+        reasoning: str = "",
+        confidence: str = "medium",
+        **kwargs,
     ) -> ToolResult:
         """Propose a causal edge based on domain reasoning."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="propose_edge", extra_keys=list(kwargs.keys()))
         # Check if edge is forbidden
         forbidden_pairs = {(s, t) for s, t, _r in self._forbidden_edges}
         if (source, target) in forbidden_pairs:
@@ -420,9 +427,11 @@ Start by analyzing the domain to understand the causal context."""
         )
 
     async def _mark_forbidden_edge(
-        self, state: AnalysisState, source: str, target: str, reason: str
+        self, state: AnalysisState, source: str = "", target: str = "", reason: str = "", **kwargs
     ) -> ToolResult:
         """Mark an edge as forbidden."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="mark_forbidden_edge", extra_keys=list(kwargs.keys()))
         self._forbidden_edges.append((source, target, reason))
 
         return ToolResult(
@@ -434,8 +443,10 @@ Start by analyzing the domain to understand the causal context."""
             },
         )
 
-    async def _get_discovery_edges(self, state: AnalysisState) -> ToolResult:
+    async def _get_discovery_edges(self, state: AnalysisState, **kwargs) -> ToolResult:
         """Get edges from data-driven discovery."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="get_discovery_edges", extra_keys=list(kwargs.keys()))
         if not state.proposed_dag:
             return ToolResult(
                 status=ToolResultStatus.SUCCESS,
@@ -470,9 +481,11 @@ Start by analyzing the domain to understand the causal context."""
         )
 
     async def _fuse_and_validate(
-        self, state: AnalysisState, conflict_resolution: str
+        self, state: AnalysisState, conflict_resolution: str = "domain_priority", **kwargs
     ) -> ToolResult:
         """Fuse domain and data edges to create final DAG."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="fuse_and_validate", extra_keys=list(kwargs.keys()))
         final_edges: list[CausalEdge] = []
         conflicts = []
         edge_sources: dict[tuple[str, str], str] = {}
@@ -634,9 +647,11 @@ Start by analyzing the domain to understand the causal context."""
         return "\n".join(lines)
 
     async def _get_adjustment_set(
-        self, state: AnalysisState, treatment: str, outcome: str
+        self, state: AnalysisState, treatment: str = "", outcome: str = "", **kwargs
     ) -> ToolResult:
         """Get proper adjustment set using backdoor criterion."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="get_adjustment_set", extra_keys=list(kwargs.keys()))
         if not state.proposed_dag:
             return ToolResult(
                 status=ToolResultStatus.ERROR,

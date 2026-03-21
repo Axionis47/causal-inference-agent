@@ -379,8 +379,10 @@ Finalize when you have assessed data quality for causal analysis."""
     # Tool Handlers
     # =========================================================================
 
-    async def _tool_get_overview(self, state: AnalysisState) -> ToolResult:
+    async def _tool_get_overview(self, state: AnalysisState, **kwargs) -> ToolResult:
         """Get overview of the dataset."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="get_overview", extra_keys=list(kwargs.keys()))
         if self._df is None:
             return ToolResult(
                 status=ToolResultStatus.ERROR,
@@ -447,10 +449,13 @@ Finalize when you have assessed data quality for causal analysis."""
     async def _tool_analyze_variable(
         self,
         state: AnalysisState,
-        variable: str,
+        variable: str = "",
         include_normality_tests: bool = True,
+        **kwargs,
     ) -> ToolResult:
         """Analyze a specific variable's distribution."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="analyze_variable", extra_keys=list(kwargs.keys()))
         if self._df is None:
             return ToolResult(
                 status=ToolResultStatus.ERROR,
@@ -542,8 +547,11 @@ Finalize when you have assessed data quality for causal analysis."""
         state: AnalysisState,
         variables: list[str] | None = None,
         method: str = "both",
+        **kwargs,
     ) -> ToolResult:
         """Detect outliers in specified variables."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="detect_outliers", extra_keys=list(kwargs.keys()))
         if self._df is None:
             return ToolResult(
                 status=ToolResultStatus.ERROR,
@@ -613,8 +621,11 @@ Finalize when you have assessed data quality for causal analysis."""
         variables: list[str] | None = None,
         method: str = "pearson",
         threshold: float = 0.7,
+        **kwargs,
     ) -> ToolResult:
         """Compute correlations and identify high correlations."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="compute_correlations", extra_keys=list(kwargs.keys()))
         if self._df is None:
             return ToolResult(
                 status=ToolResultStatus.ERROR,
@@ -681,8 +692,11 @@ Finalize when you have assessed data quality for causal analysis."""
         self,
         state: AnalysisState,
         covariates: list[str] | None = None,
+        **kwargs,
     ) -> ToolResult:
         """Compute VIF for multicollinearity assessment."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="compute_vif", extra_keys=list(kwargs.keys()))
         if self._df is None:
             return ToolResult(
                 status=ToolResultStatus.ERROR,
@@ -774,8 +788,11 @@ Finalize when you have assessed data quality for causal analysis."""
         self,
         state: AnalysisState,
         covariates: list[str] | None = None,
+        **kwargs,
     ) -> ToolResult:
         """Check covariate balance between treatment groups."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="check_balance", extra_keys=list(kwargs.keys()))
         if self._df is None:
             return ToolResult(
                 status=ToolResultStatus.ERROR,
@@ -873,8 +890,10 @@ Finalize when you have assessed data quality for causal analysis."""
             },
         )
 
-    async def _tool_check_missing(self, state: AnalysisState) -> ToolResult:
+    async def _tool_check_missing(self, state: AnalysisState, **kwargs) -> ToolResult:
         """Analyze missing data patterns."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="check_missing", extra_keys=list(kwargs.keys()))
         if self._df is None:
             return ToolResult(
                 status=ToolResultStatus.ERROR,
@@ -947,13 +966,19 @@ Finalize when you have assessed data quality for causal analysis."""
     async def _tool_finalize(
         self,
         state: AnalysisState,
-        data_quality_score: float,
-        key_findings: list[str],
-        data_quality_issues: list[str],
-        recommendations: list[str],
-        causal_readiness: str,
+        data_quality_score: float = 0.5,
+        key_findings: list[str] | None = None,
+        data_quality_issues: list[str] | None = None,
+        recommendations: list[str] | None = None,
+        causal_readiness: str = "moderate",
+        **kwargs,
     ) -> ToolResult:
         """Finalize the EDA with assessment."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="finalize", extra_keys=list(kwargs.keys()))
+        key_findings = key_findings or []
+        data_quality_issues = data_quality_issues or []
+        recommendations = recommendations or []
         self.logger.info(
             "eda_finalizing",
             data_quality_score=data_quality_score,

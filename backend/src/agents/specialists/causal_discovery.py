@@ -350,8 +350,10 @@ VALIDATION CRITERIA:
     # Tool Handlers
     # =========================================================================
 
-    async def _tool_get_data_characteristics(self, state: AnalysisState) -> ToolResult:
+    async def _tool_get_data_characteristics(self, state: AnalysisState, **kwargs) -> ToolResult:
         """Get data characteristics for algorithm selection."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="get_data_characteristics", extra_keys=list(kwargs.keys()))
         if self._df is None:
             return ToolResult(
                 status=ToolResultStatus.ERROR,
@@ -484,11 +486,14 @@ VALIDATION CRITERIA:
     async def _tool_run_discovery_algorithm(
         self,
         state: AnalysisState,
-        algorithm: str,
+        algorithm: str = "pc",
         alpha: float = 0.05,
         threshold: float = 0.1,
+        **kwargs,
     ) -> ToolResult:
         """Run a discovery algorithm."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="run_discovery_algorithm", extra_keys=list(kwargs.keys()))
         if self._df is None:
             return ToolResult(
                 status=ToolResultStatus.ERROR,
@@ -766,8 +771,10 @@ VALIDATION CRITERIA:
             self.logger.warning(f"algorithm_failed_{algorithm}", error=str(e))
             return None
 
-    async def _tool_inspect_graph(self, state: AnalysisState) -> ToolResult:
+    async def _tool_inspect_graph(self, state: AnalysisState, **kwargs) -> ToolResult:
         """Inspect the current graph structure."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="inspect_graph", extra_keys=list(kwargs.keys()))
         if not self._current_graph:
             return ToolResult(
                 status=ToolResultStatus.ERROR,
@@ -839,8 +846,10 @@ VALIDATION CRITERIA:
             },
         )
 
-    async def _tool_validate_graph(self, state: AnalysisState) -> ToolResult:
+    async def _tool_validate_graph(self, state: AnalysisState, **kwargs) -> ToolResult:
         """Validate the discovered graph."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="validate_graph", extra_keys=list(kwargs.keys()))
         if not self._current_graph:
             return ToolResult(
                 status=ToolResultStatus.ERROR,
@@ -940,8 +949,10 @@ VALIDATION CRITERIA:
 
         return False
 
-    async def _tool_compare_algorithms(self, state: AnalysisState) -> ToolResult:
+    async def _tool_compare_algorithms(self, state: AnalysisState, **kwargs) -> ToolResult:
         """Compare results from different algorithms."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="compare_algorithms", extra_keys=list(kwargs.keys()))
         if len(self._discovered_graphs) < 2:
             return ToolResult(
                 status=ToolResultStatus.SUCCESS,
@@ -1007,13 +1018,16 @@ VALIDATION CRITERIA:
     async def _tool_finalize_discovery(
         self,
         state: AnalysisState,
-        chosen_algorithm: str,
-        interpretation: str,
-        confidence: str,
+        chosen_algorithm: str = "",
+        interpretation: str = "",
+        confidence: str = "medium",
         confounders: list[str] | None = None,
         mediators: list[str] | None = None,
+        **kwargs,
     ) -> ToolResult:
         """Finalize the discovery with chosen graph."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="finalize_discovery", extra_keys=list(kwargs.keys()))
         self.logger.info(
             "discovery_finalizing",
             chosen_algorithm=chosen_algorithm,

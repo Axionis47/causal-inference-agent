@@ -404,8 +404,11 @@ START NOW: Call get_previous_finding with agent="effect_estimator"."""
     async def _tool_get_estimates_summary(
         self,
         state: AnalysisState,
+        **kwargs,
     ) -> ToolResult:
         """Get summary of treatment effect estimates."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="get_estimates_summary", extra_keys=list(kwargs.keys()))
         if not self._current_state.treatment_effects:
             return ToolResult(
                 status=ToolResultStatus.ERROR,
@@ -448,8 +451,11 @@ START NOW: Call get_previous_finding with agent="effect_estimator"."""
         self,
         state: AnalysisState,
         method_index: int = 0,
+        **kwargs,
     ) -> ToolResult:
         """Compute E-value for unmeasured confounding."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="compute_e_value", extra_keys=list(kwargs.keys()))
         if method_index >= len(self._current_state.treatment_effects):
             return ToolResult(
                 status=ToolResultStatus.ERROR,
@@ -531,8 +537,11 @@ START NOW: Call get_previous_finding with agent="effect_estimator"."""
         self,
         state: AnalysisState,
         method_index: int = 0,
+        **kwargs,
     ) -> ToolResult:
         """Compute Rosenbaum bounds."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="compute_rosenbaum_bounds", extra_keys=list(kwargs.keys()))
         if method_index >= len(self._current_state.treatment_effects):
             return ToolResult(
                 status=ToolResultStatus.ERROR,
@@ -589,8 +598,11 @@ START NOW: Call get_previous_finding with agent="effect_estimator"."""
         self,
         state: AnalysisState,
         n_specifications: int = 10,
+        **kwargs,
     ) -> ToolResult:
         """Run specification curve analysis."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="run_specification_curve", extra_keys=list(kwargs.keys()))
         from sklearn.linear_model import LinearRegression
 
         df = self._df
@@ -700,8 +712,11 @@ START NOW: Call get_previous_finding with agent="effect_estimator"."""
         state: AnalysisState,
         test_type: str = "both",
         n_placebos: int = 100,
+        **kwargs,
     ) -> ToolResult:
         """Run placebo tests."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="run_placebo_test", extra_keys=list(kwargs.keys()))
         from sklearn.linear_model import LinearRegression
 
         df = self._df
@@ -789,8 +804,11 @@ START NOW: Call get_previous_finding with agent="effect_estimator"."""
         self,
         state: AnalysisState,
         subgroup_variable: str | None = None,
+        **kwargs,
     ) -> ToolResult:
         """Run subgroup analysis."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="run_subgroup_analysis", extra_keys=list(kwargs.keys()))
         from sklearn.linear_model import LinearRegression
 
         df = self._df
@@ -890,8 +908,11 @@ START NOW: Call get_previous_finding with agent="effect_estimator"."""
         self,
         state: AnalysisState,
         n_bootstrap: int = 200,
+        **kwargs,
     ) -> ToolResult:
         """Check variance stability via bootstrap."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="check_variance_stability", extra_keys=list(kwargs.keys()))
         from sklearn.linear_model import LinearRegression
 
         df = self._df
@@ -961,13 +982,17 @@ START NOW: Call get_previous_finding with agent="effect_estimator"."""
     async def _tool_finalize_sensitivity(
         self,
         state: AnalysisState,
-        overall_robustness: str,
-        key_findings: list[str],
-        reasoning: str,
+        overall_robustness: str = "uncertain",
+        key_findings: list[str] | None = None,
+        reasoning: str = "",
         concerns: list[str] | None = None,
         recommendations: list[str] | None = None,
+        **kwargs,
     ) -> ToolResult:
         """Finalize the sensitivity analysis."""
+        if kwargs:
+            logger.debug("finalize_sensitivity_ignored_kwargs", extra_keys=list(kwargs.keys()))
+        key_findings = key_findings or []
         self._finalized = True
         self._final_result = {
             "overall_robustness": overall_robustness,

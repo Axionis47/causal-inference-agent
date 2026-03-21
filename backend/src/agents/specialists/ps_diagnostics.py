@@ -402,8 +402,11 @@ Call finalize_diagnostics when you have sufficient evidence."""
         covariates: list[str] | None = None,
         add_interactions: bool = False,
         add_polynomials: bool = False,
+        **kwargs,
     ) -> ToolResult:
         """Estimate propensity scores."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="estimate_propensity_scores", extra_keys=list(kwargs.keys()))
         df = self._df
         cov_list = covariates if covariates else self._confounders
 
@@ -484,8 +487,10 @@ Call finalize_diagnostics when you have sufficient evidence."""
             },
         )
 
-    async def _tool_check_overlap(self, state: AnalysisState) -> ToolResult:
+    async def _tool_check_overlap(self, state: AnalysisState, **kwargs) -> ToolResult:
         """Check overlap between treatment groups."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="check_overlap", extra_keys=list(kwargs.keys()))
         if self._propensity_scores is None:
             return ToolResult(
                 status=ToolResultStatus.ERROR,
@@ -586,8 +591,11 @@ Call finalize_diagnostics when you have sufficient evidence."""
         state: AnalysisState,
         weighted: bool = False,
         specific_covariates: list[str] | None = None,
+        **kwargs,
     ) -> ToolResult:
         """Check covariate balance."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="check_covariate_balance", extra_keys=list(kwargs.keys()))
         if self._propensity_scores is None:
             return ToolResult(
                 status=ToolResultStatus.ERROR,
@@ -682,9 +690,11 @@ Call finalize_diagnostics when you have sufficient evidence."""
         )
 
     async def _tool_check_calibration(
-        self, state: AnalysisState, n_bins: int = 10
+        self, state: AnalysisState, n_bins: int = 10, **kwargs
     ) -> ToolResult:
         """Check model calibration."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="check_calibration", extra_keys=list(kwargs.keys()))
         if self._propensity_scores is None:
             return ToolResult(
                 status=ToolResultStatus.ERROR,
@@ -733,9 +743,11 @@ Call finalize_diagnostics when you have sufficient evidence."""
             )
 
     async def _tool_compute_trimmed(
-        self, state: AnalysisState, lower_bound: float, upper_bound: float
+        self, state: AnalysisState, lower_bound: float = 0.01, upper_bound: float = 0.99, **kwargs
     ) -> ToolResult:
         """Compute statistics after trimming."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="compute_trimmed_stats", extra_keys=list(kwargs.keys()))
         if self._propensity_scores is None:
             return ToolResult(
                 status=ToolResultStatus.ERROR,
@@ -783,9 +795,11 @@ Call finalize_diagnostics when you have sufficient evidence."""
         )
 
     async def _tool_get_covariate_summary(
-        self, state: AnalysisState, covariate: str
+        self, state: AnalysisState, covariate: str = "", **kwargs
     ) -> ToolResult:
         """Get detailed summary for a specific covariate."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="get_covariate_summary", extra_keys=list(kwargs.keys()))
         if not covariate or covariate not in self._df.columns:
             return ToolResult(
                 status=ToolResultStatus.ERROR,
@@ -833,14 +847,17 @@ Call finalize_diagnostics when you have sufficient evidence."""
     async def _tool_finalize_diagnostics(
         self,
         state: AnalysisState,
-        model_quality: str,
-        proceed_with_analysis: bool,
-        recommended_method: str,
-        reasoning: str,
+        model_quality: str = "acceptable",
+        proceed_with_analysis: bool = True,
+        recommended_method: str = "aipw",
+        reasoning: str = "",
         trimming_bounds: list[float] | None = None,
         warnings: list[str] | None = None,
+        **kwargs,
     ) -> ToolResult:
         """Finalize PS diagnostics with recommendations."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="finalize_diagnostics", extra_keys=list(kwargs.keys()))
         self.logger.info(
             "ps_finalizing",
             model_quality=model_quality,

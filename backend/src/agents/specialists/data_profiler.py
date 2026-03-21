@@ -486,8 +486,10 @@ Use the available tools to gather evidence before finalizing the profile."""
     # Tool Handlers
     # =========================================================================
 
-    async def _tool_get_overview(self, state: AnalysisState) -> ToolResult:
+    async def _tool_get_overview(self, state: AnalysisState, **kwargs) -> ToolResult:
         """Get overview of the dataset."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="get_overview", extra_keys=list(kwargs.keys()))
         if self._df is None or self._profile is None:
             return ToolResult(
                 status=ToolResultStatus.ERROR,
@@ -535,9 +537,11 @@ Use the available tools to gather evidence before finalizing the profile."""
         )
 
     async def _tool_analyze_column(
-        self, state: AnalysisState, column: str
+        self, state: AnalysisState, column: str = "", **kwargs
     ) -> ToolResult:
         """Analyze a specific column in detail."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="analyze_column", extra_keys=list(kwargs.keys()))
         if self._df is None:
             return ToolResult(
                 status=ToolResultStatus.ERROR,
@@ -606,9 +610,11 @@ Use the available tools to gather evidence before finalizing the profile."""
         )
 
     async def _tool_check_treatment_balance(
-        self, state: AnalysisState, column: str
+        self, state: AnalysisState, column: str = "", **kwargs
     ) -> ToolResult:
         """Check if a column is suitable as a treatment variable."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="check_treatment_balance", extra_keys=list(kwargs.keys()))
         if self._df is None:
             return ToolResult(
                 status=ToolResultStatus.ERROR,
@@ -688,9 +694,11 @@ Use the available tools to gather evidence before finalizing the profile."""
         )
 
     async def _tool_check_relationship(
-        self, state: AnalysisState, column1: str, column2: str
+        self, state: AnalysisState, column1: str = "", column2: str = "", **kwargs
     ) -> ToolResult:
         """Check relationship between two columns."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="check_relationship", extra_keys=list(kwargs.keys()))
         if self._df is None:
             return ToolResult(
                 status=ToolResultStatus.ERROR,
@@ -783,8 +791,10 @@ Use the available tools to gather evidence before finalizing the profile."""
             output=result,
         )
 
-    async def _tool_check_time_dimension(self, state: AnalysisState) -> ToolResult:
+    async def _tool_check_time_dimension(self, state: AnalysisState, **kwargs) -> ToolResult:
         """Check for time dimension in the dataset."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="check_time_dimension", extra_keys=list(kwargs.keys()))
         if self._df is None or self._profile is None:
             return ToolResult(
                 status=ToolResultStatus.ERROR,
@@ -838,8 +848,10 @@ Use the available tools to gather evidence before finalizing the profile."""
             output=result,
         )
 
-    async def _tool_check_discontinuity(self, state: AnalysisState) -> ToolResult:
+    async def _tool_check_discontinuity(self, state: AnalysisState, **kwargs) -> ToolResult:
         """Check for RDD running variable candidates."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="check_discontinuity", extra_keys=list(kwargs.keys()))
         if self._df is None or self._profile is None:
             return ToolResult(
                 status=ToolResultStatus.ERROR,
@@ -888,9 +900,9 @@ Use the available tools to gather evidence before finalizing the profile."""
     async def _tool_finalize_profile(
         self,
         state: AnalysisState,
-        treatment_candidates: list[str],
-        outcome_candidates: list[str],
-        potential_confounders: list[str],
+        treatment_candidates: list[str] | None = None,
+        outcome_candidates: list[str] | None = None,
+        potential_confounders: list[str] | None = None,
         potential_instruments: list[str] | None = None,
         has_time_dimension: bool = False,
         time_column: str | None = None,
@@ -898,8 +910,14 @@ Use the available tools to gather evidence before finalizing the profile."""
         recommended_methods: list[str] | None = None,
         treatment_encoding_strategy: str | None = None,
         treatment_control_value: str | None = None,
+        **kwargs,
     ) -> ToolResult:
         """Finalize the data profile."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="finalize_profile", extra_keys=list(kwargs.keys()))
+        treatment_candidates = treatment_candidates or []
+        outcome_candidates = outcome_candidates or []
+        potential_confounders = potential_confounders or []
         self.logger.info(
             "profiler_finalizing",
             treatment_candidates=treatment_candidates,

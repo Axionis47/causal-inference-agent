@@ -399,8 +399,10 @@ Be conservative - only repair issues that would materially affect causal inferen
     # Tool Handlers (async, return ToolResult)
     # -------------------------------------------------------------------------
 
-    async def _tool_get_data_summary(self, state: AnalysisState) -> ToolResult:
+    async def _tool_get_data_summary(self, state: AnalysisState, **kwargs) -> ToolResult:
         """Get summary of current dataset state."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="get_data_summary", extra_keys=list(kwargs.keys()))
         df = self._df
         n_rows, n_cols = df.shape
 
@@ -447,9 +449,11 @@ Be conservative - only repair issues that would materially affect causal inferen
         )
 
     async def _tool_check_missing_values(
-        self, state: AnalysisState, columns: list[str] | None = None, check_mcar: bool = True
+        self, state: AnalysisState, columns: list[str] | None = None, check_mcar: bool = True, **kwargs
     ) -> ToolResult:
         """Check missing value patterns."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="check_missing_values", extra_keys=list(kwargs.keys()))
         df = self._df
         col_list = columns if columns else df.columns[df.isnull().any()].tolist()
 
@@ -504,9 +508,11 @@ Be conservative - only repair issues that would materially affect causal inferen
         )
 
     async def _tool_check_outliers(
-        self, state: AnalysisState, columns: list[str] | None = None, method: str = "both"
+        self, state: AnalysisState, columns: list[str] | None = None, method: str = "both", **kwargs
     ) -> ToolResult:
         """Check for outliers in numeric columns."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="check_outliers", extra_keys=list(kwargs.keys()))
         df = self._df
 
         if not columns:
@@ -570,8 +576,11 @@ Be conservative - only repair issues that would materially affect causal inferen
         state: AnalysisState,
         covariates: list[str] | None = None,
         correlation_threshold: float = 0.8,
+        **kwargs,
     ) -> ToolResult:
         """Check correlations and VIF for collinearity."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="check_collinearity", extra_keys=list(kwargs.keys()))
         df = self._df
 
         if not covariates:
@@ -649,9 +658,11 @@ Be conservative - only repair issues that would materially affect causal inferen
         )
 
     async def _tool_check_skewness(
-        self, state: AnalysisState, columns: list[str] | None = None
+        self, state: AnalysisState, columns: list[str] | None = None, **kwargs
     ) -> ToolResult:
         """Check distribution skewness."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="check_skewness", extra_keys=list(kwargs.keys()))
         df = self._df
 
         if not columns:
@@ -693,11 +704,14 @@ Be conservative - only repair issues that would materially affect causal inferen
     async def _tool_repair_missing(
         self,
         state: AnalysisState,
-        strategy: str,
+        strategy: str = "median",
         columns: list[str] | None = None,
         drop_threshold: float = 0.5,
+        **kwargs,
     ) -> ToolResult:
         """Repair missing values."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="repair_missing", extra_keys=list(kwargs.keys()))
         df = self._df
 
         if not columns:
@@ -776,11 +790,15 @@ Be conservative - only repair issues that would materially affect causal inferen
     async def _tool_repair_outliers(
         self,
         state: AnalysisState,
-        columns: list[str],
-        strategy: str,
+        columns: list[str] | None = None,
+        strategy: str = "clip",
         percentiles: list[float] | None = None,
+        **kwargs,
     ) -> ToolResult:
         """Repair outliers."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="repair_outliers", extra_keys=list(kwargs.keys()))
+        columns = columns or []
         if percentiles is None:
             percentiles = [1, 99]
 
@@ -859,11 +877,14 @@ Be conservative - only repair issues that would materially affect causal inferen
     async def _tool_repair_collinearity(
         self,
         state: AnalysisState,
-        strategy: str,
+        strategy: str = "drop",
         columns_to_drop: list[str] | None = None,
         vif_threshold: float = 10,
+        **kwargs,
     ) -> ToolResult:
         """Repair collinearity issues."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="repair_collinearity", extra_keys=list(kwargs.keys()))
         df = self._df
         columns_to_drop = columns_to_drop or []
 
@@ -1001,8 +1022,10 @@ Be conservative - only repair issues that would materially affect causal inferen
                 error=f"Error repairing collinearity: {str(e)}",
             )
 
-    async def _tool_validate_current_state(self, state: AnalysisState) -> ToolResult:
+    async def _tool_validate_current_state(self, state: AnalysisState, **kwargs) -> ToolResult:
         """Validate current data quality."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="validate_current_state", extra_keys=list(kwargs.keys()))
         df = self._df
         df_orig = self._df_original
 
@@ -1067,11 +1090,15 @@ Be conservative - only repair issues that would materially affect causal inferen
     async def _tool_finalize_repairs(
         self,
         state: AnalysisState,
-        quality_assessment: str,
-        repairs_summary: list[str],
+        quality_assessment: str = "acceptable",
+        repairs_summary: list[str] | None = None,
         cautions: list[str] | None = None,
+        **kwargs,
     ) -> ToolResult:
         """Finalize repairs and mark task as complete."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="finalize_repairs", extra_keys=list(kwargs.keys()))
+        repairs_summary = repairs_summary or []
         self.logger.info("finalizing_repairs", quality=quality_assessment)
 
         # Save repaired data to state

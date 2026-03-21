@@ -511,8 +511,9 @@ Then call the appropriate tool."""
     async def _handle_finish(
         self,
         state: AnalysisState,
-        summary: str,
+        summary: str = "",
         success: bool = True,
+        **kwargs,
     ) -> ToolResult:
         """Handle the finish tool call."""
         return ToolResult(
@@ -524,9 +525,10 @@ Then call the appropriate tool."""
     async def _handle_reflect(
         self,
         state: AnalysisState,
-        current_progress: str,
-        next_steps: list[str],
+        current_progress: str = "",
+        next_steps: list[str] | None = None,
         obstacles: list[str] | None = None,
+        **kwargs,
     ) -> ToolResult:
         """Handle the reflect tool call."""
         return ToolResult(

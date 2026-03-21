@@ -287,8 +287,10 @@ Use the tools to systematically investigate each candidate:
     # Tool Handlers (async, return ToolResult)
     # -------------------------------------------------------------------------
 
-    async def _tool_get_candidates(self, state: AnalysisState) -> ToolResult:
+    async def _tool_get_candidates(self, state: AnalysisState, **kwargs) -> ToolResult:
         """Get candidate variables for confounder investigation."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="get_candidate_variables", extra_keys=list(kwargs.keys()))
         candidates = self._get_candidates()
         self._investigation_log.append({
             "tool": "get_candidate_variables",
@@ -305,9 +307,11 @@ Use the tools to systematically investigate each candidate:
         )
 
     async def _tool_compute_correlation(
-        self, state: AnalysisState, var1: str, var2: str
+        self, state: AnalysisState, var1: str = "", var2: str = "", **kwargs
     ) -> ToolResult:
         """Compute Pearson correlation between two variables."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="compute_correlation", extra_keys=list(kwargs.keys()))
         if self._df is None:
             return ToolResult(
                 status=ToolResultStatus.ERROR,
@@ -345,9 +349,11 @@ Use the tools to systematically investigate each candidate:
         )
 
     async def _tool_compute_partial_correlation(
-        self, state: AnalysisState, var1: str, var2: str, control_var: str
+        self, state: AnalysisState, var1: str = "", var2: str = "", control_var: str = "", **kwargs
     ) -> ToolResult:
         """Compute partial correlation controlling for a third variable."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="compute_partial_correlation", extra_keys=list(kwargs.keys()))
         if self._df is None:
             return ToolResult(
                 status=ToolResultStatus.ERROR,
@@ -394,9 +400,11 @@ Use the tools to systematically investigate each candidate:
         )
 
     async def _tool_test_confounder_criteria(
-        self, state: AnalysisState, variable: str
+        self, state: AnalysisState, variable: str = "", **kwargs
     ) -> ToolResult:
         """Test if a variable meets confounder criteria."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="test_confounder_criteria", extra_keys=list(kwargs.keys()))
         if self._df is None:
             return ToolResult(
                 status=ToolResultStatus.ERROR,
@@ -464,11 +472,15 @@ Use the tools to systematically investigate each candidate:
     async def _tool_finalize_confounders(
         self,
         state: AnalysisState,
-        confounders: list[str],
-        reasoning: str,
+        confounders: list[str] | None = None,
+        reasoning: str = "",
         excluded: list[str] | None = None,
+        **kwargs,
     ) -> ToolResult:
         """Finalize the list of identified confounders."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="finalize_confounders", extra_keys=list(kwargs.keys()))
+        confounders = confounders or []
         excluded = excluded or []
 
         self.logger.info(

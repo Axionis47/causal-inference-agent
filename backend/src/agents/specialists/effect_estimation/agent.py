@@ -926,8 +926,11 @@ IMPORTANT:
     async def _tool_get_data_summary(
         self,
         state: AnalysisState,
+        **kwargs,
     ) -> ToolResult:
         """Get summary statistics with sample size warnings and method recommendations."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="get_data_summary", extra_keys=list(kwargs.keys()))
         df = self._df
         T = df[self._treatment_var]
         Y = df[self._outcome_var]
@@ -974,8 +977,11 @@ IMPORTANT:
         self,
         state: AnalysisState,
         covariates: list[str] | None = None,
+        **kwargs,
     ) -> ToolResult:
         """Check covariate balance between treatment groups."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="check_covariate_balance", extra_keys=list(kwargs.keys()))
         df = self._df
         T = df[self._treatment_var].values.astype(float)
 
@@ -1046,8 +1052,11 @@ IMPORTANT:
         self,
         state: AnalysisState,
         covariates: list[str] | None = None,
+        **kwargs,
     ) -> ToolResult:
         """Estimate propensity scores and check overlap."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="estimate_propensity_scores", extra_keys=list(kwargs.keys()))
         df = self._df
         T = df[self._treatment_var].values.astype(float)
 
@@ -1146,10 +1155,13 @@ IMPORTANT:
     async def _tool_run_estimation_method(
         self,
         state: AnalysisState,
-        method: str,
+        method: str = "",
         covariates: list[str] | None = None,
+        **kwargs,
     ) -> ToolResult:
         """Run a specific estimation method."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="run_estimation_method", extra_keys=list(kwargs.keys()))
         if not covariates:
             covariates = self._covariates
 
@@ -1338,8 +1350,11 @@ IMPORTANT:
         self,
         state: AnalysisState,
         diagnostic_type: str = "all",
+        **kwargs,
     ) -> ToolResult:
         """Check diagnostics for the last method."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="check_method_diagnostics", extra_keys=list(kwargs.keys()))
         if not self._last_method_result:
             return ToolResult(
                 status=ToolResultStatus.ERROR,
@@ -1374,8 +1389,11 @@ IMPORTANT:
     async def _tool_compare_estimates(
         self,
         state: AnalysisState,
+        **kwargs,
     ) -> ToolResult:
         """Compare estimates across methods with reliability weighting."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="compare_estimates", extra_keys=list(kwargs.keys()))
         if not self._results:
             return ToolResult(
                 status=ToolResultStatus.ERROR,
@@ -1445,13 +1463,16 @@ IMPORTANT:
     async def _tool_finalize_estimation(
         self,
         state: AnalysisState,
-        preferred_method: str,
-        preferred_estimate: float,
-        confidence_level: str,
-        reasoning: str,
+        preferred_method: str = "",
+        preferred_estimate: float = 0.0,
+        confidence_level: str = "medium",
+        reasoning: str = "",
         caveats: list[str] | None = None,
+        **kwargs,
     ) -> ToolResult:
         """Finalize the estimation with conclusions."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="finalize_estimation", extra_keys=list(kwargs.keys()))
         # INT4: Validate preferred_estimate against actual results
         # LLM can hallucinate a number that doesn't match any method's output
         if self._results:

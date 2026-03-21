@@ -8,10 +8,13 @@ to query domain knowledge, data profiles, EDA results, etc.
 
 from __future__ import annotations
 
+import logging
 import re
 from typing import TYPE_CHECKING
 
 from .react_agent import ToolResult, ToolResultStatus
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from .state import AnalysisState
@@ -211,7 +214,8 @@ class ContextTools:
     async def _ask_domain_knowledge(
         self,
         state: AnalysisState,
-        question: str
+        question: str = "",
+        **kwargs,
     ) -> ToolResult:
         """
         Search domain knowledge for relevant information.
@@ -421,7 +425,8 @@ class ContextTools:
 
     async def _list_columns(
         self,
-        state: AnalysisState
+        state: AnalysisState,
+        **kwargs,
     ) -> ToolResult:
         """Get list of all column names."""
         profile = state.data_profile
@@ -444,7 +449,8 @@ class ContextTools:
     async def _get_eda_finding(
         self,
         state: AnalysisState,
-        topic: str
+        topic: str = "",
+        **kwargs,
     ) -> ToolResult:
         """Get EDA findings for a specific topic."""
         eda = state.eda_result
@@ -624,7 +630,8 @@ class ContextTools:
     async def _get_previous_finding(
         self,
         state: AnalysisState,
-        agent: str
+        agent: str = "",
+        **kwargs,
     ) -> ToolResult:
         """Get key findings from a previous agent."""
 
@@ -740,7 +747,8 @@ class ContextTools:
 
     async def _get_treatment_outcome(
         self,
-        state: AnalysisState
+        state: AnalysisState,
+        **kwargs,
     ) -> ToolResult:
         """Get current treatment and outcome variables."""
         treatment, outcome = state.get_primary_pair()
@@ -758,7 +766,8 @@ class ContextTools:
     async def _get_confounder_analysis(
         self,
         state: AnalysisState,
-        top_n: int = 10
+        top_n: int = 10,
+        **kwargs,
     ) -> ToolResult:
         """Get confounder analysis summary."""
         # Check for detailed confounder discovery results
@@ -905,7 +914,8 @@ class ContextTools:
     async def _analyze_variable_semantics(
         self,
         state: AnalysisState,
-        variable: str
+        variable: str = "",
+        **kwargs,
     ) -> ToolResult:
         """Analyze semantic meaning of a variable."""
         var_lower = variable.lower()
@@ -1007,7 +1017,8 @@ class ContextTools:
         self,
         state: AnalysisState,
         treatment: str | None = None,
-        outcome: str | None = None
+        outcome: str | None = None,
+        **kwargs,
     ) -> ToolResult:
         """
         Get proper adjustment set from causal DAG using backdoor criterion.

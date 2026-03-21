@@ -327,8 +327,10 @@ You have tools to investigate the metadata. Start by reading the description.
 
         return has_treatment and has_outcome
 
-    async def _read_description(self, state: AnalysisState) -> ToolResult:
+    async def _read_description(self, state: AnalysisState, **kwargs) -> ToolResult:
         """Read the dataset description."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="read_description", extra_keys=list(kwargs.keys()))
         metadata = state.raw_metadata or {}
 
         description = metadata.get("description", "")
@@ -358,8 +360,10 @@ You have tools to investigate the metadata. Start by reading the description.
             }
         )
 
-    async def _list_columns(self, state: AnalysisState) -> ToolResult:
+    async def _list_columns(self, state: AnalysisState, **kwargs) -> ToolResult:
         """List all column names."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="list_columns", extra_keys=list(kwargs.keys()))
         # Try to get columns from profile if available
         if state.data_profile:
             columns = state.data_profile.feature_names
@@ -394,8 +398,10 @@ You have tools to investigate the metadata. Start by reading the description.
             }
         )
 
-    async def _investigate_column(self, state: AnalysisState, column: str) -> ToolResult:
+    async def _investigate_column(self, state: AnalysisState, column: str = "", **kwargs) -> ToolResult:
         """Investigate what a column might mean."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="investigate_column", extra_keys=list(kwargs.keys()))
         metadata = state.raw_metadata or {}
 
         # Check for column description
@@ -442,8 +448,10 @@ You have tools to investigate the metadata. Start by reading the description.
             }
         )
 
-    async def _search_metadata(self, state: AnalysisState, query: str) -> ToolResult:
+    async def _search_metadata(self, state: AnalysisState, query: str = "", **kwargs) -> ToolResult:
         """Search metadata for a query."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="search_metadata", extra_keys=list(kwargs.keys()))
         metadata = state.raw_metadata or {}
 
         # Build searchable text
@@ -488,8 +496,10 @@ You have tools to investigate the metadata. Start by reading the description.
             }
         )
 
-    async def _get_tags(self, state: AnalysisState) -> ToolResult:
+    async def _get_tags(self, state: AnalysisState, **kwargs) -> ToolResult:
         """Get dataset tags."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="get_tags", extra_keys=list(kwargs.keys()))
         metadata = state.raw_metadata or {}
 
         tags = metadata.get("tags", [])
@@ -522,11 +532,14 @@ You have tools to investigate the metadata. Start by reading the description.
     async def _hypothesize(
         self,
         state: AnalysisState,
-        claim: str,
-        confidence: str,
-        evidence: str
+        claim: str = "",
+        confidence: str = "medium",
+        evidence: str = "",
+        **kwargs,
     ) -> ToolResult:
         """Record a hypothesis."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="hypothesize", extra_keys=list(kwargs.keys()))
         hypothesis = {
             "claim": claim,
             "confidence": confidence,
@@ -553,11 +566,14 @@ You have tools to investigate the metadata. Start by reading the description.
     async def _revise_hypothesis(
         self,
         state: AnalysisState,
-        original_claim: str,
-        new_claim: str,
-        reason: str
+        original_claim: str = "",
+        new_claim: str = "",
+        reason: str = "",
+        **kwargs,
     ) -> ToolResult:
         """Revise a previous hypothesis."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="revise_hypothesis", extra_keys=list(kwargs.keys()))
         # Find and mark original as revised
         found = False
         for h in self._hypotheses:
@@ -587,11 +603,14 @@ You have tools to investigate the metadata. Start by reading the description.
     async def _set_temporal_ordering(
         self,
         state: AnalysisState,
-        ordering: str,
+        ordering: str = "",
         pre_treatment_vars: list[str] | None = None,
-        post_treatment_vars: list[str] | None = None
+        post_treatment_vars: list[str] | None = None,
+        **kwargs,
     ) -> ToolResult:
         """Record temporal ordering understanding."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="set_temporal_ordering", extra_keys=list(kwargs.keys()))
         self._temporal_understanding = ordering
 
         # Add pre-treatment vars to immutable candidates
@@ -614,10 +633,13 @@ You have tools to investigate the metadata. Start by reading the description.
     async def _mark_immutable(
         self,
         state: AnalysisState,
-        variable: str,
-        reason: str
+        variable: str = "",
+        reason: str = "",
+        **kwargs,
     ) -> ToolResult:
         """Mark a variable as immutable."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="mark_immutable", extra_keys=list(kwargs.keys()))
         if variable not in self._immutable_vars:
             self._immutable_vars.append(variable)
 
@@ -635,10 +657,13 @@ You have tools to investigate the metadata. Start by reading the description.
     async def _flag_uncertainty(
         self,
         state: AnalysisState,
-        issue: str,
-        impact: str
+        issue: str = "",
+        impact: str = "",
+        **kwargs,
     ) -> ToolResult:
         """Flag an uncertainty."""
+        if kwargs:
+            logger.debug("tool_ignored_kwargs", tool="flag_uncertainty", extra_keys=list(kwargs.keys()))
         uncertainty = {
             "issue": issue,
             "impact": impact
