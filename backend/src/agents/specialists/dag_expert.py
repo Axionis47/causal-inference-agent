@@ -47,7 +47,7 @@ class DAGExpertAgent(ReActAgent, ContextTools):
     AGENT_NAME = "dag_expert"
     MAX_STEPS = 12
     WRITES_STATE_FIELDS = ["proposed_dag"]
-    REQUIRED_STATE_FIELDS = ["dataset_info"]
+    REQUIRED_STATE_FIELDS = ["dataset_info", "proposed_dag"]
     JOB_STATUS = JobStatus.DISCOVERING_CAUSAL
     PROGRESS_WEIGHT = 0.08
 

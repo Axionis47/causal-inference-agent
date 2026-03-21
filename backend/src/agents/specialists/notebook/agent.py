@@ -64,7 +64,7 @@ When generating narratives:
     async def execute(self, state: AnalysisState) -> AnalysisState:
         """Generate the analysis notebook reporting all pipeline findings."""
         self.logger.info("notebook_generation_start", job_id=state.job_id)
-        state.status = JobStatus.GENERATING_NOTEBOOK
+        # Status set by orchestrator
         start_time = time.time()
 
         try:

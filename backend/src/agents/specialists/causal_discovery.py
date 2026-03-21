@@ -285,7 +285,7 @@ VALIDATION CRITERIA:
             dataset=state.dataset_info.name or state.dataset_info.url,
         )
 
-        state.status = JobStatus.DISCOVERING_CAUSAL
+        # Status set by orchestrator
         start_time = time.time()
 
         try:

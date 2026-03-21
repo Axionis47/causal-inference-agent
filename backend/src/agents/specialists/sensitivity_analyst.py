@@ -322,7 +322,7 @@ START NOW: Call get_previous_finding with agent="effect_estimator"."""
             n_effects=len(state.treatment_effects),
         )
 
-        state.status = JobStatus.SENSITIVITY_ANALYSIS
+        # Status set by orchestrator
         start_time = time.time()
 
         try:

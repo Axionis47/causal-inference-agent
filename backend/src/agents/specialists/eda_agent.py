@@ -313,7 +313,7 @@ Finalize when you have assessed data quality for causal analysis."""
             dataset=state.dataset_info.name or state.dataset_info.url,
         )
 
-        state.status = JobStatus.EXPLORATORY_ANALYSIS
+        # Status set by orchestrator
         start_time = time.time()
 
         try:

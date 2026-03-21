@@ -52,7 +52,7 @@ class DataProfilerAgent(ReActAgent, ContextTools):
     MAX_STEPS = 15
 
     # Agent metadata (used by registry and orchestrator)
-    WRITES_STATE_FIELDS = ["data_profile"]
+    WRITES_STATE_FIELDS = ["data_profile", "dataframe_path", "treatment_encoding"]
     REQUIRED_STATE_FIELDS = ["dataset_info"]
     JOB_STATUS = JobStatus.PROFILING
     PROGRESS_WEIGHT = 0.08
@@ -333,7 +333,7 @@ Use the available tools to gather evidence before finalizing the profile."""
             dataset=state.dataset_info.name or state.dataset_info.url,
         )
 
-        state.status = JobStatus.PROFILING
+        # Status set by orchestrator
         start_time = time.time()
 
         try:

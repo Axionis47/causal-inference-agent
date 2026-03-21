@@ -330,9 +330,6 @@ Then analyze the treatment variable, check assumptions, and run estimation metho
         else:
             output["recommendation"] = "Consider binarizing treatment (e.g., above/below median)"
 
-        # Update state
-        state.treatment_variable = treatment_col
-
         return ToolResult(
             status=ToolResultStatus.SUCCESS,
             output=output,
@@ -461,10 +458,6 @@ Then analyze the treatment variable, check assumptions, and run estimation metho
             self._results.append(effect_result)
             state.treatment_effects.append(effect_result)
 
-            # Update state variables
-            state.treatment_variable = treatment_col
-            state.outcome_variable = outcome_col
-
             state.push_decision(
                 agent="effect_estimator_react",
                 decision_type="method_succeeded",
@@ -573,7 +566,7 @@ Then analyze the treatment variable, check assumptions, and run estimation metho
 
     async def execute(self, state: AnalysisState) -> AnalysisState:
         """Execute the ReAct estimation loop."""
-        state.status = JobStatus.ESTIMATING_EFFECTS
+        # Status set by orchestrator
         self._results = []  # Reset results
 
         # Run the ReAct loop

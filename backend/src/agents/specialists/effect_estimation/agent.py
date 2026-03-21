@@ -178,7 +178,7 @@ Method selection: Start with OLS (always works), then try IPW and AIPW if covari
 Call tools iteratively. After running each method, decide whether to run another or finalize."""
 
     REQUIRED_STATE_FIELDS = ["data_profile", "dataframe_path"]
-    WRITES_STATE_FIELDS = ["treatment_effects"]
+    WRITES_STATE_FIELDS = ["treatment_effects", "analyzed_pairs", "treatment_binarization_threshold"]
     JOB_STATUS = "estimating_effects"
     PROGRESS_WEIGHT = 60
 
@@ -746,7 +746,7 @@ IMPORTANT:
             has_profile=state.data_profile is not None,
         )
 
-        state.status = JobStatus.ESTIMATING_EFFECTS
+        # Status set by orchestrator
         start_time = time.time()
 
         try:
@@ -775,11 +775,6 @@ IMPORTANT:
                 CausalPair(treatment=t, outcome=o, rationale=r, priority=i + 1)
                 for i, (t, o, r) in enumerate(pairs)
             ]
-
-            # Backfill state variables from primary pair for backward compatibility
-            if pairs and not state.treatment_variable:
-                state.treatment_variable = pairs[0][0]
-                state.outcome_variable = pairs[0][1]
 
             # Analyze each valid pair
             for treatment, outcome, rationale in pairs:

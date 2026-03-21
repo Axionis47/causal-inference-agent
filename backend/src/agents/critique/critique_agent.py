@@ -56,6 +56,7 @@ class CritiqueAgent(BaseAgent):
     """
 
     AGENT_NAME = "critique"
+    WRITES_STATE_FIELDS = ["critique_history"]
 
     SYSTEM_PROMPT = """You are an expert methodologist reviewing causal inference analyses.
 Your role is to provide rigorous critique by INVESTIGATING the actual data and results.
@@ -243,7 +244,7 @@ Use the investigation tools to gather evidence, then call finalize_critique."""
             n_effects=len(state.treatment_effects),
         )
 
-        state.status = JobStatus.CRITIQUE_REVIEW
+        # Status set by orchestrator
         start_time = time.time()
 
         try:

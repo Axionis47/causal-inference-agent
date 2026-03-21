@@ -37,13 +37,14 @@ class OrchestratorAgent(BaseAgent):
     # Agents that declare WRITES_STATE_FIELDS override their entry at registration time.
     _DEFAULT_AGENT_WRITES: dict[str, list[str]] = {
         "domain_knowledge": ["domain_knowledge"],
-        "data_profiler": ["data_profile"],
+        "data_profiler": ["data_profile", "dataframe_path", "treatment_encoding"],
         "data_repair": ["data_repairs"],
         "eda_agent": ["eda_result"],
         "causal_discovery": ["proposed_dag"],
         "dag_expert": ["proposed_dag"],
         "confounder_discovery": ["confounder_discovery"],
-        "effect_estimator": ["treatment_effects"],
+        "effect_estimator": ["treatment_effects", "analyzed_pairs", "treatment_binarization_threshold"],
+        "effect_estimator_react": ["treatment_effects"],
         "ps_diagnostics": ["ps_diagnostics"],
         "sensitivity_analyst": ["sensitivity_results"],
         "notebook_generator": ["notebook_path"],
