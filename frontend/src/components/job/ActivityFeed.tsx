@@ -1,5 +1,6 @@
 import { useRef, useEffect } from 'react';
 import { AgentEvent } from '../../services/api';
+import { MAX_AGENT_EVENTS } from '../../config/constants';
 
 interface ActivityFeedProps {
   events: AgentEvent[];
@@ -26,7 +27,7 @@ export default function ActivityFeed({ events }: ActivityFeedProps) {
     <div className="border-t border-ink-100 pt-4 mt-4">
       <h3 className="text-xs font-medium text-ink-500 uppercase tracking-wider mb-3">Activity Log</h3>
       <div ref={scrollRef} className="max-h-48 overflow-y-auto space-y-1">
-        {events.slice(-20).map((event, i) => {
+        {events.slice(-MAX_AGENT_EVENTS).map((event, i) => {
           const time = new Date(event.timestamp).toLocaleTimeString('en-US', {
             hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit'
           });

@@ -7,6 +7,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { getJob, getResults, getNotebookUrl, cancelJob, deleteJob } from '../services/api';
+import { JOB_DETAIL_POLL_INTERVAL_MS } from '../config/constants';
 import JobProgress from '../components/job/JobProgress';
 import ActivityFeed from '../components/job/ActivityFeed';
 import ResultsDisplay from '../components/results/ResultsDisplay';
@@ -30,7 +31,7 @@ export default function JobPage() {
     refetchInterval: (query: { state: { data?: { status?: string } } }) => {
       const status = query.state.data?.status;
       const isTerminal = status === 'completed' || status === 'failed' || status === 'cancelled';
-      return isTerminal ? false : 1000;
+      return isTerminal ? false : JOB_DETAIL_POLL_INTERVAL_MS;
     },
   });
 

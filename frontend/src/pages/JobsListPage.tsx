@@ -3,8 +3,9 @@ import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { listJobs, Job, cancelJob, deleteJob } from '../services/api';
 import toast from 'react-hot-toast';
+import { DEFAULT_PAGE_SIZE, JOBS_LIST_REFRESH_INTERVAL_MS } from '../config/constants';
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
 const STATUS_OPTIONS = [
   { value: '', label: 'All Statuses' },
@@ -95,8 +96,8 @@ export default function JobsListPage() {
   const jobsQuery = useQuery({
     queryKey: ['jobs', statusFilter, page],
     queryFn: () => listJobs(statusFilter || undefined, PAGE_SIZE, page * PAGE_SIZE),
-    // Auto-refresh every 10 seconds to catch new jobs
-    refetchInterval: 10000,
+    // Auto-refresh to catch new jobs
+    refetchInterval: JOBS_LIST_REFRESH_INTERVAL_MS,
   });
 
   const jobs = jobsQuery.data?.jobs || [];

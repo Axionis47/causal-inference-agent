@@ -1,5 +1,6 @@
 import axios, { AxiosError } from 'axios';
 import toast from 'react-hot-toast';
+import { API_REQUEST_TIMEOUT_MS } from '../config/constants';
 
 // Runtime config (from docker-entrypoint.sh) > build-time config > fallback
 interface RuntimeConfig {
@@ -12,7 +13,7 @@ const API_KEY = runtimeConfig?.API_KEY || import.meta.env.VITE_API_KEY || '';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 30000, // 30 second timeout for API requests
+  timeout: API_REQUEST_TIMEOUT_MS,
   headers: {
     'Content-Type': 'application/json',
     ...(API_KEY ? { 'X-API-Key': API_KEY } : {}),

@@ -1,5 +1,6 @@
 import { memo, useMemo } from 'react';
 import { TreatmentEffect } from '../../services/api';
+import { SIGNIFICANCE_ALPHA } from '../../config/constants';
 
 interface ForestPlotProps {
   effects: TreatmentEffect[];
@@ -41,7 +42,7 @@ function ForestPlot({ effects }: ForestPlotProps) {
 
       {valid.map((effect, i) => {
         const y = PAD_TOP + i * ROW + ROW / 2;
-        const sig = effect.p_value != null && effect.p_value < 0.05;
+        const sig = effect.p_value != null && effect.p_value < SIGNIFICANCE_ALPHA;
         const color = sig ? '#1f2937' : '#9ca3af';
         const x1 = toX(effect.ci_lower), x2 = toX(effect.ci_upper), cx = toX(effect.estimate);
         return (

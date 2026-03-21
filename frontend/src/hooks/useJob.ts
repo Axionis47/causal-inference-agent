@@ -8,11 +8,12 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getJob, getStreamUrl, JobDetail, AgentEvent } from '../services/api';
+import { DEFAULT_POLL_INTERVAL_MS, MAX_AGENT_EVENTS } from '../config/constants';
 
 interface UseJobOptions {
   /** Whether to auto-subscribe for updates (default: true) */
   autoPolling?: boolean;
-  /** Polling interval in ms, used as fallback if SSE fails (default: 2000) */
+  /** Polling interval in ms, used as fallback if SSE fails */
   pollIntervalMs?: number;
 }
 
@@ -21,7 +22,7 @@ interface UseJobOptions {
  * Tries SSE first for instant updates; falls back to polling on error.
  */
 export function useJob(jobId: string | null, options: UseJobOptions = {}) {
-  const { autoPolling = true, pollIntervalMs = 2000 } = options;
+  const { autoPolling = true, pollIntervalMs = DEFAULT_POLL_INTERVAL_MS } = options;
   const queryClient = useQueryClient();
   const sseRef = useRef<EventSource | null>(null);
   const sseFailedRef = useRef(false);
@@ -29,7 +30,7 @@ export function useJob(jobId: string | null, options: UseJobOptions = {}) {
   const prevStatusRef = useRef<string | null>(null);
 
   const addAgentEvent = useCallback((event: AgentEvent) => {
-    setAgentEvents((prev) => [...prev.slice(-19), event]);
+    setAgentEvents((prev) => [...prev.slice(-(MAX_AGENT_EVENTS - 1)), event]);
   }, []);
 
   // Close SSE on unmount or when jobId changes

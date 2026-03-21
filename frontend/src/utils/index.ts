@@ -3,6 +3,7 @@
  */
 
 import type { TreatmentEffect, StatusCategory } from '../types';
+import { SIGNIFICANCE_ALPHA } from '../config/constants';
 
 /**
  * Format a number with specified decimal places
@@ -131,7 +132,7 @@ export function getStatusColor(status: string): string {
 /**
  * Check if a treatment effect is statistically significant
  */
-export function isSignificant(effect: TreatmentEffect, alpha: number = 0.05): boolean {
+export function isSignificant(effect: TreatmentEffect, alpha: number = SIGNIFICANCE_ALPHA): boolean {
   if (effect.p_value === undefined || effect.p_value === null) {
     // Check if CI excludes zero
     return effect.ci_lower > 0 || effect.ci_upper < 0;

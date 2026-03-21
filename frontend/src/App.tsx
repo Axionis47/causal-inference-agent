@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+import { TOAST_DEFAULT_DURATION_MS, TOAST_SUCCESS_DURATION_MS, TOAST_ERROR_DURATION_MS } from './config/constants';
 import Header from './components/common/Header';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import HomePage from './pages/HomePage';
@@ -25,7 +26,7 @@ function App() {
         <Toaster
           position="top-right"
           toastOptions={{
-            duration: 4000,
+            duration: TOAST_DEFAULT_DURATION_MS,
             style: {
               borderRadius: '0',
               background: '#1a1a2e',
@@ -33,8 +34,8 @@ function App() {
               fontFamily: 'Inter, system-ui, sans-serif',
               fontSize: '14px',
             },
-            success: { duration: 3000 },
-            error: { duration: 5000 },
+            success: { duration: TOAST_SUCCESS_DURATION_MS },
+            error: { duration: TOAST_ERROR_DURATION_MS },
           }}
         />
       </BrowserRouter>

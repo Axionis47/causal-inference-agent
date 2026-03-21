@@ -1,5 +1,6 @@
 import { memo, useMemo, useEffect, useState } from 'react';
 import { AnalysisResults } from '../../services/api';
+import { SIGNIFICANCE_ALPHA, RESULTS_ANIMATION_DELAY_MS } from '../../config/constants';
 import CausalGraphView from './CausalGraphView';
 import ForestPlot from './ForestPlot';
 import Tooltip from '../common/Tooltip';
@@ -13,7 +14,7 @@ function ResultsDisplay({ results }: ResultsDisplayProps) {
   // Fade-in animation for abstract
   const [visible, setVisible] = useState(false);
   useEffect(() => {
-    const t = setTimeout(() => setVisible(true), 50);
+    const t = setTimeout(() => setVisible(true), RESULTS_ANIMATION_DELAY_MS);
     return () => clearTimeout(t);
   }, []);
 
@@ -44,7 +45,7 @@ function ResultsDisplay({ results }: ResultsDisplayProps) {
 
   // Determine if any method is significant
   const anySignificant = useMemo(
-    () => treatmentEffects.some((e) => e.p_value != null && e.p_value < 0.05),
+    () => treatmentEffects.some((e) => e.p_value != null && e.p_value < SIGNIFICANCE_ALPHA),
     [treatmentEffects]
   );
 
@@ -164,7 +165,7 @@ function ResultsDisplay({ results }: ResultsDisplayProps) {
                 </tr>
               ) : (
                 treatmentEffects.map((effect, index) => {
-                  const isSignificant = effect.p_value != null && effect.p_value < 0.05;
+                  const isSignificant = effect.p_value != null && effect.p_value < SIGNIFICANCE_ALPHA;
                   return (
                     <tr
                       key={index}
