@@ -187,7 +187,3 @@ graph LR
 9. **Sensitivity Analyst** — tests robustness of causal estimates
 10. **Critique** — reviews quality; approves or sends back to estimation (max 3 loops)
 11. **Notebook Generator** — produces a Jupyter notebook with findings and code
-
-## License
-
-MIT
