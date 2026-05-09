@@ -7,11 +7,12 @@ import os
 import zipfile
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, Query, Request, status
+from fastapi import APIRouter, Header, HTTPException, Query, Request, status
 from fastapi.responses import FileResponse, StreamingResponse
 from sse_starlette.sse import EventSourceResponse
 
 from src.agents.base import JobStatus
+from src.api.idempotency import get_idempotency_store
 from src.api.rate_limit import limiter
 from src.api.schemas import (
     AgentTracesResponse,
@@ -47,14 +48,45 @@ VALID_STATUSES = {s.value for s in JobStatus}
 
 @router.post("", response_model=JobResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("10/minute")
-async def create_job(request: Request, body: CreateJobRequest) -> JobResponse:
+async def create_job(
+    request: Request,
+    body: CreateJobRequest,
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+) -> JobResponse:
     """Create a new analysis job.
 
     Submit a Kaggle dataset URL to start causal inference analysis.
+
+    Supply Idempotency-Key for safe retries. A repeat request with the
+    same key (within 24h, scoped to your API key) returns the original
+    job instead of starting a duplicate analysis.
     """
     # slowapi requires 'request' as first param with type starlette.requests.Request
     # FastAPI will inject the Pydantic body via the 'body' parameter
     manager = get_job_manager()
+    store = get_idempotency_store()
+
+    # Idempotent retry: return the original job if we've seen this key
+    if idempotency_key:
+        existing_job_id = store.lookup(x_api_key, idempotency_key)
+        if existing_job_id is not None:
+            existing = await manager.get_job(existing_job_id)
+            if existing is not None:
+                logger.info(
+                    "idempotent_retry_hit",
+                    idempotency_key=idempotency_key[:16],
+                    job_id=existing_job_id,
+                )
+                return JobResponse(
+                    id=existing["id"],
+                    kaggle_url=existing["kaggle_url"],
+                    status=JobStatus(existing["status"]),
+                    created_at=existing["created_at"],
+                    updated_at=existing["updated_at"],
+                )
+            # Cached job_id no longer resolves (deleted, expired). Fall
+            # through and create a new job; remember will overwrite.
 
     try:
         job_id = await manager.create_job(
@@ -70,6 +102,10 @@ async def create_job(request: Request, body: CreateJobRequest) -> JobResponse:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to create job",
             )
+
+        # Remember (api_key_hash, idempotency_key) -> job_id for future retries
+        if idempotency_key:
+            store.remember(x_api_key, idempotency_key, job_id)
 
         return JobResponse(
             id=job["id"],
@@ -95,7 +131,8 @@ async def create_job(request: Request, body: CreateJobRequest) -> JobResponse:
 
 
 @router.get("/agents")
-async def list_agents():
+@limiter.limit("30/minute")
+async def list_agents(request: Request):
     """List all registered specialist agents and their metadata."""
     from src.agents.registry import get_agent_registry
 
@@ -112,7 +149,9 @@ async def list_agents():
 
 
 @router.get("", response_model=JobListResponse)
+@limiter.limit("30/minute")
 async def list_jobs(
+    request: Request,
     status: str | None = Query(None, description="Filter by job status"),
     limit: int = Query(20, ge=1, le=100, description="Maximum number of results"),
     offset: int = Query(0, ge=0, description="Number of results to skip"),
@@ -152,7 +191,8 @@ async def list_jobs(
 
 
 @router.get("/{job_id}", response_model=JobDetailResponse)
-async def get_job(job_id: str) -> JobDetailResponse:
+@limiter.limit("60/minute")
+async def get_job(request: Request, job_id: str) -> JobDetailResponse:
     """Get detailed job information."""
     manager = get_job_manager()
     job = await manager.get_job(job_id)
@@ -182,7 +222,8 @@ async def get_job(job_id: str) -> JobDetailResponse:
 
 
 @router.get("/{job_id}/status", response_model=JobStatusResponse)
-async def get_job_status(job_id: str) -> JobStatusResponse:
+@limiter.limit("120/minute")
+async def get_job_status(request: Request, job_id: str) -> JobStatusResponse:
     """Get lightweight job status."""
     manager = get_job_manager()
     status_data = await manager.get_job_status(job_id)
@@ -202,7 +243,8 @@ async def get_job_status(job_id: str) -> JobStatusResponse:
 
 
 @router.get("/{job_id}/stream")
-async def stream_job_status(job_id: str, request: Request):
+@limiter.limit("5/minute")
+async def stream_job_status(request: Request, job_id: str):
     """SSE stream for real-time job status updates.
 
     Streams status change events until the job reaches a terminal state.
@@ -289,7 +331,8 @@ async def stream_job_status(job_id: str, request: Request):
 
 
 @router.post("/{job_id}/cancel", response_model=CancelJobResponse)
-async def cancel_job(job_id: str) -> CancelJobResponse:
+@limiter.limit("30/minute")
+async def cancel_job(request: Request, job_id: str) -> CancelJobResponse:
     """Cancel a running job.
 
     This endpoint gracefully cancels a running job. If the job is already
@@ -316,7 +359,9 @@ async def cancel_job(job_id: str) -> CancelJobResponse:
 
 
 @router.delete("/{job_id}", response_model=DeleteJobResponse)
+@limiter.limit("10/minute")
 async def delete_job(
+    request: Request,
     job_id: str,
     force: bool = Query(False, description="Force delete even if job is running"),
 ) -> DeleteJobResponse:
@@ -359,7 +404,8 @@ async def delete_job(
 
 
 @router.get("/{job_id}/results", response_model=AnalysisResultsResponse)
-async def get_results(job_id: str) -> AnalysisResultsResponse:
+@limiter.limit("30/minute")
+async def get_results(request: Request, job_id: str) -> AnalysisResultsResponse:
     """Get analysis results for a completed job."""
     manager = get_job_manager()
 
@@ -484,7 +530,8 @@ async def get_results(job_id: str) -> AnalysisResultsResponse:
 
 
 @router.get("/{job_id}/notebook")
-async def download_notebook(job_id: str):
+@limiter.limit("30/minute")
+async def download_notebook(request: Request, job_id: str):
     """Download the generated Jupyter notebook."""
     manager = get_job_manager()
 
@@ -578,7 +625,8 @@ async def download_notebook(job_id: str):
 
 
 @router.get("/{job_id}/notebook/bundle")
-async def download_notebook_bundle(job_id: str):
+@limiter.limit("30/minute")
+async def download_notebook_bundle(request: Request, job_id: str):
     """Download notebook + data as a reproducible zip bundle."""
     manager = get_job_manager()
 
@@ -621,7 +669,9 @@ async def download_notebook_bundle(job_id: str):
 
 
 @router.get("/{job_id}/traces", response_model=AgentTracesResponse)
+@limiter.limit("30/minute")
 async def get_traces(
+    request: Request,
     job_id: str,
     agent_name: str | None = Query(None, description="Filter by agent name"),
     limit: int = Query(200, ge=1, le=500, description="Max traces to return"),

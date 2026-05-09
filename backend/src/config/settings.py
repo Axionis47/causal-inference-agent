@@ -149,15 +149,19 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _validate_required_config(self) -> "Settings":
-        """Warn about missing configuration in non-test environments."""
+        """Refuse to start with insecure or incomplete production config."""
         if self.environment == "production":
             if self.use_firestore and not self.gcp_project_id:
                 raise ValueError(
                     "GCP_PROJECT_ID is required when USE_FIRESTORE=true in production"
                 )
+            # Optional auth in production was a silent foot-gun: a missing
+            # API_KEY left the API open. Refuse to start instead of warn.
             if self.api_key is None:
-                logger.warning(
-                    "API_KEY not set in production — API endpoints are unauthenticated!"
+                raise ValueError(
+                    "API_KEY is required in production. Without it every "
+                    "/jobs endpoint is unauthenticated. Set ENVIRONMENT="
+                    "development for local work, or provide an API_KEY."
                 )
         if self.llm_provider == "claude" and self.claude_api_key is None:
             logger.warning(
