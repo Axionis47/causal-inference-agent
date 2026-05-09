@@ -386,6 +386,24 @@ When making decisions, output your reasoning step-by-step, then specify which ag
 
         return state
 
+    @staticmethod
+    def _truncate_list(items: list, max_show: int = 5) -> str:
+        """Render a list as a string, capped at max_show with a "(+N more)" tail.
+
+        The orchestrator's prompt is rebuilt every loop iteration, and several
+        of the underlying lists (data_quality_issues, multicollinearity_warnings,
+        treatment_effects, critique issues, critique improvements) grow as
+        the analysis progresses. Without a cap, a long job's orchestrator
+        prompt grows linearly with state and starts to dwarf the actual
+        decision the LLM is being asked to make.
+        """
+        if not items:
+            return "[]"
+        if len(items) <= max_show:
+            return repr(list(items))
+        head = list(items)[:max_show]
+        return f"{repr(head)[:-1]}, ... (+{len(items) - max_show} more)]"
+
     def _build_context_prompt(self, state: AnalysisState) -> str:
         """Build the initial context prompt for the LLM."""
         prompt = f"""Analyze the current state and decide the next action for this causal inference job.
@@ -432,30 +450,32 @@ Iteration: {state.iteration_count} / {state.max_iterations}
 
             prompt += "\n"
 
-        # Add data profile if available
+        # Add data profile if available. Lists are truncated to keep the
+        # prompt bounded; the LLM dispatches to specialists for full detail.
         if state.data_profile:
             prompt += f"""
 Dataset Profile:
 - Samples: {state.data_profile.n_samples}
 - Features: {state.data_profile.n_features}
-- Treatment candidates: {state.data_profile.treatment_candidates}
-- Outcome candidates: {state.data_profile.outcome_candidates}
+- Treatment candidates: {self._truncate_list(state.data_profile.treatment_candidates)}
+- Outcome candidates: {self._truncate_list(state.data_profile.outcome_candidates)}
 - Has time dimension: {state.data_profile.has_time_dimension}
-- Potential instruments: {state.data_profile.potential_instruments}
-- Discontinuity candidates: {state.data_profile.discontinuity_candidates}
+- Potential instruments: {self._truncate_list(state.data_profile.potential_instruments)}
+- Discontinuity candidates: {self._truncate_list(state.data_profile.discontinuity_candidates)}
 
 """
         else:
             prompt += "\nDataset has NOT been profiled yet. This should be the first step.\n"
 
-        # Add EDA results if available
+        # Add EDA results if available. Issue and warning lists are
+        # truncated; the LLM has the counts to know whether to investigate.
         if state.eda_result:
             prompt += f"""
 EDA Results:
 - Data Quality Score: {state.eda_result.data_quality_score:.1f}/100
-- Quality Issues: {state.eda_result.data_quality_issues}
+- Quality Issues ({len(state.eda_result.data_quality_issues)}): {self._truncate_list(state.eda_result.data_quality_issues)}
 - High Correlations: {len(state.eda_result.high_correlations)} pairs found
-- Multicollinearity Warnings: {state.eda_result.multicollinearity_warnings}
+- Multicollinearity Warnings ({len(state.eda_result.multicollinearity_warnings)}): {self._truncate_list(state.eda_result.multicollinearity_warnings)}
 - Covariate Balance: {state.eda_result.balance_summary}
 - Columns with Outliers: {len(state.eda_result.outliers)}
 
@@ -463,22 +483,31 @@ EDA Results:
         elif state.data_profile:
             prompt += "\nEDA has NOT been performed yet. Dispatch to eda_agent after profiling.\n"
 
-        # Add treatment effect results if available
+        # Add treatment effect results if available. Cap at 8 because the
+        # estimator can produce up to 12 methods; first 8 covers the common
+        # case (OLS, IPW, AIPW, PSM, S/T/X, DML) and the LLM doesn't need
+        # the full grid for the dispatch decision.
         if state.treatment_effects:
-            prompt += "\nTreatment Effect Results:\n"
-            for effect in state.treatment_effects:
+            prompt += f"\nTreatment Effect Results ({len(state.treatment_effects)} total):\n"
+            for effect in state.treatment_effects[:8]:
                 prompt += f"- {effect.method} ({effect.estimand}): {effect.estimate:.4f} "
                 prompt += f"[{effect.ci_lower:.4f}, {effect.ci_upper:.4f}]\n"
+            if len(state.treatment_effects) > 8:
+                prompt += f"- ... (+{len(state.treatment_effects) - 8} more methods)\n"
 
-        # Add critique feedback if available
+        # Add critique feedback if available. Issues and improvements are
+        # capped: the LLM addresses them by re-dispatching the relevant
+        # specialist, not by reading every individual line of feedback.
         if state.critique_history:
             latest = state.get_latest_critique()
             if latest:
+                issues_capped = latest.issues[:5]
+                improvements_capped = latest.improvements[:5]
                 prompt += f"""
 Latest Critique:
 - Decision: {latest.decision.value}
-- Issues: {', '.join(latest.issues)}
-- Improvements needed: {', '.join(latest.improvements)}
+- Issues ({len(latest.issues)}): {', '.join(issues_capped)}{f" (+{len(latest.issues) - 5} more)" if len(latest.issues) > 5 else ""}
+- Improvements needed ({len(latest.improvements)}): {', '.join(improvements_capped)}{f" (+{len(latest.improvements) - 5} more)" if len(latest.improvements) > 5 else ""}
 
 """
                 if latest.decision == CritiqueDecision.ITERATE:
