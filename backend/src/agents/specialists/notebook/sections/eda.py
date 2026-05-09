@@ -6,16 +6,30 @@ from nbformat.v4 import new_code_cell, new_markdown_cell
 
 from src.agents.base import AnalysisState
 
+from ._skip import render_skipped_cell
+
 
 def render_eda_report(state: AnalysisState) -> list:
     """Report EDA agent findings with visualizations from pipeline data."""
-    cells = []
+    eda = state.eda_result
 
+    # If the EDA agent did not run (or failed before writing results), emit
+    # an explicit skip placeholder rather than a content-less section header.
+    if eda is None:
+        return render_skipped_cell(
+            "Exploratory Data Analysis",
+            reason=(
+                "The EDA agent did not produce a result for this run. "
+                "Data quality, correlations, balance, and outlier checks "
+                "were not performed."
+            ),
+            upstream_agent="eda_agent",
+        )
+
+    cells = []
     cells.append(new_markdown_cell(
         "## Exploratory Data Analysis\n\n*Findings from the EDA agent.*"
     ))
-
-    eda = state.eda_result
 
     # Quality summary
     if eda:

@@ -348,9 +348,27 @@ _METHOD_ALIASES = {
 
 def render_treatment_effects(state: AnalysisState) -> list:
     """Report treatment effect estimation results with verification cells."""
-    cells = []
-
     effects = deduplicate_effects(state.treatment_effects)
+
+    # The estimator agent did not produce any usable estimates: render a
+    # skip placeholder rather than an empty Results Summary table. This is
+    # the headline section of the notebook; an empty version misleads more
+    # than it informs.
+    if not effects:
+        from ._skip import render_skipped_cell
+
+        return render_skipped_cell(
+            "Treatment Effect Estimation",
+            reason=(
+                "No treatment effect estimates were produced for this run. "
+                "All estimation methods either failed or were not attempted. "
+                "Without estimates, downstream interpretation, sensitivity "
+                "analysis, and the results conclusions cannot be grounded."
+            ),
+            upstream_agent="effect_estimator",
+        )
+
+    cells = []
 
     md = "## Treatment Effect Estimation\n\n"
     md += "*Results from the Effect Estimator agent.*\n\n"

@@ -6,11 +6,28 @@ from nbformat.v4 import new_code_cell, new_markdown_cell
 
 from src.agents.base import AnalysisState
 
+from ._skip import render_skipped_cell
+
 
 def render_causal_structure(state: AnalysisState) -> list:
     """Report causal discovery agent findings."""
-    cells = []
     dag = state.proposed_dag
+
+    # Defensive: even though the notebook agent currently guards this call
+    # site, a future caller might not. A skipped placeholder beats an
+    # AttributeError on dag.discovery_method when no DAG was produced.
+    if dag is None:
+        return render_skipped_cell(
+            "Causal Structure",
+            reason=(
+                "Neither causal_discovery nor dag_expert produced a DAG "
+                "for this run. The adjustment-set rationale and the graph "
+                "visualization are not available."
+            ),
+            upstream_agent="causal_discovery",
+        )
+
+    cells = []
 
     # Detect if dag_expert refined the graph
     is_refined = "domain_expert_fusion" in (dag.discovery_method or "")

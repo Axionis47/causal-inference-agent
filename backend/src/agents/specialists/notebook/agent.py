@@ -110,9 +110,10 @@ When generating narratives:
             # 7. EDA (EDA agent findings)
             cells.extend(render_eda_report(state))
 
-            # 8. Causal Structure (discovery agent)
-            if state.proposed_dag:
-                cells.extend(render_causal_structure(state))
+            # 8. Causal Structure (discovery agent). The renderer itself
+            # emits a skipped-section placeholder if no DAG is available,
+            # so the section is always present in the notebook.
+            cells.extend(render_causal_structure(state))
 
             # 9. Confounder Analysis
             if state.confounder_discovery or (
