@@ -14,6 +14,10 @@ from src.agents.base import (
     CritiqueDecision,
     JobStatus,
 )
+from src.agents.orchestrator.common import (
+    AGENT_STATUS_MAP,
+    validate_required_fields,
+)
 from src.logging_config.structured import get_logger
 
 logger = get_logger(__name__)
@@ -231,18 +235,9 @@ When making decisions, output your reasoning step-by-step, then specify which ag
 
     def _validate_required_fields(self, agent_name: str, state: AnalysisState) -> list[str]:
         """Check if state has the fields this agent requires. Returns list of missing fields."""
-        agent = self._specialist_agents.get(agent_name)
-        if not agent:
-            return []
-        required = getattr(agent, "REQUIRED_STATE_FIELDS", [])
-        missing = [f for f in required if getattr(state, f, None) is None]
-        if missing:
-            self.logger.warning(
-                "required_fields_missing",
-                agent=agent_name,
-                missing_fields=missing,
-            )
-        return missing
+        return validate_required_fields(
+            self._specialist_agents, agent_name, state, self.logger
+        )
 
     def register_specialist(self, name: str, agent: BaseAgent) -> None:
         """Register a specialist agent.
@@ -615,17 +610,7 @@ Do not just provide text - you MUST call a tool to proceed."""
         )
 
         # Update status based on agent (informational phase mapping)
-        status_map = {
-            "domain_knowledge": JobStatus.PROFILING,  # Part of early profiling phase
-            "data_profiler": JobStatus.PROFILING,
-            "eda_agent": JobStatus.EXPLORATORY_ANALYSIS,
-            "causal_discovery": JobStatus.DISCOVERING_CAUSAL,
-            "dag_expert": JobStatus.DISCOVERING_CAUSAL,
-            "effect_estimator": JobStatus.ESTIMATING_EFFECTS,
-            "sensitivity_analyst": JobStatus.SENSITIVITY_ANALYSIS,
-            "notebook_generator": JobStatus.GENERATING_NOTEBOOK,
-        }
-        state.status = status_map.get(agent_name, state.status)
+        state.status = AGENT_STATUS_MAP.get(agent_name, state.status)
 
         # Dynamic progress: count completed agent traces vs expected total
         state.progress_percentage = self._compute_progress(state)

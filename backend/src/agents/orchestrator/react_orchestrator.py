@@ -23,6 +23,10 @@ from src.agents.base import (
     ToolResult,
     ToolResultStatus,
 )
+from src.agents.orchestrator.common import (
+    AGENT_STATUS_MAP,
+    validate_required_fields,
+)
 from src.config.settings import get_settings
 from src.logging_config.structured import get_logger
 
@@ -101,18 +105,9 @@ BE AUTONOMOUS:
 
     def _validate_required_fields(self, agent_name: str, state: AnalysisState) -> list[str]:
         """Check if state has the fields this agent requires. Returns list of missing fields."""
-        agent = self._specialists.get(agent_name)
-        if not agent:
-            return []
-        required = getattr(agent, "REQUIRED_STATE_FIELDS", [])
-        missing = [f for f in required if getattr(state, f, None) is None]
-        if missing:
-            self.logger.warning(
-                "required_fields_missing",
-                agent=agent_name,
-                missing_fields=missing,
-            )
-        return missing
+        return validate_required_fields(
+            self._specialists, agent_name, state, self.logger
+        )
 
     def _register_orchestration_tools(self) -> None:
         """Register orchestration-specific tools."""
@@ -328,16 +323,8 @@ Start by understanding the current state, then decide what to do.
         # Warn-only: check if required state fields are populated
         self._validate_required_fields(agent_name, state)
 
-        # Update status based on agent
-        status_map = {
-            "data_profiler": JobStatus.PROFILING,
-            "eda_agent": JobStatus.EXPLORATORY_ANALYSIS,
-            "causal_discovery": JobStatus.DISCOVERING_CAUSAL,
-            "dag_expert": JobStatus.DISCOVERING_CAUSAL,
-            "effect_estimator": JobStatus.ESTIMATING_EFFECTS,
-            "sensitivity_analyst": JobStatus.SENSITIVITY_ANALYSIS,
-        }
-        state.status = status_map.get(agent_name, state.status)
+        # Update status based on agent (shared mapping with the standard orchestrator)
+        state.status = AGENT_STATUS_MAP.get(agent_name, state.status)
 
         self.logger.info(
             "dispatching_specialist",
