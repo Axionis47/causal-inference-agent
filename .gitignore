@@ -89,3 +89,6 @@ backend/benchmarks/results/*.csv
 # Coverage reports
 coverage/
 .nyc_output/
+
+# Personal self-study notes (intentionally never committed)
+BUGS_LESSONS.md

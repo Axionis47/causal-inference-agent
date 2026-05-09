@@ -935,12 +935,26 @@ After gathering evidence, call finalize_critique with your assessment."""
 
         # --- Determine decision ---
         avg_score = sum(scores.values()) / len(scores)
-        if avg_score >= 4 and len(issues) == 0:
+
+        # REJECT only when the analysis is genuinely empty: no estimation
+        # methods produced any effects AND no sensitivity ran. A causal
+        # analysis with zero treatment effects is not an analysis worth
+        # shipping a notebook for, regardless of how the other heuristic
+        # dimensions score.
+        analysis_is_empty = (
+            n_distinct_methods == 0
+            and len(state.sensitivity_results) == 0
+        )
+
+        if analysis_is_empty:
+            decision = "REJECT"
+        elif avg_score >= 4 and len(issues) == 0:
             decision = "APPROVE"
         elif avg_score >= 3 and len(improvements) <= 1:
             decision = "APPROVE"
         elif state.iteration_count >= 2:
-            # After 2+ iterations, approve with best effort to avoid infinite loops
+            # After 2+ iterations, approve with best effort to avoid infinite loops.
+            # Empty-analysis case is caught above and routes to REJECT instead.
             decision = "APPROVE"
         else:
             decision = "ITERATE"

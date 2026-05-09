@@ -443,6 +443,28 @@ Start by understanding the current state, then decide what to do.
 
             latest = state.get_latest_critique()
             if latest:
+                # Short-circuit on REJECT: don't let the LLM reason its way
+                # past a critique that explicitly failed the analysis.
+                if state.is_rejected():
+                    reason = latest.reasoning or "Critique agent rejected the analysis"
+                    self.logger.warning(
+                        "critique_rejected_analysis",
+                        iteration=state.iteration_count,
+                        issues=latest.issues,
+                    )
+                    state.mark_failed(f"rejected_by_critique: {reason}", "critique")
+                    return ToolResult(
+                        status=ToolResultStatus.ERROR,
+                        output={
+                            "decision": "REJECT",
+                            "issues": latest.issues,
+                            "improvements": latest.improvements,
+                            "reasoning": reason,
+                            "note": "Analysis rejected; job marked FAILED. Stop the loop.",
+                        },
+                        error=f"rejected_by_critique: {reason}",
+                    )
+
                 return ToolResult(
                     status=ToolResultStatus.SUCCESS,
                     output={
@@ -473,6 +495,18 @@ Start by understanding the current state, then decide what to do.
     ) -> ToolResult:
         """Handle critique feedback."""
         latest = state.get_latest_critique()
+
+        # Defensive: REJECT should already have short-circuited in
+        # _request_critique. If we got here anyway, refuse to proceed.
+        if state.is_rejected():
+            return ToolResult(
+                status=ToolResultStatus.ERROR,
+                output={
+                    "decision": "REJECT",
+                    "note": "Cannot iterate past a REJECT. Stop the loop.",
+                },
+                error="rejected_by_critique",
+            )
 
         if latest and latest.decision == CritiqueDecision.ITERATE:
             state.iteration_count += 1

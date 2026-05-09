@@ -447,6 +447,17 @@ class AnalysisState(BaseModel):
         latest = self.get_latest_critique()
         return latest is not None and latest.decision == CritiqueDecision.APPROVE
 
+    def is_rejected(self) -> bool:
+        """Check if the analysis has been rejected by critique.
+
+        REJECT means the analysis is unrecoverable through iteration; the
+        job should be marked FAILED rather than retried or approved. This
+        is symmetric with is_approved() and should_iterate(), so all three
+        decisions have an explicit consumer.
+        """
+        latest = self.get_latest_critique()
+        return latest is not None and latest.decision == CritiqueDecision.REJECT
+
     def mark_failed(self, error: str, agent: str) -> None:
         """Mark the analysis as failed."""
         self.status = JobStatus.FAILED

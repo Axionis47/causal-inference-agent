@@ -824,6 +824,23 @@ Do not just provide text - you MUST call a tool to proceed."""
                 reason=f"Critique review: {feedback_summary}",
             )
 
+        # Critique rejected the analysis: stop the pipeline. No notebook,
+        # no further iteration. Surface the critique reasoning in the
+        # failure so the user sees what went wrong.
+        if state.is_rejected():
+            reason = (
+                latest_critique.reasoning
+                if latest_critique and latest_critique.reasoning
+                else "Critique agent rejected the analysis"
+            )
+            self.logger.warning(
+                "critique_rejected_analysis",
+                iteration=state.iteration_count,
+                issues=latest_critique.issues if latest_critique else [],
+            )
+            state.mark_failed(f"rejected_by_critique: {reason}", "critique")
+            return state
+
         # Check if we need to iterate
         if state.should_iterate():
             state.iteration_count += 1
