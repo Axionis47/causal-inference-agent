@@ -20,6 +20,7 @@ from src.agents import (
     OrchestratorAgent,
     ReActOrchestrator,
 )
+from src.agents.orchestrator import Orchestrator
 from src.agents.registry import create_all_agents
 from src.config import get_settings
 from src.logging_config.structured import get_logger
@@ -103,13 +104,14 @@ class JobManager:
             instance_id=settings.instance_id,
         )
 
-    def _create_orchestrator(self):
+    def _create_orchestrator(self) -> Orchestrator:
         """Create a fresh orchestrator with fresh agent instances per job.
 
         Each job gets its own agent instances to prevent concurrent jobs from
         cross-contaminating mutable instance state (e.g., _df, _profile).
         """
         agents = create_all_agents()
+        orchestrator: Orchestrator
         if self._orchestrator_mode == "react":
             agents["effect_estimator"] = EffectEstimatorReActAgent()
             orchestrator = ReActOrchestrator()
