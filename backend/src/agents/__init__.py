@@ -20,7 +20,7 @@ from .base import (
     TreatmentEffectResult,
 )
 from .critique import CritiqueAgent
-from .orchestrator import OrchestratorAgent
+from .orchestrator import OrchestratorAgent, StandardOrchestrator
 from .orchestrator.react_orchestrator import ReActOrchestrator
 from .specialists import (
     CausalDiscoveryAgent,
@@ -59,6 +59,7 @@ __all__ = [
     # Agents
     "OrchestratorAgent",
     "ReActOrchestrator",
+    "StandardOrchestrator",
     "DataProfilerAgent",
     "DataRepairAgent",
     "DomainKnowledgeAgent",

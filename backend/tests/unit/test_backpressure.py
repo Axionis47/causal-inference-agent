@@ -22,7 +22,7 @@ def _mock_deps():
         patch("src.config.get_settings", return_value=fake_settings),
         patch("src.jobs.manager.get_settings", return_value=fake_settings),
         patch("src.jobs.manager.get_storage_client") as mock_storage,
-        patch("src.jobs.manager.OrchestratorAgent"),
+        patch("src.jobs.manager.StandardOrchestrator"),
         patch("src.jobs.manager.create_all_agents", return_value={}),
     ):
         mock_storage.return_value = MagicMock()

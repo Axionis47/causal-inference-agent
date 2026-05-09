@@ -23,7 +23,7 @@ from src.logging_config.structured import get_logger
 logger = get_logger(__name__)
 
 
-class OrchestratorAgent(BaseAgent):
+class StandardOrchestrator(BaseAgent):
     """Central orchestrator that coordinates the causal inference pipeline.
 
     This agent uses Gemini to reason about:

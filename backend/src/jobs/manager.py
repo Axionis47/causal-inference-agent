@@ -17,8 +17,8 @@ from src.agents import (
     DatasetInfo,
     EffectEstimatorReActAgent,
     JobStatus,
-    OrchestratorAgent,
     ReActOrchestrator,
+    StandardOrchestrator,
 )
 from src.agents.orchestrator import Orchestrator
 from src.agents.registry import create_all_agents
@@ -116,7 +116,7 @@ class JobManager:
             agents["effect_estimator"] = EffectEstimatorReActAgent()
             orchestrator = ReActOrchestrator()
         else:
-            orchestrator = OrchestratorAgent()
+            orchestrator = StandardOrchestrator()
 
         for name, agent in agents.items():
             orchestrator.register_specialist(name, agent)
