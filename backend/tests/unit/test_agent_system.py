@@ -151,7 +151,7 @@ class TestStateFieldMerge:
         expected_fields = {
             "data_profiler": ["data_profile", "dataframe_path", "dataset_info", "treatment_variable", "outcome_variable"],
             "eda_agent": ["eda_result"],
-            "causal_discovery": ["proposed_dag"],
+            "causal_discovery": ["discovered_dag"],
             "effect_estimator": ["treatment_effects", "analyzed_pairs"],
             "sensitivity_analyst": ["sensitivity_results"],
             "notebook_generator": ["notebook_path"],

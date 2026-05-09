@@ -534,8 +534,9 @@ class TestTaskCompletion:
             confidence="high",
         )
 
-        # Set DAG on state
-        state_with_dataframe.proposed_dag = CausalDAG(
+        # Set DAG on state. causal_discovery owns the discovered_dag slot;
+        # the proposed_dag computed property reads from it.
+        state_with_dataframe.discovered_dag = CausalDAG(
             nodes=["a", "b"],
             edges=[],
             discovery_method="test",

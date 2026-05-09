@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field, model_validator
 
 
 class JobStatus(StrEnum):
@@ -236,6 +236,23 @@ class AnalysisState(BaseModel):
         except Exception:
             pass  # Keep defaults during testing / import bootstrapping
 
+    @model_validator(mode="before")
+    @classmethod
+    def _backfill_proposed_dag(cls, data: Any) -> Any:
+        """Migrate older state docs that only carry the legacy proposed_dag.
+
+        Before this commit, both causal_discovery and dag_expert wrote to a
+        single proposed_dag field. State documents persisted under that
+        schema are loaded as if dag_expert produced the value (the typical
+        last writer), so the new refined_dag slot picks them up.
+        """
+        if not isinstance(data, dict):
+            return data
+        legacy = data.pop("proposed_dag", None)
+        if legacy is not None:
+            data.setdefault("refined_dag", legacy)
+        return data
+
     job_id: str
     dataset_info: DatasetInfo
     status: JobStatus = JobStatus.PENDING
@@ -258,8 +275,16 @@ class AnalysisState(BaseModel):
     # Populated by EDA Agent
     eda_result: EDAResult | None = None
 
-    # Populated by Causal Discovery
-    proposed_dag: CausalDAG | None = None
+    # DAG storage. Two stages, two slots, so neither agent's output is
+    # silently overwritten and the notebook can show the evolution.
+    #   - discovered_dag: data-driven, written by causal_discovery
+    #     using PC / FCI / GES / NOTEARS / LiNGAM ensemble.
+    #   - refined_dag: domain-aware, written by dag_expert after fusing
+    #     discovery's edges with metadata-derived constraints.
+    # Read via the proposed_dag computed property below, which prefers
+    # refined_dag when available and falls back to discovered_dag.
+    discovered_dag: CausalDAG | None = None
+    refined_dag: CausalDAG | None = None
 
     # Populated by Effect Estimator
     treatment_effects: list[TreatmentEffectResult] = Field(default_factory=list)
@@ -425,6 +450,18 @@ class AnalysisState(BaseModel):
             duration_ms=0,
             token_usage=total_tokens,
         )
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def proposed_dag(self) -> CausalDAG | None:
+        """The "best" DAG available for downstream readers.
+
+        Returns refined_dag if dag_expert has run, otherwise the raw
+        discovery output. Writes are not allowed; agents must target
+        discovered_dag or refined_dag explicitly so each stage's output
+        is preserved.
+        """
+        return self.refined_dag if self.refined_dag is not None else self.discovered_dag
 
     def get_latest_critique(self) -> CritiqueFeedback | None:
         """Get the most recent critique feedback."""

@@ -118,4 +118,39 @@ print(f"Nodes: {{len(G.nodes())}}, Edges: {{len(G.edges())}}")'''
             )
         cells.append(new_markdown_cell(adj_md))
 
+    # DAG evolution: if both stages ran, surface what dag_expert changed
+    # so a reader can see how domain knowledge refined the data-driven DAG.
+    if state.discovered_dag is not None and state.refined_dag is not None:
+        raw = state.discovered_dag
+        refined = state.refined_dag
+        raw_edges = {(e.source, e.target) for e in raw.edges}
+        refined_edges = {(e.source, e.target) for e in refined.edges}
+        added = sorted(refined_edges - raw_edges)
+        removed = sorted(raw_edges - refined_edges)
+
+        evol_md = "### DAG Evolution: Discovery to Domain-Refined\n\n"
+        evol_md += (
+            f"The data-driven discovery produced a graph with **{len(raw.nodes)}** nodes "
+            f"and **{len(raw_edges)}** edges via **{raw.discovery_method}**. "
+            f"The DAG Expert then refined it to **{len(refined.nodes)}** nodes and "
+            f"**{len(refined_edges)}** edges by fusing domain constraints.\n\n"
+        )
+        if added:
+            evol_md += "**Edges added by domain refinement:**\n\n"
+            for s, t in added[:20]:
+                evol_md += f"- `{s} -> {t}`\n"
+            if len(added) > 20:
+                evol_md += f"- ... and {len(added) - 20} more\n"
+            evol_md += "\n"
+        if removed:
+            evol_md += "**Edges removed by domain refinement (e.g., forbidden directions):**\n\n"
+            for s, t in removed[:20]:
+                evol_md += f"- `{s} -> {t}`\n"
+            if len(removed) > 20:
+                evol_md += f"- ... and {len(removed) - 20} more\n"
+            evol_md += "\n"
+        if not added and not removed:
+            evol_md += "_No edge changes; refinement updated metadata only (variable roles, adjustment set, forbidden edges)._\n\n"
+        cells.append(new_markdown_cell(evol_md))
+
     return cells

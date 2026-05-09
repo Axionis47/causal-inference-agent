@@ -53,7 +53,7 @@ class CausalDiscoveryAgent(ReActAgent, ContextTools):
     MAX_STEPS = 15
 
     # Agent metadata (used by registry and orchestrator)
-    WRITES_STATE_FIELDS = ["proposed_dag"]
+    WRITES_STATE_FIELDS = ["discovered_dag"]
     REQUIRED_STATE_FIELDS = ["data_profile", "dataframe_path"]
     JOB_STATUS = JobStatus.DISCOVERING_CAUSAL
     PROGRESS_WEIGHT = 0.10
@@ -268,7 +268,7 @@ VALIDATION CRITERIA:
 
     async def is_task_complete(self, state: AnalysisState) -> bool:
         """Check if discovery task is complete."""
-        return self._finalized and state.proposed_dag is not None
+        return self._finalized and state.discovered_dag is not None
 
     async def execute(self, state: AnalysisState) -> AnalysisState:
         """Execute causal discovery through ReAct loop.
@@ -312,35 +312,35 @@ VALIDATION CRITERIA:
                 self._final_result = self._auto_finalize()
                 self._finalized = True
 
-            # Set the proposed DAG
+            # Set the discovered DAG (data-driven; dag_expert refines this later)
             chosen_alg = self._final_result.get("chosen_algorithm", "")
             if chosen_alg and chosen_alg in self._discovered_graphs:
-                state.proposed_dag = self._discovered_graphs[chosen_alg]
+                state.discovered_dag = self._discovered_graphs[chosen_alg]
             elif self._current_graph:
-                state.proposed_dag = self._current_graph
+                state.discovered_dag = self._current_graph
             elif self._discovered_graphs:
-                state.proposed_dag = list(self._discovered_graphs.values())[0]
+                state.discovered_dag = list(self._discovered_graphs.values())[0]
             else:
-                state.proposed_dag = self._create_simple_dag()
+                state.discovered_dag = self._create_simple_dag()
 
             # Store interpretation
-            if state.proposed_dag:
-                state.proposed_dag.interpretation = self._final_result.get("interpretation", "")
+            if state.discovered_dag:
+                state.discovered_dag.interpretation = self._final_result.get("interpretation", "")
 
             duration_ms = int((time.time() - start_time) * 1000)
             self.logger.info(
                 "discovery_complete",
-                has_dag=state.proposed_dag is not None,
+                has_dag=state.discovered_dag is not None,
                 algorithm=self._final_result.get("chosen_algorithm", "unknown"),
-                n_nodes=len(state.proposed_dag.nodes) if state.proposed_dag else 0,
-                n_edges=len(state.proposed_dag.edges) if state.proposed_dag else 0,
+                n_nodes=len(state.discovered_dag.nodes) if state.discovered_dag else 0,
+                n_edges=len(state.discovered_dag.edges) if state.discovered_dag else 0,
                 duration_ms=duration_ms,
             )
 
         except Exception as e:
             self.logger.exception("discovery_failed", error=str(e))
             # Don't fail the job - create simple DAG as fallback
-            state.proposed_dag = self._create_simple_dag()
+            state.discovered_dag = self._create_simple_dag()
 
         return state
 

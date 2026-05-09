@@ -46,8 +46,11 @@ class DAGExpertAgent(ReActAgent, ContextTools):
 
     AGENT_NAME = "dag_expert"
     MAX_STEPS = 12
-    WRITES_STATE_FIELDS = ["proposed_dag"]
-    REQUIRED_STATE_FIELDS = ["dataset_info", "proposed_dag"]
+    WRITES_STATE_FIELDS = ["refined_dag"]
+    # dag_expert refines the data-driven discovery output. We require
+    # discovered_dag rather than the legacy proposed_dag so each stage's
+    # storage slot is explicit.
+    REQUIRED_STATE_FIELDS = ["dataset_info", "discovered_dag"]
     JOB_STATUS = JobStatus.DISCOVERING_CAUSAL
     PROGRESS_WEIGHT = 0.08
 
@@ -245,9 +248,9 @@ Start by analyzing the domain to understand the causal context."""
         get_adjustment_set (adjustment_set persisted) to have run.
         """
         return (
-            state.proposed_dag is not None
-            and state.proposed_dag.variable_roles is not None
-            and state.proposed_dag.adjustment_set is not None
+            state.refined_dag is not None
+            and state.refined_dag.variable_roles is not None
+            and state.refined_dag.adjustment_set is not None
         )
 
     async def _analyze_domain(self, state: AnalysisState, **kwargs) -> ToolResult:
@@ -447,7 +450,10 @@ Start by analyzing the domain to understand the causal context."""
         """Get edges from data-driven discovery."""
         if kwargs:
             logger.debug("tool_ignored_kwargs", tool="get_discovery_edges", extra_keys=list(kwargs.keys()))
-        if not state.proposed_dag:
+        # Read causal_discovery's output directly. Reading proposed_dag
+        # would also pick up our own in-progress refined_dag, so we
+        # always start from the data-driven DAG.
+        if not state.discovered_dag:
             return ToolResult(
                 status=ToolResultStatus.SUCCESS,
                 output={
@@ -456,7 +462,7 @@ Start by analyzing the domain to understand the causal context."""
                 },
             )
 
-        dag = state.proposed_dag
+        dag = state.discovered_dag
         discovery_edges = []
 
         for edge in dag.edges:
@@ -588,8 +594,9 @@ Start by analyzing the domain to understand the causal context."""
             variable_roles=dict(self._variable_roles) if self._variable_roles else None,
         )
 
-        # Update state
-        state.proposed_dag = validated_dag
+        # Update state. dag_expert owns refined_dag; downstream readers
+        # see this DAG via the proposed_dag computed property.
+        state.refined_dag = validated_dag
 
         n_domain = len([e for e in edge_sources.values() if e == "domain"])
         n_data = len([e for e in edge_sources.values() if e == "data"])
@@ -652,14 +659,15 @@ Start by analyzing the domain to understand the causal context."""
         """Get proper adjustment set using backdoor criterion."""
         if kwargs:
             logger.debug("tool_ignored_kwargs", tool="get_adjustment_set", extra_keys=list(kwargs.keys()))
-        if not state.proposed_dag:
+        # We compute the adjustment set on top of our own refined DAG.
+        if not state.refined_dag:
             return ToolResult(
                 status=ToolResultStatus.ERROR,
                 output=None,
                 error="No DAG available. Run fuse_and_validate first.",
             )
 
-        dag = state.proposed_dag
+        dag = state.refined_dag
 
         # Build adjacency for ancestor computation
         children: dict[str, set[str]] = {n: set() for n in dag.nodes}
@@ -710,8 +718,8 @@ Start by analyzing the domain to understand the causal context."""
         adjustment_set = sorted(confounders - {treatment, outcome})
 
         # Persist to state so downstream agents can pull it
-        if state.proposed_dag is not None:
-            state.proposed_dag.adjustment_set = adjustment_set
+        if state.refined_dag is not None:
+            state.refined_dag.adjustment_set = adjustment_set
 
         state.push_decision(
             agent="dag_expert",
@@ -742,7 +750,7 @@ Start by analyzing the domain to understand the causal context."""
         self.logger.info(
             "dag_expert_start",
             job_id=state.job_id,
-            has_discovery_dag=state.proposed_dag is not None,
+            has_discovery_dag=state.discovered_dag is not None,
         )
 
         # Reset internal state for fresh job
@@ -756,7 +764,7 @@ Start by analyzing the domain to understand the causal context."""
 
         self.logger.info(
             "dag_expert_complete",
-            n_edges=len(state.proposed_dag.edges) if state.proposed_dag else 0,
+            n_edges=len(state.refined_dag.edges) if state.refined_dag else 0,
             n_roles_classified=len(self._variable_roles),
         )
 
