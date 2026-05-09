@@ -1,7 +1,7 @@
 """Orchestrator agent module."""
 
 from .base import Orchestrator
-from .react_orchestrator import ReActOrchestrator
+from .react import ReActOrchestrator
 from .standard import StandardOrchestrator
 
 # Transition alias. Existing scripts and notebooks may still import

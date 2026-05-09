@@ -20,8 +20,7 @@ from .base import (
     TreatmentEffectResult,
 )
 from .critique import CritiqueAgent
-from .orchestrator import OrchestratorAgent, StandardOrchestrator
-from .orchestrator.react_orchestrator import ReActOrchestrator
+from .orchestrator import OrchestratorAgent, ReActOrchestrator, StandardOrchestrator
 from .specialists import (
     CausalDiscoveryAgent,
     ConfounderDiscoveryAgent,

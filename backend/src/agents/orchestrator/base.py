@@ -20,10 +20,10 @@ class Orchestrator(Protocol):
     """Contract every orchestrator implementation must satisfy.
 
     Implementations today:
-        StandardOrchestrator (orchestrator_agent.py): LLM-driven dispatch
+        StandardOrchestrator (standard/agent.py): LLM-driven dispatch
             with a default workflow suggested in the system prompt.
-        ReActOrchestrator (react_orchestrator.py): Fully autonomous ReAct
-            loop with no fixed workflow.
+        ReActOrchestrator (react/agent.py): Fully autonomous ReAct loop
+            with no fixed workflow.
 
     Both inherit execute_with_tracing from BaseAgent / ReActAgent, which
     is the shared tracing and logging wrapper. JobManager invokes that
