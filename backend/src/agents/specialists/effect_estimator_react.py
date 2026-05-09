@@ -20,11 +20,13 @@ from src.agents.base import (
     ToolResultStatus,
     TreatmentEffectResult,
 )
+from src.agents.registry import register_agent
 from src.logging_config.structured import get_logger
 
 logger = get_logger(__name__)
 
 
+@register_agent("effect_estimator_react")
 class EffectEstimatorReActAgent(ReActAgent):
     """ReAct agent for treatment effect estimation.
 

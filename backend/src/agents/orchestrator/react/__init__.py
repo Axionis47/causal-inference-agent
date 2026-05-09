@@ -6,5 +6,6 @@ until the analysis is complete.
 """
 
 from .agent import ReActOrchestrator
+from .specialists import build_specialists
 
-__all__ = ["ReActOrchestrator"]
+__all__ = ["ReActOrchestrator", "build_specialists"]

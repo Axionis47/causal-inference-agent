@@ -6,5 +6,6 @@ not a hardcoded pipeline.
 """
 
 from .agent import StandardOrchestrator
+from .specialists import build_specialists
 
-__all__ = ["StandardOrchestrator"]
+__all__ = ["StandardOrchestrator", "build_specialists"]

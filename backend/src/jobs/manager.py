@@ -15,13 +15,13 @@ from typing import Any, Literal
 from src.agents import (
     AnalysisState,
     DatasetInfo,
-    EffectEstimatorReActAgent,
     JobStatus,
     ReActOrchestrator,
     StandardOrchestrator,
 )
 from src.agents.orchestrator import Orchestrator
-from src.agents.registry import create_all_agents
+from src.agents.orchestrator import react as react_pkg
+from src.agents.orchestrator import standard as standard_pkg
 from src.config import get_settings
 from src.logging_config.structured import get_logger
 from src.storage.cleanup import cleanup_local_artifacts
@@ -109,14 +109,17 @@ class JobManager:
 
         Each job gets its own agent instances to prevent concurrent jobs from
         cross-contaminating mutable instance state (e.g., _df, _profile).
+        Each orchestrator package owns its specialist roster, so adding or
+        swapping a specialist for a single mode does not require editing
+        JobManager.
         """
-        agents = create_all_agents()
         orchestrator: Orchestrator
         if self._orchestrator_mode == "react":
-            agents["effect_estimator"] = EffectEstimatorReActAgent()
             orchestrator = ReActOrchestrator()
+            agents = react_pkg.build_specialists()
         else:
             orchestrator = StandardOrchestrator()
+            agents = standard_pkg.build_specialists()
 
         for name, agent in agents.items():
             orchestrator.register_specialist(name, agent)
