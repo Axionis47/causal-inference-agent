@@ -638,19 +638,21 @@ class JobManager:
 _manager: JobManager | None = None
 
 
-def get_job_manager(orchestrator_mode: OrchestratorMode = "standard") -> JobManager:
+def get_job_manager(orchestrator_mode: OrchestratorMode | None = None) -> JobManager:
     """Get the singleton job manager.
 
     Args:
-        orchestrator_mode: Which orchestrator to use:
-            - "standard": Original orchestrator with fixed workflow
-            - "react": Fully autonomous ReAct orchestrator (experimental)
+        orchestrator_mode: Which orchestrator to use. If None, falls back
+            to the ORCHESTRATOR_MODE env var (default "standard"). Explicit
+            argument wins over the env var, mainly for tests.
 
     Note: The mode is only used on first initialization. Subsequent calls
     return the existing instance regardless of the mode parameter.
     """
     global _manager
     if _manager is None:
+        if orchestrator_mode is None:
+            orchestrator_mode = get_settings().orchestrator_mode
         _manager = JobManager(orchestrator_mode=orchestrator_mode)
     return _manager
 

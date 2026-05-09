@@ -88,6 +88,11 @@ class Settings(BaseSettings):
     agent_timeout_seconds: int = 300
     max_concurrent_jobs: int = 3
 
+    # Orchestrator selection
+    # "standard": LLM-driven dispatch with a default workflow.
+    # "react": Fully autonomous ReAct orchestrator. Experimental.
+    orchestrator_mode: Literal["standard", "react"] = "standard"
+
     # Statistical thresholds
     significance_alpha: float = 0.05
     confounder_correlation_threshold: float = 0.03
