@@ -228,6 +228,66 @@ class AgentTracesResponse(BaseModel):
     total_output_tokens: int = 0
 
 
+class FileEntryResponse(BaseModel):
+    """One file from a downloaded dataset archive."""
+
+    name: str
+    size_bytes: int
+    format: str
+    used: bool
+
+
+class DownloadBlock(BaseModel):
+    """Download lifecycle block of the dataset view."""
+
+    status: str  # "pending" | "downloading" | "downloaded" | "failed"
+    url: str | None = None
+    files: list[FileEntryResponse] = Field(default_factory=list)
+    error: str | None = None
+
+
+class KaggleMetaData(BaseModel):
+    """Kaggle-supplied metadata about the dataset."""
+
+    description: str | None = None
+    column_descriptions: dict[str, str] = Field(default_factory=dict)
+    tags: list[str] = Field(default_factory=list)
+    domain: str | None = None
+    metadata_quality: str = "unknown"
+
+
+class KaggleMetaBlock(BaseModel):
+    """Kaggle metadata block.
+
+    status='unavailable' means the source did not provide it (sparse
+    dataset on Kaggle); 'error' means the fetch itself failed.
+    """
+
+    status: str  # "pending" | "loaded" | "unavailable" | "error"
+    data: KaggleMetaData | None = None
+    error: str | None = None
+
+
+class ProfileBlock(BaseModel):
+    """Computed data profile block."""
+
+    status: str  # "pending" | "loaded" | "error"
+    data: dict[str, Any] | None = None
+    error: str | None = None
+
+
+class DatasetViewResponse(BaseModel):
+    """Live + persisted view of a job's dataset for the Data panel.
+
+    Each block carries its own status so the UI can render exactly what
+    is known so far without collapsing distinct missing-states into one.
+    """
+
+    download: DownloadBlock
+    kaggle_meta: KaggleMetaBlock
+    profile: ProfileBlock
+
+
 class CancelJobResponse(BaseModel):
     """Response for job cancellation."""
 

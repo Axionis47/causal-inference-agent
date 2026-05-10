@@ -20,6 +20,7 @@ from src.api.schemas import (
     CancelJobResponse,
     CausalGraphResponse,
     CreateJobRequest,
+    DatasetViewResponse,
     DeleteJobResponse,
     JobDetailResponse,
     JobListResponse,
@@ -30,6 +31,8 @@ from src.api.schemas import (
 )
 from src.api.utils import (
     build_data_context,
+    build_dataset_view_from_persisted,
+    build_dataset_view_from_state,
     calculate_method_consensus,
     generate_executive_summary,
     generate_narrative_summary,
@@ -219,6 +222,32 @@ async def get_job(request: Request, job_id: str) -> JobDetailResponse:
         treatment_variable=job.get("treatment_variable"),
         outcome_variable=job.get("outcome_variable"),
     )
+
+
+@router.get("/{job_id}/dataset", response_model=DatasetViewResponse)
+@limiter.limit("60/minute")
+async def get_dataset_view(request: Request, job_id: str) -> DatasetViewResponse:
+    """Return the live + persisted view of the job's dataset.
+
+    Backs the frontend Data panel: download status, Kaggle metadata,
+    and computed profile, each as an independent block. Reads live
+    in-memory state when the job is active and falls back to the
+    persisted record for completed / evicted jobs.
+    """
+    manager = get_job_manager()
+    job = await manager.get_job(job_id)
+    if job is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Job {job_id} not found",
+        )
+
+    state = manager.get_active_state(job_id)
+    if state is not None:
+        return build_dataset_view_from_state(state)
+
+    results = await manager.get_results(job_id)
+    return build_dataset_view_from_persisted(job, results)
 
 
 @router.get("/{job_id}/status", response_model=JobStatusResponse)

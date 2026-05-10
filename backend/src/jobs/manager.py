@@ -559,6 +559,14 @@ class JobManager:
         logger.info("job_deleted", **result)
         return result
 
+    def get_active_state(self, job_id: str):
+        """Return the live AnalysisState if the job is still active, else None.
+
+        Used by endpoints that need to surface partial in-flight data
+        (e.g. the dataset view) without waiting for terminal status.
+        """
+        return self._active_states.get(job_id)
+
     def get_sse_events(self, job_id: str, after_index: int = 0) -> list[dict]:
         """Get SSE events for a running job, starting after the given index.
 

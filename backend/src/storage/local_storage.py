@@ -319,6 +319,21 @@ class LocalStorageClient:
                         f.model_dump() for f in state.dataset_info.files
                     ]
 
+                # Persist Kaggle metadata for the same reason.
+                if (
+                    state.dataset_info.kaggle_description
+                    or state.dataset_info.kaggle_column_descriptions
+                    or state.dataset_info.kaggle_tags
+                    or state.dataset_info.kaggle_domain
+                ):
+                    results_data["kaggle_meta"] = {
+                        "description": state.dataset_info.kaggle_description,
+                        "column_descriptions": state.dataset_info.kaggle_column_descriptions,
+                        "tags": state.dataset_info.kaggle_tags,
+                        "domain": state.dataset_info.kaggle_domain,
+                        "metadata_quality": state.dataset_info.metadata_quality,
+                    }
+
                 # Add causal graph
                 if state.proposed_dag:
                     results_data["causal_graph"] = {
