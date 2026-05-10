@@ -485,13 +485,20 @@ Concrete bugs this system will encounter, ranked roughly by likelihood and impac
 
 **Fix.** Add a low-score-and-no-effects REJECT branch in the heuristic. If the LLM is consistently down and quality is genuinely bad (no methods completed, etc.), the right answer is to fail the job, not to ship a heuristically-approved bad analysis.
 
-### Bug 7: The Orchestrator Context Bloat
+### Bug 7: The Orchestrator Context Bloat (resolved)
 
-**Symptom.** On long jobs (multiple critique iterations, many treatment effects), the orchestrator's prompt grows. LLM costs creep up. Latency per orchestrator turn increases.
+**Symptom.** On long jobs (multiple critique iterations, many treatment effects), the orchestrator's prompt grew. LLM costs crept up. Latency per orchestrator turn increased.
 
-**Root cause.** `_build_context_prompt` is called every loop iteration and rebuilds a state dump from scratch: full lists of `data_quality_issues`, `multicollinearity_warnings`, every `treatment_effect`, every critique `issues`/`improvements`. The system prompt at line 84-88 calls itself "PULL-based context" but the orchestrator never pulls; it always pushes.
+**Root cause.** `_build_context_prompt` was called every loop iteration and rebuilt a state dump from scratch: full lists of `data_quality_issues`, `multicollinearity_warnings`, every `treatment_effect`, every critique `issues`/`improvements`. The system prompt called itself "PULL-based context" but the orchestrator never pulled; it always pushed. Worse, the structured `_get_state_context` dict already carried the same flags and counts, so the prompt body was duplicating information.
 
-**Fix.** Give the orchestrator the same `ContextTools` mixin every specialist uses. Replace `_build_context_prompt` with a lean initial observation (job_id, dataset, status) and let the orchestrator call `get_state_summary`, `get_latest_results`, `what_did_X_finish` on demand. Also enable Anthropic-style prompt caching on the system prompt portion that does not change.
+**Resolution (commit `eadb8bc`).** Two changes, both in the `common/context.py` module:
+
+1. `_build_context_prompt` now produces a two-line summary plus a directed "Focus" line, both from shared helpers (`summarize_progress`, `summarize_dispatch_focus`). The prompt no longer inlines profile lists, EDA issue lists, treatment effects, or critique improvements. Only top-3 critique issues are inlined, and only when the decision is `ITERATE` (the one place issue text drives dispatch).
+2. `ReActOrchestrator.check_state` lost its `"all"` aspect. It was an escape hatch back to push behavior; the LLM could ask for everything in one call. Aspect-specific calls only now (`profile`, `results`, `critique`, `progress`), each with internal caps.
+
+**Result.** Standard orchestrator's prompt at mid-pipeline shrank from ~2-3 KB to ~500 bytes. With 15 max decisions per job, that is ~30-45 KB to ~7-8 KB on prompt-body tokens before any provider-side prompt caching savings. ~80% reduction in prompt-body cost, achieved without adding new tools.
+
+**Open follow-up.** True pull-based tools (`get_state_summary`, `get_recent_results`, `what_finished` etc. as actual LLM-callable functions whose results feed back into the next reason() call) would close the last 10-15% gap and bring the orchestrator to full parity with how specialists pull. Today's change took the lean-prompt path because pull tools require a loop-architecture change (feeding tool results back as observations rather than just mutating state). That refactor is a separate PR if we ever want it.
 
 ### Bug 8: The Orphan Job
 
@@ -744,4 +751,4 @@ See the full state map in Section 4. The headline: AnalysisState is in Firestore
 Twenty-one numbered tradeoffs in Section 10. The biggest gives are: determinism (LLM-driven orchestration), per-instance correctness (artifacts on local disk), single-provider feature use (LLM abstraction). The biggest gets are: data-driven adaptivity, defensible output via triangulation and critique, easy multi-instance deploy via Firestore primitives.
 
 **4. What breaks first at scale?**
-In order: (1) orchestrator prompt bloat as state lists grow, increasing per-decision cost (bug 7); (2) per-instance disk for artifacts when we add a second instance (tradeoff 11); (3) SSE connection count when many users watch many jobs (bug 5); (4) Firestore write throughput as agents checkpoint frequently; (5) LLM cost in absolute terms because we run twelve estimators on every job. None of these break the system at one user; all of them surface between 10 and 100 concurrent jobs.
+In order: (1) ~~orchestrator prompt bloat as state lists grow, increasing per-decision cost (bug 7)~~ resolved in commit `eadb8bc` (lean prompt + drop check_state(all) brought ~80% reduction at mid-pipeline); (2) per-instance disk for artifacts when we add a second instance (tradeoff 11); (3) SSE connection count when many users watch many jobs (bug 5); (4) Firestore write throughput as agents checkpoint frequently; (5) LLM cost in absolute terms because we run twelve estimators on every job. The remaining four surface between 10 and 100 concurrent jobs.
