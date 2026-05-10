@@ -43,6 +43,26 @@ function relativeTime(dateStr: string): string {
   return `${diffMon} month${diffMon !== 1 ? 's' : ''} ago`;
 }
 
+/** Format a duration in ms as a compact human string. */
+function formatDuration(ms: number): string {
+  if (ms < 1000) return '<1s';
+  const sec = Math.round(ms / 1000);
+  if (sec < 60) return `${sec}s`;
+  const min = Math.round(sec / 60);
+  if (min < 60) return `${min}m`;
+  const hr = (min / 60).toFixed(1);
+  return `${hr}h`;
+}
+
+/** Job duration: terminal jobs use updated_at - created_at; else null. */
+function jobDuration(job: Job): string | null {
+  const isTerminal = ['completed', 'failed', 'cancelled'].includes(job.status);
+  if (!isTerminal) return null;
+  const ms = new Date(job.updated_at).getTime() - new Date(job.created_at).getTime();
+  if (!isFinite(ms) || ms <= 0) return null;
+  return formatDuration(ms);
+}
+
 /** Status indicator config. */
 function statusDisplay(status: string) {
   const isRunning = !['completed', 'failed', 'pending', 'cancelled'].includes(status);
@@ -192,8 +212,10 @@ export default function JobsListPage() {
             <thead>
               <tr>
                 <th scope="col">Status</th>
-                <th scope="col">Job ID</th>
                 <th scope="col">Dataset</th>
+                <th scope="col">T → Y</th>
+                <th scope="col" className="text-right">Iter</th>
+                <th scope="col">Duration</th>
                 <th scope="col">Created</th>
                 <th scope="col">Actions</th>
               </tr>
@@ -267,7 +289,14 @@ function JobRow({ job }: { job: Job }) {
   });
 
   const { indicator, label, badgeClass } = statusDisplay(job.status);
-  const datasetName = extractDatasetName(job.kaggle_url);
+  const datasetName = job.dataset_name || extractDatasetName(job.kaggle_url);
+  const duration = jobDuration(job);
+  const treatment = job.treatment_variable;
+  const outcome = job.outcome_variable;
+  const tyDisplay = treatment || outcome
+    ? `${treatment || '—'} → ${outcome || '—'}`
+    : null;
+  const iter = job.iteration_count ?? 0;
 
   return (
     <>
@@ -283,28 +312,37 @@ function JobRow({ job }: { job: Job }) {
           </span>
         </td>
 
-        {/* Job ID — monospace, truncated, links to detail */}
+        {/* Dataset — name links to job detail; Kaggle URL on hover */}
         <td>
           <Link
             to={`/jobs/${job.id}`}
-            className="font-mono text-xs text-ink-700 hover:text-ink-900 hover:underline"
-            title={job.id}
-          >
-            {job.id.length > 8 ? job.id.slice(0, 8) : job.id}
-          </Link>
-        </td>
-
-        {/* Dataset — extracted name, links to Kaggle */}
-        <td>
-          <a
-            href={job.kaggle_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-ink-700 hover:text-ink-900 hover:underline"
+            className="text-sm text-ink-700 hover:text-ink-900 hover:underline"
             title={job.kaggle_url}
           >
             {datasetName}
-          </a>
+          </Link>
+          <p className="font-mono text-[10px] text-ink-400 tracking-wide">
+            {job.id.slice(0, 8)}
+          </p>
+        </td>
+
+        {/* T → Y — inferred or specified */}
+        <td>
+          {tyDisplay ? (
+            <span className="font-mono text-xs text-ink-700">{tyDisplay}</span>
+          ) : (
+            <span className="text-xs text-ink-400 italic">auto-detect</span>
+          )}
+        </td>
+
+        {/* Iteration count */}
+        <td className="text-right">
+          <span className="font-mono text-xs text-ink-700">{iter}</span>
+        </td>
+
+        {/* Duration — terminal jobs only */}
+        <td className="text-xs text-ink-500">
+          {duration ?? <span className="text-ink-300">—</span>}
         </td>
 
         {/* Created — relative time */}
@@ -345,7 +383,7 @@ function JobRow({ job }: { job: Job }) {
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
         <tr>
-          <td colSpan={5} className="!py-0">
+          <td colSpan={7} className="!py-0">
             <div
               className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
               role="dialog"

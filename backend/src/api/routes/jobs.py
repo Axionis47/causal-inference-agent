@@ -184,6 +184,10 @@ async def list_jobs(
                 status=JobStatus(j["status"]),
                 created_at=j["created_at"],
                 updated_at=j["updated_at"],
+                dataset_name=j.get("dataset_name"),
+                treatment_variable=j.get("treatment_variable"),
+                outcome_variable=j.get("outcome_variable"),
+                iteration_count=j.get("iteration_count", 0),
             )
             for j in jobs
         ],

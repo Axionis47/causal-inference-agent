@@ -69,13 +69,26 @@ class CreateJobRequest(BaseModel):
 
 
 class JobResponse(BaseModel):
-    """Basic job response."""
+    """Basic job response.
+
+    Includes a small digest (dataset_name, T/Y, iteration_count) that
+    the JobsListPage renders directly so a user can scan a stack of
+    jobs and see what each one did without opening it. These fields
+    are already on the persisted record; populating them is free.
+    """
 
     id: str
     kaggle_url: str
     status: JobStatus
     created_at: datetime
     updated_at: datetime
+
+    # Optional digest fields populated by /jobs list. Absent on
+    # just-created jobs; that's fine — UI falls back gracefully.
+    dataset_name: str | None = None
+    treatment_variable: str | None = None
+    outcome_variable: str | None = None
+    iteration_count: int = 0
 
     model_config = ConfigDict(from_attributes=True)
 

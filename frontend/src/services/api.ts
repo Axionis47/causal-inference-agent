@@ -84,6 +84,12 @@ export interface Job {
   status: string;
   created_at: string;
   updated_at: string;
+  // Digest fields populated by /jobs list. Optional because just-
+  // created jobs won't have them populated yet.
+  dataset_name?: string | null;
+  treatment_variable?: string | null;
+  outcome_variable?: string | null;
+  iteration_count?: number;
 }
 
 export interface JobDetail extends Job {
