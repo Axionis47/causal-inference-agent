@@ -257,12 +257,16 @@ Start by understanding the current state, then decide what to do.
     async def _check_state(
         self,
         state: AnalysisState,
-        aspect: str,
+        aspect: str = "progress",
+        **kwargs,
     ) -> ToolResult:
         """Check a specific aspect of analysis state.
 
         Each branch returns only the fields relevant to that aspect, so
         the LLM gets focused observations rather than a state dump.
+        `aspect` defaults to "progress" so a stripped tool call still
+        returns something useful instead of erroring; **kwargs absorbs
+        spurious params (e.g. agent_name, reasoning) the model attaches.
         """
         output: dict = {}
 
@@ -330,10 +334,15 @@ Start by understanding the current state, then decide what to do.
         self,
         state: AnalysisState,
         agent_name: str,
-        reasoning: str,
+        reasoning: str = "",
         task_description: str = "",
+        **kwargs,
     ) -> ToolResult:
-        """Dispatch to a specialist agent."""
+        """Dispatch to a specialist agent.
+
+        reasoning is encouraged in the schema but not required — the run
+        should not abort if the LLM omits it.
+        """
         specialist = self._specialists.get(agent_name)
         if not specialist:
             return ToolResult(
@@ -447,16 +456,16 @@ Start by understanding the current state, then decide what to do.
     async def _request_critique(
         self,
         state: AnalysisState,
-        summary: str,
+        summary: str = "",
         focus_areas: list[str] | None = None,
         **kwargs,
     ) -> ToolResult:
         """Request critique of the analysis.
 
-        focus_areas is exposed in the tool schema but only used as hinting
-        for the critic; we accept it explicitly here so Vertex doesn't 500
-        when the model passes it. **kwargs swallows any other params the
-        LLM hallucinates (e.g. `reasoning`) instead of failing the tool.
+        summary is encouraged but optional so the loop survives a tool
+        call that omits it; the critic doesn't actually consume it
+        directly anyway. focus_areas is reserved for future hinting.
+        **kwargs swallows extras the LLM may attach (e.g. `reasoning`).
         """
         critique_agent = self._specialists.get("critique")
         if not critique_agent:
@@ -521,9 +530,15 @@ Start by understanding the current state, then decide what to do.
     async def _handle_feedback(
         self,
         state: AnalysisState,
-        action_plan: list[str],
+        action_plan: list[str] | None = None,
+        **kwargs,
     ) -> ToolResult:
-        """Handle critique feedback."""
+        """Handle critique feedback.
+
+        action_plan defaults to an empty list so an LLM that calls this
+        tool without one still progresses (no-iteration branch returns).
+        """
+        action_plan = action_plan or []
         latest = state.get_latest_critique()
 
         # Defensive: REJECT should already have short-circuited in
