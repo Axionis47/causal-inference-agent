@@ -13,6 +13,7 @@ import ActivityFeed from '../components/job/ActivityFeed';
 import ResultsDisplay from '../components/results/ResultsDisplay';
 import AgentTraces from '../components/agents/AgentTraces';
 import DataPanel from '../components/dataset/DataPanel';
+import ReviewTimeline from '../components/review/ReviewTimeline';
 import { useJob } from '../hooks/useJob';
 
 export default function JobPage() {
@@ -273,7 +274,18 @@ export default function JobPage() {
         </>
       )}
 
-      {/* Agent Traces */}
+      {/* Review timeline — journal-style merge of traces + decisions */}
+      {(isComplete || isFailed) && (
+        <section className="section">
+          <h2 className="section-title">Review</h2>
+          <ReviewTimeline
+            jobId={job.id}
+            decisions={resultsQuery.data?.decision_log ?? []}
+          />
+        </section>
+      )}
+
+      {/* Raw agent traces — collapsible advanced view, kept for debugging */}
       {(isComplete || isFailed) && (
         <section className="section">
           <AgentTraces jobId={job.id} />
