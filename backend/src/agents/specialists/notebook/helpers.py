@@ -58,13 +58,19 @@ Output markdown only, no code fences. 2-3 paragraphs maximum."""
 
 
 def deduplicate_effects(effects: list) -> list:
-    """Deduplicate treatment effects by (method, treatment, outcome), case-insensitive."""
+    """Deduplicate treatment effects by (method, treatment_variable, outcome_variable).
+
+    The TreatmentEffectResult schema fields are *_variable; the previous
+    `getattr(effect, "treatment", "")` masked the rename by silently
+    falling back to the empty string, which collapsed every effect with
+    the same method to the same key and dropped rows.
+    """
     seen: dict[tuple, Any] = {}
     for effect in effects:
         key = (
             effect.method.lower().strip(),
-            getattr(effect, "treatment", ""),
-            getattr(effect, "outcome", ""),
+            effect.treatment_variable or "",
+            effect.outcome_variable or "",
         )
         seen[key] = effect
     return list(seen.values())

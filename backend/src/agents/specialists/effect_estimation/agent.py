@@ -811,10 +811,16 @@ IMPORTANT:
                     rationale=rationale[:50],
                 )
 
-                # Clear any previous results for this pair (from prior iterations)
+                # Clear any previous results for this pair (from prior iterations).
+                # The schema fields are treatment_variable/outcome_variable; e.treatment
+                # raises AttributeError, which is what crashed re-runs whenever the
+                # critique decision was ITERATE.
                 state.treatment_effects = [
                     e for e in state.treatment_effects
-                    if not (e.treatment == treatment and e.outcome == outcome)
+                    if not (
+                        e.treatment_variable == treatment
+                        and e.outcome_variable == outcome
+                    )
                 ]
 
                 # Set current pair
