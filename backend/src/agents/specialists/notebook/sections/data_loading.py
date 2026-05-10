@@ -32,25 +32,20 @@ def render_data_loading(state: AnalysisState) -> list:
 
     load_code = f'''# Dataset bundled with this notebook for reproducibility
 # Original source: {source_url}
+# Jupyter sets the kernel's working directory to the notebook folder by default,
+# so the bundled data file resolves relative to cwd without filesystem gymnastics.
 import os
 
 DATA_FILENAME = "{data_filename}"
 
-# Try relative path (same directory as notebook)
-DATA_PATH = os.path.join(os.path.dirname(os.path.abspath("__file__")), DATA_FILENAME)
-
-if not os.path.exists(DATA_PATH):
-    # Fallback: current working directory
-    DATA_PATH = DATA_FILENAME
-
-if not os.path.exists(DATA_PATH):
+if not os.path.exists(DATA_FILENAME):
     raise FileNotFoundError(
-        f"Data file '{{DATA_FILENAME}}' not found. "
-        f"Make sure the data file is in the same directory as this notebook.\\n"
-        f"Original source: {source_url}"
+        f"Data file '{{DATA_FILENAME}}' not found in the working directory "
+        f"({{os.getcwd()!r}}). Place the bundled data file alongside this "
+        f"notebook before running.\\nOriginal source: {source_url}"
     )
 
-{read_call}
+{read_call.replace("DATA_PATH", "DATA_FILENAME")}
 
 print(f"Dataset shape: {{df.shape}}")
 print(f"Columns ({{len(df.columns)}}): {{list(df.columns)}}")

@@ -520,15 +520,13 @@ covariates = [c for c in COVARIATES if c in df.columns
 {_binarization_code(state)}
 Y = df['{state.outcome_variable}'].values.astype(float)
 
-# Clean data
+# Drop rows with NaN in any column we use. A boolean mask aligned to df's
+# row positions is robust to non-default indexes; df.index.get_indexer would
+# fail or silently misalign on duplicate or non-monotonic labels.
 all_cols = ['{state.treatment_variable}', '{state.outcome_variable}'] + covariates
-df_clean = df[all_cols].dropna()
-T_binary_clean = T_binary[:len(df_clean)] if len(T_binary) == len(df) else T_binary
-Y_clean = df_clean['{state.outcome_variable}'].values.astype(float)
-
-# Re-extract after dropna (safe approach)
-_idx = df_clean.index
-T_clean = T_binary[df.index.get_indexer(_idx)]
+mask = df[all_cols].notna().all(axis=1).values & ~np.isnan(T_binary)
+df_clean = df.loc[mask].reset_index(drop=True)
+T_clean = T_binary[mask]
 Y_clean = df_clean['{state.outcome_variable}'].values.astype(float)
 
 if covariates:

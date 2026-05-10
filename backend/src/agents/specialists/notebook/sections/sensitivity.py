@@ -81,8 +81,10 @@ def compute_e_value(ate, se, y_std):
 
     return e_val, e_val_ci
 
-# Use the verification OLS results
-e_val, e_val_ci = compute_e_value(results.params[1], results.bse[1], np.std(Y))
+# Use the verification OLS results. Y_clean is the post-dropna outcome from
+# the verification cell, so its SD aligns with the fitted estimate; np.std(Y)
+# would return NaN whenever the raw outcome contains missing values.
+e_val, e_val_ci = compute_e_value(results.params[1], results.bse[1], np.std(Y_clean))
 print(f"E-value (point estimate): {e_val:.2f}")
 print(f"E-value (CI bound):       {e_val_ci:.2f}")
 print()
@@ -100,26 +102,31 @@ else:
         "Checks whether the treatment effect disappears under random treatment assignment."
     ))
 
-    placebo_code = '''# Placebo test: permutation-based
+    placebo_code = '''# Placebo test: permutation-based.
+# Permute the post-clean treatment vector so length matches Y_clean / X;
+# permuting the full-length T_binary against Y would mismatch on any data
+# that had NaNs dropped during the OLS verification cell.
 n_permutations = 500
 placebo_effects = []
 
+if covariates:
+    X_p = df_clean[covariates].values.astype(float)
+
 for _ in range(n_permutations):
-    T_placebo = np.random.permutation(T_binary)
+    T_placebo = np.random.permutation(T_clean)
     if covariates:
-        X_p = df_clean[covariates].values.astype(float)
         design_p = np.column_stack([np.ones(len(T_placebo)), T_placebo, X_p])
     else:
         design_p = np.column_stack([np.ones(len(T_placebo)), T_placebo])
 
     try:
-        res_p = sm.OLS(Y, design_p).fit()
+        res_p = sm.OLS(Y_clean, design_p).fit()
         placebo_effects.append(res_p.params[1])
     except Exception:
         pass
 
 real_ate = results.params[1]
-p_value_perm = np.mean(np.abs(placebo_effects) >= np.abs(real_ate))
+p_value_perm = np.mean(np.abs(placebo_effects) >= np.abs(real_ate)) if placebo_effects else float('nan')
 
 print(f"Real ATE:             {real_ate:.4f}")
 print(f"Mean placebo effect:  {np.mean(placebo_effects):.4f}")
