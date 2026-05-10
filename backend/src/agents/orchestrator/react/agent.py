@@ -114,16 +114,24 @@ BE AUTONOMOUS:
     def _register_orchestration_tools(self) -> None:
         """Register orchestration-specific tools."""
 
-        # Check state tool
+        # Check state tool. The "all" aspect was deliberately removed:
+        # it was an escape hatch back to push-based context (the LLM
+        # could pull everything in one call, defeating the point of
+        # focused queries). Forcing aspect-specific calls keeps each
+        # observation small and lets the loop budget go further.
         self.register_tool(
             name="check_state",
-            description="Check the current analysis state to understand progress and decide next steps.",
+            description=(
+                "Check a specific aspect of the current analysis state. "
+                "Call this multiple times with different aspects rather "
+                "than asking for everything at once."
+            ),
             parameters={
                 "type": "object",
                 "properties": {
                     "aspect": {
                         "type": "string",
-                        "enum": ["all", "profile", "results", "critique", "progress"],
+                        "enum": ["profile", "results", "critique", "progress"],
                         "description": "Which aspect of state to check",
                     },
                 },
@@ -251,10 +259,14 @@ Start by understanding the current state, then decide what to do.
         state: AnalysisState,
         aspect: str,
     ) -> ToolResult:
-        """Check current analysis state."""
-        output = {}
+        """Check a specific aspect of analysis state.
 
-        if aspect in ["all", "progress"]:
+        Each branch returns only the fields relevant to that aspect, so
+        the LLM gets focused observations rather than a state dump.
+        """
+        output: dict = {}
+
+        if aspect == "progress":
             output["status"] = state.status.value
             output["iteration"] = f"{state.iteration_count}/{state.max_iterations}"
             output["has_profile"] = state.data_profile is not None
@@ -264,7 +276,7 @@ Start by understanding the current state, then decide what to do.
             output["n_sensitivity"] = len(state.sensitivity_results)
             output["is_approved"] = state.is_approved()
 
-        if aspect in ["all", "profile"] and state.data_profile:
+        elif aspect == "profile" and state.data_profile:
             output["profile"] = {
                 "n_samples": state.data_profile.n_samples,
                 "n_features": state.data_profile.n_features,
@@ -274,29 +286,37 @@ Start by understanding the current state, then decide what to do.
                 "has_instruments": bool(state.data_profile.potential_instruments),
             }
 
-        if aspect in ["all", "results"]:
+        elif aspect == "results":
             if state.treatment_effects:
+                # Cap at 8 (out of 12 possible methods) so a long run
+                # does not blow up the observation.
                 output["effects"] = [
                     {
                         "method": e.method,
                         "estimate": f"{e.estimate:.4f}",
                         "ci": f"[{e.ci_lower:.4f}, {e.ci_upper:.4f}]",
                     }
-                    for e in state.treatment_effects
+                    for e in state.treatment_effects[:8]
                 ]
+                if len(state.treatment_effects) > 8:
+                    output["effects_truncated"] = (
+                        f"{len(state.treatment_effects) - 8} more"
+                    )
             if state.sensitivity_results:
                 output["sensitivity"] = [
                     {"method": s.method, "robustness": f"{s.robustness_value:.2f}"}
-                    for s in state.sensitivity_results
+                    for s in state.sensitivity_results[:8]
                 ]
 
-        if aspect in ["all", "critique"]:
+        elif aspect == "critique":
             latest = state.get_latest_critique()
             if latest:
                 output["critique"] = {
                     "decision": latest.decision.value,
-                    "issues": latest.issues,
-                    "improvements": latest.improvements,
+                    "issues": latest.issues[:5],
+                    "improvements": latest.improvements[:5],
+                    "issues_total": len(latest.issues),
+                    "improvements_total": len(latest.improvements),
                 }
             else:
                 output["critique"] = "No critique yet"

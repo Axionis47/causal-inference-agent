@@ -16,6 +16,8 @@ from src.agents.base import (
 )
 from src.agents.orchestrator.common import (
     AGENT_STATUS_MAP,
+    summarize_dispatch_focus,
+    summarize_progress,
     validate_required_fields,
 )
 from src.logging_config.structured import get_logger
@@ -405,124 +407,47 @@ When making decisions, output your reasoning step-by-step, then specify which ag
         return f"{repr(head)[:-1]}, ... (+{len(items) - max_show} more)]"
 
     def _build_context_prompt(self, state: AnalysisState) -> str:
-        """Build the initial context prompt for the LLM."""
-        prompt = f"""Analyze the current state and decide the next action for this causal inference job.
+        """Build a lean context prompt for the orchestrator's next decision.
 
-Job ID: {state.job_id}
-Dataset: {state.dataset_info.name or state.dataset_info.url}
-Current Status: {state.status.value}
-Iteration: {state.iteration_count} / {state.max_iterations}
+        Strategy: emit a one-line progress summary plus a directed
+        "what to focus on next" line, both produced by shared helpers
+        in common/context.py. Structured flags and counts arrive
+        separately via _get_state_context as the LLM call's `context`
+        payload, so the prompt itself does not need to repeat them.
 
-"""
-        # Add metadata status
-        if state.raw_metadata:
-            quality = state.raw_metadata.get("metadata_quality", "unknown")
-            prompt += f"\nDataset Metadata: Available (quality: {quality})"
-            if not state.domain_knowledge:
-                prompt += "\n→ Domain knowledge NOT extracted yet. Consider dispatching domain_knowledge agent."
-            prompt += "\n"
-        else:
-            prompt += "\nDataset Metadata: Not available\n"
+        This bounds the prompt size at roughly the same token budget
+        regardless of how much state has accumulated; full detail is
+        recoverable by dispatching specialists, which is the
+        orchestrator's job anyway.
+        """
+        prompt = (
+            f"Decide the next action for job {state.job_id}.\n"
+            f"Dataset: {state.dataset_info.name or state.dataset_info.url}\n"
+            f"Status: {state.status.value} "
+            f"(iter {state.iteration_count}/{state.max_iterations})\n"
+            f"Progress: {summarize_progress(state)}\n"
+            f"\nFocus: {summarize_dispatch_focus(state)}\n"
+        )
 
-        # Add domain knowledge if available
-        if state.domain_knowledge:
-            dk = state.domain_knowledge
-            prompt += "\nDomain Knowledge (extracted from metadata):\n"
+        # Critique-iterate is the one place where issue text is the
+        # decision driver: the LLM picks which specialist to re-dispatch
+        # based on which issues need addressing. Show the top three
+        # inline so the orchestrator does not need an extra round trip.
+        # All other detail is reachable by dispatching the specialist
+        # that owns it.
+        latest = state.get_latest_critique()
+        if latest is not None and latest.decision == CritiqueDecision.ITERATE:
+            prompt += "\nCritique issues to address:\n"
+            for issue in latest.issues[:3]:
+                prompt += f"- {issue[:160]}\n"
+            if len(latest.issues) > 3:
+                prompt += f"- ... (+{len(latest.issues) - 3} more)\n"
 
-            # Show hypotheses
-            hypotheses = dk.get("hypotheses", [])
-            if hypotheses:
-                prompt += "- Key hypotheses:\n"
-                for h in hypotheses[:3]:
-                    prompt += f"  * {h.get('claim', '')} (confidence: {h.get('confidence', 'unknown')})\n"
-
-            # Show temporal ordering
-            if dk.get("temporal_understanding"):
-                prompt += f"- Temporal ordering: {dk['temporal_understanding']}\n"
-
-            # Show immutable vars
-            if dk.get("immutable_vars"):
-                prompt += f"- Immutable variables: {dk['immutable_vars']}\n"
-
-            # Show uncertainties
-            if dk.get("uncertainties"):
-                prompt += f"- Uncertainties: {len(dk['uncertainties'])} flagged\n"
-
-            prompt += "\n"
-
-        # Add data profile if available. Lists are truncated to keep the
-        # prompt bounded; the LLM dispatches to specialists for full detail.
-        if state.data_profile:
-            prompt += f"""
-Dataset Profile:
-- Samples: {state.data_profile.n_samples}
-- Features: {state.data_profile.n_features}
-- Treatment candidates: {self._truncate_list(state.data_profile.treatment_candidates)}
-- Outcome candidates: {self._truncate_list(state.data_profile.outcome_candidates)}
-- Has time dimension: {state.data_profile.has_time_dimension}
-- Potential instruments: {self._truncate_list(state.data_profile.potential_instruments)}
-- Discontinuity candidates: {self._truncate_list(state.data_profile.discontinuity_candidates)}
-
-"""
-        else:
-            prompt += "\nDataset has NOT been profiled yet. This should be the first step.\n"
-
-        # Add EDA results if available. Issue and warning lists are
-        # truncated; the LLM has the counts to know whether to investigate.
-        if state.eda_result:
-            prompt += f"""
-EDA Results:
-- Data Quality Score: {state.eda_result.data_quality_score:.1f}/100
-- Quality Issues ({len(state.eda_result.data_quality_issues)}): {self._truncate_list(state.eda_result.data_quality_issues)}
-- High Correlations: {len(state.eda_result.high_correlations)} pairs found
-- Multicollinearity Warnings ({len(state.eda_result.multicollinearity_warnings)}): {self._truncate_list(state.eda_result.multicollinearity_warnings)}
-- Covariate Balance: {state.eda_result.balance_summary}
-- Columns with Outliers: {len(state.eda_result.outliers)}
-
-"""
-        elif state.data_profile:
-            prompt += "\nEDA has NOT been performed yet. Dispatch to eda_agent after profiling.\n"
-
-        # Add treatment effect results if available. Cap at 8 because the
-        # estimator can produce up to 12 methods; first 8 covers the common
-        # case (OLS, IPW, AIPW, PSM, S/T/X, DML) and the LLM doesn't need
-        # the full grid for the dispatch decision.
-        if state.treatment_effects:
-            prompt += f"\nTreatment Effect Results ({len(state.treatment_effects)} total):\n"
-            for effect in state.treatment_effects[:8]:
-                prompt += f"- {effect.method} ({effect.estimand}): {effect.estimate:.4f} "
-                prompt += f"[{effect.ci_lower:.4f}, {effect.ci_upper:.4f}]\n"
-            if len(state.treatment_effects) > 8:
-                prompt += f"- ... (+{len(state.treatment_effects) - 8} more methods)\n"
-
-        # Add critique feedback if available. Issues and improvements are
-        # capped: the LLM addresses them by re-dispatching the relevant
-        # specialist, not by reading every individual line of feedback.
-        if state.critique_history:
-            latest = state.get_latest_critique()
-            if latest:
-                issues_capped = latest.issues[:5]
-                improvements_capped = latest.improvements[:5]
-                prompt += f"""
-Latest Critique:
-- Decision: {latest.decision.value}
-- Issues ({len(latest.issues)}): {', '.join(issues_capped)}{f" (+{len(latest.issues) - 5} more)" if len(latest.issues) > 5 else ""}
-- Improvements needed ({len(latest.improvements)}): {', '.join(improvements_capped)}{f" (+{len(latest.improvements) - 5} more)" if len(latest.improvements) > 5 else ""}
-
-"""
-                if latest.decision == CritiqueDecision.ITERATE:
-                    prompt += "You MUST address the critique feedback before proceeding.\n"
-                elif latest.decision == CritiqueDecision.APPROVE:
-                    prompt += "Analysis has been APPROVED. Proceed to notebook generation.\n"
-
-        prompt += """
-Based on the above state, reason about what should be done next and call the appropriate tool.
-Think step by step:
-1. What information do we have?
-2. What information do we need?
-3. Which agent should be dispatched?
-4. What specific task should they perform?
-"""
+        prompt += (
+            "\nCall dispatch_to_agent, dispatch_parallel_agents, "
+            "request_critique, or finalize_analysis. Briefly state your "
+            "reasoning before the tool call.\n"
+        )
         return prompt
 
     def _build_continuation_prompt(self, state: AnalysisState) -> str:

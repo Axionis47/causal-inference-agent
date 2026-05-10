@@ -93,10 +93,19 @@ class TestPromptBounded:
         assert "f" not in truncated
 
     def test_more_marker_present_when_capped(self):
+        """Critique issues are the only list inlined in the lean prompt; cap at 3.
+
+        After the lean-context refactor, the orchestrator no longer
+        inlines treatment effects, EDA issues, or improvements. The one
+        remaining inlined list is critique issues (when decision is
+        ITERATE), capped at 3. Everything else is summarized via
+        progress / focus or recoverable by dispatching a specialist.
+        """
         orchestrator = StandardOrchestrator()
         state = _state_with_long_lists(20)
         prompt = orchestrator._build_context_prompt(state)
-        # Treatment effects: cap is 8. With 20 effects, the marker fires.
-        assert "+12 more methods" in prompt
-        # Critique issues / improvements: cap is 5. With 20 each, marker fires.
-        assert "+15 more" in prompt
+        # Critique issues: capped at 3, so "+17 more" should appear.
+        assert "+17 more" in prompt
+        # Treatment effects and other lists no longer dump; their counts
+        # appear via the progress summary instead.
+        assert "20 effects" in prompt

@@ -21,6 +21,12 @@ Anything orchestrator-specific (the system prompt, the dispatch loop,
 the tool definitions) lives in the orchestrator's own package, not here.
 """
 
+from .context import summarize_dispatch_focus, summarize_progress
 from .dispatch import AGENT_STATUS_MAP, validate_required_fields
 
-__all__ = ["AGENT_STATUS_MAP", "validate_required_fields"]
+__all__ = [
+    "AGENT_STATUS_MAP",
+    "summarize_dispatch_focus",
+    "summarize_progress",
+    "validate_required_fields",
+]
