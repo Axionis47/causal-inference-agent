@@ -378,6 +378,19 @@ Use the available tools to gather evidence before finalizing the profile."""
             state.data_profile = self._profile
             state.dataset_info.n_samples = self._profile.n_samples
             state.dataset_info.n_features = self._profile.n_features
+            state.push_sse_event(
+                "data_profile_ready",
+                {
+                    "n_samples": self._profile.n_samples,
+                    "n_features": self._profile.n_features,
+                    "treatment_candidates": list(self._profile.treatment_candidates),
+                    "outcome_candidates": list(self._profile.outcome_candidates),
+                    "potential_confounders": list(self._profile.potential_confounders),
+                    "potential_instruments": list(self._profile.potential_instruments),
+                    "feature_types": dict(self._profile.feature_types),
+                    "missing_values": dict(self._profile.missing_values),
+                },
+            )
 
             # Build treatment encoding from profiler's LLM decision
             enc_strategy = self._final_result.get("treatment_encoding_strategy")
@@ -483,6 +496,7 @@ Use the available tools to gather evidence before finalizing the profile."""
         This enables agents to understand WHAT variables represent (e.g., 'black'
         is a race indicator, not a treatment) beyond just statistical properties.
         """
+        state.push_sse_event("dataset_metadata_started", {})
         try:
             from src.kaggle.metadata_extractor import KaggleMetadataExtractor
 
@@ -511,10 +525,30 @@ Use the available tools to gather evidence before finalizing the profile."""
                     has_column_descs=bool(metadata.get("column_descriptions")),
                     domain=state.dataset_info.kaggle_domain,
                 )
+                state.push_sse_event(
+                    "dataset_metadata_ready",
+                    {
+                        "description": state.dataset_info.kaggle_description,
+                        "column_descriptions": state.dataset_info.kaggle_column_descriptions,
+                        "tags": state.dataset_info.kaggle_tags,
+                        "domain": state.dataset_info.kaggle_domain,
+                        "metadata_quality": state.dataset_info.metadata_quality,
+                    },
+                )
+            else:
+                state.push_sse_event(
+                    "dataset_metadata_failed",
+                    {"error": metadata.get("error", "extraction_unsuccessful")},
+                )
         except ImportError:
             self.logger.warning("kaggle_metadata_extractor_not_available")
+            state.push_sse_event(
+                "dataset_metadata_failed",
+                {"error": "kaggle_metadata_extractor_not_available"},
+            )
         except Exception as e:
             self.logger.warning("kaggle_metadata_fetch_failed", error=str(e))
+            state.push_sse_event("dataset_metadata_failed", {"error": str(e)[:200]})
 
     def _infer_domain(self, metadata: dict) -> str | None:
         """Infer domain from metadata tags for context-aware analysis."""
@@ -1036,7 +1070,7 @@ Use the available tools to gather evidence before finalizing the profile."""
 
         # If it's a Kaggle URL, use Kaggle API
         if "kaggle.com" in dataset_info.url:
-            return await self._load_from_kaggle(dataset_info.url)
+            return await self._load_from_kaggle(state, dataset_info.url)
 
         # Try loading directly as URL
         try:
@@ -1045,7 +1079,7 @@ Use the available tools to gather evidence before finalizing the profile."""
             self.logger.error("url_load_failed", error=str(e))
             return None
 
-    async def _load_from_kaggle(self, url: str) -> pd.DataFrame | None:
+    async def _load_from_kaggle(self, state: AnalysisState, url: str) -> pd.DataFrame | None:
         """Load dataset from Kaggle."""
         import json
         import os
@@ -1095,7 +1129,16 @@ Use the available tools to gather evidence before finalizing the profile."""
                 dataset_id = f"{owner}/{dataset_name}"
             else:
                 self.logger.error("invalid_kaggle_url", url=url)
+                self._load_error = f"Invalid Kaggle URL: {url}"
+                state.push_sse_event(
+                    "dataset_load_failed", {"error": self._load_error}
+                )
                 return None
+
+            state.push_sse_event(
+                "dataset_download_started",
+                {"url": url, "dataset_id": dataset_id},
+            )
 
             with tempfile.TemporaryDirectory() as tmpdir:
                 api.dataset_download_files(dataset_id, path=tmpdir, unzip=True)
@@ -1103,13 +1146,27 @@ Use the available tools to gather evidence before finalizing the profile."""
                 csv_files = list(Path(tmpdir).glob("*.csv"))
                 if csv_files:
                     largest = max(csv_files, key=lambda p: p.stat().st_size)
-                    return pd.read_csv(largest)
+                    df = pd.read_csv(largest)
+                    state.push_sse_event(
+                        "dataset_download_complete",
+                        {"rows": int(df.shape[0]), "columns": int(df.shape[1])},
+                    )
+                    return df
 
                 parquet_files = list(Path(tmpdir).glob("*.parquet"))
                 if parquet_files:
-                    return pd.read_parquet(parquet_files[0])
+                    df = pd.read_parquet(parquet_files[0])
+                    state.push_sse_event(
+                        "dataset_download_complete",
+                        {"rows": int(df.shape[0]), "columns": int(df.shape[1])},
+                    )
+                    return df
 
                 self.logger.error("no_data_files_found", path=tmpdir)
+                self._load_error = "No CSV or parquet files found in dataset archive."
+                state.push_sse_event(
+                    "dataset_load_failed", {"error": self._load_error}
+                )
                 return None
 
         except Exception as e:
@@ -1126,6 +1183,7 @@ Use the available tools to gather evidence before finalizing the profile."""
                 self._load_error = f"Failed to load dataset from Kaggle: {error_str[:200]}"
 
             self.logger.error("kaggle_load_failed", error=self._load_error)
+            state.push_sse_event("dataset_load_failed", {"error": self._load_error})
             return None
 
         finally:
