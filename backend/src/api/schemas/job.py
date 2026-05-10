@@ -207,7 +207,9 @@ class AgentTraceResponse(BaseModel):
     agent_name: str
     timestamp: datetime
     action: str
-    reasoning: str
+    # Internal AgentTrace.reasoning is `str | None`; mirroring it here so a
+    # single `reasoning=None` entry doesn't 500 the entire traces endpoint.
+    reasoning: str | None = ""
     duration_ms: int
     inputs: dict[str, Any] = Field(default_factory=dict)
     outputs: dict[str, Any] = Field(default_factory=dict)
