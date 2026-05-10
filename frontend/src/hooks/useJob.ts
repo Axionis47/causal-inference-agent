@@ -7,8 +7,18 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { getJob, getStreamUrl, JobDetail, AgentEvent } from '../services/api';
+import {
+  AgentEvent,
+  DataProfileSummary,
+  DatasetEventType,
+  FileEntry,
+  JobDetail,
+  KaggleMeta,
+  getJob,
+  getStreamUrl,
+} from '../services/api';
 import { DEFAULT_POLL_INTERVAL_MS, MAX_AGENT_EVENTS } from '../config/constants';
+import { useJobStore } from '../store/jobStore';
 
 interface UseJobOptions {
   /** Whether to auto-subscribe for updates (default: true) */
@@ -32,6 +42,79 @@ export function useJob(jobId: string | null, options: UseJobOptions = {}) {
   const addAgentEvent = useCallback((event: AgentEvent) => {
     setAgentEvents((prev) => [...prev.slice(-(MAX_AGENT_EVENTS - 1)), event]);
   }, []);
+
+  const patchDownload = useJobStore((s) => s.patchDownload);
+  const patchKaggleMeta = useJobStore((s) => s.patchKaggleMeta);
+  const patchProfile = useJobStore((s) => s.patchProfile);
+
+  // Dataset events ride the same 'agent_event' SSE channel; route by
+  // event_type so each block lights up independently as data arrives.
+  const dispatchDatasetEvent = useCallback(
+    (eventType: DatasetEventType, data: Record<string, unknown>) => {
+      switch (eventType) {
+        case 'dataset_metadata_started':
+          patchKaggleMeta({ status: 'pending' });
+          return;
+        case 'dataset_metadata_ready':
+          patchKaggleMeta({
+            status: 'loaded',
+            error: null,
+            data: {
+              description: (data.description as string | null) ?? null,
+              column_descriptions:
+                (data.column_descriptions as Record<string, string>) ?? {},
+              tags: (data.tags as string[]) ?? [],
+              domain: (data.domain as string | null) ?? null,
+              metadata_quality: (data.metadata_quality as string) ?? 'unknown',
+            } satisfies KaggleMeta,
+          });
+          return;
+        case 'dataset_metadata_failed':
+          patchKaggleMeta({
+            status: 'error',
+            error: (data.error as string) ?? 'metadata fetch failed',
+          });
+          return;
+        case 'dataset_download_started':
+          patchDownload({
+            status: 'downloading',
+            url: (data.url as string) ?? null,
+            error: null,
+          });
+          return;
+        case 'dataset_download_complete':
+          patchDownload({
+            status: 'downloaded',
+            files: (data.files as FileEntry[]) ?? [],
+            error: null,
+          });
+          return;
+        case 'dataset_load_failed':
+          patchDownload({
+            status: 'failed',
+            error: (data.error as string) ?? 'dataset load failed',
+          });
+          return;
+        case 'data_profile_ready':
+          patchProfile({
+            status: 'loaded',
+            error: null,
+            data: data as unknown as DataProfileSummary,
+          });
+          return;
+      }
+    },
+    [patchDownload, patchKaggleMeta, patchProfile]
+  );
+
+  const isDatasetEventType = (t: string): t is DatasetEventType =>
+    t === 'dataset_metadata_started' ||
+    t === 'dataset_metadata_ready' ||
+    t === 'dataset_metadata_failed' ||
+    t === 'dataset_download_started' ||
+    t === 'dataset_download_complete' ||
+    t === 'dataset_load_failed' ||
+    t === 'data_profile_ready';
 
   // Close SSE on unmount or when jobId changes
   useEffect(() => {
@@ -74,8 +157,17 @@ export function useJob(jobId: string | null, options: UseJobOptions = {}) {
 
       es.addEventListener('agent_event', (event: MessageEvent) => {
         try {
-          const parsed = JSON.parse(event.data) as AgentEvent;
-          addAgentEvent(parsed);
+          const parsed = JSON.parse(event.data) as {
+            event_type: string;
+            data: Record<string, unknown>;
+            timestamp: string;
+            agent_name?: string;
+          };
+          if (isDatasetEventType(parsed.event_type)) {
+            dispatchDatasetEvent(parsed.event_type, parsed.data);
+            return;
+          }
+          addAgentEvent(parsed as AgentEvent);
         } catch {
           // Ignore parse errors
         }
@@ -104,7 +196,7 @@ export function useJob(jobId: string | null, options: UseJobOptions = {}) {
         es.close();
       }
     };
-  }, [jobId, autoPolling, queryClient, addAgentEvent]);
+  }, [jobId, autoPolling, queryClient, addAgentEvent, dispatchDatasetEvent]);
 
   // React Query for initial fetch + fallback polling
   const query = useQuery({

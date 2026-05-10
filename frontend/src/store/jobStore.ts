@@ -18,6 +18,10 @@ import {
   JobDetail,
   AnalysisResults,
   AgentTrace,
+  DatasetView,
+  DownloadBlock,
+  KaggleMetaBlock,
+  ProfileBlock,
 } from '../services/api';
 
 interface JobState {
@@ -28,6 +32,11 @@ interface JobState {
   // Job results and traces
   results: AnalysisResults | null;
   traces: AgentTrace[];
+
+  // Dataset view (download / kaggle metadata / profile) for the live
+  // Data panel. null until first hydrate from /jobs/{id}/dataset; SSE
+  // events then patch each block independently.
+  datasetView: DatasetView | null;
 
   // Jobs list
   jobs: Job[];
@@ -51,6 +60,12 @@ interface JobActions {
   fetchResults: (jobId: string) => Promise<void>;
   fetchTraces: (jobId: string) => Promise<void>;
 
+  // Dataset view — initial hydrate + per-block patching from SSE.
+  setDatasetView: (view: DatasetView | null) => void;
+  patchDownload: (partial: Partial<DownloadBlock>) => void;
+  patchKaggleMeta: (partial: Partial<KaggleMetaBlock>) => void;
+  patchProfile: (partial: Partial<ProfileBlock>) => void;
+
   // State management
   setCurrentJob: (job: JobDetail | null) => void;
   clearError: () => void;
@@ -62,12 +77,19 @@ const initialState: JobState = {
   currentJobId: null,
   results: null,
   traces: [],
+  datasetView: null,
   jobs: [],
   totalJobs: 0,
   isLoading: false,
   isCreating: false,
   error: null,
 };
+
+const emptyDatasetView = (): DatasetView => ({
+  download: { status: 'pending', url: null, files: [], error: null },
+  kaggle_meta: { status: 'pending', data: null, error: null },
+  profile: { status: 'pending', data: null, error: null },
+});
 
 export const useJobStore = create<JobState & JobActions>()(
   devtools(
@@ -142,7 +164,53 @@ export const useJobStore = create<JobState & JobActions>()(
         },
 
         setCurrentJob: (job: JobDetail | null) => {
-          set({ currentJob: job, currentJobId: job?.id || null });
+          // Switching jobs invalidates the previous datasetView so the
+          // panel doesn't briefly show stale download/profile data.
+          set((state) => ({
+            currentJob: job,
+            currentJobId: job?.id || null,
+            datasetView: job?.id === state.currentJobId ? state.datasetView : null,
+          }));
+        },
+
+        setDatasetView: (view: DatasetView | null) => {
+          set({ datasetView: view });
+        },
+
+        patchDownload: (partial: Partial<DownloadBlock>) => {
+          set((state) => {
+            const current = state.datasetView ?? emptyDatasetView();
+            return {
+              datasetView: {
+                ...current,
+                download: { ...current.download, ...partial },
+              },
+            };
+          });
+        },
+
+        patchKaggleMeta: (partial: Partial<KaggleMetaBlock>) => {
+          set((state) => {
+            const current = state.datasetView ?? emptyDatasetView();
+            return {
+              datasetView: {
+                ...current,
+                kaggle_meta: { ...current.kaggle_meta, ...partial },
+              },
+            };
+          });
+        },
+
+        patchProfile: (partial: Partial<ProfileBlock>) => {
+          set((state) => {
+            const current = state.datasetView ?? emptyDatasetView();
+            return {
+              datasetView: {
+                ...current,
+                profile: { ...current.profile, ...partial },
+              },
+            };
+          });
         },
 
         clearError: () => {
