@@ -13,7 +13,23 @@ from src.agents.specialists.notebook.sections._skip import render_skipped_cell
 from src.agents.specialists.notebook.sections.causal_structure import (
     render_causal_structure,
 )
+from src.agents.specialists.notebook.sections.confounder_analysis import (
+    render_confounder_analysis,
+)
+from src.agents.specialists.notebook.sections.critique import render_critique_section
+from src.agents.specialists.notebook.sections.data_profile import (
+    render_data_profile_report,
+)
+from src.agents.specialists.notebook.sections.data_repairs import render_data_repairs
+from src.agents.specialists.notebook.sections.decisions import render_decisions
+from src.agents.specialists.notebook.sections.domain_knowledge import (
+    render_domain_knowledge,
+)
 from src.agents.specialists.notebook.sections.eda import render_eda_report
+from src.agents.specialists.notebook.sections.ps_diagnostics import (
+    render_ps_diagnostics,
+)
+from src.agents.specialists.notebook.sections.sensitivity import render_sensitivity
 from src.agents.specialists.notebook.sections.treatment_effects import (
     render_treatment_effects,
 )
@@ -97,3 +113,44 @@ class TestCausalStructureSkippedWhenMissing:
         cells = render_causal_structure(_empty_state())
         assert len(cells) == 1
         assert _is_skipped_cell(cells[0])
+
+
+class TestEverySectionEmitsSkipPlaceholderOnEmptyState:
+    """Every renderer must produce a skip placeholder on an empty state.
+
+    Centralising the skip logic in the renderers (rather than at the call
+    site in agent.py) means the notebook outline is stable regardless of
+    which agents ran. This test enforces that contract for each renderer.
+    """
+
+    def _assert_single_skip(self, cells, label: str) -> None:
+        assert len(cells) == 1, f"{label}: expected 1 cell, got {len(cells)}"
+        assert _is_skipped_cell(cells[0]), f"{label}: cell is not a skip placeholder"
+
+    def test_data_profile(self):
+        self._assert_single_skip(render_data_profile_report(_empty_state()), "data_profile")
+
+    def test_data_repairs(self):
+        self._assert_single_skip(render_data_repairs(_empty_state()), "data_repairs")
+
+    def test_confounder_analysis(self):
+        self._assert_single_skip(
+            render_confounder_analysis(_empty_state()), "confounder_analysis"
+        )
+
+    def test_ps_diagnostics(self):
+        self._assert_single_skip(render_ps_diagnostics(_empty_state()), "ps_diagnostics")
+
+    def test_sensitivity(self):
+        self._assert_single_skip(render_sensitivity(_empty_state()), "sensitivity")
+
+    def test_decisions(self):
+        self._assert_single_skip(render_decisions(_empty_state()), "decisions")
+
+    def test_critique(self):
+        self._assert_single_skip(render_critique_section(_empty_state()), "critique")
+
+    def test_domain_knowledge(self):
+        self._assert_single_skip(
+            render_domain_knowledge(_empty_state()), "domain_knowledge"
+        )

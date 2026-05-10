@@ -80,67 +80,33 @@ When generating narratives:
 
             cells: list = []
 
-            # 1. Title & Introduction (async — uses LLM)
+            # Every section renders unconditionally. Each renderer emits a
+            # `Section skipped` placeholder when its upstream stage produced
+            # nothing, so the notebook's outline is stable regardless of
+            # which agents ran. Centralising the skip logic in the renderers
+            # rather than the call site means a section header can never be
+            # silently dropped.
             cells.extend(await render_introduction(
                 state, llm=self.llm, system_prompt=self.SYSTEM_PROMPT
             ))
+            cells.extend(render_domain_knowledge(state))
 
-            # 2. Domain Knowledge (if agent ran)
-            if state.domain_knowledge:
-                cells.extend(render_domain_knowledge(state))
-
-            # 3. Setup & Imports (method-aware for correct dependencies)
             methods_used = [e.method for e in state.treatment_effects]
             cells.extend(render_setup_cells(
                 methods_used=methods_used,
                 has_dag=bool(state.proposed_dag),
             ))
-
-            # 4. Data Loading
             cells.extend(render_data_loading(state))
-
-            # 5. Data Profile (profiler agent findings)
-            if state.data_profile:
-                cells.extend(render_data_profile_report(state))
-
-            # 6. Data Repairs (data repair agent)
-            if state.data_repairs:
-                cells.extend(render_data_repairs(state))
-
-            # 7. EDA (EDA agent findings)
+            cells.extend(render_data_profile_report(state))
+            cells.extend(render_data_repairs(state))
             cells.extend(render_eda_report(state))
-
-            # 8. Causal Structure (discovery agent). The renderer itself
-            # emits a skipped-section placeholder if no DAG is available,
-            # so the section is always present in the notebook.
             cells.extend(render_causal_structure(state))
-
-            # 9. Confounder Analysis
-            if state.confounder_discovery or (
-                state.data_profile and state.data_profile.potential_confounders
-            ):
-                cells.extend(render_confounder_analysis(state))
-
-            # 10. PS Diagnostics (propensity score diagnostics agent)
-            if state.ps_diagnostics:
-                cells.extend(render_ps_diagnostics(state))
-
-            # 11. Treatment Effect Estimation (effect estimator)
+            cells.extend(render_confounder_analysis(state))
+            cells.extend(render_ps_diagnostics(state))
             cells.extend(render_treatment_effects(state))
-
-            # 12. Sensitivity Analysis (sensitivity analyst)
-            if state.sensitivity_results:
-                cells.extend(render_sensitivity(state))
-
-            # 13. Methodology Decisions (decision audit trail)
-            if hasattr(state, "decisions") and state.decisions:
-                cells.extend(render_decisions(state))
-
-            # 14. Analysis Quality & Critique
-            if state.critique_history:
-                cells.extend(render_critique_section(state))
-
-            # 15. Conclusions (async — uses LLM)
+            cells.extend(render_sensitivity(state))
+            cells.extend(render_decisions(state))
+            cells.extend(render_critique_section(state))
             cells.extend(await render_conclusions(
                 state, llm=self.llm, system_prompt=self.SYSTEM_PROMPT
             ))

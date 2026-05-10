@@ -11,6 +11,8 @@ from nbformat.v4 import new_code_cell, new_markdown_cell
 
 from src.agents.base import AnalysisState
 
+from ._skip import render_skipped_cell
+
 
 def _resolve_covariates_for_balance(state: AnalysisState) -> list[str]:
     """Get covariates for balance checking (same priority chain as treatment_effects)."""
@@ -46,6 +48,21 @@ def _resolve_covariates_for_balance(state: AnalysisState) -> list[str]:
 
 def render_confounder_analysis(state: AnalysisState) -> list:
     """Report confounder identification and add balance verification plot."""
+    has_discovery = bool(state.confounder_discovery)
+    has_profile_confounders = bool(
+        state.data_profile and state.data_profile.potential_confounders
+    )
+    if not has_discovery and not has_profile_confounders:
+        return render_skipped_cell(
+            "Confounder Analysis",
+            reason=(
+                "No confounders were identified. Neither the confounder "
+                "discovery agent nor the data profiler produced a candidate "
+                "list, so no balance assessment is shown."
+            ),
+            upstream_agent="confounder_discovery",
+        )
+
     cells = []
 
     md = "## Confounder Analysis\n\n"

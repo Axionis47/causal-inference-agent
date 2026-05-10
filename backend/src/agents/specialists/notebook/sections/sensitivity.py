@@ -5,10 +5,22 @@ from nbformat.v4 import new_code_cell, new_markdown_cell
 from src.agents.base import AnalysisState
 
 from ..helpers import deduplicate_sensitivity
+from ._skip import render_skipped_cell
 
 
 def render_sensitivity(state: AnalysisState) -> list:
     """Report sensitivity analysis results with executable verification code."""
+    if not state.sensitivity_results:
+        return render_skipped_cell(
+            "Sensitivity Analysis",
+            reason=(
+                "The Sensitivity Analyst did not run, so the robustness of "
+                "the estimated effect to unmeasured confounding has not "
+                "been quantified for this run."
+            ),
+            upstream_agent="sensitivity_analyst",
+        )
+
     cells = []
     sensitivity_results = deduplicate_sensitivity(state.sensitivity_results)
 

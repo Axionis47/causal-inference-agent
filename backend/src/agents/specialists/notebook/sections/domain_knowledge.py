@@ -4,9 +4,22 @@ from nbformat.v4 import new_markdown_cell
 
 from src.agents.base import AnalysisState
 
+from ._skip import render_skipped_cell
+
 
 def render_domain_knowledge(state: AnalysisState) -> list:
     """Report domain knowledge agent findings."""
+    if not state.domain_knowledge:
+        return render_skipped_cell(
+            "Domain Knowledge & Causal Framework",
+            reason=(
+                "The Domain Knowledge agent did not produce a result for "
+                "this run. Causal hypotheses, temporal ordering, and "
+                "uncertainty notes were not extracted."
+            ),
+            upstream_agent="domain_knowledge",
+        )
+
     cells = []
     dk = state.domain_knowledge
 

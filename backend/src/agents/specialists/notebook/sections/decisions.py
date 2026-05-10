@@ -4,11 +4,20 @@ from nbformat.v4 import new_markdown_cell
 
 from src.agents.base import AnalysisState
 
+from ._skip import render_skipped_cell
+
 
 def render_decisions(state: AnalysisState) -> list:
     """Render methodology decisions section."""
     if not hasattr(state, "decisions") or not state.decisions:
-        return []
+        return render_skipped_cell(
+            "Methodology Decisions",
+            reason=(
+                "No agent recorded a methodology decision for this run. "
+                "The decision audit trail is empty."
+            ),
+            upstream_agent=None,
+        )
 
     cells = []
 

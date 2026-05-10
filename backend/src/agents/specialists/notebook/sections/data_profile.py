@@ -4,13 +4,23 @@ from nbformat.v4 import new_markdown_cell
 
 from src.agents.base import AnalysisState
 
+from ._skip import render_skipped_cell
+
 
 def render_data_profile_report(state: AnalysisState) -> list:
     """Report data profiler agent findings."""
     cells = []
     profile = state.data_profile
     if not profile:
-        return cells
+        return render_skipped_cell(
+            "Data Profile",
+            reason=(
+                "The Data Profiler did not run for this job, so feature "
+                "types, missingness, and the candidate variable roles are "
+                "not available."
+            ),
+            upstream_agent="data_profiler",
+        )
 
     md = "## Data Profile\n\n"
     md += "*Findings from the Data Profiler agent.*\n\n"

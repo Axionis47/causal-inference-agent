@@ -4,9 +4,22 @@ from nbformat.v4 import new_markdown_cell
 
 from src.agents.base import AnalysisState
 
+from ._skip import render_skipped_cell
+
 
 def render_critique_section(state: AnalysisState) -> list:
     """Report critique agent findings."""
+    if not state.critique_history:
+        return render_skipped_cell(
+            "Analysis Quality & Critique",
+            reason=(
+                "The Critique agent did not run, so the analysis was not "
+                "audited for quality issues. Treat the rest of the report "
+                "with corresponding caution."
+            ),
+            upstream_agent="critique_agent",
+        )
+
     cells = []
 
     md = "## Analysis Quality & Critique\n\n"

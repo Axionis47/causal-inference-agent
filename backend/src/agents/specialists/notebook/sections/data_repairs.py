@@ -8,6 +8,8 @@ from nbformat.v4 import new_code_cell, new_markdown_cell
 
 from src.agents.base import AnalysisState
 
+from ._skip import render_skipped_cell
+
 
 def _repair_code_cell(
     repair: dict,
@@ -135,7 +137,15 @@ def render_data_repairs(state: AnalysisState) -> list:
     cells = []
     repairs = state.data_repairs
     if not repairs:
-        return cells
+        return render_skipped_cell(
+            "Data Preprocessing & Repairs",
+            reason=(
+                "No data repairs were applied for this run. The Data Repair "
+                "agent either did not run or determined that the dataset "
+                "needed no preprocessing."
+            ),
+            upstream_agent="data_repair",
+        )
 
     # ── Markdown summary (existing) ────────────────────────────
     md = "## Data Preprocessing & Repairs\n\n"

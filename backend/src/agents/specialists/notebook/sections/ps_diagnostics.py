@@ -4,13 +4,23 @@ from nbformat.v4 import new_code_cell, new_markdown_cell
 
 from src.agents.base import AnalysisState
 
+from ._skip import render_skipped_cell
+
 
 def render_ps_diagnostics(state: AnalysisState) -> list:
     """Report propensity score diagnostics agent findings."""
     cells = []
     ps = state.ps_diagnostics
     if not ps:
-        return cells
+        return render_skipped_cell(
+            "Propensity Score Diagnostics",
+            reason=(
+                "The PS Diagnostics agent did not run, so there is no "
+                "overlap or model-quality assessment for propensity-score-"
+                "based estimation."
+            ),
+            upstream_agent="ps_diagnostics",
+        )
 
     md = "## Propensity Score Diagnostics\n\n"
     md += "*Assessment from the PS Diagnostics agent — validates whether "
