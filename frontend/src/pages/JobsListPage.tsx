@@ -83,19 +83,19 @@ function statusDisplay(status: string) {
   switch (status) {
     case 'completed':
       return {
-        indicator: <span className="mr-1.5 text-green-600" aria-hidden="true">&check;</span>,
+        indicator: <span className="mr-1.5 text-green-600" aria-hidden="true">✓</span>,
         label: 'done',
         badgeClass: 'bg-green-50 text-green-700 border border-green-300',
       };
     case 'failed':
       return {
-        indicator: <span className="mr-1.5 text-red-600" aria-hidden="true">&times;</span>,
+        indicator: <span className="mr-1.5 text-red-600" aria-hidden="true">✕</span>,
         label: 'failed',
         badgeClass: 'bg-red-50 text-red-700 border border-red-300',
       };
     case 'cancelled':
       return {
-        indicator: <span className="mr-1.5 text-gray-500" aria-hidden="true">&mdash;</span>,
+        indicator: <span className="mr-1.5 text-gray-500" aria-hidden="true">—</span>,
         label: 'cancelled',
         badgeClass: 'bg-gray-50 text-gray-600 border border-gray-300',
       };
