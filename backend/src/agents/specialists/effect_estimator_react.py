@@ -57,17 +57,27 @@ You have tools to:
 4. run_method - Execute a causal inference method
 5. compare_results - Compare estimates across methods
 
-WORKFLOW:
+WORKFLOW (you have a 15-step budget — finalize before it runs out):
 1. First, ALWAYS inspect the data to understand what you're working with
 2. Analyze the treatment variable to understand its distribution
 3. Check assumptions for candidate methods
 4. Run 2-4 appropriate methods based on data characteristics
 5. Compare results and identify discrepancies
-6. Finish with a synthesis of findings
+6. Call the `finish` tool with a one-paragraph synthesis
+
+WHEN TO FINISH:
+- As soon as you have 2 successful run_method calls with valid estimates,
+  prepare to finish. One more compare_results call is fine; do not keep
+  retrying methods past that point.
+- If the same method has failed twice with the same error, stop retrying it
+  and switch to a different method or finish with what you have.
+- By step 12, regardless of how many methods succeeded, call `finish`.
+  An auto-finalize fallback will run an OLS baseline if you produced
+  nothing, but a finish call with your actual reasoning is always better.
 
 CRITICAL RULES:
 - NEVER run methods blindly - always check assumptions first
-- If a method fails, try an alternative approach
+- If a method fails, try an alternative approach (different method, not the same one)
 - Run multiple methods for robustness
 - Explain your reasoning at each step
 - Be skeptical of estimates with very large standard errors
@@ -567,17 +577,146 @@ Then analyze the treatment variable, check assumptions, and run estimation metho
         )
 
     async def execute(self, state: AnalysisState) -> AnalysisState:
-        """Execute the ReAct estimation loop."""
-        # Status set by orchestrator
+        """Execute the ReAct estimation loop with an auto-finalize fallback.
+
+        The 15-step ReAct budget is not always enough — on Lalonde the model
+        burned all 15 calling run_method on inapplicable methods (PSM/IPW
+        without overlap, IV without instruments) and finished with zero
+        valid estimates. The imperative variant handles this via
+        _auto_finalize() (effect_estimation/agent.py:876–921); we mirror
+        the contract here so an exhausted react loop still produces a
+        baseline OLS estimate that downstream stages can ground on.
+        """
         self._results = []  # Reset results
 
         # Run the ReAct loop
         state = await super().execute(state)
 
+        # Fallback: if the loop produced nothing, run a guaranteed-applicable
+        # OLS baseline using the same engine the LLM would have called. This
+        # prevents the critique from REJECT-ing the analysis purely because
+        # the estimator couldn't pick a working method within its budget.
+        if not state.treatment_effects:
+            self._auto_finalize_ols(state)
+
         self.logger.info(
             "estimation_complete",
             n_results=len(self._results),
             methods=[r.method for r in self._results],
+            auto_finalized=not self._results
+            or all(r.method.lower().startswith("ols") for r in self._results),
         )
 
         return state
+
+    def _auto_finalize_ols(self, state: AnalysisState) -> None:
+        """Run an OLS baseline when the loop ended with no valid estimates.
+
+        Resolves covariates from the same priority chain the imperative
+        estimator uses (DAG adjustment set → confounder discovery →
+        data profile potential confounders) and delegates to the
+        EffectEstimatorEngine so encoding / sample-size gating runs
+        identically to a normal run_method call. Updates self._results
+        and state.treatment_effects in place; logs (and swallows) any
+        exception so the surrounding orchestrator loop can continue.
+        """
+        if self._df is None and state.dataframe_path:
+            try:
+                self._df = pd.read_parquet(state.dataframe_path)
+            except Exception as exc:
+                self.logger.warning("auto_finalize_load_failed", error=str(exc))
+                return
+
+        if self._df is None:
+            return
+
+        treatment = state.treatment_variable
+        outcome = state.outcome_variable
+        if not treatment or not outcome:
+            return
+
+        covariates = self._resolve_baseline_covariates(state)
+
+        try:
+            from src.causal.estimators.effect_estimator import EffectEstimatorEngine
+
+            engine = EffectEstimatorEngine(confidence_level=0.95)
+            ols_result = engine.run_method_safe(
+                method="ols",
+                df=self._df,
+                treatment_col=treatment,
+                outcome_col=outcome,
+                covariates=covariates,
+                current_state=state,
+            )
+        except Exception as exc:
+            self.logger.warning("auto_finalize_ols_raised", error=str(exc))
+            state.push_decision(
+                agent="effect_estimator_react",
+                decision_type="auto_finalize_failed",
+                choice="ols",
+                reason=f"Fallback OLS raised: {exc}",
+            )
+            return
+
+        if ols_result is None:
+            self.logger.warning("auto_finalize_ols_no_result")
+            state.push_decision(
+                agent="effect_estimator_react",
+                decision_type="auto_finalize_failed",
+                choice="ols",
+                reason="Fallback OLS returned no result (insufficient data).",
+            )
+            return
+
+        ols_result.treatment_variable = treatment
+        ols_result.outcome_variable = outcome
+        self._results.append(ols_result)
+        state.treatment_effects.append(ols_result)
+        state.push_decision(
+            agent="effect_estimator_react",
+            decision_type="auto_finalize_baseline",
+            choice="ols",
+            reason=(
+                f"ReAct loop exited with no valid estimates after {self.MAX_STEPS} steps; "
+                f"emitted OLS baseline with {len(covariates)} covariate(s)."
+            ),
+        )
+
+    def _resolve_baseline_covariates(self, state: AnalysisState) -> list[str]:
+        """Same priority chain as the imperative estimator, simplified.
+
+        Skips the one-hot-encoding shortcut: the engine's run_method_safe
+        already filters to numeric columns, and at this point the pipeline
+        has already done any pre-processing it was going to do.
+        """
+        if self._df is None:
+            return []
+        treatment = state.treatment_variable
+        outcome = state.outcome_variable
+
+        def _filter(cols: list[str]) -> list[str]:
+            return [
+                c for c in cols
+                if c in self._df.columns and c != treatment and c != outcome
+            ]
+
+        if state.proposed_dag and state.proposed_dag.adjustment_set:
+            covs = _filter(state.proposed_dag.adjustment_set)
+            if covs:
+                return covs
+
+        if state.confounder_discovery:
+            ranked = state.confounder_discovery.get("ranked_confounders", [])
+            if ranked and isinstance(ranked[0], dict):
+                ranked = [c.get("variable") or c.get("name") or "" for c in ranked]
+            covs = _filter([c for c in ranked if c])
+            if covs:
+                return covs
+
+        if state.data_profile and state.data_profile.potential_confounders:
+            covs = _filter(state.data_profile.potential_confounders)
+            if covs:
+                return covs
+
+        return []
