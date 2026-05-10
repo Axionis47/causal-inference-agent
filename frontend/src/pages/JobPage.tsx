@@ -12,6 +12,7 @@ import JobProgress from '../components/job/JobProgress';
 import ActivityFeed from '../components/job/ActivityFeed';
 import ResultsDisplay from '../components/results/ResultsDisplay';
 import AgentTraces from '../components/agents/AgentTraces';
+import DataPanel from '../components/dataset/DataPanel';
 import { useJob } from '../hooks/useJob';
 
 export default function JobPage() {
@@ -121,6 +122,9 @@ export default function JobPage() {
           </div>
         </dl>
       </section>
+
+      {/* Data panel — visible from t=0, fills in as backend events arrive */}
+      <DataPanel jobId={job.id} />
 
       {/* Notebook download (completed only) */}
       {isComplete && (
