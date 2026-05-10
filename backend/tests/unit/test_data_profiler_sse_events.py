@@ -133,6 +133,51 @@ async def test_load_from_kaggle_emits_started_and_complete_on_success(tmp_path):
     assert started["url"] == state.dataset_info.url
     assert complete["rows"] == 3
     assert complete["columns"] == 2
+    # File list is captured into state and into the event payload.
+    assert len(state.dataset_info.files) == 1
+    assert state.dataset_info.files[0].name == "data.csv"
+    assert state.dataset_info.files[0].used is True
+    assert state.dataset_info.files[0].format == "csv"
+    assert complete["files"][0]["name"] == "data.csv"
+
+
+@pytest.mark.asyncio
+async def test_load_from_kaggle_captures_multiple_files_with_used_flag(tmp_path):
+    """When the archive contains several CSVs, the largest is loaded and the
+    others appear in the file list with used=False."""
+    state = _make_state("https://www.kaggle.com/datasets/owner/name")
+    agent = DataProfilerAgent()
+
+    big = pd.DataFrame({"a": list(range(50)), "b": list(range(50))})
+    small = pd.DataFrame({"a": [1], "b": [2]})
+
+    def fake_download(dataset_id: str, path: str, unzip: bool):
+        Path(path, "big.csv").write_text(big.to_csv(index=False))
+        Path(path, "small.csv").write_text(small.to_csv(index=False))
+        Path(path, "README.txt").write_text("notes")
+
+    fake_api = MagicMock()
+    fake_api.authenticate.return_value = None
+    fake_api.dataset_download_files.side_effect = fake_download
+
+    with patch("kaggle.api.kaggle_api_extended.KaggleApi", return_value=fake_api):
+        result_df = await agent._load_from_kaggle(state, state.dataset_info.url)
+
+    assert result_df is not None and len(result_df) == 50
+
+    files_by_name = {f.name: f for f in state.dataset_info.files}
+    assert set(files_by_name.keys()) == {"big.csv", "small.csv", "README.txt"}
+    assert files_by_name["big.csv"].used is True
+    assert files_by_name["small.csv"].used is False
+    assert files_by_name["README.txt"].used is False
+    assert files_by_name["README.txt"].format == "txt"
+    # download_complete payload mirrors state.dataset_info.files
+    complete = state.sse_events[-1]["data"]
+    assert {f["name"] for f in complete["files"]} == {
+        "big.csv",
+        "small.csv",
+        "README.txt",
+    }
 
 
 @pytest.mark.asyncio

@@ -311,6 +311,14 @@ class LocalStorageClient:
                         "has_time_dimension": state.data_profile.has_time_dimension,
                     }
 
+                # Persist file list captured during download so the
+                # /jobs/{id}/dataset endpoint can hydrate after the
+                # active state is evicted.
+                if state.dataset_info.files:
+                    results_data["dataset_files"] = [
+                        f.model_dump() for f in state.dataset_info.files
+                    ]
+
                 # Add causal graph
                 if state.proposed_dag:
                     results_data["causal_graph"] = {

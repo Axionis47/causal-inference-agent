@@ -26,6 +26,19 @@ class JobStatus(StrEnum):
     CANCELLED = "cancelled"    # User-initiated cancellation
 
 
+class FileEntry(BaseModel):
+    """One file inside a downloaded dataset archive.
+
+    Captured before the temp dir is wiped so the UI can show what was
+    actually delivered, not just the file we ended up loading.
+    """
+
+    name: str
+    size_bytes: int
+    format: str  # e.g. "csv", "parquet", "json", "txt", "other"
+    used: bool = False  # True for the file we loaded into the DataFrame
+
+
 class DatasetInfo(BaseModel):
     """Information about a dataset."""
 
@@ -34,6 +47,7 @@ class DatasetInfo(BaseModel):
     local_path: str | None = None
     n_samples: int | None = None
     n_features: int | None = None
+    files: list[FileEntry] = Field(default_factory=list)
 
     # Kaggle semantic metadata for variable understanding
     kaggle_description: str | None = None

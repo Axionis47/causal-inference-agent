@@ -22,6 +22,7 @@ from scipy import stats
 from src.agents.base import (
     AnalysisState,
     DataProfile,
+    FileEntry,
     JobStatus,
     ToolResult,
     ToolResultStatus,
@@ -1143,31 +1144,42 @@ Use the available tools to gather evidence before finalizing the profile."""
             with tempfile.TemporaryDirectory() as tmpdir:
                 api.dataset_download_files(dataset_id, path=tmpdir, unzip=True)
 
+                used_path: Path | None = None
+                df: pd.DataFrame | None = None
+
                 csv_files = list(Path(tmpdir).glob("*.csv"))
                 if csv_files:
-                    largest = max(csv_files, key=lambda p: p.stat().st_size)
-                    df = pd.read_csv(largest)
-                    state.push_sse_event(
-                        "dataset_download_complete",
-                        {"rows": int(df.shape[0]), "columns": int(df.shape[1])},
-                    )
-                    return df
+                    used_path = max(csv_files, key=lambda p: p.stat().st_size)
+                    df = pd.read_csv(used_path)
+                else:
+                    parquet_files = list(Path(tmpdir).glob("*.parquet"))
+                    if parquet_files:
+                        used_path = parquet_files[0]
+                        df = pd.read_parquet(used_path)
 
-                parquet_files = list(Path(tmpdir).glob("*.parquet"))
-                if parquet_files:
-                    df = pd.read_parquet(parquet_files[0])
-                    state.push_sse_event(
-                        "dataset_download_complete",
-                        {"rows": int(df.shape[0]), "columns": int(df.shape[1])},
+                if df is None or used_path is None:
+                    self.logger.error("no_data_files_found", path=tmpdir)
+                    self._load_error = "No CSV or parquet files found in dataset archive."
+                    state.dataset_info.files = self._capture_file_list(
+                        Path(tmpdir), used_path=None
                     )
-                    return df
+                    state.push_sse_event(
+                        "dataset_load_failed", {"error": self._load_error}
+                    )
+                    return None
 
-                self.logger.error("no_data_files_found", path=tmpdir)
-                self._load_error = "No CSV or parquet files found in dataset archive."
-                state.push_sse_event(
-                    "dataset_load_failed", {"error": self._load_error}
+                state.dataset_info.files = self._capture_file_list(
+                    Path(tmpdir), used_path=used_path
                 )
-                return None
+                state.push_sse_event(
+                    "dataset_download_complete",
+                    {
+                        "rows": int(df.shape[0]),
+                        "columns": int(df.shape[1]),
+                        "files": [f.model_dump() for f in state.dataset_info.files],
+                    },
+                )
+                return df
 
         except Exception as e:
             error_str = str(e)
@@ -1197,6 +1209,33 @@ Use the available tools to gather evidence before finalizing the profile."""
                 os.environ["KAGGLE_KEY"] = original_key
             elif "KAGGLE_KEY" in os.environ:
                 del os.environ["KAGGLE_KEY"]
+
+    @staticmethod
+    def _capture_file_list(
+        tmpdir: Path, used_path: Path | None
+    ) -> list[FileEntry]:
+        """Snapshot files in the unzipped dataset directory before it's wiped.
+
+        used_path identifies which file we actually loaded into the
+        DataFrame; the rest are reported as siblings so the user can see
+        what else shipped in the archive.
+        """
+        entries: list[FileEntry] = []
+        for path in sorted(tmpdir.iterdir()):
+            if not path.is_file():
+                continue
+            ext = path.suffix.lstrip(".").lower() or "other"
+            if ext not in {"csv", "parquet", "json", "txt", "tsv", "xlsx", "xls"}:
+                ext = "other"
+            entries.append(
+                FileEntry(
+                    name=path.name,
+                    size_bytes=path.stat().st_size,
+                    format=ext,
+                    used=(used_path is not None and path == used_path),
+                )
+            )
+        return entries
 
     def _compute_basic_profile(self, df: pd.DataFrame) -> DataProfile:
         """Compute basic statistical profile of the dataset."""
