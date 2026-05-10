@@ -412,6 +412,20 @@ class FirestoreClient:
                 for s in state.sensitivity_results
             ]
 
+        # Methodology decisions audit trail (mirror local_storage shape).
+        if state.decisions:
+            results_data["decisions"] = [
+                {
+                    "agent": d.agent,
+                    "decision_type": d.decision_type,
+                    "choice": d.choice,
+                    "reason": d.reason,
+                    "alternatives": d.alternatives,
+                    "timestamp": d.timestamp.isoformat() if d.timestamp else None,
+                }
+                for d in state.decisions
+            ]
+
         def _sync():
             doc_ref = self.db.collection(self.results_collection).document(state.job_id)
             doc_ref.set(results_data)

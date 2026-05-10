@@ -350,6 +350,22 @@ class LocalStorageClient:
                         for s in state.sensitivity_results
                     ]
 
+                # Methodology decisions audit trail. Surfaced via
+                # /jobs/{id}/results.decision_log; rendered by the notebook
+                # generator's decisions section.
+                if state.decisions:
+                    results_data["decisions"] = [
+                        {
+                            "agent": d.agent,
+                            "decision_type": d.decision_type,
+                            "choice": d.choice,
+                            "reason": d.reason,
+                            "alternatives": d.alternatives,
+                            "timestamp": d.timestamp.isoformat() if d.timestamp else None,
+                        }
+                        for d in state.decisions
+                    ]
+
                 results[state.job_id] = results_data
                 self._save_json(self.results_file, results)
 

@@ -413,13 +413,29 @@ Start by understanding the current state, then decide what to do.
                 value = getattr(updated_state, field_name, None)
                 if value is not None:
                     setattr(state, field_name, value)
-            # Always merge traces, status, timestamps
+            # Always merge traces, decisions, status, timestamps. Decisions
+            # are append-only audit data, not contested writes, so they never
+            # need to be in WRITES_STATE_FIELDS — same treatment as traces.
+            # Without this merge, every push_decision() call inside a
+            # specialist is silently dropped by the deep-copy isolation
+            # boundary, leaving state.decisions empty across react runs.
             state.agent_traces = updated_state.agent_traces
+            state.decisions = updated_state.decisions
             state.updated_at = updated_state.updated_at
             state.status = updated_state.status
             if updated_state.error_message:
                 state.error_message = updated_state.error_message
                 state.error_agent = updated_state.error_agent
+
+            # Audit trail: record this dispatch as an orchestrator decision so
+            # it shows up in the notebook's Methodology Decisions section and
+            # /jobs/{id}/results.decision_log alongside specialist decisions.
+            state.push_decision(
+                agent="orchestrator",
+                decision_type="agent_dispatched",
+                choice=agent_name,
+                reason=(reasoning or task_description or "")[:200] or f"Dispatched {agent_name}",
+            )
 
             # Build result summary based on what changed
             result_summary = {"agent": agent_name, "duration_ms": duration_ms}
