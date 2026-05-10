@@ -18,6 +18,7 @@ from src.agents.orchestrator.common import (
     AGENT_STATUS_MAP,
     summarize_dispatch_focus,
     summarize_progress,
+    summarize_recent_dispatches,
     validate_required_fields,
 )
 from src.logging_config.structured import get_logger
@@ -101,6 +102,19 @@ CRITICAL RULES:
 - Consider assumptions required for each method
 - Address ALL critique feedback before proceeding
 - Maximum 3 iterations before finalizing with best effort
+
+ANTI-CYCLE GUIDANCE:
+- The "recent dispatches: ..." line in your context shows how many times each
+  specialist has been dispatched recently. If a specialist appears with count
+  ≥2 in the iterate phase, do NOT dispatch it a third time for the same
+  critique issue.
+- After re-dispatching specialists to address ITERATE feedback, your NEXT
+  step should be re-dispatching effect_estimator so the new context flows
+  through to fresh estimates, then request_critique. Do not loop on
+  eda_agent + confounder_discovery without re-running estimation.
+- If you have already addressed the critique once and the recent dispatch
+  list shows any specialist at count ≥3, stop iterating and call
+  finalize_analysis with what you have.
 
 When making decisions, output your reasoning step-by-step, then specify which agent to dispatch."""
 
@@ -428,6 +442,15 @@ When making decisions, output your reasoning step-by-step, then specify which ag
             f"Progress: {summarize_progress(state)}\n"
             f"\nFocus: {summarize_dispatch_focus(state)}\n"
         )
+
+        # Surface what's already been re-dispatched so the LLM can break out
+        # of an iterate-loop on the same agent pair. Without this, the
+        # critique's "address covariate imbalance" reads as a fresh problem
+        # every iteration, and the orchestrator can spend 100+ seconds
+        # firing the same parallel dispatch over and over.
+        recent_dispatches = summarize_recent_dispatches(state, n=8)
+        if recent_dispatches:
+            prompt += f"{recent_dispatches}\n"
 
         # Critique-iterate is the one place where issue text is the
         # decision driver: the LLM picks which specialist to re-dispatch

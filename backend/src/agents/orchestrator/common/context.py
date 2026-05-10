@@ -69,6 +69,50 @@ def summarize_progress(state: AnalysisState) -> str:
     return ", ".join(done)
 
 
+def summarize_recent_dispatches(state: AnalysisState, n: int = 8) -> str:
+    """Compact 'who did I just dispatch' line for the orchestrator's prompt.
+
+    The orchestrator's iterate branch can loop on the same parallel pair
+    when the critique flags an issue: "Address covariate imbalance" looks
+    like a fresh problem on every prompt rebuild because the LLM has no
+    memory of what it just dispatched. Surface the last `n` dispatch
+    traces so the model sees its own recent behaviour and can break a
+    cycle instead of repeating it.
+
+    Returns a single line like
+        "recent dispatches: eda_agent×3, confounder_discovery×3, dag_expert×1"
+    or an empty string if there are no dispatch traces yet (e.g. on the
+    very first decision of a job).
+    """
+    if not state.agent_traces:
+        return ""
+
+    recent = []
+    for trace in reversed(state.agent_traces):
+        action = (trace.action or "")
+        if not (action.startswith("dispatch_to_") or action.startswith("parallel_dispatch_")):
+            continue
+        recent.append(action)
+        if len(recent) >= n:
+            break
+
+    if not recent:
+        return ""
+
+    counts: dict[str, int] = {}
+    for action in recent:
+        if action.startswith("parallel_dispatch_"):
+            for name in action[len("parallel_dispatch_"):].split("_"):
+                if name and name != "agent":
+                    counts[name] = counts.get(name, 0) + 1
+        else:
+            name = action[len("dispatch_to_"):]
+            counts[name] = counts.get(name, 0) + 1
+
+    parts = [f"{name}×{n}" for name, n in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))]
+    return "recent dispatches: " + ", ".join(parts)
+
+
 def summarize_dispatch_focus(state: AnalysisState) -> str:
     """Return what the orchestrator should focus on next, in one or two lines.
 
