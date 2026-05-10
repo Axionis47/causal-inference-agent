@@ -448,8 +448,16 @@ Start by understanding the current state, then decide what to do.
         self,
         state: AnalysisState,
         summary: str,
+        focus_areas: list[str] | None = None,
+        **kwargs,
     ) -> ToolResult:
-        """Request critique of the analysis."""
+        """Request critique of the analysis.
+
+        focus_areas is exposed in the tool schema but only used as hinting
+        for the critic; we accept it explicitly here so Vertex doesn't 500
+        when the model passes it. **kwargs swallows any other params the
+        LLM hallucinates (e.g. `reasoning`) instead of failing the tool.
+        """
         critique_agent = self._specialists.get("critique")
         if not critique_agent:
             return ToolResult(
@@ -560,9 +568,16 @@ Start by understanding the current state, then decide what to do.
     async def _generate_notebook(
         self,
         state: AnalysisState,
-        recommendations: list[str],
+        recommendations: list[str] | None = None,
+        **kwargs,
     ) -> ToolResult:
-        """Generate the final notebook."""
+        """Generate the final notebook.
+
+        `recommendations` is declared required in the tool schema for prompt
+        clarity, but the model regularly omits it; making it optional here
+        prevents the entire run from failing on the last step. **kwargs
+        absorbs any extra params the LLM may attach.
+        """
         notebook_agent = self._specialists.get("notebook_generator")
         if not notebook_agent:
             return ToolResult(
@@ -572,7 +587,7 @@ Start by understanding the current state, then decide what to do.
             )
 
         state.status = JobStatus.GENERATING_NOTEBOOK
-        state.recommendations = recommendations
+        state.recommendations = recommendations or []
 
         try:
             state = await notebook_agent.execute_with_tracing(state)
