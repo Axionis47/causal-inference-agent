@@ -23,27 +23,25 @@ function SchemaSectionImpl({ block }: SchemaSectionProps) {
   const [sortKey, setSortKey] = useState<SortKey>('name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
 
-  if (block.status === 'error') {
-    return (
-      <div className="border-t border-ink-100 py-3 animate-fade-in">
-        <p className="text-sm text-sig-no">
-          Profile failed{block.error ? ` — ${block.error}` : '.'}
-        </p>
-      </div>
-    );
-  }
-
+  // Hooks must run unconditionally — derive rows from block.data which
+  // may be null. Early returns happen AFTER all hooks have been called.
   const data = block.data;
-  if (!data) return null;
 
   const rows: ColumnRow[] = useMemo(() => {
-    const treatmentSet = new Set(data.treatment_candidates);
-    const outcomeSet = new Set(data.outcome_candidates);
-    const confounderSet = new Set(data.potential_confounders);
-    const instrumentSet = new Set(data.potential_instruments);
+    if (!data) return [];
+    // feature_types / missing_values may be absent on the persisted
+    // path (storage layer only saves a profile summary). Default to
+    // empty so the schema table degrades gracefully — headline still
+    // renders, just with no per-column rows.
+    const featureTypes = data.feature_types ?? {};
+    const missingValues = data.missing_values ?? {};
+    const treatmentSet = new Set(data.treatment_candidates ?? []);
+    const outcomeSet = new Set(data.outcome_candidates ?? []);
+    const confounderSet = new Set(data.potential_confounders ?? []);
+    const instrumentSet = new Set(data.potential_instruments ?? []);
 
-    return Object.entries(data.feature_types).map(([name, dtype]) => {
-      const missingCount = data.missing_values[name] ?? 0;
+    return Object.entries(featureTypes).map(([name, dtype]) => {
+      const missingCount = missingValues[name] ?? 0;
       const missingPct = data.n_samples > 0
         ? (missingCount / data.n_samples) * 100
         : 0;
@@ -72,15 +70,27 @@ function SchemaSectionImpl({ block }: SchemaSectionProps) {
     return copy;
   }, [rows, sortKey, sortDir]);
 
+  if (block.status === 'error') {
+    return (
+      <div className="border-t border-ink-100 py-3 animate-fade-in">
+        <p className="text-sm text-sig-no">
+          Profile failed{block.error ? ` — ${block.error}` : '.'}
+        </p>
+      </div>
+    );
+  }
+
+  if (!data) return null;
+
   const avgMissing = rows.length
     ? rows.reduce((s, r) => s + r.missingPct, 0) / rows.length
     : 0;
 
   const tParts: string[] = [];
-  if (data.treatment_candidates.length > 0) {
+  if ((data.treatment_candidates ?? []).length > 0) {
     tParts.push(`T: ${data.treatment_candidates[0]}`);
   }
-  if (data.outcome_candidates.length > 0) {
+  if ((data.outcome_candidates ?? []).length > 0) {
     tParts.push(`Y: ${data.outcome_candidates[0]}`);
   }
 

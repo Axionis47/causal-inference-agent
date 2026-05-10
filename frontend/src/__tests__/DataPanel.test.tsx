@@ -7,6 +7,7 @@ import KaggleMetaSection from '../components/dataset/KaggleMetaSection';
 import SchemaSection from '../components/dataset/SchemaSection';
 import { useJobStore } from '../store/jobStore';
 import type {
+  DataProfileSummary,
   DownloadBlock,
   KaggleMetaBlock,
   ProfileBlock,
@@ -209,5 +210,40 @@ describe('SchemaSection', () => {
     // re78 has 5/614 = 0.8% → no amber.
     const re78MissingCell = screen.getByTestId('missing-re78');
     expect(re78MissingCell.className).not.toContain('amber-700');
+  });
+
+  it('survives a partial-data shape from the persisted-results path', () => {
+    // Persisted storage only saves a summary (n_samples, n_features,
+    // candidates) and omits feature_types / missing_values. Component
+    // must degrade to an empty schema table, not crash with
+    // Object.entries(undefined).
+    const partial: ProfileBlock = {
+      status: 'loaded',
+      data: {
+        n_samples: 614,
+        n_features: 11,
+        treatment_candidates: ['treat'],
+        outcome_candidates: ['re78'],
+      } as DataProfileSummary,
+      error: null,
+    };
+    render(<SchemaSection block={partial} />);
+    // Headline still renders.
+    expect(screen.getByText(/Schema · 614 rows × 11 columns/)).toBeTruthy();
+    // No crash, and table is empty when expanded.
+    fireEvent.click(screen.getByRole('button', { expanded: false }));
+    expect(screen.queryByTestId(/^missing-/)).toBeNull();
+  });
+
+  it('survives the null → populated data transition without crashing', () => {
+    // Catches the Rules-of-Hooks violation that occurred when useMemo
+    // was placed after `if (!data) return null` — when data flipped
+    // from null to populated, React threw and ErrorBoundary triggered
+    // the live page.
+    const { rerender } = render(
+      <SchemaSection block={{ status: 'pending', data: null, error: null }} />
+    );
+    rerender(<SchemaSection block={profileBlock} />);
+    expect(screen.getByText(/Schema · 614 rows/)).toBeTruthy();
   });
 });

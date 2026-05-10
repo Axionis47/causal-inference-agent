@@ -231,12 +231,15 @@ export interface KaggleMeta {
 export interface DataProfileSummary {
   n_samples: number;
   n_features: number;
-  feature_types: Record<string, string>;
-  missing_values: Record<string, number>;
+  // The fields below come from the live profiler. The persisted-results
+  // path (completed/evicted jobs) doesn't currently include them, so
+  // they must be treated as optional on the frontend.
+  feature_types?: Record<string, string>;
+  missing_values?: Record<string, number>;
   treatment_candidates: string[];
   outcome_candidates: string[];
-  potential_confounders: string[];
-  potential_instruments: string[];
+  potential_confounders?: string[];
+  potential_instruments?: string[];
 }
 
 export type BlockStatus =
