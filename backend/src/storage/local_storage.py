@@ -352,7 +352,8 @@ class LocalStorageClient:
 
                 # Methodology decisions audit trail. Surfaced via
                 # /jobs/{id}/results.decision_log; rendered by the notebook
-                # generator's decisions section.
+                # generator's decisions section. AnalysisDecision.timestamp
+                # is a `str`, not a datetime — pass it through verbatim.
                 if state.decisions:
                     results_data["decisions"] = [
                         {
@@ -361,7 +362,7 @@ class LocalStorageClient:
                             "choice": d.choice,
                             "reason": d.reason,
                             "alternatives": d.alternatives,
-                            "timestamp": d.timestamp.isoformat() if d.timestamp else None,
+                            "timestamp": d.timestamp,
                         }
                         for d in state.decisions
                     ]

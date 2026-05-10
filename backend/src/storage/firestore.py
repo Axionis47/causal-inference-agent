@@ -413,6 +413,7 @@ class FirestoreClient:
             ]
 
         # Methodology decisions audit trail (mirror local_storage shape).
+        # AnalysisDecision.timestamp is a `str`, not a datetime.
         if state.decisions:
             results_data["decisions"] = [
                 {
@@ -421,7 +422,7 @@ class FirestoreClient:
                     "choice": d.choice,
                     "reason": d.reason,
                     "alternatives": d.alternatives,
-                    "timestamp": d.timestamp.isoformat() if d.timestamp else None,
+                    "timestamp": d.timestamp,
                 }
                 for d in state.decisions
             ]
