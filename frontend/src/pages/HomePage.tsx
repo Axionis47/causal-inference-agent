@@ -1,15 +1,22 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
-import { AlertCircle } from 'lucide-react';
-import { createJob, CreateJobRequest } from '../services/api';
+import { AlertCircle, ChevronDown, ChevronRight } from 'lucide-react';
+import { createJob, CreateJobRequest, OrchestratorMode } from '../services/api';
 import { validateKaggleUrl } from '../utils';
+
+const ORCHESTRATOR_CAPTIONS: Record<OrchestratorMode, string> = {
+  standard: 'Fixed pipeline of 13 agents.',
+  react: 'Orchestrator decides which agent runs next (experimental).',
+};
 
 export default function HomePage() {
   const navigate = useNavigate();
   const [kaggleUrl, setKaggleUrl] = useState('');
   const [treatmentVar, setTreatmentVar] = useState('');
   const [outcomeVar, setOutcomeVar] = useState('');
+  const [orchestratorMode, setOrchestratorMode] = useState<OrchestratorMode>('standard');
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const createJobMutation = useMutation({
@@ -27,6 +34,7 @@ export default function HomePage() {
       kaggle_url: kaggleUrl.trim(),
       treatment_variable: treatmentVar.trim() || undefined,
       outcome_variable: outcomeVar.trim() || undefined,
+      orchestrator_mode: orchestratorMode,
     });
   };
 
@@ -90,6 +98,51 @@ export default function HomePage() {
               className="input-field font-mono text-sm"
             />
           </div>
+        </div>
+
+        <div>
+          <button
+            type="button"
+            onClick={() => setShowAdvanced((v) => !v)}
+            className="flex items-center gap-1 text-xs text-ink-500 hover:text-ink-700"
+            aria-expanded={showAdvanced}
+          >
+            {showAdvanced ? (
+              <ChevronDown className="w-3.5 h-3.5" />
+            ) : (
+              <ChevronRight className="w-3.5 h-3.5" />
+            )}
+            Advanced options
+          </button>
+          {showAdvanced && (
+            <div className="mt-3 pl-4 border-l border-ink-100">
+              <label className="block text-sm font-medium text-ink-700 mb-1.5">
+                Orchestrator
+              </label>
+              <div role="group" aria-label="Orchestrator" className="inline-flex">
+                {(['standard', 'react'] as const).map((mode, i) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setOrchestratorMode(mode)}
+                    aria-pressed={orchestratorMode === mode}
+                    className={[
+                      'px-3 py-1.5 text-sm border border-ink-200',
+                      i === 0 ? 'rounded-l' : 'rounded-r border-l-0',
+                      orchestratorMode === mode
+                        ? 'bg-ink-900 text-white border-ink-900'
+                        : 'bg-white text-ink-700 hover:bg-ink-50',
+                    ].join(' ')}
+                  >
+                    {mode === 'standard' ? 'Standard' : 'ReAct'}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-1.5 text-xs text-ink-500">
+                {ORCHESTRATOR_CAPTIONS[orchestratorMode]}
+              </p>
+            </div>
+          )}
         </div>
 
         {error && (
