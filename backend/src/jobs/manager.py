@@ -104,7 +104,7 @@ class JobManager:
             instance_id=settings.instance_id,
         )
 
-    def _create_orchestrator(self) -> Orchestrator:
+    def _create_orchestrator(self, mode: OrchestratorMode) -> Orchestrator:
         """Create a fresh orchestrator with fresh agent instances per job.
 
         Each job gets its own agent instances to prevent concurrent jobs from
@@ -112,9 +112,13 @@ class JobManager:
         Each orchestrator package owns its specialist roster, so adding or
         swapping a specialist for a single mode does not require editing
         JobManager.
+
+        The mode is read per-job (off `AnalysisState.orchestrator_mode`)
+        rather than off the manager instance, so a single JobManager can
+        run both modes concurrently.
         """
         orchestrator: Orchestrator
-        if self._orchestrator_mode == "react":
+        if mode == "react":
             orchestrator = ReActOrchestrator()
             agents = react_pkg.build_specialists()
         else:
@@ -131,6 +135,7 @@ class JobManager:
         kaggle_url: str,
         treatment_variable: str | None = None,
         outcome_variable: str | None = None,
+        orchestrator_mode: OrchestratorMode | None = None,
     ) -> str:
         """Create a new analysis job.
 
@@ -142,6 +147,9 @@ class JobManager:
             kaggle_url: Kaggle dataset URL
             treatment_variable: Optional treatment variable hint
             outcome_variable: Optional outcome variable hint
+            orchestrator_mode: Which orchestrator to run for this job.
+                When None, falls back to the manager's default mode
+                (set at construction time from settings).
 
         Returns:
             Job ID
@@ -168,6 +176,7 @@ class JobManager:
             dataset_info=DatasetInfo(url=kaggle_url),
             treatment_variable=treatment_variable,
             outcome_variable=outcome_variable,
+            orchestrator_mode=orchestrator_mode or self._orchestrator_mode,
             status=JobStatus.PENDING,
             created_at=now,
             updated_at=now,
@@ -230,7 +239,7 @@ class JobManager:
                 except Exception:
                     logger.debug("status_persist_failed", job_id=s.job_id, exc_info=True)
 
-            orchestrator = self._create_orchestrator()
+            orchestrator = self._create_orchestrator(state.orchestrator_mode)
             orchestrator.set_status_callback(_persist_status)
 
             # Run the orchestrator with timeout

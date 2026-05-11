@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 from enum import StrEnum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, computed_field, model_validator
 
@@ -270,6 +270,12 @@ class AnalysisState(BaseModel):
     job_id: str
     dataset_info: DatasetInfo
     status: JobStatus = JobStatus.PENDING
+
+    # Which orchestrator handles this job. Recorded on the state so a
+    # single-process JobManager can run different modes per job, and so
+    # the choice round-trips through persistence for audit. Default
+    # "standard" keeps deserialised older states valid.
+    orchestrator_mode: Literal["standard", "react"] = "standard"
 
     # Set by user or inferred
     treatment_variable: str | None = None

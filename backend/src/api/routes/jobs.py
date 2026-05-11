@@ -96,6 +96,7 @@ async def create_job(
             kaggle_url=body.kaggle_url,
             treatment_variable=body.treatment_variable,
             outcome_variable=body.outcome_variable,
+            orchestrator_mode=body.orchestrator_mode,
         )
 
         # Get the created job

@@ -2,7 +2,7 @@
 
 import re
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -38,6 +38,16 @@ class CreateJobRequest(BaseModel):
         description="Optional outcome variable hint",
         max_length=MAX_VARIABLE_NAME_LENGTH,
     )
+    orchestrator_mode: Literal["standard", "react"] | None = Field(
+        None,
+        description=(
+            "Which orchestrator to run for this job. 'standard' uses the "
+            "fixed 13-agent pipeline; 'react' lets the orchestrator decide "
+            "which agent runs next (experimental). Omit to use the "
+            "server-side default."
+        ),
+    )
+
     @field_validator("kaggle_url")
     @classmethod
     def validate_kaggle_url(cls, v: str) -> str:
