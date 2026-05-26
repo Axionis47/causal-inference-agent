@@ -48,6 +48,11 @@ frontend/build/
 .vscode/
 *.swp
 *.swo
+
+# Claude Code workspace (local-only docs and session state)
+CLAUDE.md
+.claude/
+.understand-anything/
 *~
 .DS_Store
 
