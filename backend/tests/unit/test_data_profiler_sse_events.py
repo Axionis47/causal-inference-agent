@@ -1,16 +1,16 @@
-"""Tests that data_profiler emits dataset-lifecycle SSE events.
+"""Tests that the dataset loading module emits the dataset-lifecycle SSE events.
 
 The frontend Data panel mounts at t=0 and progressively fills in three
 blocks (download, kaggle metadata, profile) as backend events fire. The
-events are the only path to live data — until the profiler completes,
+events are the only path to live data; until the profiler completes,
 no API endpoint exposes partial state. So the events MUST fire at the
 right moments and carry the right payloads, or the panel will stall.
 
 These tests pin the contract:
-    - _fetch_kaggle_metadata emits started + ready on success
-    - _fetch_kaggle_metadata emits started + failed on extractor error
-    - _load_from_kaggle emits download_started + download_complete on success
-    - _load_from_kaggle emits dataset_load_failed when the API raises
+    - fetch_kaggle_metadata emits started + ready on success
+    - fetch_kaggle_metadata emits started + failed on extractor error
+    - load_from_kaggle emits download_started + download_complete on success
+    - load_from_kaggle emits dataset_load_failed when the API raises
 """
 
 from __future__ import annotations
@@ -22,7 +22,10 @@ import pandas as pd
 import pytest
 
 from src.agents.base import AnalysisState, DatasetInfo
-from src.agents.specialists.data_profiler import DataProfilerAgent
+from src.agents.specialists._dataset_loading import (
+    fetch_kaggle_metadata,
+    load_from_kaggle,
+)
 
 
 def _make_state(url: str = "https://www.kaggle.com/datasets/owner/name") -> AnalysisState:
@@ -39,7 +42,6 @@ def _event_types(state: AnalysisState) -> list[str]:
 @pytest.mark.asyncio
 async def test_fetch_kaggle_metadata_emits_started_and_ready_on_success():
     state = _make_state()
-    agent = DataProfilerAgent()
 
     fake_metadata = {
         "extraction_success": True,
@@ -53,7 +55,7 @@ async def test_fetch_kaggle_metadata_emits_started_and_ready_on_success():
         "src.kaggle.metadata_extractor.KaggleMetadataExtractor"
     ) as mock_extractor_cls:
         mock_extractor_cls.return_value.extract = AsyncMock(return_value=fake_metadata)
-        await agent._fetch_kaggle_metadata(state)
+        await fetch_kaggle_metadata(state)
 
     types = _event_types(state)
     assert types == ["dataset_metadata_started", "dataset_metadata_ready"]
@@ -72,7 +74,6 @@ async def test_fetch_kaggle_metadata_emits_started_and_ready_on_success():
 @pytest.mark.asyncio
 async def test_fetch_kaggle_metadata_emits_failed_on_extractor_exception():
     state = _make_state()
-    agent = DataProfilerAgent()
 
     with patch(
         "src.kaggle.metadata_extractor.KaggleMetadataExtractor"
@@ -80,7 +81,7 @@ async def test_fetch_kaggle_metadata_emits_failed_on_extractor_exception():
         mock_extractor_cls.return_value.extract = AsyncMock(
             side_effect=RuntimeError("network down")
         )
-        await agent._fetch_kaggle_metadata(state)
+        await fetch_kaggle_metadata(state)
 
     types = _event_types(state)
     assert types == ["dataset_metadata_started", "dataset_metadata_failed"]
@@ -90,7 +91,6 @@ async def test_fetch_kaggle_metadata_emits_failed_on_extractor_exception():
 @pytest.mark.asyncio
 async def test_fetch_kaggle_metadata_emits_failed_on_unsuccessful_extraction():
     state = _make_state()
-    agent = DataProfilerAgent()
 
     with patch(
         "src.kaggle.metadata_extractor.KaggleMetadataExtractor"
@@ -98,7 +98,7 @@ async def test_fetch_kaggle_metadata_emits_failed_on_unsuccessful_extraction():
         mock_extractor_cls.return_value.extract = AsyncMock(
             return_value={"extraction_success": False, "error": "rate limited"}
         )
-        await agent._fetch_kaggle_metadata(state)
+        await fetch_kaggle_metadata(state)
 
     types = _event_types(state)
     assert types == ["dataset_metadata_started", "dataset_metadata_failed"]
@@ -108,7 +108,6 @@ async def test_fetch_kaggle_metadata_emits_failed_on_unsuccessful_extraction():
 @pytest.mark.asyncio
 async def test_load_from_kaggle_emits_started_and_complete_on_success(tmp_path):
     state = _make_state("https://www.kaggle.com/datasets/owner/name")
-    agent = DataProfilerAgent()
 
     df_payload = pd.DataFrame({"treat": [0, 1, 0], "y": [1.0, 2.0, 3.0]})
 
@@ -120,7 +119,7 @@ async def test_load_from_kaggle_emits_started_and_complete_on_success(tmp_path):
     fake_api.dataset_download_files.side_effect = fake_download
 
     with patch("kaggle.api.kaggle_api_extended.KaggleApi", return_value=fake_api):
-        result_df = await agent._load_from_kaggle(state, state.dataset_info.url)
+        result_df, _ = await load_from_kaggle(state, state.dataset_info.url)
 
     assert result_df is not None
     assert list(result_df.columns) == ["treat", "y"]
@@ -146,7 +145,6 @@ async def test_load_from_kaggle_captures_multiple_files_with_used_flag(tmp_path)
     """When the archive contains several CSVs, the largest is loaded and the
     others appear in the file list with used=False."""
     state = _make_state("https://www.kaggle.com/datasets/owner/name")
-    agent = DataProfilerAgent()
 
     big = pd.DataFrame({"a": list(range(50)), "b": list(range(50))})
     small = pd.DataFrame({"a": [1], "b": [2]})
@@ -161,7 +159,7 @@ async def test_load_from_kaggle_captures_multiple_files_with_used_flag(tmp_path)
     fake_api.dataset_download_files.side_effect = fake_download
 
     with patch("kaggle.api.kaggle_api_extended.KaggleApi", return_value=fake_api):
-        result_df = await agent._load_from_kaggle(state, state.dataset_info.url)
+        result_df, _ = await load_from_kaggle(state, state.dataset_info.url)
 
     assert result_df is not None and len(result_df) == 50
 
@@ -183,7 +181,6 @@ async def test_load_from_kaggle_captures_multiple_files_with_used_flag(tmp_path)
 @pytest.mark.asyncio
 async def test_load_from_kaggle_emits_failed_when_download_raises():
     state = _make_state("https://www.kaggle.com/datasets/owner/name")
-    agent = DataProfilerAgent()
 
     fake_api = MagicMock()
     fake_api.authenticate.return_value = None
@@ -192,7 +189,7 @@ async def test_load_from_kaggle_emits_failed_when_download_raises():
     )
 
     with patch("kaggle.api.kaggle_api_extended.KaggleApi", return_value=fake_api):
-        result_df = await agent._load_from_kaggle(state, state.dataset_info.url)
+        result_df, _ = await load_from_kaggle(state, state.dataset_info.url)
 
     assert result_df is None
     types = _event_types(state)
@@ -206,13 +203,12 @@ async def test_load_from_kaggle_emits_failed_when_download_raises():
 @pytest.mark.asyncio
 async def test_load_from_kaggle_emits_failed_for_invalid_url():
     state = _make_state("https://example.com/not-a-kaggle-url")
-    agent = DataProfilerAgent()
 
     fake_api = MagicMock()
     fake_api.authenticate.return_value = None
 
     with patch("kaggle.api.kaggle_api_extended.KaggleApi", return_value=fake_api):
-        result_df = await agent._load_from_kaggle(state, state.dataset_info.url)
+        result_df, _ = await load_from_kaggle(state, state.dataset_info.url)
 
     assert result_df is None
     types = _event_types(state)

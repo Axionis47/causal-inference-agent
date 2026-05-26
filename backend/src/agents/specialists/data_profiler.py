@@ -36,6 +36,10 @@ from src.agents.specialists._data_profiler_encoding import (
     detect_control_value,
     detect_strategy,
 )
+from src.agents.specialists._dataset_loading import (
+    fetch_kaggle_metadata,
+    load_dataset,
+)
 from src.logging_config.structured import get_logger
 
 logger = get_logger(__name__)
@@ -151,7 +155,6 @@ Be systematic. Don't guess - investigate and verify."""
         # Internal state
         self._df: pd.DataFrame | None = None
         self._profile: DataProfile | None = None
-        self._load_error: str | None = None
         self._finalized: bool = False
         self._final_result: dict[str, Any] = {}
 
@@ -346,13 +349,12 @@ Use the available tools to gather evidence before finalizing the profile."""
         try:
             # Fetch Kaggle metadata for semantic understanding (if not already present)
             if "kaggle.com" in state.dataset_info.url and not state.raw_metadata:
-                await self._fetch_kaggle_metadata(state)
+                await fetch_kaggle_metadata(state)
 
-            # Load the dataset first
-            self._load_error = None
-            self._df = await self._load_dataset(state)
+            # Load the dataset
+            self._df, load_error = await load_dataset(state)
             if self._df is None:
-                error_msg = self._load_error or "Failed to load dataset"
+                error_msg = load_error or "Failed to load dataset"
                 state.mark_failed(error_msg, self.AGENT_NAME)
                 return state
 
@@ -453,87 +455,6 @@ Use the available tools to gather evidence before finalizing the profile."""
             state.mark_failed(f"Data profiling failed: {str(e)}", self.AGENT_NAME)
 
         return state
-
-    # =========================================================================
-    # Kaggle Metadata Integration
-    # =========================================================================
-
-    async def _fetch_kaggle_metadata(self, state: AnalysisState) -> None:
-        """Fetch and store Kaggle metadata for semantic variable analysis.
-
-        This enables agents to understand WHAT variables represent (e.g., 'black'
-        is a race indicator, not a treatment) beyond just statistical properties.
-        """
-        state.push_sse_event("dataset_metadata_started", {})
-        try:
-            from src.kaggle.metadata_extractor import KaggleMetadataExtractor
-
-            extractor = KaggleMetadataExtractor()
-            metadata = await extractor.extract(state.dataset_info.url)
-
-            if metadata.get("extraction_success"):
-                state.raw_metadata = metadata
-
-                # Also populate DatasetInfo convenience fields
-                state.dataset_info.kaggle_description = metadata.get("description")
-                state.dataset_info.kaggle_column_descriptions = metadata.get(
-                    "column_descriptions", {}
-                )
-                state.dataset_info.kaggle_tags = metadata.get("tags", [])
-                state.dataset_info.metadata_quality = metadata.get(
-                    "metadata_quality", "unknown"
-                )
-
-                # Infer domain from tags
-                state.dataset_info.kaggle_domain = self._infer_domain(metadata)
-
-                self.logger.info(
-                    "kaggle_metadata_fetched",
-                    quality=metadata.get("metadata_quality"),
-                    has_column_descs=bool(metadata.get("column_descriptions")),
-                    domain=state.dataset_info.kaggle_domain,
-                )
-                state.push_sse_event(
-                    "dataset_metadata_ready",
-                    {
-                        "description": state.dataset_info.kaggle_description,
-                        "column_descriptions": state.dataset_info.kaggle_column_descriptions,
-                        "tags": state.dataset_info.kaggle_tags,
-                        "domain": state.dataset_info.kaggle_domain,
-                        "metadata_quality": state.dataset_info.metadata_quality,
-                    },
-                )
-            else:
-                state.push_sse_event(
-                    "dataset_metadata_failed",
-                    {"error": metadata.get("error", "extraction_unsuccessful")},
-                )
-        except ImportError:
-            self.logger.warning("kaggle_metadata_extractor_not_available")
-            state.push_sse_event(
-                "dataset_metadata_failed",
-                {"error": "kaggle_metadata_extractor_not_available"},
-            )
-        except Exception as e:
-            self.logger.warning("kaggle_metadata_fetch_failed", error=str(e))
-            state.push_sse_event("dataset_metadata_failed", {"error": str(e)[:200]})
-
-    def _infer_domain(self, metadata: dict) -> str | None:
-        """Infer domain from metadata tags for context-aware analysis."""
-        tags = [t.lower() for t in metadata.get("tags", [])]
-
-        if any(t in tags for t in ["healthcare", "medical", "clinical", "health"]):
-            return "healthcare"
-        if any(t in tags for t in ["economics", "economic", "finance", "income", "wages"]):
-            return "economics"
-        if any(t in tags for t in ["education", "academic", "school", "students"]):
-            return "education"
-        if any(t in tags for t in ["social", "sociology", "demographics", "census"]):
-            return "social_science"
-        if any(t in tags for t in ["marketing", "business", "sales"]):
-            return "business"
-
-        return None
 
     # =========================================================================
     # Tool Handlers
@@ -1005,204 +926,6 @@ Use the available tools to gather evidence before finalizing the profile."""
                 "treatment_encoding_strategy": treatment_encoding_strategy or "none",
             },
         )
-
-    # =========================================================================
-    # Dataset Loading and Utility Methods
-    # =========================================================================
-
-    async def _load_dataset(self, state: AnalysisState) -> pd.DataFrame | None:
-        """Load dataset from the source."""
-        dataset_info = state.dataset_info
-
-        # If dataframe_path already exists, load from there
-        if state.dataframe_path:
-            try:
-                if state.dataframe_path.endswith(".csv"):
-                    return pd.read_csv(state.dataframe_path)
-                else:
-                    return pd.read_parquet(state.dataframe_path)
-            except Exception as e:
-                self.logger.error("dataframe_path_load_failed", error=str(e), path=state.dataframe_path)
-
-        # If local path exists, load from there
-        if dataset_info.local_path:
-            try:
-                if dataset_info.local_path.endswith(".csv"):
-                    return pd.read_csv(dataset_info.local_path)
-                elif dataset_info.local_path.endswith(".parquet"):
-                    return pd.read_parquet(dataset_info.local_path)
-                else:
-                    return pd.read_csv(dataset_info.local_path)
-            except Exception as e:
-                self.logger.error("local_load_failed", error=str(e))
-
-        # If it's a Kaggle URL, use Kaggle API
-        if "kaggle.com" in dataset_info.url:
-            return await self._load_from_kaggle(state, dataset_info.url)
-
-        # Try loading directly as URL
-        try:
-            return pd.read_csv(dataset_info.url)
-        except Exception as e:
-            self.logger.error("url_load_failed", error=str(e))
-            return None
-
-    async def _load_from_kaggle(self, state: AnalysisState, url: str) -> pd.DataFrame | None:
-        """Load dataset from Kaggle."""
-        import json
-        import os
-
-        from src.config import get_settings
-
-        settings = get_settings()
-
-        # Save original env values to restore after API use (security best practice)
-        original_username = os.environ.get("KAGGLE_USERNAME")
-        original_key = os.environ.get("KAGGLE_KEY")
-
-        # Set Kaggle credentials from config if available
-        if settings.kaggle_key_value:
-            kaggle_key = settings.kaggle_key_value
-            kaggle_username = settings.kaggle_username
-
-            # Handle JSON format: {"username": "...", "key": "..."}
-            if kaggle_key.startswith("{"):
-                try:
-                    kaggle_creds = json.loads(kaggle_key)
-                    kaggle_username = kaggle_creds.get("username", kaggle_username)
-                    kaggle_key = kaggle_creds.get("key", kaggle_key)
-                except json.JSONDecodeError:
-                    self.logger.debug("kaggle_key_json_parse_failed", exc_info=True)
-
-            if not kaggle_username:
-                self._load_error = "KAGGLE_USERNAME is not configured. Cannot download datasets."
-                self.logger.error("kaggle_missing_username")
-                return None
-
-            os.environ["KAGGLE_USERNAME"] = kaggle_username
-            os.environ["KAGGLE_KEY"] = kaggle_key
-
-        dataset_id = None
-        try:
-            from kaggle.api.kaggle_api_extended import KaggleApi
-
-            api = KaggleApi()
-            api.authenticate()
-
-            parts = url.rstrip("/").split("/")
-            if "datasets" in parts:
-                idx = parts.index("datasets")
-                owner = parts[idx + 1]
-                dataset_name = parts[idx + 2]
-                dataset_id = f"{owner}/{dataset_name}"
-            else:
-                self.logger.error("invalid_kaggle_url", url=url)
-                self._load_error = f"Invalid Kaggle URL: {url}"
-                state.push_sse_event(
-                    "dataset_load_failed", {"error": self._load_error}
-                )
-                return None
-
-            state.push_sse_event(
-                "dataset_download_started",
-                {"url": url, "dataset_id": dataset_id},
-            )
-
-            with tempfile.TemporaryDirectory() as tmpdir:
-                api.dataset_download_files(dataset_id, path=tmpdir, unzip=True)
-
-                used_path: Path | None = None
-                df: pd.DataFrame | None = None
-
-                csv_files = list(Path(tmpdir).glob("*.csv"))
-                if csv_files:
-                    used_path = max(csv_files, key=lambda p: p.stat().st_size)
-                    df = pd.read_csv(used_path)
-                else:
-                    parquet_files = list(Path(tmpdir).glob("*.parquet"))
-                    if parquet_files:
-                        used_path = parquet_files[0]
-                        df = pd.read_parquet(used_path)
-
-                if df is None or used_path is None:
-                    self.logger.error("no_data_files_found", path=tmpdir)
-                    self._load_error = "No CSV or parquet files found in dataset archive."
-                    state.dataset_info.files = self._capture_file_list(
-                        Path(tmpdir), used_path=None
-                    )
-                    state.push_sse_event(
-                        "dataset_load_failed", {"error": self._load_error}
-                    )
-                    return None
-
-                state.dataset_info.files = self._capture_file_list(
-                    Path(tmpdir), used_path=used_path
-                )
-                state.push_sse_event(
-                    "dataset_download_complete",
-                    {
-                        "rows": int(df.shape[0]),
-                        "columns": int(df.shape[1]),
-                        "files": [f.model_dump() for f in state.dataset_info.files],
-                    },
-                )
-                return df
-
-        except Exception as e:
-            error_str = str(e)
-            dataset_ref = dataset_id or url
-
-            if "403" in error_str or "Forbidden" in error_str:
-                self._load_error = f"Dataset '{dataset_ref}' is not accessible. It may be private, deleted, or the URL is incorrect."
-            elif "401" in error_str or "Unauthorized" in error_str:
-                self._load_error = f"Dataset '{dataset_ref}' not found or authentication failed."
-            elif "404" in error_str or "Not Found" in error_str:
-                self._load_error = f"Dataset '{dataset_ref}' not found. Please verify the URL."
-            else:
-                self._load_error = f"Failed to load dataset from Kaggle: {error_str[:200]}"
-
-            self.logger.error("kaggle_load_failed", error=self._load_error)
-            state.push_sse_event("dataset_load_failed", {"error": self._load_error})
-            return None
-
-        finally:
-            # Restore original env values to prevent credential leakage
-            if original_username is not None:
-                os.environ["KAGGLE_USERNAME"] = original_username
-            elif "KAGGLE_USERNAME" in os.environ:
-                del os.environ["KAGGLE_USERNAME"]
-
-            if original_key is not None:
-                os.environ["KAGGLE_KEY"] = original_key
-            elif "KAGGLE_KEY" in os.environ:
-                del os.environ["KAGGLE_KEY"]
-
-    @staticmethod
-    def _capture_file_list(
-        tmpdir: Path, used_path: Path | None
-    ) -> list[FileEntry]:
-        """Snapshot files in the unzipped dataset directory before it's wiped.
-
-        used_path identifies which file we actually loaded into the
-        DataFrame; the rest are reported as siblings so the user can see
-        what else shipped in the archive.
-        """
-        entries: list[FileEntry] = []
-        for path in sorted(tmpdir.iterdir()):
-            if not path.is_file():
-                continue
-            ext = path.suffix.lstrip(".").lower() or "other"
-            if ext not in {"csv", "parquet", "json", "txt", "tsv", "xlsx", "xls"}:
-                ext = "other"
-            entries.append(
-                FileEntry(
-                    name=path.name,
-                    size_bytes=path.stat().st_size,
-                    format=ext,
-                    used=(used_path is not None and path == used_path),
-                )
-            )
-        return entries
 
     def _compute_basic_profile(self, df: pd.DataFrame) -> DataProfile:
         """Compute basic statistical profile of the dataset."""
