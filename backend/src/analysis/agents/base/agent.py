@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
+from src.analysis.substrate.retry import RetryPolicy, should_retry
 from src.llm import get_llm_client
 from src.logging_config.structured import get_logger
 
@@ -232,10 +233,13 @@ class BaseAgent(ABC):
             job_id=state.job_id,
         )
 
-        max_retries = getattr(self, 'MAX_RETRIES', 2)
-        last_error = None
+        policy = RetryPolicy(
+            max_attempts=getattr(self, 'MAX_RETRIES', 2) + 1,
+            retry_on=("Exception",),
+        )
+        attempt = 0
 
-        for attempt in range(max_retries + 1):
+        while True:
             try:
                 # Execute the agent's main logic
                 updated_state = await self.execute(state)
@@ -252,10 +256,9 @@ class BaseAgent(ABC):
                 return updated_state
 
             except Exception as e:
-                last_error = e
                 duration_ms = int((time.time() - start_time) * 1000)
 
-                if attempt < max_retries:
+                if should_retry(e, policy, attempt + 1):
                     # Attempt self-debugging recovery
                     debug_context = DebugContext(
                         error_type=type(e).__name__,
@@ -283,6 +286,7 @@ class BaseAgent(ABC):
                         # Apply recovery and retry
                         if recovery.action:
                             state = recovery.action(state)
+                        attempt += 1
                         continue
                     else:
                         self.logger.warning(
@@ -312,8 +316,6 @@ class BaseAgent(ABC):
                 state.mark_failed(str(e), self.AGENT_NAME)
 
                 raise
-
-        raise last_error
 
     async def _attempt_recovery(
         self,
