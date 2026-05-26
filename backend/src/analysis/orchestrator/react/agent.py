@@ -23,7 +23,7 @@ from src.analysis.agents.base import (
     ToolResult,
     ToolResultStatus,
 )
-from src.analysis.agents.orchestrator.common import (
+from src.analysis.orchestrator.common import (
     AGENT_STATUS_MAP,
     validate_required_fields,
 )

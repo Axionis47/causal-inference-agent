@@ -21,8 +21,8 @@ from src.analysis.agents import (
     JobStatus,
 )
 from src.analysis.agents.critique import CritiqueAgent
-from src.analysis.agents.orchestrator.react import ReActOrchestrator
-from src.analysis.agents.orchestrator.standard import StandardOrchestrator
+from src.analysis.orchestrator.react import ReActOrchestrator
+from src.analysis.orchestrator.standard import StandardOrchestrator
 
 
 def _make_state() -> AnalysisState:

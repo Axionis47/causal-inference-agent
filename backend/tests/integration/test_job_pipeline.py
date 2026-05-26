@@ -15,9 +15,9 @@ from src.analysis.agents import (
     DataProfilerAgent,
     DatasetInfo,
     EffectEstimatorAgent,
-    OrchestratorAgent,
     SensitivityAnalystAgent,
 )
+from src.analysis.orchestrator import OrchestratorAgent
 
 
 class TestFullPipeline:

@@ -38,10 +38,10 @@ from src.analysis.agents import (
     EffectEstimatorAgent,
     JobStatus,
     NotebookGeneratorAgent,
-    OrchestratorAgent,
     PSDiagnosticsAgent,
     SensitivityAnalystAgent,
 )
+from src.analysis.orchestrator import OrchestratorAgent
 from src.logging_config.structured import setup_logging, get_logger
 
 # Initialize logging

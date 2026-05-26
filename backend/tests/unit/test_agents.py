@@ -9,10 +9,10 @@ from src.analysis.agents import (
     DataProfile,
     DataProfilerAgent,
     EffectEstimatorAgent,
-    OrchestratorAgent,
     SensitivityAnalystAgent,
     TreatmentEffectResult,
 )
+from src.analysis.orchestrator import OrchestratorAgent
 
 
 class TestAnalysisState:

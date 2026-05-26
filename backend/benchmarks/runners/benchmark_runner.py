@@ -16,9 +16,9 @@ from src.analysis.agents import (
     DataProfilerAgent,
     DatasetInfo,
     EffectEstimatorAgent,
-    OrchestratorAgent,
     SensitivityAnalystAgent,
 )
+from src.analysis.orchestrator import OrchestratorAgent
 from src.logging_config.structured import get_logger
 
 from ..datasets.loader import BenchmarkDataset, BenchmarkDatasetLoader

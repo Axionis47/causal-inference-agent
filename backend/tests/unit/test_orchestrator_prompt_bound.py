@@ -23,7 +23,7 @@ from src.analysis.agents import (
     EDAResult,
     TreatmentEffectResult,
 )
-from src.analysis.agents.orchestrator.standard import StandardOrchestrator
+from src.analysis.orchestrator.standard import StandardOrchestrator
 
 
 def _state_with_long_lists(n: int) -> AnalysisState:

@@ -22,7 +22,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from src.analysis.agents import AnalysisState, DatasetInfo
-from src.analysis.agents.orchestrator.react import ReActOrchestrator
+from src.analysis.orchestrator.react import ReActOrchestrator
 
 
 def _make_state() -> AnalysisState:

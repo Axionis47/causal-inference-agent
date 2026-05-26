@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from src.analysis.agents import AnalysisState, DatasetInfo
 from src.analysis.agents.base.state import AgentTrace
-from src.analysis.agents.orchestrator.common.context import summarize_recent_dispatches
+from src.analysis.orchestrator.common.context import summarize_recent_dispatches
 
 
 def _state_with_dispatches(actions: list[str]) -> AnalysisState:

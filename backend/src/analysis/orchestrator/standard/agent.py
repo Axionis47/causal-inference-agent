@@ -14,7 +14,7 @@ from src.analysis.agents.base import (
     CritiqueDecision,
     JobStatus,
 )
-from src.analysis.agents.orchestrator.common import (
+from src.analysis.orchestrator.common import (
     AGENT_STATUS_MAP,
     summarize_dispatch_focus,
     summarize_progress,
