@@ -30,6 +30,12 @@ from src.agents.base import (
 from src.agents.base.context_tools import ContextTools
 from src.agents.base.react_agent import ReActAgent
 from src.agents.registry import register_agent
+from src.agents.specialists._data_profiler_encoding import (
+    auto_encode,
+    build_encoding,
+    detect_control_value,
+    detect_strategy,
+)
 from src.logging_config.structured import get_logger
 
 logger = get_logger(__name__)
@@ -396,37 +402,23 @@ Use the available tools to gather evidence before finalizing the profile."""
             # Build treatment encoding from profiler's LLM decision
             enc_strategy = self._final_result.get("treatment_encoding_strategy")
             if enc_strategy and enc_strategy != "none":
-                from src.agents.base.state import TreatmentEncoding
-
                 control_val = self._final_result.get("treatment_control_value")
                 treatment_col = (
                     self._final_result.get("treatment_candidates", [None])[0]
                     if self._final_result.get("treatment_candidates")
                     else None
                 )
-                value_mapping = None
+                unique_vals: list = []
                 if treatment_col and self._df is not None and treatment_col in self._df.columns:
                     unique_vals = self._df[treatment_col].dropna().unique().tolist()
-                    if enc_strategy == "collapse_to_binary" and control_val:
-                        value_mapping = {
-                            v: 0 if str(v) == str(control_val) else 1
-                            for v in unique_vals
-                        }
-                    elif enc_strategy == "label_encode" and len(unique_vals) == 2:
-                        value_mapping = {unique_vals[0]: 0, unique_vals[1]: 1}
-
-                state.treatment_encoding = TreatmentEncoding(
-                    original_type="multi_categorical" if enc_strategy == "collapse_to_binary" else "binary",
-                    strategy=enc_strategy,
-                    control_value=control_val,
-                    value_mapping=value_mapping,
-                )
-                self.logger.info(
-                    "treatment_encoding_set",
-                    strategy=enc_strategy,
-                    control_value=control_val,
-                    mapping=value_mapping,
-                )
+                state.treatment_encoding = build_encoding(unique_vals, enc_strategy, control_val)
+                if state.treatment_encoding:
+                    self.logger.info(
+                        "treatment_encoding_set",
+                        strategy=enc_strategy,
+                        control_value=control_val,
+                        mapping=state.treatment_encoding.value_mapping,
+                    )
 
             # Deterministic fallback: if LLM didn't set encoding but treatment is string-typed
             if (
@@ -436,33 +428,8 @@ Use the available tools to gather evidence before finalizing the profile."""
             ):
                 tc = state.treatment_variable or self._profile.treatment_candidates[0]
                 if tc in self._df.columns and self._df[tc].dtype == object:
-                    from src.agents.base.state import TreatmentEncoding
-
                     unique_vals = self._df[tc].dropna().unique().tolist()
-                    if len(unique_vals) == 2:
-                        mapping = {unique_vals[0]: 0, unique_vals[1]: 1}
-                        state.treatment_encoding = TreatmentEncoding(
-                            original_type="binary",
-                            strategy="label_encode",
-                            control_value=str(unique_vals[0]),
-                            value_mapping=mapping,
-                        )
-                    elif 2 < len(unique_vals) <= 10:
-                        control_keywords = ["control", "no", "placebo", "none", "baseline", "reference"]
-                        control_val = None
-                        for val in unique_vals:
-                            if any(kw in str(val).lower() for kw in control_keywords):
-                                control_val = str(val)
-                                break
-                        if control_val is None:
-                            control_val = str(self._df[tc].value_counts().idxmax())
-                        mapping = {v: 0 if str(v) == control_val else 1 for v in unique_vals}
-                        state.treatment_encoding = TreatmentEncoding(
-                            original_type="multi_categorical",
-                            strategy="collapse_to_binary",
-                            control_value=control_val,
-                            value_mapping=mapping,
-                        )
+                    state.treatment_encoding = auto_encode(unique_vals, self._df[tc].value_counts())
                     if state.treatment_encoding:
                         self.logger.info(
                             "treatment_encoding_auto_detected",
@@ -1370,20 +1337,10 @@ Use the available tools to gather evidence before finalizing the profile."""
         enc_control = None
         top_treatment = treatment_candidates[0] if treatment_candidates else None
         if top_treatment and top_treatment in df.columns and df[top_treatment].dtype == object:
-            unique_vals = df[top_treatment].dropna().unique()
-            if len(unique_vals) == 2:
-                enc_strategy = "label_encode"
-            elif 2 < len(unique_vals) <= 10:
-                enc_strategy = "collapse_to_binary"
-                # Heuristic: pick the value that looks like a control group
-                control_keywords = ["control", "no", "placebo", "none", "baseline", "reference"]
-                for val in unique_vals:
-                    if any(kw in str(val).lower() for kw in control_keywords):
-                        enc_control = str(val)
-                        break
-                if enc_control is None:
-                    # Pick the most frequent value as control
-                    enc_control = str(df[top_treatment].value_counts().idxmax())
+            unique_vals = df[top_treatment].dropna().unique().tolist()
+            enc_strategy = detect_strategy(unique_vals)
+            if enc_strategy == "collapse_to_binary":
+                enc_control = detect_control_value(unique_vals, df[top_treatment].value_counts())
 
         return {
             "treatment_candidates": treatment_candidates[:5],
