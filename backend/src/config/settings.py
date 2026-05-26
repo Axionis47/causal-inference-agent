@@ -73,6 +73,9 @@ class Settings(BaseSettings):
     kaggle_username: str = Field(default="")
     kaggle_key: SecretStr | None = Field(default=None)
 
+    # Per-profile credential encryption (Fernet, 44-char URL-safe base64)
+    profile_encryption_key: SecretStr | None = Field(default=None)
+
     # API Authentication
     api_key: SecretStr | None = Field(default=None)  # Set to enable API key auth
 
@@ -198,6 +201,13 @@ class Settings(BaseSettings):
         if self.kaggle_key is None:
             return None
         return self.kaggle_key.get_secret_value()
+
+    @property
+    def profile_encryption_key_value(self) -> str | None:
+        """Get the Fernet encryption key for per-profile secrets."""
+        if self.profile_encryption_key is None:
+            return None
+        return self.profile_encryption_key.get_secret_value()
 
     @property
     def api_key_value(self) -> str | None:
