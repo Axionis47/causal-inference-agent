@@ -11,9 +11,9 @@ own behaviour and stop.
 
 from __future__ import annotations
 
-from src.agents import AnalysisState, DatasetInfo
-from src.agents.base.state import AgentTrace
-from src.agents.orchestrator.common.context import summarize_recent_dispatches
+from src.analysis.agents import AnalysisState, DatasetInfo
+from src.analysis.agents.base.state import AgentTrace
+from src.analysis.agents.orchestrator.common.context import summarize_recent_dispatches
 
 
 def _state_with_dispatches(actions: list[str]) -> AnalysisState:

@@ -25,9 +25,9 @@ from ..methods import (
 )
 
 if TYPE_CHECKING:
-    from src.agents.base.state import AnalysisState
+    from src.analysis.agents.base.state import AnalysisState
 
-from src.agents.base import TreatmentEffectResult
+from src.analysis.agents.base import TreatmentEffectResult
 
 logger = logging.getLogger(__name__)
 

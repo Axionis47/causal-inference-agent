@@ -21,8 +21,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from src.agents import AnalysisState, DatasetInfo
-from src.agents.orchestrator.react import ReActOrchestrator
+from src.analysis.agents import AnalysisState, DatasetInfo
+from src.analysis.agents.orchestrator.react import ReActOrchestrator
 
 
 def _make_state() -> AnalysisState:

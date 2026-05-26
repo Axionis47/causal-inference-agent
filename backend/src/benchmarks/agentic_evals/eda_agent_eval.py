@@ -11,8 +11,8 @@ Tests the agent's ability to:
 import numpy as np
 import pandas as pd
 
-from src.agents.base import DataProfile
-from src.agents.specialists.eda_agent import EDAAgent
+from src.analysis.agents.base import DataProfile
+from src.analysis.agents.specialists.eda_agent import EDAAgent
 from src.logging_config.structured import get_logger
 
 from .base import (

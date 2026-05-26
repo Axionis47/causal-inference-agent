@@ -118,7 +118,7 @@ class TestJobManagerOrchestratorMode:
 
     @pytest.mark.asyncio
     async def test_create_orchestrator_returns_react_class(self, _mock_manager_deps):
-        from src.agents import ReActOrchestrator, StandardOrchestrator
+        from src.analysis.agents import ReActOrchestrator, StandardOrchestrator
         from src.jobs.manager import JobManager
 
         manager = JobManager(orchestrator_mode="standard")

@@ -21,8 +21,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pandas as pd
 import pytest
 
-from src.agents.base import AnalysisState, DatasetInfo
-from src.agents.specialists._dataset_loading import (
+from src.analysis.agents.base import AnalysisState, DatasetInfo
+from src.analysis.agents.specialists._dataset_loading import (
     fetch_kaggle_metadata,
     load_from_kaggle,
 )

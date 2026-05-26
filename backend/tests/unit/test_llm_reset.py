@@ -12,7 +12,7 @@ import pytest
 @pytest.fixture()
 def _mock_llm():
     """Mock the LLM client module."""
-    with patch("src.agents.base.agent.get_llm_client") as mock_get:
+    with patch("src.analysis.agents.base.agent.get_llm_client") as mock_get:
         yield mock_get
 
 
@@ -21,7 +21,7 @@ class TestLLMResetPropagation:
 
     def test_llm_is_property_not_cached(self, _mock_llm):
         """Agent.llm should call get_llm_client() each time."""
-        from src.agents.base.agent import BaseAgent
+        from src.analysis.agents.base.agent import BaseAgent
 
         # BaseAgent is abstract, create a minimal subclass
         class TestAgent(BaseAgent):
@@ -44,7 +44,7 @@ class TestLLMResetPropagation:
 
     def test_multiple_agents_reflect_same_reset(self, _mock_llm):
         """After reset, all agents see the new client."""
-        from src.agents.base.agent import BaseAgent
+        from src.analysis.agents.base.agent import BaseAgent
 
         class AgentA(BaseAgent):
             AGENT_NAME = "a"
@@ -78,8 +78,8 @@ class TestStateContractValidation:
 
     @pytest.mark.asyncio
     async def test_warns_on_missing_required_fields(self, _mock_llm):
-        from src.agents.base.agent import BaseAgent
-        from src.agents.base.state import AnalysisState, DatasetInfo
+        from src.analysis.agents.base.agent import BaseAgent
+        from src.analysis.agents.base.state import AnalysisState, DatasetInfo
 
         _mock_llm.return_value = MagicMock()
 
@@ -99,8 +99,8 @@ class TestStateContractValidation:
 
     @pytest.mark.asyncio
     async def test_no_warning_when_fields_present(self, _mock_llm):
-        from src.agents.base.agent import BaseAgent
-        from src.agents.base.state import AnalysisState, DatasetInfo
+        from src.analysis.agents.base.agent import BaseAgent
+        from src.analysis.agents.base.state import AnalysisState, DatasetInfo
 
         _mock_llm.return_value = MagicMock()
 
@@ -122,8 +122,8 @@ class TestStateContractValidation:
 
     @pytest.mark.asyncio
     async def test_empty_required_fields_no_validation(self, _mock_llm):
-        from src.agents.base.agent import BaseAgent
-        from src.agents.base.state import AnalysisState, DatasetInfo
+        from src.analysis.agents.base.agent import BaseAgent
+        from src.analysis.agents.base.state import AnalysisState, DatasetInfo
 
         _mock_llm.return_value = MagicMock()
 

@@ -10,7 +10,7 @@ from typing import Any
 
 import numpy as np
 
-from src.agents import (
+from src.analysis.agents import (
     AnalysisState,
     CritiqueAgent,
     DataProfilerAgent,

@@ -4,7 +4,7 @@ import pytest
 import numpy as np
 import pandas as pd
 
-from src.agents import (
+from src.analysis.agents import (
     AnalysisState,
     DataProfile,
     DataProfilerAgent,

@@ -10,8 +10,8 @@ Tests the agent's ability to:
 import numpy as np
 import pandas as pd
 
-from src.agents.base import DataProfile, EDAResult, TreatmentEffectResult
-from src.agents.specialists.sensitivity_analyst import SensitivityAnalystAgent
+from src.analysis.agents.base import DataProfile, EDAResult, TreatmentEffectResult
+from src.analysis.agents.specialists.sensitivity_analyst import SensitivityAnalystAgent
 from src.logging_config.structured import get_logger
 
 from .base import (

@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.agents.base import AnalysisState, JobStatus
+from src.analysis.agents.base import AnalysisState, JobStatus
 from src.api.schemas import (
     DatasetViewResponse,
     DownloadBlock,

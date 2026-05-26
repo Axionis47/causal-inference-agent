@@ -4,7 +4,7 @@ import pytest
 import pandas as pd
 import numpy as np
 
-from src.agents.base import (
+from src.analysis.agents.base import (
     AnalysisState,
     DatasetInfo,
     DataProfile,
@@ -12,7 +12,7 @@ from src.agents.base import (
     CausalEdge,
     ToolResultStatus,
 )
-from src.agents.specialists.causal_discovery import CausalDiscoveryAgent
+from src.analysis.agents.specialists.causal_discovery import CausalDiscoveryAgent
 
 
 @pytest.fixture

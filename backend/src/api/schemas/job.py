@@ -6,7 +6,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from src.agents.base import JobStatus
+from src.analysis.agents.base import JobStatus
 
 # Kaggle URL pattern: https://www.kaggle.com/datasets/owner/dataset-name
 KAGGLE_URL_PATTERN = re.compile(

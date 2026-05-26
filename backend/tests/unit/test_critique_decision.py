@@ -13,16 +13,16 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from src.agents import (
+from src.analysis.agents import (
     AnalysisState,
     CritiqueDecision,
     CritiqueFeedback,
     DatasetInfo,
     JobStatus,
 )
-from src.agents.critique import CritiqueAgent
-from src.agents.orchestrator.react import ReActOrchestrator
-from src.agents.orchestrator.standard import StandardOrchestrator
+from src.analysis.agents.critique import CritiqueAgent
+from src.analysis.agents.orchestrator.react import ReActOrchestrator
+from src.analysis.agents.orchestrator.standard import StandardOrchestrator
 
 
 def _make_state() -> AnalysisState:
@@ -152,7 +152,7 @@ class TestHeuristicCritiqueReject:
         assert result["decision"] == "REJECT"
 
     def test_normal_analysis_not_rejected(self):
-        from src.agents import TreatmentEffectResult
+        from src.analysis.agents import TreatmentEffectResult
 
         agent = CritiqueAgent()
         state = _make_state()

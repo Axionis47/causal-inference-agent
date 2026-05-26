@@ -15,7 +15,7 @@ tests pin the contract.
 
 from __future__ import annotations
 
-from src.agents.base import (
+from src.analysis.agents.base import (
     AnalysisState,
     DataProfile,
     DatasetInfo,

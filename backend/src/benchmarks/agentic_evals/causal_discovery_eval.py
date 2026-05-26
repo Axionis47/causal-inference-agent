@@ -11,8 +11,8 @@ Tests the agent's ability to:
 import numpy as np
 import pandas as pd
 
-from src.agents.base import DataProfile
-from src.agents.specialists.causal_discovery import CausalDiscoveryAgent
+from src.analysis.agents.base import DataProfile
+from src.analysis.agents.specialists.causal_discovery import CausalDiscoveryAgent
 from src.logging_config.structured import get_logger
 
 from .base import (

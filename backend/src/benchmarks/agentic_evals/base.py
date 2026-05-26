@@ -17,7 +17,7 @@ import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
 
-from src.agents.base import AnalysisState, DatasetInfo
+from src.analysis.agents.base import AnalysisState, DatasetInfo
 from src.logging_config.structured import get_logger
 
 # Load environment variables for Claude API

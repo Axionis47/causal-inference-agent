@@ -8,7 +8,7 @@ from typing import Any
 
 from filelock import FileLock
 
-from src.agents.base import AnalysisState, JobStatus
+from src.analysis.agents.base import AnalysisState, JobStatus
 from src.config import get_settings
 from src.logging_config.structured import get_logger
 

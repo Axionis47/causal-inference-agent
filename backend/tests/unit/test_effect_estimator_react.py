@@ -17,13 +17,13 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.agents import (
+from src.analysis.agents import (
     AnalysisState,
     DataProfile,
     DatasetInfo,
     TreatmentEffectResult,
 )
-from src.agents.specialists.effect_estimator_react import EffectEstimatorReActAgent
+from src.analysis.agents.specialists.effect_estimator_react import EffectEstimatorReActAgent
 
 
 def _make_synthetic_data(tmp_path: Path) -> Path:
@@ -82,7 +82,7 @@ async def test_auto_finalize_runs_ols_when_loop_ends_empty(tmp_path: Path):
         return self_state
 
     with patch(
-        "src.agents.base.react_agent.ReActAgent.execute",
+        "src.analysis.agents.base.react_agent.ReActAgent.execute",
         new=lambda self, state: fake_react_loop(state),
     ):
         result_state = await agent.execute(state)
@@ -128,7 +128,7 @@ async def test_auto_finalize_skipped_when_loop_already_produced_results(
         return self_state
 
     with patch(
-        "src.agents.base.react_agent.ReActAgent.execute",
+        "src.analysis.agents.base.react_agent.ReActAgent.execute",
         new=lambda self, state: fake_react_loop(state),
     ):
         result_state = await agent.execute(state)

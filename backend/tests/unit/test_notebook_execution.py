@@ -23,16 +23,16 @@ import pandas as pd
 from nbclient import NotebookClient
 from nbformat.v4 import new_code_cell, new_notebook
 
-from src.agents import (
+from src.analysis.agents import (
     AnalysisState,
     DatasetInfo,
     DataProfile,
     TreatmentEffectResult,
 )
-from src.agents.base.state import SensitivityResult
-from src.agents.specialists.notebook.sections.data_loading import render_data_loading
-from src.agents.specialists.notebook.sections.sensitivity import render_sensitivity
-from src.agents.specialists.notebook.sections.treatment_effects import (
+from src.analysis.agents.base.state import SensitivityResult
+from src.analysis.agents.specialists.notebook.sections.data_loading import render_data_loading
+from src.analysis.agents.specialists.notebook.sections.sensitivity import render_sensitivity
+from src.analysis.agents.specialists.notebook.sections.treatment_effects import (
     render_treatment_effects,
 )
 

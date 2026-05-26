@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.agents import (
+from src.analysis.agents import (
     AnalysisState,
     CritiqueDecision,
     CritiqueFeedback,
@@ -23,7 +23,7 @@ from src.agents import (
     EDAResult,
     TreatmentEffectResult,
 )
-from src.agents.orchestrator.standard import StandardOrchestrator
+from src.analysis.agents.orchestrator.standard import StandardOrchestrator
 
 
 def _state_with_long_lists(n: int) -> AnalysisState:

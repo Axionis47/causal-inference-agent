@@ -3,8 +3,8 @@
 import pytest
 from unittest.mock import MagicMock, patch, AsyncMock
 
-from src.agents.base import AnalysisState, DatasetInfo, ToolResultStatus
-from src.agents.specialists.domain_knowledge_agent import DomainKnowledgeAgent
+from src.analysis.agents.base import AnalysisState, DatasetInfo, ToolResultStatus
+from src.analysis.agents.specialists.domain_knowledge_agent import DomainKnowledgeAgent
 
 
 @pytest.fixture

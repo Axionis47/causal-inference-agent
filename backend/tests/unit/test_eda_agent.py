@@ -5,8 +5,8 @@ import pandas as pd
 import numpy as np
 from unittest.mock import MagicMock, patch, AsyncMock
 
-from src.agents.base import AnalysisState, DatasetInfo, DataProfile, ToolResultStatus
-from src.agents.specialists.eda_agent import EDAAgent
+from src.analysis.agents.base import AnalysisState, DatasetInfo, DataProfile, ToolResultStatus
+from src.analysis.agents.specialists.eda_agent import EDAAgent
 
 
 @pytest.fixture
@@ -286,7 +286,7 @@ class TestToolComputeCorrelations:
     @pytest.mark.asyncio
     async def test_computes_correlations(self, agent, sample_dataframe, state_with_dataframe):
         """Test correlation computation."""
-        from src.agents.base import EDAResult
+        from src.analysis.agents.base import EDAResult
         agent._df = sample_dataframe
         agent._eda_result = EDAResult()
 
@@ -299,7 +299,7 @@ class TestToolComputeCorrelations:
     @pytest.mark.asyncio
     async def test_spearman_method(self, agent, sample_dataframe, state_with_dataframe):
         """Test Spearman correlation method."""
-        from src.agents.base import EDAResult
+        from src.analysis.agents.base import EDAResult
         agent._df = sample_dataframe
         agent._eda_result = EDAResult()
 
@@ -311,7 +311,7 @@ class TestToolComputeCorrelations:
     @pytest.mark.asyncio
     async def test_custom_threshold(self, agent, sample_dataframe, state_with_dataframe):
         """Test custom correlation threshold."""
-        from src.agents.base import EDAResult
+        from src.analysis.agents.base import EDAResult
         agent._df = sample_dataframe
         agent._eda_result = EDAResult()
 
@@ -327,7 +327,7 @@ class TestToolComputeVIF:
     @pytest.mark.asyncio
     async def test_computes_vif(self, agent, sample_dataframe, state_with_dataframe):
         """Test VIF computation."""
-        from src.agents.base import EDAResult
+        from src.analysis.agents.base import EDAResult
         agent._df = sample_dataframe
         agent._treatment_var = "treat"
         agent._outcome_var = "outcome"
@@ -342,7 +342,7 @@ class TestToolComputeVIF:
     @pytest.mark.asyncio
     async def test_vif_with_specific_covariates(self, agent, sample_dataframe, state_with_dataframe):
         """Test VIF with specific covariates."""
-        from src.agents.base import EDAResult
+        from src.analysis.agents.base import EDAResult
         agent._df = sample_dataframe
         agent._eda_result = EDAResult()
 
@@ -360,7 +360,7 @@ class TestToolCheckBalance:
     @pytest.mark.asyncio
     async def test_checks_balance(self, agent, sample_dataframe, state_with_dataframe):
         """Test covariate balance check."""
-        from src.agents.base import EDAResult
+        from src.analysis.agents.base import EDAResult
         agent._df = sample_dataframe
         agent._treatment_var = "treat"
         agent._outcome_var = "outcome"
@@ -377,7 +377,7 @@ class TestToolCheckBalance:
     @pytest.mark.asyncio
     async def test_balance_with_specific_covariates(self, agent, sample_dataframe, state_with_dataframe):
         """Test balance with specific covariates."""
-        from src.agents.base import EDAResult
+        from src.analysis.agents.base import EDAResult
         agent._df = sample_dataframe
         agent._treatment_var = "treat"
         agent._eda_result = EDAResult()
@@ -392,7 +392,7 @@ class TestToolCheckBalance:
     @pytest.mark.asyncio
     async def test_balance_no_treatment(self, agent, sample_dataframe, state_with_dataframe):
         """Test balance check without treatment variable."""
-        from src.agents.base import EDAResult
+        from src.analysis.agents.base import EDAResult
         agent._df = sample_dataframe
         agent._treatment_var = None
         agent._eda_result = EDAResult()
@@ -440,7 +440,7 @@ class TestToolFinalize:
     @pytest.mark.asyncio
     async def test_finalizes_eda(self, agent, sample_dataframe, state_with_dataframe):
         """Test finalizing the EDA."""
-        from src.agents.base import EDAResult
+        from src.analysis.agents.base import EDAResult
         agent._df = sample_dataframe
         agent._eda_result = EDAResult()
 
@@ -569,7 +569,7 @@ class TestTaskCompletion:
     @pytest.mark.asyncio
     async def test_complete_after_finalize(self, agent, sample_dataframe, state_with_dataframe):
         """Test task is complete after finalize."""
-        from src.agents.base import EDAResult
+        from src.analysis.agents.base import EDAResult
         agent._df = sample_dataframe
         agent._eda_result = EDAResult()
 
@@ -622,7 +622,7 @@ class TestPopulateEDAResult:
 
     def test_populates_from_final_result(self, agent, sample_dataframe):
         """Test that EDA result is populated from final result."""
-        from src.agents.base import EDAResult
+        from src.analysis.agents.base import EDAResult
         agent._eda_result = EDAResult()
         agent._analyzed_distributions = {"age": {"mean": 40}}
         agent._outlier_results = {"income": {"iqr_outliers": 5}}

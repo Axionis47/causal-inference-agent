@@ -10,13 +10,13 @@ Tests the agent's ability to:
 import numpy as np
 import pandas as pd
 
-from src.agents.base import (
+from src.analysis.agents.base import (
     DataProfile,
     EDAResult,
     SensitivityResult,
     TreatmentEffectResult,
 )
-from src.agents.critique.critique_agent import CritiqueAgent
+from src.analysis.agents.critique.critique_agent import CritiqueAgent
 from src.logging_config.structured import get_logger
 
 from .base import (

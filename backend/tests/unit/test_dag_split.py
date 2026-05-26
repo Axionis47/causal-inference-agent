@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import pytest
 
-from src.agents import AnalysisState, DatasetInfo
-from src.agents.base.state import CausalDAG, CausalEdge
+from src.analysis.agents import AnalysisState, DatasetInfo
+from src.analysis.agents.base.state import CausalDAG, CausalEdge
 
 
 def _state() -> AnalysisState:

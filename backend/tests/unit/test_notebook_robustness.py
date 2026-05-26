@@ -8,29 +8,29 @@ an empty header.
 
 from __future__ import annotations
 
-from src.agents import AnalysisState, DatasetInfo, TreatmentEffectResult
-from src.agents.specialists.notebook.sections._skip import render_skipped_cell
-from src.agents.specialists.notebook.sections.causal_structure import (
+from src.analysis.agents import AnalysisState, DatasetInfo, TreatmentEffectResult
+from src.analysis.agents.specialists.notebook.sections._skip import render_skipped_cell
+from src.analysis.agents.specialists.notebook.sections.causal_structure import (
     render_causal_structure,
 )
-from src.agents.specialists.notebook.sections.confounder_analysis import (
+from src.analysis.agents.specialists.notebook.sections.confounder_analysis import (
     render_confounder_analysis,
 )
-from src.agents.specialists.notebook.sections.critique import render_critique_section
-from src.agents.specialists.notebook.sections.data_profile import (
+from src.analysis.agents.specialists.notebook.sections.critique import render_critique_section
+from src.analysis.agents.specialists.notebook.sections.data_profile import (
     render_data_profile_report,
 )
-from src.agents.specialists.notebook.sections.data_repairs import render_data_repairs
-from src.agents.specialists.notebook.sections.decisions import render_decisions
-from src.agents.specialists.notebook.sections.domain_knowledge import (
+from src.analysis.agents.specialists.notebook.sections.data_repairs import render_data_repairs
+from src.analysis.agents.specialists.notebook.sections.decisions import render_decisions
+from src.analysis.agents.specialists.notebook.sections.domain_knowledge import (
     render_domain_knowledge,
 )
-from src.agents.specialists.notebook.sections.eda import render_eda_report
-from src.agents.specialists.notebook.sections.ps_diagnostics import (
+from src.analysis.agents.specialists.notebook.sections.eda import render_eda_report
+from src.analysis.agents.specialists.notebook.sections.ps_diagnostics import (
     render_ps_diagnostics,
 )
-from src.agents.specialists.notebook.sections.sensitivity import render_sensitivity
-from src.agents.specialists.notebook.sections.treatment_effects import (
+from src.analysis.agents.specialists.notebook.sections.sensitivity import render_sensitivity
+from src.analysis.agents.specialists.notebook.sections.treatment_effects import (
     render_treatment_effects,
 )
 

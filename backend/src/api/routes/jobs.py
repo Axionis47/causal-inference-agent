@@ -11,7 +11,7 @@ from fastapi import APIRouter, Header, HTTPException, Query, Request, status
 from fastapi.responses import FileResponse, StreamingResponse
 from sse_starlette.sse import EventSourceResponse
 
-from src.agents.base import JobStatus
+from src.analysis.agents.base import JobStatus
 from src.api.idempotency import get_idempotency_store
 from src.api.rate_limit import limiter
 from src.api.schemas import (
@@ -138,7 +138,7 @@ async def create_job(
 @limiter.limit("30/minute")
 async def list_agents(request: Request):
     """List all registered specialist agents and their metadata."""
-    from src.agents.registry import get_agent_registry
+    from src.analysis.agents.registry import get_agent_registry
 
     registry = get_agent_registry()
     agents = []

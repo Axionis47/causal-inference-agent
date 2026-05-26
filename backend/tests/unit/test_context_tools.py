@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.agents.base import (
+from src.analysis.agents.base import (
     AnalysisState,
     DataProfile,
     DatasetInfo,
@@ -11,7 +11,7 @@ from src.agents.base import (
     ToolResult,
     ToolResultStatus,
 )
-from src.agents.base.context_tools import ContextTools
+from src.analysis.agents.base.context_tools import ContextTools
 
 
 class MockReActAgent(ReActAgent, ContextTools):
