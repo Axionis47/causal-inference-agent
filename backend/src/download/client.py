@@ -10,10 +10,14 @@ download.auth.kaggle_env_scope() before instantiating the client.
 from __future__ import annotations
 
 import asyncio
+import json
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
 from src.domain.download import KaggleMetadata
+
+METADATA_FILE_NAME = "dataset-metadata.json"
 
 
 class KaggleClient:
@@ -32,19 +36,24 @@ class KaggleClient:
 
     def _fetch_metadata_sync(self, owner: str, slug: str, url: str) -> KaggleMetadata:
         dataset_ref = f"{owner}/{slug}"
-        view = self._api.dataset_view(dataset_ref)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self._api.dataset_metadata(dataset_ref, path=tmpdir)
+            raw_path = Path(tmpdir) / METADATA_FILE_NAME
+            raw = json.loads(raw_path.read_text()) if raw_path.exists() else {}
+
         files = self._list_files_sync(owner, slug)
 
         return KaggleMetadata(
             owner=owner,
             slug=slug,
-            title=_attr(view, "title"),
-            subtitle=_attr(view, "subtitle"),
-            description=_attr(view, "description") or _attr(view, "overview"),
-            tags=_tags(view),
-            license_name=_license(view),
-            version=_version(view),
-            last_updated=_last_updated(view),
+            title=_pick(raw, "title", "titleNullable"),
+            subtitle=_pick(raw, "subtitle", "subtitleNullable"),
+            description=_pick(raw, "description", "descriptionNullable"),
+            tags=list(raw.get("keywords") or raw.get("tags") or []),
+            license_name=_first_license(raw.get("licenses")),
+            version=_version_from_raw(raw),
+            last_updated=_parse_datetime(raw.get("lastUpdated") or raw.get("lastUpdatedNullable")),
             total_bytes=_sum_bytes(files),
             url=url,
         )
@@ -87,51 +96,36 @@ class KaggleClient:
         self._api.dataset_download_files(dataset_ref, **kwargs)
 
 
-def _attr(view: object, name: str) -> str | None:
-    value = getattr(view, name, None)
-    if value is None:
+def _pick(raw: dict, *keys: str) -> str | None:
+    for k in keys:
+        v = raw.get(k)
+        if v:
+            text = str(v).strip()
+            if text:
+                return text
+    return None
+
+
+def _first_license(licenses) -> str | None:
+    if not licenses:
         return None
-    value = str(value).strip()
-    return value or None
+    first = licenses[0]
+    if isinstance(first, str):
+        return first
+    if isinstance(first, dict):
+        return first.get("name") or first.get("nameNullable")
+    return getattr(first, "name", None) or getattr(first, "nameNullable", None)
 
 
-def _tags(view: object) -> list[str]:
-    raw = getattr(view, "tags", None) or []
-    out: list[str] = []
-    for tag in raw:
-        if isinstance(tag, str):
-            out.append(tag)
-        else:
-            name = getattr(tag, "name", None) or getattr(tag, "ref", None)
-            if name:
-                out.append(str(name))
-    return out
+def _version_from_raw(raw: dict) -> str | None:
+    for key in ("currentVersionNumber", "versionNumber", "datasetVersionNumber"):
+        v = raw.get(key)
+        if v is not None:
+            return str(v)
+    return None
 
 
-def _license(view: object) -> str | None:
-    license_obj = getattr(view, "licenseName", None) or getattr(view, "license", None)
-    if license_obj is None:
-        return None
-    if isinstance(license_obj, str):
-        return license_obj
-    return getattr(license_obj, "name", None) or getattr(license_obj, "nameNullable", None)
-
-
-def _version(view: object) -> str | None:
-    raw = (
-        getattr(view, "currentVersionNumber", None)
-        or getattr(view, "versionNumber", None)
-        or getattr(view, "datasetVersionNumber", None)
-    )
-    return str(raw) if raw is not None else None
-
-
-def _last_updated(view: object) -> datetime | None:
-    raw = (
-        getattr(view, "lastUpdated", None)
-        or getattr(view, "updatedAt", None)
-        or getattr(view, "lastUpdatedNullable", None)
-    )
+def _parse_datetime(raw) -> datetime | None:
     if raw is None:
         return None
     if isinstance(raw, datetime):
