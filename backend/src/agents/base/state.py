@@ -269,6 +269,7 @@ class AnalysisState(BaseModel):
 
     job_id: str
     dataset_info: DatasetInfo
+    download_id: str | None = None
     status: JobStatus = JobStatus.PENDING
 
     # Which orchestrator handles this job. Recorded on the state so a
