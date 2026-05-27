@@ -9,7 +9,7 @@ from src.analysis.agents.domain_knowledge.agent import DomainKnowledgeAgent
 from src.analysis.agents.eda.agent import EDAAgent
 from src.analysis.agents.effect_estimator.agent import EffectEstimatorAgent
 from .notebook import NotebookGeneratorAgent
-from .ps_diagnostics import PSDiagnosticsAgent
+from src.analysis.agents.ps_diagnostics.agent import PSDiagnosticsAgent
 from .sensitivity_analyst import SensitivityAnalystAgent
 
 __all__ = [
