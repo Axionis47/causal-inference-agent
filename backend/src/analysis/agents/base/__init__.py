@@ -4,6 +4,7 @@ from .agent import BaseAgent
 from .errors import AgentError, ToolExecutionError
 from .context_tools import ContextTools
 from .react_agent import ReActAgent, ReActStep, ToolResult, ToolResultStatus
+from src.analysis.agents.eda import EDAResult
 from .state import (
     AgentTrace,
     AnalysisDecision,
@@ -15,7 +16,6 @@ from .state import (
     CritiqueFeedback,
     DataProfile,
     DatasetInfo,
-    EDAResult,
     FileEntry,
     JobStatus,
     SensitivityResult,
