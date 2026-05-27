@@ -1,6 +1,6 @@
 """Specialist agents module."""
 
-from .causal_discovery import CausalDiscoveryAgent
+from src.analysis.agents.causal_discovery.agent import CausalDiscoveryAgent
 from .confounder_discovery import ConfounderDiscoveryAgent
 from .dag_expert import DAGExpertAgent
 from src.analysis.agents.data_profiler.agent import DataProfilerAgent

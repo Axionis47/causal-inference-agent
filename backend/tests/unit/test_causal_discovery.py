@@ -12,7 +12,7 @@ from src.analysis.agents.base import (
     CausalEdge,
     ToolResultStatus,
 )
-from src.analysis.agents.specialists.causal_discovery import CausalDiscoveryAgent
+from src.analysis.agents.causal_discovery.agent import CausalDiscoveryAgent
 
 
 @pytest.fixture
