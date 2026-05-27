@@ -6,7 +6,7 @@ import numpy as np
 from unittest.mock import MagicMock, patch, AsyncMock
 
 from src.analysis.agents.base import AnalysisState, DatasetInfo, DataProfile, ToolResultStatus
-from src.analysis.agents.specialists.eda_agent import EDAAgent
+from src.analysis.agents.eda.agent import EDAAgent
 
 
 @pytest.fixture

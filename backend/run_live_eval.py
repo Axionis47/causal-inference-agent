@@ -26,7 +26,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from src.analysis.agents.base.state import AnalysisState, DatasetInfo, JobStatus
 from src.analysis.agents.specialists.data_profiler import DataProfilerAgent
 from src.analysis.agents.specialists.data_repair import DataRepairAgent
-from src.analysis.agents.specialists.eda_agent import EDAAgent
+from src.analysis.agents.eda.agent import EDAAgent
 from src.analysis.agents.specialists.causal_discovery import CausalDiscoveryAgent
 from src.analysis.agents.specialists.confounder_discovery import ConfounderDiscoveryAgent
 from src.analysis.agents.specialists.ps_diagnostics import PSDiagnosticsAgent

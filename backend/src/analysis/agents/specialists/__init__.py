@@ -6,7 +6,7 @@ from .dag_expert import DAGExpertAgent
 from src.analysis.agents.data_profiler.agent import DataProfilerAgent
 from .data_repair import DataRepairAgent
 from src.analysis.agents.domain_knowledge.agent import DomainKnowledgeAgent
-from .eda_agent import EDAAgent
+from src.analysis.agents.eda.agent import EDAAgent
 from .effect_estimation import EffectEstimatorAgent
 from .notebook import NotebookGeneratorAgent
 from .ps_diagnostics import PSDiagnosticsAgent
