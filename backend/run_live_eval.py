@@ -33,7 +33,7 @@ from src.analysis.agents.specialists.ps_diagnostics import PSDiagnosticsAgent
 from src.analysis.agents.specialists.effect_estimation.agent import EffectEstimatorAgent
 from src.analysis.agents.specialists.sensitivity_analyst import SensitivityAnalystAgent
 from src.analysis.agents.critique.critique_agent import CritiqueAgent
-from src.analysis.agents.specialists.notebook.agent import NotebookGeneratorAgent
+from src.analysis.agents.notebook.agent import NotebookGeneratorAgent
 from src.benchmarks.datasets import get_benchmark, get_all_benchmarks
 from src.logging_config.structured import setup_logging
 

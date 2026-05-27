@@ -30,9 +30,9 @@ from src.analysis.agents import (
     TreatmentEffectResult,
 )
 from src.analysis.agents.base.state import SensitivityResult
-from src.analysis.agents.specialists.notebook.sections.data_loading import render_data_loading
-from src.analysis.agents.specialists.notebook.sections.sensitivity import render_sensitivity
-from src.analysis.agents.specialists.notebook.sections.treatment_effects import (
+from src.analysis.agents.notebook.sections.data_loading import render_data_loading
+from src.analysis.agents.notebook.sections.sensitivity import render_sensitivity
+from src.analysis.agents.notebook.sections.treatment_effects import (
     render_treatment_effects,
 )
 

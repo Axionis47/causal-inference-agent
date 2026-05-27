@@ -1,6 +1,6 @@
 """Notebook Generator package — decomposed from monolithic notebook_generator.py.
 
-Backward-compatible: `from src.analysis.agents.specialists.notebook import NotebookGeneratorAgent`
+Backward-compatible: `from src.analysis.agents.notebook import NotebookGeneratorAgent`
 """
 
 from .agent import NotebookGeneratorAgent
