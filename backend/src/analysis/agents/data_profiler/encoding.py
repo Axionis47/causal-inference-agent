@@ -1,14 +1,13 @@
-"""Treatment encoding helpers extracted from data_profiler.
+"""Treatment encoding helpers for the data_profiler agent.
 
 Deterministic logic for choosing an encoding strategy, picking a control
-value, and constructing a TreatmentEncoding. Previously implemented three
-times in data_profiler.py with minor variations.
+value, and constructing a TreatmentEncoding.
 """
 from __future__ import annotations
 
 import pandas as pd
 
-from src.analysis.agents.base.state import TreatmentEncoding
+from .output import TreatmentEncoding
 
 CONTROL_KEYWORDS = ("control", "no", "placebo", "none", "baseline", "reference")
 

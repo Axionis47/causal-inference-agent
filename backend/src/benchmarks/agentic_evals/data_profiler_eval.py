@@ -11,7 +11,7 @@ Tests the agent's ability to:
 import numpy as np
 import pandas as pd
 
-from src.analysis.agents.specialists.data_profiler import DataProfilerAgent
+from src.analysis.agents.data_profiler.agent import DataProfilerAgent
 from src.logging_config.structured import get_logger
 
 from .base import (

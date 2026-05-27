@@ -1,9 +1,9 @@
-"""Dataset loading and Kaggle metadata fetching.
+"""Dataset loading and Kaggle metadata fetching for the data_profiler agent.
 
-Extracted from data_profiler.py so the agent class does not own
-download-stage concerns. Functions take state as a parameter and
-return results (with errors as part of the return value) rather than
-mutating instance attributes.
+Functions take state as a parameter and return results (with errors as part
+of the return value) rather than mutating instance attributes. The Kaggle
+import here is temporary; per the refactor plan the download seam (S21/S25)
+will replace this with reads from the sealed download module.
 """
 from __future__ import annotations
 
