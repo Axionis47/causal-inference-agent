@@ -6,6 +6,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, computed_field, model_validator
 
+from src.analysis.agents.data_profiler import DataProfile, TreatmentEncoding
 from src.analysis.agents.domain_knowledge import DomainKnowledge
 
 
@@ -57,41 +58,6 @@ class DatasetInfo(BaseModel):
     kaggle_tags: list[str] = Field(default_factory=list)
     kaggle_domain: str | None = None  # Inferred domain (healthcare, economics, etc.)
     metadata_quality: str = "unknown"  # high, medium, low, unknown
-
-
-class DataProfile(BaseModel):
-    """Profile of a dataset from the data profiler agent."""
-
-    n_samples: int
-    n_features: int
-    feature_names: list[str]
-    feature_types: dict[str, str]  # feature_name -> type (numeric, categorical, etc.)
-    missing_values: dict[str, int]  # feature_name -> count of missing
-    numeric_stats: dict[str, dict[str, float]]  # feature_name -> {mean, std, min, max}
-    categorical_stats: dict[str, dict[str, int]]  # feature_name -> {value: count}
-
-    # Causal-specific profiling
-    treatment_candidates: list[str] = Field(default_factory=list)
-    outcome_candidates: list[str] = Field(default_factory=list)
-    potential_confounders: list[str] = Field(default_factory=list)
-    potential_instruments: list[str] = Field(default_factory=list)
-    has_time_dimension: bool = False
-    time_column: str | None = None
-    discontinuity_candidates: list[str] = Field(default_factory=list)
-
-
-class TreatmentEncoding(BaseModel):
-    """Profiler-determined encoding for categorical treatments.
-
-    When the treatment variable is a multi-level categorical (string),
-    the data profiler LLM decides how to encode it. This encoding is stored
-    in state and applied deterministically by all downstream methods.
-    """
-
-    original_type: str  # "binary", "multi_categorical", "continuous"
-    strategy: str  # "none", "label_encode", "collapse_to_binary"
-    control_value: str | None = None  # e.g., "No E-Mail"
-    value_mapping: dict[str, int] | None = None  # e.g., {"No E-Mail": 0, "Mens E-Mail": 1}
 
 
 class CausalPair(BaseModel):
