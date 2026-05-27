@@ -10,6 +10,7 @@ from src.analysis.agents.causal_discovery import CausalDAG, CausalEdge, CausalPa
 from src.analysis.agents.data_profiler import DataProfile, TreatmentEncoding
 from src.analysis.agents.domain_knowledge import DomainKnowledge
 from src.analysis.agents.eda import EDAResult
+from src.analysis.agents.effect_estimator import TreatmentEffectResult
 
 
 class JobStatus(StrEnum):
@@ -60,24 +61,6 @@ class DatasetInfo(BaseModel):
     kaggle_tags: list[str] = Field(default_factory=list)
     kaggle_domain: str | None = None  # Inferred domain (healthcare, economics, etc.)
     metadata_quality: str = "unknown"  # high, medium, low, unknown
-
-
-class TreatmentEffectResult(BaseModel):
-    """Result of a treatment effect estimation."""
-
-    method: str
-    estimand: str  # ATE, ATT, CATE
-    estimate: float
-    std_error: float
-    ci_lower: float
-    ci_upper: float
-    p_value: float | None = None
-    assumptions_tested: list[str] = Field(default_factory=list)
-    details: dict[str, Any] = Field(default_factory=dict)
-
-    # Which variables were analyzed (for multi-pair analysis)
-    treatment_variable: str | None = None
-    outcome_variable: str | None = None
 
 
 class SensitivityResult(BaseModel):

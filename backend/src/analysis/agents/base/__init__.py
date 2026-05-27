@@ -6,6 +6,7 @@ from .context_tools import ContextTools
 from .react_agent import ReActAgent, ReActStep, ToolResult, ToolResultStatus
 from src.analysis.agents.causal_discovery import CausalDAG, CausalEdge, CausalPair
 from src.analysis.agents.eda import EDAResult
+from src.analysis.agents.effect_estimator import TreatmentEffectResult
 from .state import (
     AgentTrace,
     AnalysisDecision,
@@ -17,7 +18,6 @@ from .state import (
     FileEntry,
     JobStatus,
     SensitivityResult,
-    TreatmentEffectResult,
     TreatmentEncoding,
 )
 __all__ = [
