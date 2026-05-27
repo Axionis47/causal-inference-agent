@@ -10,7 +10,7 @@ from src.analysis.agents.eda.agent import EDAAgent
 from src.analysis.agents.effect_estimator.agent import EffectEstimatorAgent
 from .notebook import NotebookGeneratorAgent
 from src.analysis.agents.ps_diagnostics.agent import PSDiagnosticsAgent
-from .sensitivity_analyst import SensitivityAnalystAgent
+from src.analysis.agents.sensitivity_analyst.agent import SensitivityAnalystAgent
 
 __all__ = [
     "CausalDiscoveryAgent",

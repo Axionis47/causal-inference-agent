@@ -11,6 +11,7 @@ from src.analysis.agents.data_profiler import DataProfile, TreatmentEncoding
 from src.analysis.agents.domain_knowledge import DomainKnowledge
 from src.analysis.agents.eda import EDAResult
 from src.analysis.agents.effect_estimator import TreatmentEffectResult
+from src.analysis.agents.sensitivity_analyst import SensitivityResult
 
 
 class JobStatus(StrEnum):
@@ -61,15 +62,6 @@ class DatasetInfo(BaseModel):
     kaggle_tags: list[str] = Field(default_factory=list)
     kaggle_domain: str | None = None  # Inferred domain (healthcare, economics, etc.)
     metadata_quality: str = "unknown"  # high, medium, low, unknown
-
-
-class SensitivityResult(BaseModel):
-    """Result of a sensitivity analysis."""
-
-    method: str
-    robustness_value: float
-    interpretation: str
-    details: dict[str, Any] = Field(default_factory=dict)
 
 
 class CritiqueDecision(StrEnum):
