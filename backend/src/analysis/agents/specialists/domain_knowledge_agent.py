@@ -16,6 +16,7 @@ from __future__ import annotations
 from typing import Any
 
 from src.analysis.agents.base import AnalysisState, JobStatus, ReActAgent, ToolResult, ToolResultStatus
+from src.analysis.agents.domain_knowledge import DomainKnowledge, Hypothesis, Uncertainty
 from src.analysis.agents.registry import register_agent
 from src.logging_config.structured import get_logger
 
@@ -692,20 +693,23 @@ You have tools to investigate the metadata. Start by reading the description.
         # Run the ReAct loop
         state = await super().execute(state)
 
-        # Store findings in state
-        state.domain_knowledge = {
-            "hypotheses": [h for h in self._hypotheses if not h.get("revised", False)],
-            "all_hypotheses": self._hypotheses,  # Include revised for traceability
-            "uncertainties": self._uncertainties,
-            "temporal_understanding": self._temporal_understanding,
-            "immutable_vars": self._immutable_vars,
-            "investigation_complete": True,
-        }
+        all_hypotheses = [Hypothesis(**h) for h in self._hypotheses]
+        live_hypotheses = [h for h in all_hypotheses if not h.revised]
+        uncertainties = [Uncertainty(**u) for u in self._uncertainties]
+
+        state.domain_knowledge = DomainKnowledge(
+            hypotheses=live_hypotheses,
+            all_hypotheses=all_hypotheses,
+            uncertainties=uncertainties,
+            temporal_understanding=self._temporal_understanding,
+            immutable_vars=list(self._immutable_vars),
+            investigation_complete=True,
+        )
 
         self.logger.info(
             "domain_knowledge_complete",
-            num_hypotheses=len(state.domain_knowledge["hypotheses"]),
-            num_uncertainties=len(self._uncertainties),
+            num_hypotheses=len(live_hypotheses),
+            num_uncertainties=len(uncertainties),
             num_immutable=len(self._immutable_vars)
         )
 

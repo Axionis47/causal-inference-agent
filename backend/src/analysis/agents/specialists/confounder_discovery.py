@@ -13,6 +13,7 @@ from scipy import stats
 from src.analysis.agents.base import AnalysisState, CausalDAG, JobStatus, ToolResult, ToolResultStatus
 from src.analysis.agents.base.context_tools import ContextTools
 from src.analysis.agents.base.react_agent import ReActAgent
+from src.analysis.agents.domain_knowledge import DomainKnowledge
 from src.analysis.agents.registry import register_agent
 from src.logging_config.structured import get_logger
 
@@ -24,16 +25,17 @@ def _classify_variable_role(
     variable: str,
     treatment: str,
     outcome: str,
-    domain_knowledge: dict | None = None,
+    domain_knowledge: DomainKnowledge | None = None,
 ) -> str:
     """Classify a variable's causal role relative to treatment and outcome.
 
-    Uses DAG topology if available, otherwise falls back to domain knowledge
-    temporal ordering.
-
-    Returns: "confounder", "potential_mediator", "potential_collider", or "unknown".
+    Uses DAG topology if available. Returns "confounder", "potential_mediator",
+    "potential_collider", or "unknown".
     """
-    # Strategy 1: Use DAG topology if available
+    # The domain_knowledge parameter is reserved for a future heuristic; it is
+    # accepted today so callers don't need to change when that lands.
+    del domain_knowledge
+
     if dag and dag.edges:
         import networkx as nx
 
@@ -54,21 +56,8 @@ def _classify_variable_role(
                 return "potential_mediator"
             if is_descendant_of_t and is_descendant_of_y:
                 return "potential_collider"
-            # Ancestor of T only, or ancestor of Y only — still safe to adjust for
             if is_ancestor_of_t or is_ancestor_of_y:
                 return "confounder"
-            return "unknown"
-
-    # Strategy 2: Use domain knowledge temporal ordering
-    if domain_knowledge:
-        temporal = domain_knowledge.get("temporal_understanding", {})
-        pre_treatment = temporal.get("pre_treatment_vars", [])
-        post_treatment = temporal.get("post_treatment_vars", [])
-
-        if variable in post_treatment:
-            return "potential_mediator"
-        if variable in pre_treatment:
-            return "confounder"
 
     return "unknown"
 

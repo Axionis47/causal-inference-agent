@@ -26,54 +26,29 @@ def render_domain_knowledge(state: AnalysisState) -> list:
     md = "## Domain Knowledge & Causal Framework\n\n"
     md += "The domain knowledge agent extracted the following understanding from dataset metadata.\n\n"
 
-    # Hypotheses
-    hypotheses = dk.get("hypotheses", [])
-    if hypotheses:
+    if dk.hypotheses:
         md += "### Causal Hypotheses\n\n"
         md += "| # | Hypothesis | Confidence | Evidence |\n"
         md += "|---|-----------|------------|----------|\n"
-        for i, h in enumerate(hypotheses, 1):
-            if isinstance(h, dict):
-                claim = h.get("claim", h.get("hypothesis", str(h)))
-                conf = h.get("confidence", "unknown")
-                evidence = h.get("evidence", "")
-                md += f"| {i} | {claim} | {conf} | {evidence[:80]} |\n"
-            else:
-                md += f"| {i} | {h} | - | - |\n"
+        for i, h in enumerate(dk.hypotheses, 1):
+            md += f"| {i} | {h.claim} | {h.confidence} | {h.evidence[:80]} |\n"
         md += "\n"
 
-    # Temporal ordering
-    temporal = dk.get("temporal_understanding")
-    if temporal:
+    if dk.temporal_understanding:
         md += "### Temporal Ordering\n\n"
-        if isinstance(temporal, dict):
-            for key, val in temporal.items():
-                md += f"- **{key}**: {val}\n"
-        else:
-            md += f"{temporal}\n"
-        md += "\n"
+        md += f"{dk.temporal_understanding}\n\n"
 
-    # Immutable variables
-    immutable = dk.get("immutable_vars", [])
-    if immutable:
+    if dk.immutable_vars:
         md += "### Immutable Variables\n\n"
         md += "These variables cannot be caused by the treatment and are safe to condition on:\n\n"
-        for var in immutable:
-            if isinstance(var, dict):
-                md += f"- **{var.get('name', var.get('variable', str(var)))}**: {var.get('reason', '')}\n"
-            else:
-                md += f"- {var}\n"
+        for var in dk.immutable_vars:
+            md += f"- {var}\n"
         md += "\n"
 
-    # Uncertainties
-    uncertainties = dk.get("uncertainties", [])
-    if uncertainties:
+    if dk.uncertainties:
         md += "### Uncertainties & Limitations\n\n"
-        for u in uncertainties:
-            if isinstance(u, dict):
-                md += f"- {u.get('issue', u.get('description', str(u)))}\n"
-            else:
-                md += f"- {u}\n"
+        for u in dk.uncertainties:
+            md += f"- {u.issue}\n"
         md += "\n"
 
     cells.append(new_markdown_cell(md))

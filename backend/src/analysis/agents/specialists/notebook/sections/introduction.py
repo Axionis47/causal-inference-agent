@@ -76,10 +76,8 @@ async def render_introduction(state: AnalysisState, *, llm=None, system_prompt: 
             "n_samples": state.data_profile.n_samples if state.data_profile else "unknown",
             "n_methods": len(effects),
         }
-        if state.domain_knowledge and state.domain_knowledge.get("hypotheses"):
-            top = state.domain_knowledge["hypotheses"][0]
-            if isinstance(top, dict):
-                llm_context["key_hypothesis"] = top.get("claim", str(top))
+        if state.domain_knowledge and state.domain_knowledge.hypotheses:
+            llm_context["key_hypothesis"] = state.domain_knowledge.hypotheses[0].claim
 
         llm_intro = await generate_llm_narrative(llm, system_prompt, "introduction", llm_context)
         if llm_intro:

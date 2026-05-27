@@ -12,6 +12,7 @@ from src.analysis.agents.base import (
     ToolResultStatus,
 )
 from src.analysis.agents.base.context_tools import ContextTools
+from src.analysis.agents.domain_knowledge import DomainKnowledge, Hypothesis, Uncertainty
 
 
 class MockReActAgent(ReActAgent, ContextTools):
@@ -41,41 +42,44 @@ def mock_agent():
 @pytest.fixture
 def state_with_domain_knowledge():
     """Create state with domain knowledge."""
+    hypotheses = [
+        Hypothesis(
+            claim="treat is the treatment variable",
+            confidence="high",
+            evidence="Description says randomly assigned",
+        ),
+        Hypothesis(
+            claim="re78 is the outcome variable (1978 earnings)",
+            confidence="high",
+            evidence="Description explicitly states",
+        ),
+        Hypothesis(
+            claim="age is immutable - cannot be caused by treatment",
+            confidence="high",
+            evidence="Demographic characteristic",
+        ),
+        Hypothesis(
+            claim="re74 and re75 are potential confounders",
+            confidence="medium",
+            evidence="Pre-program earnings correlate with both treatment and outcome",
+        ),
+    ]
     return AnalysisState(
         job_id="test-job",
         dataset_info=DatasetInfo(url="https://kaggle.com/test", name="test"),
-        domain_knowledge={
-            "hypotheses": [
-                {
-                    "claim": "treat is the treatment variable",
-                    "confidence": "high",
-                    "evidence": "Description says randomly assigned"
-                },
-                {
-                    "claim": "re78 is the outcome variable (1978 earnings)",
-                    "confidence": "high",
-                    "evidence": "Description explicitly states"
-                },
-                {
-                    "claim": "age is immutable - cannot be caused by treatment",
-                    "confidence": "high",
-                    "evidence": "Demographic characteristic"
-                },
-                {
-                    "claim": "re74 and re75 are potential confounders",
-                    "confidence": "medium",
-                    "evidence": "Pre-program earnings correlate with both treatment and outcome"
-                }
+        domain_knowledge=DomainKnowledge(
+            hypotheses=hypotheses,
+            all_hypotheses=hypotheses,
+            uncertainties=[
+                Uncertainty(
+                    issue="Control group source unclear",
+                    impact="May need to adjust for confounding if observational",
+                ),
             ],
-            "uncertainties": [
-                {
-                    "issue": "Control group source unclear",
-                    "impact": "May need to adjust for confounding if observational"
-                }
-            ],
-            "temporal_understanding": "Demographics before treatment, re78 after",
-            "immutable_vars": ["age", "black", "hispanic"]
-        }
+            temporal_understanding="Demographics before treatment, re78 after",
+            immutable_vars=["age", "black", "hispanic"],
+            investigation_complete=True,
+        ),
     )
 
 

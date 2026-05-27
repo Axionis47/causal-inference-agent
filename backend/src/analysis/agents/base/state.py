@@ -6,6 +6,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, computed_field, model_validator
 
+from src.analysis.agents.domain_knowledge import DomainKnowledge
+
 
 class JobStatus(StrEnum):
     """Status of an analysis job."""
@@ -286,8 +288,7 @@ class AnalysisState(BaseModel):
     raw_metadata: dict[str, Any] | None = None
 
     # Domain knowledge (populated by DomainKnowledgeAgent)
-    # Contains: hypotheses, uncertainties, temporal_understanding, immutable_vars
-    domain_knowledge: dict[str, Any] | None = None
+    domain_knowledge: DomainKnowledge | None = None
 
     # Populated by Data Profiler
     data_profile: DataProfile | None = None

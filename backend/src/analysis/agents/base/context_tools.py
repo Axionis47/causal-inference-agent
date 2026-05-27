@@ -237,59 +237,51 @@ class ContextTools:
         question_lower = question.lower()
         relevant_findings = []
 
-        # Search hypotheses
-        hypotheses = dk.get("hypotheses", [])
-        for h in hypotheses:
-            claim = h.get("claim", "").lower()
-            # Check if hypothesis is relevant to the question
-            if self._is_relevant(question_lower, claim):
-                relevant_findings.append({
-                    "type": "hypothesis",
-                    "claim": h.get("claim"),
-                    "confidence": h.get("confidence"),
-                    "evidence": h.get("evidence")
-                })
+        def _hypothesis_finding(h):
+            return {
+                "type": "hypothesis",
+                "claim": h.claim,
+                "confidence": h.confidence,
+                "evidence": h.evidence,
+            }
 
-        # Search uncertainties
-        uncertainties = dk.get("uncertainties", [])
-        for u in uncertainties:
-            issue = u.get("issue", "").lower()
-            if self._is_relevant(question_lower, issue):
+        for h in dk.hypotheses:
+            if self._is_relevant(question_lower, h.claim.lower()):
+                relevant_findings.append(_hypothesis_finding(h))
+
+        for u in dk.uncertainties:
+            if self._is_relevant(question_lower, u.issue.lower()):
                 relevant_findings.append({
                     "type": "uncertainty",
-                    "issue": u.get("issue"),
-                    "impact": u.get("impact")
+                    "issue": u.issue,
+                    "impact": u.impact,
                 })
 
-        # Check for specific question types
         if "treatment" in question_lower:
-            treatment_hyps = [h for h in hypotheses if "treatment" in h.get("claim", "").lower()]
-            if treatment_hyps:
-                relevant_findings = [{"type": "hypothesis", **h} for h in treatment_hyps] + relevant_findings
+            treatment_hyps = [h for h in dk.hypotheses if "treatment" in h.claim.lower()]
+            relevant_findings = [_hypothesis_finding(h) for h in treatment_hyps] + relevant_findings
 
         if "outcome" in question_lower:
-            outcome_hyps = [h for h in hypotheses if "outcome" in h.get("claim", "").lower()]
-            if outcome_hyps:
-                relevant_findings = [{"type": "hypothesis", **h} for h in outcome_hyps] + relevant_findings
+            outcome_hyps = [h for h in dk.hypotheses if "outcome" in h.claim.lower()]
+            relevant_findings = [_hypothesis_finding(h) for h in outcome_hyps] + relevant_findings
 
         if "temporal" in question_lower or "order" in question_lower:
-            if "temporal_understanding" in dk:
+            if dk.temporal_understanding is not None:
                 relevant_findings.insert(0, {
                     "type": "temporal_ordering",
-                    "understanding": dk["temporal_understanding"]
+                    "understanding": dk.temporal_understanding,
                 })
 
         if "immutable" in question_lower or "forbidden" in question_lower:
-            if "immutable_vars" in dk:
+            if dk.immutable_vars:
                 relevant_findings.insert(0, {
                     "type": "immutable_variables",
-                    "variables": dk["immutable_vars"]
+                    "variables": dk.immutable_vars,
                 })
 
         if "confounder" in question_lower:
-            confounder_hyps = [h for h in hypotheses if "confounder" in h.get("claim", "").lower()]
-            if confounder_hyps:
-                relevant_findings = [{"type": "hypothesis", **h} for h in confounder_hyps] + relevant_findings
+            confounder_hyps = [h for h in dk.hypotheses if "confounder" in h.claim.lower()]
+            relevant_findings = [_hypothesis_finding(h) for h in confounder_hyps] + relevant_findings
 
         # Deduplicate
         seen = set()
@@ -647,10 +639,10 @@ class ContextTools:
                 status=ToolResultStatus.SUCCESS,
                 output={
                     "available": True,
-                    "hypotheses_count": len(dk.get("hypotheses", [])),
-                    "uncertainties_count": len(dk.get("uncertainties", [])),
-                    "key_hypotheses": dk.get("hypotheses", [])[:3],
-                    "key_uncertainties": dk.get("uncertainties", [])[:2]
+                    "hypotheses_count": len(dk.hypotheses),
+                    "uncertainties_count": len(dk.uncertainties),
+                    "key_hypotheses": [h.model_dump() for h in dk.hypotheses[:3]],
+                    "key_uncertainties": [u.model_dump() for u in dk.uncertainties[:2]],
                 }
             )
 

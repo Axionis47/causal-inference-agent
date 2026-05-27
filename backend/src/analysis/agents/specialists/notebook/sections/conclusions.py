@@ -52,14 +52,8 @@ async def render_conclusions(state: AnalysisState, *, llm=None, system_prompt: s
         if latest.issues:
             llm_context["key_issues"] = "; ".join(latest.issues[:3])
 
-    if state.domain_knowledge and state.domain_knowledge.get("uncertainties"):
-        uncerts = state.domain_knowledge["uncertainties"]
-        if uncerts:
-            first = uncerts[0]
-            if isinstance(first, dict):
-                llm_context["uncertainty"] = first.get("issue", str(first))
-            else:
-                llm_context["uncertainty"] = str(first)
+    if state.domain_knowledge and state.domain_knowledge.uncertainties:
+        llm_context["uncertainty"] = state.domain_knowledge.uncertainties[0].issue
 
     llm_conclusion = ""
     if llm:

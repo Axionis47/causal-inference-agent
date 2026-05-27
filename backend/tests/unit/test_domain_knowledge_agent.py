@@ -4,6 +4,7 @@ import pytest
 from unittest.mock import MagicMock, patch, AsyncMock
 
 from src.analysis.agents.base import AnalysisState, DatasetInfo, ToolResultStatus
+from src.analysis.agents.domain_knowledge import DomainKnowledge, Hypothesis, Uncertainty
 from src.analysis.agents.specialists.domain_knowledge_agent import DomainKnowledgeAgent
 
 
@@ -368,22 +369,21 @@ class TestExecute:
         agent._temporal_understanding = "baseline -> treatment -> outcome"
         agent._immutable_vars = ["age", "race"]
 
-        # Mock the ReAct loop to just return
-        with patch.object(agent, 'execute', wraps=agent.execute):
-            # Directly call the finalization logic
-            state_with_metadata.domain_knowledge = {
-                "hypotheses": [h for h in agent._hypotheses if not h.get("revised", False)],
-                "all_hypotheses": agent._hypotheses,
-                "uncertainties": agent._uncertainties,
-                "temporal_understanding": agent._temporal_understanding,
-                "immutable_vars": agent._immutable_vars,
-                "investigation_complete": True,
-            }
+        all_hyps = [Hypothesis(**h) for h in agent._hypotheses]
+        live_hyps = [h for h in all_hyps if not h.revised]
+        state_with_metadata.domain_knowledge = DomainKnowledge(
+            hypotheses=live_hyps,
+            all_hypotheses=all_hyps,
+            uncertainties=[Uncertainty(**u) for u in agent._uncertainties],
+            temporal_understanding=agent._temporal_understanding,
+            immutable_vars=list(agent._immutable_vars),
+            investigation_complete=True,
+        )
 
         dk = state_with_metadata.domain_knowledge
 
         assert dk is not None
-        assert len(dk["hypotheses"]) == 2
-        assert dk["temporal_understanding"] == "baseline -> treatment -> outcome"
-        assert "age" in dk["immutable_vars"]
-        assert dk["investigation_complete"] is True
+        assert len(dk.hypotheses) == 2
+        assert dk.temporal_understanding == "baseline -> treatment -> outcome"
+        assert "age" in dk.immutable_vars
+        assert dk.investigation_complete is True
