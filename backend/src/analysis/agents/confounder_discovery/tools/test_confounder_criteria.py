@@ -16,10 +16,10 @@ SCHEMA = {
 
 async def handle(agent, state: AnalysisState, variable: str = "", **kwargs) -> ToolResult:
     if agent._df is None:
-        return ToolResult(status=ToolResultStatus.ERROR, error="No data loaded")
+        return ToolResult(status=ToolResultStatus.ERROR, output=None, error="No data loaded")
 
     if variable not in agent._df.columns:
-        return ToolResult(status=ToolResultStatus.ERROR, error=f"Variable '{variable}' not found")
+        return ToolResult(status=ToolResultStatus.ERROR, output=None, error=f"Variable '{variable}' not found")
 
     corr_t, pval_t = stats.pearsonr(agent._df[variable], agent._df[agent._treatment_var])
     corr_y, pval_y = stats.pearsonr(agent._df[variable], agent._df[agent._outcome_var])

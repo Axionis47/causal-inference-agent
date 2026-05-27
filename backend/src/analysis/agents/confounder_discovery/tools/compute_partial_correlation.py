@@ -24,11 +24,11 @@ async def handle(
     **kwargs,
 ) -> ToolResult:
     if agent._df is None:
-        return ToolResult(status=ToolResultStatus.ERROR, error="No data loaded")
+        return ToolResult(status=ToolResultStatus.ERROR, output=None, error="No data loaded")
 
     for v in [var1, var2, control_var]:
         if v not in agent._df.columns:
-            return ToolResult(status=ToolResultStatus.ERROR, error=f"Variable '{v}' not found")
+            return ToolResult(status=ToolResultStatus.ERROR, output=None, error=f"Variable '{v}' not found")
 
     from sklearn.linear_model import LinearRegression
 

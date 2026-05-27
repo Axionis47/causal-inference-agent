@@ -16,11 +16,12 @@ SCHEMA = {
 
 async def handle(agent, state: AnalysisState, var1: str = "", var2: str = "", **kwargs) -> ToolResult:
     if agent._df is None:
-        return ToolResult(status=ToolResultStatus.ERROR, error="No data loaded")
+        return ToolResult(status=ToolResultStatus.ERROR, output=None, error="No data loaded")
 
     if var1 not in agent._df.columns or var2 not in agent._df.columns:
         return ToolResult(
             status=ToolResultStatus.ERROR,
+            output=None,
             error=f"Variable not found. Available: {list(agent._df.columns)}",
         )
 
