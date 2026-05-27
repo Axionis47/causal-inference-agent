@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch, AsyncMock
 
 from src.analysis.agents.base import AnalysisState, DatasetInfo, ToolResultStatus
 from src.analysis.agents.domain_knowledge import DomainKnowledge, Hypothesis, Uncertainty
-from src.analysis.agents.specialists.domain_knowledge_agent import DomainKnowledgeAgent
+from src.analysis.agents.domain_knowledge.agent import DomainKnowledgeAgent
 
 
 @pytest.fixture
