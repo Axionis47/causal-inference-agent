@@ -34,21 +34,6 @@ async def handle(
 ) -> ToolResult:
     repairs_summary = repairs_summary or []
     agent.logger.info("finalizing_repairs", quality=quality_assessment)
-
-    agent._current_state.data_cache["repaired_data"] = agent._df
-
-    agent._current_state.add_agent_result(
-        agent.AGENT_NAME,
-        {
-            "quality_assessment": quality_assessment,
-            "repairs_summary": repairs_summary,
-            "cautions": cautions or [],
-            "final_shape": list(agent._df.shape),
-            "original_shape": list(agent._df_original.shape),
-            "repairs_applied": agent._repairs_applied,
-        },
-    )
-
     agent._finalized = True
 
     return ToolResult(
