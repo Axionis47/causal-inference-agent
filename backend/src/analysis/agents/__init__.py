@@ -20,7 +20,7 @@ from .base import (
     ToolResultStatus,
     TreatmentEffectResult,
 )
-from .critique import CritiqueAgent
+from .critique.agent import CritiqueAgent
 from .specialists import (
     CausalDiscoveryAgent,
     ConfounderDiscoveryAgent,

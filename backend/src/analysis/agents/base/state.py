@@ -7,6 +7,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field, computed_field, model_validator
 
 from src.analysis.agents.causal_discovery import CausalDAG, CausalEdge, CausalPair
+from src.analysis.agents.critique import CritiqueDecision, CritiqueFeedback
 from src.analysis.agents.data_profiler import DataProfile, TreatmentEncoding
 from src.analysis.agents.domain_knowledge import DomainKnowledge
 from src.analysis.agents.eda import EDAResult
@@ -62,25 +63,6 @@ class DatasetInfo(BaseModel):
     kaggle_tags: list[str] = Field(default_factory=list)
     kaggle_domain: str | None = None  # Inferred domain (healthcare, economics, etc.)
     metadata_quality: str = "unknown"  # high, medium, low, unknown
-
-
-class CritiqueDecision(StrEnum):
-    """Decision from the critique agent."""
-
-    APPROVE = "APPROVE"
-    ITERATE = "ITERATE"
-    REJECT = "REJECT"
-
-
-class CritiqueFeedback(BaseModel):
-    """Feedback from the critique agent."""
-
-    decision: CritiqueDecision
-    iteration: int
-    scores: dict[str, int]  # dimension -> score (1-5)
-    issues: list[str]
-    improvements: list[str]
-    reasoning: str
 
 
 class AnalysisDecision(BaseModel):

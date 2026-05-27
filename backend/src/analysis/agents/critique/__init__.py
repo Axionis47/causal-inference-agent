@@ -1,5 +1,9 @@
-"""Critique agent module."""
+"""Critique agent package.
 
-from .critique_agent import CritiqueAgent
+Exports the typed output models. Agent class is imported directly from
+.agent to avoid the base.state -> critique.agent -> base cycle.
+"""
 
-__all__ = ["CritiqueAgent"]
+from .output import CritiqueDecision, CritiqueFeedback
+
+__all__ = ["CritiqueDecision", "CritiqueFeedback"]

@@ -20,7 +20,7 @@ from src.analysis.agents import (
     DatasetInfo,
     JobStatus,
 )
-from src.analysis.agents.critique import CritiqueAgent
+from src.analysis.agents.critique.agent import CritiqueAgent
 from src.analysis.orchestrator.react import ReActOrchestrator
 from src.analysis.orchestrator.standard import StandardOrchestrator
 
