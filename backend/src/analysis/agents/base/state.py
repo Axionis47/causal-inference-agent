@@ -6,6 +6,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, computed_field, model_validator
 
+from src.analysis.agents.causal_discovery import CausalDAG, CausalEdge, CausalPair
 from src.analysis.agents.data_profiler import DataProfile, TreatmentEncoding
 from src.analysis.agents.domain_knowledge import DomainKnowledge
 from src.analysis.agents.eda import EDAResult
@@ -59,39 +60,6 @@ class DatasetInfo(BaseModel):
     kaggle_tags: list[str] = Field(default_factory=list)
     kaggle_domain: str | None = None  # Inferred domain (healthcare, economics, etc.)
     metadata_quality: str = "unknown"  # high, medium, low, unknown
-
-
-class CausalPair(BaseModel):
-    """A treatment-outcome pair that was analyzed."""
-
-    treatment: str
-    outcome: str
-    rationale: str = ""
-    priority: int = 1  # 1 = primary, 2 = secondary, 3 = exploratory
-
-
-class CausalEdge(BaseModel):
-    """An edge in a causal graph."""
-
-    source: str
-    target: str
-    edge_type: str = "directed"  # directed, bidirected, undirected
-    confidence: float = 1.0
-
-
-class CausalDAG(BaseModel):
-    """A causal directed acyclic graph."""
-
-    nodes: list[str]
-    edges: list[CausalEdge]
-    discovery_method: str
-    treatment_variable: str | None = None
-    outcome_variable: str | None = None
-    interpretation: str = ""  # LLM-generated interpretation of the graph
-    # dag_expert outputs (pullable by downstream agents via context tools)
-    forbidden_edges: list[dict[str, str]] | None = None  # [{"source": ..., "target": ..., "reason": ...}]
-    variable_roles: dict[str, str] | None = None  # {"age": "confounder", "treat": "treatment", ...}
-    adjustment_set: list[str] | None = None  # ["age", "education", "race"]
 
 
 class TreatmentEffectResult(BaseModel):
