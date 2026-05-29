@@ -17,6 +17,7 @@ from src.analysis.agents.registry import register_agent
 from src.logging_config.structured import get_logger
 
 from . import tools
+from .brief import CAPABILITY as DK_CAPABILITY, build_brief, preflight
 from .helpers import has_treatment_and_outcome_hypotheses, initial_observation_text
 from .output import DomainKnowledge, Hypothesis, Uncertainty
 from .prompt import SYSTEM_PROMPT
@@ -39,6 +40,7 @@ class DomainKnowledgeAgent(ReActAgent):
     REQUIRED_STATE_FIELDS = ["dataset_info"]
     JOB_STATUS = JobStatus.PROFILING
     PROGRESS_WEIGHT = 0.04
+    CAPABILITY = DK_CAPABILITY
 
     SYSTEM_PROMPT = SYSTEM_PROMPT
 
@@ -76,6 +78,16 @@ class DomainKnowledgeAgent(ReActAgent):
         return has_treatment_and_outcome_hypotheses(self._hypotheses)
 
     async def execute(self, state: AnalysisState) -> AnalysisState:
+        refusal = preflight(state)
+        if refusal is not None:
+            state.agent_briefs[refusal.agent] = refusal
+            self.logger.info(
+                "domain_knowledge_refused",
+                flag=refusal.flags[0].value,
+                headline=refusal.headline,
+            )
+            return state
+
         self._hypotheses = []
         self._uncertainties = []
         self._temporal_understanding = None
@@ -96,11 +108,16 @@ class DomainKnowledgeAgent(ReActAgent):
             investigation_complete=True,
         )
 
+        brief = build_brief(state)
+        state.agent_briefs[brief.agent] = brief
+
         self.logger.info(
             "domain_knowledge_complete",
             num_hypotheses=len(live_hypotheses),
             num_uncertainties=len(uncertainties),
             num_immutable=len(self._immutable_vars),
+            brief_status=brief.status,
+            brief_flags=[f.value for f in brief.flags],
         )
 
         return state

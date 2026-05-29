@@ -47,7 +47,7 @@ production code knows where in the agent to plug in.
 | `effect_estimator` | no | Full ReAct | 3d |
 | `sensitivity_analyst` | no | CoT | 3a |
 | `critique` | no | CoT | 3e |
-| `domain_knowledge` | no | CoT | 3a |
+| `domain_knowledge` | yes | Full ReAct | 3a |
 | `notebook_generator` | no | Direct + per-section CoT | 3e |
 
 ---
@@ -113,3 +113,27 @@ fixed (matches the table above) so diffs are easy to read. -->
 - `ps.flag.poor_overlap` -- `POOR_OVERLAP` when overlap_pct < 90
 - `ps.flag.smd_high` -- `SMD_HIGH` when max weighted SMD > 0.1
 - `ps.flag.calibration_off` -- `CALIBRATION_OFF` when calibration MAE > 0.1
+
+## domain_knowledge
+
+**Answers:** What causal-role hypotheses do the dataset metadata support?
+
+**Needs:**
+- `dataset_info` (already required on the state; at least one of its metadata fields must be populated)
+
+**Delivers:**
+- `domain_knowledge` (typed `DomainKnowledge`; hypotheses, uncertainties, temporal understanding, immutables)
+- `agent_briefs["domain_knowledge"]` (typed `AgentBrief`, always written)
+
+**Refuses when:**
+- every metadata source on the state is empty (no description, no column descriptions, no tags, no kaggle_domain, no `raw_metadata`) -> `NEEDS_NOT_MET` (reroute to the metadata-fetch stage)
+
+**Flags raised:**
+- `WEAK_CONFOUNDER_EVIDENCE` -- no confounder hypothesis formed at medium-or-better confidence (downstream specialists must lean on data-driven discovery)
+
+**Success criteria** (id -> test in `tests/test_brief.py`):
+- `dk.brief.always_written` -- execute always writes a brief into `state.agent_briefs["domain_knowledge"]`
+- `dk.refusal.no_metadata` -- `NEEDS_NOT_MET` when every metadata source is empty
+- `dk.flag.weak_confounders` -- `WEAK_CONFOUNDER_EVIDENCE` when no confounder hypothesis
+- `dk.status.failed_when_incomplete` -- `status="failed"` when treatment or outcome hypothesis is missing
+- `dk.status.done_when_complete` -- `status="done"` when at least one treatment and one outcome hypothesis exist at medium+ confidence
