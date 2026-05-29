@@ -43,7 +43,7 @@ production code knows where in the agent to plug in.
 | `confounder_discovery` | no | Full ReAct | 3c |
 | `causal_discovery` | no | CoT | 3a |
 | `dag_expert` | no | Full ReAct | 3c |
-| `ps_diagnostics` | no | Full ReAct | 1 (reference) |
+| `ps_diagnostics` | yes | Full ReAct | 1 (reference) |
 | `effect_estimator` | no | Full ReAct | 3d |
 | `sensitivity_analyst` | no | CoT | 3a |
 | `critique` | no | CoT | 3e |
@@ -80,3 +80,36 @@ production code knows where in the agent to plug in.
 
 <!-- Per-agent sections are added below as agents migrate. Order is
 fixed (matches the table above) so diffs are easy to read. -->
+
+## ps_diagnostics
+
+**Answers:** Are propensity scores well-overlapped, balanced, and calibrated?
+
+**Needs:**
+- `dataframe_path` (string path to the parquet/csv the profiler wrote)
+- `data_profile` (typed `DataProfile`; profiler must have run)
+- `treatment_variable` (column name)
+- `outcome_variable` (column name)
+
+**Delivers:**
+- `ps_diagnostics` (dict; model_quality, recommended_method, trimming bounds, warnings)
+- `agent_briefs["ps_diagnostics"]` (typed `AgentBrief`, always written)
+
+**Refuses when:**
+- `dataframe_path` is None -> `NEEDS_NOT_MET` (reroute to profiler)
+- `data_profile` is None -> `NEEDS_NOT_MET` (reroute to profiler)
+- `treatment_variable` is unset -> `PRECONDITION_FAILED` (escalate; only the user/router can set it)
+- `outcome_variable` is unset -> `PRECONDITION_FAILED`
+
+**Flags raised:**
+- `POOR_OVERLAP` -- common support below 90%
+- `SMD_HIGH` -- max weighted standardised mean difference exceeds 0.1
+- `CALIBRATION_OFF` -- mean absolute calibration error exceeds 0.1
+
+**Success criteria** (id -> test in `tests/test_brief.py`):
+- `ps.brief.always_written` -- execute always writes a brief into `state.agent_briefs["ps_diagnostics"]`
+- `ps.refusal.needs_missing` -- `NEEDS_NOT_MET` on missing dataframe_path / data_profile
+- `ps.refusal.precondition` -- `PRECONDITION_FAILED` on missing treatment/outcome
+- `ps.flag.poor_overlap` -- `POOR_OVERLAP` when overlap_pct < 90
+- `ps.flag.smd_high` -- `SMD_HIGH` when max weighted SMD > 0.1
+- `ps.flag.calibration_off` -- `CALIBRATION_OFF` when calibration MAE > 0.1

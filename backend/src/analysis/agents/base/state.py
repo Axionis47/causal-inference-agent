@@ -13,6 +13,7 @@ from src.analysis.agents.domain_knowledge import DomainKnowledge
 from src.analysis.agents.eda import EDAResult
 from src.analysis.agents.effect_estimator import TreatmentEffectResult
 from src.analysis.agents.sensitivity_analyst import SensitivityResult
+from src.domain.briefs import AgentBrief
 
 
 class JobStatus(StrEnum):
@@ -202,6 +203,12 @@ class AnalysisState(BaseModel):
 
     # Execution traces
     agent_traces: list[AgentTrace] = Field(default_factory=list)
+
+    # Typed briefs returned by each agent dispatch. The orchestrator reads
+    # these to decide the next move; full per-agent output stays in the
+    # dedicated state fields above. Keyed by agent name; one entry per
+    # agent (overwritten on re-dispatch).
+    agent_briefs: dict[str, AgentBrief] = Field(default_factory=dict)
 
     # Error tracking
     error_message: str | None = None

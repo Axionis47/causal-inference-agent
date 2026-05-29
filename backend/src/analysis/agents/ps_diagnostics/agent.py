@@ -20,6 +20,12 @@ from sklearn.linear_model import LogisticRegression
 from src.analysis.agents.base import AnalysisState, JobStatus, ToolResult, ToolResultStatus
 from src.analysis.agents.base.context_tools import ContextTools
 from src.analysis.agents.base.react_agent import ReActAgent
+from src.analysis.agents.ps_diagnostics.brief import (
+    CAPABILITY as PS_CAPABILITY,
+    Metrics,
+    build_brief,
+    preflight,
+)
 from src.analysis.agents.registry import register_agent
 from src.logging_config.structured import get_logger
 
@@ -47,6 +53,7 @@ class PSDiagnosticsAgent(ReActAgent, ContextTools):
     REQUIRED_STATE_FIELDS = ["data_profile", "dataframe_path"]
     JOB_STATUS = JobStatus.ESTIMATING_EFFECTS
     PROGRESS_WEIGHT = 0.06
+    CAPABILITY = PS_CAPABILITY
 
     SYSTEM_PROMPT = """You are an expert in propensity score methods for causal inference.
 Your task is to diagnose and validate propensity score models.
@@ -92,6 +99,7 @@ CONTEXT TOOLS (pull upstream results if needed):
         self._mask: np.ndarray | None = None
         self._current_state: AnalysisState | None = None
         self._finalized: bool = False
+        self._metrics: Metrics = Metrics()
 
         # Register context tools from mixin
         self.register_context_tools()
@@ -255,6 +263,20 @@ Call finalize_diagnostics when you have sufficient evidence."""
         Returns:
             Updated state with PS diagnostics
         """
+        # Reset per-execution metrics so re-dispatch (critique iteration)
+        # does not see stale values from a prior run on the same instance.
+        self._metrics = Metrics()
+
+        refusal = preflight(state)
+        if refusal is not None:
+            state.agent_briefs[refusal.agent] = refusal
+            self.logger.info(
+                "ps_diagnostics_refused",
+                flag=refusal.flags[0].value,
+                headline=refusal.headline,
+            )
+            return state
+
         self.logger.info("ps_diagnostics_start", job_id=state.job_id)
         start_time = time.time()
 
@@ -331,6 +353,18 @@ Call finalize_diagnostics when you have sufficient evidence."""
 
         except Exception as e:
             self.logger.exception("ps_diagnostics_failed", error=str(e))
+        finally:
+            # Always emit a brief so the orchestrator has a typed signal,
+            # regardless of which path the body took (early return on
+            # missing df / no confounders, exception, or normal finish).
+            if "ps_diagnostics" not in state.agent_briefs:
+                brief = build_brief(state, self._metrics)
+                state.agent_briefs[brief.agent] = brief
+                self.logger.info(
+                    "ps_diagnostics_brief",
+                    status=brief.status,
+                    flags=[f.value for f in brief.flags],
+                )
 
         return state
 
@@ -515,6 +549,7 @@ Call finalize_diagnostics when you have sufficient evidence."""
         # Proportion in common support
         in_overlap = (ps >= overlap_min) & (ps <= overlap_max)
         pct_overlap = np.mean(in_overlap) * 100
+        self._metrics.overlap_pct = float(pct_overlap)
 
         # Distribution comparison
         ks_stat, ks_pval = stats.ks_2samp(ps_treated, ps_control)
@@ -658,6 +693,10 @@ Call finalize_diagnostics when you have sufficient evidence."""
 
             mean_smd = float(np.mean(smd_values))
             max_smd = float(np.max(smd_values))
+            # The weighted pass is the one the brief reports; unweighted
+            # max SMD is informative but not part of the contract.
+            if weighted:
+                self._metrics.max_smd_weighted = max_smd
 
             # Overall assessment
             if mean_smd < 0.05 and len(imbalanced) == 0:
@@ -709,6 +748,7 @@ Call finalize_diagnostics when you have sufficient evidence."""
         try:
             prob_true, prob_pred = calibration_curve(T, ps, n_bins=n_bins, strategy="uniform")
             calibration_error = float(np.mean(np.abs(prob_true - prob_pred)))
+            self._metrics.calibration_mae = calibration_error
 
             # Hosmer-Lemeshow style assessment
             well_calibrated = calibration_error < 0.1
