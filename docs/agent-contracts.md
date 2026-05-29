@@ -39,7 +39,7 @@ production code knows where in the agent to plug in.
 |---|---|---|---|
 | `data_profiler` | no | CoT | 3b |
 | `data_repair` | no | Full ReAct | 3c |
-| `eda_agent` | no | CoT | 3a |
+| `eda_agent` | yes | Full ReAct | 3a |
 | `confounder_discovery` | no | Full ReAct | 3c |
 | `causal_discovery` | no | CoT | 3a |
 | `dag_expert` | no | Full ReAct | 3c |
@@ -137,3 +137,33 @@ fixed (matches the table above) so diffs are easy to read. -->
 - `dk.flag.weak_confounders` -- `WEAK_CONFOUNDER_EVIDENCE` when no confounder hypothesis
 - `dk.status.failed_when_incomplete` -- `status="failed"` when treatment or outcome hypothesis is missing
 - `dk.status.done_when_complete` -- `status="done"` when at least one treatment and one outcome hypothesis exist at medium+ confidence
+
+## eda_agent
+
+**Answers:** What distributional, balance, correlation, and outlier issues does this dataset carry?
+
+**Needs:**
+- `dataframe_path` (string path to the parquet/csv the profiler wrote)
+- `data_profile` (typed `DataProfile`; profiler must have run)
+
+**Delivers:**
+- `eda_result` (typed `EDAResult`; distribution stats, covariate balance, correlations, outliers, VIF, quality score)
+- `agent_briefs["eda_agent"]` (typed `AgentBrief`, always written)
+
+**Refuses when:**
+- `dataframe_path` is None -> `NEEDS_NOT_MET` (reroute to profiler)
+- `data_profile` is None -> `NEEDS_NOT_MET` (reroute to profiler)
+
+Treatment / outcome unset is NOT a refusal: EDA can still report distributional and correlation findings without a primary pair declared; only the balance flag becomes inert.
+
+**Flags raised:**
+- `OUTCOME_SKEWED` -- the outcome variable's |skewness| exceeds 1.0
+- `TC_IMBALANCE` -- the max covariate SMD exceeds 0.25 (severe-imbalance threshold; 0.1 is the noisier "imbalanced" floor used by check_balance but is too noisy for orchestrator-level routing)
+- `SUSPECT_CORRELATION` -- at least one variable pair has |r| > 0.7 (filter already applied by the EDA tool)
+
+**Success criteria** (id -> test in `tests/test_brief.py`):
+- `eda.brief.always_written` -- execute always writes a brief into `state.agent_briefs["eda_agent"]`
+- `eda.refusal.needs_missing` -- `NEEDS_NOT_MET` on missing dataframe_path / data_profile
+- `eda.flag.outcome_skewed` -- `OUTCOME_SKEWED` when outcome |skewness| > 1.0
+- `eda.flag.tc_imbalance` -- `TC_IMBALANCE` when max covariate SMD > 0.25
+- `eda.flag.suspect_correlation` -- `SUSPECT_CORRELATION` when high_correlations is non-empty

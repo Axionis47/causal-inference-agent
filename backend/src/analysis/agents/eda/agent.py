@@ -16,6 +16,7 @@ from src.analysis.agents.registry import register_agent
 from src.logging_config.structured import get_logger
 
 from . import tools
+from .brief import CAPABILITY as EDA_CAPABILITY, build_brief, preflight
 from .helpers import (
     auto_finalize,
     initial_observation_text,
@@ -39,6 +40,7 @@ class EDAAgent(ReActAgent, ContextTools):
     REQUIRED_STATE_FIELDS = ["data_profile", "dataframe_path"]
     JOB_STATUS = JobStatus.EXPLORATORY_ANALYSIS
     PROGRESS_WEIGHT = 0.08
+    CAPABILITY = EDA_CAPABILITY
 
     SYSTEM_PROMPT = SYSTEM_PROMPT
 
@@ -82,6 +84,16 @@ class EDAAgent(ReActAgent, ContextTools):
         return self._finalized and state.eda_result is not None
 
     async def execute(self, state: AnalysisState) -> AnalysisState:
+        refusal = preflight(state)
+        if refusal is not None:
+            state.agent_briefs[refusal.agent] = refusal
+            self.logger.info(
+                "eda_refused",
+                flag=refusal.flags[0].value,
+                headline=refusal.headline,
+            )
+            return state
+
         self.logger.info(
             "eda_agent_start",
             job_id=state.job_id,
@@ -128,6 +140,15 @@ class EDAAgent(ReActAgent, ContextTools):
         except Exception as e:
             self.logger.exception("eda_failed", error=str(e))
             state.mark_failed(f"EDA failed: {str(e)}", self.AGENT_NAME)
+        finally:
+            if "eda_agent" not in state.agent_briefs:
+                brief = build_brief(state)
+                state.agent_briefs[brief.agent] = brief
+                self.logger.info(
+                    "eda_brief",
+                    status=brief.status,
+                    flags=[f.value for f in brief.flags],
+                )
 
         return state
 
