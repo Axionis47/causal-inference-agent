@@ -12,6 +12,7 @@ from src.analysis.agents.base import AnalysisState, BaseAgent, JobStatus
 from src.analysis.agents.registry import register_agent
 from src.logging_config.structured import get_logger
 
+from .brief import CAPABILITY as NB_CAPABILITY, build_brief, preflight
 from .helpers import save_notebook_async
 from .sections import (
     render_causal_structure,
@@ -60,9 +61,20 @@ When generating narratives:
     WRITES_STATE_FIELDS = ["notebook_path"]
     JOB_STATUS = "generating_notebook"
     PROGRESS_WEIGHT = 95
+    CAPABILITY = NB_CAPABILITY
 
     async def execute(self, state: AnalysisState) -> AnalysisState:
         """Generate the analysis notebook reporting all pipeline findings."""
+        refusal = preflight(state)
+        if refusal is not None:
+            state.agent_briefs[refusal.agent] = refusal
+            self.logger.info(
+                "notebook_refused",
+                flag=refusal.flags[0].value,
+                headline=refusal.headline,
+            )
+            return state
+
         self.logger.info("notebook_generation_start", job_id=state.job_id)
         # Status set by orchestrator
         start_time = time.time()
@@ -137,5 +149,14 @@ When generating narratives:
         except Exception as e:
             self.logger.error("notebook_generation_failed", error=str(e))
             state.mark_failed(f"Notebook generation failed: {str(e)}", self.AGENT_NAME)
+        finally:
+            if "notebook_generator" not in state.agent_briefs:
+                brief = build_brief(state)
+                state.agent_briefs[brief.agent] = brief
+                self.logger.info(
+                    "notebook_brief",
+                    status=brief.status,
+                    flags=[f.value for f in brief.flags],
+                )
 
         return state

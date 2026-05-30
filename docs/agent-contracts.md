@@ -48,7 +48,7 @@ production code knows where in the agent to plug in.
 | `sensitivity_analyst` | yes | Full ReAct | 3a |
 | `critique` | yes | Custom agentic loop | 3e |
 | `domain_knowledge` | yes | Full ReAct | 3a |
-| `notebook_generator` | no | Direct + per-section CoT | 3e |
+| `notebook_generator` | yes | Direct + per-section renderers | 3e |
 
 ---
 
@@ -378,3 +378,26 @@ Profiler is the entry point of the analysis pipeline. State initialization guara
 - `repair.refusal.needs_missing` -- `NEEDS_NOT_MET` on missing profile / dataframe path
 - `repair.flag.repair_failed` -- `REPAIR_FAILED` when issues existed but no repairs ran
 - `repair.flag.data_lost` -- `DATA_LOST` when rows_dropped > 5% of n_samples
+
+## notebook_generator
+
+**Answers:** Render the analysis as a reproducible Jupyter notebook with per-agent sections and executable verification cells.
+
+**Needs:**
+- `data_profile` (typed `DataProfile`; nothing meaningful to render without it)
+
+**Delivers:**
+- `notebook_path` (string path to the saved .ipynb)
+- `agent_briefs["notebook_generator"]` (typed `AgentBrief`, always written)
+
+**Refuses when:**
+- `data_profile` is None -> `NEEDS_NOT_MET` (reroute to profiler)
+
+**Flags raised:**
+
+notebook_generator **does not raise any closed-enum issue flags**. It is the terminal rendering stage; primary issue flags belong to upstream agents that detected them (`effect_estimator` for `METHOD_UNSTABLE` / `ATE_OUTLIER` / `WEAK_INSTRUMENT`, `sensitivity_analyst` for `NOT_ROBUST` / `WEAK_TO_UNOBSERVED`, etc.). The brief's status reports whether the notebook was written; the headline names the path.
+
+**Success criteria** (id -> test in `tests/test_brief.py`):
+- `notebook.brief.always_written` -- execute always writes a brief
+- `notebook.refusal.needs_missing` -- `NEEDS_NOT_MET` when `data_profile` is missing
+- `notebook.status.reflects_write` -- status is `done` when `state.notebook_path` is set, else `failed`
