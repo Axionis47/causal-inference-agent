@@ -26,6 +26,7 @@ from src.analysis.agents.registry import register_agent
 from src.logging_config.structured import get_logger
 
 from . import tools
+from .brief import CAPABILITY as SA_CAPABILITY, build_brief, preflight
 from .helpers import auto_finalize, initial_observation_text, load_dataframe
 from .prompt import SYSTEM_PROMPT
 
@@ -47,6 +48,7 @@ class SensitivityAnalystAgent(ReActAgent, ContextTools):
     REQUIRED_STATE_FIELDS = ["treatment_effects"]
     JOB_STATUS = JobStatus.SENSITIVITY_ANALYSIS
     PROGRESS_WEIGHT = 0.08
+    CAPABILITY = SA_CAPABILITY
 
     SYSTEM_PROMPT = SYSTEM_PROMPT
 
@@ -99,6 +101,16 @@ class SensitivityAnalystAgent(ReActAgent, ContextTools):
 
     async def execute(self, state: AnalysisState) -> AnalysisState:
         """Execute the ReAct sensitivity loop."""
+        refusal = preflight(state)
+        if refusal is not None:
+            state.agent_briefs[refusal.agent] = refusal
+            self.logger.info(
+                "sensitivity_refused",
+                flag=refusal.flags[0].value,
+                headline=refusal.headline,
+            )
+            return state
+
         self.logger.info(
             "sensitivity_start",
             job_id=state.job_id,
@@ -107,10 +119,6 @@ class SensitivityAnalystAgent(ReActAgent, ContextTools):
         start_time = time.time()
 
         try:
-            if not state.treatment_effects:
-                self.logger.warning("no_effects_for_sensitivity")
-                return state
-
             if state.dataframe_path is None:
                 return state
 
@@ -142,6 +150,15 @@ class SensitivityAnalystAgent(ReActAgent, ContextTools):
 
         except Exception as e:
             self.logger.exception("sensitivity_failed", error=str(e))
+        finally:
+            if "sensitivity_analyst" not in state.agent_briefs:
+                brief = build_brief(state)
+                state.agent_briefs[brief.agent] = brief
+                self.logger.info(
+                    "sensitivity_brief",
+                    status=brief.status,
+                    flags=[f.value for f in brief.flags],
+                )
 
         return state
 

@@ -45,7 +45,7 @@ production code knows where in the agent to plug in.
 | `dag_expert` | no | Full ReAct | 3c |
 | `ps_diagnostics` | yes | Full ReAct | 1 (reference) |
 | `effect_estimator` | no | Full ReAct | 3d |
-| `sensitivity_analyst` | no | CoT | 3a |
+| `sensitivity_analyst` | yes | Full ReAct | 3a |
 | `critique` | no | CoT | 3e |
 | `domain_knowledge` | yes | Full ReAct | 3a |
 | `notebook_generator` | no | Direct + per-section CoT | 3e |
@@ -197,3 +197,27 @@ Treatment / outcome unset is NOT a refusal: the agent has a deterministic confou
 - `discovery.refusal.needs_missing` -- `NEEDS_NOT_MET` on missing dataframe_path / data_profile
 - `discovery.flag.low_stability` -- `LOW_STABILITY` when chosen DAG has < 2 edges or came from the fallback
 - `discovery.flag.cycle_detected` -- `CYCLE_DETECTED` when directed edges form a cycle
+
+## sensitivity_analyst
+
+**Answers:** How robust are the treatment effect estimates to assumption violations and unmeasured confounding?
+
+**Needs:**
+- `treatment_effects` (non-empty `list[TreatmentEffectResult]`; effect_estimator must have produced at least one estimate)
+
+**Delivers:**
+- `sensitivity_results` (`list[SensitivityResult]`; each with method, robustness_value, interpretation, details)
+- `agent_briefs["sensitivity_analyst"]` (typed `AgentBrief`, always written)
+
+**Refuses when:**
+- `state.treatment_effects` is empty -> `NEEDS_NOT_MET` (reroute to effect_estimator)
+
+**Flags raised:**
+- `WEAK_TO_UNOBSERVED` -- the E-value method's `robustness_value < 1.5` (the agent's own auto-finalize threshold for "low" robustness; matches VanderWeele's sensitivity interpretation)
+- `NOT_ROBUST` -- at least 2 sensitivity results flag concerns across any method family (E-value < 1.5, Rosenbaum gamma < 1.5, spec curve cv > 0.4 or sign change, placebo "concerning", subgroup "heterogeneous", or bootstrap "unstable"). Two-or-more threshold avoids over-firing on a single signal; the lone E-value case is already covered by `WEAK_TO_UNOBSERVED`.
+
+**Success criteria** (id -> test in `tests/test_brief.py`):
+- `sensitivity.brief.always_written` -- execute always writes a brief into `state.agent_briefs["sensitivity_analyst"]`
+- `sensitivity.refusal.needs_missing` -- `NEEDS_NOT_MET` when `state.treatment_effects` is empty
+- `sensitivity.flag.weak_to_unobserved` -- `WEAK_TO_UNOBSERVED` when E-value < 1.5
+- `sensitivity.flag.not_robust` -- `NOT_ROBUST` when two or more sensitivity results flag concerns
