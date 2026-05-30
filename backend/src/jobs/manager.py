@@ -138,6 +138,7 @@ class JobManager:
         treatment_variable: str | None = None,
         outcome_variable: str | None = None,
         orchestrator_mode: OrchestratorMode | None = None,
+        user_context: str | None = None,
     ) -> str:
         """Create a new analysis job.
 
@@ -152,6 +153,11 @@ class JobManager:
             orchestrator_mode: Which orchestrator to run for this job.
                 When None, falls back to the manager's default mode
                 (set at construction time from settings).
+            user_context: Optional analyst-provided prose context about
+                the dataset. Stashed on
+                state.dataset_info.user_provided_context so domain_knowledge
+                has something to investigate even when Kaggle's authored
+                metadata is empty.
 
         Returns:
             Job ID
@@ -175,7 +181,10 @@ class JobManager:
         now = datetime.now(timezone.utc)
         state = AnalysisState(
             job_id=job_id,
-            dataset_info=DatasetInfo(url=kaggle_url),
+            dataset_info=DatasetInfo(
+                url=kaggle_url,
+                user_provided_context=user_context,
+            ),
             treatment_variable=treatment_variable,
             outcome_variable=outcome_variable,
             orchestrator_mode=orchestrator_mode or self._orchestrator_mode,

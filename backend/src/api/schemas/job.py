@@ -47,6 +47,17 @@ class CreateJobRequest(BaseModel):
             "server-side default."
         ),
     )
+    user_context: str | None = Field(
+        None,
+        description=(
+            "Optional prose context the analyst provides about the dataset: "
+            "the study it came from, what the variables mean, known caveats. "
+            "Flows to domain_knowledge so it has something to investigate "
+            "even when Kaggle's authored metadata is empty. Plain text, "
+            "no markdown processing."
+        ),
+        max_length=2000,
+    )
 
     @field_validator("kaggle_url")
     @classmethod

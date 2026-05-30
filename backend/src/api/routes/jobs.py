@@ -97,6 +97,7 @@ async def create_job(
             treatment_variable=body.treatment_variable,
             outcome_variable=body.outcome_variable,
             orchestrator_mode=body.orchestrator_mode,
+            user_context=body.user_context,
         )
 
         # Get the created job

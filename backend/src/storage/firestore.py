@@ -400,6 +400,12 @@ class FirestoreClient:
                 "metadata_quality": state.dataset_info.metadata_quality,
             }
 
+        # Analyst-provided prose context, when given on submission.
+        if state.dataset_info.user_provided_context:
+            results_data["user_provided_context"] = (
+                state.dataset_info.user_provided_context
+            )
+
         # Add causal graph
         if state.proposed_dag:
             results_data["causal_graph"] = {

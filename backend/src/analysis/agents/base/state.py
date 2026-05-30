@@ -67,6 +67,11 @@ class DatasetInfo(BaseModel):
     kaggle_domain: str | None = None  # Inferred domain (healthcare, economics, etc.)
     metadata_quality: str = "unknown"  # high, medium, low, unknown
 
+    # Optional prose the analyst provided on job submission. Treated by
+    # downstream agents as a metadata source on equal footing with the
+    # Kaggle-authored description.
+    user_provided_context: str | None = None
+
 
 class AnalysisDecision(BaseModel):
     """A recorded decision made by an agent during analysis."""
