@@ -23,6 +23,7 @@ from src.analysis.agents.registry import register_agent
 from src.logging_config.structured import get_logger
 
 from . import tools
+from .brief import CAPABILITY as DP_CAPABILITY, build_brief
 from .encoding import auto_encode, build_encoding
 from .helpers import (
     auto_finalize,
@@ -50,6 +51,7 @@ class DataProfilerAgent(ReActAgent, ContextTools):
     REQUIRED_STATE_FIELDS = ["dataset_info"]
     JOB_STATUS = JobStatus.PROFILING
     PROGRESS_WEIGHT = 0.08
+    CAPABILITY = DP_CAPABILITY
 
     SYSTEM_PROMPT = SYSTEM_PROMPT
 
@@ -173,6 +175,15 @@ class DataProfilerAgent(ReActAgent, ContextTools):
         except Exception as e:
             self.logger.exception("profiling_failed", error=str(e))
             state.mark_failed(f"Data profiling failed: {str(e)}", self.AGENT_NAME)
+        finally:
+            if "data_profiler" not in state.agent_briefs:
+                brief = build_brief(state)
+                state.agent_briefs[brief.agent] = brief
+                self.logger.info(
+                    "data_profiler_brief",
+                    status=brief.status,
+                    flags=[f.value for f in brief.flags],
+                )
 
         return state
 

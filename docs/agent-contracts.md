@@ -37,7 +37,7 @@ production code knows where in the agent to plug in.
 
 | Agent | Migrated | Pattern (current) | Phase |
 |---|---|---|---|
-| `data_profiler` | no | CoT | 3b |
+| `data_profiler` | yes | Full ReAct | 3b |
 | `data_repair` | no | Full ReAct | 3c |
 | `eda_agent` | yes | Full ReAct | 3a |
 | `confounder_discovery` | yes | Full ReAct | 3c |
@@ -326,3 +326,29 @@ Critique **does not raise any closed-enum issue flags**. It is the final synthes
 - `dag_expert.flag.dag_conflict` -- `DAG_CONFLICT` when forbidden_edges is non-empty
 - `dag_expert.flag.collider_suspected` -- `COLLIDER_SUSPECTED` on potential_collider in variable_roles
 - `dag_expert.flag.cycle_detected` -- `CYCLE_DETECTED` when directed edges form a cycle
+
+## data_profiler
+
+**Answers:** What are the dataset's column types, missingness, candidate treatment/outcome variables, and required treatment encoding?
+
+**Needs:**
+- `dataset_info` (always present on state init; no real refusal case)
+
+**Delivers:**
+- `data_profile` (typed `DataProfile`)
+- `dataframe_path` (string path the agent writes after loading)
+- `treatment_encoding` (typed `TreatmentEncoding`; only populated when the treatment column needs collapsing or label encoding)
+- `agent_briefs["data_profiler"]` (typed `AgentBrief`, always written)
+
+**Refuses when:**
+
+Profiler is the entry point of the analysis pipeline. State initialization guarantees `dataset_info`, so `preflight` has no meaningful refusal case and always returns None. Internal load failures surface as `status="failed"` via the finally block.
+
+**Flags raised:**
+- `HIGH_MISSINGNESS` -- any column has more than 50 percent missing values (downstream agents should consider data_repair before estimation)
+- `ENCODING_REQUIRED` -- `state.treatment_encoding.strategy` is not `"none"` (multi-level categorical treatment was collapsed or label-encoded)
+
+**Success criteria** (id -> test in `tests/test_brief.py`):
+- `profiler.brief.always_written` -- execute always writes a brief
+- `profiler.flag.high_missingness` -- `HIGH_MISSINGNESS` when any column has > 50% missing
+- `profiler.flag.encoding_required` -- `ENCODING_REQUIRED` when treatment_encoding strategy is non-"none"
