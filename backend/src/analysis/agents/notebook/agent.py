@@ -26,6 +26,7 @@ from .sections import (
     render_domain_knowledge,
     render_eda_report,
     render_introduction,
+    render_pipeline_briefs,
     render_ps_diagnostics,
     render_sensitivity,
     render_setup_cells,
@@ -118,6 +119,7 @@ When generating narratives:
             cells.extend(render_treatment_effects(state))
             cells.extend(render_sensitivity(state))
             cells.extend(render_decisions(state))
+            cells.extend(render_pipeline_briefs(state))
             cells.extend(render_critique_section(state))
             cells.extend(await render_conclusions(
                 state, llm=self.llm, system_prompt=self.SYSTEM_PROMPT

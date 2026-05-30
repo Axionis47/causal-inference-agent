@@ -11,6 +11,7 @@ from .data_repairs import render_data_repairs
 from .domain_knowledge import render_domain_knowledge
 from .eda import render_eda_report
 from .introduction import render_introduction
+from .pipeline_briefs import render_pipeline_briefs
 from .ps_diagnostics import render_ps_diagnostics
 from .sensitivity import render_sensitivity
 from .setup import render_setup_cells
@@ -29,7 +30,8 @@ __all__ = [
     "render_ps_diagnostics",
     "render_treatment_effects",
     "render_sensitivity",
-    "render_critique_section",
     "render_decisions",
+    "render_pipeline_briefs",
+    "render_critique_section",
     "render_conclusions",
 ]
