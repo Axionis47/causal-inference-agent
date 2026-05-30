@@ -235,11 +235,13 @@ async def fetch_kaggle_metadata(state: AnalysisState) -> None:
         if metadata.get("extraction_success"):
             state.raw_metadata = metadata
 
-            state.dataset_info.kaggle_description = metadata.get("description")
+            state.dataset_info.kaggle_description = metadata.get("description") or None
+            state.dataset_info.kaggle_subtitle = metadata.get("subtitle") or None
             state.dataset_info.kaggle_column_descriptions = metadata.get(
                 "column_descriptions", {}
             )
-            state.dataset_info.kaggle_tags = metadata.get("tags", [])
+            state.dataset_info.kaggle_tags = metadata.get("tags", []) or []
+            state.dataset_info.kaggle_keywords = metadata.get("keywords", []) or []
             state.dataset_info.metadata_quality = metadata.get(
                 "metadata_quality", "unknown"
             )
@@ -248,15 +250,20 @@ async def fetch_kaggle_metadata(state: AnalysisState) -> None:
             logger.info(
                 "kaggle_metadata_fetched",
                 quality=metadata.get("metadata_quality"),
+                has_description=bool(state.dataset_info.kaggle_description),
+                has_subtitle=bool(state.dataset_info.kaggle_subtitle),
                 has_column_descs=bool(metadata.get("column_descriptions")),
+                n_keywords=len(state.dataset_info.kaggle_keywords),
                 domain=state.dataset_info.kaggle_domain,
             )
             state.push_sse_event(
                 "dataset_metadata_ready",
                 {
                     "description": state.dataset_info.kaggle_description,
+                    "subtitle": state.dataset_info.kaggle_subtitle,
                     "column_descriptions": state.dataset_info.kaggle_column_descriptions,
                     "tags": state.dataset_info.kaggle_tags,
+                    "keywords": state.dataset_info.kaggle_keywords,
                     "domain": state.dataset_info.kaggle_domain,
                     "metadata_quality": state.dataset_info.metadata_quality,
                 },

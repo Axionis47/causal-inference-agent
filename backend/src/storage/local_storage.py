@@ -322,14 +322,18 @@ class LocalStorageClient:
                 # Persist Kaggle metadata for the same reason.
                 if (
                     state.dataset_info.kaggle_description
+                    or state.dataset_info.kaggle_subtitle
                     or state.dataset_info.kaggle_column_descriptions
                     or state.dataset_info.kaggle_tags
+                    or state.dataset_info.kaggle_keywords
                     or state.dataset_info.kaggle_domain
                 ):
                     results_data["kaggle_meta"] = {
                         "description": state.dataset_info.kaggle_description,
+                        "subtitle": state.dataset_info.kaggle_subtitle,
                         "column_descriptions": state.dataset_info.kaggle_column_descriptions,
                         "tags": state.dataset_info.kaggle_tags,
+                        "keywords": state.dataset_info.kaggle_keywords,
                         "domain": state.dataset_info.kaggle_domain,
                         "metadata_quality": state.dataset_info.metadata_quality,
                     }

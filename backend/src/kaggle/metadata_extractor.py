@@ -185,49 +185,146 @@ class KaggleMetadataExtractor:
             return self._empty_metadata(dataset_url, str(e))
 
     def _fetch_dataset_metadata(self, api, owner: str, dataset_name: str) -> dict:
-        """Fetch dataset metadata from Kaggle API."""
+        """Combine authored metadata with search-result snippet.
+
+        Two Kaggle surfaces carry different fields:
+          * `api.dataset_metadata(slug, path)` downloads the
+            uploader-authored `dataset-metadata.json` (rich:
+            description, subtitle, keywords, per-column schema).
+          * `api.dataset_list(search=slug)` returns the search-result
+            snippet (rich stats: tags, usability, downloads, votes;
+            description here is usually empty).
+
+        Earlier versions of this extractor only checked the search
+        endpoint and only fell through to dataset_metadata when the
+        search failed — so for datasets that DO surface in search but
+        with an empty snippet description, the rich authored content
+        was silently skipped. This redesign pulls both unconditionally
+        and merges, preferring authored fields where they're populated.
+        """
+        authored = self._fetch_authored_metadata(api, owner, dataset_name)
+        search = self._fetch_search_metadata(api, owner, dataset_name)
+
+        def _prefer(*candidates):
+            for c in candidates:
+                if c:
+                    return c
+            return candidates[-1] if candidates else None
+
+        return {
+            "title": _prefer(authored.get("title"), search.get("title"), dataset_name),
+            "subtitle": _prefer(authored.get("subtitle"), search.get("subtitle"), ""),
+            "description": _prefer(
+                authored.get("description"), search.get("description"), ""
+            ),
+            "license": _prefer(authored.get("license"), search.get("license"), ""),
+            "source": search.get("source", ""),
+            "tags": search.get("tags", []) or [],
+            "keywords": authored.get("keywords", []) or [],
+            "columns": authored.get("columns", {}) or {},
+            "totalBytes": search.get("totalBytes", 0) or 0,
+            "downloadCount": search.get("downloadCount", 0) or 0,
+            "voteCount": search.get("voteCount", 0) or 0,
+            "usabilityRating": search.get("usabilityRating", 0) or 0,
+        }
+
+    def _fetch_authored_metadata(
+        self,
+        api,
+        owner: str,
+        dataset_name: str,
+    ) -> dict:
+        """Pull the uploader-authored `dataset-metadata.json`.
+
+        This is the prize: it's the JSON the uploader edits at upload
+        time. When filled in, it carries the dataset's prose
+        description, subtitle, keywords, and optionally per-column
+        schema via the `resources` array.
+        """
+        import tempfile
+        from pathlib import Path
+
+        slug = f"{owner}/{dataset_name}"
         try:
-            # Get dataset info
-            dataset_list = api.dataset_list(search=f"{owner}/{dataset_name}")
-
-            for dataset in dataset_list:
-                if dataset.ref == f"{owner}/{dataset_name}":
-                    return {
-                        "title": getattr(dataset, "title", dataset_name),
-                        "description": getattr(dataset, "description", ""),
-                        "subtitle": getattr(dataset, "subtitle", ""),
-                        "source": getattr(dataset, "url", ""),
-                        "license": getattr(dataset, "licenseName", ""),
-                        "totalBytes": getattr(dataset, "totalBytes", 0),
-                        "downloadCount": getattr(dataset, "downloadCount", 0),
-                        "voteCount": getattr(dataset, "voteCount", 0),
-                        "usabilityRating": getattr(dataset, "usabilityRating", 0),
-                        "tags": self._extract_tags(dataset),
-                        "keywords": getattr(dataset, "keywords", []) or [],
-                    }
-
-            # Dataset not found in search, try metadata endpoint
-            try:
-                metadata = api.dataset_metadata(owner, dataset_name)
-                if metadata and hasattr(metadata, "info"):
-                    info = metadata.info
-                    return {
-                        "title": getattr(info, "title", dataset_name),
-                        "description": getattr(info, "description", ""),
-                        "subtitle": getattr(info, "subtitle", ""),
-                        "license": getattr(info, "licenseName", ""),
-                        "tags": [],
-                        "keywords": getattr(info, "keywords", []) or [],
-                        "columns": self._extract_column_descriptions(metadata),
-                    }
-            except Exception:
-                logger.debug("metadata_parse_skipped", exc_info=True)
-
-            return {"title": dataset_name}
-
+            with tempfile.TemporaryDirectory() as td:
+                api.dataset_metadata(slug, td)
+                jp = Path(td) / "dataset-metadata.json"
+                if not jp.exists():
+                    return {}
+                data = json.loads(jp.read_text())
         except Exception as e:
-            logger.warning("metadata_fetch_partial", error=str(e))
-            return {"title": dataset_name}
+            logger.debug("authored_metadata_failed", error=str(e))
+            return {}
+
+        licenses = data.get("licenses") or []
+        license_name = licenses[0].get("name", "") if licenses else ""
+
+        return {
+            "title": data.get("title") or "",
+            "subtitle": data.get("subtitle") or "",
+            "description": data.get("description") or "",
+            "keywords": data.get("keywords") or [],
+            "license": license_name,
+            "columns": self._extract_columns_from_resources(
+                data.get("resources") or []
+            ),
+        }
+
+    def _fetch_search_metadata(
+        self,
+        api,
+        owner: str,
+        dataset_name: str,
+    ) -> dict:
+        """Pull supplemental fields from the search-result snippet.
+
+        Description here is usually empty; the value is the stats
+        (totalBytes, downloadCount, voteCount, usabilityRating) and
+        the tags list which `dataset_metadata` does not surface.
+        """
+        slug = f"{owner}/{dataset_name}"
+        try:
+            matches = [
+                d for d in api.dataset_list(search=slug) if d.ref == slug
+            ]
+        except Exception as e:
+            logger.debug("search_metadata_failed", error=str(e))
+            return {}
+
+        if not matches:
+            return {}
+        d = matches[0]
+        return {
+            "title": getattr(d, "title", "") or "",
+            "subtitle": getattr(d, "subtitle", "") or "",
+            "description": getattr(d, "description", "") or "",
+            "source": getattr(d, "url", "") or "",
+            "license": getattr(d, "licenseName", "") or "",
+            "tags": self._extract_tags(d),
+            "totalBytes": getattr(d, "totalBytes", 0) or 0,
+            "downloadCount": getattr(d, "downloadCount", 0) or 0,
+            "voteCount": getattr(d, "voteCount", 0) or 0,
+            "usabilityRating": getattr(d, "usabilityRating", 0) or 0,
+        }
+
+    def _extract_columns_from_resources(
+        self,
+        resources: list[dict],
+    ) -> dict[str, str]:
+        """Walk `dataset-metadata.json::resources[*].schema.fields[*]` for column descs.
+
+        Most uploaders don't fill this in, but when they do it's the
+        single best source of per-column meaning.
+        """
+        cols: dict[str, str] = {}
+        for resource in resources:
+            schema = resource.get("schema") or {}
+            for field in schema.get("fields") or []:
+                name = field.get("name")
+                desc = field.get("description") or ""
+                if name and desc:
+                    cols[name] = desc
+        return cols
 
     def _extract_tags(self, dataset) -> list[str]:
         """Extract tags from dataset object."""

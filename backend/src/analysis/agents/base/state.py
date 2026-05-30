@@ -60,8 +60,10 @@ class DatasetInfo(BaseModel):
 
     # Kaggle semantic metadata for variable understanding
     kaggle_description: str | None = None
+    kaggle_subtitle: str | None = None
     kaggle_column_descriptions: dict[str, str] = Field(default_factory=dict)
     kaggle_tags: list[str] = Field(default_factory=list)
+    kaggle_keywords: list[str] = Field(default_factory=list)
     kaggle_domain: str | None = None  # Inferred domain (healthcare, economics, etc.)
     metadata_quality: str = "unknown"  # high, medium, low, unknown
 
