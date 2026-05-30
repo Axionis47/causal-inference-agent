@@ -42,7 +42,7 @@ production code knows where in the agent to plug in.
 | `eda_agent` | yes | Full ReAct | 3a |
 | `confounder_discovery` | yes | Full ReAct | 3c |
 | `causal_discovery` | yes | Full ReAct | 3a |
-| `dag_expert` | no | Full ReAct | 3c |
+| `dag_expert` | yes | Full ReAct | 3c |
 | `ps_diagnostics` | yes | Full ReAct | 1 (reference) |
 | `effect_estimator` | yes | Full ReAct | 3d |
 | `sensitivity_analyst` | yes | Full ReAct | 3a |
@@ -297,3 +297,32 @@ Critique **does not raise any closed-enum issue flags**. It is the final synthes
 - `confounder.brief.always_written` -- execute always writes a brief
 - `confounder.refusal.needs_missing` -- `NEEDS_NOT_MET` on missing profile / dataframe path
 - `confounder.flag.weak_evidence` -- `WEAK_CONFOUNDER_EVIDENCE` when ranked_confounders is empty
+
+## dag_expert
+
+**Answers:** What DAG, variable roles, and adjustment set should downstream estimation use, given user, domain-knowledge, and data-driven inputs?
+
+**Needs:**
+- `dataset_info` (always present on state)
+- `discovered_dag` (typed `CausalDAG` from causal_discovery)
+
+**Delivers:**
+- `refined_dag` (typed `CausalDAG` with `variable_roles`, `forbidden_edges`, `adjustment_set` populated)
+- `agent_briefs["dag_expert"]` (typed `AgentBrief`, always written)
+
+**Refuses when:**
+- `discovered_dag` is None -> `NEEDS_NOT_MET` (reroute to causal_discovery)
+
+**Flags raised:**
+- `NO_ADJUSTMENT_SET` -- `refined_dag.adjustment_set` is empty or None; downstream estimation must fall back to the profiler's potential_confounders
+- `DAG_CONFLICT` -- `refined_dag.forbidden_edges` is non-empty (fusion rejected edges from one of the sources)
+- `COLLIDER_SUSPECTED` -- `variable_roles` contains a `potential_collider`; estimation should exclude these from the adjustment set
+- `CYCLE_DETECTED` -- directed edges form a cycle; downstream identification is unsafe
+
+**Success criteria** (id -> test in `tests/test_brief.py`):
+- `dag_expert.brief.always_written` -- execute always writes a brief
+- `dag_expert.refusal.needs_missing` -- `NEEDS_NOT_MET` when `discovered_dag` is missing
+- `dag_expert.flag.no_adjustment_set` -- `NO_ADJUSTMENT_SET` when adjustment_set is empty
+- `dag_expert.flag.dag_conflict` -- `DAG_CONFLICT` when forbidden_edges is non-empty
+- `dag_expert.flag.collider_suspected` -- `COLLIDER_SUSPECTED` on potential_collider in variable_roles
+- `dag_expert.flag.cycle_detected` -- `CYCLE_DETECTED` when directed edges form a cycle

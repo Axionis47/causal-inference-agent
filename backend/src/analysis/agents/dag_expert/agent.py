@@ -13,6 +13,7 @@ from src.analysis.agents.registry import register_agent
 from src.logging_config.structured import get_logger
 
 from . import tools
+from .brief import CAPABILITY as DE_CAPABILITY, build_brief, preflight
 from .helpers import initial_observation_text
 from .prompt import SYSTEM_PROMPT
 
@@ -29,6 +30,7 @@ class DAGExpertAgent(ReActAgent, ContextTools):
     REQUIRED_STATE_FIELDS = ["dataset_info", "discovered_dag"]
     JOB_STATUS = JobStatus.DISCOVERING_CAUSAL
     PROGRESS_WEIGHT = 0.08
+    CAPABILITY = DE_CAPABILITY
 
     SYSTEM_PROMPT = SYSTEM_PROMPT
 
@@ -67,6 +69,16 @@ class DAGExpertAgent(ReActAgent, ContextTools):
         )
 
     async def execute(self, state: AnalysisState) -> AnalysisState:
+        refusal = preflight(state)
+        if refusal is not None:
+            state.agent_briefs[refusal.agent] = refusal
+            self.logger.info(
+                "dag_expert_refused",
+                flag=refusal.flags[0].value,
+                headline=refusal.headline,
+            )
+            return state
+
         self.logger.info(
             "dag_expert_start",
             job_id=state.job_id,
@@ -78,11 +90,22 @@ class DAGExpertAgent(ReActAgent, ContextTools):
         self._forbidden_edges = []
         self._variable_roles = {}
 
-        state = await super().execute(state)
+        try:
+            state = await super().execute(state)
 
-        self.logger.info(
-            "dag_expert_complete",
-            n_edges=len(state.refined_dag.edges) if state.refined_dag else 0,
-            n_roles_classified=len(self._variable_roles),
-        )
+            self.logger.info(
+                "dag_expert_complete",
+                n_edges=len(state.refined_dag.edges) if state.refined_dag else 0,
+                n_roles_classified=len(self._variable_roles),
+            )
+        finally:
+            if "dag_expert" not in state.agent_briefs:
+                brief = build_brief(state)
+                state.agent_briefs[brief.agent] = brief
+                self.logger.info(
+                    "dag_expert_brief",
+                    status=brief.status,
+                    flags=[f.value for f in brief.flags],
+                )
+
         return state
