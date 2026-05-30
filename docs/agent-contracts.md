@@ -38,7 +38,7 @@ production code knows where in the agent to plug in.
 | Agent | Migrated | Pattern (current) | Phase |
 |---|---|---|---|
 | `data_profiler` | yes | Full ReAct | 3b |
-| `data_repair` | no | Full ReAct | 3c |
+| `data_repair` | yes | Full ReAct | 3c |
 | `eda_agent` | yes | Full ReAct | 3a |
 | `confounder_discovery` | yes | Full ReAct | 3c |
 | `causal_discovery` | yes | Full ReAct | 3a |
@@ -352,3 +352,29 @@ Profiler is the entry point of the analysis pipeline. State initialization guara
 - `profiler.brief.always_written` -- execute always writes a brief
 - `profiler.flag.high_missingness` -- `HIGH_MISSINGNESS` when any column has > 50% missing
 - `profiler.flag.encoding_required` -- `ENCODING_REQUIRED` when treatment_encoding strategy is non-"none"
+
+## data_repair
+
+**Answers:** Which data quality issues need fixing before estimation, and what repairs were applied?
+
+**Needs:**
+- `data_profile` (typed `DataProfile`; profiler must have run)
+- `dataframe_path` (string path to the parquet/csv the profiler wrote)
+
+**Delivers:**
+- `data_repairs` (list of repair-action dicts: type, strategy, columns, before/after counts, rows_dropped)
+- `agent_briefs["data_repair"]` (typed `AgentBrief`, always written)
+
+**Refuses when:**
+- `data_profile` is None -> `NEEDS_NOT_MET` (reroute to profiler)
+- `dataframe_path` is None -> `NEEDS_NOT_MET` (reroute to profiler)
+
+**Flags raised:**
+- `REPAIR_FAILED` -- profile reported missing values but the agent recorded zero repair actions (suspect load / permission issue)
+- `DATA_LOST` -- cumulative `rows_dropped` across repairs exceeds 5 percent of the original sample; downstream estimation runs on a meaningfully smaller dataset
+
+**Success criteria** (id -> test in `tests/test_brief.py`):
+- `repair.brief.always_written` -- execute always writes a brief
+- `repair.refusal.needs_missing` -- `NEEDS_NOT_MET` on missing profile / dataframe path
+- `repair.flag.repair_failed` -- `REPAIR_FAILED` when issues existed but no repairs ran
+- `repair.flag.data_lost` -- `DATA_LOST` when rows_dropped > 5% of n_samples

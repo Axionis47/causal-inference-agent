@@ -15,6 +15,7 @@ from src.analysis.agents.registry import register_agent
 from src.logging_config.structured import get_logger
 
 from . import tools
+from .brief import CAPABILITY as DR_CAPABILITY, build_brief, preflight
 from .helpers import (
     auto_finalize,
     count_outliers,
@@ -37,6 +38,7 @@ class DataRepairAgent(ReActAgent, ContextTools):
     REQUIRED_STATE_FIELDS = ["data_profile", "dataframe_path"]
     JOB_STATUS = JobStatus.PROFILING
     PROGRESS_WEIGHT = 0.06
+    CAPABILITY = DR_CAPABILITY
 
     SYSTEM_PROMPT = SYSTEM_PROMPT
 
@@ -73,6 +75,16 @@ class DataRepairAgent(ReActAgent, ContextTools):
         return self._finalized
 
     async def execute(self, state: AnalysisState) -> AnalysisState:
+        refusal = preflight(state)
+        if refusal is not None:
+            state.agent_briefs[refusal.agent] = refusal
+            self.logger.info(
+                "data_repair_refused",
+                flag=refusal.flags[0].value,
+                headline=refusal.headline,
+            )
+            return state
+
         self.logger.info("data_repair_start", job_id=state.job_id)
         start_time = time.time()
 
@@ -124,6 +136,15 @@ class DataRepairAgent(ReActAgent, ContextTools):
                 reasoning=f"Repair failed but continuing: {str(e)}",
                 outputs={"error": str(e)},
             ))
+        finally:
+            if "data_repair" not in state.agent_briefs:
+                brief = build_brief(state)
+                state.agent_briefs[brief.agent] = brief
+                self.logger.info(
+                    "data_repair_brief",
+                    status=brief.status,
+                    flags=[f.value for f in brief.flags],
+                )
 
         return state
 
