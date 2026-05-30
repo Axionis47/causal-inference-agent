@@ -44,7 +44,7 @@ production code knows where in the agent to plug in.
 | `causal_discovery` | yes | Full ReAct | 3a |
 | `dag_expert` | no | Full ReAct | 3c |
 | `ps_diagnostics` | yes | Full ReAct | 1 (reference) |
-| `effect_estimator` | no | Full ReAct | 3d |
+| `effect_estimator` | yes | Full ReAct | 3d |
 | `sensitivity_analyst` | yes | Full ReAct | 3a |
 | `critique` | yes | Custom agentic loop | 3e |
 | `domain_knowledge` | yes | Full ReAct | 3a |
@@ -244,3 +244,32 @@ Critique **does not raise any closed-enum issue flags**. It is the final synthes
 - `critique.brief.always_written` -- execute always writes a brief into `state.agent_briefs["critique"]`
 - `critique.refusal.needs_missing` -- `NEEDS_NOT_MET` when `state.treatment_effects` is empty
 - `critique.status.reflects_decision` -- brief status is `done` when a feedback was appended; headline reports the decision and iteration
+
+## effect_estimator
+
+**Answers:** What is the treatment effect, and how do estimates compare across appropriate causal-inference methods?
+
+**Needs:**
+- `data_profile` (typed `DataProfile`; profiler must have run)
+- `dataframe_path` (string path to the parquet/csv the profiler wrote)
+
+**Delivers:**
+- `treatment_effects` (`list[TreatmentEffectResult]`; one entry per method run per pair)
+- `analyzed_pairs` (`list[CausalPair]`; LLM-selected treatment-outcome pairs)
+- `agent_briefs["effect_estimator"]` (typed `AgentBrief`, always written)
+
+**Refuses when:**
+- `data_profile` is None -> `NEEDS_NOT_MET` (reroute to profiler)
+- `dataframe_path` is None -> `NEEDS_NOT_MET` (reroute to profiler)
+
+**Flags raised:**
+- `METHOD_UNSTABLE` -- cross-method coefficient of variation > 0.5 (matches `compare_estimates`' own INCONSISTENT label)
+- `ATE_OUTLIER` -- at least one estimate sits more than 3 MAD from the median across results
+- `WEAK_INSTRUMENT` -- any IV-family result reports `first_stage_f_partial < 10` or `weak_instrument_severe == True`
+
+**Success criteria** (id -> test in `tests/test_brief.py`):
+- `estimator.brief.always_written` -- execute always writes a brief into `state.agent_briefs["effect_estimator"]`
+- `estimator.refusal.needs_missing` -- `NEEDS_NOT_MET` on missing `data_profile` / `dataframe_path`
+- `estimator.flag.method_unstable` -- `METHOD_UNSTABLE` when CV > 0.5
+- `estimator.flag.ate_outlier` -- `ATE_OUTLIER` when any estimate is > 3 MAD from the median
+- `estimator.flag.weak_instrument` -- `WEAK_INSTRUMENT` on IV first-stage F < 10 or severe flag

@@ -28,6 +28,7 @@ from src.analysis.agents.registry import register_agent
 from src.logging_config.structured import get_logger
 
 from . import tools
+from .brief import CAPABILITY as EE_CAPABILITY, build_brief, preflight
 from .covariates import get_covariates_for_pair
 from .helpers import (
     auto_finalize,
@@ -60,6 +61,7 @@ class EffectEstimatorAgent(ReActAgent, ContextTools):
     WRITES_STATE_FIELDS = ["treatment_effects", "analyzed_pairs", "treatment_binarization_threshold"]
     JOB_STATUS = "estimating_effects"
     PROGRESS_WEIGHT = 60
+    CAPABILITY = EE_CAPABILITY
 
     def __init__(self) -> None:
         super().__init__()
@@ -119,6 +121,16 @@ class EffectEstimatorAgent(ReActAgent, ContextTools):
 
     async def execute(self, state: AnalysisState) -> AnalysisState:
         """Iterate over identified causal pairs, run the ReAct loop per pair."""
+        refusal = preflight(state)
+        if refusal is not None:
+            state.agent_briefs[refusal.agent] = refusal
+            self.logger.info(
+                "effect_estimator_refused",
+                flag=refusal.flags[0].value,
+                headline=refusal.headline,
+            )
+            return state
+
         self.logger.info(
             "estimation_start",
             job_id=state.job_id,
@@ -229,6 +241,15 @@ class EffectEstimatorAgent(ReActAgent, ContextTools):
         except Exception as e:
             self.logger.exception("estimation_failed", error=str(e))
             state.mark_failed(f"Effect estimation failed: {str(e)}", self.AGENT_NAME)
+        finally:
+            if "effect_estimator" not in state.agent_briefs:
+                brief = build_brief(state)
+                state.agent_briefs[brief.agent] = brief
+                self.logger.info(
+                    "effect_estimator_brief",
+                    status=brief.status,
+                    flags=[f.value for f in brief.flags],
+                )
 
         return state
 
