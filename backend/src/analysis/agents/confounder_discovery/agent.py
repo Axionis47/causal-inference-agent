@@ -15,6 +15,7 @@ from src.analysis.agents.registry import register_agent
 from src.logging_config.structured import get_logger
 
 from . import tools
+from .brief import CAPABILITY as CD_CAPABILITY, build_brief, preflight
 from .helpers import (
     candidates_from_df,
     fallback_confounder_identification,
@@ -36,6 +37,7 @@ class ConfounderDiscoveryAgent(ReActAgent, ContextTools):
     REQUIRED_STATE_FIELDS = ["data_profile", "dataframe_path"]
     JOB_STATUS = JobStatus.DISCOVERING_CAUSAL
     PROGRESS_WEIGHT = 0.06
+    CAPABILITY = CD_CAPABILITY
 
     SYSTEM_PROMPT = SYSTEM_PROMPT
 
@@ -89,6 +91,16 @@ class ConfounderDiscoveryAgent(ReActAgent, ContextTools):
         return self._finalized
 
     async def execute(self, state: AnalysisState) -> AnalysisState:
+        refusal = preflight(state)
+        if refusal is not None:
+            state.agent_briefs[refusal.agent] = refusal
+            self.logger.info(
+                "confounder_discovery_refused",
+                flag=refusal.flags[0].value,
+                headline=refusal.headline,
+            )
+            return state
+
         self.logger.info("confounder_discovery_start", job_id=state.job_id)
         start_time = time.time()
 
@@ -126,6 +138,15 @@ class ConfounderDiscoveryAgent(ReActAgent, ContextTools):
         except Exception as e:
             self.logger.error("confounder_discovery_failed", error=str(e))
             state = self._fallback_confounder_identification(state)
+        finally:
+            if "confounder_discovery" not in state.agent_briefs:
+                brief = build_brief(state)
+                state.agent_briefs[brief.agent] = brief
+                self.logger.info(
+                    "confounder_discovery_brief",
+                    status=brief.status,
+                    flags=[f.value for f in brief.flags],
+                )
 
         return state
 

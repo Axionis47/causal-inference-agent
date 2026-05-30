@@ -40,7 +40,7 @@ production code knows where in the agent to plug in.
 | `data_profiler` | no | CoT | 3b |
 | `data_repair` | no | Full ReAct | 3c |
 | `eda_agent` | yes | Full ReAct | 3a |
-| `confounder_discovery` | no | Full ReAct | 3c |
+| `confounder_discovery` | yes | Full ReAct | 3c |
 | `causal_discovery` | yes | Full ReAct | 3a |
 | `dag_expert` | no | Full ReAct | 3c |
 | `ps_diagnostics` | yes | Full ReAct | 1 (reference) |
@@ -273,3 +273,27 @@ Critique **does not raise any closed-enum issue flags**. It is the final synthes
 - `estimator.flag.method_unstable` -- `METHOD_UNSTABLE` when CV > 0.5
 - `estimator.flag.ate_outlier` -- `ATE_OUTLIER` when any estimate is > 3 MAD from the median
 - `estimator.flag.weak_instrument` -- `WEAK_INSTRUMENT` on IV first-stage F < 10 or severe flag
+
+## confounder_discovery
+
+**Answers:** Which observed variables most plausibly confound the treatment-outcome relationship?
+
+**Needs:**
+- `data_profile` (typed `DataProfile`; profiler must have run)
+- `dataframe_path` (string path to the parquet/csv the profiler wrote)
+
+**Delivers:**
+- `confounder_discovery` (dict with `ranked_confounders`, `excluded_variables`, `adjustment_strategy`, `investigation_log`)
+- `agent_briefs["confounder_discovery"]` (typed `AgentBrief`, always written)
+
+**Refuses when:**
+- `data_profile` is None -> `NEEDS_NOT_MET` (reroute to profiler)
+- `dataframe_path` is None -> `NEEDS_NOT_MET` (reroute to profiler)
+
+**Flags raised:**
+- `WEAK_CONFOUNDER_EVIDENCE` -- `ranked_confounders` is empty; downstream specialists must lean on DAG adjustment set or profiler's potential_confounders instead
+
+**Success criteria** (id -> test in `tests/test_brief.py`):
+- `confounder.brief.always_written` -- execute always writes a brief
+- `confounder.refusal.needs_missing` -- `NEEDS_NOT_MET` on missing profile / dataframe path
+- `confounder.flag.weak_evidence` -- `WEAK_CONFOUNDER_EVIDENCE` when ranked_confounders is empty
