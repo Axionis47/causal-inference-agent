@@ -4,16 +4,43 @@ from src.analysis.agents.base import AnalysisState
 
 
 def initial_observation_text(state: AnalysisState) -> str:
-    """Build the lean initial observation the ReAct loop sees on step zero."""
+    """Build the lean initial observation the ReAct loop sees on step zero.
+
+    Surfaces every metadata signal the agent could use: Kaggle's authored
+    description + subtitle, the analyst's optional user_provided_context,
+    and the user-designated treatment / outcome pair. The agent's tools
+    let it pull more detail (column descriptions, tags, etc.) on demand.
+    """
     metadata = state.raw_metadata or {}
-    return f"""You are investigating a new dataset for causal analysis.
+    ds = state.dataset_info
 
-Dataset: {metadata.get('title', state.dataset_info.name or 'Unknown')}
-Source: Kaggle
-Metadata quality: {metadata.get('metadata_quality', 'unknown')}
+    lines = [
+        "You are investigating a new dataset for causal analysis.",
+        "",
+        f"Dataset: {metadata.get('title', ds.name or 'Unknown')}",
+        "Source: Kaggle",
+        f"Metadata quality: {metadata.get('metadata_quality', 'unknown')}",
+    ]
 
-You have tools to investigate the metadata. Start by reading the description.
-"""
+    if ds.kaggle_subtitle:
+        lines.append(f"Subtitle: {ds.kaggle_subtitle}")
+    if state.treatment_variable or state.outcome_variable:
+        lines.append(
+            "User-designated pair: "
+            f"treatment={state.treatment_variable or '?'}, "
+            f"outcome={state.outcome_variable or '?'}"
+        )
+    if ds.user_provided_context:
+        lines.append("")
+        lines.append("Analyst-provided context:")
+        lines.append(ds.user_provided_context)
+
+    lines.append("")
+    lines.append(
+        "You have tools to investigate the metadata. "
+        "Start by reading the description."
+    )
+    return "\n".join(lines)
 
 
 def has_treatment_and_outcome_hypotheses(hypotheses: list[dict]) -> bool:

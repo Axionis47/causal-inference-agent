@@ -85,29 +85,48 @@ CAPABILITY = AgentCapability(
 
 
 def preflight(state: AnalysisState) -> AgentBrief | None:
-    """Refuse if there is no metadata at all to investigate.
+    """Refuse only when there is genuinely no signal to investigate.
 
-    The agent reads description, column descriptions, tags, and the
-    raw_metadata blob. If every one of these is empty there is nothing
-    for the ReAct loop to do, and the orchestrator should reroute to
-    the metadata-fetch stage rather than waste turns on this agent.
+    Sources the agent can investigate, in rough order of richness:
+      * kaggle_description / kaggle_subtitle (uploader-authored prose)
+      * kaggle_column_descriptions (per-column schema, rare)
+      * kaggle_tags / kaggle_keywords (categorical hints)
+      * kaggle_domain (inferred at metadata-extract time)
+      * state.raw_metadata (the full extractor result blob)
+      * user_provided_context (analyst paste on submission)
+      * (treatment_variable AND outcome_variable) - even with no
+        prose, the user-designated primary pair is enough signal
+        for the LLM to form column-name-based hypotheses
+
+    Only when ALL of the above are empty does the agent refuse with
+    NEEDS_NOT_MET. This is rarer than the old preflight allowed
+    because we now accept the user-designated pair and the analyst's
+    optional user_context as legitimate metadata.
     """
     ds = state.dataset_info
-    has_any_metadata = bool(
+    has_kaggle_signal = bool(
         ds.kaggle_description
+        or ds.kaggle_subtitle
         or ds.kaggle_column_descriptions
         or ds.kaggle_tags
+        or ds.kaggle_keywords
         or ds.kaggle_domain
         or state.raw_metadata
     )
-    if not has_any_metadata:
+    has_user_signal = bool(
+        ds.user_provided_context
+        or (state.treatment_variable and state.outcome_variable)
+    )
+    if not (has_kaggle_signal or has_user_signal):
         return refusal_brief(
             agent=AGENT_NAME,
             flag=Flag.NEEDS_NOT_MET,
             headline="no metadata available to investigate",
             issues=[
-                "dataset_info has no description, column descriptions, "
-                "tags, or domain, and state.raw_metadata is empty",
+                "dataset_info has no description, subtitle, column "
+                "descriptions, tags, keywords, or domain; state.raw_metadata "
+                "is empty; no user_provided_context; no user-designated "
+                "treatment/outcome pair",
             ],
         )
     return None

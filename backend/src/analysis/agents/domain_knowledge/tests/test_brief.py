@@ -118,6 +118,47 @@ class TestPreflight:
         )
         assert preflight(state) is None
 
+    def test_passes_when_only_subtitle_present(self):
+        info = DatasetInfo(url="u", kaggle_subtitle="A/B test of training program")
+        state = _make_state(dataset_info=info)
+        assert preflight(state) is None
+
+    def test_passes_when_only_keywords_present(self):
+        info = DatasetInfo(url="u", kaggle_keywords=["healthcare"])
+        state = _make_state(dataset_info=info)
+        assert preflight(state) is None
+
+    def test_passes_when_only_user_context_present(self):
+        info = DatasetInfo(
+            url="u",
+            user_provided_context="LaLonde NSW observational subset",
+        )
+        state = _make_state(dataset_info=info)
+        assert preflight(state) is None
+
+    def test_passes_when_only_user_designated_pair_present(self):
+        # Even with zero metadata, knowing the user picked treat + outcome
+        # is enough signal to form column-name-based hypotheses.
+        state = _make_state(
+            dataset_info=_dataset_info_empty(),
+            raw_metadata=None,
+        )
+        state.treatment_variable = "treat"
+        state.outcome_variable = "re78"
+        assert preflight(state) is None
+
+    def test_refuses_when_only_one_of_treatment_outcome_present(self):
+        # Half a pair is not enough signal on its own.
+        state = _make_state(
+            dataset_info=_dataset_info_empty(),
+            raw_metadata=None,
+        )
+        state.treatment_variable = "treat"
+        state.outcome_variable = None
+        brief = preflight(state)
+        assert brief is not None
+        assert brief.flags == [Flag.NEEDS_NOT_MET]
+
 
 # --- build_brief: status ----------------------------------------------------
 

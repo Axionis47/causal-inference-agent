@@ -119,14 +119,14 @@ fixed (matches the table above) so diffs are easy to read. -->
 **Answers:** What causal-role hypotheses do the dataset metadata support?
 
 **Needs:**
-- `dataset_info` (already required on the state; at least one of its metadata fields must be populated)
+- `dataset_info` (already required on the state; at least one of its metadata sources or the user-designated pair must be populated)
 
 **Delivers:**
 - `domain_knowledge` (typed `DomainKnowledge`; hypotheses, uncertainties, temporal understanding, immutables)
 - `agent_briefs["domain_knowledge"]` (typed `AgentBrief`, always written)
 
 **Refuses when:**
-- every metadata source on the state is empty (no description, no column descriptions, no tags, no kaggle_domain, no `raw_metadata`) -> `NEEDS_NOT_MET` (reroute to the metadata-fetch stage)
+- EVERY metadata source is empty AND no user-designated treatment/outcome pair was provided -> `NEEDS_NOT_MET` (reroute to the metadata-fetch stage). Sources counted: `kaggle_description`, `kaggle_subtitle`, `kaggle_column_descriptions`, `kaggle_tags`, `kaggle_keywords`, `kaggle_domain`, `state.raw_metadata`, `dataset_info.user_provided_context`, and the (`treatment_variable` AND `outcome_variable`) pair. The user-designated pair alone is enough signal to form column-name-based hypotheses, so a job submitted with `treatment=treat, outcome=re78` always clears preflight even on a dataset with zero Kaggle metadata.
 
 **Flags raised:**
 - `WEAK_CONFOUNDER_EVIDENCE` -- no confounder hypothesis formed at medium-or-better confidence (downstream specialists must lean on data-driven discovery)
