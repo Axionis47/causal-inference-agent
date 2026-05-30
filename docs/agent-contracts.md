@@ -41,7 +41,7 @@ production code knows where in the agent to plug in.
 | `data_repair` | no | Full ReAct | 3c |
 | `eda_agent` | yes | Full ReAct | 3a |
 | `confounder_discovery` | no | Full ReAct | 3c |
-| `causal_discovery` | no | CoT | 3a |
+| `causal_discovery` | yes | Full ReAct | 3a |
 | `dag_expert` | no | Full ReAct | 3c |
 | `ps_diagnostics` | yes | Full ReAct | 1 (reference) |
 | `effect_estimator` | no | Full ReAct | 3d |
@@ -167,3 +167,33 @@ Treatment / outcome unset is NOT a refusal: EDA can still report distributional 
 - `eda.flag.outcome_skewed` -- `OUTCOME_SKEWED` when outcome |skewness| > 1.0
 - `eda.flag.tc_imbalance` -- `TC_IMBALANCE` when max covariate SMD > 0.25
 - `eda.flag.suspect_correlation` -- `SUSPECT_CORRELATION` when high_correlations is non-empty
+
+## causal_discovery
+
+**Answers:** What directed graph do the data-driven discovery algorithms propose for this dataset?
+
+**Needs:**
+- `dataframe_path` (string path to the parquet/csv the profiler wrote)
+- `data_profile` (typed `DataProfile`; profiler must have run)
+
+**Delivers:**
+- `discovered_dag` (typed `CausalDAG`; nodes, edges, discovery_method, interpretation)
+- `agent_briefs["causal_discovery"]` (typed `AgentBrief`, always written)
+
+**Refuses when:**
+- `dataframe_path` is None -> `NEEDS_NOT_MET` (reroute to profiler)
+- `data_profile` is None -> `NEEDS_NOT_MET` (reroute to profiler)
+
+Treatment / outcome unset is NOT a refusal: the agent has a deterministic confounders-only fallback that emits a usable DAG even when no primary pair is declared.
+
+**Flags raised:**
+- `LOW_STABILITY` -- chosen DAG has fewer than 2 edges, or `discovery_method` indicates the simple-DAG fallback (no algorithm produced a usable graph)
+- `CYCLE_DETECTED` -- the directed edges form a cycle; downstream identification is unsafe
+
+`DAG_CONFLICT`, `NO_ADJUSTMENT_SET`, and `COLLIDER_SUSPECTED` are intentionally owned by `dag_expert`, which fuses user/LLM/data DAGs and computes adjustment sets. Sealing those here would create duplicate detectors.
+
+**Success criteria** (id -> test in `tests/test_brief.py`):
+- `discovery.brief.always_written` -- execute always writes a brief into `state.agent_briefs["causal_discovery"]`
+- `discovery.refusal.needs_missing` -- `NEEDS_NOT_MET` on missing dataframe_path / data_profile
+- `discovery.flag.low_stability` -- `LOW_STABILITY` when chosen DAG has < 2 edges or came from the fallback
+- `discovery.flag.cycle_detected` -- `CYCLE_DETECTED` when directed edges form a cycle

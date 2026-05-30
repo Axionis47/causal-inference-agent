@@ -16,6 +16,7 @@ from src.analysis.agents.registry import register_agent
 from src.logging_config.structured import get_logger
 
 from . import tools
+from .brief import CAPABILITY as DISCOVERY_CAPABILITY, build_brief, preflight
 from .helpers import (
     auto_finalize,
     check_path,
@@ -40,6 +41,7 @@ class CausalDiscoveryAgent(ReActAgent, ContextTools):
     REQUIRED_STATE_FIELDS = ["data_profile", "dataframe_path"]
     JOB_STATUS = JobStatus.DISCOVERING_CAUSAL
     PROGRESS_WEIGHT = 0.10
+    CAPABILITY = DISCOVERY_CAPABILITY
 
     SYSTEM_PROMPT = SYSTEM_PROMPT
 
@@ -78,6 +80,16 @@ class CausalDiscoveryAgent(ReActAgent, ContextTools):
         return self._finalized and state.discovered_dag is not None
 
     async def execute(self, state: AnalysisState) -> AnalysisState:
+        refusal = preflight(state)
+        if refusal is not None:
+            state.agent_briefs[refusal.agent] = refusal
+            self.logger.info(
+                "discovery_refused",
+                flag=refusal.flags[0].value,
+                headline=refusal.headline,
+            )
+            return state
+
         self.logger.info(
             "discovery_start",
             job_id=state.job_id,
@@ -131,6 +143,15 @@ class CausalDiscoveryAgent(ReActAgent, ContextTools):
         except Exception as e:
             self.logger.exception("discovery_failed", error=str(e))
             state.discovered_dag = self._create_simple_dag()
+        finally:
+            if "causal_discovery" not in state.agent_briefs:
+                brief = build_brief(state)
+                state.agent_briefs[brief.agent] = brief
+                self.logger.info(
+                    "discovery_brief",
+                    status=brief.status,
+                    flags=[f.value for f in brief.flags],
+                )
 
         return state
 
