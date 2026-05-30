@@ -46,7 +46,7 @@ production code knows where in the agent to plug in.
 | `ps_diagnostics` | yes | Full ReAct | 1 (reference) |
 | `effect_estimator` | no | Full ReAct | 3d |
 | `sensitivity_analyst` | yes | Full ReAct | 3a |
-| `critique` | no | CoT | 3e |
+| `critique` | yes | Custom agentic loop | 3e |
 | `domain_knowledge` | yes | Full ReAct | 3a |
 | `notebook_generator` | no | Direct + per-section CoT | 3e |
 
@@ -221,3 +221,26 @@ Treatment / outcome unset is NOT a refusal: the agent has a deterministic confou
 - `sensitivity.refusal.needs_missing` -- `NEEDS_NOT_MET` when `state.treatment_effects` is empty
 - `sensitivity.flag.weak_to_unobserved` -- `WEAK_TO_UNOBSERVED` when E-value < 1.5
 - `sensitivity.flag.not_robust` -- `NOT_ROBUST` when two or more sensitivity results flag concerns
+
+## critique
+
+**Answers:** Is the causal analysis methodologically sound enough to ship, or should the pipeline iterate or reject?
+
+**Needs:**
+- `treatment_effects` (non-empty `list[TreatmentEffectResult]`; effect_estimator must have produced at least one estimate)
+
+**Delivers:**
+- `critique_history` (`list[CritiqueFeedback]`; latest entry carries decision, scores, issues, improvements, reasoning)
+- `agent_briefs["critique"]` (typed `AgentBrief`, always written)
+
+**Refuses when:**
+- `state.treatment_effects` is empty -> `NEEDS_NOT_MET` (reroute to effect_estimator). Catches the orchestrator mistakenly dispatching critique before estimation has run; preserves the existing in-loop REJECT path when estimation ran but the auto-finalize fallback judges the analysis empty.
+
+**Flags raised:**
+
+Critique **does not raise any closed-enum issue flags**. It is the final synthesis stage; primary issue flags belong to the upstream agents that detected them (`sensitivity_analyst` for `NOT_ROBUST` / `WEAK_TO_UNOBSERVED`, `ps_diagnostics` for `POOR_OVERLAP` / `SMD_HIGH` / `CALIBRATION_OFF`, eventually `effect_estimator` for `METHOD_UNSTABLE` / `ATE_OUTLIER`, etc.). The orchestrator routes off `state.critique_history[-1].decision` (APPROVE / ITERATE / REJECT), which it already does today. The brief's headline reports that decision; `raised_issues` lifts the feedback's issues list.
+
+**Success criteria** (id -> test in `tests/test_brief.py`):
+- `critique.brief.always_written` -- execute always writes a brief into `state.agent_briefs["critique"]`
+- `critique.refusal.needs_missing` -- `NEEDS_NOT_MET` when `state.treatment_effects` is empty
+- `critique.status.reflects_decision` -- brief status is `done` when a feedback was appended; headline reports the decision and iteration
