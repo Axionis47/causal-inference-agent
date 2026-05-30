@@ -33,7 +33,7 @@ from .specialists import (
     PSDiagnosticsAgent,
     SensitivityAnalystAgent,
 )
-from .specialists.effect_estimator_react import EffectEstimatorReActAgent
+from .effect_estimator.react import EffectEstimatorReActAgent
 
 __all__ = [
     # Base classes

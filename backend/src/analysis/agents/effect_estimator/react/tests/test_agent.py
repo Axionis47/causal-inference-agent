@@ -23,7 +23,7 @@ from src.analysis.agents import (
     DatasetInfo,
     TreatmentEffectResult,
 )
-from src.analysis.agents.specialists.effect_estimator_react import EffectEstimatorReActAgent
+from src.analysis.agents.effect_estimator.react.agent import EffectEstimatorReActAgent
 
 
 def _make_synthetic_data(tmp_path: Path) -> Path:
@@ -76,8 +76,6 @@ async def test_auto_finalize_runs_ols_when_loop_ends_empty(tmp_path: Path):
     state = _make_state(data_path)
     agent = EffectEstimatorReActAgent()
 
-    # Skip the actual ReAct loop — simulate a budget-exhausted exit by
-    # patching super().execute to a no-op that returns state unchanged.
     async def fake_react_loop(self_state):
         return self_state
 
@@ -91,7 +89,6 @@ async def test_auto_finalize_runs_ols_when_loop_ends_empty(tmp_path: Path):
     baseline = result_state.treatment_effects[0]
     assert isinstance(baseline, TreatmentEffectResult)
     assert "ols" in baseline.method.lower()
-    # The auto-finalize decision must show up in the audit trail.
     auto_decisions = [
         d for d in result_state.decisions
         if d.decision_type == "auto_finalize_baseline"
@@ -103,8 +100,8 @@ async def test_auto_finalize_runs_ols_when_loop_ends_empty(tmp_path: Path):
 async def test_auto_finalize_skipped_when_loop_already_produced_results(
     tmp_path: Path,
 ):
-    """If the ReAct loop produced ≥1 estimate, the fallback should not run
-    (we don't want to double-count or override a more sophisticated method)."""
+    """If the ReAct loop produced one estimate, the fallback should not run
+    (we do not want to double-count or override a more sophisticated method)."""
     data_path = _make_synthetic_data(tmp_path)
     state = _make_state(data_path)
 
@@ -123,7 +120,6 @@ async def test_auto_finalize_skipped_when_loop_already_produced_results(
     agent = EffectEstimatorReActAgent()
 
     async def fake_react_loop(self_state):
-        # Simulate a loop that did produce a result.
         self_state.treatment_effects.append(pre_existing)
         return self_state
 
@@ -133,7 +129,6 @@ async def test_auto_finalize_skipped_when_loop_already_produced_results(
     ):
         result_state = await agent.execute(state)
 
-    # Only the AIPW result; no OLS fallback was added.
     assert len(result_state.treatment_effects) == 1
     assert result_state.treatment_effects[0].method == "AIPW"
     auto_decisions = [
@@ -145,12 +140,11 @@ async def test_auto_finalize_skipped_when_loop_already_produced_results(
 
 def test_resolve_baseline_covariates_priority_chain(tmp_path: Path):
     """The covariate priority chain matches the imperative estimator:
-    DAG adjustment set → confounder discovery → data profile."""
+    DAG adjustment set, then confounder discovery, then data profile."""
     data_path = _make_synthetic_data(tmp_path)
     state = _make_state(data_path)
     agent = EffectEstimatorReActAgent()
     agent._df = pd.read_parquet(data_path)
 
-    # No DAG, no confounder discovery → falls through to data_profile.
     covs = agent._resolve_baseline_covariates(state)
     assert set(covs) == {"age", "income"}
