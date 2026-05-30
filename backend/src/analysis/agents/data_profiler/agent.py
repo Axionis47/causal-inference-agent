@@ -47,7 +47,20 @@ class DataProfilerAgent(ReActAgent, ContextTools):
     AGENT_NAME = "data_profiler"
     MAX_STEPS = 15
 
-    WRITES_STATE_FIELDS = ["data_profile", "dataframe_path", "treatment_encoding"]
+    # The profiler also mutates state.dataset_info (kaggle_*, n_samples,
+    # n_features, files) and state.raw_metadata during fetch_kaggle_metadata
+    # and load_dataset. The orchestrators deep-copy state before dispatch
+    # and merge back only fields named here; omitting dataset_info /
+    # raw_metadata silently dropped all extractor output. Including them
+    # is safe because data_profiler is the entry point — no upstream agent
+    # mutates these.
+    WRITES_STATE_FIELDS = [
+        "data_profile",
+        "dataframe_path",
+        "treatment_encoding",
+        "dataset_info",
+        "raw_metadata",
+    ]
     REQUIRED_STATE_FIELDS = ["dataset_info"]
     JOB_STATUS = JobStatus.PROFILING
     PROGRESS_WEIGHT = 0.08

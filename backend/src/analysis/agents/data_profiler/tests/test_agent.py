@@ -12,6 +12,15 @@ class TestInitialization:
     def test_max_steps(self, agent):
         assert agent.MAX_STEPS == 15
 
+    def test_writes_state_fields_includes_dataset_info_and_raw_metadata(self, agent):
+        """Regression pin: both orchestrators deep-copy state before dispatch
+        and merge back only WRITES_STATE_FIELDS. fetch_kaggle_metadata mutates
+        state.dataset_info.kaggle_* and state.raw_metadata; omitting these
+        from the writes list silently drops every Kaggle metadata field at
+        the deep-copy boundary. Live verified on the LaLonde re-run."""
+        assert "dataset_info" in agent.WRITES_STATE_FIELDS
+        assert "raw_metadata" in agent.WRITES_STATE_FIELDS
+
     def test_tools_registered(self, agent):
         """Profiling tools, context-tools mixin, and ReAct built-ins all in the registry."""
         tool_names = list(agent._tools.keys())
