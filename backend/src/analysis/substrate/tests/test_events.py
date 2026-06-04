@@ -86,6 +86,9 @@ def test_preserves_wire_contract_event_names():
         "dataset_load_failed",
         "agent_started",
         "agent_completed",
+        # Human-approval gate (post-DAG, pre-estimation)
+        "approval_required",
+        "approval_granted",
     ):
         emit_event(bus, name, {})
 
@@ -99,6 +102,8 @@ def test_preserves_wire_contract_event_names():
         "dataset_load_failed",
         "agent_started",
         "agent_completed",
+        "approval_required",
+        "approval_granted",
     ]
 
 
