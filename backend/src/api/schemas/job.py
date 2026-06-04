@@ -339,3 +339,55 @@ class DeleteJobResponse(BaseModel):
     cancelled: bool
     firestore_deleted: bool
     local_artifacts_deleted: dict[str, bool] = {}
+
+
+# ── Human-approval gate ────────────────────────────────────────────────────
+
+
+class DagEditPayload(BaseModel):
+    """Optional DAG edits the human applies at the approval gate.
+
+    Mirrors `src.domain.approval.DagEdit`; redeclared here so the API
+    schema layer stays free of domain imports and OpenAPI shows only
+    JSON-safe types.
+    """
+
+    adjustment_set: list[str] | None = None
+    forbidden_edges: list[dict[str, str]] | None = None
+    variable_roles: dict[str, str] | None = None
+
+
+class ApprovalRequest(BaseModel):
+    """Request body for POST /jobs/{job_id}/approval.
+
+    `granted_at` is stamped server-side. `reason` is required when
+    `decision == "rejected"` (validated by the domain model).
+    """
+
+    decision: Literal["approved", "rejected"]
+    granted_by: str | None = Field(default=None, max_length=200)
+    dag_edits: DagEditPayload | None = None
+    appended_context: str | None = Field(default=None, max_length=4000)
+    reason: str | None = Field(default=None, max_length=500)
+
+
+class ApprovalSnapshotResponse(BaseModel):
+    """Snapshot the UI renders at the gate (same shape as the SSE event).
+
+    Fields are intentionally loosely typed (dict / list) — the snapshot
+    is built from many state slots and is purely display.
+    """
+
+    treatment_variable: str | None = None
+    outcome_variable: str | None = None
+    eda_summary: dict[str, Any] | None = None
+    proposed_dag: dict[str, Any] | None = None
+    brief_flags: dict[str, dict[str, Any]] = Field(default_factory=dict)
+
+
+class ApprovalResultResponse(BaseModel):
+    """Result of POST /jobs/{job_id}/approval."""
+
+    job_id: str
+    resumed: bool
+    status: str

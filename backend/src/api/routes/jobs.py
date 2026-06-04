@@ -17,6 +17,9 @@ from src.api.rate_limit import limiter
 from src.api.schemas import (
     AgentTracesResponse,
     AnalysisResultsResponse,
+    ApprovalRequest,
+    ApprovalResultResponse,
+    ApprovalSnapshotResponse,
     CancelJobResponse,
     CausalGraphResponse,
     CreateJobRequest,
@@ -363,6 +366,96 @@ async def stream_job_status(request: Request, job_id: str):
             logger.debug("sse_stream_closed", job_id=job_id)
 
     return EventSourceResponse(event_generator())
+
+
+@router.get("/{job_id}/approval", response_model=ApprovalSnapshotResponse)
+@limiter.limit("60/minute")
+async def get_approval_snapshot(
+    request: Request, job_id: str
+) -> ApprovalSnapshotResponse:
+    """Return the data/DAG/flags snapshot for a job parked at the human-approval gate.
+
+    Returns 404 if the job has no parked state (either it never reached
+    the gate or it has already been approved/rejected).
+    """
+    manager = get_job_manager()
+    snapshot = await manager.get_parked_snapshot(job_id)
+    if snapshot is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Job {job_id} is not parked at the approval gate",
+        )
+    return ApprovalSnapshotResponse(**snapshot)
+
+
+@router.post("/{job_id}/approval", response_model=ApprovalResultResponse)
+@limiter.limit("30/minute")
+async def submit_approval(
+    request: Request, job_id: str, body: ApprovalRequest
+) -> ApprovalResultResponse:
+    """Apply a human approve/reject decision to a parked job.
+
+    APPROVED: optional DAG edits are merged into `state.refined_dag`;
+    optional `appended_context` is appended to `dataset_info.user_provided_context`;
+    the orchestrator is respawned past the gate.
+
+    REJECTED: job is marked FAILED with `reason` as the error_message.
+    `reason` is required when decision == "rejected".
+    """
+    from datetime import datetime, timezone
+
+    from src.domain.approval import (
+        ApprovalDecision,
+        DagEdit,
+        HumanApproval,
+    )
+
+    job = await get_job_manager().get_job(job_id)
+    if job is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Job {job_id} not found",
+        )
+    if job.get("status") != JobStatus.AWAITING_APPROVAL.value:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"Job {job_id} is not awaiting approval "
+                f"(current status: {job.get('status')})"
+            ),
+        )
+
+    try:
+        approval = HumanApproval(
+            decision=ApprovalDecision(body.decision),
+            granted_at=datetime.now(timezone.utc),
+            granted_by=body.granted_by,
+            dag_edits=(
+                DagEdit(**body.dag_edits.model_dump(exclude_none=True))
+                if body.dag_edits is not None
+                else None
+            ),
+            appended_context=body.appended_context,
+            reason=body.reason,
+        )
+    except ValueError as exc:
+        # E.g. rejected-without-reason.
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+
+    try:
+        result = await get_job_manager().resume_from_approval(job_id, approval)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+
+    return ApprovalResultResponse(
+        job_id=job_id, resumed=result["resumed"], status=result["status"]
+    )
 
 
 @router.post("/{job_id}/cancel", response_model=CancelJobResponse)
