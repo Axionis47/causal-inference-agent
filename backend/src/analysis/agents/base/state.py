@@ -167,6 +167,12 @@ class AnalysisState(BaseModel):
     data_profile: DataProfile | None = None
     dataframe_path: str | None = None  # Path to parquet DataFrame
 
+    # Populated by Dataset Inspector. One entry per candidate file in
+    # the Kaggle bundle; the winner's profile is also copied into
+    # data_profile above so the rest of the pipeline reads one slot.
+    # file_profiles is what the UI Data panel renders for the user.
+    file_profiles: dict[str, DataProfile] = Field(default_factory=dict)
+
     # Populated by EDA Agent
     eda_result: EDAResult | None = None
 
