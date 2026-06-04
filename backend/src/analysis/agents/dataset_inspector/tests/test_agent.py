@@ -8,6 +8,7 @@ attachment) is pinned here.
 """
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Awaitable, Callable
 
 import pytest
@@ -171,3 +172,128 @@ def test_dataset_inspector_is_registered():
 
     assert "dataset_inspector" in _REGISTRY
     assert _REGISTRY["dataset_inspector"] is DatasetInspectorAgent
+
+
+# --- workdir resolution + candidate materialization (no LLM, no network) -
+
+
+@pytest.mark.asyncio
+async def test_get_or_download_workdir_returns_local_path_directory(tmp_path):
+    """local_path pointing at a directory means files are already on
+    disk; the workdir is just that directory."""
+    agent = DatasetInspectorAgent()
+    state = _state(_files(("train.csv", "csv")))
+    state.dataset_info.local_path = str(tmp_path)
+    workdir = await agent._get_or_download_workdir(state)
+    assert workdir == tmp_path
+
+
+@pytest.mark.asyncio
+async def test_get_or_download_workdir_returns_local_path_parent_when_file(tmp_path):
+    """local_path pointing at a file uses the parent directory."""
+    csv = tmp_path / "train.csv"
+    csv.write_text("a\n1\n")
+    agent = DatasetInspectorAgent()
+    state = _state(_files(("train.csv", "csv")))
+    state.dataset_info.local_path = str(csv)
+    workdir = await agent._get_or_download_workdir(state)
+    assert workdir == tmp_path
+
+
+@pytest.mark.asyncio
+async def test_get_or_download_workdir_returns_none_for_non_kaggle_no_local(tmp_path):
+    """Without local_path and a non-Kaggle URL, there's nowhere to look."""
+    agent = DatasetInspectorAgent()
+    state = AnalysisState(
+        job_id="job-x",
+        dataset_info=DatasetInfo(url="https://example.com/x.csv"),
+    )
+    assert await agent._get_or_download_workdir(state) is None
+
+
+@pytest.mark.asyncio
+async def test_materialize_candidates_writes_one_parquet_per_csv(tmp_path, monkeypatch):
+    """The real wiring saves each candidate as a job+file-scoped parquet
+    under CAUSAL_TEMP_DIR so the inner data_profiler reads a stable
+    artifact and the parallel runs don't fight over filenames."""
+    from src.analysis.agents.dataset_inspector import agent as inspector_mod
+
+    # Redirect CAUSAL_TEMP_DIR for the test so we don't pollute /tmp.
+    sandbox = tmp_path / "causal_orchestrator"
+    monkeypatch.setattr(inspector_mod, "CAUSAL_TEMP_DIR", sandbox)
+
+    # Create two real csvs in a fake workdir.
+    workdir = tmp_path / "workdir"
+    workdir.mkdir()
+    (workdir / "train.csv").write_text("a,b\n1,2\n3,4\n")
+    (workdir / "test.csv").write_text("a,b\n5,6\n")
+
+    agent = DatasetInspectorAgent()
+    state = _state(_files(("train.csv", "csv"), ("test.csv", "csv")))
+    state.dataset_info.local_path = str(workdir)
+
+    paths = await agent._materialize_candidates(state, ["train.csv", "test.csv"])
+
+    assert set(paths) == {"train.csv", "test.csv"}
+    for name, parquet in paths.items():
+        p = Path(parquet)
+        assert p.exists()
+        # Job-scoped naming so two concurrent jobs do not collide.
+        assert state.job_id in p.name
+        assert "candidate" in p.name
+
+
+@pytest.mark.asyncio
+async def test_materialize_candidates_skips_missing_or_unreadable_files(
+    tmp_path, monkeypatch
+):
+    from src.analysis.agents.dataset_inspector import agent as inspector_mod
+
+    monkeypatch.setattr(inspector_mod, "CAUSAL_TEMP_DIR", tmp_path / "causal")
+    workdir = tmp_path / "workdir"
+    workdir.mkdir()
+    (workdir / "train.csv").write_text("a\n1\n")
+    # ghost.csv intentionally not created on disk
+
+    agent = DatasetInspectorAgent()
+    state = _state(_files(("train.csv", "csv"), ("ghost.csv", "csv")))
+    state.dataset_info.local_path = str(workdir)
+
+    paths = await agent._materialize_candidates(state, ["train.csv", "ghost.csv"])
+    assert "train.csv" in paths
+    assert "ghost.csv" not in paths
+
+
+# --- _commit_winner copies winner to canonical path ---------------------
+
+
+@pytest.mark.asyncio
+async def test_commit_winner_sets_canonical_dataframe_path(tmp_path, monkeypatch):
+    """When a real candidate parquet exists, _commit_winner copies it
+    to `{job_id}_data.parquet` so downstream agents see the conventional
+    artifact path the rest of the pipeline reads."""
+    from src.analysis.agents.dataset_inspector import agent as inspector_mod
+
+    sandbox = tmp_path / "causal"
+    monkeypatch.setattr(inspector_mod, "CAUSAL_TEMP_DIR", sandbox)
+
+    # Set up a workdir with a real csv, run materialise, stub the inner
+    # profiler so we don't need an LLM, and verify the post-commit
+    # dataframe_path points at the canonical name.
+    workdir = tmp_path / "workdir"
+    workdir.mkdir()
+    (workdir / "train.csv").write_text("a,b\n1,2\n3,4\n")
+
+    agent = DatasetInspectorAgent()
+    agent._profile_one_file = _stub_profiler({
+        "train.csv": _profile(treatment=["t"], outcome=["y"]),
+    })
+
+    state = _state(_files(("train.csv", "csv")))
+    state.dataset_info.local_path = str(workdir)
+    result = await agent.execute(state)
+
+    assert result.dataframe_path is not None
+    p = Path(result.dataframe_path)
+    assert p.exists()
+    assert p.name == f"{state.job_id}_data.parquet"

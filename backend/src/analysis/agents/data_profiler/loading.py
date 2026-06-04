@@ -18,6 +18,105 @@ from src.logging_config.structured import get_logger
 logger = get_logger(__name__)
 
 
+def _setup_kaggle_credentials() -> tuple[str | None, str | None]:
+    """Apply Kaggle credentials from settings to env vars.
+
+    Returns the prior (username, key) values so the caller can restore
+    them in a finally block. Used by both load_from_kaggle and
+    download_to_workdir so the env-var dance is not duplicated.
+    """
+    import json
+    import os
+
+    from src.config import get_settings
+
+    settings = get_settings()
+
+    original_username = os.environ.get("KAGGLE_USERNAME")
+    original_key = os.environ.get("KAGGLE_KEY")
+
+    if settings.kaggle_key_value:
+        kaggle_key = settings.kaggle_key_value
+        kaggle_username = settings.kaggle_username
+
+        if kaggle_key.startswith("{"):
+            try:
+                kaggle_creds = json.loads(kaggle_key)
+                kaggle_username = kaggle_creds.get("username", kaggle_username)
+                kaggle_key = kaggle_creds.get("key", kaggle_key)
+            except json.JSONDecodeError:
+                logger.debug("kaggle_key_json_parse_failed", exc_info=True)
+
+        if kaggle_username:
+            os.environ["KAGGLE_USERNAME"] = kaggle_username
+        if kaggle_key:
+            os.environ["KAGGLE_KEY"] = kaggle_key
+
+    return original_username, original_key
+
+
+def _restore_kaggle_credentials(
+    original_username: str | None, original_key: str | None
+) -> None:
+    """Restore env vars to their pre-setup values. Pairs with _setup."""
+    import os
+
+    if original_username is not None:
+        os.environ["KAGGLE_USERNAME"] = original_username
+    elif "KAGGLE_USERNAME" in os.environ:
+        del os.environ["KAGGLE_USERNAME"]
+
+    if original_key is not None:
+        os.environ["KAGGLE_KEY"] = original_key
+    elif "KAGGLE_KEY" in os.environ:
+        del os.environ["KAGGLE_KEY"]
+
+
+async def download_to_workdir(
+    state: AnalysisState, url: str
+) -> tuple[Path | None, list[FileEntry], str | None]:
+    """Download a Kaggle archive into a persistent workdir.
+
+    Unlike load_from_kaggle, this does not pick a single file and does
+    not auto-cleanup the workdir. The workdir lives under CAUSAL_TEMP_DIR
+    so the job-scoped cleanup pass tears it down. Used by
+    dataset_inspector to materialise every candidate file once and reuse
+    it across N inner data_profiler invocations.
+
+    Returns (workdir, file_list, error). When error is non-None the
+    workdir is not guaranteed to exist.
+    """
+    from src.storage.cleanup import CAUSAL_TEMP_DIR
+
+    original_username, original_key = _setup_kaggle_credentials()
+    workdir = CAUSAL_TEMP_DIR / f"{state.job_id}_workdir"
+
+    try:
+        from kaggle.api.kaggle_api_extended import KaggleApi
+
+        api = KaggleApi()
+        api.authenticate()
+
+        parts = url.rstrip("/").split("/")
+        if "datasets" not in parts:
+            return None, [], f"Invalid Kaggle URL: {url}"
+        idx = parts.index("datasets")
+        dataset_id = f"{parts[idx + 1]}/{parts[idx + 2]}"
+
+        workdir.mkdir(parents=True, exist_ok=True)
+        api.dataset_download_files(dataset_id, path=str(workdir), unzip=True)
+        files = capture_file_list(workdir, used_path=None)
+        return workdir, files, None
+    except Exception as exc:
+        error = f"Failed to download Kaggle archive to workdir: {str(exc)[:200]}"
+        logger.error(
+            "download_to_workdir_failed", error=error, url=url, job_id=state.job_id
+        )
+        return None, [], error
+    finally:
+        _restore_kaggle_credentials(original_username, original_key)
+
+
 def pick_default_file(tmpdir: Path) -> Path | None:
     """Return the file `load_from_kaggle` would pick when no upstream
     selection has been made.

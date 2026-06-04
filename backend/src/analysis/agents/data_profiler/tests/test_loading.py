@@ -23,6 +23,7 @@ import pytest
 
 from src.analysis.agents.base import AnalysisState, DatasetInfo
 from src.analysis.agents.data_profiler.loading import (
+    download_to_workdir,
     fetch_kaggle_metadata,
     load_dataset,
     load_from_kaggle,
@@ -250,6 +251,96 @@ def test_pick_default_file_prefers_csv_over_parquet_when_both_present(tmp_path):
 
 
 # ── load_dataset honours a pre-set dataframe_path ─────────────────────────
+
+
+# ── download_to_workdir: persistent workdir for the multi-file inspector ──
+
+
+@pytest.mark.asyncio
+async def test_download_to_workdir_returns_files_and_workdir_on_success(
+    tmp_path, monkeypatch
+):
+    """The inspector's per-file flow needs the archive on disk in a
+    persistent location so every candidate can be loaded once and
+    re-read N times across parallel inner profiles."""
+    from src.analysis.agents.data_profiler import loading as loading_mod
+
+    sandbox = tmp_path / "causal_orchestrator"
+    monkeypatch.setattr(
+        "src.storage.cleanup.CAUSAL_TEMP_DIR", sandbox
+    )
+
+    state = _make_state()
+
+    def _fake_dataset_download_files(dataset_id, path, unzip):
+        # Mirror what Kaggle would write into the workdir.
+        Path(path).mkdir(parents=True, exist_ok=True)
+        (Path(path) / "train.csv").write_text("a,b\n1,2\n")
+        (Path(path) / "test.csv").write_text("a,b\n3,4\n")
+
+    fake_api = MagicMock()
+    fake_api.authenticate.return_value = None
+    fake_api.dataset_download_files.side_effect = _fake_dataset_download_files
+
+    with patch("kaggle.api.kaggle_api_extended.KaggleApi", return_value=fake_api):
+        workdir, files, error = await download_to_workdir(
+            state, state.dataset_info.url
+        )
+
+    assert error is None
+    assert workdir is not None
+    assert workdir.exists()
+    # workdir must be job-scoped so concurrent jobs do not collide.
+    assert state.job_id in workdir.name
+    # capture_file_list snapshots every file (no used flag here — the
+    # picker is the inspector, not this loader).
+    assert {f.name for f in files} == {"train.csv", "test.csv"}
+    assert all(f.used is False for f in files)
+
+
+@pytest.mark.asyncio
+async def test_download_to_workdir_returns_error_for_invalid_url(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "src.storage.cleanup.CAUSAL_TEMP_DIR", tmp_path / "causal"
+    )
+    state = _make_state(url="https://www.kaggle.com/not-a-dataset")
+
+    fake_api = MagicMock()
+    fake_api.authenticate.return_value = None
+
+    with patch("kaggle.api.kaggle_api_extended.KaggleApi", return_value=fake_api):
+        workdir, files, error = await download_to_workdir(
+            state, state.dataset_info.url
+        )
+
+    assert workdir is None
+    assert files == []
+    assert error is not None
+    assert "Invalid Kaggle URL" in error
+
+
+@pytest.mark.asyncio
+async def test_download_to_workdir_propagates_error_when_kaggle_raises(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr(
+        "src.storage.cleanup.CAUSAL_TEMP_DIR", tmp_path / "causal"
+    )
+    state = _make_state()
+
+    fake_api = MagicMock()
+    fake_api.authenticate.return_value = None
+    fake_api.dataset_download_files.side_effect = RuntimeError("403 Forbidden")
+
+    with patch("kaggle.api.kaggle_api_extended.KaggleApi", return_value=fake_api):
+        workdir, files, error = await download_to_workdir(
+            state, state.dataset_info.url
+        )
+
+    assert workdir is None
+    assert files == []
+    assert error is not None
+    assert "403" in error
 
 
 @pytest.mark.asyncio
