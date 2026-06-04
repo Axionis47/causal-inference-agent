@@ -14,6 +14,10 @@ from src.analysis.agents.base import (
     CritiqueDecision,
     JobStatus,
 )
+from src.analysis.orchestrator.base import (
+    park_for_approval,
+    should_pause_for_approval,
+)
 from src.analysis.orchestrator.common import (
     AGENT_STATUS_MAP,
     summarize_dispatch_focus,
@@ -309,6 +313,14 @@ When making decisions, output your reasoning step-by-step, then specify which ag
         decisions_made = 0
 
         while decisions_made < max_decisions:
+            # Human-approval gate: pause once dag_expert has produced a DAG
+            # and the EDA summary has landed, before the LLM gets a chance to
+            # dispatch effect_estimator. Park returns the state with
+            # AWAITING_APPROVAL set; the worker layer persists the full state
+            # and the asyncio.Task ends. Resume happens via the approval API.
+            if should_pause_for_approval(state):
+                return await park_for_approval(state, self._status_callback)
+
             decisions_made += 1
             start_time = time.time()
 

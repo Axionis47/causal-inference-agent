@@ -149,6 +149,15 @@ def summarize_dispatch_focus(state: AnalysisState) -> str:
     if state.eda_result is None and state.discovered_dag is None:
         return "Profile done; dispatch eda_agent and causal_discovery in parallel."
 
+    # Defence in depth: the orchestrator's loop checks the gate predicate
+    # before this prompt is ever built, so reaching this branch means the
+    # gate was bypassed. Telling the LLM "do nothing" is safer than letting
+    # it suggest effect_estimator while the job should be parked.
+    from src.analysis.orchestrator.base import should_pause_for_approval
+
+    if should_pause_for_approval(state):
+        return "Awaiting human approval — do not dispatch effect_estimator."
+
     if not state.treatment_effects:
         return "Discovery and EDA done; dispatch effect_estimator."
 
