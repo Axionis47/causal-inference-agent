@@ -23,6 +23,10 @@ from src.analysis.agents.base import (
     ToolResult,
     ToolResultStatus,
 )
+from src.analysis.orchestrator.base import (
+    park_for_approval,
+    should_pause_for_approval,
+)
 from src.analysis.orchestrator.common import (
     AGENT_STATUS_MAP,
     validate_required_fields,
@@ -251,8 +255,18 @@ Start by understanding the current state, then decide what to do.
 """
 
     async def is_task_complete(self, state: AnalysisState) -> bool:
-        """Check if orchestration is complete."""
-        return state.status in [JobStatus.COMPLETED, JobStatus.FAILED]
+        """Check if orchestration is complete *for this run*.
+
+        AWAITING_APPROVAL is run-terminal (a yield, not a finish): the
+        loop must stop so the asyncio.Task can end and the worker layer
+        can persist the parked state. Resumption is a new task after the
+        approval API runs.
+        """
+        return state.status in (
+            JobStatus.COMPLETED,
+            JobStatus.FAILED,
+            JobStatus.AWAITING_APPROVAL,
+        )
 
     async def _check_state(
         self,
@@ -343,6 +357,23 @@ Start by understanding the current state, then decide what to do.
         reasoning is encouraged in the schema but not required — the run
         should not abort if the LLM omits it.
         """
+        # Human-approval gate: if the gate is open (DAG + EDA ready, no
+        # approval yet, estimation not started), park immediately on the
+        # next dispatch attempt instead of running another specialist.
+        # The is_task_complete check then ends the ReAct loop cleanly.
+        if should_pause_for_approval(state):
+            await park_for_approval(state, self._status_callback)
+            return ToolResult(
+                status=ToolResultStatus.SUCCESS,
+                output={
+                    "paused_for_approval": True,
+                    "message": (
+                        f"Refused dispatch of {agent_name!r}: job parked at "
+                        "the human-approval gate (post-DAG, pre-estimation)."
+                    ),
+                },
+            )
+
         specialist = self._specialists.get(agent_name)
         if not specialist:
             return ToolResult(
