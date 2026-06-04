@@ -24,7 +24,9 @@ import pytest
 from src.analysis.agents.base import AnalysisState, DatasetInfo
 from src.analysis.agents.data_profiler.loading import (
     fetch_kaggle_metadata,
+    load_dataset,
     load_from_kaggle,
+    pick_default_file,
 )
 
 
@@ -215,3 +217,56 @@ async def test_load_from_kaggle_emits_failed_for_invalid_url():
     # URL parse fails before download_started would fire.
     assert types == ["dataset_load_failed"]
     assert "Invalid Kaggle URL" in state.sse_events[0]["data"]["error"]
+
+
+# ── pick_default_file: the well-defined fallback heuristic ────────────────
+
+
+def test_pick_default_file_returns_largest_csv(tmp_path):
+    (tmp_path / "small.csv").write_text("a,b\n1,2\n")
+    big = tmp_path / "big.csv"
+    big.write_text("a,b\n" + "1,2\n" * 1000)
+    assert pick_default_file(tmp_path) == big
+
+
+def test_pick_default_file_falls_back_to_first_parquet_when_no_csv(tmp_path):
+    parquet = tmp_path / "data.parquet"
+    parquet.write_bytes(b"\x00")  # contents irrelevant; we only test selection
+    assert pick_default_file(tmp_path) == parquet
+
+
+def test_pick_default_file_returns_none_when_directory_has_no_data_files(tmp_path):
+    (tmp_path / "README.md").write_text("hi")
+    (tmp_path / "schema.json").write_text("{}")
+    assert pick_default_file(tmp_path) is None
+
+
+def test_pick_default_file_prefers_csv_over_parquet_when_both_present(tmp_path):
+    """Regression guard: if dataset_inspector ever wraps this helper, the
+    csv-over-parquet preference must survive."""
+    (tmp_path / "data.csv").write_text("a\n1\n")
+    (tmp_path / "data.parquet").write_bytes(b"\x00")
+    assert pick_default_file(tmp_path).suffix == ".csv"
+
+
+# ── load_dataset honours a pre-set dataframe_path ─────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_load_dataset_short_circuits_when_dataframe_path_is_set(tmp_path):
+    """When dataset_inspector populates state.dataframe_path with the
+    winner's parquet, the loader must read that file directly instead of
+    falling through to Kaggle (which would re-download)."""
+    csv = tmp_path / "chosen.csv"
+    csv.write_text("a,b\n1,2\n3,4\n")
+
+    state = _make_state()
+    state.dataframe_path = str(csv)
+
+    df, error = await load_dataset(state)
+    assert error is None
+    assert df is not None
+    assert df.shape == (2, 2)
+    # No SSE events should fire on the short-circuit path — the file was
+    # already chosen upstream, so download_started must not be emitted.
+    assert _event_types(state) == []

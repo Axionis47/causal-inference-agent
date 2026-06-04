@@ -18,6 +18,25 @@ from src.logging_config.structured import get_logger
 logger = get_logger(__name__)
 
 
+def pick_default_file(tmpdir: Path) -> Path | None:
+    """Return the file `load_from_kaggle` would pick when no upstream
+    selection has been made.
+
+    Default heuristic: the largest CSV in the directory; falls back to
+    the first parquet if no CSVs are present; returns None if neither.
+    Kept as a named helper so the upcoming dataset_inspector agent can
+    preempt it by populating `state.dataframe_path` before the loader
+    runs, while this remains the well-defined fallback.
+    """
+    csv_files = list(tmpdir.glob("*.csv"))
+    if csv_files:
+        return max(csv_files, key=lambda p: p.stat().st_size)
+    parquet_files = list(tmpdir.glob("*.parquet"))
+    if parquet_files:
+        return parquet_files[0]
+    return None
+
+
 async def load_dataset(
     state: AnalysisState,
 ) -> tuple[pd.DataFrame | None, str | None]:
@@ -127,17 +146,13 @@ async def load_from_kaggle(
         with tempfile.TemporaryDirectory() as tmpdir:
             api.dataset_download_files(dataset_id, path=tmpdir, unzip=True)
 
-            used_path: Path | None = None
+            used_path: Path | None = pick_default_file(Path(tmpdir))
             df: pd.DataFrame | None = None
 
-            csv_files = list(Path(tmpdir).glob("*.csv"))
-            if csv_files:
-                used_path = max(csv_files, key=lambda p: p.stat().st_size)
-                df = pd.read_csv(used_path)
-            else:
-                parquet_files = list(Path(tmpdir).glob("*.parquet"))
-                if parquet_files:
-                    used_path = parquet_files[0]
+            if used_path is not None:
+                if used_path.suffix == ".csv":
+                    df = pd.read_csv(used_path)
+                else:
                     df = pd.read_parquet(used_path)
 
             if df is None or used_path is None:
