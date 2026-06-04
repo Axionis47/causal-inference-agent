@@ -34,12 +34,20 @@ class LocalStorageClient:
         self.jobs_file = self.storage_path / "jobs.json"
         self.results_file = self.storage_path / "results.json"
         self.traces_file = self.storage_path / "traces.json"
+        # Parked states: full AnalysisState dumps for jobs waiting at the
+        # human-approval gate. Keyed by job_id. Cleared on approve/reject.
+        self.parked_states_file = self.storage_path / "parked_states.json"
 
         # Create storage directory
         self.storage_path.mkdir(parents=True, exist_ok=True)
 
         # Initialize files if they don't exist
-        for file in [self.jobs_file, self.results_file, self.traces_file]:
+        for file in [
+            self.jobs_file,
+            self.results_file,
+            self.traces_file,
+            self.parked_states_file,
+        ]:
             if not file.exists():
                 file.write_text("{}")
 
@@ -413,6 +421,55 @@ class LocalStorageClient:
             return results.get(job_id)
 
         return await asyncio.to_thread(_sync)
+
+    # ── Parked-state store (human-approval gate) ─────────────────────────
+
+    async def save_parked_state(self, state: AnalysisState) -> None:
+        """Persist the full AnalysisState while the job waits at the gate.
+
+        Round-trips via `state.model_dump(mode="json")`; reload happens
+        via `AnalysisState.model_validate` in `load_parked_state`. Keyed
+        by `state.job_id`; last write wins.
+        """
+        payload = state.model_dump(mode="json")
+
+        def _sync():
+            lock = self._get_lock(self.parked_states_file)
+            with lock:
+                store = self._load_json(self.parked_states_file)
+                store[state.job_id] = payload
+                self._save_json(self.parked_states_file, store)
+
+        await asyncio.to_thread(_sync)
+        logger.info("parked_state_saved", job_id=state.job_id)
+
+    async def load_parked_state(self, job_id: str) -> AnalysisState | None:
+        """Return the parked AnalysisState for `job_id`, or None if absent."""
+        def _sync() -> AnalysisState | None:
+            store = self._load_json(self.parked_states_file)
+            payload = store.get(job_id)
+            if payload is None:
+                return None
+            return AnalysisState.model_validate(payload)
+
+        return await asyncio.to_thread(_sync)
+
+    async def delete_parked_state(self, job_id: str) -> bool:
+        """Remove the parked state for `job_id`. Returns True if removed."""
+        def _sync() -> bool:
+            lock = self._get_lock(self.parked_states_file)
+            with lock:
+                store = self._load_json(self.parked_states_file)
+                if job_id not in store:
+                    return False
+                store.pop(job_id)
+                self._save_json(self.parked_states_file, store)
+                return True
+
+        removed = await asyncio.to_thread(_sync)
+        if removed:
+            logger.info("parked_state_deleted", job_id=job_id)
+        return removed
 
     async def save_traces(self, state: AnalysisState) -> None:
         """Save agent traces."""

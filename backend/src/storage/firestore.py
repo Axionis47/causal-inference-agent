@@ -32,6 +32,9 @@ class FirestoreClient:
         self.jobs_collection = "jobs"
         self.results_collection = "results"
         self.traces_collection = "agent_traces"
+        # Parked states: full AnalysisState dumps for jobs waiting at the
+        # human-approval gate. Keyed by job_id. Cleared on approve/reject.
+        self.parked_states_collection = "parked_states"
 
     def _job_data_from_state(self, state: AnalysisState) -> dict[str, Any]:
         """Build a job data dict from state, including instance_id."""
@@ -485,6 +488,45 @@ class FirestoreClient:
             return None
 
         return await asyncio.to_thread(_sync)
+
+    # ── Parked-state store (human-approval gate) ─────────────────────────
+
+    async def save_parked_state(self, state: AnalysisState) -> None:
+        """Persist the full AnalysisState while the job waits at the gate."""
+        payload = state.model_dump(mode="json")
+
+        def _sync():
+            doc_ref = self.db.collection(self.parked_states_collection).document(state.job_id)
+            doc_ref.set(payload)
+
+        await asyncio.to_thread(_sync)
+        logger.info("parked_state_saved", job_id=state.job_id)
+
+    async def load_parked_state(self, job_id: str) -> AnalysisState | None:
+        """Return the parked AnalysisState for `job_id`, or None if absent."""
+        def _sync() -> AnalysisState | None:
+            doc_ref = self.db.collection(self.parked_states_collection).document(job_id)
+            doc = doc_ref.get()
+            if not doc.exists:
+                return None
+            return AnalysisState.model_validate(doc.to_dict())
+
+        return await asyncio.to_thread(_sync)
+
+    async def delete_parked_state(self, job_id: str) -> bool:
+        """Remove the parked state for `job_id`. Returns True if removed."""
+        def _sync() -> bool:
+            doc_ref = self.db.collection(self.parked_states_collection).document(job_id)
+            doc = doc_ref.get()
+            if not doc.exists:
+                return False
+            doc_ref.delete()
+            return True
+
+        removed = await asyncio.to_thread(_sync)
+        if removed:
+            logger.info("parked_state_deleted", job_id=job_id)
+        return removed
 
     async def save_traces(self, state: AnalysisState) -> None:
         """Save agent traces.
