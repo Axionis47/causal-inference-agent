@@ -13,6 +13,7 @@ from src.analysis.agents.domain_knowledge import DomainKnowledge
 from src.analysis.agents.eda import EDAResult
 from src.analysis.agents.effect_estimator import TreatmentEffectResult
 from src.analysis.agents.sensitivity_analyst import SensitivityResult
+from src.domain.approval import HumanApproval
 from src.domain.briefs import AgentBrief
 
 
@@ -24,6 +25,7 @@ class JobStatus(StrEnum):
     PROFILING = "profiling"
     EXPLORATORY_ANALYSIS = "exploratory_analysis"
     DISCOVERING_CAUSAL = "discovering_causal"
+    AWAITING_APPROVAL = "awaiting_approval"  # Parked: human reviews data + DAG before estimation
     ESTIMATING_EFFECTS = "estimating_effects"
     SENSITIVITY_ANALYSIS = "sensitivity_analysis"
     CRITIQUE_REVIEW = "critique_review"
@@ -178,6 +180,12 @@ class AnalysisState(BaseModel):
     # refined_dag when available and falls back to discovered_dag.
     discovered_dag: CausalDAG | None = None
     refined_dag: CausalDAG | None = None
+
+    # Set by the approval API after the human reviews data + DAG at the
+    # gate. The orchestrator's gate check treats decision=APPROVED as the
+    # only signal to proceed; None or REJECTED keeps the job parked (or
+    # marks it failed on rejection). See src/domain/approval.py.
+    human_approval: HumanApproval | None = None
 
     # Populated by Effect Estimator
     treatment_effects: list[TreatmentEffectResult] = Field(default_factory=list)
