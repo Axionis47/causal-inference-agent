@@ -35,5 +35,16 @@ class EDAResult(BaseModel):
     data_quality_score: float = 0.0
     data_quality_issues: list[str] = Field(default_factory=list)
 
-    # Summary statistics
-    summary_table: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    # Summary statistics. Values are heterogeneous: the finalize step writes
+    # key_findings/recommendations as list[str] and causal_readiness as str,
+    # so the value type is Any rather than a nested dict.
+    summary_table: dict[str, Any] = Field(default_factory=dict)
+
+    # Plot captions written by the agent during finalize, keyed by plot id.
+    # The notebook EDA section renders each caption as a markdown cell
+    # immediately above the matching plot. Supported keys:
+    #   "distribution"          treatment + outcome marginals
+    #   "outcome_by_group"      outcome split by treatment group
+    #   "correlation_heatmap"   numeric variable correlations
+    #   "love_plot"             standardised mean differences by covariate
+    plot_captions: dict[str, str] = Field(default_factory=dict)

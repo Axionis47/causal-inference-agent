@@ -235,3 +235,45 @@ class TestToolFinalize:
         assert agent._finalized is True
         assert agent._final_result["data_quality_score"] == 85.0
         assert agent._final_result["causal_readiness"] == "ready"
+
+    @pytest.mark.asyncio
+    async def test_stores_plot_captions_filtering_unknown_keys(
+        self, agent, sample_dataframe, state_with_dataframe
+    ):
+        """Captions for known plot keys persist; unknown keys and blanks are dropped."""
+        agent._df = sample_dataframe
+        agent._eda_result = EDAResult()
+        await agent._tool_finalize(
+            state_with_dataframe,
+            data_quality_score=80.0,
+            key_findings=["ok"],
+            data_quality_issues=[],
+            recommendations=["proceed"],
+            causal_readiness="ready",
+            plot_captions={
+                "love_plot": "Two covariates exceed SMD 0.1.",
+                "distribution": "  ",
+                "bogus_key": "ignored",
+            },
+        )
+        captions = agent._final_result["plot_captions"]
+        assert "love_plot" in captions
+        assert "distribution" not in captions
+        assert "bogus_key" not in captions
+
+    @pytest.mark.asyncio
+    async def test_finalize_without_captions_defaults_to_empty_dict(
+        self, agent, sample_dataframe, state_with_dataframe
+    ):
+        """Back-compat: omitting plot_captions leaves an empty dict, never None."""
+        agent._df = sample_dataframe
+        agent._eda_result = EDAResult()
+        await agent._tool_finalize(
+            state_with_dataframe,
+            data_quality_score=80.0,
+            key_findings=["ok"],
+            data_quality_issues=[],
+            recommendations=["proceed"],
+            causal_readiness="ready",
+        )
+        assert agent._final_result["plot_captions"] == {}

@@ -122,6 +122,7 @@ def render_eda_report(state: AnalysisState) -> list:
 
     # Visualization: Distribution plots for treatment & outcome
     cells.append(new_markdown_cell("### Distribution Visualizations"))
+    _append_caption(cells, eda, "distribution")
     dist_code = f'''# Distribution plots for treatment and outcome
 treatment_var = "{state.treatment_variable}"
 outcome_var = "{state.outcome_variable}"
@@ -151,6 +152,7 @@ plt.show()'''
 
     # Outcome distribution by treatment group
     cells.append(new_markdown_cell("### Outcome Distribution by Treatment Group"))
+    _append_caption(cells, eda, "outcome_by_group")
     outcome_by_group_code = f'''# Outcome by treatment group
 treatment_var = "{state.treatment_variable}"
 outcome_var = "{state.outcome_variable}"
@@ -187,6 +189,7 @@ plt.show()'''
     # Correlation heatmap from pipeline data
     if eda and eda.correlation_matrix:
         cells.append(new_markdown_cell("### Correlation Heatmap"))
+        _append_caption(cells, eda, "correlation_heatmap")
         corr_data = json.dumps(eda.correlation_matrix)
         heatmap_code = f'''# Correlation matrix from pipeline
 import json
@@ -218,6 +221,7 @@ plt.show()'''
 
         if love_data:
             cells.append(new_markdown_cell("### Love Plot: Covariate Balance"))
+            _append_caption(cells, eda, "love_plot")
             love_json = json.dumps(love_data)
             love_code = f'''# Love plot: Standardized Mean Differences
 import json
@@ -248,3 +252,15 @@ plt.show()'''
             cells.append(new_code_cell(love_code))
 
     return cells
+
+
+def _append_caption(cells: list, eda, key: str) -> None:
+    """Emit the EDA agent's caption for `key` as a markdown cell, if present.
+
+    The caption is written by the EDA agent in its finalize_eda call and
+    persisted to `state.eda_result.plot_captions`. Captions are optional;
+    when the agent omitted one, the plot stands on its own as before.
+    """
+    caption = (eda.plot_captions or {}).get(key, "").strip() if eda else ""
+    if caption:
+        cells.append(new_markdown_cell(f"*{caption}*"))

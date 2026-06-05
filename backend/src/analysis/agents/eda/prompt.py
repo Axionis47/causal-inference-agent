@@ -20,4 +20,17 @@ KEY CONSIDERATIONS:
 - Confounders: Balance between groups, multicollinearity
 - Missing data: Patterns, relationship to treatment
 
-Focus on findings that matter for causal inference. Be thorough but efficient."""
+Focus on findings that matter for causal inference. Be thorough but efficient.
+
+PLOT CAPTIONS:
+When you call finalize_eda, also write two-sentence captions for the four
+notebook plots, keyed under plot_captions:
+  - distribution: treatment + outcome marginal distributions
+  - outcome_by_group: outcome split by treatment group
+  - correlation_heatmap: numeric variable correlations
+  - love_plot: standardised mean differences by covariate
+
+Ground every caption in values you obtained from your tool calls (specific
+SMD values, |r| pairs, balance counts, distribution shape). Never invent a
+number or a variable name you did not observe. Omit a key if you have no
+grounded observation for that plot."""

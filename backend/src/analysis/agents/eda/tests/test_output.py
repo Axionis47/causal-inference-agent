@@ -18,6 +18,18 @@ class TestEDAResult:
         assert r.data_quality_score == 0.0
         assert r.data_quality_issues == []
         assert r.summary_table == {}
+        assert r.plot_captions == {}
+
+    def test_plot_captions_round_trip(self):
+        """plot_captions persist through model_dump / model_validate."""
+        r1 = EDAResult(
+            plot_captions={
+                "love_plot": "Three covariates exceed SMD 0.1; the rest are balanced.",
+                "correlation_heatmap": "age and educ correlate at 0.42; no |r| > 0.7.",
+            }
+        )
+        r2 = EDAResult.model_validate(r1.model_dump())
+        assert r2.plot_captions == r1.plot_captions
 
     def test_full_construction(self):
         r = EDAResult(

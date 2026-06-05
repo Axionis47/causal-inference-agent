@@ -87,3 +87,44 @@ class TestPopulateEDAResult:
         assert agent._eda_result.data_quality_score == 75.0
         assert agent._eda_result.data_quality_issues == ["Issue 1"]
         assert agent._eda_result.distribution_stats == {"age": {"mean": 40}}
+
+    def test_populates_plot_captions_from_final_result(self, agent):
+        """Captions written by finalize_eda land on the EDAResult slot."""
+        agent._eda_result = EDAResult()
+        agent._analyzed_distributions = {}
+        agent._outlier_results = {}
+        agent._vif_results = {}
+        agent._balance_results = {}
+
+        agent._populate_eda_result({
+            "data_quality_score": 80.0,
+            "key_findings": [],
+            "data_quality_issues": [],
+            "recommendations": [],
+            "causal_readiness": "ready",
+            "plot_captions": {
+                "love_plot": "Two covariates exceed SMD 0.1.",
+                "correlation_heatmap": "Highest |r| is 0.42 (age, educ).",
+            },
+        })
+
+        assert agent._eda_result.plot_captions["love_plot"].startswith("Two")
+        assert "0.42" in agent._eda_result.plot_captions["correlation_heatmap"]
+
+    def test_populates_empty_captions_when_finalize_omitted_them(self, agent):
+        """When finalize was called without plot_captions, the slot stays an empty dict."""
+        agent._eda_result = EDAResult()
+        agent._analyzed_distributions = {}
+        agent._outlier_results = {}
+        agent._vif_results = {}
+        agent._balance_results = {}
+
+        agent._populate_eda_result({
+            "data_quality_score": 80.0,
+            "key_findings": [],
+            "data_quality_issues": [],
+            "recommendations": [],
+            "causal_readiness": "ready",
+        })
+
+        assert agent._eda_result.plot_captions == {}

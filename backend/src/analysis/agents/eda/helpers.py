@@ -136,6 +136,7 @@ def populate_eda_result(
         eda_result.vif_scores = vif_results
     if not eda_result.covariate_balance:
         eda_result.covariate_balance = balance_results
+    eda_result.plot_captions = final_result.get("plot_captions", {}) or {}
 
 
 def initial_observation_text(state) -> str:
