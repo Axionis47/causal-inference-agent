@@ -297,10 +297,12 @@ Output only the JSON, no other text."""
         """Convert a tool definition dict to Vertex AI Tool format."""
         from vertexai.generative_models import FunctionDeclaration, Tool
 
+        from src.llm.schema_sanitize import sanitize_vertex_schema
+
         function_declaration = FunctionDeclaration(
             name=tool_def["name"],
             description=tool_def.get("description", ""),
-            parameters=tool_def.get("parameters", {}),
+            parameters=sanitize_vertex_schema(tool_def.get("parameters", {})),
         )
         return Tool(function_declarations=[function_declaration])
 
