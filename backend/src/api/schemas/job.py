@@ -310,19 +310,27 @@ class ProfileBlock(BaseModel):
     error: str | None = None
 
 
-class SampleRowsBlock(BaseModel):
-    """A small sample of the actual downloaded rows.
+class FileSampleResponse(BaseModel):
+    """A small head() sample of one downloaded tabular file."""
 
-    Lets the analyst see real cell values, not just summary stats.
-    status='unavailable' means the file type can't be previewed;
-    'error' means the read itself failed.
-    """
-
-    status: str  # "pending" | "loaded" | "unavailable" | "error"
+    name: str
+    used: bool = False
     columns: list[str] = Field(default_factory=list)
     rows: list[dict[str, Any]] = Field(default_factory=list)
     total_rows: int | None = None
     error: str | None = None
+
+
+class SampleRowsBlock(BaseModel):
+    """Raw-row previews for the downloaded files.
+
+    Carries one entry per tabular file in the bundle so the Data panel can
+    show real cell values, not just summary stats. status='unavailable'
+    means nothing previewable was found; 'error' means the read failed.
+    """
+
+    status: str  # "pending" | "loaded" | "unavailable" | "error"
+    files: list[FileSampleResponse] = Field(default_factory=list)
 
 
 class DatasetViewResponse(BaseModel):

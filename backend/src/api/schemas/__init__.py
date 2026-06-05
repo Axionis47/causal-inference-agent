@@ -17,6 +17,7 @@ from .job import (
     DownloadBlock,
     ExecutiveSummaryResponse,
     FileEntryResponse,
+    FileSampleResponse,
     JobDetailResponse,
     JobListResponse,
     JobResponse,
@@ -60,5 +61,6 @@ __all__ = [
     "KaggleMetaData",
     "ProfileBlock",
     "SampleRowsBlock",
+    "FileSampleResponse",
     "FileEntryResponse",
 ]

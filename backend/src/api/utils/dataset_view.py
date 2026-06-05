@@ -26,6 +26,7 @@ from src.api.schemas import (
     DatasetViewResponse,
     DownloadBlock,
     FileEntryResponse,
+    FileSampleResponse,
     KaggleMetaBlock,
     KaggleMetaData,
     ProfileBlock,
@@ -43,13 +44,40 @@ _PROGRESSED_STATUSES = {
 }
 
 
-def _build_sample(path: str | None) -> SampleRowsBlock:
-    """Read a small head() of real rows from the loaded dataframe.
+def _build_sample(
+    file_samples: list[Any], used_names: set[str], fallback_path: str | None
+) -> SampleRowsBlock:
+    """Assemble the per-file raw-row preview block.
 
-    `path` is the parquet the profiler writes (or a raw csv). Returns a
-    pending block when the file isn't there yet, so the panel shows
-    progress rather than an error during download.
+    `file_samples` is the list captured at download time (FileSample
+    models or their dumped dicts). When present, one preview per tabular
+    file is returned, with `used` marking the file we loaded. When absent
+    (older jobs predating per-file capture), we fall back to a single
+    preview read from the loaded parquet so the panel still shows rows.
     """
+    if file_samples:
+        files = [_to_file_sample(fs, used_names) for fs in file_samples]
+        status = "loaded" if any(f.rows for f in files) else "unavailable"
+        return SampleRowsBlock(status=status, files=files)
+    return _sample_from_path(fallback_path)
+
+
+def _to_file_sample(fs: Any, used_names: set[str]) -> FileSampleResponse:
+    """Normalise a FileSample (model or dict) into the response shape."""
+    d = fs.model_dump() if hasattr(fs, "model_dump") else dict(fs)
+    name = d.get("name", "")
+    return FileSampleResponse(
+        name=name,
+        used=name in used_names,
+        columns=d.get("columns") or [],
+        rows=d.get("rows") or [],
+        total_rows=d.get("total_rows"),
+        error=d.get("error"),
+    )
+
+
+def _sample_from_path(path: str | None) -> SampleRowsBlock:
+    """Fallback single-file preview read from the loaded parquet/csv."""
     if not path:
         return SampleRowsBlock(status="pending")
     try:
@@ -71,11 +99,19 @@ def _build_sample(path: str | None) -> SampleRowsBlock:
     # to_json round-trips numpy types and NaN -> null cleanly; json.loads
     # gives plain python the response model can serialize.
     rows = json.loads(head.to_json(orient="records"))
+    from pathlib import Path
+
     return SampleRowsBlock(
         status="loaded",
-        columns=[str(c) for c in df.columns],
-        rows=rows,
-        total_rows=int(len(df)),
+        files=[
+            FileSampleResponse(
+                name=Path(path).name,
+                used=True,
+                columns=[str(c) for c in df.columns],
+                rows=rows,
+                total_rows=int(len(df)),
+            )
+        ],
     )
 
 
@@ -150,7 +186,10 @@ def build_from_state(state: AnalysisState) -> DatasetViewResponse:
     else:
         profile = ProfileBlock(status="pending")
 
-    sample = _build_sample(state.dataframe_path or info.local_path)
+    used_names = {f.name for f in info.files if f.used}
+    sample = _build_sample(
+        info.file_samples, used_names, state.dataframe_path or info.local_path
+    )
 
     return DatasetViewResponse(
         download=download, kaggle_meta=kaggle_meta, profile=profile, sample=sample
@@ -206,7 +245,12 @@ def build_from_persisted(
     else:
         profile = ProfileBlock(status="pending")
 
-    sample = _build_sample(results.get("dataframe_path"))
+    used_names = {f.get("name") for f in files_data if f.get("used")}
+    sample = _build_sample(
+        results.get("dataset_file_samples") or [],
+        used_names,
+        results.get("dataframe_path"),
+    )
 
     return DatasetViewResponse(
         download=download, kaggle_meta=kaggle_meta, profile=profile, sample=sample

@@ -270,12 +270,18 @@ export interface ProfileBlock {
   error: string | null;
 }
 
-export interface SampleRowsBlock {
-  status: BlockStatus;
+export interface FileSample {
+  name: string;
+  used: boolean;
   columns: string[];
   rows: Record<string, unknown>[];
   total_rows: number | null;
   error: string | null;
+}
+
+export interface SampleRowsBlock {
+  status: BlockStatus;
+  files: FileSample[];
 }
 
 export interface DatasetView {

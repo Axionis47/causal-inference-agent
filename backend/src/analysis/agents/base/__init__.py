@@ -16,6 +16,7 @@ from .state import (
     DataProfile,
     DatasetInfo,
     FileEntry,
+    FileSample,
     JobStatus,
     TreatmentEncoding,
 )
@@ -44,6 +45,7 @@ __all__ = [
     "DatasetInfo",
     "EDAResult",
     "FileEntry",
+    "FileSample",
     "JobStatus",
     "SensitivityResult",
     "TreatmentEffectResult",

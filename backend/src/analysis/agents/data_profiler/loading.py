@@ -15,6 +15,8 @@ import pandas as pd
 from src.analysis.agents.base import AnalysisState, FileEntry
 from src.logging_config.structured import get_logger
 
+from .helpers import capture_file_samples
+
 logger = get_logger(__name__)
 
 
@@ -266,6 +268,10 @@ async def load_from_kaggle(
             state.dataset_info.files = capture_file_list(
                 Path(tmpdir), used_path=used_path
             )
+            # Sample every tabular file now, while the bundle is still on
+            # disk, so the Data panel can preview each one (not just the
+            # file we load). tmpdir is wiped when this block exits.
+            state.dataset_info.file_samples = capture_file_samples(Path(tmpdir))
             state.push_sse_event(
                 "dataset_download_complete",
                 {

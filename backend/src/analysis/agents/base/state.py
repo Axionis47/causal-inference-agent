@@ -50,6 +50,22 @@ class FileEntry(BaseModel):
     used: bool = False  # True for the file we loaded into the DataFrame
 
 
+class FileSample(BaseModel):
+    """A small head() sample of one downloaded tabular file.
+
+    Captured at download time (when every file is briefly on disk), so the
+    Data panel can show the real rows of each file in a multi-file bundle,
+    not just the one we loaded. `error` is set when the file could not be
+    read. Persists with the state so a parked/completed job still renders.
+    """
+
+    name: str
+    columns: list[str] = Field(default_factory=list)
+    rows: list[dict[str, Any]] = Field(default_factory=list)
+    total_rows: int | None = None
+    error: str | None = None
+
+
 class DatasetInfo(BaseModel):
     """Information about a dataset."""
 
@@ -59,6 +75,9 @@ class DatasetInfo(BaseModel):
     n_samples: int | None = None
     n_features: int | None = None
     files: list[FileEntry] = Field(default_factory=list)
+    # One head() sample per tabular file in the bundle, keyed by file name
+    # via the `name` field. Filled at download time; see download loading.
+    file_samples: list[FileSample] = Field(default_factory=list)
 
     # Kaggle semantic metadata for variable understanding
     kaggle_description: str | None = None

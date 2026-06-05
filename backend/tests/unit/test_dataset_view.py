@@ -20,6 +20,7 @@ from src.analysis.agents.base import (
     DataProfile,
     DatasetInfo,
     FileEntry,
+    FileSample,
     JobStatus,
 )
 from src.api.utils import (
@@ -181,34 +182,44 @@ def test_persisted_returns_pending_when_results_missing():
 # ─── sample rows (the raw-data preview) ───────────────────────────────────
 
 
-def test_sample_pending_before_dataframe_written():
-    """No parquet yet (mid-download): the panel shows progress, not error."""
+def test_sample_pending_before_anything_downloaded():
+    """No samples and no parquet yet: the panel shows progress, not error."""
     state = _make_state()
     view = build_dataset_view_from_state(state)
     assert view.sample.status == "pending"
-    assert view.sample.rows == []
+    assert view.sample.files == []
 
 
-def test_sample_loaded_returns_real_rows_from_parquet(tmp_path):
-    import pandas as pd
-
-    df = pd.DataFrame({"treat": [0, 1, 0], "re78": [0.0, 9930.05, 3595.89]})
-    parquet = tmp_path / "data.parquet"
-    df.to_parquet(parquet)
-
+def test_sample_multi_file_returns_one_preview_per_file():
+    """Per-file samples captured at download surface as one entry each,
+    with `used` marking the file we loaded."""
     state = _make_state()
-    state.dataframe_path = str(parquet)
+    state.dataset_info.files = [
+        FileEntry(name="train.csv", size_bytes=10, format="csv", used=True),
+        FileEntry(name="meta.csv", size_bytes=5, format="csv", used=False),
+    ]
+    state.dataset_info.file_samples = [
+        FileSample(
+            name="train.csv",
+            columns=["treat", "re78"],
+            rows=[{"treat": 0, "re78": 0.0}, {"treat": 1, "re78": 9930.05}],
+            total_rows=445,
+        ),
+        FileSample(name="meta.csv", columns=["k", "v"], rows=[{"k": "a", "v": 1}], total_rows=12),
+    ]
     view = build_dataset_view_from_state(state)
 
     assert view.sample.status == "loaded"
-    assert view.sample.columns == ["treat", "re78"]
-    assert view.sample.total_rows == 3
-    # Real cell values, not summary stats.
-    assert view.sample.rows[1]["treat"] == 1
-    assert view.sample.rows[1]["re78"] == 9930.05
+    assert [f.name for f in view.sample.files] == ["train.csv", "meta.csv"]
+    train = view.sample.files[0]
+    assert train.used is True
+    assert train.total_rows == 445
+    assert train.rows[1]["re78"] == 9930.05
+    assert view.sample.files[1].used is False
 
 
-def test_sample_caps_at_row_limit(tmp_path):
+def test_sample_falls_back_to_parquet_when_no_file_samples(tmp_path):
+    """Older jobs without per-file capture still preview the loaded parquet."""
     import pandas as pd
 
     df = pd.DataFrame({"x": list(range(50))})
@@ -220,11 +231,14 @@ def test_sample_caps_at_row_limit(tmp_path):
     view = build_dataset_view_from_state(state)
 
     assert view.sample.status == "loaded"
-    assert len(view.sample.rows) == 10  # head() cap
-    assert view.sample.total_rows == 50  # but the true count is reported
+    assert len(view.sample.files) == 1
+    f = view.sample.files[0]
+    assert f.used is True
+    assert len(f.rows) == 10  # head() cap
+    assert f.total_rows == 50  # true count still reported
 
 
-def test_sample_pending_when_parquet_path_points_nowhere():
+def test_sample_pending_when_fallback_path_points_nowhere():
     """A stale path (file evicted) reads as pending, not a hard error."""
     state = _make_state()
     state.dataframe_path = "/tmp/does-not-exist-12345.parquet"

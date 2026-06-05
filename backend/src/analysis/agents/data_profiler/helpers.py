@@ -14,10 +14,58 @@ from typing import Any
 
 import pandas as pd
 
-from src.analysis.agents.base import AnalysisState
+from src.analysis.agents.base import AnalysisState, FileSample
 
 from .encoding import detect_control_value, detect_strategy
 from .output import DataProfile
+
+SAMPLE_ROW_LIMIT = 10
+
+
+def _count_csv_rows(path: Path) -> int | None:
+    """Cheap data-row count for a csv (line count minus the header)."""
+    try:
+        with path.open("rb") as fh:
+            n = sum(1 for _ in fh)
+        return max(n - 1, 0)
+    except Exception:
+        return None
+
+
+def capture_file_samples(tmpdir: Path) -> list[FileSample]:
+    """Read a small head() of every tabular file before tmpdir is wiped.
+
+    Carries the real rows of each csv/parquet file in the bundle so the
+    Data panel can preview them all, not just the one we load. A read
+    failure on one file is recorded on that file's sample and never aborts
+    the rest.
+    """
+    import json
+
+    samples: list[FileSample] = []
+    for path in sorted(tmpdir.iterdir()):
+        if not path.is_file() or path.suffix.lower() not in {".csv", ".parquet"}:
+            continue
+        try:
+            if path.suffix.lower() == ".csv":
+                head = pd.read_csv(path, nrows=SAMPLE_ROW_LIMIT)
+                total = _count_csv_rows(path)
+            else:
+                full = pd.read_parquet(path)
+                total = int(len(full))
+                head = full.head(SAMPLE_ROW_LIMIT)
+            rows = json.loads(head.to_json(orient="records"))
+            samples.append(
+                FileSample(
+                    name=path.name,
+                    columns=[str(c) for c in head.columns],
+                    rows=rows,
+                    total_rows=total,
+                )
+            )
+        except Exception as exc:  # one bad file must not lose the others
+            samples.append(FileSample(name=path.name, error=str(exc)))
+    return samples
 
 
 ORACLE_PATTERNS = [
