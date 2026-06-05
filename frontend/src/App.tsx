@@ -7,22 +7,26 @@ import HomePage from './pages/HomePage';
 import JobPage from './pages/JobPage';
 import JobsListPage from './pages/JobsListPage';
 
+function JournalShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="min-h-screen bg-white">
+      <Header />
+      <main className="max-w-4xl mx-auto px-6 py-10">{children}</main>
+    </div>
+  );
+}
+
 function App() {
   return (
     <ErrorBoundary>
       <BrowserRouter>
-        <div className="min-h-screen bg-white">
-          <Header />
-          <main className="max-w-4xl mx-auto px-6 py-10">
-            <ErrorBoundary>
-              <Routes>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/jobs" element={<JobsListPage />} />
-                <Route path="/jobs/:jobId" element={<JobPage />} />
-              </Routes>
-            </ErrorBoundary>
-          </main>
-        </div>
+        <ErrorBoundary>
+          <Routes>
+            <Route path="/" element={<JournalShell><HomePage /></JournalShell>} />
+            <Route path="/jobs" element={<JournalShell><JobsListPage /></JournalShell>} />
+            <Route path="/jobs/:jobId" element={<JobPage />} />
+          </Routes>
+        </ErrorBoundary>
         <Toaster
           position="top-right"
           toastOptions={{
