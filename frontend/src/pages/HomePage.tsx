@@ -38,24 +38,28 @@ export default function HomePage() {
     });
   };
 
+  const inputCls =
+    'w-full px-3 py-2 font-mono text-sm text-ink bg-canvas-inset border border-edge-subtle ' +
+    'placeholder:text-ink-tertiary focus:border-edge-strong transition-colors';
+  const labelCls = 'block text-2xs font-mono uppercase tracking-[0.15em] text-ink-tertiary mb-1.5';
+
   return (
     <div className="max-w-2xl mx-auto">
-      {/* Title block — journal style */}
-      <div className="border-b-2 border-ink-900 pb-6 mb-10">
-        <h1 className="font-serif text-3xl font-700 text-ink-900 mb-3">
+      {/* Title block */}
+      <div className="border-b border-edge pb-6 mb-10">
+        <h1 className="text-xl font-semibold text-ink mb-3">
           Automated Causal Inference Analysis
         </h1>
-        <p className="text-ink-500 text-sm leading-relaxed max-w-lg">
+        <p className="text-ink-secondary text-sm leading-relaxed max-w-lg">
           Submit a Kaggle dataset to run a multi-agent pipeline: data profiling,
           causal discovery, treatment effect estimation, sensitivity analysis,
           and reproducible notebook generation.
         </p>
       </div>
 
-      {/* Form — clean, no card wrapper */}
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
-          <label htmlFor="kaggle-url" className="block text-sm font-medium text-ink-700 mb-1.5">
+          <label htmlFor="kaggle-url" className={labelCls}>
             Dataset URL
           </label>
           <input
@@ -64,17 +68,17 @@ export default function HomePage() {
             value={kaggleUrl}
             onChange={(e) => setKaggleUrl(e.target.value)}
             placeholder="https://www.kaggle.com/datasets/owner/dataset-name"
-            className="input-field font-mono text-sm"
+            className={inputCls}
           />
-          <p className="mt-1.5 text-xs text-ink-300">
+          <p className="mt-1.5 text-xs text-ink-tertiary">
             Full URL to a public Kaggle dataset
           </p>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label htmlFor="treatment-var" className="block text-sm font-medium text-ink-700 mb-1.5">
-              Treatment variable <span className="text-ink-300 font-normal">(optional)</span>
+            <label htmlFor="treatment-var" className={labelCls}>
+              Treatment variable <span className="text-ink-tertiary normal-case">(optional)</span>
             </label>
             <input
               id="treatment-var"
@@ -82,12 +86,12 @@ export default function HomePage() {
               value={treatmentVar}
               onChange={(e) => setTreatmentVar(e.target.value)}
               placeholder="e.g. treatment"
-              className="input-field font-mono text-sm"
+              className={inputCls}
             />
           </div>
           <div>
-            <label htmlFor="outcome-var" className="block text-sm font-medium text-ink-700 mb-1.5">
-              Outcome variable <span className="text-ink-300 font-normal">(optional)</span>
+            <label htmlFor="outcome-var" className={labelCls}>
+              Outcome variable <span className="text-ink-tertiary normal-case">(optional)</span>
             </label>
             <input
               id="outcome-var"
@@ -95,7 +99,7 @@ export default function HomePage() {
               value={outcomeVar}
               onChange={(e) => setOutcomeVar(e.target.value)}
               placeholder="e.g. earnings"
-              className="input-field font-mono text-sm"
+              className={inputCls}
             />
           </div>
         </div>
@@ -104,7 +108,7 @@ export default function HomePage() {
           <button
             type="button"
             onClick={() => setShowAdvanced((v) => !v)}
-            className="flex items-center gap-1 text-xs text-ink-500 hover:text-ink-700"
+            className="flex items-center gap-1 text-xs text-ink-secondary hover:text-ink"
             aria-expanded={showAdvanced}
           >
             {showAdvanced ? (
@@ -115,10 +119,8 @@ export default function HomePage() {
             Advanced options
           </button>
           {showAdvanced && (
-            <div className="mt-3 pl-4 border-l border-ink-100">
-              <label className="block text-sm font-medium text-ink-700 mb-1.5">
-                Orchestrator
-              </label>
+            <div className="mt-3 pl-4 border-l border-edge-subtle">
+              <label className={labelCls}>Orchestrator</label>
               <div role="group" aria-label="Orchestrator" className="inline-flex">
                 {(['standard', 'react'] as const).map((mode, i) => (
                   <button
@@ -127,18 +129,18 @@ export default function HomePage() {
                     onClick={() => setOrchestratorMode(mode)}
                     aria-pressed={orchestratorMode === mode}
                     className={[
-                      'px-3 py-1.5 text-sm border border-ink-200',
-                      i === 0 ? 'rounded-l' : 'rounded-r border-l-0',
+                      'px-3 py-1.5 text-xs font-mono border border-edge-subtle',
+                      i === 0 ? 'rounded-l-md' : 'rounded-r-md border-l-0',
                       orchestratorMode === mode
-                        ? 'bg-ink-900 text-white border-ink-900'
-                        : 'bg-white text-ink-700 hover:bg-ink-50',
+                        ? 'bg-indigo/15 text-indigo border-indigo'
+                        : 'bg-transparent text-ink-secondary hover:text-ink',
                     ].join(' ')}
                   >
                     {mode === 'standard' ? 'Standard' : 'ReAct'}
                   </button>
                 ))}
               </div>
-              <p className="mt-1.5 text-xs text-ink-500">
+              <p className="mt-1.5 text-xs text-ink-tertiary">
                 {ORCHESTRATOR_CAPTIONS[orchestratorMode]}
               </p>
             </div>
@@ -146,7 +148,10 @@ export default function HomePage() {
         </div>
 
         {error && (
-          <div className="flex items-start gap-2 text-sig-no bg-red-50 border border-red-200 p-3 text-sm">
+          <div
+            className="flex items-start gap-2 text-rose bg-rose/10 border border-rose/30 rounded-md p-3 text-sm"
+            role="alert"
+          >
             <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
             <span>{error}</span>
           </div>
@@ -155,16 +160,16 @@ export default function HomePage() {
         <button
           type="submit"
           disabled={createJobMutation.isPending}
-          className="btn-primary w-full"
+          className="w-full bg-mint text-ink-inverse rounded-md py-2.5 text-sm font-medium hover:bg-mint-bright disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {createJobMutation.isPending ? 'Starting Analysis...' : 'Run Causal Analysis'}
         </button>
       </form>
 
-      {/* Method summary — like a journal abstract footer */}
-      <div className="mt-12 pt-6 border-t border-ink-100">
-        <p className="text-xs text-ink-300 leading-relaxed">
-          <span className="font-medium text-ink-500">Pipeline:</span>{' '}
+      {/* Method summary */}
+      <div className="mt-12 pt-6 border-t border-edge-subtle">
+        <p className="text-xs text-ink-tertiary leading-relaxed">
+          <span className="font-medium text-ink-secondary">Pipeline:</span>{' '}
           13 specialist agents coordinated by an LLM orchestrator.
           12 estimation methods (OLS, IPW, AIPW, PSM, DiD, IV, RDD, S/T/X-Learner, Causal Forest, Double ML).
           5 discovery algorithms (PC, FCI, GES, NOTEARS, LiNGAM).

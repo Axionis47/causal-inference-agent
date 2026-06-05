@@ -63,49 +63,38 @@ function jobDuration(job: Job): string | null {
   return formatDuration(ms);
 }
 
-/** Status indicator config. */
-function statusDisplay(status: string) {
-  const isRunning = !['completed', 'failed', 'pending', 'cancelled'].includes(status);
+/** A 6px status dot per aesthetics.md §6. */
+function StatusDot({ tone }: { tone: string }) {
+  const map: Record<string, string> = {
+    live: 'bg-amber animate-pulse-live',
+    ok: 'bg-mint',
+    failed: 'bg-rose',
+    cancelled: 'bg-ink-tertiary',
+    pending: 'bg-edge-subtle',
+  };
+  return (
+    <span
+      className={`inline-block w-1.5 h-1.5 rounded-full ${map[tone] || map.pending}`}
+      aria-hidden="true"
+    />
+  );
+}
 
-  if (isRunning) {
-    return {
-      indicator: (
-        <span
-          className="inline-block w-2 h-2 bg-blue-500 mr-2 pulse-dot"
-          aria-hidden="true"
-        />
-      ),
-      label: status.replace('_', ' '),
-      badgeClass: 'bg-blue-50 text-blue-700 border border-blue-300',
-    };
-  }
+/** Status tone + label. Tone maps to a semantic dot colour. */
+function statusDisplay(status: string): { tone: string; label: string } {
+  const isRunning = !['completed', 'failed', 'pending', 'cancelled'].includes(status);
+  if (isRunning) return { tone: 'live', label: status.replace('_', ' ') };
 
   switch (status) {
     case 'completed':
-      return {
-        indicator: <span className="mr-1.5 text-green-600" aria-hidden="true">✓</span>,
-        label: 'done',
-        badgeClass: 'bg-green-50 text-green-700 border border-green-300',
-      };
+      return { tone: 'ok', label: 'done' };
     case 'failed':
-      return {
-        indicator: <span className="mr-1.5 text-red-600" aria-hidden="true">✕</span>,
-        label: 'failed',
-        badgeClass: 'bg-red-50 text-red-700 border border-red-300',
-      };
+      return { tone: 'failed', label: 'failed' };
     case 'cancelled':
-      return {
-        indicator: <span className="mr-1.5 text-gray-500" aria-hidden="true">—</span>,
-        label: 'cancelled',
-        badgeClass: 'bg-gray-50 text-gray-600 border border-gray-300',
-      };
+      return { tone: 'cancelled', label: 'cancelled' };
     case 'pending':
     default:
-      return {
-        indicator: <span className="inline-block w-2 h-2 bg-gray-400 mr-2" aria-hidden="true" />,
-        label: 'pending',
-        badgeClass: 'bg-gray-50 text-gray-600 border border-gray-300',
-      };
+      return { tone: 'pending', label: 'pending' };
   }
 }
 
@@ -128,10 +117,10 @@ export default function JobsListPage() {
   if (jobsQuery.isLoading) {
     return (
       <div className="max-w-5xl mx-auto">
-        <h1 className="font-serif text-2xl font-bold text-ink-900 border-b border-ink-200 pb-3 mb-6">
+        <h1 className="text-xl font-semibold text-ink border-b border-edge pb-3 mb-6">
           Automated Analyses
         </h1>
-        <p className="text-sm text-ink-500" aria-label="Loading jobs">Loading...</p>
+        <p className="text-sm text-ink-secondary" aria-label="Loading jobs">Loading...</p>
       </div>
     );
   }
@@ -140,16 +129,16 @@ export default function JobsListPage() {
   if (jobsQuery.isError) {
     return (
       <div className="max-w-5xl mx-auto">
-        <h1 className="font-serif text-2xl font-bold text-ink-900 border-b border-ink-200 pb-3 mb-6">
+        <h1 className="text-xl font-semibold text-ink border-b border-edge pb-3 mb-6">
           Automated Analyses
         </h1>
         <div role="alert">
-          <p className="text-sm text-red-700 mb-2">
+          <p className="text-sm text-rose mb-2">
             Failed to load jobs: {(jobsQuery.error as { message?: string })?.message || 'An unexpected error occurred'}
           </p>
           <button
             onClick={() => jobsQuery.refetch()}
-            className="text-sm text-ink-700 underline hover:text-ink-900"
+            className="text-sm text-ink-secondary underline hover:text-ink"
           >
             Try again
           </button>
@@ -161,13 +150,13 @@ export default function JobsListPage() {
   return (
     <div className="max-w-5xl mx-auto">
       {/* Header row: title + filter */}
-      <div className="flex items-end justify-between border-b border-ink-200 pb-3 mb-6">
-        <h1 className="font-serif text-2xl font-bold text-ink-900">
+      <div className="flex items-end justify-between border-b border-edge pb-3 mb-6">
+        <h1 className="text-xl font-semibold text-ink">
           Automated Analyses
         </h1>
         <div className="flex items-center gap-3">
           {totalJobs > 0 && (
-            <span className="text-xs text-ink-400">
+            <span className="text-2xs font-mono uppercase tracking-[0.12em] text-ink-tertiary tabular">
               {totalJobs} job{totalJobs !== 1 ? 's' : ''}
             </span>
           )}
@@ -179,7 +168,7 @@ export default function JobsListPage() {
               setStatusFilter(e.target.value);
               setPage(0);
             }}
-            className="input-field !w-auto !py-1.5 !px-3 text-xs"
+            className="font-mono text-xs text-ink bg-canvas-inset border border-edge-subtle px-3 py-1.5 focus:border-edge-strong transition-colors"
             aria-label="Filter jobs by status"
           >
             {STATUS_OPTIONS.map((opt) => (
@@ -192,32 +181,36 @@ export default function JobsListPage() {
       {/* Empty state — plain text */}
       {jobs.length === 0 ? (
         <div className="py-12">
-          <p className="text-sm text-ink-500 mb-1">
+          <p className="text-sm text-ink-secondary mb-1">
             {statusFilter
               ? `No jobs found with status "${statusFilter}".`
               : 'No analyses yet.'}
           </p>
           {statusFilter ? (
-            <p className="text-sm text-ink-400">Try a different filter.</p>
+            <p className="text-sm text-ink-tertiary">Try a different filter.</p>
           ) : (
-            <Link to="/" className="text-sm text-ink-700 underline hover:text-ink-900">
+            <Link to="/" className="text-sm text-indigo underline hover:text-ink">
               Start your first analysis
             </Link>
           )}
         </div>
       ) : (
         <>
-          {/* Journal table */}
-          <table className="journal-table" role="table" aria-label="Analysis jobs">
+          {/* Jobs table */}
+          <table className="w-full text-sm" role="table" aria-label="Analysis jobs">
             <thead>
-              <tr>
-                <th scope="col">Status</th>
-                <th scope="col">Dataset</th>
-                <th scope="col">T → Y</th>
-                <th scope="col" className="text-right">Iter</th>
-                <th scope="col">Duration</th>
-                <th scope="col">Created</th>
-                <th scope="col">Actions</th>
+              <tr className="border-b border-edge">
+                {['Status', 'Dataset', 'T → Y', 'Iter', 'Duration', 'Created', 'Actions'].map((h) => (
+                  <th
+                    key={h}
+                    scope="col"
+                    className={`py-2 px-3 font-mono text-2xs uppercase tracking-[0.12em] text-ink-tertiary ${
+                      h === 'Iter' ? 'text-right' : 'text-left'
+                    }`}
+                  >
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -229,22 +222,22 @@ export default function JobsListPage() {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-end gap-4 mt-4 text-sm text-ink-600">
+            <div className="flex items-center justify-end gap-4 mt-4 text-xs font-mono text-ink-secondary">
               <button
                 onClick={() => setPage((p) => Math.max(0, p - 1))}
                 disabled={page === 0}
-                className="hover:text-ink-900 disabled:text-ink-300 disabled:cursor-not-allowed"
+                className="hover:text-ink disabled:text-ink-tertiary disabled:cursor-not-allowed"
                 aria-label="Previous page"
               >
                 Previous
               </button>
-              <span aria-live="polite">
+              <span aria-live="polite" className="tabular">
                 Page {page + 1} of {totalPages}
               </span>
               <button
                 onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
                 disabled={page >= totalPages - 1}
-                className="hover:text-ink-900 disabled:text-ink-300 disabled:cursor-not-allowed"
+                className="hover:text-ink disabled:text-ink-tertiary disabled:cursor-not-allowed"
                 aria-label="Next page"
               >
                 Next
@@ -288,7 +281,7 @@ function JobRow({ job }: { job: Job }) {
     },
   });
 
-  const { indicator, label, badgeClass } = statusDisplay(job.status);
+  const { tone, label } = statusDisplay(job.status);
   const datasetName = job.dataset_name || extractDatasetName(job.kaggle_url);
   const duration = jobDuration(job);
   const treatment = job.treatment_variable;
@@ -300,64 +293,63 @@ function JobRow({ job }: { job: Job }) {
 
   return (
     <>
-      <tr className="group">
+      <tr className="group border-b border-edge-subtle hover:bg-canvas-raised">
         {/* Status */}
-        <td>
-          <span
-            className={`inline-flex items-center px-2 py-0.5 text-xs font-medium ${badgeClass}`}
-            style={{ borderRadius: 0 }}
-          >
-            {indicator}
-            {label}
+        <td className="py-2.5 px-3">
+          <span className="inline-flex items-center gap-1.5">
+            <StatusDot tone={tone} />
+            <span className="text-2xs font-mono uppercase tracking-[0.12em] text-ink-secondary">
+              {label}
+            </span>
           </span>
         </td>
 
         {/* Dataset — name links to job detail; Kaggle URL on hover */}
-        <td>
+        <td className="py-2.5 px-3">
           <Link
             to={`/jobs/${job.id}`}
-            className="text-sm text-ink-700 hover:text-ink-900 hover:underline"
+            className="text-sm text-ink hover:text-mint hover:underline"
             title={job.kaggle_url}
           >
             {datasetName}
           </Link>
-          <p className="font-mono text-[10px] text-ink-400 tracking-wide">
+          <p className="font-mono text-2xs text-ink-tertiary tracking-wide tabular">
             {job.id.slice(0, 8)}
           </p>
         </td>
 
         {/* T → Y — inferred or specified */}
-        <td>
+        <td className="py-2.5 px-3">
           {tyDisplay ? (
-            <span className="font-mono text-xs text-ink-700">{tyDisplay}</span>
+            <span className="font-mono text-xs text-ink-secondary">{tyDisplay}</span>
           ) : (
-            <span className="text-xs text-ink-400 italic">auto-detect</span>
+            <span className="text-xs text-ink-tertiary italic">auto-detect</span>
           )}
         </td>
 
         {/* Iteration count */}
-        <td className="text-right">
-          <span className="font-mono text-xs text-ink-700">{iter}</span>
+        <td className="py-2.5 px-3 text-right">
+          <span className="font-mono text-xs text-ink-secondary tabular">{iter}</span>
         </td>
 
         {/* Duration — terminal jobs only */}
-        <td className="text-xs text-ink-500">
-          {duration ?? <span className="text-ink-300">—</span>}
+        <td className="py-2.5 px-3 text-xs font-mono text-ink-tertiary tabular">
+          {duration ?? <span className="text-ink-tertiary">—</span>}
         </td>
 
         {/* Created — relative time */}
-        <td className="text-xs text-ink-500">
+        <td className="py-2.5 px-3 text-xs text-ink-tertiary">
           {relativeTime(job.created_at)}
         </td>
 
         {/* Actions — small text buttons */}
-        <td>
+        <td className="py-2.5 px-3">
           <div className="flex items-center gap-3">
             {isRunning && (
               <button
                 onClick={() => cancelMutation.mutate()}
                 disabled={cancelMutation.isPending}
-                className="text-xs text-ink-600 hover:text-ink-900 disabled:text-ink-300"
+                className="text-xs font-mono text-ink-secondary hover:text-ink disabled:text-ink-tertiary"
                 aria-label={`Stop job ${job.id}`}
               >
                 {cancelMutation.isPending ? 'Stopping...' : 'Stop'}
@@ -365,14 +357,14 @@ function JobRow({ job }: { job: Job }) {
             )}
             <button
               onClick={() => setShowDeleteConfirm(true)}
-              className="text-xs text-red-600 hover:text-red-800"
+              className="text-xs font-mono text-rose hover:text-ink"
               aria-label={`Delete job ${job.id}`}
             >
               Delete
             </button>
           </div>
           {error && (
-            <p className="text-xs text-red-600 mt-0.5">
+            <p className="text-xs text-rose mt-0.5">
               {error}{' '}
               <button onClick={() => setError(null)} className="underline">dismiss</button>
             </p>
@@ -385,7 +377,7 @@ function JobRow({ job }: { job: Job }) {
         <tr>
           <td colSpan={7} className="!py-0">
             <div
-              className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+              className="terminal fixed inset-0 bg-black/60 flex items-center justify-center z-50"
               role="dialog"
               aria-modal="true"
               aria-labelledby={`delete-title-${job.id}`}
@@ -393,18 +385,18 @@ function JobRow({ job }: { job: Job }) {
                 if (e.key === 'Escape') setShowDeleteConfirm(false);
               }}
             >
-              <div className="bg-white border border-ink-200 p-6 max-w-md w-full mx-4">
-                <h3 id={`delete-title-${job.id}`} className="font-serif text-lg font-bold text-ink-900 mb-2">
-                  Delete Job {job.id.slice(0, 8)}?
+              <div className="bg-canvas-overlay border border-edge-strong rounded-md p-6 max-w-md w-full mx-4">
+                <h3 id={`delete-title-${job.id}`} className="text-base font-semibold text-ink mb-2">
+                  Delete Job <span className="font-mono">{job.id.slice(0, 8)}</span>?
                 </h3>
-                <p className="text-sm text-ink-600 mb-4">
+                <p className="text-sm text-ink-secondary mb-4">
                   This will permanently delete the job record, analysis results, and all associated data.
                   {isRunning && ' The job will be cancelled first.'}
                 </p>
-                <div className="flex justify-end gap-3">
+                <div className="flex justify-end gap-3 items-center">
                   <button
                     onClick={() => setShowDeleteConfirm(false)}
-                    className="text-sm text-ink-600 hover:text-ink-900"
+                    className="text-sm text-ink-secondary hover:text-ink"
                     autoFocus
                   >
                     Cancel
@@ -415,7 +407,7 @@ function JobRow({ job }: { job: Job }) {
                       setShowDeleteConfirm(false);
                     }}
                     disabled={deleteMutation.isPending}
-                    className="text-sm text-red-600 hover:text-red-800 font-medium disabled:text-red-300"
+                    className="bg-rose text-ink-inverse rounded-md px-3 py-1.5 text-sm font-medium hover:bg-rose-dim disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
                   </button>

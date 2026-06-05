@@ -5,25 +5,28 @@ export default function Header() {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <header className="border-b border-ink-200">
+    <header className="bg-canvas-raised border-b border-edge-subtle">
       <div className="max-w-4xl mx-auto px-6">
-        <div className="flex items-center justify-between h-14">
-          <Link to="/" className="font-serif text-lg font-bold text-ink-900 hover:text-accent transition-colors">
+        <div className="flex items-center justify-between h-12">
+          <Link
+            to="/"
+            className="font-mono text-2xs uppercase tracking-[0.18em] text-ink hover:text-mint transition-colors"
+          >
             Causal Inference Orchestrator
           </Link>
           <nav className="flex items-center gap-6">
             <Link
               to="/"
-              className={`text-sm font-medium transition-colors ${
-                isActive('/') ? 'text-accent' : 'text-ink-500 hover:text-ink-900'
+              className={`font-mono text-xs transition-colors ${
+                isActive('/') ? 'text-indigo' : 'text-ink-secondary hover:text-ink'
               }`}
             >
               New Analysis
             </Link>
             <Link
               to="/jobs"
-              className={`text-sm font-medium transition-colors ${
-                isActive('/jobs') ? 'text-accent' : 'text-ink-500 hover:text-ink-900'
+              className={`font-mono text-xs transition-colors ${
+                isActive('/jobs') ? 'text-indigo' : 'text-ink-secondary hover:text-ink'
               }`}
             >
               Jobs

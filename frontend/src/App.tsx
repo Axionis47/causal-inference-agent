@@ -7,9 +7,12 @@ import HomePage from './pages/HomePage';
 import JobPage from './pages/JobPage';
 import JobsListPage from './pages/JobsListPage';
 
-function JournalShell({ children }: { children: React.ReactNode }) {
+// Shared chrome for the journal-language routes, now migrated to the terminal
+// aesthetic (aesthetics.md). The `terminal` class supplies the dark canvas,
+// amber focus ring, and cool scrollbar; see index.css.
+function AppShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-white">
+    <div className="terminal min-h-screen bg-canvas">
       <Header />
       <main className="max-w-4xl mx-auto px-6 py-10">{children}</main>
     </div>
@@ -22,8 +25,8 @@ function App() {
       <BrowserRouter>
         <ErrorBoundary>
           <Routes>
-            <Route path="/" element={<JournalShell><HomePage /></JournalShell>} />
-            <Route path="/jobs" element={<JournalShell><JobsListPage /></JournalShell>} />
+            <Route path="/" element={<AppShell><HomePage /></AppShell>} />
+            <Route path="/jobs" element={<AppShell><JobsListPage /></AppShell>} />
             <Route path="/jobs/:jobId" element={<JobPage />} />
           </Routes>
         </ErrorBoundary>
@@ -33,8 +36,9 @@ function App() {
             duration: TOAST_DEFAULT_DURATION_MS,
             style: {
               borderRadius: '0',
-              background: '#1a1a2e',
-              color: '#fff',
+              background: '#111118',
+              color: '#EEEEF0',
+              border: '1px solid #2A2A3A',
               fontFamily: 'Inter, system-ui, sans-serif',
               fontSize: '14px',
             },
