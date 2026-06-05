@@ -49,6 +49,18 @@ function formatHMS(iso: string): string {
   return d.toTimeString().slice(0, 8);
 }
 
+function formatDelta(curISO: string, priorISO: string | undefined): string {
+  if (!priorISO) return '';
+  const cur = Date.parse(curISO);
+  const prior = Date.parse(priorISO);
+  if (Number.isNaN(cur) || Number.isNaN(prior) || cur < prior) return '';
+  const sec = Math.floor((cur - prior) / 1000);
+  if (sec < 60) return `+${sec}s`;
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `+${m}m${s.toString().padStart(2, '0')}`;
+}
+
 function statusTone(status: string | undefined): AgentTone {
   if (status === 'completed') return 'ok';
   if (status === 'failed') return 'failed';
@@ -225,8 +237,8 @@ export default function JobPage() {
   return (
     <div className="terminal flex flex-col h-screen w-screen overflow-hidden bg-canvas text-ink">
       {/* ─── TOP BAR ────────────────────────────────────────────────── */}
-      <header className="flex items-center justify-between h-10 px-3 bg-canvas-raised border-b border-edge-subtle shrink-0">
-        <div className="flex items-center gap-4 min-w-0">
+      <header className="flex items-center h-10 px-3 bg-canvas-raised border-b border-edge-subtle shrink-0 gap-6">
+        <div className="flex items-center gap-4 min-w-0 shrink-0">
           <span className="font-mono text-xs text-ink tabular">
             [ job <span className="text-ink-secondary">{job.id.slice(0, 8)}</span> ]
           </span>
@@ -234,7 +246,27 @@ export default function JobPage() {
             standard
           </span>
         </div>
-        <div className="flex items-center gap-4 text-xs font-mono tabular">
+
+        {/* phase strip — one cell per specialist, lit by current tone. */}
+        <div className="flex-1 flex items-center justify-center gap-0.5 min-w-0">
+          {SPECIALIST_ROSTER.map(row => {
+            const tone = agentTones[row.key];
+            const bg =
+              tone === 'live' ? 'bg-amber animate-pulse-live' :
+              tone === 'ok' ? 'bg-mint' :
+              tone === 'failed' ? 'bg-rose' :
+              'bg-edge-subtle';
+            return (
+              <div
+                key={row.key}
+                className={`h-1.5 w-6 ${bg}`}
+                title={`${row.label} · ${tone}`}
+              />
+            );
+          })}
+        </div>
+
+        <div className="flex items-center gap-4 text-xs font-mono tabular shrink-0">
           <span className="inline-flex items-center gap-1.5">
             <StatusDot tone={statusTone(job.status)} />
             <span className="text-2xs uppercase tracking-[0.15em] text-ink-secondary">
@@ -264,7 +296,7 @@ export default function JobPage() {
       {/* ─── THREE PANES ────────────────────────────────────────────── */}
       <div className="flex-1 flex overflow-hidden min-h-0">
         {/* AGENTS */}
-        <aside className="w-[240px] shrink-0 bg-canvas-raised border-r border-edge-subtle flex flex-col overflow-hidden">
+        <aside className="w-[260px] shrink-0 bg-canvas-raised border-r border-edge-subtle flex flex-col overflow-hidden">
           <Caption>[ agents ]</Caption>
           <div className="flex-1 overflow-y-auto">
             {SPECIALIST_ROSTER.map(row => {
@@ -307,6 +339,9 @@ export default function JobPage() {
             {reverseEvents.map((ev, i) => {
               const key = `${ev.timestamp}-${ev.agent_name ?? '_'}-${ev.event_type}-${i}`;
               const isCurrent = ev.agent_name === job.current_agent;
+              // reverseEvents[i+1] is the chronologically prior event.
+              const priorISO = reverseEvents[i + 1]?.timestamp;
+              const delta = formatDelta(ev.timestamp, priorISO);
               return (
                 <div
                   key={key}
@@ -321,8 +356,11 @@ export default function JobPage() {
                   <span className="font-mono text-xs shrink-0 w-44 truncate text-ink-secondary">
                     {ev.agent_name ?? 'orchestrator'}
                   </span>
-                  <span className="font-mono text-xs text-bone flex-1 truncate">
+                  <span className="font-mono text-xs text-bone flex-1 truncate min-w-0">
                     {describeEvent(ev)}
+                  </span>
+                  <span className="font-mono text-2xs text-ink-tertiary tabular shrink-0 w-16 text-right">
+                    {delta}
                   </span>
                 </div>
               );
@@ -331,7 +369,7 @@ export default function JobPage() {
         </section>
 
         {/* FOCUS */}
-        <aside className="w-[360px] shrink-0 bg-canvas-raised border-l border-edge-subtle flex flex-col overflow-hidden">
+        <aside className="w-[300px] shrink-0 bg-canvas-raised border-l border-edge-subtle flex flex-col overflow-hidden">
           <Caption>[ focus ]</Caption>
           <div className="flex-1 overflow-y-auto p-3">
             {focusAgent ? (
