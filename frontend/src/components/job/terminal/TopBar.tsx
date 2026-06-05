@@ -1,4 +1,5 @@
-// Top bar: job id + orchestrator mode (left), phase strip (middle), status + elapsed + cancel (right).
+// Top bar: job id + orchestrator mode (left), phase strip (middle),
+// status + elapsed + tokens + cancel (right).
 
 import type { JobDetail } from '../../../services/api';
 import type { AgentStatusMap } from './agents';
@@ -10,12 +11,14 @@ export interface TopBarProps {
   job: JobDetail;
   agentTones: AgentStatusMap;
   elapsed: string;
+  /** Total tokens (input + output) summed across traces; null while unknown. */
+  tokens: number | null;
   isPreview: boolean;
   onCancel: () => void;
   cancelPending: boolean;
 }
 
-export function TopBar({ job, agentTones, elapsed, isPreview, onCancel, cancelPending }: TopBarProps) {
+export function TopBar({ job, agentTones, elapsed, tokens, isPreview, onCancel, cancelPending }: TopBarProps) {
   const canCancel = !isPreview && job.status !== 'completed' && job.status !== 'failed';
 
   return (
@@ -44,7 +47,7 @@ export function TopBar({ job, agentTones, elapsed, isPreview, onCancel, cancelPe
         </span>
         <span className="text-ink-secondary">
           <span className="text-ink-tertiary mr-1">tokens</span>
-          <span className="text-ink">—</span>
+          <span className="text-ink">{tokens != null && tokens > 0 ? tokens.toLocaleString() : '—'}</span>
         </span>
         {canCancel && (
           <button

@@ -168,6 +168,8 @@ class VertexAIClient:
         # Build conversation history
         messages = [Content(role="user", parts=[Part.from_text(prompt)])]
         tool_calls_made: list[dict[str, Any]] = []
+        total_input_tokens = 0
+        total_output_tokens = 0
 
         # For models that don't support multiple tools, combine into unified tool
         use_unified_tool = len(tools) > 1
@@ -195,6 +197,13 @@ class VertexAIClient:
             # Generate response
             response = await model.generate_content_async(messages)
 
+            # Accumulate token usage across iterations (Vertex names the fields
+            # prompt_token_count / candidates_token_count on usage_metadata).
+            usage = getattr(response, "usage_metadata", None)
+            if usage is not None:
+                total_input_tokens += getattr(usage, "prompt_token_count", 0) or 0
+                total_output_tokens += getattr(usage, "candidates_token_count", 0) or 0
+
             if not response.candidates:
                 logger.warning("no_candidates_in_response_vertex")
                 break
@@ -216,6 +225,10 @@ class VertexAIClient:
                     "response": final_text,
                     "tool_calls": tool_calls_made,
                     "iterations": iteration + 1,
+                    "_token_usage": {
+                        "input_tokens": total_input_tokens,
+                        "output_tokens": total_output_tokens,
+                    },
                 }
 
             # Unpack unified tool calls if needed
@@ -239,6 +252,10 @@ class VertexAIClient:
                 "tool_calls": tool_calls_made,
                 "pending_calls": function_calls,
                 "iterations": iteration + 1,
+                "_token_usage": {
+                    "input_tokens": total_input_tokens,
+                    "output_tokens": total_output_tokens,
+                },
             }
 
         logger.warning("max_iterations_reached_vertex", max_iterations=max_iterations)
@@ -247,6 +264,10 @@ class VertexAIClient:
             "tool_calls": tool_calls_made,
             "iterations": max_iterations,
             "error": "Max iterations reached",
+            "_token_usage": {
+                "input_tokens": total_input_tokens,
+                "output_tokens": total_output_tokens,
+            },
         }
 
     async def generate_structured(

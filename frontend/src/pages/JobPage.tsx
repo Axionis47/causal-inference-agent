@@ -12,8 +12,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getJob, cancelJob, getNotebookUrl, AgentEvent, JobDetail } from '../services/api';
-import { JOB_DETAIL_POLL_INTERVAL_MS } from '../config/constants';
+import { getJob, getTraces, cancelJob, getNotebookUrl, AgentEvent, JobDetail } from '../services/api';
+import { JOB_DETAIL_POLL_INTERVAL_MS, TRACES_POLL_INTERVAL_MS } from '../config/constants';
 import { useJob } from '../hooks/useJob';
 import { deriveJobView } from '../components/job/terminal/deriveJobView';
 import { TopBar } from '../components/job/terminal/TopBar';
@@ -56,6 +56,27 @@ export default function JobPage() {
       return terminal ? false : JOB_DETAIL_POLL_INTERVAL_MS;
     },
   });
+
+  // Traces carry per-agent token_usage; we sum them for the TopBar counter.
+  // Poll alongside the job until it reaches a terminal state, then freeze.
+  const tracesQuery = useQuery({
+    queryKey: ['job-traces', jobId],
+    queryFn: () => getTraces(jobId!),
+    enabled: !!jobId && !isPreview,
+    refetchInterval: () => {
+      const s = realJobQuery.data?.status;
+      const terminal = s === 'completed' || s === 'failed' || s === 'cancelled';
+      return terminal ? false : TRACES_POLL_INTERVAL_MS;
+    },
+  });
+  const tokens = useMemo<number | null>(() => {
+    const traces = tracesQuery.data;
+    if (!traces || traces.length === 0) return null;
+    return traces.reduce(
+      (sum, t) => sum + (t.token_usage?.input_tokens || 0) + (t.token_usage?.output_tokens || 0),
+      0,
+    );
+  }, [tracesQuery.data]);
 
   // Dataset view (F1). The analyst lands here on arrival so the raw data and
   // download status are the first thing seen; Esc / F1 toggles back to the
@@ -130,6 +151,7 @@ export default function JobPage() {
         job={job}
         agentTones={view.agentTones}
         elapsed={view.elapsed}
+        tokens={isPreview ? null : tokens}
         isPreview={isPreview}
         onCancel={onCancel}
         cancelPending={cancelMutation.isPending}
