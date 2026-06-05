@@ -11,6 +11,7 @@ from filelock import FileLock
 from src.analysis.agents.base import AnalysisState, JobStatus
 from src.config import get_settings
 from src.logging_config.structured import get_logger
+from src.storage.serialize import dump_state_jsonable
 
 logger = get_logger(__name__)
 
@@ -431,7 +432,7 @@ class LocalStorageClient:
         via `AnalysisState.model_validate` in `load_parked_state`. Keyed
         by `state.job_id`; last write wins.
         """
-        payload = state.model_dump(mode="json")
+        payload = dump_state_jsonable(state)
 
         def _sync():
             lock = self._get_lock(self.parked_states_file)

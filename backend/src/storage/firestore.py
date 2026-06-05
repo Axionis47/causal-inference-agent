@@ -9,6 +9,7 @@ from google.cloud import firestore
 from src.analysis.agents.base import AnalysisState, JobStatus
 from src.config import get_settings
 from src.logging_config.structured import get_logger
+from src.storage.serialize import dump_state_jsonable
 
 logger = get_logger(__name__)
 
@@ -493,7 +494,7 @@ class FirestoreClient:
 
     async def save_parked_state(self, state: AnalysisState) -> None:
         """Persist the full AnalysisState while the job waits at the gate."""
-        payload = state.model_dump(mode="json")
+        payload = dump_state_jsonable(state)
 
         def _sync():
             doc_ref = self.db.collection(self.parked_states_collection).document(state.job_id)
