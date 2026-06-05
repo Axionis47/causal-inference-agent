@@ -1,16 +1,29 @@
 /**
  * useDatasetView — hydrate the live Data panel for a job.
  *
- * On mount, fetches /jobs/{id}/dataset once to seed the store. After
- * that, SSE events handled in useJob patch the store's datasetView in
- * place, so the UI updates as each block of data arrives without
- * needing to re-fetch the endpoint.
+ * Polls /jobs/{id}/dataset until every block has settled (download done,
+ * profile + sample + kaggle metadata resolved), then stops. The sample
+ * rows arrive only over REST (no SSE event), so polling is the live path,
+ * not just a backstop. SSE patches in useJob still update status in place
+ * between polls.
  */
 
 import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { DatasetView, getDatasetView } from '../services/api';
 import { useJobStore } from '../store/jobStore';
+import { DATASET_VIEW_POLL_INTERVAL_MS } from '../config/constants';
+
+/** True once no block can change further, so polling can stop. */
+function isSettled(v: DatasetView): boolean {
+  const has = (s: string, ...ok: string[]) => ok.includes(s);
+  return (
+    has(v.download.status, 'downloaded', 'failed') &&
+    has(v.profile.status, 'loaded', 'error') &&
+    has(v.kaggle_meta.status, 'loaded', 'unavailable', 'error') &&
+    has(v.sample.status, 'loaded', 'unavailable', 'error')
+  );
+}
 
 export function useDatasetView(jobId: string | null): {
   view: DatasetView | null;
@@ -24,10 +37,13 @@ export function useDatasetView(jobId: string | null): {
     queryKey: ['dataset-view', jobId],
     queryFn: () => getDatasetView(jobId!),
     enabled: !!jobId,
-    // Single hydrate. SSE patches keep it fresh after this.
-    staleTime: Infinity,
     refetchOnWindowFocus: false,
-    refetchOnMount: false,
+    // Poll while any block is still resolving; freeze once all settle.
+    refetchInterval: (q) => {
+      const data = q.state.data as DatasetView | undefined;
+      if (!data) return DATASET_VIEW_POLL_INTERVAL_MS;
+      return isSettled(data) ? false : DATASET_VIEW_POLL_INTERVAL_MS;
+    },
   });
 
   useEffect(() => {

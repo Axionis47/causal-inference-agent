@@ -17,6 +17,8 @@ live in-memory AnalysisState (preferred) or the persisted results dict
 
 from __future__ import annotations
 
+import json
+import logging
 from typing import Any
 
 from src.analysis.agents.base import AnalysisState, JobStatus
@@ -27,12 +29,54 @@ from src.api.schemas import (
     KaggleMetaBlock,
     KaggleMetaData,
     ProfileBlock,
+    SampleRowsBlock,
 )
+
+logger = logging.getLogger(__name__)
+
+# How many real rows to surface in the Data panel preview.
+_SAMPLE_ROW_LIMIT = 10
 
 # JobStatus values that indicate the data-fetching phase has begun.
 _PROGRESSED_STATUSES = {
     s for s in JobStatus if s not in (JobStatus.PENDING, JobStatus.CANCELLED)
 }
+
+
+def _build_sample(path: str | None) -> SampleRowsBlock:
+    """Read a small head() of real rows from the loaded dataframe.
+
+    `path` is the parquet the profiler writes (or a raw csv). Returns a
+    pending block when the file isn't there yet, so the panel shows
+    progress rather than an error during download.
+    """
+    if not path:
+        return SampleRowsBlock(status="pending")
+    try:
+        import pandas as pd
+
+        if path.endswith(".parquet"):
+            df = pd.read_parquet(path)
+        elif path.endswith(".csv"):
+            df = pd.read_csv(path)
+        else:
+            return SampleRowsBlock(status="unavailable")
+    except FileNotFoundError:
+        return SampleRowsBlock(status="pending")
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("sample-rows read failed for %s: %s", path, exc)
+        return SampleRowsBlock(status="error", error=str(exc))
+
+    head = df.head(_SAMPLE_ROW_LIMIT)
+    # to_json round-trips numpy types and NaN -> null cleanly; json.loads
+    # gives plain python the response model can serialize.
+    rows = json.loads(head.to_json(orient="records"))
+    return SampleRowsBlock(
+        status="loaded",
+        columns=[str(c) for c in df.columns],
+        rows=rows,
+        total_rows=int(len(df)),
+    )
 
 
 def build_from_state(state: AnalysisState) -> DatasetViewResponse:
@@ -106,8 +150,10 @@ def build_from_state(state: AnalysisState) -> DatasetViewResponse:
     else:
         profile = ProfileBlock(status="pending")
 
+    sample = _build_sample(state.dataframe_path or info.local_path)
+
     return DatasetViewResponse(
-        download=download, kaggle_meta=kaggle_meta, profile=profile
+        download=download, kaggle_meta=kaggle_meta, profile=profile, sample=sample
     )
 
 
@@ -160,6 +206,8 @@ def build_from_persisted(
     else:
         profile = ProfileBlock(status="pending")
 
+    sample = _build_sample(results.get("dataframe_path"))
+
     return DatasetViewResponse(
-        download=download, kaggle_meta=kaggle_meta, profile=profile
+        download=download, kaggle_meta=kaggle_meta, profile=profile, sample=sample
     )

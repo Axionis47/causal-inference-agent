@@ -21,7 +21,9 @@ import { AgentsRail } from '../components/job/terminal/AgentsRail';
 import { Tape } from '../components/job/terminal/Tape';
 import { FocusPane } from '../components/job/terminal/FocusPane';
 import { FKeyBar } from '../components/job/terminal/FKeyBar';
+import { DatasetView } from '../components/job/terminal/DatasetView';
 import { buildPreviewState } from '../components/job/terminal/preview';
+import { useDatasetView } from '../hooks/useDatasetView';
 
 export default function JobPage() {
   const { jobId } = useParams<{ jobId: string }>();
@@ -55,6 +57,12 @@ export default function JobPage() {
     },
   });
 
+  // Dataset view (F1). The analyst lands here on arrival so the raw data and
+  // download status are the first thing seen; Esc / F1 toggles back to the
+  // agent tape. useDatasetView polls /jobs/:id/dataset until the blocks settle.
+  const [showDataset, setShowDataset] = useState(!isPreview);
+  const { view: datasetView } = useDatasetView(isPreview ? null : (jobId ?? null));
+
   // Memoise preview so timestamps freeze at first render of /jobs/__preview.
   const preview = useMemo(() => (isPreview ? buildPreviewState() : null), [isPreview]);
 
@@ -73,7 +81,11 @@ export default function JobPage() {
   useEffect(() => {
     if (!job) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'F1' && job.status !== 'completed' && job.status !== 'failed' && !isPreview) {
+      if (e.key === 'F1') {
+        e.preventDefault();
+        setShowDataset((v) => !v);
+      }
+      if (e.key === 'F2' && job.status !== 'completed' && job.status !== 'failed' && !isPreview) {
         e.preventDefault();
         cancelMutation.mutate();
       }
@@ -81,7 +93,7 @@ export default function JobPage() {
         e.preventDefault();
         window.location.href = getNotebookUrl(job.id);
       }
-      if (e.key === 'F5' && job.status === 'completed') {
+      if (e.key === 'F4' && job.status === 'completed') {
         e.preventDefault();
         navigate(`/jobs/${job.id}#results`);
       }
@@ -131,10 +143,20 @@ export default function JobPage() {
           focusAgent={view.focusAgent}
           focusLatest={view.focusLatest}
           failed={view.failed}
+          datasetView={datasetView}
+          onOpenData={() => setShowDataset(true)}
         />
       </div>
 
-      <FKeyBar job={job} isPreview={isPreview} onCancel={onCancel} />
+      <FKeyBar
+        job={job}
+        isPreview={isPreview}
+        onCancel={onCancel}
+        onData={() => setShowDataset((v) => !v)}
+        onResults={() => navigate(`/jobs/${job.id}#results`)}
+      />
+
+      {showDataset && <DatasetView view={datasetView} onClose={() => setShowDataset(false)} />}
     </div>
   );
 }

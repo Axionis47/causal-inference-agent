@@ -270,10 +270,19 @@ export interface ProfileBlock {
   error: string | null;
 }
 
+export interface SampleRowsBlock {
+  status: BlockStatus;
+  columns: string[];
+  rows: Record<string, unknown>[];
+  total_rows: number | null;
+  error: string | null;
+}
+
 export interface DatasetView {
   download: DownloadBlock;
   kaggle_meta: KaggleMetaBlock;
   profile: ProfileBlock;
+  sample: SampleRowsBlock;
 }
 
 export interface AgentTrace {

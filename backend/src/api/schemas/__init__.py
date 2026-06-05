@@ -25,6 +25,7 @@ from .job import (
     KaggleMetaData,
     MethodConsensusResponse,
     ProfileBlock,
+    SampleRowsBlock,
     SensitivityResponse,
     TreatmentEffectResponse,
 )
@@ -58,5 +59,6 @@ __all__ = [
     "KaggleMetaBlock",
     "KaggleMetaData",
     "ProfileBlock",
+    "SampleRowsBlock",
     "FileEntryResponse",
 ]

@@ -310,6 +310,21 @@ class ProfileBlock(BaseModel):
     error: str | None = None
 
 
+class SampleRowsBlock(BaseModel):
+    """A small sample of the actual downloaded rows.
+
+    Lets the analyst see real cell values, not just summary stats.
+    status='unavailable' means the file type can't be previewed;
+    'error' means the read itself failed.
+    """
+
+    status: str  # "pending" | "loaded" | "unavailable" | "error"
+    columns: list[str] = Field(default_factory=list)
+    rows: list[dict[str, Any]] = Field(default_factory=list)
+    total_rows: int | None = None
+    error: str | None = None
+
+
 class DatasetViewResponse(BaseModel):
     """Live + persisted view of a job's dataset for the Data panel.
 
@@ -320,6 +335,7 @@ class DatasetViewResponse(BaseModel):
     download: DownloadBlock
     kaggle_meta: KaggleMetaBlock
     profile: ProfileBlock
+    sample: SampleRowsBlock = Field(default_factory=lambda: SampleRowsBlock(status="pending"))
 
 
 class CancelJobResponse(BaseModel):

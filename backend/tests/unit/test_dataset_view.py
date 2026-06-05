@@ -176,3 +176,57 @@ def test_persisted_returns_pending_when_results_missing():
     assert view.download.status == "pending"
     assert view.kaggle_meta.status == "pending"
     assert view.profile.status == "pending"
+
+
+# ─── sample rows (the raw-data preview) ───────────────────────────────────
+
+
+def test_sample_pending_before_dataframe_written():
+    """No parquet yet (mid-download): the panel shows progress, not error."""
+    state = _make_state()
+    view = build_dataset_view_from_state(state)
+    assert view.sample.status == "pending"
+    assert view.sample.rows == []
+
+
+def test_sample_loaded_returns_real_rows_from_parquet(tmp_path):
+    import pandas as pd
+
+    df = pd.DataFrame({"treat": [0, 1, 0], "re78": [0.0, 9930.05, 3595.89]})
+    parquet = tmp_path / "data.parquet"
+    df.to_parquet(parquet)
+
+    state = _make_state()
+    state.dataframe_path = str(parquet)
+    view = build_dataset_view_from_state(state)
+
+    assert view.sample.status == "loaded"
+    assert view.sample.columns == ["treat", "re78"]
+    assert view.sample.total_rows == 3
+    # Real cell values, not summary stats.
+    assert view.sample.rows[1]["treat"] == 1
+    assert view.sample.rows[1]["re78"] == 9930.05
+
+
+def test_sample_caps_at_row_limit(tmp_path):
+    import pandas as pd
+
+    df = pd.DataFrame({"x": list(range(50))})
+    parquet = tmp_path / "big.parquet"
+    df.to_parquet(parquet)
+
+    state = _make_state()
+    state.dataframe_path = str(parquet)
+    view = build_dataset_view_from_state(state)
+
+    assert view.sample.status == "loaded"
+    assert len(view.sample.rows) == 10  # head() cap
+    assert view.sample.total_rows == 50  # but the true count is reported
+
+
+def test_sample_pending_when_parquet_path_points_nowhere():
+    """A stale path (file evicted) reads as pending, not a hard error."""
+    state = _make_state()
+    state.dataframe_path = "/tmp/does-not-exist-12345.parquet"
+    view = build_dataset_view_from_state(state)
+    assert view.sample.status == "pending"

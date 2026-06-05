@@ -1,6 +1,7 @@
 // Reusable visual atoms for the terminal layout. Each is a sub-10-line presentational component.
 
 import type { AgentTone } from './agents';
+import type { BlockStatus } from '../../../services/api';
 
 /** 6px status dot, tone-coloured. Live tone pulses amber. */
 export function StatusDot({ tone }: { tone: AgentTone }) {
@@ -11,6 +12,25 @@ export function StatusDot({ tone }: { tone: AgentTone }) {
     failed: 'bg-rose',
   };
   return <span className={`inline-block w-1.5 h-1.5 rounded-full ${cls[tone]}`} />;
+}
+
+/** Map a dataset-block status to a status-dot tone. */
+export function blockTone(status: BlockStatus): AgentTone {
+  if (status === 'downloading') return 'live';
+  if (status === 'downloaded' || status === 'loaded') return 'ok';
+  if (status === 'failed' || status === 'error') return 'failed';
+  return 'pending';
+}
+
+/** dot + label + status word, the header line of every dataset block. */
+export function StatusLine({ label, status }: { label: string; status: BlockStatus }) {
+  return (
+    <div className="flex items-center gap-2">
+      <StatusDot tone={blockTone(status)} />
+      <span className="text-2xs font-mono uppercase tracking-[0.15em] text-ink-secondary">{label}</span>
+      <span className="text-2xs font-mono uppercase tracking-[0.15em] text-ink-tertiary">{status}</span>
+    </div>
+  );
 }
 
 /** Section label rendered above each pane. Mono, tertiary, uppercase, tracked. */
