@@ -107,7 +107,7 @@ async def get_kaggle_profile(
 async def delete_kaggle_profile(
     profile_id: str = DEFAULT_PROFILE_ID,
     root: Path = Depends(get_root),
-) -> None:
+):
     profile_store.clear_kaggle_key(profile_id, root=root)
 
 
@@ -163,7 +163,7 @@ async def stream_download_events(
 async def delete_download(
     download_id: str,
     root: Path = Depends(get_root),
-) -> None:
+):
     record = download_store.load(download_id, root=root)
     if record is None:
         return
