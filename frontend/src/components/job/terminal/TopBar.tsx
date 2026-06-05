@@ -1,6 +1,7 @@
-// Top bar: job id + orchestrator mode (left), phase strip (middle),
+// Top bar: back link + job id + orchestrator mode (left), phase strip (middle),
 // status + elapsed + tokens + cancel (right).
 
+import { Link } from 'react-router-dom';
 import type { JobDetail } from '../../../services/api';
 import type { AgentStatusMap } from './agents';
 import { StatusDot } from './atoms';
@@ -24,6 +25,12 @@ export function TopBar({ job, agentTones, elapsed, tokens, isPreview, onCancel, 
   return (
     <header className="flex items-center h-10 px-3 bg-canvas-raised border-b border-edge-subtle shrink-0 gap-6">
       <div className="flex items-center gap-4 min-w-0 shrink-0">
+        <Link
+          to="/jobs"
+          className="text-2xs font-mono uppercase tracking-[0.15em] text-ink-tertiary hover:text-ink transition-colors"
+        >
+          ← jobs
+        </Link>
         <span className="font-mono text-xs text-ink tabular">
           [ job <span className="text-ink-secondary">{job.id.slice(0, 8)}</span> ]
         </span>

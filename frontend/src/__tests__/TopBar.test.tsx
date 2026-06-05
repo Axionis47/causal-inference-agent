@@ -31,6 +31,12 @@ function renderTopBar(tokens: number | null) {
 }
 
 describe('TopBar', () => {
+  it('renders a back link to the jobs list', () => {
+    renderTopBar(null);
+    const back = screen.getByRole('link', { name: /jobs/i });
+    expect(back).toHaveAttribute('href', '/jobs');
+  });
+
   it('shows the formatted token total when tokens are present', () => {
     renderTopBar(12345);
     expect(screen.getByText('12,345')).toBeInTheDocument();
