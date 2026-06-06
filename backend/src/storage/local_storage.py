@@ -11,6 +11,7 @@ from filelock import FileLock
 from src.analysis.agents.base import AnalysisState, JobStatus
 from src.config import get_settings
 from src.logging_config.structured import get_logger
+from src.storage.job_data import read_manifest
 from src.storage.serialize import dump_state_jsonable
 
 logger = get_logger(__name__)
@@ -327,6 +328,13 @@ class LocalStorageClient:
                     results_data["dataset_files"] = [
                         f.model_dump() for f in state.dataset_info.files
                     ]
+
+                # Persist the typed dataset manifest (per-file records + full
+                # Kaggle metadata) so a revisited completed job can read its
+                # dataset record without the live state.
+                manifest = read_manifest(state.job_id)
+                if manifest is not None:
+                    results_data["dataset_manifest"] = manifest.model_dump()
 
                 # Persist Kaggle metadata for the same reason.
                 if (
