@@ -288,6 +288,18 @@ export interface DatasetRowsPage {
   limit: number;
 }
 
+export interface ApprovalRequestBody {
+  decision: 'approved' | 'rejected';
+  reason?: string;
+  appended_context?: string;
+}
+
+export interface ApprovalResult {
+  job_id: string;
+  resumed: boolean;
+  status: string;
+}
+
 export interface AgentTrace {
   agent_name: string;
   timestamp: string;
@@ -375,6 +387,14 @@ export async function getDatasetRows(
     `/jobs/${jobId}/dataset/files/${encodeURIComponent(fileName)}/rows`,
     { params: { offset, limit } }
   );
+  return response.data;
+}
+
+export async function submitApproval(
+  jobId: string,
+  body: ApprovalRequestBody
+): Promise<ApprovalResult> {
+  const response = await api.post(`/jobs/${jobId}/approval`, body);
   return response.data;
 }
 

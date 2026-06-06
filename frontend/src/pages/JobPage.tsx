@@ -22,6 +22,7 @@ import { Tape } from '../components/job/terminal/Tape';
 import { FocusPane } from '../components/job/terminal/FocusPane';
 import { FKeyBar } from '../components/job/terminal/FKeyBar';
 import { DatasetView } from '../components/job/terminal/DatasetView';
+import { ApprovalBar } from '../components/job/terminal/ApprovalBar';
 import { buildPreviewState } from '../components/job/terminal/preview';
 import { useDatasetView } from '../hooks/useDatasetView';
 
@@ -97,6 +98,12 @@ export default function JobPage() {
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
     },
   });
+
+  // When the job pauses for data review, land on the data view so the
+  // analyst sees what they are approving.
+  useEffect(() => {
+    if (job?.status === 'awaiting_approval') setShowDataset(true);
+  }, [job?.status]);
 
   // F-key shortcuts. Always run the hook; gate the actions inside.
   useEffect(() => {
@@ -184,6 +191,10 @@ export default function JobPage() {
           jobId={jobId ?? null}
           onClose={() => setShowDataset(false)}
         />
+      )}
+
+      {!isPreview && job.status === 'awaiting_approval' && (
+        <ApprovalBar jobId={job.id} />
       )}
     </div>
   );
