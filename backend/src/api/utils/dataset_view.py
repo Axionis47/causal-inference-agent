@@ -65,6 +65,35 @@ def _files_from_manifest(manifest: Any) -> list[FileEntryResponse]:
     return entries
 
 
+def _kaggle_meta_from_raw(raw: dict[str, Any]) -> KaggleMetaData:
+    """Map the full raw Kaggle extractor dict to the response model.
+
+    Carries every fact the Kaggle API reported. `domain` is intentionally
+    left out (it is the one derived field and stays None at the gate).
+    Numeric stats become None when the source reported a falsy/zero value so
+    the UI shows a placeholder rather than a misleading 0.
+    """
+    def _num(key: str):
+        v = raw.get(key)
+        return v if v else None
+
+    return KaggleMetaData(
+        title=raw.get("title") or None,
+        subtitle=raw.get("subtitle") or None,
+        description=raw.get("description") or None,
+        source=raw.get("source") or None,
+        license=raw.get("license") or None,
+        tags=raw.get("tags") or [],
+        keywords=raw.get("keywords") or [],
+        column_descriptions=raw.get("column_descriptions") or {},
+        total_size=_num("total_size"),
+        download_count=_num("download_count"),
+        vote_count=_num("vote_count"),
+        usability_rating=_num("usability_rating"),
+        metadata_quality=raw.get("metadata_quality", "unknown"),
+    )
+
+
 def build_from_state(state: AnalysisState) -> DatasetViewResponse:
     """Build a dataset view from a live AnalysisState."""
     info = state.dataset_info
@@ -90,13 +119,18 @@ def build_from_state(state: AnalysisState) -> DatasetViewResponse:
         error=state.error_message if download_failed else None,
     )
 
-    has_meta = bool(
+    # The gate stores the full raw Kaggle dict on state.raw_metadata; prefer
+    # it so the panel can show everything the source supplied.
+    if state.raw_metadata:
+        kaggle_meta = KaggleMetaBlock(
+            status="loaded", data=_kaggle_meta_from_raw(state.raw_metadata)
+        )
+    elif (
         info.kaggle_description
         or info.kaggle_column_descriptions
         or info.kaggle_tags
         or info.kaggle_domain
-    )
-    if has_meta:
+    ):
         kaggle_meta = KaggleMetaBlock(
             status="loaded",
             data=KaggleMetaData(
@@ -177,8 +211,15 @@ def build_from_persisted(
         error=job.get("error_message") if is_failed else None,
     )
 
+    # Prefer the manifest's full raw Kaggle dict (everything the source
+    # supplied); fall back to the older persisted kaggle_meta summary.
+    manifest_meta = manifest_dict.get("kaggle_metadata") if manifest_dict else None
     kaggle_data = results.get("kaggle_meta")
-    if kaggle_data:
+    if manifest_meta:
+        kaggle_meta = KaggleMetaBlock(
+            status="loaded", data=_kaggle_meta_from_raw(manifest_meta)
+        )
+    elif kaggle_data:
         kaggle_meta = KaggleMetaBlock(
             status="loaded", data=KaggleMetaData(**kaggle_data)
         )

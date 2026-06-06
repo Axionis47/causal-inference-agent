@@ -375,12 +375,18 @@ def capture_file_list(
     return entries
 
 
-async def fetch_kaggle_metadata(state: AnalysisState) -> None:
+async def fetch_kaggle_metadata(
+    state: AnalysisState, infer_domain_label: bool = True
+) -> None:
     """Fetch Kaggle metadata for semantic variable analysis.
 
     Populates state.raw_metadata and several state.dataset_info.kaggle_*
     fields. Emits SSE events for the metadata lifecycle. Failures are
     logged and reported via SSE but never raise.
+
+    `infer_domain_label` gates the one derived field: when False (the
+    data-review gate calls it this way) the domain is left unset, so the
+    pre-approval surface carries only facts Kaggle supplied, no inference.
     """
     state.push_sse_event("dataset_metadata_started", {})
     try:
@@ -402,7 +408,8 @@ async def fetch_kaggle_metadata(state: AnalysisState) -> None:
             state.dataset_info.metadata_quality = metadata.get(
                 "metadata_quality", "unknown"
             )
-            state.dataset_info.kaggle_domain = infer_domain(metadata)
+            if infer_domain_label:
+                state.dataset_info.kaggle_domain = infer_domain(metadata)
 
             logger.info(
                 "kaggle_metadata_fetched",

@@ -145,6 +145,58 @@ def test_kaggle_meta_loaded_when_fields_present():
     assert view.kaggle_meta.data.metadata_quality == "high"
 
 
+def test_kaggle_meta_carries_full_raw_metadata_from_state():
+    """At the data-review gate the full raw Kaggle dict is on
+    state.raw_metadata; the view must surface every fact (title, license,
+    counts, ...) and leave the derived domain unset."""
+    state = _make_state()
+    state.raw_metadata = {
+        "extraction_success": True,
+        "title": "Lalonde A/B Testing",
+        "subtitle": "A/B test training program",
+        "description": "### Context\nFamous job-training dataset.",
+        "source": "https://www.kaggle.com/datasets/o/lalonde",
+        "license": "CC0-1.0",
+        "tags": ["business", "education"],
+        "keywords": ["business", "education"],
+        "column_descriptions": {},
+        "total_size": 9734,
+        "download_count": 552,
+        "vote_count": 6,
+        "usability_rating": 0.647,
+        "metadata_quality": "medium",
+    }
+    view = build_dataset_view_from_state(state)
+    d = view.kaggle_meta.data
+    assert view.kaggle_meta.status == "loaded"
+    assert d is not None
+    assert d.title == "Lalonde A/B Testing"
+    assert d.license == "CC0-1.0"
+    assert d.tags == ["business", "education"]
+    assert d.download_count == 552
+    assert d.usability_rating == 0.647
+    # Derived field is not inferred at the gate.
+    assert d.domain is None
+
+
+def test_kaggle_meta_zero_counts_become_none_for_placeholder():
+    """A source that reports 0 downloads/votes should render as a
+    placeholder, not a misleading zero."""
+    state = _make_state()
+    state.raw_metadata = {
+        "extraction_success": True,
+        "title": "Sparse set",
+        "total_size": 0,
+        "download_count": 0,
+        "vote_count": 0,
+        "usability_rating": 0,
+    }
+    d = build_dataset_view_from_state(state).kaggle_meta.data
+    assert d.download_count is None
+    assert d.vote_count is None
+    assert d.usability_rating is None
+
+
 def test_kaggle_meta_unavailable_when_quality_set_but_fields_empty():
     """Fetch ran (quality is no longer 'unknown') but Kaggle didn't
     provide anything useful — distinct from 'pending' (haven't fetched

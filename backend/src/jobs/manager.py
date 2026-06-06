@@ -387,11 +387,21 @@ class JobManager:
         the orchestrator, which does not run until the human approves. On a
         download failure the job is marked FAILED.
         """
-        from src.analysis.agents.data_profiler.loading import load_dataset
+        from src.analysis.agents.data_profiler.loading import (
+            fetch_kaggle_metadata,
+            load_dataset,
+        )
         from src.analysis.orchestrator.base import park_for_approval
 
         state.status = JobStatus.FETCHING_DATA
         await self.firestore.update_job(state, expected_status=JobStatus.PENDING)
+
+        # Pull the Kaggle metadata first so the manifest (written by the
+        # download below) carries it and the data-review surface can show
+        # everything the source supplied. infer_domain_label=False keeps the
+        # one derived field out: facts only, no inference, before approval.
+        if "kaggle.com" in state.dataset_info.url:
+            await fetch_kaggle_metadata(state, infer_domain_label=False)
 
         df, error = await load_dataset(state)
         if df is None:

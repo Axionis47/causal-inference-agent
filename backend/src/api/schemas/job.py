@@ -287,11 +287,26 @@ class DownloadBlock(BaseModel):
 
 
 class KaggleMetaData(BaseModel):
-    """Kaggle-supplied metadata about the dataset."""
+    """Kaggle-supplied metadata about the dataset.
 
+    Everything here is a fact the Kaggle API reported. `domain` is the one
+    derived field and stays None at the data-review gate. Numeric stats are
+    None when the source did not supply them, so the UI can show a
+    placeholder rather than a misleading zero.
+    """
+
+    title: str | None = None
+    subtitle: str | None = None
     description: str | None = None
-    column_descriptions: dict[str, str] = Field(default_factory=dict)
+    source: str | None = None
+    license: str | None = None
     tags: list[str] = Field(default_factory=list)
+    keywords: list[str] = Field(default_factory=list)
+    column_descriptions: dict[str, str] = Field(default_factory=dict)
+    total_size: int | None = None
+    download_count: int | None = None
+    vote_count: int | None = None
+    usability_rating: float | None = None
     domain: str | None = None
     metadata_quality: str = "unknown"
 
