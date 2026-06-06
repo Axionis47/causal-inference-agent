@@ -1,17 +1,16 @@
 """StandardOrchestrator must park, not reason, when the approval gate fires.
 
 The orchestrator's decision loop checks the gate predicate at the top of
-every iteration. When it fires we must exit before `reason()` is called —
-otherwise the LLM will happily dispatch effect_estimator in violation of
-the contract. These tests pin that boundary.
+every iteration. When it fires (once the data is profiled) we must exit
+before `reason()` is called — otherwise the LLM will dispatch analysis in
+violation of the data-review contract. These tests pin that boundary.
 """
 from __future__ import annotations
 
 import pytest
 
+from src.analysis.agents.base import DataProfile
 from src.analysis.agents.base.state import AnalysisState, DatasetInfo, JobStatus
-from src.analysis.agents.causal_discovery.output import CausalDAG, CausalEdge
-from src.analysis.agents.eda.output import EDAResult
 from src.analysis.orchestrator.standard.agent import StandardOrchestrator
 from src.domain.approval import HumanApproval
 
@@ -22,13 +21,17 @@ def _state_at_gate() -> AnalysisState:
         dataset_info=DatasetInfo(url="kaggle.com/x"),
         treatment_variable="t",
         outcome_variable="y",
-        refined_dag=CausalDAG(
-            nodes=["t", "y", "x1"],
-            edges=[CausalEdge(source="t", target="y"), CausalEdge(source="x1", target="y")],
-            discovery_method="domain_expert_fusion",
-            adjustment_set=["x1"],
+        data_profile=DataProfile(
+            n_samples=614,
+            n_features=11,
+            feature_names=["t", "y", "x1"],
+            feature_types={"t": "binary"},
+            missing_values={"t": 0},
+            numeric_stats={},
+            categorical_stats={},
+            treatment_candidates=["t"],
+            outcome_candidates=["y"],
         ),
-        eda_result=EDAResult(data_quality_score=80.0),
     )
 
 

@@ -390,17 +390,15 @@ class ApprovalRequest(BaseModel):
 
 
 class ApprovalSnapshotResponse(BaseModel):
-    """Snapshot the UI renders at the gate (same shape as the SSE event).
-
-    Fields are intentionally loosely typed (dict / list) — the snapshot
-    is built from many state slots and is purely display.
+    """Snapshot the UI renders at the data-review gate (same shape as the
+    SSE event). Loosely typed and purely display; the full review surface
+    is the dataset view (GET /jobs/{id}/dataset and its rows endpoint).
     """
 
     treatment_variable: str | None = None
     outcome_variable: str | None = None
-    eda_summary: dict[str, Any] | None = None
-    proposed_dag: dict[str, Any] | None = None
-    brief_flags: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    data_summary: dict[str, Any] | None = None
+    files: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class ApprovalResultResponse(BaseModel):

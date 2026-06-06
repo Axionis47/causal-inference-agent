@@ -313,9 +313,9 @@ When making decisions, output your reasoning step-by-step, then specify which ag
         decisions_made = 0
 
         while decisions_made < max_decisions:
-            # Human-approval gate: pause once dag_expert has produced a DAG
-            # and the EDA summary has landed, before the LLM gets a chance to
-            # dispatch effect_estimator. Park returns the state with
+            # Data-review gate: pause once data_profiler has profiled the
+            # dataset, before the LLM dispatches any analysis, so the human
+            # reviews the downloaded data first. Park returns the state with
             # AWAITING_APPROVAL set; the worker layer persists the full state
             # and the asyncio.Task ends. Resume happens via the approval API.
             if should_pause_for_approval(state):
@@ -339,6 +339,12 @@ When making decisions, output your reasoning step-by-step, then specify which ag
                     # Check if we should continue or break
                     if state.status in [JobStatus.COMPLETED, JobStatus.FAILED]:
                         return state
+
+                    # The data-review gate can come due mid-batch (the LLM may
+                    # dispatch profiler and EDA in one turn): park the instant
+                    # the data is profiled, before the next call runs.
+                    if should_pause_for_approval(state):
+                        return await park_for_approval(state, self._status_callback)
 
                     # If we dispatched to an agent, update context for next iteration
                     context_prompt = self._build_continuation_prompt(state)

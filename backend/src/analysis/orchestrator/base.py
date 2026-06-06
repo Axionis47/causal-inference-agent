@@ -7,9 +7,10 @@ is a configuration choice, not a code change.
 
 This module also hosts cross-orchestrator helpers — anything both the
 standard and react implementations must agree on. The first such helper
-is the human-approval gate (post-DAG, pre-estimation): both orchestrators
-must check `should_pause_for_approval` at the same boundary and park
-identically via `park_for_approval`, so the contract cannot drift.
+is the human-approval gate (post-profile, pre-analysis): the orchestrator
+checks `should_pause_for_approval` once the data is profiled and parks
+identically via `park_for_approval`, so the human reviews the downloaded
+data before any analysis runs.
 """
 
 from __future__ import annotations
@@ -62,83 +63,59 @@ StatusCallback = Callable[[AnalysisState], Awaitable[None]]
 
 
 def should_pause_for_approval(state: AnalysisState) -> bool:
-    """Truth-table check for the post-DAG / pre-estimation gate.
+    """Truth-table check for the data-review gate (post-profile, pre-analysis).
 
-    Returns True iff the orchestrator should park the job and wait for a
-    human review. The gate fires exactly once per job:
+    Returns True iff the orchestrator should park the job so the human can
+    review the downloaded data before any analysis runs. The gate fires
+    exactly once per job:
 
     - if a prior APPROVED decision is on state, we have already passed
       the gate — do not pause again;
-    - if no DAG has been built yet (neither refined nor discovered),
-      there is nothing to review — do not pause;
-    - if the EDA summary has not landed yet, the review snapshot would
-      be missing half its content — do not pause;
-    - if effect estimation has produced any results, we are past the
-      gate (a resume case re-entering the loop) — do not pause;
+    - if the data has not been profiled yet, there is nothing to review
+      — do not pause;
+    - if EDA has started or any effect estimate exists, we are past the
+      data stage (a resume case re-entering the loop) — do not pause;
     - otherwise the gate fires.
     """
     approval = state.human_approval
     if approval is not None and approval.decision == ApprovalDecision.APPROVED:
         return False
-    if state.refined_dag is None and state.discovered_dag is None:
+    if state.data_profile is None:
         return False
-    if state.eda_result is None:
-        return False
-    if state.treatment_effects:
+    if state.eda_result is not None or state.treatment_effects:
         return False
     return True
 
 
 def _build_gate_payload(state: AnalysisState) -> dict:
-    """Compact snapshot the UI renders at the approval gate.
+    """Compact snapshot the SSE event and approval endpoint carry at the gate.
 
-    Pulled from state slots the sealed agents have already populated:
-    EDA findings, the proposed DAG (refined preferred), and sealed-agent
-    briefs (flags + headlines). Method selection is deliberately absent
-    — the effect_estimator picks methods at runtime from observed
-    conditions, so showing a precommitted list would mislead.
+    Pulled from slots the data_profiler has already populated: the dataset
+    shape, the downloaded file list, and the treatment/outcome candidates.
+    The frontend's primary review surface is the F1 dataset view; this is
+    the headline summary alongside it.
     """
-    eda = state.eda_result
-    dag = state.refined_dag if state.refined_dag is not None else state.discovered_dag
+    profile = state.data_profile
 
-    eda_summary: dict | None = None
-    if eda is not None:
-        eda_summary = {
-            "data_quality_score": eda.data_quality_score,
-            "data_quality_issues": list(eda.data_quality_issues)[:5],
-            "balance_summary": eda.balance_summary,
-            "high_correlations": list(eda.high_correlations)[:5],
+    data_summary: dict | None = None
+    if profile is not None:
+        data_summary = {
+            "n_samples": profile.n_samples,
+            "n_features": profile.n_features,
+            "treatment_candidates": list(profile.treatment_candidates)[:8],
+            "outcome_candidates": list(profile.outcome_candidates)[:8],
         }
 
-    dag_snapshot: dict | None = None
-    if dag is not None:
-        dag_snapshot = {
-            "nodes": list(dag.nodes),
-            "edges": [e.model_dump() for e in dag.edges],
-            "discovery_method": dag.discovery_method,
-            "interpretation": dag.interpretation,
-            "adjustment_set": list(dag.adjustment_set) if dag.adjustment_set else None,
-            "variable_roles": dict(dag.variable_roles) if dag.variable_roles else None,
-            "forbidden_edges": list(dag.forbidden_edges) if dag.forbidden_edges else None,
-        }
-
-    brief_flags: dict[str, dict] = {}
-    for name in ("eda_agent", "causal_discovery", "domain_knowledge", "dag_expert"):
-        brief = state.agent_briefs.get(name)
-        if brief is not None:
-            brief_flags[name] = {
-                "status": brief.status,
-                "headline": brief.headline,
-                "flags": [f.value for f in brief.flags],
-                "raised_issues": list(brief.raised_issues)[:3],
-            }
+    files = [
+        {"name": f.name, "format": f.format, "used": f.used}
+        for f in state.dataset_info.files
+    ]
 
     return {
         "treatment_variable": state.treatment_variable,
         "outcome_variable": state.outcome_variable,
-        "eda_summary": eda_summary,
-        "proposed_dag": dag_snapshot,
-        "brief_flags": brief_flags,
+        "data_summary": data_summary,
+        "files": files,
     }
 
 
