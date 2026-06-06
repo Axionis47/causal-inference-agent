@@ -7,18 +7,24 @@ import os
 import zipfile
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, Query, Request, status
+from fastapi import APIRouter, Header, HTTPException, Query, Request, status
 from fastapi.responses import FileResponse, StreamingResponse
 from sse_starlette.sse import EventSourceResponse
 
-from src.agents.base import JobStatus
+from src.analysis.agents.base import JobStatus
+from src.api.idempotency import get_idempotency_store
 from src.api.rate_limit import limiter
 from src.api.schemas import (
     AgentTracesResponse,
     AnalysisResultsResponse,
+    ApprovalRequest,
+    ApprovalResultResponse,
+    ApprovalSnapshotResponse,
     CancelJobResponse,
     CausalGraphResponse,
     CreateJobRequest,
+    DatasetRowsPage,
+    DatasetViewResponse,
     DeleteJobResponse,
     JobDetailResponse,
     JobListResponse,
@@ -29,6 +35,8 @@ from src.api.schemas import (
 )
 from src.api.utils import (
     build_data_context,
+    build_dataset_view_from_persisted,
+    build_dataset_view_from_state,
     calculate_method_consensus,
     generate_executive_summary,
     generate_narrative_summary,
@@ -36,10 +44,15 @@ from src.api.utils import (
 from src.jobs.manager import get_job_manager
 from src.logging_config.structured import get_logger
 from src.storage.cleanup import CAUSAL_TEMP_DIR
+from src.storage.job_data import read_file_page
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
+
+# Upper bound on rows returned per dataset page, so a large file can never be
+# pulled into one response.
+_MAX_ROWS_PER_PAGE = 500
 
 # Valid job statuses for query parameter validation
 VALID_STATUSES = {s.value for s in JobStatus}
@@ -47,20 +60,53 @@ VALID_STATUSES = {s.value for s in JobStatus}
 
 @router.post("", response_model=JobResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("10/minute")
-async def create_job(request: Request, body: CreateJobRequest) -> JobResponse:
+async def create_job(
+    request: Request,
+    body: CreateJobRequest,
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+) -> JobResponse:
     """Create a new analysis job.
 
     Submit a Kaggle dataset URL to start causal inference analysis.
+
+    Supply Idempotency-Key for safe retries. A repeat request with the
+    same key (within 24h, scoped to your API key) returns the original
+    job instead of starting a duplicate analysis.
     """
     # slowapi requires 'request' as first param with type starlette.requests.Request
     # FastAPI will inject the Pydantic body via the 'body' parameter
     manager = get_job_manager()
+    store = get_idempotency_store()
+
+    # Idempotent retry: return the original job if we've seen this key
+    if idempotency_key:
+        existing_job_id = store.lookup(x_api_key, idempotency_key)
+        if existing_job_id is not None:
+            existing = await manager.get_job(existing_job_id)
+            if existing is not None:
+                logger.info(
+                    "idempotent_retry_hit",
+                    idempotency_key=idempotency_key[:16],
+                    job_id=existing_job_id,
+                )
+                return JobResponse(
+                    id=existing["id"],
+                    kaggle_url=existing["kaggle_url"],
+                    status=JobStatus(existing["status"]),
+                    created_at=existing["created_at"],
+                    updated_at=existing["updated_at"],
+                )
+            # Cached job_id no longer resolves (deleted, expired). Fall
+            # through and create a new job; remember will overwrite.
 
     try:
         job_id = await manager.create_job(
             kaggle_url=body.kaggle_url,
             treatment_variable=body.treatment_variable,
             outcome_variable=body.outcome_variable,
+            orchestrator_mode=body.orchestrator_mode,
+            user_context=body.user_context,
         )
 
         # Get the created job
@@ -70,6 +116,10 @@ async def create_job(request: Request, body: CreateJobRequest) -> JobResponse:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to create job",
             )
+
+        # Remember (api_key_hash, idempotency_key) -> job_id for future retries
+        if idempotency_key:
+            store.remember(x_api_key, idempotency_key, job_id)
 
         return JobResponse(
             id=job["id"],
@@ -95,9 +145,10 @@ async def create_job(request: Request, body: CreateJobRequest) -> JobResponse:
 
 
 @router.get("/agents")
-async def list_agents():
+@limiter.limit("30/minute")
+async def list_agents(request: Request):
     """List all registered specialist agents and their metadata."""
-    from src.agents.registry import get_agent_registry
+    from src.analysis.agents.registry import get_agent_registry
 
     registry = get_agent_registry()
     agents = []
@@ -112,7 +163,9 @@ async def list_agents():
 
 
 @router.get("", response_model=JobListResponse)
+@limiter.limit("30/minute")
 async def list_jobs(
+    request: Request,
     status: str | None = Query(None, description="Filter by job status"),
     limit: int = Query(20, ge=1, le=100, description="Maximum number of results"),
     offset: int = Query(0, ge=0, description="Number of results to skip"),
@@ -142,6 +195,10 @@ async def list_jobs(
                 status=JobStatus(j["status"]),
                 created_at=j["created_at"],
                 updated_at=j["updated_at"],
+                dataset_name=j.get("dataset_name"),
+                treatment_variable=j.get("treatment_variable"),
+                outcome_variable=j.get("outcome_variable"),
+                iteration_count=j.get("iteration_count", 0),
             )
             for j in jobs
         ],
@@ -152,7 +209,8 @@ async def list_jobs(
 
 
 @router.get("/{job_id}", response_model=JobDetailResponse)
-async def get_job(job_id: str) -> JobDetailResponse:
+@limiter.limit("60/minute")
+async def get_job(request: Request, job_id: str) -> JobDetailResponse:
     """Get detailed job information."""
     manager = get_job_manager()
     job = await manager.get_job(job_id)
@@ -181,8 +239,70 @@ async def get_job(job_id: str) -> JobDetailResponse:
     )
 
 
+@router.get("/{job_id}/dataset", response_model=DatasetViewResponse)
+@limiter.limit("60/minute")
+async def get_dataset_view(request: Request, job_id: str) -> DatasetViewResponse:
+    """Return the live + persisted view of the job's dataset.
+
+    Backs the frontend Data panel: download status, Kaggle metadata,
+    and computed profile, each as an independent block. Reads live
+    in-memory state when the job is active and falls back to the
+    persisted record for completed / evicted jobs.
+    """
+    manager = get_job_manager()
+    job = await manager.get_job(job_id)
+    if job is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Job {job_id} not found",
+        )
+
+    state = manager.get_active_state(job_id)
+    if state is not None:
+        return build_dataset_view_from_state(state)
+
+    results = await manager.get_results(job_id)
+    return build_dataset_view_from_persisted(job, results)
+
+
+@router.get(
+    "/{job_id}/dataset/files/{file_name}/rows", response_model=DatasetRowsPage
+)
+@limiter.limit("120/minute")
+async def get_dataset_rows(
+    request: Request,
+    job_id: str,
+    file_name: str,
+    offset: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=_MAX_ROWS_PER_PAGE),
+) -> DatasetRowsPage:
+    """Return one page of raw rows for a downloaded file.
+
+    Rows are read on demand from the durable per-job bundle, resolved via the
+    manifest, so the Data panel can page through datasets of any size without
+    the rows ever being embedded in the dataset-view response. 404 if the job,
+    its manifest, or the named file is absent.
+    """
+    manager = get_job_manager()
+    job = await manager.get_job(job_id)
+    if job is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Job {job_id} not found",
+        )
+
+    page = read_file_page(job_id, file_name, offset, limit)
+    if page is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No readable file {file_name!r} for job {job_id}",
+        )
+    return DatasetRowsPage(**page)
+
+
 @router.get("/{job_id}/status", response_model=JobStatusResponse)
-async def get_job_status(job_id: str) -> JobStatusResponse:
+@limiter.limit("120/minute")
+async def get_job_status(request: Request, job_id: str) -> JobStatusResponse:
     """Get lightweight job status."""
     manager = get_job_manager()
     status_data = await manager.get_job_status(job_id)
@@ -202,7 +322,8 @@ async def get_job_status(job_id: str) -> JobStatusResponse:
 
 
 @router.get("/{job_id}/stream")
-async def stream_job_status(job_id: str, request: Request):
+@limiter.limit("5/minute")
+async def stream_job_status(request: Request, job_id: str):
     """SSE stream for real-time job status updates.
 
     Streams status change events until the job reaches a terminal state.
@@ -288,8 +409,99 @@ async def stream_job_status(job_id: str, request: Request):
     return EventSourceResponse(event_generator())
 
 
+@router.get("/{job_id}/approval", response_model=ApprovalSnapshotResponse)
+@limiter.limit("60/minute")
+async def get_approval_snapshot(
+    request: Request, job_id: str
+) -> ApprovalSnapshotResponse:
+    """Return the data/DAG/flags snapshot for a job parked at the human-approval gate.
+
+    Returns 404 if the job has no parked state (either it never reached
+    the gate or it has already been approved/rejected).
+    """
+    manager = get_job_manager()
+    snapshot = await manager.get_parked_snapshot(job_id)
+    if snapshot is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Job {job_id} is not parked at the approval gate",
+        )
+    return ApprovalSnapshotResponse(**snapshot)
+
+
+@router.post("/{job_id}/approval", response_model=ApprovalResultResponse)
+@limiter.limit("30/minute")
+async def submit_approval(
+    request: Request, job_id: str, body: ApprovalRequest
+) -> ApprovalResultResponse:
+    """Apply a human approve/reject decision to a parked job.
+
+    APPROVED: optional DAG edits are merged into `state.refined_dag`;
+    optional `appended_context` is appended to `dataset_info.user_provided_context`;
+    the orchestrator is respawned past the gate.
+
+    REJECTED: job is marked FAILED with `reason` as the error_message.
+    `reason` is required when decision == "rejected".
+    """
+    from datetime import datetime, timezone
+
+    from src.domain.approval import (
+        ApprovalDecision,
+        DagEdit,
+        HumanApproval,
+    )
+
+    job = await get_job_manager().get_job(job_id)
+    if job is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Job {job_id} not found",
+        )
+    if job.get("status") != JobStatus.AWAITING_APPROVAL.value:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"Job {job_id} is not awaiting approval "
+                f"(current status: {job.get('status')})"
+            ),
+        )
+
+    try:
+        approval = HumanApproval(
+            decision=ApprovalDecision(body.decision),
+            granted_at=datetime.now(timezone.utc),
+            granted_by=body.granted_by,
+            dag_edits=(
+                DagEdit(**body.dag_edits.model_dump(exclude_none=True))
+                if body.dag_edits is not None
+                else None
+            ),
+            appended_context=body.appended_context,
+            reason=body.reason,
+        )
+    except ValueError as exc:
+        # E.g. rejected-without-reason.
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+
+    try:
+        result = await get_job_manager().resume_from_approval(job_id, approval)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+
+    return ApprovalResultResponse(
+        job_id=job_id, resumed=result["resumed"], status=result["status"]
+    )
+
+
 @router.post("/{job_id}/cancel", response_model=CancelJobResponse)
-async def cancel_job(job_id: str) -> CancelJobResponse:
+@limiter.limit("30/minute")
+async def cancel_job(request: Request, job_id: str) -> CancelJobResponse:
     """Cancel a running job.
 
     This endpoint gracefully cancels a running job. If the job is already
@@ -316,7 +528,9 @@ async def cancel_job(job_id: str) -> CancelJobResponse:
 
 
 @router.delete("/{job_id}", response_model=DeleteJobResponse)
+@limiter.limit("10/minute")
 async def delete_job(
+    request: Request,
     job_id: str,
     force: bool = Query(False, description="Force delete even if job is running"),
 ) -> DeleteJobResponse:
@@ -359,7 +573,8 @@ async def delete_job(
 
 
 @router.get("/{job_id}/results", response_model=AnalysisResultsResponse)
-async def get_results(job_id: str) -> AnalysisResultsResponse:
+@limiter.limit("30/minute")
+async def get_results(request: Request, job_id: str) -> AnalysisResultsResponse:
     """Get analysis results for a completed job."""
     manager = get_job_manager()
 
@@ -484,7 +699,8 @@ async def get_results(job_id: str) -> AnalysisResultsResponse:
 
 
 @router.get("/{job_id}/notebook")
-async def download_notebook(job_id: str):
+@limiter.limit("30/minute")
+async def download_notebook(request: Request, job_id: str):
     """Download the generated Jupyter notebook."""
     manager = get_job_manager()
 
@@ -578,7 +794,8 @@ async def download_notebook(job_id: str):
 
 
 @router.get("/{job_id}/notebook/bundle")
-async def download_notebook_bundle(job_id: str):
+@limiter.limit("30/minute")
+async def download_notebook_bundle(request: Request, job_id: str):
     """Download notebook + data as a reproducible zip bundle."""
     manager = get_job_manager()
 
@@ -621,7 +838,9 @@ async def download_notebook_bundle(job_id: str):
 
 
 @router.get("/{job_id}/traces", response_model=AgentTracesResponse)
+@limiter.limit("30/minute")
 async def get_traces(
+    request: Request,
     job_id: str,
     agent_name: str | None = Query(None, description="Filter by agent name"),
     limit: int = Query(200, ge=1, le=500, description="Max traces to return"),

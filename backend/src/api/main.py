@@ -9,7 +9,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from src.api.rate_limit import limiter
-from src.api.routes import health_router, jobs_router
+from src.api.routes import download_router, health_router, jobs_router
 from src.config import get_settings
 from src.logging_config.structured import get_logger, setup_logging
 
@@ -88,6 +88,8 @@ def create_app() -> FastAPI:
     app.include_router(health_router)
     # Job routes require API key auth
     app.include_router(jobs_router, dependencies=[Depends(verify_api_key)])
+    # Download routes also require API key auth when configured
+    app.include_router(download_router, dependencies=[Depends(verify_api_key)])
 
     @app.get("/")
     async def root():

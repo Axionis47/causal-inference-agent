@@ -17,7 +17,7 @@ class TestTraceCompression:
 
     def test_add_trace_basic(self):
         """Adding a trace should append to the agent_traces list."""
-        from src.agents.base.state import AgentTrace, AnalysisState, DatasetInfo
+        from src.analysis.agents.base.state import AgentTrace, AnalysisState, DatasetInfo
 
         state = AnalysisState(
             job_id="test-123",
@@ -40,7 +40,7 @@ class TestTraceCompression:
         MAX_TRACES is 100 by default. Compression triggers at 2*MAX_TRACES=200.
         After compression, list should be ~MAX_TRACES/2 + 1 (summary + recent).
         """
-        from src.agents.base.state import AgentTrace, AnalysisState, DatasetInfo
+        from src.analysis.agents.base.state import AgentTrace, AnalysisState, DatasetInfo
 
         state = AnalysisState(
             job_id="test-123",
@@ -64,7 +64,7 @@ class TestTraceCompression:
 
     def test_trace_compression_creates_summary(self):
         """Compression should create a summary trace for old traces."""
-        from src.agents.base.state import AgentTrace, AnalysisState, DatasetInfo
+        from src.analysis.agents.base.state import AgentTrace, AnalysisState, DatasetInfo
 
         state = AnalysisState(
             job_id="test-123",
@@ -88,7 +88,7 @@ class TestTraceCompression:
 
     def test_trace_truncation_large_outputs(self):
         """Large trace outputs should be truncated."""
-        from src.agents.base.state import AgentTrace, AnalysisState, DatasetInfo
+        from src.analysis.agents.base.state import AgentTrace, AnalysisState, DatasetInfo
 
         state = AnalysisState(
             job_id="test-123",
@@ -109,7 +109,7 @@ class TestTraceCompression:
 
     def test_trace_truncation_large_reasoning(self):
         """Large trace reasoning should be truncated."""
-        from src.agents.base.state import AgentTrace, AnalysisState, DatasetInfo
+        from src.analysis.agents.base.state import AgentTrace, AnalysisState, DatasetInfo
 
         state = AnalysisState(
             job_id="test-123",
@@ -151,7 +151,7 @@ class TestStateFieldMerge:
         expected_fields = {
             "data_profiler": ["data_profile", "dataframe_path", "dataset_info", "treatment_variable", "outcome_variable"],
             "eda_agent": ["eda_result"],
-            "causal_discovery": ["proposed_dag"],
+            "causal_discovery": ["discovered_dag"],
             "effect_estimator": ["treatment_effects", "analyzed_pairs"],
             "sensitivity_analyst": ["sensitivity_results"],
             "notebook_generator": ["notebook_path"],
@@ -173,7 +173,7 @@ class TestStateFieldMerge:
 
     def test_state_field_setattr_valid_fields(self):
         """Setting valid fields on AnalysisState should work without error."""
-        from src.agents.base.state import AnalysisState, DatasetInfo, EDAResult
+        from src.analysis.agents.base.state import AnalysisState, DatasetInfo, EDAResult
 
         state = AnalysisState(
             job_id="test-123",
@@ -191,7 +191,7 @@ class TestStateFieldMerge:
 
     def test_state_field_merge_preserves_existing(self):
         """Merging fields from one agent should not overwrite other agents' data."""
-        from src.agents.base.state import (
+        from src.analysis.agents.base.state import (
             AnalysisState,
             DatasetInfo,
             TreatmentEffectResult,
@@ -216,7 +216,7 @@ class TestStateFieldMerge:
 
         # Simulate sensitivity analyst updating only sensitivity_results
         # (should NOT touch treatment_effects)
-        from src.agents.base.state import SensitivityResult
+        from src.analysis.agents.base.state import SensitivityResult
 
         sens = SensitivityResult(
             method="E-value",
@@ -237,7 +237,7 @@ class TestCritiqueFeedback:
 
     def test_critique_feedback_scores_get(self):
         """Accessing scores.get() on CritiqueFeedback should not raise AttributeError."""
-        from src.agents.base.state import CritiqueDecision, CritiqueFeedback
+        from src.analysis.agents.base.state import CritiqueDecision, CritiqueFeedback
 
         feedback = CritiqueFeedback(
             decision=CritiqueDecision.APPROVE,
@@ -258,7 +258,7 @@ class TestCritiqueFeedback:
 
     def test_critique_feedback_empty_scores(self):
         """CritiqueFeedback with empty scores should not crash on .get()."""
-        from src.agents.base.state import CritiqueDecision, CritiqueFeedback
+        from src.analysis.agents.base.state import CritiqueDecision, CritiqueFeedback
 
         feedback = CritiqueFeedback(
             decision=CritiqueDecision.ITERATE,
@@ -274,7 +274,7 @@ class TestCritiqueFeedback:
 
     def test_get_latest_critique_none(self):
         """get_latest_critique should return None when no critiques exist."""
-        from src.agents.base.state import AnalysisState, DatasetInfo
+        from src.analysis.agents.base.state import AnalysisState, DatasetInfo
 
         state = AnalysisState(
             job_id="test-123",
@@ -285,7 +285,7 @@ class TestCritiqueFeedback:
 
     def test_get_latest_critique_returns_most_recent(self):
         """get_latest_critique should return the most recent feedback."""
-        from src.agents.base.state import (
+        from src.analysis.agents.base.state import (
             AnalysisState,
             CritiqueDecision,
             CritiqueFeedback,
@@ -322,7 +322,7 @@ class TestCritiqueFeedback:
 
     def test_should_iterate_logic(self):
         """should_iterate should be True only when decision=ITERATE and under max."""
-        from src.agents.base.state import (
+        from src.analysis.agents.base.state import (
             AnalysisState,
             CritiqueDecision,
             CritiqueFeedback,
@@ -358,7 +358,7 @@ class TestCritiqueFeedback:
 
     def test_is_approved(self):
         """is_approved should return True only when latest critique is APPROVE."""
-        from src.agents.base.state import (
+        from src.analysis.agents.base.state import (
             AnalysisState,
             CritiqueDecision,
             CritiqueFeedback,
@@ -389,7 +389,7 @@ class TestAnalysisStateUtilities:
 
     def test_mark_failed(self):
         """mark_failed should set status, error, and agent."""
-        from src.agents.base.state import AnalysisState, DatasetInfo, JobStatus
+        from src.analysis.agents.base.state import AnalysisState, DatasetInfo, JobStatus
 
         state = AnalysisState(
             job_id="test-123",
@@ -404,7 +404,7 @@ class TestAnalysisStateUtilities:
 
     def test_mark_completed(self):
         """mark_completed should set status and completed_at timestamp."""
-        from src.agents.base.state import AnalysisState, DatasetInfo, JobStatus
+        from src.analysis.agents.base.state import AnalysisState, DatasetInfo, JobStatus
 
         state = AnalysisState(
             job_id="test-123",
@@ -418,7 +418,7 @@ class TestAnalysisStateUtilities:
 
     def test_mark_cancelled(self):
         """mark_cancelled should set status to CANCELLED with reason."""
-        from src.agents.base.state import AnalysisState, DatasetInfo, JobStatus
+        from src.analysis.agents.base.state import AnalysisState, DatasetInfo, JobStatus
 
         state = AnalysisState(
             job_id="test-123",
@@ -432,7 +432,7 @@ class TestAnalysisStateUtilities:
 
     def test_get_primary_pair_user_specified(self):
         """get_primary_pair should return user-specified variables first."""
-        from src.agents.base.state import AnalysisState, DatasetInfo
+        from src.analysis.agents.base.state import AnalysisState, DatasetInfo
 
         state = AnalysisState(
             job_id="test-123",
@@ -447,7 +447,7 @@ class TestAnalysisStateUtilities:
 
     def test_get_primary_pair_from_analyzed_pairs(self):
         """get_primary_pair should fall back to analyzed pairs."""
-        from src.agents.base.state import AnalysisState, CausalPair, DatasetInfo
+        from src.analysis.agents.base.state import AnalysisState, CausalPair, DatasetInfo
 
         state = AnalysisState(
             job_id="test-123",
@@ -465,7 +465,7 @@ class TestAnalysisStateUtilities:
 
     def test_get_primary_pair_none(self):
         """get_primary_pair should return (None, None) when nothing set."""
-        from src.agents.base.state import AnalysisState, DatasetInfo
+        from src.analysis.agents.base.state import AnalysisState, DatasetInfo
 
         state = AnalysisState(
             job_id="test-123",

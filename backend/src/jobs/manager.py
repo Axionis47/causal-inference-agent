@@ -10,17 +10,39 @@ Supports multi-instance deployment via:
 import asyncio
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
-from src.agents import (
+from src.analysis.agents import (
     AnalysisState,
     DatasetInfo,
-    EffectEstimatorReActAgent,
     JobStatus,
-    OrchestratorAgent,
-    ReActOrchestrator,
 )
-from src.agents.registry import create_all_agents
+
+if TYPE_CHECKING:
+    from src.domain.approval import HumanApproval
+
+
+def _describe_edits(approval: "HumanApproval") -> list[str]:
+    """List the field names the human edited; used in the SSE payload."""
+    edited: list[str] = []
+    if approval.dag_edits is not None:
+        edits = approval.dag_edits
+        if edits.adjustment_set is not None:
+            edited.append("adjustment_set")
+        if edits.forbidden_edges is not None:
+            edited.append("forbidden_edges")
+        if edits.variable_roles is not None:
+            edited.append("variable_roles")
+    if approval.appended_context:
+        edited.append("appended_context")
+    return edited
+from src.analysis.orchestrator import (
+    Orchestrator,
+    ReActOrchestrator,
+    StandardOrchestrator,
+)
+from src.analysis.orchestrator import react as react_pkg
+from src.analysis.orchestrator import standard as standard_pkg
 from src.config import get_settings
 from src.logging_config.structured import get_logger
 from src.storage.cleanup import cleanup_local_artifacts
@@ -103,18 +125,26 @@ class JobManager:
             instance_id=settings.instance_id,
         )
 
-    def _create_orchestrator(self):
+    def _create_orchestrator(self, mode: OrchestratorMode) -> Orchestrator:
         """Create a fresh orchestrator with fresh agent instances per job.
 
         Each job gets its own agent instances to prevent concurrent jobs from
         cross-contaminating mutable instance state (e.g., _df, _profile).
+        Each orchestrator package owns its specialist roster, so adding or
+        swapping a specialist for a single mode does not require editing
+        JobManager.
+
+        The mode is read per-job (off `AnalysisState.orchestrator_mode`)
+        rather than off the manager instance, so a single JobManager can
+        run both modes concurrently.
         """
-        agents = create_all_agents()
-        if self._orchestrator_mode == "react":
-            agents["effect_estimator"] = EffectEstimatorReActAgent()
+        orchestrator: Orchestrator
+        if mode == "react":
             orchestrator = ReActOrchestrator()
+            agents = react_pkg.build_specialists()
         else:
-            orchestrator = OrchestratorAgent()
+            orchestrator = StandardOrchestrator()
+            agents = standard_pkg.build_specialists()
 
         for name, agent in agents.items():
             orchestrator.register_specialist(name, agent)
@@ -126,6 +156,8 @@ class JobManager:
         kaggle_url: str,
         treatment_variable: str | None = None,
         outcome_variable: str | None = None,
+        orchestrator_mode: OrchestratorMode | None = None,
+        user_context: str | None = None,
     ) -> str:
         """Create a new analysis job.
 
@@ -137,6 +169,14 @@ class JobManager:
             kaggle_url: Kaggle dataset URL
             treatment_variable: Optional treatment variable hint
             outcome_variable: Optional outcome variable hint
+            orchestrator_mode: Which orchestrator to run for this job.
+                When None, falls back to the manager's default mode
+                (set at construction time from settings).
+            user_context: Optional analyst-provided prose context about
+                the dataset. Stashed on
+                state.dataset_info.user_provided_context so domain_knowledge
+                has something to investigate even when Kaggle's authored
+                metadata is empty.
 
         Returns:
             Job ID
@@ -160,9 +200,13 @@ class JobManager:
         now = datetime.now(timezone.utc)
         state = AnalysisState(
             job_id=job_id,
-            dataset_info=DatasetInfo(url=kaggle_url),
+            dataset_info=DatasetInfo(
+                url=kaggle_url,
+                user_provided_context=user_context,
+            ),
             treatment_variable=treatment_variable,
             outcome_variable=outcome_variable,
+            orchestrator_mode=orchestrator_mode or self._orchestrator_mode,
             status=JobStatus.PENDING,
             created_at=now,
             updated_at=now,
@@ -225,7 +269,7 @@ class JobManager:
                 except Exception:
                     logger.debug("status_persist_failed", job_id=s.job_id, exc_info=True)
 
-            orchestrator = self._create_orchestrator()
+            orchestrator = self._create_orchestrator(state.orchestrator_mode)
             orchestrator.set_status_callback(_persist_status)
 
             # Run the orchestrator with timeout
@@ -247,6 +291,21 @@ class JobManager:
                     "job_manager"
                 )
                 await self.firestore.update_job(state)
+                return
+
+            # Human-approval gate: orchestrator yielded with AWAITING_APPROVAL.
+            # Persist the full state so the approval API can reload it later,
+            # save the partial traces, update the job row, and return cleanly.
+            # Results are NOT saved here — estimation hasn't run.
+            if final_state.status == JobStatus.AWAITING_APPROVAL:
+                await self.firestore.save_parked_state(final_state)
+                await self.firestore.save_traces(final_state)
+                await self.firestore.update_job(final_state)
+                logger.info(
+                    "job_parked_for_approval",
+                    job_id=job_id,
+                    has_refined_dag=final_state.refined_dag is not None,
+                )
                 return
 
             # Save results if completed or has treatment effects
@@ -554,6 +613,14 @@ class JobManager:
         logger.info("job_deleted", **result)
         return result
 
+    def get_active_state(self, job_id: str):
+        """Return the live AnalysisState if the job is still active, else None.
+
+        Used by endpoints that need to surface partial in-flight data
+        (e.g. the dataset view) without waiting for terminal status.
+        """
+        return self._active_states.get(job_id)
+
     def get_sse_events(self, job_id: str, after_index: int = 0) -> list[dict]:
         """Get SSE events for a running job, starting after the given index.
 
@@ -591,6 +658,103 @@ class JobManager:
         """
         return await self.firestore.get_traces(job_id)
 
+    # ── Human-approval gate (resume API) ─────────────────────────────────
+
+
+
+    async def get_parked_snapshot(self, job_id: str) -> dict[str, Any] | None:
+        """Return the gate snapshot for a parked job, or None if not parked.
+
+        The snapshot is the same shape the SSE `approval_required` event
+        carried at park-time — clients that arrive after the event fires
+        can pull it from here. None means the job is not at the gate.
+        """
+        state = await self.firestore.load_parked_state(job_id)
+        if state is None:
+            return None
+        # Lazy import to keep manager.py free of orchestrator internals at import time.
+        from src.analysis.orchestrator.base import _build_gate_payload
+
+        return _build_gate_payload(state)
+
+    async def resume_from_approval(
+        self, job_id: str, approval: "HumanApproval"
+    ) -> dict[str, Any]:
+        """Apply a human decision to a parked job and resume or fail it.
+
+        APPROVED path: load the parked state, mutate `refined_dag` if
+        `dag_edits` is present, append free-text notes to
+        `dataset_info.user_provided_context`, attach the approval record,
+        delete the parked state, persist the job row, and spawn a fresh
+        `_run_job` task so the orchestrator re-enters past the gate.
+
+        REJECTED path: mark the job FAILED with `approval.reason` as the
+        error_message, save traces, delete the parked state. No respawn.
+
+        Returns `{"resumed": bool, "status": str}`.
+        """
+        from src.domain.approval import ApprovalDecision
+
+        state = await self.firestore.load_parked_state(job_id)
+        if state is None:
+            raise ValueError(f"Job {job_id} is not parked at the approval gate")
+
+        if approval.decision == ApprovalDecision.APPROVED:
+            # Apply DAG edits in place. refined_dag should be set at the
+            # gate (dag_expert produced it); discovered_dag is the fallback.
+            target_dag = state.refined_dag or state.discovered_dag
+            if target_dag is not None and approval.dag_edits is not None:
+                edits = approval.dag_edits
+                if edits.adjustment_set is not None:
+                    target_dag.adjustment_set = list(edits.adjustment_set)
+                if edits.forbidden_edges is not None:
+                    target_dag.forbidden_edges = list(edits.forbidden_edges)
+                if edits.variable_roles is not None:
+                    target_dag.variable_roles = dict(edits.variable_roles)
+
+            # Append free-text notes (existing prose stays first).
+            if approval.appended_context:
+                existing = state.dataset_info.user_provided_context or ""
+                joined = (existing + "\n\n" + approval.appended_context).strip()
+                state.dataset_info.user_provided_context = joined
+
+            state.human_approval = approval
+            # Set a sensible resume status — orchestrator will overwrite as it dispatches.
+            state.status = JobStatus.DISCOVERING_CAUSAL
+
+            # Wire-contract event the UI watches to flip out of the gate UI.
+            edited_fields = _describe_edits(approval)
+            state.push_sse_event(
+                "approval_granted",
+                {
+                    "decision": approval.decision.value,
+                    "edited_fields": edited_fields,
+                    "appended_context_chars": len(approval.appended_context or ""),
+                },
+            )
+
+            await self.firestore.delete_parked_state(job_id)
+            await self.firestore.update_job(state)
+
+            task = asyncio.create_task(self._run_job(state))
+            async with self._jobs_lock:
+                self._running_jobs[job_id] = task
+
+            logger.info("job_resumed_after_approval", job_id=job_id)
+            return {"resumed": True, "status": state.status.value}
+
+        # REJECTED
+        state.human_approval = approval
+        state.mark_failed(
+            f"Rejected at human-approval gate: {approval.reason}",
+            "human_approval",
+        )
+        await self.firestore.update_job(state)
+        await self.firestore.save_traces(state)
+        await self.firestore.delete_parked_state(job_id)
+        logger.info("job_rejected_at_approval", job_id=job_id, reason=approval.reason)
+        return {"resumed": False, "status": state.status.value}
+
     def _calculate_progress(self, status: str) -> int:
         """Calculate progress percentage from status.
 
@@ -603,6 +767,7 @@ class JobManager:
             "profiling": 20,
             "exploratory_analysis": 32,
             "discovering_causal": 44,
+            "awaiting_approval": 50,  # parked after DAG, before estimation
             "estimating_effects": 56,
             "sensitivity_analysis": 68,
             "critique_review": 78,
@@ -633,19 +798,21 @@ class JobManager:
 _manager: JobManager | None = None
 
 
-def get_job_manager(orchestrator_mode: OrchestratorMode = "standard") -> JobManager:
+def get_job_manager(orchestrator_mode: OrchestratorMode | None = None) -> JobManager:
     """Get the singleton job manager.
 
     Args:
-        orchestrator_mode: Which orchestrator to use:
-            - "standard": Original orchestrator with fixed workflow
-            - "react": Fully autonomous ReAct orchestrator (experimental)
+        orchestrator_mode: Which orchestrator to use. If None, falls back
+            to the ORCHESTRATOR_MODE env var (default "standard"). Explicit
+            argument wins over the env var, mainly for tests.
 
     Note: The mode is only used on first initialization. Subsequent calls
     return the existing instance regardless of the mode parameter.
     """
     global _manager
     if _manager is None:
+        if orchestrator_mode is None:
+            orchestrator_mode = get_settings().orchestrator_mode
         _manager = JobManager(orchestrator_mode=orchestrator_mode)
     return _manager
 

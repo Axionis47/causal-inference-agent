@@ -20,6 +20,39 @@ body {
   background: #ffffff;
 }
 
+/* ─── Terminal surface — opt-in via .terminal class on <body> or any ancestor ─── */
+/* Applied by terminal-language routes (JobPage, etc) so journal routes stay light. */
+.terminal {
+  background: #0A0A0F;
+  color: #EEEEF0;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+.terminal *:focus-visible {
+  outline: 1px solid #FBBF24;
+  outline-offset: 1px;
+}
+
+/* Tabular numerals — every column of numbers in the terminal language. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Scrollbar in terminal surfaces. 5px, cool-violet thumb. */
+.terminal ::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.terminal ::-webkit-scrollbar-track {
+  background: #0A0A0F;
+}
+.terminal ::-webkit-scrollbar-thumb {
+  background: #2A2A3A;
+}
+.terminal ::-webkit-scrollbar-thumb:hover {
+  background: #3A3A4E;
+}
+
 @layer components {
   /* Primary action button */
   .btn-primary {

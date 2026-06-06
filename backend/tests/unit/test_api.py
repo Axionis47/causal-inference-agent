@@ -119,7 +119,7 @@ class TestAPISchemas:
     def test_job_response_schema(self):
         """Test JobResponse schema."""
         from src.api.schemas import JobResponse
-        from src.agents.base import JobStatus
+        from src.analysis.agents.base import JobStatus
         from datetime import datetime
 
         response = JobResponse(
@@ -135,7 +135,7 @@ class TestAPISchemas:
 
     def test_job_status_enum(self):
         """Test JobStatus enum values."""
-        from src.agents.base import JobStatus
+        from src.analysis.agents.base import JobStatus
 
         assert JobStatus.PENDING.value == "pending"
         assert JobStatus.FETCHING_DATA.value == "fetching_data"

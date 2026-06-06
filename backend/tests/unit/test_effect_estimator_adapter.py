@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.agents.base import TreatmentEffectResult
+from src.analysis.agents.base import TreatmentEffectResult
 from src.causal.estimators.effect_estimator import (
     EffectEstimatorEngine,
     to_treatment_effect_result,

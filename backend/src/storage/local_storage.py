@@ -8,9 +8,11 @@ from typing import Any
 
 from filelock import FileLock
 
-from src.agents.base import AnalysisState, JobStatus
+from src.analysis.agents.base import AnalysisState, JobStatus
 from src.config import get_settings
 from src.logging_config.structured import get_logger
+from src.storage.job_data import read_manifest
+from src.storage.serialize import dump_state_jsonable
 
 logger = get_logger(__name__)
 
@@ -34,12 +36,20 @@ class LocalStorageClient:
         self.jobs_file = self.storage_path / "jobs.json"
         self.results_file = self.storage_path / "results.json"
         self.traces_file = self.storage_path / "traces.json"
+        # Parked states: full AnalysisState dumps for jobs waiting at the
+        # human-approval gate. Keyed by job_id. Cleared on approve/reject.
+        self.parked_states_file = self.storage_path / "parked_states.json"
 
         # Create storage directory
         self.storage_path.mkdir(parents=True, exist_ok=True)
 
         # Initialize files if they don't exist
-        for file in [self.jobs_file, self.results_file, self.traces_file]:
+        for file in [
+            self.jobs_file,
+            self.results_file,
+            self.traces_file,
+            self.parked_states_file,
+        ]:
             if not file.exists():
                 file.write_text("{}")
 
@@ -311,6 +321,46 @@ class LocalStorageClient:
                         "has_time_dimension": state.data_profile.has_time_dimension,
                     }
 
+                # Persist file list captured during download so the
+                # /jobs/{id}/dataset endpoint can hydrate after the
+                # active state is evicted.
+                if state.dataset_info.files:
+                    results_data["dataset_files"] = [
+                        f.model_dump() for f in state.dataset_info.files
+                    ]
+
+                # Persist the typed dataset manifest (per-file records + full
+                # Kaggle metadata) so a revisited completed job can read its
+                # dataset record without the live state.
+                manifest = read_manifest(state.job_id)
+                if manifest is not None:
+                    results_data["dataset_manifest"] = manifest.model_dump()
+
+                # Persist Kaggle metadata for the same reason.
+                if (
+                    state.dataset_info.kaggle_description
+                    or state.dataset_info.kaggle_subtitle
+                    or state.dataset_info.kaggle_column_descriptions
+                    or state.dataset_info.kaggle_tags
+                    or state.dataset_info.kaggle_keywords
+                    or state.dataset_info.kaggle_domain
+                ):
+                    results_data["kaggle_meta"] = {
+                        "description": state.dataset_info.kaggle_description,
+                        "subtitle": state.dataset_info.kaggle_subtitle,
+                        "column_descriptions": state.dataset_info.kaggle_column_descriptions,
+                        "tags": state.dataset_info.kaggle_tags,
+                        "keywords": state.dataset_info.kaggle_keywords,
+                        "domain": state.dataset_info.kaggle_domain,
+                        "metadata_quality": state.dataset_info.metadata_quality,
+                    }
+
+                # Analyst-provided prose context, when given on submission.
+                if state.dataset_info.user_provided_context:
+                    results_data["user_provided_context"] = (
+                        state.dataset_info.user_provided_context
+                    )
+
                 # Add causal graph
                 if state.proposed_dag:
                     results_data["causal_graph"] = {
@@ -350,6 +400,23 @@ class LocalStorageClient:
                         for s in state.sensitivity_results
                     ]
 
+                # Methodology decisions audit trail. Surfaced via
+                # /jobs/{id}/results.decision_log; rendered by the notebook
+                # generator's decisions section. AnalysisDecision.timestamp
+                # is a `str`, not a datetime — pass it through verbatim.
+                if state.decisions:
+                    results_data["decisions"] = [
+                        {
+                            "agent": d.agent,
+                            "decision_type": d.decision_type,
+                            "choice": d.choice,
+                            "reason": d.reason,
+                            "alternatives": d.alternatives,
+                            "timestamp": d.timestamp,
+                        }
+                        for d in state.decisions
+                    ]
+
                 results[state.job_id] = results_data
                 self._save_json(self.results_file, results)
 
@@ -363,6 +430,55 @@ class LocalStorageClient:
             return results.get(job_id)
 
         return await asyncio.to_thread(_sync)
+
+    # ── Parked-state store (human-approval gate) ─────────────────────────
+
+    async def save_parked_state(self, state: AnalysisState) -> None:
+        """Persist the full AnalysisState while the job waits at the gate.
+
+        Round-trips via `state.model_dump(mode="json")`; reload happens
+        via `AnalysisState.model_validate` in `load_parked_state`. Keyed
+        by `state.job_id`; last write wins.
+        """
+        payload = dump_state_jsonable(state)
+
+        def _sync():
+            lock = self._get_lock(self.parked_states_file)
+            with lock:
+                store = self._load_json(self.parked_states_file)
+                store[state.job_id] = payload
+                self._save_json(self.parked_states_file, store)
+
+        await asyncio.to_thread(_sync)
+        logger.info("parked_state_saved", job_id=state.job_id)
+
+    async def load_parked_state(self, job_id: str) -> AnalysisState | None:
+        """Return the parked AnalysisState for `job_id`, or None if absent."""
+        def _sync() -> AnalysisState | None:
+            store = self._load_json(self.parked_states_file)
+            payload = store.get(job_id)
+            if payload is None:
+                return None
+            return AnalysisState.model_validate(payload)
+
+        return await asyncio.to_thread(_sync)
+
+    async def delete_parked_state(self, job_id: str) -> bool:
+        """Remove the parked state for `job_id`. Returns True if removed."""
+        def _sync() -> bool:
+            lock = self._get_lock(self.parked_states_file)
+            with lock:
+                store = self._load_json(self.parked_states_file)
+                if job_id not in store:
+                    return False
+                store.pop(job_id)
+                self._save_json(self.parked_states_file, store)
+                return True
+
+        removed = await asyncio.to_thread(_sync)
+        if removed:
+            logger.info("parked_state_deleted", job_id=job_id)
+        return removed
 
     async def save_traces(self, state: AnalysisState) -> None:
         """Save agent traces."""

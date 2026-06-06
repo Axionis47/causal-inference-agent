@@ -2,11 +2,11 @@
 
 import re
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from src.agents.base import JobStatus
+from src.analysis.agents.base import JobStatus
 
 # Kaggle URL pattern: https://www.kaggle.com/datasets/owner/dataset-name
 KAGGLE_URL_PATTERN = re.compile(
@@ -38,6 +38,27 @@ class CreateJobRequest(BaseModel):
         description="Optional outcome variable hint",
         max_length=MAX_VARIABLE_NAME_LENGTH,
     )
+    orchestrator_mode: Literal["standard", "react"] | None = Field(
+        None,
+        description=(
+            "Which orchestrator to run for this job. 'standard' uses the "
+            "fixed 13-agent pipeline; 'react' lets the orchestrator decide "
+            "which agent runs next (experimental). Omit to use the "
+            "server-side default."
+        ),
+    )
+    user_context: str | None = Field(
+        None,
+        description=(
+            "Optional prose context the analyst provides about the dataset: "
+            "the study it came from, what the variables mean, known caveats. "
+            "Flows to domain_knowledge so it has something to investigate "
+            "even when Kaggle's authored metadata is empty. Plain text, "
+            "no markdown processing."
+        ),
+        max_length=2000,
+    )
+
     @field_validator("kaggle_url")
     @classmethod
     def validate_kaggle_url(cls, v: str) -> str:
@@ -69,13 +90,26 @@ class CreateJobRequest(BaseModel):
 
 
 class JobResponse(BaseModel):
-    """Basic job response."""
+    """Basic job response.
+
+    Includes a small digest (dataset_name, T/Y, iteration_count) that
+    the JobsListPage renders directly so a user can scan a stack of
+    jobs and see what each one did without opening it. These fields
+    are already on the persisted record; populating them is free.
+    """
 
     id: str
     kaggle_url: str
     status: JobStatus
     created_at: datetime
     updated_at: datetime
+
+    # Optional digest fields populated by /jobs list. Absent on
+    # just-created jobs; that's fine — UI falls back gracefully.
+    dataset_name: str | None = None
+    treatment_variable: str | None = None
+    outcome_variable: str | None = None
+    iteration_count: int = 0
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -207,7 +241,9 @@ class AgentTraceResponse(BaseModel):
     agent_name: str
     timestamp: datetime
     action: str
-    reasoning: str
+    # Internal AgentTrace.reasoning is `str | None`; mirroring it here so a
+    # single `reasoning=None` entry doesn't 500 the entire traces endpoint.
+    reasoning: str | None = ""
     duration_ms: int
     inputs: dict[str, Any] = Field(default_factory=dict)
     outputs: dict[str, Any] = Field(default_factory=dict)
@@ -224,6 +260,84 @@ class AgentTracesResponse(BaseModel):
     total_duration_ms: int = 0
     total_input_tokens: int = 0
     total_output_tokens: int = 0
+
+
+class FileEntryResponse(BaseModel):
+    """One file from a downloaded dataset archive.
+
+    columns and n_rows come from the manifest; they are empty/None until the
+    download has completed and the manifest is written.
+    """
+
+    name: str
+    size_bytes: int
+    format: str
+    used: bool
+    columns: list[str] = Field(default_factory=list)
+    n_rows: int | None = None
+
+
+class DownloadBlock(BaseModel):
+    """Download lifecycle block of the dataset view."""
+
+    status: str  # "pending" | "downloading" | "downloaded" | "failed"
+    url: str | None = None
+    files: list[FileEntryResponse] = Field(default_factory=list)
+    error: str | None = None
+
+
+class KaggleMetaData(BaseModel):
+    """Kaggle-supplied metadata about the dataset."""
+
+    description: str | None = None
+    column_descriptions: dict[str, str] = Field(default_factory=dict)
+    tags: list[str] = Field(default_factory=list)
+    domain: str | None = None
+    metadata_quality: str = "unknown"
+
+
+class KaggleMetaBlock(BaseModel):
+    """Kaggle metadata block.
+
+    status='unavailable' means the source did not provide it (sparse
+    dataset on Kaggle); 'error' means the fetch itself failed.
+    """
+
+    status: str  # "pending" | "loaded" | "unavailable" | "error"
+    data: KaggleMetaData | None = None
+    error: str | None = None
+
+
+class ProfileBlock(BaseModel):
+    """Computed data profile block."""
+
+    status: str  # "pending" | "loaded" | "error"
+    data: dict[str, Any] | None = None
+    error: str | None = None
+
+
+class DatasetViewResponse(BaseModel):
+    """Live + persisted view of a job's dataset for the Data panel.
+
+    Each block carries its own status so the UI can render exactly what
+    is known so far without collapsing distinct missing-states into one.
+    Raw rows are not embedded here; they are fetched per page from
+    GET /jobs/{id}/dataset/files/{name}/rows.
+    """
+
+    download: DownloadBlock
+    kaggle_meta: KaggleMetaBlock
+    profile: ProfileBlock
+
+
+class DatasetRowsPage(BaseModel):
+    """One page of raw rows for a single downloaded file."""
+
+    columns: list[str] = Field(default_factory=list)
+    rows: list[dict[str, Any]] = Field(default_factory=list)
+    total_rows: int | None = None
+    offset: int
+    limit: int
 
 
 class CancelJobResponse(BaseModel):
@@ -243,3 +357,55 @@ class DeleteJobResponse(BaseModel):
     cancelled: bool
     firestore_deleted: bool
     local_artifacts_deleted: dict[str, bool] = {}
+
+
+# ── Human-approval gate ────────────────────────────────────────────────────
+
+
+class DagEditPayload(BaseModel):
+    """Optional DAG edits the human applies at the approval gate.
+
+    Mirrors `src.domain.approval.DagEdit`; redeclared here so the API
+    schema layer stays free of domain imports and OpenAPI shows only
+    JSON-safe types.
+    """
+
+    adjustment_set: list[str] | None = None
+    forbidden_edges: list[dict[str, str]] | None = None
+    variable_roles: dict[str, str] | None = None
+
+
+class ApprovalRequest(BaseModel):
+    """Request body for POST /jobs/{job_id}/approval.
+
+    `granted_at` is stamped server-side. `reason` is required when
+    `decision == "rejected"` (validated by the domain model).
+    """
+
+    decision: Literal["approved", "rejected"]
+    granted_by: str | None = Field(default=None, max_length=200)
+    dag_edits: DagEditPayload | None = None
+    appended_context: str | None = Field(default=None, max_length=4000)
+    reason: str | None = Field(default=None, max_length=500)
+
+
+class ApprovalSnapshotResponse(BaseModel):
+    """Snapshot the UI renders at the gate (same shape as the SSE event).
+
+    Fields are intentionally loosely typed (dict / list) — the snapshot
+    is built from many state slots and is purely display.
+    """
+
+    treatment_variable: str | None = None
+    outcome_variable: str | None = None
+    eda_summary: dict[str, Any] | None = None
+    proposed_dag: dict[str, Any] | None = None
+    brief_flags: dict[str, dict[str, Any]] = Field(default_factory=dict)
+
+
+class ApprovalResultResponse(BaseModel):
+    """Result of POST /jobs/{job_id}/approval."""
+
+    job_id: str
+    resumed: bool
+    status: str

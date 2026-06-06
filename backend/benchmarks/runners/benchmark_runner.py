@@ -10,15 +10,15 @@ from typing import Any
 
 import numpy as np
 
-from src.agents import (
+from src.analysis.agents import (
     AnalysisState,
     CritiqueAgent,
     DataProfilerAgent,
     DatasetInfo,
     EffectEstimatorAgent,
-    OrchestratorAgent,
     SensitivityAnalystAgent,
 )
+from src.analysis.orchestrator import OrchestratorAgent
 from src.logging_config.structured import get_logger
 
 from ..datasets.loader import BenchmarkDataset, BenchmarkDatasetLoader

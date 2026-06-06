@@ -84,6 +84,12 @@ export interface Job {
   status: string;
   created_at: string;
   updated_at: string;
+  // Digest fields populated by /jobs list. Optional because just-
+  // created jobs won't have them populated yet.
+  dataset_name?: string | null;
+  treatment_variable?: string | null;
+  outcome_variable?: string | null;
+  iteration_count?: number;
 }
 
 export interface JobDetail extends Job {
@@ -189,6 +195,99 @@ export interface AgentEvent {
   data: Record<string, unknown>;
 }
 
+// Dataset lifecycle events arrive on the same SSE channel ('agent_event')
+// but carry a different event_type discriminator and a different payload.
+// The Data panel listens for these to fill in its three blocks live.
+export type DatasetEventType =
+  | 'dataset_metadata_started'
+  | 'dataset_metadata_ready'
+  | 'dataset_metadata_failed'
+  | 'dataset_download_started'
+  | 'dataset_download_complete'
+  | 'dataset_load_failed'
+  | 'data_profile_ready';
+
+export interface DatasetSseEvent {
+  event_type: DatasetEventType;
+  data: Record<string, unknown>;
+  timestamp: string;
+}
+
+export interface FileEntry {
+  name: string;
+  size_bytes: number;
+  format: string;
+  used: boolean;
+  // From the manifest; absent until the download completes.
+  columns?: string[];
+  n_rows?: number | null;
+}
+
+export interface KaggleMeta {
+  description: string | null;
+  column_descriptions: Record<string, string>;
+  tags: string[];
+  domain: string | null;
+  metadata_quality: string;
+}
+
+export interface DataProfileSummary {
+  n_samples: number;
+  n_features: number;
+  // The fields below come from the live profiler. The persisted-results
+  // path (completed/evicted jobs) doesn't currently include them, so
+  // they must be treated as optional on the frontend.
+  feature_types?: Record<string, string>;
+  missing_values?: Record<string, number>;
+  treatment_candidates: string[];
+  outcome_candidates: string[];
+  potential_confounders?: string[];
+  potential_instruments?: string[];
+}
+
+export type BlockStatus =
+  | 'pending'
+  | 'downloading'
+  | 'downloaded'
+  | 'loaded'
+  | 'unavailable'
+  | 'error'
+  | 'failed';
+
+export interface DownloadBlock {
+  status: BlockStatus;
+  url: string | null;
+  files: FileEntry[];
+  error: string | null;
+}
+
+export interface KaggleMetaBlock {
+  status: BlockStatus;
+  data: KaggleMeta | null;
+  error: string | null;
+}
+
+export interface ProfileBlock {
+  status: BlockStatus;
+  data: DataProfileSummary | null;
+  error: string | null;
+}
+
+export interface DatasetView {
+  download: DownloadBlock;
+  kaggle_meta: KaggleMetaBlock;
+  profile: ProfileBlock;
+}
+
+// One page of raw rows for a single downloaded file, fetched on demand.
+export interface DatasetRowsPage {
+  columns: string[];
+  rows: Record<string, unknown>[];
+  total_rows: number | null;
+  offset: number;
+  limit: number;
+}
+
 export interface AgentTrace {
   agent_name: string;
   timestamp: string;
@@ -258,6 +357,24 @@ export async function deleteJob(jobId: string, force: boolean = false): Promise<
 
 export async function getResults(jobId: string): Promise<AnalysisResults> {
   const response = await api.get(`/jobs/${jobId}/results`);
+  return response.data;
+}
+
+export async function getDatasetView(jobId: string): Promise<DatasetView> {
+  const response = await api.get(`/jobs/${jobId}/dataset`);
+  return response.data;
+}
+
+export async function getDatasetRows(
+  jobId: string,
+  fileName: string,
+  offset: number,
+  limit: number
+): Promise<DatasetRowsPage> {
+  const response = await api.get(
+    `/jobs/${jobId}/dataset/files/${encodeURIComponent(fileName)}/rows`,
+    { params: { offset, limit } }
+  );
   return response.data;
 }
 

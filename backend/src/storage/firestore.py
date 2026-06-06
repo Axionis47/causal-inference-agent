@@ -6,9 +6,11 @@ from typing import Any
 
 from google.cloud import firestore
 
-from src.agents.base import AnalysisState, JobStatus
+from src.analysis.agents.base import AnalysisState, JobStatus
 from src.config import get_settings
 from src.logging_config.structured import get_logger
+from src.storage.job_data import read_manifest
+from src.storage.serialize import dump_state_jsonable
 
 logger = get_logger(__name__)
 
@@ -32,6 +34,9 @@ class FirestoreClient:
         self.jobs_collection = "jobs"
         self.results_collection = "results"
         self.traces_collection = "agent_traces"
+        # Parked states: full AnalysisState dumps for jobs waiting at the
+        # human-approval gate. Keyed by job_id. Cleared on approve/reject.
+        self.parked_states_collection = "parked_states"
 
     def _job_data_from_state(self, state: AnalysisState) -> dict[str, Any]:
         """Build a job data dict from state, including instance_id."""
@@ -373,6 +378,46 @@ class FirestoreClient:
                 "has_time_dimension": state.data_profile.has_time_dimension,
             }
 
+        # Persist file list captured during download so the
+        # /jobs/{id}/dataset endpoint can hydrate after the
+        # active state is evicted.
+        if state.dataset_info.files:
+            results_data["dataset_files"] = [
+                f.model_dump() for f in state.dataset_info.files
+            ]
+
+        # Persist the typed dataset manifest (per-file records + full Kaggle
+        # metadata) so a revisited completed job can read its dataset record
+        # without the live state.
+        manifest = read_manifest(state.job_id)
+        if manifest is not None:
+            results_data["dataset_manifest"] = manifest.model_dump()
+
+        # Persist Kaggle metadata for the same reason.
+        if (
+            state.dataset_info.kaggle_description
+            or state.dataset_info.kaggle_subtitle
+            or state.dataset_info.kaggle_column_descriptions
+            or state.dataset_info.kaggle_tags
+            or state.dataset_info.kaggle_keywords
+            or state.dataset_info.kaggle_domain
+        ):
+            results_data["kaggle_meta"] = {
+                "description": state.dataset_info.kaggle_description,
+                "subtitle": state.dataset_info.kaggle_subtitle,
+                "column_descriptions": state.dataset_info.kaggle_column_descriptions,
+                "tags": state.dataset_info.kaggle_tags,
+                "keywords": state.dataset_info.kaggle_keywords,
+                "domain": state.dataset_info.kaggle_domain,
+                "metadata_quality": state.dataset_info.metadata_quality,
+            }
+
+        # Analyst-provided prose context, when given on submission.
+        if state.dataset_info.user_provided_context:
+            results_data["user_provided_context"] = (
+                state.dataset_info.user_provided_context
+            )
+
         # Add causal graph
         if state.proposed_dag:
             results_data["causal_graph"] = {
@@ -412,6 +457,21 @@ class FirestoreClient:
                 for s in state.sensitivity_results
             ]
 
+        # Methodology decisions audit trail (mirror local_storage shape).
+        # AnalysisDecision.timestamp is a `str`, not a datetime.
+        if state.decisions:
+            results_data["decisions"] = [
+                {
+                    "agent": d.agent,
+                    "decision_type": d.decision_type,
+                    "choice": d.choice,
+                    "reason": d.reason,
+                    "alternatives": d.alternatives,
+                    "timestamp": d.timestamp,
+                }
+                for d in state.decisions
+            ]
+
         def _sync():
             doc_ref = self.db.collection(self.results_collection).document(state.job_id)
             doc_ref.set(results_data)
@@ -437,6 +497,45 @@ class FirestoreClient:
             return None
 
         return await asyncio.to_thread(_sync)
+
+    # ── Parked-state store (human-approval gate) ─────────────────────────
+
+    async def save_parked_state(self, state: AnalysisState) -> None:
+        """Persist the full AnalysisState while the job waits at the gate."""
+        payload = dump_state_jsonable(state)
+
+        def _sync():
+            doc_ref = self.db.collection(self.parked_states_collection).document(state.job_id)
+            doc_ref.set(payload)
+
+        await asyncio.to_thread(_sync)
+        logger.info("parked_state_saved", job_id=state.job_id)
+
+    async def load_parked_state(self, job_id: str) -> AnalysisState | None:
+        """Return the parked AnalysisState for `job_id`, or None if absent."""
+        def _sync() -> AnalysisState | None:
+            doc_ref = self.db.collection(self.parked_states_collection).document(job_id)
+            doc = doc_ref.get()
+            if not doc.exists:
+                return None
+            return AnalysisState.model_validate(doc.to_dict())
+
+        return await asyncio.to_thread(_sync)
+
+    async def delete_parked_state(self, job_id: str) -> bool:
+        """Remove the parked state for `job_id`. Returns True if removed."""
+        def _sync() -> bool:
+            doc_ref = self.db.collection(self.parked_states_collection).document(job_id)
+            doc = doc_ref.get()
+            if not doc.exists:
+                return False
+            doc_ref.delete()
+            return True
+
+        removed = await asyncio.to_thread(_sync)
+        if removed:
+            logger.info("parked_state_deleted", job_id=job_id)
+        return removed
 
     async def save_traces(self, state: AnalysisState) -> None:
         """Save agent traces.

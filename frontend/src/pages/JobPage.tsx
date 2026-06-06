@@ -1,45 +1,94 @@
-import { useState } from 'react';
+// JobPage — terminal-layout orchestrator.
+//
+// Responsibilities (and only these):
+//   1. Read jobId from the route. Branch real-data vs `/jobs/__preview` mock.
+//   2. Drive data: useJob (SSE) + useQuery (initial fetch + polling).
+//   3. Manage the .terminal body class and the live elapsed-clock tick.
+//   4. Wire keyboard shortcuts (F1 cancel / F3 notebook / F5 results).
+//   5. Hand derived view state + callbacks to the five terminal panes.
+//
+// All presentation lives in components/job/terminal/.
+
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  Download,
-  StopCircle,
-  Trash2,
-} from 'lucide-react';
-import { getJob, getResults, getNotebookUrl, cancelJob, deleteJob } from '../services/api';
-import { JOB_DETAIL_POLL_INTERVAL_MS } from '../config/constants';
-import JobProgress from '../components/job/JobProgress';
-import ActivityFeed from '../components/job/ActivityFeed';
-import ResultsDisplay from '../components/results/ResultsDisplay';
-import AgentTraces from '../components/agents/AgentTraces';
+import { getJob, getTraces, cancelJob, getNotebookUrl, AgentEvent, JobDetail } from '../services/api';
+import { JOB_DETAIL_POLL_INTERVAL_MS, TRACES_POLL_INTERVAL_MS } from '../config/constants';
 import { useJob } from '../hooks/useJob';
+import { deriveJobView } from '../components/job/terminal/deriveJobView';
+import { TopBar } from '../components/job/terminal/TopBar';
+import { AgentsRail } from '../components/job/terminal/AgentsRail';
+import { Tape } from '../components/job/terminal/Tape';
+import { FocusPane } from '../components/job/terminal/FocusPane';
+import { FKeyBar } from '../components/job/terminal/FKeyBar';
+import { DatasetView } from '../components/job/terminal/DatasetView';
+import { buildPreviewState } from '../components/job/terminal/preview';
+import { useDatasetView } from '../hooks/useDatasetView';
 
 export default function JobPage() {
   const { jobId } = useParams<{ jobId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const isPreview = jobId === '__preview';
 
-  // useJob hook for SSE-driven agent activity events
-  const { agentEvents } = useJob(jobId ?? null);
+  // Scope terminal styles to this page only; journal routes keep their light surface.
+  useEffect(() => {
+    document.body.classList.add('terminal');
+    return () => document.body.classList.remove('terminal');
+  }, []);
 
-  const jobQuery = useQuery({
+  // 1Hz tick for the elapsed counter.
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNowMs(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  // Real data path. useJob handles SSE; useQuery handles initial fetch + polling.
+  const realStream = useJob(isPreview ? null : (jobId ?? null));
+  const realJobQuery = useQuery({
     queryKey: ['job', jobId],
     queryFn: () => getJob(jobId!),
-    enabled: !!jobId,
-    // Poll every 1 second while job is running to catch quick stage transitions
-    refetchInterval: (query: { state: { data?: { status?: string } } }) => {
-      const status = query.state.data?.status;
-      const isTerminal = status === 'completed' || status === 'failed' || status === 'cancelled';
-      return isTerminal ? false : JOB_DETAIL_POLL_INTERVAL_MS;
+    enabled: !!jobId && !isPreview,
+    refetchInterval: (q: { state: { data?: { status?: string } } }) => {
+      const s = q.state.data?.status;
+      const terminal = s === 'completed' || s === 'failed' || s === 'cancelled';
+      return terminal ? false : JOB_DETAIL_POLL_INTERVAL_MS;
     },
   });
 
-  const resultsQuery = useQuery({
-    queryKey: ['results', jobId],
-    queryFn: () => getResults(jobId!),
-    enabled: jobQuery.data?.status === 'completed',
+  // Traces carry per-agent token_usage; we sum them for the TopBar counter.
+  // Poll alongside the job until it reaches a terminal state, then freeze.
+  const tracesQuery = useQuery({
+    queryKey: ['job-traces', jobId],
+    queryFn: () => getTraces(jobId!),
+    enabled: !!jobId && !isPreview,
+    refetchInterval: () => {
+      const s = realJobQuery.data?.status;
+      const terminal = s === 'completed' || s === 'failed' || s === 'cancelled';
+      return terminal ? false : TRACES_POLL_INTERVAL_MS;
+    },
   });
+  const tokens = useMemo<number | null>(() => {
+    const traces = tracesQuery.data;
+    if (!traces || traces.length === 0) return null;
+    return traces.reduce(
+      (sum, t) => sum + (t.token_usage?.input_tokens || 0) + (t.token_usage?.output_tokens || 0),
+      0,
+    );
+  }, [tracesQuery.data]);
+
+  // Dataset view (F1). The analyst lands here on arrival so the raw data and
+  // download status are the first thing seen; Esc / F1 toggles back to the
+  // agent tape. useDatasetView polls /jobs/:id/dataset until the blocks settle.
+  const [showDataset, setShowDataset] = useState(!isPreview);
+  const { view: datasetView } = useDatasetView(isPreview ? null : (jobId ?? null));
+
+  // Memoise preview so timestamps freeze at first render of /jobs/__preview.
+  const preview = useMemo(() => (isPreview ? buildPreviewState() : null), [isPreview]);
+
+  const job: JobDetail | null = isPreview ? preview!.job : (realJobQuery.data ?? null);
+  const agentEvents: AgentEvent[] = isPreview ? preview!.events : realStream.agentEvents;
 
   const cancelMutation = useMutation({
     mutationFn: () => cancelJob(jobId!),
@@ -49,270 +98,93 @@ export default function JobPage() {
     },
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: (force: boolean) => deleteJob(jobId!, force),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['jobs'] });
-      navigate('/jobs');
-    },
-  });
+  // F-key shortcuts. Always run the hook; gate the actions inside.
+  useEffect(() => {
+    if (!job) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'F1') {
+        e.preventDefault();
+        setShowDataset((v) => !v);
+      }
+      if (e.key === 'F2' && job.status !== 'completed' && job.status !== 'failed' && !isPreview) {
+        e.preventDefault();
+        cancelMutation.mutate();
+      }
+      if (e.key === 'F3' && job.status === 'completed') {
+        e.preventDefault();
+        window.location.href = getNotebookUrl(job.id);
+      }
+      if (e.key === 'F4' && job.status === 'completed') {
+        e.preventDefault();
+        navigate(`/jobs/${job.id}#results`);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [job, cancelMutation, navigate, isPreview]);
 
-  if (jobQuery.isLoading) {
+  if (!isPreview && realJobQuery.isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-96">
-        <div className="w-6 h-6 border-2 border-ink-900 border-t-transparent rounded-full animate-spin" />
+      <div className="terminal flex items-center justify-center min-h-screen">
+        <span className="text-2xs font-mono text-ink-tertiary uppercase tracking-[0.15em]">connecting…</span>
       </div>
     );
   }
 
-  if (jobQuery.isError || !jobQuery.data) {
+  if (!job) {
     return (
-      <div className="max-w-2xl mx-auto text-center py-16">
-        <p className="font-serif text-xl text-ink-900 mb-2">Job Not Found</p>
-        <p className="text-ink-500 text-sm">
-          The job you are looking for does not exist or has been deleted.
-        </p>
+      <div className="terminal flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <p className="text-2xs font-mono text-ink-tertiary uppercase tracking-[0.15em] mb-2">job not found</p>
+          <button onClick={() => navigate('/jobs')} className="text-xs font-mono text-amber underline underline-offset-2">return to jobs list</button>
+        </div>
       </div>
     );
   }
 
-  const job = jobQuery.data;
-  const isComplete = job.status === 'completed';
-  const isFailed = job.status === 'failed';
-  const isCancelled = job.status === 'cancelled';
-  const isRunning = !isComplete && !isFailed && !isCancelled;
+  const view = deriveJobView(job, agentEvents, nowMs);
+  const onCancel = () => cancelMutation.mutate();
 
   return (
-    <div className="max-w-4xl mx-auto">
-      {/* Header: Job ID + Status */}
-      <section className="section">
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="font-mono text-xs text-ink-400 tracking-wide mb-1">
-              {job.id}
-            </p>
-            <h1 className="font-serif text-2xl text-ink-900">
-              Causal Analysis
-            </h1>
-          </div>
-          <StatusBadge status={job.status} />
-        </div>
-      </section>
+    <div className="terminal flex flex-col h-screen w-screen overflow-hidden bg-canvas text-ink">
+      <TopBar
+        job={job}
+        agentTones={view.agentTones}
+        elapsed={view.elapsed}
+        tokens={isPreview ? null : tokens}
+        isPreview={isPreview}
+        onCancel={onCancel}
+        cancelPending={cancelMutation.isPending}
+      />
 
-      {/* Metadata */}
-      <section className="section">
-        <h2 className="section-title">Parameters</h2>
-        <dl className="grid grid-cols-2 gap-x-8 gap-y-4 text-sm">
-          <div>
-            <dt className="text-ink-400 mb-0.5">Dataset</dt>
-            <dd className="font-mono text-xs text-ink-700 break-all">{job.kaggle_url}</dd>
-          </div>
-          <div>
-            <dt className="text-ink-400 mb-0.5">Iterations</dt>
-            <dd className="font-mono text-xs text-ink-700">{job.iteration_count}</dd>
-          </div>
-          <div>
-            <dt className="text-ink-400 mb-0.5">Treatment Variable</dt>
-            <dd className="font-mono text-xs text-ink-700">{job.treatment_variable || 'Auto-detected'}</dd>
-          </div>
-          <div>
-            <dt className="text-ink-400 mb-0.5">Outcome Variable</dt>
-            <dd className="font-mono text-xs text-ink-700">{job.outcome_variable || 'Auto-detected'}</dd>
-          </div>
-        </dl>
-      </section>
+      <div className="flex-1 flex overflow-hidden min-h-0">
+        <AgentsRail tones={view.agentTones} latestByAgent={view.latestByAgent} />
+        <Tape reverseEvents={view.reverseEvents} currentAgent={job.current_agent} />
+        <FocusPane
+          job={job}
+          focusAgent={view.focusAgent}
+          focusLatest={view.focusLatest}
+          failed={view.failed}
+          datasetView={datasetView}
+          onOpenData={() => setShowDataset(true)}
+        />
+      </div>
 
-      {/* Notebook download (completed only) */}
-      {isComplete && (
-        <section className="section">
-          {resultsQuery.data?.notebook_url ? (
-            <a
-              href={getNotebookUrl(job.id)}
-              download
-              className="inline-flex items-center space-x-1.5 text-sm text-ink-600 hover:text-ink-900 underline underline-offset-2"
-            >
-              <Download className="w-4 h-4" />
-              <span>Download Jupyter Notebook</span>
-            </a>
-          ) : resultsQuery.isSuccess && !resultsQuery.data?.notebook_url && (
-            <p className="text-sm text-ink-400 italic">
-              Notebook not available for this analysis.
-            </p>
-          )}
-        </section>
-      )}
+      <FKeyBar
+        job={job}
+        isPreview={isPreview}
+        onCancel={onCancel}
+        onData={() => setShowDataset((v) => !v)}
+        onResults={() => navigate(`/jobs/${job.id}#results`)}
+      />
 
-      {/* Error state */}
-      {isFailed && job.error_message && (
-        <section className="section">
-          <div className="border border-ink-200 p-4">
-            <p className="font-serif text-sm text-ink-900 mb-1">Analysis Failed</p>
-            <p className="text-sm text-ink-600">{job.error_message}</p>
-          </div>
-        </section>
-      )}
-
-      {/* Cancelled state */}
-      {isCancelled && (
-        <section className="section">
-          <div className="border border-ink-200 p-4">
-            <p className="font-serif text-sm text-ink-900 mb-1">Job Cancelled</p>
-            <p className="text-sm text-ink-600">{job.error_message || 'This job was cancelled by user request.'}</p>
-          </div>
-        </section>
-      )}
-
-      {/* Actions */}
-      <section className="section">
-        <div className="flex items-center space-x-3">
-          {isRunning && (
-            <button
-              onClick={() => cancelMutation.mutate()}
-              disabled={cancelMutation.isPending}
-              className="btn-secondary inline-flex items-center space-x-1.5"
-            >
-              <StopCircle className="w-4 h-4" />
-              <span>{cancelMutation.isPending ? 'Cancelling...' : 'Stop Job'}</span>
-            </button>
-          )}
-
-          <button
-            onClick={() => setShowDeleteConfirm(true)}
-            className="btn-danger inline-flex items-center space-x-1.5"
-          >
-            <Trash2 className="w-4 h-4" />
-            <span>Delete Job</span>
-          </button>
-        </div>
-      </section>
-
-      {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="delete-job-title"
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') setShowDeleteConfirm(false);
-          }}
-        >
-          <div className="bg-white border border-ink-200 p-6 max-w-md w-full mx-4">
-            <h3 id="delete-job-title" className="font-serif text-lg text-ink-900 mb-2">Delete Job</h3>
-            <p className="text-sm text-ink-600 mb-6">
-              This will permanently delete the job record, analysis results, and all associated data.
-              {isRunning && ' The job will be cancelled first.'}
-            </p>
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className="btn-secondary"
-                autoFocus
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  deleteMutation.mutate(isRunning);
-                  setShowDeleteConfirm(false);
-                }}
-                disabled={deleteMutation.isPending}
-                className="btn-danger"
-              >
-                {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Progress (running only) */}
-      {isRunning && (
-        <>
-          <section className="section">
-            <h2 className="section-title">Progress</h2>
-            <JobProgress
-              status={job.status}
-              progress={job.progress_percentage ?? 0}
-              currentAgent={job.current_agent}
-            />
-          </section>
-          <section className="section">
-            <h2 className="section-title">Activity</h2>
-            <ActivityFeed events={agentEvents} />
-          </section>
-        </>
-      )}
-
-      {/* Results (completed only) */}
-      {isComplete && (
-        <>
-          {resultsQuery.isLoading && (
-            <section className="section">
-              <div className="flex items-center justify-center py-12">
-                <div className="w-6 h-6 border-2 border-ink-900 border-t-transparent rounded-full animate-spin" />
-                <span className="ml-3 text-sm text-ink-500">Loading analysis results...</span>
-              </div>
-            </section>
-          )}
-          {resultsQuery.isError && (
-            <section className="section">
-              <div className="border border-ink-200 p-4">
-                <p className="font-serif text-sm text-ink-900 mb-1">Failed to load results</p>
-                <p className="text-sm text-ink-500">Please try refreshing the page or check back later.</p>
-              </div>
-            </section>
-          )}
-          {resultsQuery.data && (
-            <ResultsDisplay results={resultsQuery.data} />
-          )}
-        </>
-      )}
-
-      {/* Agent Traces */}
-      {(isComplete || isFailed) && (
-        <section className="section">
-          <AgentTraces jobId={job.id} />
-        </section>
+      {showDataset && (
+        <DatasetView
+          view={datasetView}
+          jobId={jobId ?? null}
+          onClose={() => setShowDataset(false)}
+        />
       )}
     </div>
-  );
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const config: Record<string, { label: string; className: string }> = {
-    pending: {
-      label: 'Pending',
-      className: 'border-ink-300 text-ink-500',
-    },
-    completed: {
-      label: 'Completed',
-      className: 'border-ink-900 text-ink-900',
-    },
-    failed: {
-      label: 'Failed',
-      className: 'border-ink-900 text-ink-900',
-    },
-    cancelled: {
-      label: 'Cancelled',
-      className: 'border-ink-400 text-ink-500',
-    },
-    cancelling: {
-      label: 'Cancelling',
-      className: 'border-ink-400 text-ink-500',
-    },
-  };
-
-  const defaultConfig = {
-    label: status.replace('_', ' ').replace(/\b\w/g, (l) => l.toUpperCase()),
-    className: 'border-ink-900 text-ink-900',
-  };
-
-  const { label, className } = config[status] || defaultConfig;
-
-  return (
-    <span className={`inline-block border px-2 py-0.5 text-xs font-mono tracking-wide uppercase ${className}`}>
-      {label}
-    </span>
   );
 }

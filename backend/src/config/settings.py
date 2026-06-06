@@ -73,6 +73,9 @@ class Settings(BaseSettings):
     kaggle_username: str = Field(default="")
     kaggle_key: SecretStr | None = Field(default=None)
 
+    # Per-profile credential encryption (Fernet, 44-char URL-safe base64)
+    profile_encryption_key: SecretStr | None = Field(default=None)
+
     # API Authentication
     api_key: SecretStr | None = Field(default=None)  # Set to enable API key auth
 
@@ -87,6 +90,11 @@ class Settings(BaseSettings):
     max_agent_iterations: int = 3
     agent_timeout_seconds: int = 300
     max_concurrent_jobs: int = 3
+
+    # Orchestrator selection
+    # "standard": LLM-driven dispatch with a default workflow.
+    # "react": Fully autonomous ReAct orchestrator. Experimental.
+    orchestrator_mode: Literal["standard", "react"] = "standard"
 
     # Statistical thresholds
     significance_alpha: float = 0.05
@@ -144,15 +152,19 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _validate_required_config(self) -> "Settings":
-        """Warn about missing configuration in non-test environments."""
+        """Refuse to start with insecure or incomplete production config."""
         if self.environment == "production":
             if self.use_firestore and not self.gcp_project_id:
                 raise ValueError(
                     "GCP_PROJECT_ID is required when USE_FIRESTORE=true in production"
                 )
+            # Optional auth in production was a silent foot-gun: a missing
+            # API_KEY left the API open. Refuse to start instead of warn.
             if self.api_key is None:
-                logger.warning(
-                    "API_KEY not set in production — API endpoints are unauthenticated!"
+                raise ValueError(
+                    "API_KEY is required in production. Without it every "
+                    "/jobs endpoint is unauthenticated. Set ENVIRONMENT="
+                    "development for local work, or provide an API_KEY."
                 )
         if self.llm_provider == "claude" and self.claude_api_key is None:
             logger.warning(
@@ -189,6 +201,13 @@ class Settings(BaseSettings):
         if self.kaggle_key is None:
             return None
         return self.kaggle_key.get_secret_value()
+
+    @property
+    def profile_encryption_key_value(self) -> str | None:
+        """Get the Fernet encryption key for per-profile secrets."""
+        if self.profile_encryption_key is None:
+            return None
+        return self.profile_encryption_key.get_secret_value()
 
     @property
     def api_key_value(self) -> str | None:

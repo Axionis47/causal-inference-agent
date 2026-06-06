@@ -4,15 +4,15 @@ import pytest
 import numpy as np
 import pandas as pd
 
-from src.agents import (
+from src.analysis.agents import (
     AnalysisState,
     DataProfile,
     DataProfilerAgent,
     EffectEstimatorAgent,
-    OrchestratorAgent,
     SensitivityAnalystAgent,
     TreatmentEffectResult,
 )
+from src.analysis.orchestrator import OrchestratorAgent
 
 
 class TestAnalysisState:

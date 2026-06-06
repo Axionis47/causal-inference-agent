@@ -1,0 +1,403 @@
+# Agent Contracts
+
+Canonical reference for what each analysis-stage agent delivers, which
+state it needs, when it refuses to run, and which flags it can raise.
+
+Each entry mirrors the `AgentCapability` declaration on the agent's
+Python class (see `backend/src/domain/briefs.py`). When the capability
+declaration changes, this doc must change in the same PR.
+
+See `docs/adr-002-orchestrator-worker-pattern.md` for the design
+rationale and `CLAUDE.md` §1 for the working-mode rules.
+
+## How to read an entry
+
+- **Answers**: the one-line question the agent owns. The orchestrator
+  uses this to assemble its capability menu.
+- **Needs**: top-level state keys that must be present before the
+  agent will run. If any are missing the agent returns a refusal
+  brief with `Flag.NEEDS_NOT_MET`.
+- **Delivers**: top-level state keys the agent writes on success.
+  These appear in `brief.artifact_keys`.
+- **Refuses when**: human-readable conditions that produce a refusal
+  brief. Each entry should correspond to a testable criterion.
+- **Flags raised**: the closed-enum kinds this agent can put on its
+  brief. Workers may not invent flags outside this list.
+- **Success criteria**: testable assertions on the brief, referenced
+  by id from the agent's unit tests. A criterion without a test is a
+  coverage gap.
+
+## Status: which agents have been migrated
+
+Phase 1 onward fills this table in as each agent gets its capability
+declaration and AgentBrief return. The contract layer is additive:
+no agent's internal reasoning pattern changes during migration. The
+"Pattern (current)" column is informational only, so the brief-
+production code knows where in the agent to plug in.
+
+| Agent | Migrated | Pattern (current) | Phase |
+|---|---|---|---|
+| `data_profiler` | yes | Full ReAct | 3b |
+| `data_repair` | yes | Full ReAct | 3c |
+| `eda_agent` | yes | Full ReAct | 3a |
+| `confounder_discovery` | yes | Full ReAct | 3c |
+| `causal_discovery` | yes | Full ReAct | 3a |
+| `dag_expert` | yes | Full ReAct | 3c |
+| `ps_diagnostics` | yes | Full ReAct | 1 (reference) |
+| `effect_estimator` | yes | Full ReAct | 3d |
+| `sensitivity_analyst` | yes | Full ReAct | 3a |
+| `critique` | yes | Custom agentic loop | 3e |
+| `domain_knowledge` | yes | Full ReAct | 3a |
+| `notebook_generator` | yes | Direct + per-section renderers | 3e |
+
+---
+
+## Template (one section per agent, copied at migration time)
+
+```
+## <agent_name>
+
+**Answers:** <one-line question>
+
+**Needs:**
+- `<state_key_1>` (<short description of expected shape>)
+- `<state_key_2>` (...)
+
+**Delivers:**
+- `<state_key_written>` (...)
+
+**Refuses when:**
+- <condition> -> `<FLAG_NAME>`
+
+**Flags raised:**
+- `<FLAG_NAME>` -- <when>
+
+**Success criteria:**
+- `<criterion.id>` -- <description>
+```
+
+---
+
+<!-- Per-agent sections are added below as agents migrate. Order is
+fixed (matches the table above) so diffs are easy to read. -->
+
+## ps_diagnostics
+
+**Answers:** Are propensity scores well-overlapped, balanced, and calibrated?
+
+**Needs:**
+- `dataframe_path` (string path to the parquet/csv the profiler wrote)
+- `data_profile` (typed `DataProfile`; profiler must have run)
+- `treatment_variable` (column name)
+- `outcome_variable` (column name)
+
+**Delivers:**
+- `ps_diagnostics` (dict; model_quality, recommended_method, trimming bounds, warnings)
+- `agent_briefs["ps_diagnostics"]` (typed `AgentBrief`, always written)
+
+**Refuses when:**
+- `dataframe_path` is None -> `NEEDS_NOT_MET` (reroute to profiler)
+- `data_profile` is None -> `NEEDS_NOT_MET` (reroute to profiler)
+- `treatment_variable` is unset -> `PRECONDITION_FAILED` (escalate; only the user/router can set it)
+- `outcome_variable` is unset -> `PRECONDITION_FAILED`
+
+**Flags raised:**
+- `POOR_OVERLAP` -- common support below 90%
+- `SMD_HIGH` -- max weighted standardised mean difference exceeds 0.1
+- `CALIBRATION_OFF` -- mean absolute calibration error exceeds 0.1
+
+**Success criteria** (id -> test in `tests/test_brief.py`):
+- `ps.brief.always_written` -- execute always writes a brief into `state.agent_briefs["ps_diagnostics"]`
+- `ps.refusal.needs_missing` -- `NEEDS_NOT_MET` on missing dataframe_path / data_profile
+- `ps.refusal.precondition` -- `PRECONDITION_FAILED` on missing treatment/outcome
+- `ps.flag.poor_overlap` -- `POOR_OVERLAP` when overlap_pct < 90
+- `ps.flag.smd_high` -- `SMD_HIGH` when max weighted SMD > 0.1
+- `ps.flag.calibration_off` -- `CALIBRATION_OFF` when calibration MAE > 0.1
+
+## domain_knowledge
+
+**Answers:** What causal-role hypotheses do the dataset metadata support?
+
+**Needs:**
+- `dataset_info` (already required on the state; at least one of its metadata sources or the user-designated pair must be populated)
+
+**Delivers:**
+- `domain_knowledge` (typed `DomainKnowledge`; hypotheses, uncertainties, temporal understanding, immutables)
+- `agent_briefs["domain_knowledge"]` (typed `AgentBrief`, always written)
+
+**Refuses when:**
+- EVERY metadata source is empty AND no user-designated treatment/outcome pair was provided -> `NEEDS_NOT_MET` (reroute to the metadata-fetch stage). Sources counted: `kaggle_description`, `kaggle_subtitle`, `kaggle_column_descriptions`, `kaggle_tags`, `kaggle_keywords`, `kaggle_domain`, `state.raw_metadata`, `dataset_info.user_provided_context`, and the (`treatment_variable` AND `outcome_variable`) pair. The user-designated pair alone is enough signal to form column-name-based hypotheses, so a job submitted with `treatment=treat, outcome=re78` always clears preflight even on a dataset with zero Kaggle metadata.
+
+**Flags raised:**
+- `WEAK_CONFOUNDER_EVIDENCE` -- no confounder hypothesis formed at medium-or-better confidence (downstream specialists must lean on data-driven discovery)
+
+**Success criteria** (id -> test in `tests/test_brief.py`):
+- `dk.brief.always_written` -- execute always writes a brief into `state.agent_briefs["domain_knowledge"]`
+- `dk.refusal.no_metadata` -- `NEEDS_NOT_MET` when every metadata source is empty
+- `dk.flag.weak_confounders` -- `WEAK_CONFOUNDER_EVIDENCE` when no confounder hypothesis
+- `dk.status.failed_when_incomplete` -- `status="failed"` when treatment or outcome hypothesis is missing
+- `dk.status.done_when_complete` -- `status="done"` when at least one treatment and one outcome hypothesis exist at medium+ confidence
+
+## eda_agent
+
+**Answers:** What distributional, balance, correlation, and outlier issues does this dataset carry?
+
+**Needs:**
+- `dataframe_path` (string path to the parquet/csv the profiler wrote)
+- `data_profile` (typed `DataProfile`; profiler must have run)
+
+**Delivers:**
+- `eda_result` (typed `EDAResult`; distribution stats, covariate balance, correlations, outliers, VIF, quality score)
+- `agent_briefs["eda_agent"]` (typed `AgentBrief`, always written)
+
+**Refuses when:**
+- `dataframe_path` is None -> `NEEDS_NOT_MET` (reroute to profiler)
+- `data_profile` is None -> `NEEDS_NOT_MET` (reroute to profiler)
+
+Treatment / outcome unset is NOT a refusal: EDA can still report distributional and correlation findings without a primary pair declared; only the balance flag becomes inert.
+
+**Flags raised:**
+- `OUTCOME_SKEWED` -- the outcome variable's |skewness| exceeds 1.0
+- `TC_IMBALANCE` -- the max covariate SMD exceeds 0.25 (severe-imbalance threshold; 0.1 is the noisier "imbalanced" floor used by check_balance but is too noisy for orchestrator-level routing)
+- `SUSPECT_CORRELATION` -- at least one variable pair has |r| > 0.7 (filter already applied by the EDA tool)
+
+**Success criteria** (id -> test in `tests/test_brief.py`):
+- `eda.brief.always_written` -- execute always writes a brief into `state.agent_briefs["eda_agent"]`
+- `eda.refusal.needs_missing` -- `NEEDS_NOT_MET` on missing dataframe_path / data_profile
+- `eda.flag.outcome_skewed` -- `OUTCOME_SKEWED` when outcome |skewness| > 1.0
+- `eda.flag.tc_imbalance` -- `TC_IMBALANCE` when max covariate SMD > 0.25
+- `eda.flag.suspect_correlation` -- `SUSPECT_CORRELATION` when high_correlations is non-empty
+
+## causal_discovery
+
+**Answers:** What directed graph do the data-driven discovery algorithms propose for this dataset?
+
+**Needs:**
+- `dataframe_path` (string path to the parquet/csv the profiler wrote)
+- `data_profile` (typed `DataProfile`; profiler must have run)
+
+**Delivers:**
+- `discovered_dag` (typed `CausalDAG`; nodes, edges, discovery_method, interpretation)
+- `agent_briefs["causal_discovery"]` (typed `AgentBrief`, always written)
+
+**Refuses when:**
+- `dataframe_path` is None -> `NEEDS_NOT_MET` (reroute to profiler)
+- `data_profile` is None -> `NEEDS_NOT_MET` (reroute to profiler)
+
+Treatment / outcome unset is NOT a refusal: the agent has a deterministic confounders-only fallback that emits a usable DAG even when no primary pair is declared.
+
+**Flags raised:**
+- `LOW_STABILITY` -- chosen DAG has fewer than 2 edges, or `discovery_method` indicates the simple-DAG fallback (no algorithm produced a usable graph)
+- `CYCLE_DETECTED` -- the directed edges form a cycle; downstream identification is unsafe
+
+`DAG_CONFLICT`, `NO_ADJUSTMENT_SET`, and `COLLIDER_SUSPECTED` are intentionally owned by `dag_expert`, which fuses user/LLM/data DAGs and computes adjustment sets. Sealing those here would create duplicate detectors.
+
+**Success criteria** (id -> test in `tests/test_brief.py`):
+- `discovery.brief.always_written` -- execute always writes a brief into `state.agent_briefs["causal_discovery"]`
+- `discovery.refusal.needs_missing` -- `NEEDS_NOT_MET` on missing dataframe_path / data_profile
+- `discovery.flag.low_stability` -- `LOW_STABILITY` when chosen DAG has < 2 edges or came from the fallback
+- `discovery.flag.cycle_detected` -- `CYCLE_DETECTED` when directed edges form a cycle
+
+## sensitivity_analyst
+
+**Answers:** How robust are the treatment effect estimates to assumption violations and unmeasured confounding?
+
+**Needs:**
+- `treatment_effects` (non-empty `list[TreatmentEffectResult]`; effect_estimator must have produced at least one estimate)
+
+**Delivers:**
+- `sensitivity_results` (`list[SensitivityResult]`; each with method, robustness_value, interpretation, details)
+- `agent_briefs["sensitivity_analyst"]` (typed `AgentBrief`, always written)
+
+**Refuses when:**
+- `state.treatment_effects` is empty -> `NEEDS_NOT_MET` (reroute to effect_estimator)
+
+**Flags raised:**
+- `WEAK_TO_UNOBSERVED` -- the E-value method's `robustness_value < 1.5` (the agent's own auto-finalize threshold for "low" robustness; matches VanderWeele's sensitivity interpretation)
+- `NOT_ROBUST` -- at least 2 sensitivity results flag concerns across any method family (E-value < 1.5, Rosenbaum gamma < 1.5, spec curve cv > 0.4 or sign change, placebo "concerning", subgroup "heterogeneous", or bootstrap "unstable"). Two-or-more threshold avoids over-firing on a single signal; the lone E-value case is already covered by `WEAK_TO_UNOBSERVED`.
+
+**Success criteria** (id -> test in `tests/test_brief.py`):
+- `sensitivity.brief.always_written` -- execute always writes a brief into `state.agent_briefs["sensitivity_analyst"]`
+- `sensitivity.refusal.needs_missing` -- `NEEDS_NOT_MET` when `state.treatment_effects` is empty
+- `sensitivity.flag.weak_to_unobserved` -- `WEAK_TO_UNOBSERVED` when E-value < 1.5
+- `sensitivity.flag.not_robust` -- `NOT_ROBUST` when two or more sensitivity results flag concerns
+
+## critique
+
+**Answers:** Is the causal analysis methodologically sound enough to ship, or should the pipeline iterate or reject?
+
+**Needs:**
+- `treatment_effects` (non-empty `list[TreatmentEffectResult]`; effect_estimator must have produced at least one estimate)
+
+**Delivers:**
+- `critique_history` (`list[CritiqueFeedback]`; latest entry carries decision, scores, issues, improvements, reasoning)
+- `agent_briefs["critique"]` (typed `AgentBrief`, always written)
+
+**Refuses when:**
+- `state.treatment_effects` is empty -> `NEEDS_NOT_MET` (reroute to effect_estimator). Catches the orchestrator mistakenly dispatching critique before estimation has run; preserves the existing in-loop REJECT path when estimation ran but the auto-finalize fallback judges the analysis empty.
+
+**Flags raised:**
+
+Critique **does not raise any closed-enum issue flags**. It is the final synthesis stage; primary issue flags belong to the upstream agents that detected them (`sensitivity_analyst` for `NOT_ROBUST` / `WEAK_TO_UNOBSERVED`, `ps_diagnostics` for `POOR_OVERLAP` / `SMD_HIGH` / `CALIBRATION_OFF`, eventually `effect_estimator` for `METHOD_UNSTABLE` / `ATE_OUTLIER`, etc.). The orchestrator routes off `state.critique_history[-1].decision` (APPROVE / ITERATE / REJECT), which it already does today. The brief's headline reports that decision; `raised_issues` lifts the feedback's issues list.
+
+**Success criteria** (id -> test in `tests/test_brief.py`):
+- `critique.brief.always_written` -- execute always writes a brief into `state.agent_briefs["critique"]`
+- `critique.refusal.needs_missing` -- `NEEDS_NOT_MET` when `state.treatment_effects` is empty
+- `critique.status.reflects_decision` -- brief status is `done` when a feedback was appended; headline reports the decision and iteration
+
+## effect_estimator
+
+**Answers:** What is the treatment effect, and how do estimates compare across appropriate causal-inference methods?
+
+**Needs:**
+- `data_profile` (typed `DataProfile`; profiler must have run)
+- `dataframe_path` (string path to the parquet/csv the profiler wrote)
+
+**Delivers:**
+- `treatment_effects` (`list[TreatmentEffectResult]`; one entry per method run per pair)
+- `analyzed_pairs` (`list[CausalPair]`; LLM-selected treatment-outcome pairs)
+- `agent_briefs["effect_estimator"]` (typed `AgentBrief`, always written)
+
+**Refuses when:**
+- `data_profile` is None -> `NEEDS_NOT_MET` (reroute to profiler)
+- `dataframe_path` is None -> `NEEDS_NOT_MET` (reroute to profiler)
+
+**Flags raised:**
+- `METHOD_UNSTABLE` -- cross-method coefficient of variation > 0.5 (matches `compare_estimates`' own INCONSISTENT label)
+- `ATE_OUTLIER` -- at least one estimate sits more than 3 MAD from the median across results
+- `WEAK_INSTRUMENT` -- any IV-family result reports `first_stage_f_partial < 10` or `weak_instrument_severe == True`
+
+**Success criteria** (id -> test in `tests/test_brief.py`):
+- `estimator.brief.always_written` -- execute always writes a brief into `state.agent_briefs["effect_estimator"]`
+- `estimator.refusal.needs_missing` -- `NEEDS_NOT_MET` on missing `data_profile` / `dataframe_path`
+- `estimator.flag.method_unstable` -- `METHOD_UNSTABLE` when CV > 0.5
+- `estimator.flag.ate_outlier` -- `ATE_OUTLIER` when any estimate is > 3 MAD from the median
+- `estimator.flag.weak_instrument` -- `WEAK_INSTRUMENT` on IV first-stage F < 10 or severe flag
+
+## confounder_discovery
+
+**Answers:** Which observed variables most plausibly confound the treatment-outcome relationship?
+
+**Needs:**
+- `data_profile` (typed `DataProfile`; profiler must have run)
+- `dataframe_path` (string path to the parquet/csv the profiler wrote)
+
+**Delivers:**
+- `confounder_discovery` (dict with `ranked_confounders`, `excluded_variables`, `adjustment_strategy`, `investigation_log`)
+- `agent_briefs["confounder_discovery"]` (typed `AgentBrief`, always written)
+
+**Refuses when:**
+- `data_profile` is None -> `NEEDS_NOT_MET` (reroute to profiler)
+- `dataframe_path` is None -> `NEEDS_NOT_MET` (reroute to profiler)
+
+**Flags raised:**
+- `WEAK_CONFOUNDER_EVIDENCE` -- `ranked_confounders` is empty; downstream specialists must lean on DAG adjustment set or profiler's potential_confounders instead
+
+**Success criteria** (id -> test in `tests/test_brief.py`):
+- `confounder.brief.always_written` -- execute always writes a brief
+- `confounder.refusal.needs_missing` -- `NEEDS_NOT_MET` on missing profile / dataframe path
+- `confounder.flag.weak_evidence` -- `WEAK_CONFOUNDER_EVIDENCE` when ranked_confounders is empty
+
+## dag_expert
+
+**Answers:** What DAG, variable roles, and adjustment set should downstream estimation use, given user, domain-knowledge, and data-driven inputs?
+
+**Needs:**
+- `dataset_info` (always present on state)
+- `discovered_dag` (typed `CausalDAG` from causal_discovery)
+
+**Delivers:**
+- `refined_dag` (typed `CausalDAG` with `variable_roles`, `forbidden_edges`, `adjustment_set` populated)
+- `agent_briefs["dag_expert"]` (typed `AgentBrief`, always written)
+
+**Refuses when:**
+- `discovered_dag` is None -> `NEEDS_NOT_MET` (reroute to causal_discovery)
+
+**Flags raised:**
+- `NO_ADJUSTMENT_SET` -- `refined_dag.adjustment_set` is empty or None; downstream estimation must fall back to the profiler's potential_confounders
+- `DAG_CONFLICT` -- `refined_dag.forbidden_edges` is non-empty (fusion rejected edges from one of the sources)
+- `COLLIDER_SUSPECTED` -- `variable_roles` contains a `potential_collider`; estimation should exclude these from the adjustment set
+- `CYCLE_DETECTED` -- directed edges form a cycle; downstream identification is unsafe
+
+**Success criteria** (id -> test in `tests/test_brief.py`):
+- `dag_expert.brief.always_written` -- execute always writes a brief
+- `dag_expert.refusal.needs_missing` -- `NEEDS_NOT_MET` when `discovered_dag` is missing
+- `dag_expert.flag.no_adjustment_set` -- `NO_ADJUSTMENT_SET` when adjustment_set is empty
+- `dag_expert.flag.dag_conflict` -- `DAG_CONFLICT` when forbidden_edges is non-empty
+- `dag_expert.flag.collider_suspected` -- `COLLIDER_SUSPECTED` on potential_collider in variable_roles
+- `dag_expert.flag.cycle_detected` -- `CYCLE_DETECTED` when directed edges form a cycle
+
+## data_profiler
+
+**Answers:** What are the dataset's column types, missingness, candidate treatment/outcome variables, and required treatment encoding?
+
+**Needs:**
+- `dataset_info` (always present on state init; no real refusal case)
+
+**Delivers:**
+- `data_profile` (typed `DataProfile`)
+- `dataframe_path` (string path the agent writes after loading)
+- `treatment_encoding` (typed `TreatmentEncoding`; only populated when the treatment column needs collapsing or label encoding)
+- `agent_briefs["data_profiler"]` (typed `AgentBrief`, always written)
+
+**Refuses when:**
+
+Profiler is the entry point of the analysis pipeline. State initialization guarantees `dataset_info`, so `preflight` has no meaningful refusal case and always returns None. Internal load failures surface as `status="failed"` via the finally block.
+
+**Flags raised:**
+- `HIGH_MISSINGNESS` -- any column has more than 50 percent missing values (downstream agents should consider data_repair before estimation)
+- `ENCODING_REQUIRED` -- `state.treatment_encoding.strategy` is not `"none"` (multi-level categorical treatment was collapsed or label-encoded)
+
+**Success criteria** (id -> test in `tests/test_brief.py`):
+- `profiler.brief.always_written` -- execute always writes a brief
+- `profiler.flag.high_missingness` -- `HIGH_MISSINGNESS` when any column has > 50% missing
+- `profiler.flag.encoding_required` -- `ENCODING_REQUIRED` when treatment_encoding strategy is non-"none"
+
+## data_repair
+
+**Answers:** Which data quality issues need fixing before estimation, and what repairs were applied?
+
+**Needs:**
+- `data_profile` (typed `DataProfile`; profiler must have run)
+- `dataframe_path` (string path to the parquet/csv the profiler wrote)
+
+**Delivers:**
+- `data_repairs` (list of repair-action dicts: type, strategy, columns, before/after counts, rows_dropped)
+- `agent_briefs["data_repair"]` (typed `AgentBrief`, always written)
+
+**Refuses when:**
+- `data_profile` is None -> `NEEDS_NOT_MET` (reroute to profiler)
+- `dataframe_path` is None -> `NEEDS_NOT_MET` (reroute to profiler)
+
+**Flags raised:**
+- `REPAIR_FAILED` -- profile reported missing values but the agent recorded zero repair actions (suspect load / permission issue)
+- `DATA_LOST` -- cumulative `rows_dropped` across repairs exceeds 5 percent of the original sample; downstream estimation runs on a meaningfully smaller dataset
+
+**Success criteria** (id -> test in `tests/test_brief.py`):
+- `repair.brief.always_written` -- execute always writes a brief
+- `repair.refusal.needs_missing` -- `NEEDS_NOT_MET` on missing profile / dataframe path
+- `repair.flag.repair_failed` -- `REPAIR_FAILED` when issues existed but no repairs ran
+- `repair.flag.data_lost` -- `DATA_LOST` when rows_dropped > 5% of n_samples
+
+## notebook_generator
+
+**Answers:** Render the analysis as a reproducible Jupyter notebook with per-agent sections and executable verification cells.
+
+**Needs:**
+- `data_profile` (typed `DataProfile`; nothing meaningful to render without it)
+
+**Delivers:**
+- `notebook_path` (string path to the saved .ipynb)
+- `agent_briefs["notebook_generator"]` (typed `AgentBrief`, always written)
+
+**Refuses when:**
+- `data_profile` is None -> `NEEDS_NOT_MET` (reroute to profiler)
+
+**Flags raised:**
+
+notebook_generator **does not raise any closed-enum issue flags**. It is the terminal rendering stage; primary issue flags belong to upstream agents that detected them (`effect_estimator` for `METHOD_UNSTABLE` / `ATE_OUTLIER` / `WEAK_INSTRUMENT`, `sensitivity_analyst` for `NOT_ROBUST` / `WEAK_TO_UNOBSERVED`, etc.). The brief's status reports whether the notebook was written; the headline names the path.
+
+**Success criteria** (id -> test in `tests/test_brief.py`):
+- `notebook.brief.always_written` -- execute always writes a brief
+- `notebook.refusal.needs_missing` -- `NEEDS_NOT_MET` when `data_profile` is missing
+- `notebook.status.reflects_write` -- status is `done` when `state.notebook_path` is set, else `failed`

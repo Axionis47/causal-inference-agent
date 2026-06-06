@@ -8,16 +8,16 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.agents import (
+from src.analysis.agents import (
     AnalysisState,
     CritiqueAgent,
     DataProfile,
     DataProfilerAgent,
     DatasetInfo,
     EffectEstimatorAgent,
-    OrchestratorAgent,
     SensitivityAnalystAgent,
 )
+from src.analysis.orchestrator import OrchestratorAgent
 
 
 class TestFullPipeline:
