@@ -39,20 +39,47 @@ def test_get_approval_returns_404_when_not_parked(client, mock_manager):
     assert resp.status_code == 404
 
 
-def test_get_approval_returns_snapshot_payload(client, mock_manager):
+def test_get_approval_returns_data_stage_snapshot(client, mock_manager):
+    # The gate now sits at the data-review stage, so the snapshot carries the
+    # downloaded file list and an optional data summary, not a DAG. The data
+    # summary is None when the gate parks before any profiling (the Plan B
+    # ordering), which is what a fresh gate looks like.
     mock_manager.get_parked_snapshot.return_value = {
         "treatment_variable": "t",
         "outcome_variable": "y",
-        "eda_summary": {"data_quality_score": 82.0, "data_quality_issues": []},
-        "proposed_dag": {"nodes": ["t", "y"], "edges": [], "adjustment_set": ["x1"]},
-        "brief_flags": {"eda_agent": {"status": "done", "headline": "ok", "flags": [], "raised_issues": []}},
+        "data_summary": None,
+        "files": [{"name": "lalonde.csv", "format": "csv", "used": True}],
     }
     resp = client.get("/jobs/job-1/approval")
     assert resp.status_code == 200
     body = resp.json()
     assert body["treatment_variable"] == "t"
-    assert body["proposed_dag"]["adjustment_set"] == ["x1"]
-    assert "eda_agent" in body["brief_flags"]
+    assert body["outcome_variable"] == "y"
+    assert body["data_summary"] is None
+    assert body["files"][0]["name"] == "lalonde.csv"
+    # The gate moved off the DAG stage; the old DAG payload must not resurface.
+    assert "proposed_dag" not in body
+
+
+def test_get_approval_surfaces_data_summary_when_profiled(client, mock_manager):
+    # If a snapshot does carry a summary (a profiled gate), the endpoint
+    # passes it through untouched.
+    mock_manager.get_parked_snapshot.return_value = {
+        "treatment_variable": "t",
+        "outcome_variable": "y",
+        "data_summary": {
+            "n_samples": 614,
+            "n_features": 11,
+            "treatment_candidates": ["t"],
+            "outcome_candidates": ["y"],
+        },
+        "files": [{"name": "lalonde.csv", "format": "csv", "used": True}],
+    }
+    resp = client.get("/jobs/job-1/approval")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["data_summary"]["n_samples"] == 614
+    assert body["data_summary"]["treatment_candidates"] == ["t"]
 
 
 # --- POST /jobs/{id}/approval ----------------------------------------------
