@@ -7,7 +7,6 @@ will replace this with reads from the sealed download module.
 """
 from __future__ import annotations
 
-import tempfile
 from pathlib import Path
 
 import pandas as pd
@@ -244,43 +243,46 @@ async def load_from_kaggle(
             {"url": url, "dataset_id": dataset_id},
         )
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            api.dataset_download_files(dataset_id, path=tmpdir, unzip=True)
+        from src.storage.job_data import (
+            build_manifest,
+            reset_job_raw_dir,
+            write_manifest,
+        )
 
-            used_path: Path | None = pick_default_file(Path(tmpdir))
-            df: pd.DataFrame | None = None
+        raw_dir = reset_job_raw_dir(state.job_id)
+        api.dataset_download_files(dataset_id, path=str(raw_dir), unzip=True)
 
-            if used_path is not None:
-                if used_path.suffix == ".csv":
-                    df = pd.read_csv(used_path)
-                else:
-                    df = pd.read_parquet(used_path)
+        used_path: Path | None = pick_default_file(raw_dir)
+        df: pd.DataFrame | None = None
 
-            if df is None or used_path is None:
-                logger.error("no_data_files_found", path=tmpdir)
-                error = "No CSV or parquet files found in dataset archive."
-                state.dataset_info.files = capture_file_list(
-                    Path(tmpdir), used_path=None
-                )
-                state.push_sse_event("dataset_load_failed", {"error": error})
-                return None, error
+        if used_path is not None:
+            if used_path.suffix == ".csv":
+                df = pd.read_csv(used_path)
+            else:
+                df = pd.read_parquet(used_path)
 
-            state.dataset_info.files = capture_file_list(
-                Path(tmpdir), used_path=used_path
-            )
-            # Sample every tabular file now, while the bundle is still on
-            # disk, so the Data panel can preview each one (not just the
-            # file we load). tmpdir is wiped when this block exits.
-            state.dataset_info.file_samples = capture_file_samples(Path(tmpdir))
-            state.push_sse_event(
-                "dataset_download_complete",
-                {
-                    "rows": int(df.shape[0]),
-                    "columns": int(df.shape[1]),
-                    "files": [f.model_dump() for f in state.dataset_info.files],
-                },
-            )
-            return df, None
+        if df is None or used_path is None:
+            logger.error("no_data_files_found", path=str(raw_dir))
+            error = "No CSV or parquet files found in dataset archive."
+            state.dataset_info.files = capture_file_list(raw_dir, used_path=None)
+            state.push_sse_event("dataset_load_failed", {"error": error})
+            return None, error
+
+        state.dataset_info.files = capture_file_list(raw_dir, used_path=used_path)
+        # Sample every tabular file for the Data panel preview. The bundle
+        # now persists durably under the job's storage dir; the manifest
+        # below is the typed record downstream reads.
+        state.dataset_info.file_samples = capture_file_samples(raw_dir)
+        write_manifest(state.job_id, build_manifest(state))
+        state.push_sse_event(
+            "dataset_download_complete",
+            {
+                "rows": int(df.shape[0]),
+                "columns": int(df.shape[1]),
+                "files": [f.model_dump() for f in state.dataset_info.files],
+            },
+        )
+        return df, None
 
     except Exception as e:
         error_str = str(e)

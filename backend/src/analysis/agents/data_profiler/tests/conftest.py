@@ -1,11 +1,24 @@
 """Shared fixtures for data_profiler tests."""
 
+import types
+
 import numpy as np
 import pandas as pd
 import pytest
 
 from src.analysis.agents.base import AnalysisState, DatasetInfo
 from src.analysis.agents.data_profiler.agent import DataProfilerAgent
+
+
+@pytest.fixture(autouse=True)
+def isolate_job_storage(tmp_path, monkeypatch):
+    """Point the durable per-job storage root at a temp dir.
+
+    load_from_kaggle now downloads into {local_storage_path}/{job_id}/raw/, so
+    without this the tests would write the bundle into the repo's ./data dir.
+    """
+    fake = types.SimpleNamespace(local_storage_path=str(tmp_path / "store"))
+    monkeypatch.setattr("src.storage.job_data.get_settings", lambda: fake)
 
 
 @pytest.fixture

@@ -182,6 +182,50 @@ async def test_load_from_kaggle_captures_multiple_files_with_used_flag(tmp_path)
 
 
 @pytest.mark.asyncio
+async def test_load_from_kaggle_persists_raw_bundle_and_manifest(tmp_path):
+    """Every downloaded file must survive on disk after the call returns (the
+    bundle is no longer wiped), and a typed manifest must describe it."""
+    from src.storage.job_data import job_raw_dir, read_manifest
+
+    state = _make_state("https://www.kaggle.com/datasets/owner/name")
+
+    big = pd.DataFrame({"a": list(range(50)), "b": list(range(50))})
+    small = pd.DataFrame({"a": [1], "b": [2]})
+
+    def fake_download(dataset_id: str, path: str, unzip: bool):
+        Path(path, "big.csv").write_text(big.to_csv(index=False))
+        Path(path, "small.csv").write_text(small.to_csv(index=False))
+
+    fake_api = MagicMock()
+    fake_api.authenticate.return_value = None
+    fake_api.dataset_download_files.side_effect = fake_download
+
+    with patch("kaggle.api.kaggle_api_extended.KaggleApi", return_value=fake_api):
+        result_df, _ = await load_from_kaggle(state, state.dataset_info.url)
+
+    assert result_df is not None
+
+    # Both files persist after the call returns; nothing was wiped.
+    raw = job_raw_dir(state.job_id)
+    assert (raw / "big.csv").is_file()
+    assert (raw / "small.csv").is_file()
+
+    # The manifest is a typed record of the bundle with the winner marked.
+    manifest = read_manifest(state.job_id)
+    assert manifest is not None
+    assert manifest.job_id == state.job_id
+    assert manifest.dataset_ref == "owner/name"
+    assert {f.name for f in manifest.files} == {"big.csv", "small.csv"}
+    assert manifest.winner == "big.csv"
+    big_rec = next(f for f in manifest.files if f.name == "big.csv")
+    assert big_rec.used is True
+    assert big_rec.n_rows == 50
+    assert big_rec.n_columns == 2
+    assert big_rec.relative_path == "raw/big.csv"
+    assert len(big_rec.sha256) == 64  # sha256 hex digest
+
+
+@pytest.mark.asyncio
 async def test_load_from_kaggle_emits_failed_when_download_raises():
     state = _make_state("https://www.kaggle.com/datasets/owner/name")
 
