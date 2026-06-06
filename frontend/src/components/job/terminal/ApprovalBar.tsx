@@ -13,7 +13,13 @@ const inputCls =
   'bg-canvas-inset border border-edge-subtle text-ink font-mono text-xs px-2 py-1 ' +
   'focus:outline-none focus:border-amber';
 
-export function ApprovalBar({ jobId }: { jobId: string }) {
+export function ApprovalBar({
+  jobId,
+  onOpenData,
+}: {
+  jobId: string;
+  onOpenData?: () => void;
+}) {
   const queryClient = useQueryClient();
   const [rejecting, setRejecting] = useState(false);
   const [reason, setReason] = useState('');
@@ -48,6 +54,15 @@ export function ApprovalBar({ jobId }: { jobId: string }) {
             approve to start the analysis on this data
           </span>
         </div>
+
+        {onOpenData && (
+          <button
+            onClick={onOpenData}
+            className={`${labelCls} border border-edge-subtle px-3 py-1.5 text-ink-secondary hover:text-ink hover:border-edge-strong`}
+          >
+            view data
+          </button>
+        )}
 
         {mutation.isError && (
           <span className="text-2xs font-mono text-rose">submit failed, retry</span>

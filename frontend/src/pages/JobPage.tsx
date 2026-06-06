@@ -194,7 +194,7 @@ export default function JobPage() {
       )}
 
       {!isPreview && job.status === 'awaiting_approval' && (
-        <ApprovalBar jobId={job.id} />
+        <ApprovalBar jobId={job.id} onOpenData={() => setShowDataset(true)} />
       )}
     </div>
   );

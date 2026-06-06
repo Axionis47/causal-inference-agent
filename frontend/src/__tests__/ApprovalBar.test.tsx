@@ -39,6 +39,15 @@ describe('ApprovalBar', () => {
     );
   });
 
+  it('reopens the dataset overlay via the view-data button', () => {
+    // The bar is fixed over the FKeyBar at the gate, so it carries the only
+    // reliable way back to the data once the overlay is closed.
+    const onOpenData = vi.fn();
+    render(wrap(<ApprovalBar jobId="t" onOpenData={onOpenData} />));
+    fireEvent.click(screen.getByRole('button', { name: /view data/i }));
+    expect(onOpenData).toHaveBeenCalledTimes(1);
+  });
+
   it('requires a reason before it can reject', async () => {
     render(wrap(<ApprovalBar jobId="t" />));
     fireEvent.click(screen.getByRole('button', { name: /^reject$/i }));
