@@ -229,6 +229,18 @@ export interface KaggleMeta {
   tags: string[];
   domain: string | null;
   metadata_quality: string;
+  // Widened at the data-review gate (full Kaggle payload). Optional because
+  // the SSE-derived metadata event and older payloads carry only the subset
+  // above; the /dataset endpoint always populates these.
+  title?: string | null;
+  subtitle?: string | null;
+  source?: string | null;
+  license?: string | null;
+  keywords?: string[];
+  total_size?: number | null;
+  download_count?: number | null;
+  vote_count?: number | null;
+  usability_rating?: number | null;
 }
 
 export interface DataProfileSummary {

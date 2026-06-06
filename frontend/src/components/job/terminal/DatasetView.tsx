@@ -1,11 +1,12 @@
 // Dedicated dataset overlay for the live job view (the F1 "data" key in
 // JobPage, and the default view on arrival). This is the data-review surface:
-// it shows ONLY the raw rows and what files were downloaded. No inference, no
-// labels of any kind here (no schema, no roles, no domain, no Kaggle metadata)
-// — all of that is profiling that belongs after the data is approved.
-// useDatasetView polls /jobs/:id/dataset until the blocks settle.
+// raw rows, the facts Kaggle supplied about the dataset, and what files were
+// downloaded. Everything here is a fact (rows, source metadata); no inference
+// or derived labels (no schema, no roles, no domain) — that is profiling that
+// belongs after the data is approved. useDatasetView polls /jobs/:id/dataset
+// until the blocks settle.
 
-import { useEffect } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import type {
   DatasetView as DatasetViewData,
   FileEntry,
@@ -17,6 +18,106 @@ function fmtBytes(n: number): string {
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+const PLACEHOLDER = <span className="text-ink-tertiary">—</span>;
+
+// One label/value row in the metadata panel. The label column is fixed so
+// every field lines up and an empty value still reads as a present-but-blank
+// field, not a missing one.
+function MetaRow({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex gap-4 py-1.5 border-b border-edge-subtle/40">
+      <span className="w-28 shrink-0 pt-0.5 text-2xs font-mono uppercase tracking-[0.12em] text-ink-tertiary">
+        {label}
+      </span>
+      <div className="flex-1 min-w-0 text-xs text-ink-secondary">{children}</div>
+    </div>
+  );
+}
+
+function Chips({ items }: { items: string[] }) {
+  if (!items.length) return PLACEHOLDER;
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {items.map((t) => (
+        <span
+          key={t}
+          className="px-1.5 py-0.5 bg-canvas-raised border border-edge-subtle text-2xs font-mono text-ink-secondary"
+        >
+          {t}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+// Render the Kaggle description without a markdown dependency: heading lines
+// (#, ##, ###) become small mono captions, everything else is plain wrapped
+// text. Keeps the raw "### Context" markers from leaking into the UI.
+function Description({ text }: { text: string }) {
+  const lines = text.split('\n');
+  return (
+    <div className="space-y-1.5 leading-relaxed">
+      {lines.map((line, i) => {
+        const heading = line.match(/^#{1,6}\s+(.*)$/);
+        if (heading) {
+          return (
+            <p key={i} className="text-2xs font-mono uppercase tracking-[0.12em] text-ink-tertiary pt-1">
+              {heading[1]}
+            </p>
+          );
+        }
+        if (!line.trim()) return null;
+        return <p key={i} className="text-ink-secondary">{line}</p>;
+      })}
+    </div>
+  );
+}
+
+function MetadataBlockView({ view }: { view: DatasetViewData }) {
+  const block = view.kaggle_meta;
+  if (block.status === 'pending') return <StatusLine label="metadata" status="pending" />;
+  if (block.status === 'error')
+    return <p className="text-xs text-rose">{block.error || 'metadata fetch failed'}</p>;
+  const d = block.data;
+  if (!d) return <StatusLine label="metadata" status={block.status} />;
+
+  const cols = Object.entries(d.column_descriptions || {});
+  const usability = d.usability_rating != null ? `${Math.round(d.usability_rating * 100)}%` : null;
+  const num = (n: number | null | undefined) => (n != null ? n.toLocaleString() : null);
+
+  return (
+    <div>
+      <MetaRow label="title">{d.title || PLACEHOLDER}</MetaRow>
+      <MetaRow label="subtitle">{d.subtitle || PLACEHOLDER}</MetaRow>
+      <MetaRow label="description">{d.description ? <Description text={d.description} /> : PLACEHOLDER}</MetaRow>
+      <MetaRow label="tags"><Chips items={d.tags} /></MetaRow>
+      <MetaRow label="keywords"><Chips items={d.keywords || []} /></MetaRow>
+      <MetaRow label="license">{d.license || PLACEHOLDER}</MetaRow>
+      <MetaRow label="source">{d.source ? <span className="break-all">{d.source}</span> : PLACEHOLDER}</MetaRow>
+      <MetaRow label="size">{d.total_size != null ? fmtBytes(d.total_size) : PLACEHOLDER}</MetaRow>
+      <MetaRow label="downloads">{num(d.download_count) ?? PLACEHOLDER}</MetaRow>
+      <MetaRow label="votes">{num(d.vote_count) ?? PLACEHOLDER}</MetaRow>
+      <MetaRow label="usability">{usability ?? PLACEHOLDER}</MetaRow>
+      <MetaRow label="columns">
+        {cols.length ? (
+          <table className="w-full">
+            <tbody className="font-mono">
+              {cols.map(([name, desc]) => (
+                <tr key={name} className="border-b border-edge-subtle/30">
+                  <td className="py-1 pr-3 align-top text-ink">{name}</td>
+                  <td className="py-1 text-ink-secondary">{desc || PLACEHOLDER}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <span className="text-ink-tertiary">none provided by source</span>
+        )}
+      </MetaRow>
+    </div>
+  );
 }
 
 function DownloadBlockView({ view }: { view: DatasetViewData }) {
@@ -90,6 +191,10 @@ export function DatasetView({
             <div>
               <Caption>[ raw data ]</Caption>
               <div className="pt-3"><SampleRowsView view={view} jobId={jobId} /></div>
+            </div>
+            <div>
+              <Caption>[ metadata ]</Caption>
+              <div className="pt-3"><MetadataBlockView view={view} /></div>
             </div>
             <div>
               <Caption>[ download ]</Caption>
