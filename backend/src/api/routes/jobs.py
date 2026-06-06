@@ -258,6 +258,10 @@ async def get_dataset_view(request: Request, job_id: str) -> DatasetViewResponse
         )
 
     state = manager.get_active_state(job_id)
+    if state is None and job.get("status") == JobStatus.AWAITING_APPROVAL.value:
+        # A job parked at the approval gate has no active state, but its full
+        # state (the data the user is reviewing) lives in the parked store.
+        state = await manager.get_parked_state(job_id)
     if state is not None:
         return build_dataset_view_from_state(state)
 

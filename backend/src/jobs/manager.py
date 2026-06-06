@@ -662,6 +662,14 @@ class JobManager:
 
 
 
+    async def get_parked_state(self, job_id: str):
+        """Return the full parked AnalysisState for a job at the gate, or None.
+
+        A parked job has no entry in `_active_states` (the task ended), so the
+        dataset view uses this to serve the data the user is reviewing.
+        """
+        return await self.firestore.load_parked_state(job_id)
+
     async def get_parked_snapshot(self, job_id: str) -> dict[str, Any] | None:
         """Return the gate snapshot for a parked job, or None if not parked.
 
