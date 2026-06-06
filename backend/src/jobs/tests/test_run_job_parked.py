@@ -1,9 +1,12 @@
-"""JobManager._run_job_inner: AWAITING_APPROVAL branch.
+"""JobManager._run_job_inner: post-approval (orchestrator) branches.
 
-When the orchestrator yields with status AWAITING_APPROVAL the worker
-must persist the full state, save partial traces, and skip save_results.
-Confirming this contract here prevents the result-save path from running
-on a partial state (which would persist a half-finished analysis).
+These cover what the worker does AFTER the human has approved at the
+data-review gate, when the orchestrator actually runs. The states here
+carry an APPROVED human_approval so the worker skips the download gate
+(covered in test_run_job_gate.py) and enters the orchestrator. The
+fallback AWAITING_APPROVAL branch (orchestrator yields the gate itself)
+must still persist the full state, save partial traces, and skip
+save_results.
 """
 from __future__ import annotations
 
@@ -17,6 +20,7 @@ from src.analysis.agents.base.state import (
     DatasetInfo,
     JobStatus,
 )
+from src.domain.approval import HumanApproval
 
 
 @pytest.fixture()
@@ -52,13 +56,15 @@ def manager_with_mocks():
 
 
 def _state_with_traces() -> AnalysisState:
-    """Initial state the worker would be handed."""
-    return AnalysisState(
+    """Approved state the worker resumes after the gate (orchestrator runs)."""
+    state = AnalysisState(
         job_id="job-1",
         dataset_info=DatasetInfo(url="kaggle.com/x"),
         treatment_variable="t",
         outcome_variable="y",
     )
+    state.human_approval = HumanApproval.approve()
+    return state
 
 
 def _parked_final_state() -> AnalysisState:

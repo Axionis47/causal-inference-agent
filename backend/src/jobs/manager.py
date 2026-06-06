@@ -22,6 +22,19 @@ if TYPE_CHECKING:
     from src.domain.approval import HumanApproval
 
 
+def _human_approved(state: AnalysisState) -> bool:
+    """True once the human has APPROVED at the data-review gate.
+
+    Distinct from `state.is_approved()`, which reports the critique agent's
+    late-pipeline verdict. This is the human gate signal the worker uses to
+    decide whether to download-and-park or run the orchestrator.
+    """
+    from src.domain.approval import ApprovalDecision
+
+    approval = state.human_approval
+    return approval is not None and approval.decision == ApprovalDecision.APPROVED
+
+
 def _describe_edits(approval: "HumanApproval") -> list[str]:
     """List the field names the human edited; used in the SSE payload."""
     edited: list[str] = []
@@ -257,10 +270,6 @@ class JobManager:
         self._active_states[job_id] = state
 
         try:
-            # Update status to fetching (with status guard)
-            state.status = JobStatus.FETCHING_DATA
-            await self.firestore.update_job(state, expected_status=JobStatus.PENDING)
-
             # Set up status callback so the orchestrator can persist
             # intermediate status updates to Firestore during the pipeline
             async def _persist_status(s: AnalysisState) -> None:
@@ -268,6 +277,16 @@ class JobManager:
                     await self.firestore.update_job(s)
                 except Exception:
                     logger.debug("status_persist_failed", job_id=s.job_id, exc_info=True)
+
+            # Data-review gate: on the first run (before the human has
+            # approved), download the dataset and park for review. No analysis
+            # agent runs until approval, so nothing infers labels on data the
+            # user has not yet accepted. Resume re-enters here with an APPROVED
+            # human_approval and skips straight to the orchestrator (which
+            # reuses the already-downloaded bundle).
+            if not _human_approved(state):
+                await self._download_and_gate(state, _persist_status)
+                return
 
             orchestrator = self._create_orchestrator(state.orchestrator_mode)
             orchestrator.set_status_callback(_persist_status)
@@ -356,6 +375,39 @@ class JobManager:
                 self._running_jobs.pop(job_id, None)
             # Clean up live state reference
             self._active_states.pop(job_id, None)
+
+    async def _download_and_gate(
+        self, state: AnalysisState, persist_status
+    ) -> None:
+        """Download the dataset, then park the job for human data review.
+
+        This is the data-review gate. It pulls the raw files and writes the
+        manifest (the only thing the Data panel needs to show raw rows), but
+        runs no profiling or inference: every label-producing step lives in
+        the orchestrator, which does not run until the human approves. On a
+        download failure the job is marked FAILED.
+        """
+        from src.analysis.agents.data_profiler.loading import load_dataset
+        from src.analysis.orchestrator.base import park_for_approval
+
+        state.status = JobStatus.FETCHING_DATA
+        await self.firestore.update_job(state, expected_status=JobStatus.PENDING)
+
+        df, error = await load_dataset(state)
+        if df is None:
+            state.mark_failed(error or "Failed to download dataset", "data_profiler")
+            await self.firestore.update_job(state)
+            return
+
+        await park_for_approval(state, persist_status)
+        await self.firestore.save_parked_state(state)
+        await self.firestore.save_traces(state)
+        await self.firestore.update_job(state)
+        logger.info(
+            "job_parked_for_review",
+            job_id=state.job_id,
+            n_files=len(state.dataset_info.files),
+        )
 
     # ── Heartbeat loop (proactive dead-instance detection) ─────
 

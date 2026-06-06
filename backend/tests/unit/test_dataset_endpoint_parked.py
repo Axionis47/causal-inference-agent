@@ -12,7 +12,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi.testclient import TestClient
 
-from src.analysis.agents.base import DataProfile
 from src.analysis.agents.base.state import (
     AnalysisState,
     DatasetInfo,
@@ -33,17 +32,9 @@ def _parked_state(job_id: str) -> AnalysisState:
     state.dataset_info.files = [
         FileEntry(name="lalonde.csv", size_bytes=9400, format="csv", used=True)
     ]
-    state.data_profile = DataProfile(
-        n_samples=614,
-        n_features=11,
-        feature_names=["treat"],
-        feature_types={"treat": "binary"},
-        missing_values={"treat": 0},
-        numeric_stats={},
-        categorical_stats={},
-        treatment_candidates=["treat"],
-        outcome_candidates=["re78"],
-    )
+    # The data-review gate parks BEFORE any profiling: raw rows and the file
+    # list are present (from the manifest), but no profile has been computed.
+    state.data_profile = None
     return state
 
 
@@ -93,5 +84,6 @@ def test_dataset_view_serves_parked_state_at_gate(tmp_path, monkeypatch):
     assert body["download"]["status"] == "downloaded"
     assert body["download"]["files"][0]["name"] == "lalonde.csv"
     assert body["download"]["files"][0]["n_rows"] == 614
-    assert body["profile"]["status"] == "loaded"
+    # No inference ran pre-gate, so the profile block is still pending.
+    assert body["profile"]["status"] == "pending"
     manager.get_parked_state.assert_awaited_once()
