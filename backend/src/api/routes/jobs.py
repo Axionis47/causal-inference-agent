@@ -23,6 +23,7 @@ from src.api.schemas import (
     CancelJobResponse,
     CausalGraphResponse,
     CreateJobRequest,
+    DatasetRowsPage,
     DatasetViewResponse,
     DeleteJobResponse,
     JobDetailResponse,
@@ -43,10 +44,15 @@ from src.api.utils import (
 from src.jobs.manager import get_job_manager
 from src.logging_config.structured import get_logger
 from src.storage.cleanup import CAUSAL_TEMP_DIR
+from src.storage.job_data import read_file_page
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
+
+# Upper bound on rows returned per dataset page, so a large file can never be
+# pulled into one response.
+_MAX_ROWS_PER_PAGE = 500
 
 # Valid job statuses for query parameter validation
 VALID_STATUSES = {s.value for s in JobStatus}
@@ -257,6 +263,41 @@ async def get_dataset_view(request: Request, job_id: str) -> DatasetViewResponse
 
     results = await manager.get_results(job_id)
     return build_dataset_view_from_persisted(job, results)
+
+
+@router.get(
+    "/{job_id}/dataset/files/{file_name}/rows", response_model=DatasetRowsPage
+)
+@limiter.limit("120/minute")
+async def get_dataset_rows(
+    request: Request,
+    job_id: str,
+    file_name: str,
+    offset: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=_MAX_ROWS_PER_PAGE),
+) -> DatasetRowsPage:
+    """Return one page of raw rows for a downloaded file.
+
+    Rows are read on demand from the durable per-job bundle, resolved via the
+    manifest, so the Data panel can page through datasets of any size without
+    the rows ever being embedded in the dataset-view response. 404 if the job,
+    its manifest, or the named file is absent.
+    """
+    manager = get_job_manager()
+    job = await manager.get_job(job_id)
+    if job is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Job {job_id} not found",
+        )
+
+    page = read_file_page(job_id, file_name, offset, limit)
+    if page is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No readable file {file_name!r} for job {job_id}",
+        )
+    return DatasetRowsPage(**page)
 
 
 @router.get("/{job_id}/status", response_model=JobStatusResponse)

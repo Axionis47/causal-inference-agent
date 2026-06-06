@@ -17,7 +17,6 @@ live in-memory AnalysisState (preferred) or the persisted results dict
 
 from __future__ import annotations
 
-import json
 import logging
 from typing import Any
 
@@ -26,17 +25,13 @@ from src.api.schemas import (
     DatasetViewResponse,
     DownloadBlock,
     FileEntryResponse,
-    FileSampleResponse,
     KaggleMetaBlock,
     KaggleMetaData,
     ProfileBlock,
-    SampleRowsBlock,
 )
+from src.storage.job_data import read_manifest
 
 logger = logging.getLogger(__name__)
-
-# How many real rows to surface in the Data panel preview.
-_SAMPLE_ROW_LIMIT = 10
 
 # JobStatus values that indicate the data-fetching phase has begun.
 _PROGRESSED_STATUSES = {
@@ -44,75 +39,30 @@ _PROGRESSED_STATUSES = {
 }
 
 
-def _build_sample(
-    file_samples: list[Any], used_names: set[str], fallback_path: str | None
-) -> SampleRowsBlock:
-    """Assemble the per-file raw-row preview block.
+def _files_from_manifest(manifest: Any) -> list[FileEntryResponse]:
+    """Per-file response entries from a DatasetManifest (model or dumped dict).
 
-    `file_samples` is the list captured at download time (FileSample
-    models or their dumped dicts). When present, one preview per tabular
-    file is returned, with `used` marking the file we loaded. When absent
-    (older jobs predating per-file capture), we fall back to a single
-    preview read from the loaded parquet so the panel still shows rows.
+    Each entry carries the file's columns and row count so the Data panel can
+    show the shape and drive the row-preview dropdown. Rows themselves are not
+    here; they are fetched per page from the rows endpoint.
     """
-    if file_samples:
-        files = [_to_file_sample(fs, used_names) for fs in file_samples]
-        status = "loaded" if any(f.rows for f in files) else "unavailable"
-        return SampleRowsBlock(status=status, files=files)
-    return _sample_from_path(fallback_path)
-
-
-def _to_file_sample(fs: Any, used_names: set[str]) -> FileSampleResponse:
-    """Normalise a FileSample (model or dict) into the response shape."""
-    d = fs.model_dump() if hasattr(fs, "model_dump") else dict(fs)
-    name = d.get("name", "")
-    return FileSampleResponse(
-        name=name,
-        used=name in used_names,
-        columns=d.get("columns") or [],
-        rows=d.get("rows") or [],
-        total_rows=d.get("total_rows"),
-        error=d.get("error"),
-    )
-
-
-def _sample_from_path(path: str | None) -> SampleRowsBlock:
-    """Fallback single-file preview read from the loaded parquet/csv."""
-    if not path:
-        return SampleRowsBlock(status="pending")
-    try:
-        import pandas as pd
-
-        if path.endswith(".parquet"):
-            df = pd.read_parquet(path)
-        elif path.endswith(".csv"):
-            df = pd.read_csv(path)
-        else:
-            return SampleRowsBlock(status="unavailable")
-    except FileNotFoundError:
-        return SampleRowsBlock(status="pending")
-    except Exception as exc:  # pragma: no cover - defensive
-        logger.warning("sample-rows read failed for %s: %s", path, exc)
-        return SampleRowsBlock(status="error", error=str(exc))
-
-    head = df.head(_SAMPLE_ROW_LIMIT)
-    # to_json round-trips numpy types and NaN -> null cleanly; json.loads
-    # gives plain python the response model can serialize.
-    rows = json.loads(head.to_json(orient="records"))
-    from pathlib import Path
-
-    return SampleRowsBlock(
-        status="loaded",
-        files=[
-            FileSampleResponse(
-                name=Path(path).name,
-                used=True,
-                columns=[str(c) for c in df.columns],
-                rows=rows,
-                total_rows=int(len(df)),
+    if manifest is None:
+        return []
+    raw_files = manifest.files if hasattr(manifest, "files") else manifest.get("files", [])
+    entries: list[FileEntryResponse] = []
+    for f in raw_files:
+        d = f.model_dump() if hasattr(f, "model_dump") else dict(f)
+        entries.append(
+            FileEntryResponse(
+                name=d.get("name", ""),
+                size_bytes=d.get("size_bytes", 0),
+                format=d.get("format", "other"),
+                used=bool(d.get("used")),
+                columns=d.get("columns") or [],
+                n_rows=d.get("n_rows"),
             )
-        ],
-    )
+        )
+    return entries
 
 
 def build_from_state(state: AnalysisState) -> DatasetViewResponse:
@@ -136,7 +86,7 @@ def build_from_state(state: AnalysisState) -> DatasetViewResponse:
     download = DownloadBlock(
         status=download_status,
         url=info.url,
-        files=[FileEntryResponse(**f.model_dump()) for f in info.files],
+        files=_files_from_manifest(read_manifest(state.job_id)),
         error=state.error_message if download_failed else None,
     )
 
@@ -186,13 +136,8 @@ def build_from_state(state: AnalysisState) -> DatasetViewResponse:
     else:
         profile = ProfileBlock(status="pending")
 
-    used_names = {f.name for f in info.files if f.used}
-    sample = _build_sample(
-        info.file_samples, used_names, state.dataframe_path or info.local_path
-    )
-
     return DatasetViewResponse(
-        download=download, kaggle_meta=kaggle_meta, profile=profile, sample=sample
+        download=download, kaggle_meta=kaggle_meta, profile=profile
     )
 
 
@@ -207,20 +152,28 @@ def build_from_persisted(
     results = results or {}
 
     files_data = results.get("dataset_files", []) or []
+    manifest_dict = results.get("dataset_manifest")
     job_status = (job.get("status") or "").lower()
     is_failed = job_status in (JobStatus.FAILED.value, JobStatus.CANCELLED.value)
 
-    if files_data:
+    if files_data or manifest_dict:
         download_status = "downloaded"
     elif is_failed:
         download_status = "failed"
     else:
         download_status = "pending"
 
+    # Prefer the manifest (carries columns + row counts); fall back to the
+    # bare dataset_files list for jobs persisted before the manifest existed.
+    if manifest_dict:
+        files = _files_from_manifest(manifest_dict)
+    else:
+        files = [FileEntryResponse(**f) for f in files_data]
+
     download = DownloadBlock(
         status=download_status,
         url=job.get("kaggle_url"),
-        files=[FileEntryResponse(**f) for f in files_data],
+        files=files,
         error=job.get("error_message") if is_failed else None,
     )
 
@@ -229,7 +182,7 @@ def build_from_persisted(
         kaggle_meta = KaggleMetaBlock(
             status="loaded", data=KaggleMetaData(**kaggle_data)
         )
-    elif files_data:
+    elif files_data or manifest_dict:
         # Download succeeded but no kaggle metadata was persisted —
         # treat as unavailable rather than pending so the UI doesn't
         # spin forever on a finished job.
@@ -245,13 +198,6 @@ def build_from_persisted(
     else:
         profile = ProfileBlock(status="pending")
 
-    used_names = {f.get("name") for f in files_data if f.get("used")}
-    sample = _build_sample(
-        results.get("dataset_file_samples") or [],
-        used_names,
-        results.get("dataframe_path"),
-    )
-
     return DatasetViewResponse(
-        download=download, kaggle_meta=kaggle_meta, profile=profile, sample=sample
+        download=download, kaggle_meta=kaggle_meta, profile=profile
     )

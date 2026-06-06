@@ -6,11 +6,12 @@ import types
 
 import pytest
 
-from src.analysis.agents.base import FileEntry, FileSample
+from src.analysis.agents.base import FileEntry
 from src.storage.job_data import (
     build_manifest,
     job_data_dir,
     job_raw_dir,
+    read_file_page,
     read_manifest,
     reset_job_raw_dir,
     write_manifest,
@@ -45,7 +46,10 @@ def test_reset_job_raw_dir_drops_prior_contents():
 
 def _state_with_bundle(job_id: str) -> types.SimpleNamespace:
     """Write a two-file bundle to disk and return a state-like object that
-    mirrors what data_profiler populates before build_manifest runs."""
+    mirrors what data_profiler populates before build_manifest runs.
+
+    build_manifest reads columns and row counts straight from these files, so
+    no sample data is supplied on the state."""
     raw = reset_job_raw_dir(job_id)
     (raw / "big.csv").write_text("a,b\n1,2\n3,4\n")
     (raw / "small.csv").write_text("a,b\n9,9\n")
@@ -58,14 +62,6 @@ def _state_with_bundle(job_id: str) -> types.SimpleNamespace:
             files=[
                 FileEntry(name="big.csv", size_bytes=12, format="csv", used=True),
                 FileEntry(name="small.csv", size_bytes=4, format="csv", used=False),
-            ],
-            file_samples=[
-                FileSample(
-                    name="big.csv", columns=["a", "b"], rows=[], total_rows=2
-                ),
-                FileSample(
-                    name="small.csv", columns=["a", "b"], rows=[], total_rows=1
-                ),
             ],
         ),
     )
@@ -105,5 +101,46 @@ def test_write_then_read_manifest_round_trips():
     assert loaded == manifest
 
 
-def test_read_manifest_returns_none_when_absent():
-    assert read_manifest("never-existed") is None
+def test_build_manifest_counts_small_file_rows_from_disk():
+    """Row counts come from the files themselves, not any supplied sample."""
+    manifest = build_manifest(_state_with_bundle("job-5"))
+    small = next(f for f in manifest.files if f.name == "small.csv")
+    assert small.n_rows == 1
+    assert small.columns == ["a", "b"]
+    assert small.used is False
+
+
+def test_read_file_page_returns_slice_and_total():
+    state = _state_with_bundle("job-page")
+    write_manifest("job-page", build_manifest(state))
+
+    page = read_file_page("job-page", "big.csv", offset=1, limit=1)
+    assert page is not None
+    assert page["columns"] == ["a", "b"]
+    assert page["total_rows"] == 2  # from the manifest, not a re-count
+    assert page["offset"] == 1 and page["limit"] == 1
+    assert page["rows"] == [{"a": 3, "b": 4}]  # the second data row only
+
+
+def test_read_file_page_first_page():
+    state = _state_with_bundle("job-page2")
+    write_manifest("job-page2", build_manifest(state))
+    page = read_file_page("job-page2", "big.csv", offset=0, limit=10)
+    assert [r["a"] for r in page["rows"]] == [1, 3]  # both data rows, in order
+
+
+def test_read_file_page_rejects_unknown_file():
+    state = _state_with_bundle("job-x2")
+    write_manifest("job-x2", build_manifest(state))
+    assert read_file_page("job-x2", "nope.csv", 0, 10) is None
+
+
+def test_read_file_page_rejects_path_traversal():
+    state = _state_with_bundle("job-x3")
+    write_manifest("job-x3", build_manifest(state))
+    # A name not listed in the manifest is refused before any path work.
+    assert read_file_page("job-x3", "../manifest.json", 0, 10) is None
+
+
+def test_read_file_page_returns_none_without_manifest():
+    assert read_file_page("never-existed", "big.csv", 0, 10) is None

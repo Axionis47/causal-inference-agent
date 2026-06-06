@@ -263,12 +263,18 @@ class AgentTracesResponse(BaseModel):
 
 
 class FileEntryResponse(BaseModel):
-    """One file from a downloaded dataset archive."""
+    """One file from a downloaded dataset archive.
+
+    columns and n_rows come from the manifest; they are empty/None until the
+    download has completed and the manifest is written.
+    """
 
     name: str
     size_bytes: int
     format: str
     used: bool
+    columns: list[str] = Field(default_factory=list)
+    n_rows: int | None = None
 
 
 class DownloadBlock(BaseModel):
@@ -310,40 +316,28 @@ class ProfileBlock(BaseModel):
     error: str | None = None
 
 
-class FileSampleResponse(BaseModel):
-    """A small head() sample of one downloaded tabular file."""
-
-    name: str
-    used: bool = False
-    columns: list[str] = Field(default_factory=list)
-    rows: list[dict[str, Any]] = Field(default_factory=list)
-    total_rows: int | None = None
-    error: str | None = None
-
-
-class SampleRowsBlock(BaseModel):
-    """Raw-row previews for the downloaded files.
-
-    Carries one entry per tabular file in the bundle so the Data panel can
-    show real cell values, not just summary stats. status='unavailable'
-    means nothing previewable was found; 'error' means the read failed.
-    """
-
-    status: str  # "pending" | "loaded" | "unavailable" | "error"
-    files: list[FileSampleResponse] = Field(default_factory=list)
-
-
 class DatasetViewResponse(BaseModel):
     """Live + persisted view of a job's dataset for the Data panel.
 
     Each block carries its own status so the UI can render exactly what
     is known so far without collapsing distinct missing-states into one.
+    Raw rows are not embedded here; they are fetched per page from
+    GET /jobs/{id}/dataset/files/{name}/rows.
     """
 
     download: DownloadBlock
     kaggle_meta: KaggleMetaBlock
     profile: ProfileBlock
-    sample: SampleRowsBlock = Field(default_factory=lambda: SampleRowsBlock(status="pending"))
+
+
+class DatasetRowsPage(BaseModel):
+    """One page of raw rows for a single downloaded file."""
+
+    columns: list[str] = Field(default_factory=list)
+    rows: list[dict[str, Any]] = Field(default_factory=list)
+    total_rows: int | None = None
+    offset: int
+    limit: int
 
 
 class CancelJobResponse(BaseModel):

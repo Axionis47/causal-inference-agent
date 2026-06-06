@@ -14,8 +14,6 @@ import pandas as pd
 from src.analysis.agents.base import AnalysisState, FileEntry
 from src.logging_config.structured import get_logger
 
-from .helpers import capture_file_samples
-
 logger = get_logger(__name__)
 
 
@@ -269,10 +267,9 @@ async def load_from_kaggle(
             return None, error
 
         state.dataset_info.files = capture_file_list(raw_dir, used_path=used_path)
-        # Sample every tabular file for the Data panel preview. The bundle
-        # now persists durably under the job's storage dir; the manifest
-        # below is the typed record downstream reads.
-        state.dataset_info.file_samples = capture_file_samples(raw_dir)
+        # The bundle now persists durably under the job's storage dir; the
+        # manifest is the typed record (per-file columns, row counts, hashes)
+        # the Data panel and downstream read.
         write_manifest(state.job_id, build_manifest(state))
         state.push_sse_event(
             "dataset_download_complete",

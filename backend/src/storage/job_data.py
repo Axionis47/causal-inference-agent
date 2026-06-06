@@ -55,6 +55,43 @@ def _sha256(path: Path) -> str:
     return h.hexdigest()
 
 
+def _csv_rowcount(path: Path) -> int | None:
+    """Cheap data-row count for a csv (line count minus the header)."""
+    try:
+        with path.open("rb") as fh:
+            n = sum(1 for _ in fh)
+        return max(n - 1, 0)
+    except Exception:
+        return None
+
+
+def _columns_and_rowcount(path: Path, fmt: str) -> tuple[list[str], int | None]:
+    """Read column names and a row count without loading all rows.
+
+    csv: header only + a line count. parquet: file metadata (num_rows) and
+    schema names, so a large parquet is never materialised. Non-tabular or
+    unreadable files yield ([], None).
+    """
+    if not path.is_file():
+        return [], None
+    suffix = path.suffix.lower()
+    try:
+        if suffix == ".csv" or fmt == "csv":
+            import pandas as pd
+
+            columns = [str(c) for c in pd.read_csv(path, nrows=0).columns]
+            return columns, _csv_rowcount(path)
+        if suffix == ".parquet" or fmt == "parquet":
+            import pyarrow.parquet as pq
+
+            num_rows = pq.read_metadata(path).num_rows
+            names = [str(n) for n in pq.read_schema(path).names]
+            return names, int(num_rows)
+    except Exception:
+        return [], None
+    return [], None
+
+
 def _dataset_ref(url: str) -> str | None:
     parts = url.rstrip("/").split("/")
     if "datasets" in parts:
@@ -65,23 +102,21 @@ def _dataset_ref(url: str) -> str | None:
 
 
 def build_manifest(state) -> DatasetManifest:
-    """Assemble the typed manifest from captured download state.
+    """Assemble the typed manifest from the downloaded bundle.
 
-    Pulls the file list and winner flag from ``state.dataset_info.files``,
-    row/column counts from ``state.dataset_info.file_samples``, the full
-    Kaggle metadata dict from ``state.raw_metadata``, and a content hash of
-    each file now on disk in the job's raw dir.
+    Pulls the file list and winner flag from ``state.dataset_info.files``, the
+    full Kaggle metadata dict from ``state.raw_metadata``, and reads each
+    file's columns, row count, and content hash directly from disk in the
+    job's raw dir.
     """
     info = state.dataset_info
     raw = job_raw_dir(state.job_id)
-    samples = {s.name: s for s in info.file_samples}
 
     files: list[ManifestFile] = []
     winner: str | None = None
     for entry in info.files:
-        sample = samples.get(entry.name)
-        columns = list(sample.columns) if sample else []
         path = raw / entry.name
+        columns, n_rows = _columns_and_rowcount(path, entry.format)
         files.append(
             ManifestFile(
                 name=entry.name,
@@ -89,7 +124,7 @@ def build_manifest(state) -> DatasetManifest:
                 size_bytes=entry.size_bytes,
                 format=entry.format,
                 sha256=_sha256(path) if path.is_file() else "",
-                n_rows=sample.total_rows if sample else None,
+                n_rows=n_rows,
                 n_columns=len(columns) or None,
                 columns=columns,
                 used=entry.used,
@@ -127,3 +162,57 @@ def read_manifest(job_id: str) -> DatasetManifest | None:
     except Exception as exc:  # pragma: no cover - defensive
         logger.warning("manifest_read_failed", job_id=job_id, error=str(exc))
         return None
+
+
+def _read_page(
+    path: Path, fmt: str, offset: int, limit: int
+) -> tuple[list[str], list[dict]]:
+    import json
+
+    import pandas as pd
+
+    suffix = path.suffix.lower()
+    if suffix == ".csv" or fmt == "csv":
+        df = pd.read_csv(
+            path,
+            skiprows=range(1, offset + 1) if offset else None,
+            nrows=limit,
+        )
+    else:
+        df = pd.read_parquet(path).iloc[offset : offset + limit]
+    columns = [str(c) for c in df.columns]
+    rows = json.loads(df.to_json(orient="records"))
+    return columns, rows
+
+
+def read_file_page(
+    job_id: str, file_name: str, offset: int, limit: int
+) -> dict | None:
+    """Read one page of rows from a job's raw file, resolved via the manifest.
+
+    Returns ``{columns, rows, total_rows, offset, limit}``, or None when the
+    manifest or the named file is absent. Only files listed in the manifest
+    are readable and the resolved path must sit directly inside the job's raw
+    dir, so an arbitrary or traversing file_name cannot escape it.
+    """
+    manifest = read_manifest(job_id)
+    if manifest is None:
+        return None
+    entry = next((f for f in manifest.files if f.name == file_name), None)
+    if entry is None:
+        return None
+
+    raw = job_raw_dir(job_id).resolve()
+    path = (raw / file_name).resolve()
+    if path.parent != raw or not path.is_file():
+        return None
+
+    offset = max(offset, 0)
+    columns, rows = _read_page(path, entry.format, offset, limit)
+    return {
+        "columns": columns,
+        "rows": rows,
+        "total_rows": entry.n_rows,
+        "offset": offset,
+        "limit": limit,
+    }
