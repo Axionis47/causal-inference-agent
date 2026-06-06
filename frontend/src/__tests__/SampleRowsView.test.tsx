@@ -74,4 +74,36 @@ describe('SampleRowsView', () => {
     render(wrap(<SampleRowsView view={view} jobId="t" />));
     expect(screen.getByText(/Rows appear once the files are downloaded/)).toBeTruthy();
   });
+
+  it('defaults to a previewable file and marks a non-tabular sibling', async () => {
+    const view = makeView();
+    view.download.files = [
+      { name: 'logo.png', size_bytes: 4000, format: 'png', used: false, tabular: false },
+      {
+        name: 'lalonde.csv',
+        size_bytes: 9400,
+        format: 'csv',
+        used: true,
+        columns: ['a', 'b'],
+        n_rows: 120,
+        tabular: true,
+      },
+    ];
+    render(wrap(<SampleRowsView view={view} jobId="t" />));
+    // The tabular file is chosen even though the non-tabular one is listed
+    // first, so rows load rather than a blank table.
+    await waitFor(() => expect(screen.getByText('11')).toBeTruthy());
+    // The non-tabular file is offered but flagged as having no preview.
+    expect(screen.getByText(/logo\.png\s+\(no preview\)/)).toBeTruthy();
+  });
+
+  it('shows a no-preview note when the selected file is not tabular', () => {
+    const view = makeView();
+    view.download.files = [
+      { name: 'logo.png', size_bytes: 4000, format: 'png', used: false, tabular: false },
+    ];
+    render(wrap(<SampleRowsView view={view} jobId="t" />));
+    expect(screen.getByText(/not tabular, so it has no row preview/)).toBeTruthy();
+    expect(screen.getByText(/png · not previewable/)).toBeTruthy();
+  });
 });

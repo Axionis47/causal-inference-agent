@@ -42,9 +42,16 @@ export function SampleRowsView({
   const [offset, setOffset] = useState(0);
 
   const current = useMemo(
-    () => files.find((f) => f.name === picked) ?? files.find((f) => f.used) ?? files[0],
+    () =>
+      files.find((f) => f.name === picked) ??
+      files.find((f) => f.used && f.tabular !== false) ??
+      files.find((f) => f.tabular !== false) ??
+      files[0],
     [files, picked]
   );
+  // Non-tabular files (images, pdfs, freeform text) are listed but have no
+  // normalised parquet, so there are no rows to fetch or show.
+  const previewable = current?.tabular !== false;
 
   // A new file starts at its first page.
   useEffect(() => {
@@ -53,7 +60,7 @@ export function SampleRowsView({
 
   const { page, isLoading, error } = useDatasetRows(
     jobId,
-    current?.name ?? null,
+    previewable ? current?.name ?? null : null,
     offset,
     limit
   );
@@ -96,16 +103,18 @@ export function SampleRowsView({
           {files.map((f) => (
             <option key={f.name} value={f.name}>
               {f.name}
-              {f.used ? '  (used)' : ''}
+              {f.tabular === false ? '  (no preview)' : f.used ? '  (used)' : ''}
             </option>
           ))}
         </select>
         <span className="text-2xs font-mono text-ink-tertiary tabular">
-          {error
-            ? 'read failed'
-            : total != null
-              ? `rows ${from.toLocaleString()}-${to.toLocaleString()} of ${total.toLocaleString()}`
-              : `rows ${from}-${to}`}
+          {!previewable
+            ? `${current?.format ?? 'binary'} · not previewable`
+            : error
+              ? 'read failed'
+              : total != null
+                ? `rows ${from.toLocaleString()}-${to.toLocaleString()} of ${total.toLocaleString()}`
+                : `rows ${from}-${to}`}
         </span>
         <div className="flex items-center gap-1.5">
           <button
@@ -127,7 +136,12 @@ export function SampleRowsView({
         </div>
       </div>
 
-      {error ? (
+      {!previewable ? (
+        <p className="mt-3 text-xs text-ink-tertiary">
+          This file is not tabular, so it has no row preview. It is still part of
+          the downloaded bundle and is listed in the download section.
+        </p>
+      ) : error ? (
         <p className="mt-2 text-xs text-rose">{error}</p>
       ) : (
         <div className="mt-3 max-h-[60vh] overflow-auto border border-edge-subtle">

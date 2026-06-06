@@ -221,6 +221,9 @@ export interface FileEntry {
   // From the manifest; absent until the download completes.
   columns?: string[];
   n_rows?: number | null;
+  // False for non-tabular files (images, pdfs, freeform text): listed but not
+  // previewable. Optional because SSE-derived file lists omit it.
+  tabular?: boolean;
 }
 
 export interface KaggleMeta {
