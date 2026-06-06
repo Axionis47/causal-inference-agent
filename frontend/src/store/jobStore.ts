@@ -89,7 +89,6 @@ const emptyDatasetView = (): DatasetView => ({
   download: { status: 'pending', url: null, files: [], error: null },
   kaggle_meta: { status: 'pending', data: null, error: null },
   profile: { status: 'pending', data: null, error: null },
-  sample: { status: 'pending', files: [] },
 });
 
 export const useJobStore = create<JobState & JobActions>()(

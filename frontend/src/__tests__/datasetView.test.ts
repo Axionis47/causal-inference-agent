@@ -11,7 +11,6 @@ const fullView = (): DatasetView => ({
   },
   kaggle_meta: { status: 'pending', data: null, error: null },
   profile: { status: 'pending', data: null, error: null },
-  sample: { status: 'pending', files: [] },
 });
 
 describe('jobStore datasetView slice', () => {

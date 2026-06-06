@@ -2,10 +2,10 @@
  * useDatasetView — hydrate the live Data panel for a job.
  *
  * Polls /jobs/{id}/dataset until every block has settled (download done,
- * profile + sample + kaggle metadata resolved), then stops. The sample
- * rows arrive only over REST (no SSE event), so polling is the live path,
- * not just a backstop. SSE patches in useJob still update status in place
- * between polls.
+ * profile + kaggle metadata resolved), then stops. The file list (with
+ * columns + row counts) arrives over REST, so polling is the live path, not
+ * just a backstop. SSE patches in useJob still update status in place between
+ * polls. Raw rows are fetched separately and on demand via useDatasetRows.
  */
 
 import { useEffect } from 'react';
@@ -20,8 +20,7 @@ function isSettled(v: DatasetView): boolean {
   return (
     has(v.download.status, 'downloaded', 'failed') &&
     has(v.profile.status, 'loaded', 'error') &&
-    has(v.kaggle_meta.status, 'loaded', 'unavailable', 'error') &&
-    has(v.sample.status, 'loaded', 'unavailable', 'error')
+    has(v.kaggle_meta.status, 'loaded', 'unavailable', 'error')
   );
 }
 

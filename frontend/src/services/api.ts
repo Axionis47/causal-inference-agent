@@ -218,6 +218,9 @@ export interface FileEntry {
   size_bytes: number;
   format: string;
   used: boolean;
+  // From the manifest; absent until the download completes.
+  columns?: string[];
+  n_rows?: number | null;
 }
 
 export interface KaggleMeta {
@@ -270,25 +273,19 @@ export interface ProfileBlock {
   error: string | null;
 }
 
-export interface FileSample {
-  name: string;
-  used: boolean;
-  columns: string[];
-  rows: Record<string, unknown>[];
-  total_rows: number | null;
-  error: string | null;
-}
-
-export interface SampleRowsBlock {
-  status: BlockStatus;
-  files: FileSample[];
-}
-
 export interface DatasetView {
   download: DownloadBlock;
   kaggle_meta: KaggleMetaBlock;
   profile: ProfileBlock;
-  sample: SampleRowsBlock;
+}
+
+// One page of raw rows for a single downloaded file, fetched on demand.
+export interface DatasetRowsPage {
+  columns: string[];
+  rows: Record<string, unknown>[];
+  total_rows: number | null;
+  offset: number;
+  limit: number;
 }
 
 export interface AgentTrace {
@@ -365,6 +362,19 @@ export async function getResults(jobId: string): Promise<AnalysisResults> {
 
 export async function getDatasetView(jobId: string): Promise<DatasetView> {
   const response = await api.get(`/jobs/${jobId}/dataset`);
+  return response.data;
+}
+
+export async function getDatasetRows(
+  jobId: string,
+  fileName: string,
+  offset: number,
+  limit: number
+): Promise<DatasetRowsPage> {
+  const response = await api.get(
+    `/jobs/${jobId}/dataset/files/${encodeURIComponent(fileName)}/rows`,
+    { params: { offset, limit } }
+  );
   return response.data;
 }
 

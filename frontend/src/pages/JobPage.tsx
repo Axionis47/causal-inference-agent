@@ -178,7 +178,13 @@ export default function JobPage() {
         onResults={() => navigate(`/jobs/${job.id}#results`)}
       />
 
-      {showDataset && <DatasetView view={datasetView} onClose={() => setShowDataset(false)} />}
+      {showDataset && (
+        <DatasetView
+          view={datasetView}
+          jobId={jobId ?? null}
+          onClose={() => setShowDataset(false)}
+        />
+      )}
     </div>
   );
 }

@@ -187,7 +187,15 @@ function KaggleBlockView({ view }: { view: DatasetViewData }) {
   );
 }
 
-export function DatasetView({ view, onClose }: { view: DatasetViewData | null; onClose: () => void }) {
+export function DatasetView({
+  view,
+  jobId,
+  onClose,
+}: {
+  view: DatasetViewData | null;
+  jobId: string | null;
+  onClose: () => void;
+}) {
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -214,7 +222,7 @@ export function DatasetView({ view, onClose }: { view: DatasetViewData | null; o
           <div className="max-w-5xl p-4 space-y-8">
             <div>
               <Caption>[ raw data ]</Caption>
-              <div className="pt-3"><SampleRowsView view={view} /></div>
+              <div className="pt-3"><SampleRowsView view={view} jobId={jobId} /></div>
             </div>
             <div>
               <Caption>[ download ]</Caption>

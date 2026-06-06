@@ -18,6 +18,8 @@ export const TOAST_ERROR_DURATION_MS = 5000;
 
 // Pagination
 export const DEFAULT_PAGE_SIZE = 20;
+// Raw dataset rows are fetched a page at a time from the rows endpoint.
+export const DATASET_ROWS_PAGE_SIZE = 50;
 
 // Display limits
 export const MAX_AGENT_EVENTS = 20;
