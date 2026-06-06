@@ -405,3 +405,51 @@ async def test_load_dataset_short_circuits_when_dataframe_path_is_set(tmp_path):
     # No SSE events should fire on the short-circuit path — the file was
     # already chosen upstream, so download_started must not be emitted.
     assert _event_types(state) == []
+
+
+@pytest.mark.asyncio
+async def test_load_from_kaggle_reads_existing_bundle_without_redownloading(tmp_path):
+    """When a prior download for this job_id has left a manifest plus its
+    winner file on disk (as the data-review gate does), the loader reads that
+    file directly. Kaggle is never authenticated or pulled, and no
+    download_started event fires."""
+    from src.storage.job_data import job_raw_dir, write_manifest
+    from src.domain import DatasetManifest, ManifestFile
+
+    state = _make_state("https://www.kaggle.com/datasets/owner/name")
+
+    raw = job_raw_dir(state.job_id)
+    raw.mkdir(parents=True, exist_ok=True)
+    (raw / "winner.csv").write_text("a,b\n1,2\n3,4\n5,6\n")
+    write_manifest(
+        state.job_id,
+        DatasetManifest(
+            job_id=state.job_id,
+            kaggle_url=state.dataset_info.url,
+            raw_dir=str(raw),
+            files=[
+                ManifestFile(
+                    name="winner.csv",
+                    relative_path="raw/winner.csv",
+                    size_bytes=18,
+                    format="csv",
+                    sha256="x",
+                    n_rows=3,
+                    n_columns=2,
+                    columns=["a", "b"],
+                    used=True,
+                )
+            ],
+            winner="winner.csv",
+        ),
+    )
+
+    boom = MagicMock(side_effect=AssertionError("Kaggle must not be touched"))
+    with patch("kaggle.api.kaggle_api_extended.KaggleApi", boom):
+        df, error = await load_from_kaggle(state, state.dataset_info.url)
+
+    assert error is None
+    assert df is not None
+    assert df.shape == (3, 2)
+    assert _event_types(state) == []
+    assert {f.name for f in state.dataset_info.files} == {"winner.csv"}

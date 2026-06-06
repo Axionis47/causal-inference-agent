@@ -178,6 +178,34 @@ async def load_dataset(
         return None, None
 
 
+def _read_existing_bundle(state: AnalysisState) -> pd.DataFrame | None:
+    """Read a previously downloaded bundle for this job, or None if absent.
+
+    Looks up the job's manifest and reads its winner file straight off disk,
+    skipping the Kaggle pull. Returns None (so the caller downloads fresh) if
+    there is no manifest, no recorded winner, or the file is missing.
+    """
+    from src.storage.job_data import job_raw_dir, read_manifest
+
+    manifest = read_manifest(state.job_id)
+    if manifest is None or not manifest.winner:
+        return None
+
+    path = job_raw_dir(state.job_id) / manifest.winner
+    if not path.is_file():
+        return None
+
+    try:
+        df = pd.read_csv(path) if path.suffix == ".csv" else pd.read_parquet(path)
+    except Exception as e:
+        logger.warning("existing_bundle_read_failed", path=str(path), error=str(e))
+        return None
+
+    state.dataset_info.files = capture_file_list(path.parent, used_path=path)
+    logger.info("dataset_bundle_reused", job_id=state.job_id, file=manifest.winner)
+    return df
+
+
 async def load_from_kaggle(
     state: AnalysisState, url: str
 ) -> tuple[pd.DataFrame | None, str | None]:
@@ -186,11 +214,21 @@ async def load_from_kaggle(
     Authenticates via env vars, downloads + unzips the archive, picks the
     largest CSV (or first parquet), and snapshots the file list onto
     state.dataset_info.files. Restores original env credentials in finally.
+
+    If the job already has a bundle on disk (a manifest plus its winner file,
+    as written by a prior download for the same job_id), the existing file is
+    read instead of re-pulling from Kaggle. This is what lets profiling reuse
+    the bundle the manager downloaded at the data-review gate, with no second
+    network round trip.
     """
     import json
     import os
 
     from src.config import get_settings
+
+    reused = _read_existing_bundle(state)
+    if reused is not None:
+        return reused, None
 
     settings = get_settings()
 
