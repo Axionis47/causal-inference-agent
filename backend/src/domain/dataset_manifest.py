@@ -27,6 +27,12 @@ class ManifestFile(BaseModel):
     n_columns: int | None = None
     columns: list[str] = Field(default_factory=list)
     used: bool = False  # the file loaded into the working dataframe
+    # Canonical parquet written at the gate, e.g. "normalized/controls.csv.parquet".
+    # None when the file is not tabular or failed to parse; tabular mirrors that
+    # so the UI can decide previewability without re-reading the file.
+    normalized_path: str | None = None
+    tabular: bool = True
+    normalize_error: str | None = None
 
 
 class DatasetManifest(BaseModel):

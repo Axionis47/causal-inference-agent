@@ -60,6 +60,9 @@ def _files_from_manifest(manifest: Any) -> list[FileEntryResponse]:
                 used=bool(d.get("used")),
                 columns=d.get("columns") or [],
                 n_rows=d.get("n_rows"),
+                # Pre-normalisation manifests have no flag; default those to
+                # previewable so older jobs still render rows.
+                tabular=d.get("tabular", True),
             )
         )
     return entries

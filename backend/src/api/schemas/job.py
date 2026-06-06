@@ -275,6 +275,10 @@ class FileEntryResponse(BaseModel):
     used: bool
     columns: list[str] = Field(default_factory=list)
     n_rows: int | None = None
+    # True when the file was normalised to parquet and can be previewed as rows;
+    # False for non-tabular files (images, pdfs, freeform text) that are listed
+    # but carry no preview.
+    tabular: bool = True
 
 
 class DownloadBlock(BaseModel):

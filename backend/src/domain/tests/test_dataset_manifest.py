@@ -19,6 +19,10 @@ def test_manifest_file_defaults_are_safe():
     assert rec.n_columns is None
     assert rec.columns == []
     assert rec.used is False
+    # Normalisation fields default to "previewable, not yet normalised".
+    assert rec.normalized_path is None
+    assert rec.tabular is True
+    assert rec.normalize_error is None
 
 
 def test_manifest_round_trips_through_json():
@@ -53,6 +57,45 @@ def test_manifest_round_trips_through_json():
     assert restored.files[0].columns == ["a", "b", "c"]
     # Stats outside the typed metadata schema survive because the blob is a dict.
     assert restored.kaggle_metadata["downloadCount"] == 7
+
+
+def test_manifest_file_round_trips_normalisation_fields():
+    """A normalised file records its parquet path and tabular flag; a
+    non-tabular file records the parse failure and carries no parquet. Both
+    survive the JSON round-trip the storage layer relies on."""
+    tabular = ManifestFile(
+        name="data.csv",
+        relative_path="raw/data.csv",
+        size_bytes=10,
+        format="csv",
+        sha256="x",
+        n_rows=2,
+        n_columns=2,
+        columns=["a", "b"],
+        used=True,
+        normalized_path="normalized/data.csv.parquet",
+        tabular=True,
+    )
+    non_tabular = ManifestFile(
+        name="logo.png",
+        relative_path="raw/logo.png",
+        size_bytes=10,
+        format="other",
+        sha256="y",
+        tabular=False,
+        normalize_error="unsupported extension .png",
+    )
+    manifest = DatasetManifest(
+        job_id="j", kaggle_url="u", raw_dir="/d", files=[tabular, non_tabular]
+    )
+
+    restored = DatasetManifest.model_validate_json(manifest.model_dump_json())
+
+    assert restored == manifest
+    assert restored.files[0].normalized_path == "normalized/data.csv.parquet"
+    assert restored.files[0].tabular is True
+    assert restored.files[1].tabular is False
+    assert restored.files[1].normalize_error == "unsupported extension .png"
 
 
 def test_manifest_defaults_to_empty_bundle():

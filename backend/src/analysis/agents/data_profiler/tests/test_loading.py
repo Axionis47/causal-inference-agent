@@ -31,6 +31,19 @@ from src.analysis.agents.data_profiler.loading import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _isolate_storage(tmp_path, monkeypatch):
+    """Keep every bundle this module writes under a temp dir, never the real
+    ./data storage root. Without this the kaggle-mock tests share job id
+    "t-sse" on the real root and leak into one another and the wider suite
+    (see CLAUDE.md 4.0). Storage isolation, not credentials: the kaggle creds
+    read a different get_settings and the API itself is mocked per test."""
+    import types
+
+    fake = types.SimpleNamespace(local_storage_path=str(tmp_path / "store"))
+    monkeypatch.setattr("src.storage.job_data.get_settings", lambda: fake)
+
+
 def _make_state(url: str = "https://www.kaggle.com/datasets/owner/name") -> AnalysisState:
     return AnalysisState(
         job_id="t-sse",
@@ -223,6 +236,14 @@ async def test_load_from_kaggle_persists_raw_bundle_and_manifest(tmp_path):
     assert big_rec.n_columns == 2
     assert big_rec.relative_path == "raw/big.csv"
     assert len(big_rec.sha256) == 64  # sha256 hex digest
+
+    # The bundle is normalised to parquet at the gate: the manifest records the
+    # path, and the parquet really exists on disk.
+    from src.storage.job_data import job_normalized_dir
+
+    assert big_rec.tabular is True
+    assert big_rec.normalized_path == "normalized/big.csv.parquet"
+    assert (job_normalized_dir(state.job_id) / "big.csv.parquet").is_file()
 
 
 @pytest.mark.asyncio

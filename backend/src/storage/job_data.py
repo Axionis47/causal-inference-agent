@@ -34,6 +34,17 @@ def job_raw_dir(job_id: str) -> Path:
     return raw
 
 
+def job_normalized_dir(job_id: str) -> Path:
+    """The directory holding a job's canonical parquet files (created if absent).
+
+    Every tabular raw file is converted to one parquet here at the gate, so the
+    row preview and the analysis both read parquet regardless of source format.
+    """
+    norm = job_data_dir(job_id) / "normalized"
+    norm.mkdir(parents=True, exist_ok=True)
+    return norm
+
+
 def reset_job_raw_dir(job_id: str) -> Path:
     """Return a clean raw/ dir for the job, dropping any prior contents.
 
@@ -55,43 +66,6 @@ def _sha256(path: Path) -> str:
     return h.hexdigest()
 
 
-def _csv_rowcount(path: Path) -> int | None:
-    """Cheap data-row count for a csv (line count minus the header)."""
-    try:
-        with path.open("rb") as fh:
-            n = sum(1 for _ in fh)
-        return max(n - 1, 0)
-    except Exception:
-        return None
-
-
-def _columns_and_rowcount(path: Path, fmt: str) -> tuple[list[str], int | None]:
-    """Read column names and a row count without loading all rows.
-
-    csv: header only + a line count. parquet: file metadata (num_rows) and
-    schema names, so a large parquet is never materialised. Non-tabular or
-    unreadable files yield ([], None).
-    """
-    if not path.is_file():
-        return [], None
-    suffix = path.suffix.lower()
-    try:
-        if suffix == ".csv" or fmt == "csv":
-            import pandas as pd
-
-            columns = [str(c) for c in pd.read_csv(path, nrows=0).columns]
-            return columns, _csv_rowcount(path)
-        if suffix == ".parquet" or fmt == "parquet":
-            import pyarrow.parquet as pq
-
-            num_rows = pq.read_metadata(path).num_rows
-            names = [str(n) for n in pq.read_schema(path).names]
-            return names, int(num_rows)
-    except Exception:
-        return [], None
-    return [], None
-
-
 def _dataset_ref(url: str) -> str | None:
     parts = url.rstrip("/").split("/")
     if "datasets" in parts:
@@ -101,22 +75,34 @@ def _dataset_ref(url: str) -> str | None:
     return None
 
 
-def build_manifest(state) -> DatasetManifest:
+def build_manifest(state, normalize_results=None) -> DatasetManifest:
     """Assemble the typed manifest from the downloaded bundle.
 
-    Pulls the file list and winner flag from ``state.dataset_info.files``, the
-    full Kaggle metadata dict from ``state.raw_metadata``, and reads each
-    file's columns, row count, and content hash directly from disk in the
-    job's raw dir.
+    Pulls the file list and used flag from ``state.dataset_info.files`` and the
+    full Kaggle metadata dict from ``state.raw_metadata``. Each file's columns,
+    row count, and normalised parquet path come from the gate's normalisation
+    pass; ``normalize_results`` carries those, and when omitted the pass is run
+    here so a direct caller still gets a complete manifest. The content hash is
+    read from the raw file on disk.
     """
+    from src.storage.normalize import normalize_bundle
+
     info = state.dataset_info
     raw = job_raw_dir(state.job_id)
+    results = normalize_results if normalize_results is not None else normalize_bundle(
+        state.job_id
+    )
+    by_name = {r.name: r for r in results}
 
     files: list[ManifestFile] = []
     winner: str | None = None
     for entry in info.files:
         path = raw / entry.name
-        columns, n_rows = _columns_and_rowcount(path, entry.format)
+        r = by_name.get(entry.name)
+        columns = r.columns if r else []
+        normalized_path = (
+            f"normalized/{r.normalized_name}" if r and r.normalized_name else None
+        )
         files.append(
             ManifestFile(
                 name=entry.name,
@@ -124,10 +110,13 @@ def build_manifest(state) -> DatasetManifest:
                 size_bytes=entry.size_bytes,
                 format=entry.format,
                 sha256=_sha256(path) if path.is_file() else "",
-                n_rows=n_rows,
+                n_rows=r.n_rows if r else None,
                 n_columns=len(columns) or None,
                 columns=columns,
                 used=entry.used,
+                normalized_path=normalized_path,
+                tabular=bool(r.tabular) if r else False,
+                normalize_error=r.error if r else None,
             )
         )
         if entry.used:
@@ -164,37 +153,23 @@ def read_manifest(job_id: str) -> DatasetManifest | None:
         return None
 
 
-def _read_page(
-    path: Path, fmt: str, offset: int, limit: int
-) -> tuple[list[str], list[dict]]:
+def read_file_page(
+    job_id: str, file_name: str, offset: int, limit: int
+) -> dict | None:
+    """Read one page of rows from a file's normalised parquet, via the manifest.
+
+    Returns ``{columns, rows, total_rows, offset, limit}``, or None when the
+    manifest or the named file is absent. A file with no normalised parquet
+    (non-tabular, or a manifest written before normalisation existed) returns an
+    empty page rather than None, so the UI can show "no preview" without an
+    error. Only files listed in the manifest are readable and the resolved path
+    must sit directly inside the job's normalized dir, so an arbitrary or
+    traversing file_name cannot escape it.
+    """
     import json
 
     import pandas as pd
 
-    suffix = path.suffix.lower()
-    if suffix == ".csv" or fmt == "csv":
-        df = pd.read_csv(
-            path,
-            skiprows=range(1, offset + 1) if offset else None,
-            nrows=limit,
-        )
-    else:
-        df = pd.read_parquet(path).iloc[offset : offset + limit]
-    columns = [str(c) for c in df.columns]
-    rows = json.loads(df.to_json(orient="records"))
-    return columns, rows
-
-
-def read_file_page(
-    job_id: str, file_name: str, offset: int, limit: int
-) -> dict | None:
-    """Read one page of rows from a job's raw file, resolved via the manifest.
-
-    Returns ``{columns, rows, total_rows, offset, limit}``, or None when the
-    manifest or the named file is absent. Only files listed in the manifest
-    are readable and the resolved path must sit directly inside the job's raw
-    dir, so an arbitrary or traversing file_name cannot escape it.
-    """
     manifest = read_manifest(job_id)
     if manifest is None:
         return None
@@ -202,16 +177,26 @@ def read_file_page(
     if entry is None:
         return None
 
-    raw = job_raw_dir(job_id).resolve()
-    path = (raw / file_name).resolve()
-    if path.parent != raw or not path.is_file():
-        return None
-
     offset = max(offset, 0)
-    columns, rows = _read_page(path, entry.format, offset, limit)
+    empty = {
+        "columns": [],
+        "rows": [],
+        "total_rows": entry.n_rows,
+        "offset": offset,
+        "limit": limit,
+    }
+    if not entry.normalized_path:
+        return empty
+
+    norm = job_normalized_dir(job_id).resolve()
+    path = (norm / Path(entry.normalized_path).name).resolve()
+    if path.parent != norm or not path.is_file():
+        return empty
+
+    df = pd.read_parquet(path).iloc[offset : offset + limit]
     return {
-        "columns": columns,
-        "rows": rows,
+        "columns": [str(c) for c in df.columns],
+        "rows": json.loads(df.to_json(orient="records")),
         "total_rows": entry.n_rows,
         "offset": offset,
         "limit": limit,

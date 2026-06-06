@@ -110,6 +110,38 @@ def test_build_manifest_counts_small_file_rows_from_disk():
     assert small.used is False
 
 
+def test_build_manifest_records_normalized_path_and_tabular_flag():
+    """Each tabular file gets a normalised parquet path and tabular=True; a
+    non-tabular file is listed but flagged tabular=False with no parquet."""
+    import types
+
+    job_id = "job-norm"
+    raw = reset_job_raw_dir(job_id)
+    (raw / "data.csv").write_text("a,b\n1,2\n")
+    (raw / "logo.png").write_bytes(b"\x89PNG\r\n")
+    state = types.SimpleNamespace(
+        job_id=job_id,
+        raw_metadata={},
+        dataset_info=types.SimpleNamespace(
+            url="https://www.kaggle.com/datasets/owner/name",
+            files=[
+                FileEntry(name="data.csv", size_bytes=8, format="csv", used=True),
+                FileEntry(name="logo.png", size_bytes=8, format="other", used=False),
+            ],
+        ),
+    )
+
+    manifest = build_manifest(state)
+    csv = next(f for f in manifest.files if f.name == "data.csv")
+    png = next(f for f in manifest.files if f.name == "logo.png")
+
+    assert csv.tabular is True
+    assert csv.normalized_path == "normalized/data.csv.parquet"
+    assert csv.columns == ["a", "b"]
+    assert png.tabular is False
+    assert png.normalized_path is None
+
+
 def test_read_file_page_returns_slice_and_total():
     state = _state_with_bundle("job-page")
     write_manifest("job-page", build_manifest(state))

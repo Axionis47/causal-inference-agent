@@ -185,23 +185,44 @@ def _read_existing_bundle(state: AnalysisState) -> pd.DataFrame | None:
     skipping the Kaggle pull. Returns None (so the caller downloads fresh) if
     there is no manifest, no recorded winner, or the file is missing.
     """
-    from src.storage.job_data import job_raw_dir, read_manifest
+    from src.storage.job_data import (
+        job_normalized_dir,
+        job_raw_dir,
+        read_manifest,
+    )
 
     manifest = read_manifest(state.job_id)
     if manifest is None or not manifest.winner:
         return None
 
-    path = job_raw_dir(state.job_id) / manifest.winner
-    if not path.is_file():
+    entry = next((f for f in manifest.files if f.name == manifest.winner), None)
+    raw_path = job_raw_dir(state.job_id) / manifest.winner
+
+    # Prefer the canonical parquet written at the gate; fall back to the raw
+    # winner for manifests written before normalisation existed.
+    read_path: Path | None = None
+    if entry is not None and entry.normalized_path:
+        candidate = job_normalized_dir(state.job_id) / Path(entry.normalized_path).name
+        if candidate.is_file():
+            read_path = candidate
+    if read_path is None and raw_path.is_file():
+        read_path = raw_path
+    if read_path is None:
         return None
 
     try:
-        df = pd.read_csv(path) if path.suffix == ".csv" else pd.read_parquet(path)
+        df = (
+            pd.read_parquet(read_path)
+            if read_path.suffix == ".parquet"
+            else pd.read_csv(read_path)
+        )
     except Exception as e:
-        logger.warning("existing_bundle_read_failed", path=str(path), error=str(e))
+        logger.warning("existing_bundle_read_failed", path=str(read_path), error=str(e))
         return None
 
-    state.dataset_info.files = capture_file_list(path.parent, used_path=path)
+    state.dataset_info.files = capture_file_list(
+        raw_path.parent, used_path=raw_path if raw_path.is_file() else None
+    )
     logger.info("dataset_bundle_reused", job_id=state.job_id, file=manifest.winner)
     return df
 
@@ -281,21 +302,27 @@ async def load_from_kaggle(
 
         from src.storage.job_data import (
             build_manifest,
+            job_normalized_dir,
             reset_job_raw_dir,
             write_manifest,
         )
+        from src.storage.normalize import normalize_bundle
 
         raw_dir = reset_job_raw_dir(state.job_id)
         api.dataset_download_files(dataset_id, path=str(raw_dir), unzip=True)
 
+        # Normalise every downloaded file to parquet so the gate can display all
+        # of them and the analysis later reads one format. Which file feeds the
+        # working dataframe stays the existing default-file placeholder; that
+        # selection is replaced downstream and is not decided here.
+        norm_results = normalize_bundle(state.job_id)
+
         used_path: Path | None = pick_default_file(raw_dir)
         df: pd.DataFrame | None = None
-
         if used_path is not None:
-            if used_path.suffix == ".csv":
-                df = pd.read_csv(used_path)
-            else:
-                df = pd.read_parquet(used_path)
+            normalized = job_normalized_dir(state.job_id) / f"{used_path.name}.parquet"
+            if normalized.is_file():
+                df = pd.read_parquet(normalized)
 
         if df is None or used_path is None:
             logger.error("no_data_files_found", path=str(raw_dir))
@@ -306,9 +333,9 @@ async def load_from_kaggle(
 
         state.dataset_info.files = capture_file_list(raw_dir, used_path=used_path)
         # The bundle now persists durably under the job's storage dir; the
-        # manifest is the typed record (per-file columns, row counts, hashes)
-        # the Data panel and downstream read.
-        write_manifest(state.job_id, build_manifest(state))
+        # manifest is the typed record (per-file columns, row counts, hashes,
+        # normalised path) the Data panel and downstream read.
+        write_manifest(state.job_id, build_manifest(state, norm_results))
         state.push_sse_event(
             "dataset_download_complete",
             {

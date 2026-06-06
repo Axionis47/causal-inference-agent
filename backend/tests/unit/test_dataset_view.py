@@ -109,6 +109,39 @@ def test_state_downloaded_files_carry_columns_and_rows_from_manifest():
     assert f.n_rows == 42
 
 
+def test_state_file_entries_carry_tabular_flag_from_manifest():
+    """The view surfaces each file's tabular flag so the UI can offer a row
+    preview for tabular files and mark non-tabular ones as not previewable."""
+    state = _make_state()
+    state.dataset_info.files = [
+        FileEntry(name="a.csv", size_bytes=100, format="csv", used=True),
+        FileEntry(name="logo.png", size_bytes=50, format="other", used=False),
+    ]
+    write_manifest(
+        state.job_id,
+        DatasetManifest(
+            job_id=state.job_id,
+            kaggle_url=state.dataset_info.url,
+            raw_dir="/tmp/raw",
+            files=[
+                _manifest_file("a.csv", used=True, columns=["x"], n_rows=1),
+                ManifestFile(
+                    name="logo.png",
+                    relative_path="raw/logo.png",
+                    size_bytes=50,
+                    format="other",
+                    sha256="y",
+                    tabular=False,
+                ),
+            ],
+            winner="a.csv",
+        ),
+    )
+    files = {f.name: f for f in build_dataset_view_from_state(state).download.files}
+    assert files["a.csv"].tabular is True
+    assert files["logo.png"].tabular is False
+
+
 def test_state_downloaded_but_no_manifest_yet_has_empty_file_list():
     """Brief window where files are captured but the manifest is not on disk:
     status is downloaded, file list is empty rather than wrong."""
