@@ -30,10 +30,8 @@ def initial_observation_text(state: AnalysisState) -> str:
             f"treatment={state.treatment_variable or '?'}, "
             f"outcome={state.outcome_variable or '?'}"
         )
-    if ds.user_provided_context:
-        lines.append("")
-        lines.append("Analyst-provided context:")
-        lines.append(ds.user_provided_context)
+    # Analyst-provided context is pushed into every agent's initial observation
+    # by the base ReAct agent (analyst_note_block), so it is not repeated here.
 
     lines.append("")
     lines.append(

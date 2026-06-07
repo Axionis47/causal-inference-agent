@@ -27,6 +27,22 @@ from .state import AgentTrace, AnalysisState
 logger = get_logger(__name__)
 
 
+def analyst_note_block(state: AnalysisState) -> str:
+    """The analyst's gate note as an observation prefix, or '' when there is none.
+
+    Human notes from the data and DAG gates are appended to
+    dataset_info.user_provided_context. Pushing them into every agent's initial
+    observation guarantees a re-run agent (dag_expert after a REVISE, the
+    estimation tail after a critique ITERATE) actually sees the guidance, instead
+    of relying on the agent choosing to pull it via a tool.
+    """
+    ds = getattr(state, "dataset_info", None)
+    note = getattr(ds, "user_provided_context", None) if ds else None
+    if not note or not note.strip():
+        return ""
+    return f"Analyst-provided context (incorporate this):\n{note.strip()}\n\n"
+
+
 class ToolResultStatus(Enum):
     """Status of a tool execution."""
     SUCCESS = "success"
@@ -256,8 +272,8 @@ class ReActAgent:
             max_steps=self.MAX_STEPS,
         )
 
-        # Initial observation from state
-        observation = self._get_initial_observation(state)
+        # Initial observation from state, with any analyst gate note pushed in.
+        observation = self._build_initial_observation(state)
 
         for step_num in range(1, self.MAX_STEPS + 1):
             step_start = time.time()
@@ -558,6 +574,14 @@ Then call the appropriate tool."""
             token_usage=getattr(self, "_last_token_usage", {}),
         )
         state.add_trace(trace)
+
+    def _build_initial_observation(self, state: AnalysisState) -> str:
+        """The agent's initial observation, with any analyst gate note pushed in.
+
+        Centralizes note-threading so every agent (not just domain_knowledge)
+        sees the human's gate guidance on the first observation.
+        """
+        return analyst_note_block(state) + self._get_initial_observation(state)
 
     @abstractmethod
     def _get_initial_observation(self, state: AnalysisState) -> str:
