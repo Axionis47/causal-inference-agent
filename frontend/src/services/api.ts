@@ -191,7 +191,10 @@ export interface AnalysisResults {
 export interface AgentEvent {
   timestamp: string;
   agent_name: string;
-  event_type: 'agent_started' | 'agent_completed';
+  // A backend-defined discriminator. Beyond agent_started/agent_completed this
+  // also carries gate events (approval_required, dag_approval_required, ...) and
+  // others routed through the same channel, so it is an open string.
+  event_type: string;
   data: Record<string, unknown>;
 }
 
@@ -304,9 +307,44 @@ export interface DatasetRowsPage {
 }
 
 export interface ApprovalRequestBody {
-  decision: 'approved' | 'rejected';
+  decision: 'approved' | 'rejected' | 'revise';
   reason?: string;
   appended_context?: string;
+}
+
+// Payload carried by the `dag_approval_required` SSE event (and the DAG gate
+// snapshot). The frontend renders the graph from `dag` and the review text from
+// `justification`. See backend orchestrator/base.py::_build_dag_gate_payload.
+export interface DagEdgeView {
+  source: string;
+  target: string;
+  edge_type: string;
+}
+
+export interface DagSummary {
+  nodes: string[];
+  edges: DagEdgeView[];
+  adjustment_set: string[];
+  variable_roles: Record<string, string>;
+  forbidden_edges: Record<string, string>[];
+  discovery_method: string;
+  interpretation: string;
+}
+
+export interface DagJustification {
+  identification: string;
+  adjustment_set: string[];
+  interpretation: string;
+  flags: string[];
+  concerns: string[];
+}
+
+export interface DagGatePayload {
+  gate: 'dag';
+  treatment_variable: string | null;
+  outcome_variable: string | null;
+  dag: DagSummary | null;
+  justification: DagJustification | null;
 }
 
 export interface ApprovalResult {
