@@ -27,9 +27,11 @@ from .context import (
     summarize_recent_dispatches,
 )
 from .dispatch import AGENT_STATUS_MAP, validate_required_fields
+from .readiness import classify_brief
 
 __all__ = [
     "AGENT_STATUS_MAP",
+    "classify_brief",
     "summarize_dispatch_focus",
     "summarize_progress",
     "summarize_recent_dispatches",

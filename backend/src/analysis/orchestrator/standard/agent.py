@@ -20,6 +20,7 @@ from src.analysis.orchestrator.base import (
 )
 from src.analysis.orchestrator.common import (
     AGENT_STATUS_MAP,
+    classify_brief,
     summarize_dispatch_focus,
     summarize_progress,
     summarize_recent_dispatches,
@@ -642,7 +643,23 @@ Do not just provide text - you MUST call a tool to proceed."""
         state.push_sse_event("agent_started", {"agent_name": agent_name})
         try:
             state = await specialist.execute_with_tracing(state)
+            # Readiness gate: the specialist sealed a brief into
+            # state.agent_briefs. Refuse to advance if it refused/failed or
+            # raised a flag that makes downstream work unsafe (a cyclic DAG);
+            # a soft quality flag is surfaced but does not stop the run.
+            verdict, reason = classify_brief(state.agent_briefs.get(agent_name))
+            if verdict == "halt":
+                state.push_sse_event("agent_completed", {"agent_name": agent_name, "success": False})
+                state.mark_failed(reason, agent_name)
+                return state
             state.push_sse_event("agent_completed", {"agent_name": agent_name, "success": True})
+            if verdict == "soft":
+                state.push_decision(
+                    agent="orchestrator",
+                    decision_type="readiness_flagged",
+                    choice=agent_name,
+                    reason=reason,
+                )
             state.push_decision(
                 agent="orchestrator",
                 decision_type="agent_dispatched",
@@ -721,6 +738,7 @@ Do not just provide text - you MUST call a tool to proceed."""
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         # Merge results back into main state
+        readiness_halts: list[str] = []
         for (name, _), result in zip(specialists, results, strict=True):
             if isinstance(result, Exception):
                 self.logger.error(
@@ -733,8 +751,6 @@ Do not just provide text - you MUST call a tool to proceed."""
                 )
                 state.add_trace(error_trace)
                 continue
-
-            state.push_sse_event("agent_completed", {"agent_name": name, "success": True})
 
             # Merge the fields this agent writes (validate against model)
             valid_fields = set(state.model_fields)
@@ -751,6 +767,28 @@ Do not just provide text - you MUST call a tool to proceed."""
             # Merge traces from branch (last 5 per agent)
             if result.agent_traces:
                 state.agent_traces.extend(result.agent_traces[-5:])
+
+            # Readiness gate: AGENT_WRITES does not carry agent_briefs, so bring
+            # the branch's sealed brief into the main state before classifying
+            # it. halt stops the whole run after every branch is merged; soft is
+            # surfaced; the completion event reflects the verdict.
+            branch_brief = result.agent_briefs.get(name)
+            if branch_brief is not None:
+                state.agent_briefs[name] = branch_brief
+            verdict, reason = classify_brief(branch_brief)
+            state.push_sse_event(
+                "agent_completed",
+                {"agent_name": name, "success": verdict != "halt"},
+            )
+            if verdict == "halt":
+                readiness_halts.append(reason)
+            elif verdict == "soft":
+                state.push_decision(
+                    agent="orchestrator",
+                    decision_type="readiness_flagged",
+                    choice=name,
+                    reason=reason,
+                )
 
         # INT3: Update status/progress from branch results
         # These aren't in AGENT_WRITES so whitelist merge misses them
@@ -770,6 +808,11 @@ Do not just provide text - you MUST call a tool to proceed."""
             agents=agent_names,
             duration_ms=duration_ms,
         )
+
+        # A fatal brief from any parallel branch stops the run, after every
+        # branch has merged so the panel still shows what each agent produced.
+        if readiness_halts:
+            state.mark_failed("; ".join(readiness_halts), self.AGENT_NAME)
 
         return state
 
