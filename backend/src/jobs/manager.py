@@ -769,11 +769,19 @@ class JobManager:
         if state is None:
             raise ValueError(f"Job {job_id} is not parked at the approval gate")
 
-        # The DAG gate (checkpoint A) is routed separately: it lands on
-        # dag_approval (not human_approval) and supports a REVISE redo loop.
-        from src.analysis.orchestrator.base import should_pause_for_dag_approval
+        # The DAG and results gates land on their own approval fields (not
+        # human_approval) and support a REVISE redo loop, so they route
+        # separately. Check the most-progressed gate first; the predicates are
+        # mutually exclusive, so order only picks the active one.
+        from src.analysis.orchestrator.base import (
+            should_pause_for_dag_approval,
+            should_pause_for_results,
+        )
         from src.jobs.dag_resume import resume_dag_gate
+        from src.jobs.results_resume import resume_results_gate
 
+        if should_pause_for_results(state):
+            return await resume_results_gate(self, job_id, state, approval)
         if should_pause_for_dag_approval(state):
             return await resume_dag_gate(self, job_id, state, approval)
 
