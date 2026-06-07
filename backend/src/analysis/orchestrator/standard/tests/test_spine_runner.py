@@ -13,6 +13,7 @@ from src.analysis.agents import CritiqueDecision, CritiqueFeedback
 from src.analysis.agents.base import DataProfile
 from src.analysis.agents.base.state import AnalysisState, DatasetInfo, JobStatus
 from src.analysis.agents.causal_discovery.output import CausalDAG, CausalEdge
+from src.analysis.agents.eda.output import EDAResult
 from src.analysis.agents.effect_estimator.output import TreatmentEffectResult
 from src.analysis.agents.sensitivity_analyst.output import SensitivityResult
 from src.analysis.orchestrator.standard.agent import StandardOrchestrator
@@ -53,6 +54,7 @@ def _state() -> AnalysisState:
     s = AnalysisState(job_id="job-1", dataset_info=DatasetInfo(url="kaggle.com/x"))
     s.human_approval = HumanApproval.approve()
     s.dag_approval = HumanApproval.approve()
+    s.results_approval = HumanApproval.approve()
     return s
 
 
@@ -96,7 +98,8 @@ def _approve() -> CritiqueFeedback:
 def _register_backbone(orch: StandardOrchestrator, order: list, dag_flags=None) -> None:
     orch.register_specialist("data_profiler", _Stub(
         "data_profiler", order, sets={"data_profile": _profile(), "dataframe_path": "/tmp/df.parquet"}))
-    orch.register_specialist("eda_agent", _Stub("eda_agent", order, sets={"eda_result": {"ok": True}}))
+    orch.register_specialist("eda_agent", _Stub(
+        "eda_agent", order, sets={"eda_result": EDAResult(covariate_balance={"age": {"smd": 0.2}})}))
     orch.register_specialist("causal_discovery", _Stub(
         "causal_discovery", order, sets={"discovered_dag": {"nodes": ["t", "y"]}}))
     orch.register_specialist("dag_expert", _Stub(
@@ -168,3 +171,20 @@ async def test_parks_at_the_dag_gate_when_not_yet_dag_approved():
     assert any(e["event_type"] == "dag_approval_required" for e in result.sse_events)
     assert "dag_expert" in order
     assert "effect_estimator" not in order
+
+
+@pytest.mark.asyncio
+async def test_parks_at_the_results_gate_when_not_yet_results_approved():
+    order: list[str] = []
+    orch = StandardOrchestrator()
+    _register_backbone(orch, order)
+    state = _state()
+    state.results_approval = None  # data + DAG approved, results not yet reviewed
+
+    result = await orch.execute(state)
+
+    # The run parks for results review after sensitivity, before critique.
+    assert result.status == JobStatus.AWAITING_APPROVAL
+    assert any(e["event_type"] == "results_approval_required" for e in result.sse_events)
+    assert "sensitivity_analyst" in order
+    assert "critique" not in order

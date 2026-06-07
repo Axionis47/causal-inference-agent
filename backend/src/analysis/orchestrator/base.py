@@ -261,3 +261,95 @@ async def park_for_dag_approval(
     if status_callback is not None:
         await status_callback(state)
     return state
+
+
+# ── Results gate (checkpoint B: post-sensitivity, pre-critique) ─────────────
+
+
+def should_pause_for_results(state: AnalysisState) -> bool:
+    """Truth-table check for the results gate (post-sensitivity, pre-critique).
+
+    Fires once the estimates and their robustness checks exist, for a human to
+    review before the analysis is finalized. Uses `results_approval`, separate
+    from the earlier gates, and requires the DAG gate already passed so resume
+    routing stays unambiguous. Returns True iff:
+
+    - the results have not already been APPROVED;
+    - the DAG gate has been passed (dag_approval APPROVED);
+    - effect estimates exist;
+    - sensitivity results exist.
+
+    On a REVISE, treatment_effects and sensitivity_results are cleared so the
+    estimation tail re-runs, and results_approval stays None, so fresh estimates
+    re-fire the gate.
+    """
+    approval = state.results_approval
+    if approval is not None and approval.decision == ApprovalDecision.APPROVED:
+        return False
+    dag = state.dag_approval
+    if dag is None or dag.decision != ApprovalDecision.APPROVED:
+        return False
+    if not state.treatment_effects:
+        return False
+    if not state.sensitivity_results:
+        return False
+    return True
+
+
+def _build_results_gate_payload(state: AnalysisState) -> dict:
+    """Snapshot the SSE event and approval endpoint carry at the results gate.
+
+    The estimates (a forest plot of estimate + CI per method), the sensitivity
+    verdicts, the propensity-score diagnostics, and per-covariate balance (the
+    Love plot). The frontend renders the plots from these numbers.
+    """
+    effects = [
+        {
+            "method": e.method,
+            "estimand": e.estimand,
+            "estimate": e.estimate,
+            "ci_lower": e.ci_lower,
+            "ci_upper": e.ci_upper,
+            "p_value": e.p_value,
+        }
+        for e in state.treatment_effects
+    ]
+    sensitivity = [
+        {
+            "method": s.method,
+            "robustness_value": s.robustness_value,
+            "interpretation": s.interpretation,
+        }
+        for s in state.sensitivity_results
+    ]
+    balance: list[dict] = []
+    eda = state.eda_result
+    if eda is not None and eda.covariate_balance:
+        balance = [
+            {"covariate": cov, "smd": metrics.get("smd")}
+            for cov, metrics in eda.covariate_balance.items()
+            if isinstance(metrics, dict) and metrics.get("smd") is not None
+        ]
+
+    return {
+        "gate": "results",
+        "treatment_variable": state.treatment_variable,
+        "outcome_variable": state.outcome_variable,
+        "effects": effects,
+        "sensitivity": sensitivity,
+        "ps_diagnostics": state.ps_diagnostics,
+        "balance": balance,
+    }
+
+
+async def park_for_results_approval(
+    state: AnalysisState,
+    status_callback: StatusCallback | None = None,
+) -> AnalysisState:
+    """Park at the results gate: set AWAITING_APPROVAL, emit the results event."""
+    state.status = JobStatus.AWAITING_APPROVAL
+    payload = _build_results_gate_payload(state)
+    state.push_sse_event("results_approval_required", payload)
+    if status_callback is not None:
+        await status_callback(state)
+    return state

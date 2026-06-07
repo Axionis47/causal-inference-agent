@@ -24,8 +24,10 @@ from src.analysis.agents.base import (
 from src.analysis.orchestrator.base import (
     park_for_approval,
     park_for_dag_approval,
+    park_for_results_approval,
     should_pause_for_approval,
     should_pause_for_dag_approval,
+    should_pause_for_results,
 )
 from src.analysis.orchestrator.standard.dispatch import DispatchMixin
 from src.analysis.orchestrator.standard.spine import SPINE, Stage
@@ -110,15 +112,17 @@ class StandardOrchestrator(DispatchMixin, BaseAgent):
     async def _park_if_gate_due(self, state: AnalysisState) -> AnalysisState | None:
         """Park at whichever human gate is due, or return None to continue.
 
-        The data gate fires after profiling; the DAG gate fires after dag_expert
-        refines the DAG. Their predicates are mutually exclusive in normal flow
-        (the DAG gate needs refined_dag, which implies the data gate already
-        passed), so checking both in order is safe.
+        The data gate fires after profiling, the DAG gate after dag_expert, the
+        results gate after sensitivity_analyst. Their predicates are mutually
+        exclusive in normal flow (each needs a later stage's output than the one
+        before), so checking them in order is safe.
         """
         if should_pause_for_approval(state):
             return await park_for_approval(state, self._status_callback)
         if should_pause_for_dag_approval(state):
             return await park_for_dag_approval(state, self._status_callback)
+        if should_pause_for_results(state):
+            return await park_for_results_approval(state, self._status_callback)
         return None
 
     async def _run_forward_spine(self, state: AnalysisState) -> AnalysisState:

@@ -238,6 +238,13 @@ class AnalysisState(BaseModel):
     # Number of REVISE rounds taken at the DAG gate; bounds the redo loop.
     dag_revision_count: int = 0
 
+    # Set by the approval API at the results gate (after sensitivity_analyst,
+    # before critique). Separate from dag_approval/human_approval so an earlier
+    # approval does not pre-satisfy it. See should_pause_for_results.
+    results_approval: HumanApproval | None = None
+    # Number of REVISE rounds taken at the results gate; bounds the re-estimate loop.
+    results_revision_count: int = 0
+
     # Populated by Effect Estimator
     treatment_effects: list[TreatmentEffectResult] = Field(default_factory=list)
     analyzed_pairs: list[CausalPair] = Field(default_factory=list)  # Pairs that were analyzed
