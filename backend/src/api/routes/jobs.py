@@ -490,8 +490,15 @@ async def submit_approval(
             detail=str(exc),
         ) from exc
 
+    from src.jobs.dag_resume import RevisionLimitReached
+
     try:
         result = await get_job_manager().resume_from_approval(job_id, approval)
+    except RevisionLimitReached as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

@@ -36,11 +36,14 @@ def _dag(**overrides) -> CausalDAG:
 
 
 def _state(**overrides) -> AnalysisState:
+    # The DAG gate is always after the data gate, so a realistic pre-DAG-gate
+    # state already has the data approved; tests that need it absent override it.
     state = AnalysisState(
         job_id="job-1",
         dataset_info=DatasetInfo(url="kaggle.com/x"),
         treatment_variable="t",
         outcome_variable="y",
+        human_approval=HumanApproval.approve(),
     )
     for k, v in overrides.items():
         setattr(state, k, v)
@@ -83,6 +86,13 @@ def test_dag_rejected_record_still_holds_the_gate():
 def test_estimation_started_does_not_pause():
     # Effects present means we have resumed past the DAG gate.
     state = _state(refined_dag=_dag(), treatment_effects=[_effect()])
+    assert should_pause_for_dag_approval(state) is False
+
+
+def test_no_pause_before_the_data_gate_is_approved():
+    # A refined DAG with the data gate unpassed is not the DAG gate; resume
+    # routing must treat this as the data gate, not pause here.
+    state = _state(refined_dag=_dag(), human_approval=None)
     assert should_pause_for_dag_approval(state) is False
 
 

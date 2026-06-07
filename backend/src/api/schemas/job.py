@@ -398,10 +398,12 @@ class ApprovalRequest(BaseModel):
     """Request body for POST /jobs/{job_id}/approval.
 
     `granted_at` is stamped server-side. `reason` is required when
-    `decision == "rejected"` (validated by the domain model).
+    `decision == "rejected"`; `appended_context` is required when
+    `decision == "revise"` (both validated by the domain model). `revise`
+    applies only at the DAG gate.
     """
 
-    decision: Literal["approved", "rejected"]
+    decision: Literal["approved", "rejected", "revise"]
     granted_by: str | None = Field(default=None, max_length=200)
     dag_edits: DagEditPayload | None = None
     appended_context: str | None = Field(default=None, max_length=4000)

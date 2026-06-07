@@ -145,19 +145,24 @@ async def park_for_approval(
 def should_pause_for_dag_approval(state: AnalysisState) -> bool:
     """Truth-table check for the DAG gate (post-dag_expert, pre-estimation).
 
-    Returns True iff the orchestrator should park so the human can review the
-    refined DAG before estimation runs. Uses `dag_approval`, separate from the
-    data gate's `human_approval`, so a data-stage approval does not pre-satisfy
-    this gate:
+    The DAG gate always comes after the data gate, so it uses `dag_approval`
+    (separate from `human_approval`) and also requires the data to have been
+    approved. That second condition keeps resume routing unambiguous: a state
+    with `human_approval` unset is at the data gate, not here. Returns True iff:
 
-    - if the DAG has been APPROVED, proceed;
-    - if dag_expert has not produced a refined DAG yet, nothing to review;
-    - if estimation has started (effects exist), we are past the gate (resume);
-    - otherwise the gate fires. On a REVISE, refined_dag is cleared and
-      dag_approval stays None, so a freshly refined DAG re-fires the gate.
+    - the DAG has not already been APPROVED;
+    - the data gate has been passed (human_approval APPROVED);
+    - dag_expert has produced a refined DAG;
+    - estimation has not started (no effects).
+
+    On a REVISE, refined_dag is cleared and dag_approval stays None, so a freshly
+    refined DAG re-fires the gate.
     """
     approval = state.dag_approval
     if approval is not None and approval.decision == ApprovalDecision.APPROVED:
+        return False
+    data = state.human_approval
+    if data is None or data.decision != ApprovalDecision.APPROVED:
         return False
     if state.refined_dag is None:
         return False

@@ -769,6 +769,14 @@ class JobManager:
         if state is None:
             raise ValueError(f"Job {job_id} is not parked at the approval gate")
 
+        # The DAG gate (checkpoint A) is routed separately: it lands on
+        # dag_approval (not human_approval) and supports a REVISE redo loop.
+        from src.analysis.orchestrator.base import should_pause_for_dag_approval
+        from src.jobs.dag_resume import resume_dag_gate
+
+        if should_pause_for_dag_approval(state):
+            return await resume_dag_gate(self, job_id, state, approval)
+
         if approval.decision == ApprovalDecision.APPROVED:
             # Apply DAG edits in place. refined_dag should be set at the
             # gate (dag_expert produced it); discovered_dag is the fallback.

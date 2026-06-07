@@ -29,6 +29,8 @@ class ApprovalDecision(StrEnum):
 
     APPROVED = "approved"
     REJECTED = "rejected"
+    # DAG gate only: redo the DAG with the appended context, then re-review.
+    REVISE = "revise"
 
 
 class DagEdit(BaseModel):
@@ -72,6 +74,14 @@ class HumanApproval(BaseModel):
         return self
 
     @model_validator(mode="after")
+    def _revise_requires_context(self) -> "HumanApproval":
+        if self.decision == ApprovalDecision.REVISE and not (
+            self.appended_context and self.appended_context.strip()
+        ):
+            raise ValueError("appended_context is required when decision is REVISE")
+        return self
+
+    @model_validator(mode="after")
     def _granted_at_is_tz_aware(self) -> "HumanApproval":
         if self.granted_at.tzinfo is None:
             raise ValueError("granted_at must be timezone-aware")
@@ -102,4 +112,21 @@ class HumanApproval(BaseModel):
             granted_at=datetime.now(timezone.utc),
             granted_by=granted_by,
             reason=reason,
+        )
+
+    @classmethod
+    def revise(
+        cls,
+        *,
+        appended_context: str,
+        dag_edits: DagEdit | None = None,
+        granted_by: str | None = None,
+    ) -> "HumanApproval":
+        """Construct a REVISE decision (DAG gate: redo the DAG with the note)."""
+        return cls(
+            decision=ApprovalDecision.REVISE,
+            granted_at=datetime.now(timezone.utc),
+            granted_by=granted_by,
+            dag_edits=dag_edits,
+            appended_context=appended_context,
         )
