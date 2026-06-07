@@ -85,7 +85,7 @@ async def test_dag_approve_lands_on_dag_approval_and_respawns(manager_against_re
     )
     captured: dict = {}
 
-    with patch("src.jobs.dag_resume.asyncio.create_task", side_effect=_capture_respawn(captured)):
+    with patch("src.jobs.gate_resume.asyncio.create_task", side_effect=_capture_respawn(captured)):
         result = await manager.resume_from_approval("job-1", approval)
 
     assert result == {"resumed": True, "status": "discovering_causal"}
@@ -106,7 +106,7 @@ async def test_dag_revise_clears_the_dag_and_keeps_the_gate_unapproved(manager_a
     approval = HumanApproval.revise(appended_context="control for x3, it precedes treatment")
     captured: dict = {}
 
-    with patch("src.jobs.dag_resume.asyncio.create_task", side_effect=_capture_respawn(captured)):
+    with patch("src.jobs.gate_resume.asyncio.create_task", side_effect=_capture_respawn(captured)):
         result = await manager.resume_from_approval("job-1", approval)
 
     assert result["resumed"] is True
@@ -125,7 +125,7 @@ async def test_dag_revise_at_the_cap_raises_and_stays_parked(manager_against_rea
     await storage.save_parked_state(_dag_parked_state(revision_count=MAX_DAG_REVISIONS))
     approval = HumanApproval.revise(appended_context="one more change")
 
-    with patch("src.jobs.dag_resume.asyncio.create_task") as mk_task:
+    with patch("src.jobs.gate_resume.asyncio.create_task") as mk_task:
         with pytest.raises(RevisionLimitReached):
             await manager.resume_from_approval("job-1", approval)
 
@@ -140,7 +140,7 @@ async def test_dag_reject_fails_the_job_without_respawn(manager_against_real_loc
     await storage.save_parked_state(_dag_parked_state())
     approval = HumanApproval.reject(reason="the t -> x1 edge is backwards")
 
-    with patch("src.jobs.dag_resume.asyncio.create_task") as mk_task:
+    with patch("src.jobs.gate_resume.asyncio.create_task") as mk_task:
         result = await manager.resume_from_approval("job-1", approval)
 
     assert result == {"resumed": False, "status": "failed"}
