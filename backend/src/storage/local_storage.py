@@ -459,7 +459,7 @@ class LocalStorageClient:
             payload = store.get(job_id)
             if payload is None:
                 return None
-            return AnalysisState.model_validate(payload)
+            return AnalysisState.load_parked(payload)
 
         return await asyncio.to_thread(_sync)
 

@@ -518,7 +518,7 @@ class FirestoreClient:
             doc = doc_ref.get()
             if not doc.exists:
                 return None
-            return AnalysisState.model_validate(doc.to_dict())
+            return AnalysisState.load_parked(doc.to_dict())
 
         return await asyncio.to_thread(_sync)
 

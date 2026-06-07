@@ -12,7 +12,13 @@ from __future__ import annotations
 
 import pytest
 
-from src.analysis.agents.base.state import AnalysisState, DatasetInfo, JobStatus
+from src.analysis.agents.base.state import (
+    SCHEMA_VERSION,
+    AnalysisState,
+    DatasetInfo,
+    JobStatus,
+    StaleParkedState,
+)
 from src.analysis.agents.causal_discovery.output import CausalDAG, CausalEdge
 from src.analysis.agents.eda.output import EDAResult
 from src.domain.approval import DagEdit, HumanApproval
@@ -145,3 +151,29 @@ async def test_resave_overwrites_existing_entry(storage):
     await storage.save_parked_state(state)
     restored = await storage.load_parked_state("job-1")
     assert restored.eda_result.data_quality_score == 99.0
+
+
+# --- schema_version guard --------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_round_trip_carries_the_schema_version(storage):
+    await storage.save_parked_state(_gate_state())
+    restored = await storage.load_parked_state("job-1")
+    assert restored.schema_version == SCHEMA_VERSION
+
+
+def test_load_parked_rejects_an_incompatible_schema_version():
+    payload = _gate_state().model_dump()
+    payload["schema_version"] = SCHEMA_VERSION + 1
+    with pytest.raises(StaleParkedState):
+        AnalysisState.load_parked(payload)
+
+
+def test_load_parked_accepts_a_payload_missing_schema_version():
+    # States parked before the version field existed default to the current
+    # version and load cleanly (backward compatible).
+    payload = _gate_state().model_dump()
+    payload.pop("schema_version", None)
+    restored = AnalysisState.load_parked(payload)
+    assert restored.job_id == "job-1"

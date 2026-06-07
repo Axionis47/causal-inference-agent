@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from enum import StrEnum
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, computed_field, model_validator
+from pydantic import BaseModel, Field, ValidationError, computed_field, model_validator
 
 from src.analysis.agents.causal_discovery import CausalDAG, CausalEdge, CausalPair
 from src.analysis.agents.critique import CritiqueDecision, CritiqueFeedback
@@ -104,6 +104,17 @@ class AgentTrace(BaseModel):
     token_usage: dict[str, int] = Field(default_factory=dict)
 
 
+# Bump when a change to AnalysisState breaks deserialization of a parked state.
+# load_parked refuses a mismatched version with a clear error instead of a
+# cryptic validation failure, so a job parked across a breaking deploy fails
+# clean (resubmit) rather than 500-ing on resume.
+SCHEMA_VERSION = 1
+
+
+class StaleParkedState(ValueError):
+    """A parked state whose schema version is incompatible with this build."""
+
+
 class AnalysisState(BaseModel):
     """Shared state for the entire analysis pipeline.
 
@@ -114,6 +125,9 @@ class AnalysisState(BaseModel):
     MAX_TRACES: int = 100  # Keep last 100 detailed traces (12-agent pipeline needs room)
     MAX_TRACE_OUTPUT_LEN: int = 1000  # Truncate large outputs (method diagnostics need ~800 chars)
     MAX_TRACE_REASONING_LEN: int = 1000  # Truncate long reasoning
+
+    # Stamped on every state; checked by load_parked when a job resumes.
+    schema_version: int = SCHEMA_VERSION
 
     def model_post_init(self, __context: Any) -> None:
         """Load trace limits from settings (if available) so they stay configurable."""
@@ -141,6 +155,29 @@ class AnalysisState(BaseModel):
         if legacy is not None:
             data.setdefault("refined_dag", legacy)
         return data
+
+    @classmethod
+    def load_parked(cls, payload: dict) -> "AnalysisState":
+        """Deserialize a parked state, refusing an incompatible schema version.
+
+        States saved before schema_version existed default to the current
+        version (backward compatible). A version mismatch, or a validation
+        failure under the current schema, raises StaleParkedState so the resume
+        path fails with a clear message instead of a cryptic error.
+        """
+        stored = payload.get("schema_version", SCHEMA_VERSION)
+        if stored != SCHEMA_VERSION:
+            raise StaleParkedState(
+                f"parked state schema v{stored} is incompatible with the current "
+                f"v{SCHEMA_VERSION}; resubmit the job"
+            )
+        try:
+            return cls.model_validate(payload)
+        except ValidationError as exc:
+            raise StaleParkedState(
+                f"parked state could not be loaded under schema v{SCHEMA_VERSION}; "
+                "resubmit the job"
+            ) from exc
 
     job_id: str
     dataset_info: DatasetInfo
