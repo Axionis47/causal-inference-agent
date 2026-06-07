@@ -12,6 +12,7 @@ import pytest
 from src.analysis.agents import CritiqueDecision, CritiqueFeedback
 from src.analysis.agents.base import DataProfile
 from src.analysis.agents.base.state import AnalysisState, DatasetInfo, JobStatus
+from src.analysis.agents.causal_discovery.output import CausalDAG, CausalEdge
 from src.analysis.agents.effect_estimator.output import TreatmentEffectResult
 from src.analysis.agents.sensitivity_analyst.output import SensitivityResult
 from src.analysis.orchestrator.standard.agent import StandardOrchestrator
@@ -47,9 +48,11 @@ class _Stub:
 
 def _state() -> AnalysisState:
     # No metadata and no treatment/outcome pair, so domain_knowledge and
-    # ps_diagnostics are skipped. Approved up front so the data gate does not park.
+    # ps_diagnostics are skipped. Both gates pre-approved so a full run does not
+    # park; the DAG-park test below clears dag_approval to exercise the gate.
     s = AnalysisState(job_id="job-1", dataset_info=DatasetInfo(url="kaggle.com/x"))
     s.human_approval = HumanApproval.approve()
+    s.dag_approval = HumanApproval.approve()
     return s
 
 
@@ -71,6 +74,15 @@ def _sens() -> SensitivityResult:
     return SensitivityResult(method="evalue", robustness_value=2.0, interpretation="robust")
 
 
+def _dag() -> CausalDAG:
+    return CausalDAG(
+        nodes=["t", "y"],
+        edges=[CausalEdge(source="t", target="y")],
+        discovery_method="dag_expert",
+        adjustment_set=[],
+    )
+
+
 def _approve() -> CritiqueFeedback:
     return CritiqueFeedback(
         decision=CritiqueDecision.APPROVE, iteration=1,
@@ -88,7 +100,7 @@ def _register_backbone(orch: StandardOrchestrator, order: list, dag_flags=None) 
     orch.register_specialist("causal_discovery", _Stub(
         "causal_discovery", order, sets={"discovered_dag": {"nodes": ["t", "y"]}}))
     orch.register_specialist("dag_expert", _Stub(
-        "dag_expert", order, sets={"refined_dag": {"nodes": ["t", "y"]}}, flags=dag_flags))
+        "dag_expert", order, sets={"refined_dag": _dag()}, flags=dag_flags))
     orch.register_specialist("effect_estimator", _Stub(
         "effect_estimator", order, sets={"treatment_effects": [_effect()]}))
     orch.register_specialist("sensitivity_analyst", _Stub(
@@ -139,3 +151,20 @@ async def test_a_cyclic_dag_halts_the_spine_before_estimation():
     assert "dag_expert" in order
     assert "effect_estimator" not in order
     assert "notebook_generator" not in order
+
+
+@pytest.mark.asyncio
+async def test_parks_at_the_dag_gate_when_not_yet_dag_approved():
+    order: list[str] = []
+    orch = StandardOrchestrator()
+    _register_backbone(orch, order)
+    state = _state()
+    state.dag_approval = None  # data approved, DAG not yet reviewed
+
+    result = await orch.execute(state)
+
+    # The run parks for DAG review after dag_expert, before estimation.
+    assert result.status == JobStatus.AWAITING_APPROVAL
+    assert any(e["event_type"] == "dag_approval_required" for e in result.sse_events)
+    assert "dag_expert" in order
+    assert "effect_estimator" not in order

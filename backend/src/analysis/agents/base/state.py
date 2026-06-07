@@ -193,6 +193,14 @@ class AnalysisState(BaseModel):
     # marks it failed on rejection). See src/domain/approval.py.
     human_approval: HumanApproval | None = None
 
+    # Set by the approval API at the DAG gate (after dag_expert refines the DAG,
+    # before estimation). Kept separate from human_approval so the data-gate
+    # APPROVED record does not pre-satisfy the DAG gate. See orchestrator/base.py
+    # should_pause_for_dag_approval and src/jobs/manager.py resume routing.
+    dag_approval: HumanApproval | None = None
+    # Number of REVISE rounds taken at the DAG gate; bounds the redo loop.
+    dag_revision_count: int = 0
+
     # Populated by Effect Estimator
     treatment_effects: list[TreatmentEffectResult] = Field(default_factory=list)
     analyzed_pairs: list[CausalPair] = Field(default_factory=list)  # Pairs that were analyzed

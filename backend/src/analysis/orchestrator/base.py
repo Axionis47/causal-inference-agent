@@ -137,3 +137,81 @@ async def park_for_approval(
     if status_callback is not None:
         await status_callback(state)
     return state
+
+
+# ── DAG gate (checkpoint A: post-dag_expert, pre-estimation) ────────────────
+
+
+def should_pause_for_dag_approval(state: AnalysisState) -> bool:
+    """Truth-table check for the DAG gate (post-dag_expert, pre-estimation).
+
+    Returns True iff the orchestrator should park so the human can review the
+    refined DAG before estimation runs. Uses `dag_approval`, separate from the
+    data gate's `human_approval`, so a data-stage approval does not pre-satisfy
+    this gate:
+
+    - if the DAG has been APPROVED, proceed;
+    - if dag_expert has not produced a refined DAG yet, nothing to review;
+    - if estimation has started (effects exist), we are past the gate (resume);
+    - otherwise the gate fires. On a REVISE, refined_dag is cleared and
+      dag_approval stays None, so a freshly refined DAG re-fires the gate.
+    """
+    approval = state.dag_approval
+    if approval is not None and approval.decision == ApprovalDecision.APPROVED:
+        return False
+    if state.refined_dag is None:
+        return False
+    if state.treatment_effects:
+        return False
+    return True
+
+
+def _build_dag_gate_payload(state: AnalysisState) -> dict:
+    """Snapshot the SSE event and approval endpoint carry at the DAG gate.
+
+    The refined DAG (or the discovery fallback) as plain dicts the frontend can
+    render: nodes, edges, the adjustment set, variable roles, and forbidden
+    edges. The rendered figure and a written justification land in a later step.
+    """
+    dag = state.refined_dag or state.discovered_dag
+
+    dag_summary: dict | None = None
+    if dag is not None:
+        dag_summary = {
+            "nodes": list(dag.nodes),
+            "edges": [
+                {"source": e.source, "target": e.target, "edge_type": e.edge_type}
+                for e in dag.edges
+            ],
+            "adjustment_set": list(dag.adjustment_set or []),
+            "variable_roles": dict(dag.variable_roles or {}),
+            "forbidden_edges": list(dag.forbidden_edges or []),
+            "discovery_method": dag.discovery_method,
+            "interpretation": dag.interpretation,
+        }
+
+    return {
+        "gate": "dag",
+        "treatment_variable": state.treatment_variable,
+        "outcome_variable": state.outcome_variable,
+        "dag": dag_summary,
+    }
+
+
+async def park_for_dag_approval(
+    state: AnalysisState,
+    status_callback: StatusCallback | None = None,
+) -> AnalysisState:
+    """Park at the DAG gate: set AWAITING_APPROVAL, emit the DAG SSE event.
+
+    Mirrors park_for_approval but emits `dag_approval_required` (the data gate's
+    `approval_required` is left untouched) so the frontend can tell the two
+    gates apart while they share the AWAITING_APPROVAL status. Resume routing
+    reads the parked state to decide which gate the decision applies to.
+    """
+    state.status = JobStatus.AWAITING_APPROVAL
+    payload = _build_dag_gate_payload(state)
+    state.push_sse_event("dag_approval_required", payload)
+    if status_callback is not None:
+        await status_callback(state)
+    return state

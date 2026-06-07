@@ -23,7 +23,9 @@ from src.analysis.agents.base import (
 )
 from src.analysis.orchestrator.base import (
     park_for_approval,
+    park_for_dag_approval,
     should_pause_for_approval,
+    should_pause_for_dag_approval,
 )
 from src.analysis.orchestrator.standard.dispatch import DispatchMixin
 from src.analysis.orchestrator.standard.spine import SPINE, Stage
@@ -105,16 +107,31 @@ class StandardOrchestrator(DispatchMixin, BaseAgent):
         )
         return state
 
-    async def _run_forward_spine(self, state: AnalysisState) -> AnalysisState:
-        """Run SPINE in order until terminal, the data gate, or the tail is done.
+    async def _park_if_gate_due(self, state: AnalysisState) -> AnalysisState | None:
+        """Park at whichever human gate is due, or return None to continue.
 
-        A stage is skipped when it already ran (resume after the gate) or when its
-        skip predicate says the data does not call for it. The data-review gate is
-        checked at entry (a job that arrives already profiled parks at once) and
-        after each stage (so it fires right after the profiler on a fresh run).
+        The data gate fires after profiling; the DAG gate fires after dag_expert
+        refines the DAG. Their predicates are mutually exclusive in normal flow
+        (the DAG gate needs refined_dag, which implies the data gate already
+        passed), so checking both in order is safe.
         """
         if should_pause_for_approval(state):
             return await park_for_approval(state, self._status_callback)
+        if should_pause_for_dag_approval(state):
+            return await park_for_dag_approval(state, self._status_callback)
+        return None
+
+    async def _run_forward_spine(self, state: AnalysisState) -> AnalysisState:
+        """Run SPINE in order until terminal, a human gate, or the tail is done.
+
+        A stage is skipped when it already ran (resume after a gate) or when its
+        skip predicate says the data does not call for it. The human gates (data
+        review after profiling, DAG review after dag_expert) are checked at entry
+        (a job that arrives already at a gate parks at once) and after each stage.
+        """
+        parked = await self._park_if_gate_due(state)
+        if parked is not None:
+            return parked
 
         for stage in SPINE:
             if stage.already_done(state):
@@ -127,8 +144,9 @@ class StandardOrchestrator(DispatchMixin, BaseAgent):
             if state.status in _TERMINAL:
                 return state
 
-            if should_pause_for_approval(state):
-                return await park_for_approval(state, self._status_callback)
+            parked = await self._park_if_gate_due(state)
+            if parked is not None:
+                return parked
 
         return state
 
