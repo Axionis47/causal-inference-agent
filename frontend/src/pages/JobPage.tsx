@@ -12,7 +12,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getJob, getTraces, cancelJob, getNotebookUrl, AgentEvent, JobDetail, DagGatePayload } from '../services/api';
+import { getJob, getTraces, cancelJob, getNotebookUrl, AgentEvent, JobDetail, DagGatePayload, ResultsGatePayload } from '../services/api';
 import { JOB_DETAIL_POLL_INTERVAL_MS, TRACES_POLL_INTERVAL_MS } from '../config/constants';
 import { useJob } from '../hooks/useJob';
 import { deriveJobView } from '../components/job/terminal/deriveJobView';
@@ -24,6 +24,7 @@ import { FKeyBar } from '../components/job/terminal/FKeyBar';
 import { DatasetView } from '../components/job/terminal/DatasetView';
 import { ApprovalBar } from '../components/job/terminal/ApprovalBar';
 import { DagGate } from '../components/job/terminal/DagGate';
+import { ResultsGate } from '../components/job/terminal/ResultsGate';
 import { buildPreviewState } from '../components/job/terminal/preview';
 import { useDatasetView } from '../hooks/useDatasetView';
 
@@ -100,27 +101,34 @@ export default function JobPage() {
     },
   });
 
-  // At AWAITING_APPROVAL the latest gate event tells which gate we are at: the
-  // DAG gate (dag_approval_required) carries the graph the DagGate panel renders;
-  // otherwise it is the data gate (the ApprovalBar over the dataset view).
-  const dagGatePayload = useMemo<DagGatePayload | null>(() => {
+  // At AWAITING_APPROVAL the latest gate event tells which of the three gates we
+  // are at: the data gate (ApprovalBar over the dataset view), the DAG gate, or
+  // the results gate (each with its own panel and payload).
+  const activeGate = useMemo<
+    | { kind: 'data' }
+    | { kind: 'dag'; payload: DagGatePayload }
+    | { kind: 'results'; payload: ResultsGatePayload }
+    | null
+  >(() => {
     if (job?.status !== 'awaiting_approval') return null;
-    const gateEvents = agentEvents.filter(
-      (e) => e.event_type === 'dag_approval_required' || e.event_type === 'approval_required',
-    );
+    const gateTypes = ['approval_required', 'dag_approval_required', 'results_approval_required'];
+    const gateEvents = agentEvents.filter((e) => gateTypes.includes(e.event_type));
     if (gateEvents.length === 0) return null;
     const latest = gateEvents.reduce((a, b) => (a.timestamp >= b.timestamp ? a : b));
-    return latest.event_type === 'dag_approval_required'
-      ? (latest.data as unknown as DagGatePayload)
-      : null;
+    if (latest.event_type === 'dag_approval_required')
+      return { kind: 'dag', payload: latest.data as unknown as DagGatePayload };
+    if (latest.event_type === 'results_approval_required')
+      return { kind: 'results', payload: latest.data as unknown as ResultsGatePayload };
+    return { kind: 'data' };
   }, [job?.status, agentEvents]);
 
-  // When the job pauses for data review, land on the data view so the analyst
-  // sees what they are approving. The DAG gate has its own panel, so keep the
-  // dataset view closed there.
+  // The data gate reviews data in the dataset view; the DAG and results gates
+  // have their own panels, so keep the dataset view closed there.
   useEffect(() => {
-    if (job?.status === 'awaiting_approval') setShowDataset(!dagGatePayload);
-  }, [job?.status, dagGatePayload]);
+    if (job?.status === 'awaiting_approval') {
+      setShowDataset(activeGate === null || activeGate.kind === 'data');
+    }
+  }, [job?.status, activeGate]);
 
   // F-key shortcuts. Always run the hook; gate the actions inside.
   useEffect(() => {
@@ -211,8 +219,10 @@ export default function JobPage() {
       )}
 
       {!isPreview && job.status === 'awaiting_approval' && (
-        dagGatePayload ? (
-          <DagGate jobId={job.id} payload={dagGatePayload} />
+        activeGate?.kind === 'dag' ? (
+          <DagGate jobId={job.id} payload={activeGate.payload} />
+        ) : activeGate?.kind === 'results' ? (
+          <ResultsGate jobId={job.id} payload={activeGate.payload} />
         ) : (
           <ApprovalBar jobId={job.id} onOpenData={() => setShowDataset(true)} />
         )

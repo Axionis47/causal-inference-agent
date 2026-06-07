@@ -347,6 +347,39 @@ export interface DagGatePayload {
   justification: DagJustification | null;
 }
 
+// Payload carried by the `results_approval_required` SSE event. The frontend
+// renders a forest plot from `effects` and a balance (Love) plot from
+// `balance`. See backend orchestrator/base.py::_build_results_gate_payload.
+export interface EffectRow {
+  method: string;
+  estimand: string;
+  estimate: number;
+  ci_lower: number;
+  ci_upper: number;
+  p_value: number | null;
+}
+
+export interface SensitivityRow {
+  method: string;
+  robustness_value: number;
+  interpretation: string;
+}
+
+export interface BalanceRow {
+  covariate: string;
+  smd: number | null;
+}
+
+export interface ResultsGatePayload {
+  gate: 'results';
+  treatment_variable: string | null;
+  outcome_variable: string | null;
+  effects: EffectRow[];
+  sensitivity: SensitivityRow[];
+  ps_diagnostics: Record<string, unknown> | null;
+  balance: BalanceRow[];
+}
+
 export interface ApprovalResult {
   job_id: string;
   resumed: boolean;
