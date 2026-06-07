@@ -17,6 +17,7 @@ from src.analysis.orchestrator.base import (
     should_pause_for_dag_approval,
 )
 from src.domain.approval import HumanApproval
+from src.domain.briefs import AgentBrief, Flag
 
 
 def _dag(**overrides) -> CausalDAG:
@@ -118,6 +119,34 @@ def test_dag_payload_renders_nodes_edges_and_adjustment_set():
 def test_dag_payload_is_none_before_any_dag():
     payload = _build_dag_gate_payload(_state())
     assert payload["dag"] is None
+    assert payload["justification"] is None
+
+
+# --- justification block ---------------------------------------------------
+
+
+def _dag_expert_brief(flags=None, issues=None) -> AgentBrief:
+    return AgentBrief(
+        agent="dag_expert", status="done", headline="dag refined",
+        flags=flags or [], raised_issues=issues or [],
+    )
+
+
+def test_justification_states_identification_via_the_adjustment_set():
+    j = _build_dag_gate_payload(_state(refined_dag=_dag()))["justification"]
+    assert "identified by adjusting for age" in j["identification"]
+    assert j["adjustment_set"] == ["age"]
+
+
+def test_justification_flags_non_identification_and_surfaces_agent_concerns():
+    state = _state(refined_dag=_dag(adjustment_set=[]))
+    state.agent_briefs["dag_expert"] = _dag_expert_brief(
+        flags=[Flag.NO_ADJUSTMENT_SET], issues=["no backdoor set; using profiler confounders"],
+    )
+    j = _build_dag_gate_payload(state)["justification"]
+    assert "not identified" in j["identification"]
+    assert "no_adjustment_set" in j["flags"]
+    assert any("no backdoor set" in c for c in j["concerns"])
 
 
 # --- park_for_dag_approval async -------------------------------------------

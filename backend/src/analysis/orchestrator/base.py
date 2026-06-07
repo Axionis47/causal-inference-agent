@@ -171,16 +171,55 @@ def should_pause_for_dag_approval(state: AnalysisState) -> bool:
     return True
 
 
+def _dag_justification(state: AnalysisState, dag) -> dict:
+    """The "why this DAG, and is the effect identified" block for the gate.
+
+    Assembled deterministically from the DAG and dag_expert's sealed brief, so a
+    human can disagree on concrete grounds: the identification statement (does an
+    adjustment set identify the effect, or not), the adjustment set, the agent's
+    own flags (no_adjustment_set, collider_suspected, dag_conflict), the concerns
+    it raised, and its narrative interpretation of the graph.
+    """
+    brief = state.agent_briefs.get("dag_expert")
+    flags = [f.value for f in brief.flags] if brief else []
+    concerns = list(brief.raised_issues) if brief else []
+
+    adjustment_set = list(dag.adjustment_set or [])
+    t, y = state.treatment_variable, state.outcome_variable
+    if not adjustment_set or "no_adjustment_set" in flags:
+        identification = (
+            f"No backdoor adjustment set was found, so the effect of {t} on {y} "
+            "is not identified from this DAG alone; estimation falls back to the "
+            "profiler's candidate confounders."
+        )
+    else:
+        identification = (
+            f"The effect of {t} on {y} is identified by adjusting for "
+            f"{', '.join(adjustment_set)}."
+        )
+
+    return {
+        "identification": identification,
+        "adjustment_set": adjustment_set,
+        "interpretation": dag.interpretation,
+        "flags": flags,
+        "concerns": concerns,
+    }
+
+
 def _build_dag_gate_payload(state: AnalysisState) -> dict:
     """Snapshot the SSE event and approval endpoint carry at the DAG gate.
 
     The refined DAG (or the discovery fallback) as plain dicts the frontend can
-    render: nodes, edges, the adjustment set, variable roles, and forbidden
-    edges. The rendered figure and a written justification land in a later step.
+    render (nodes, edges, adjustment set, variable roles, forbidden edges), plus
+    a justification block (identification + the agent's flags and concerns) so
+    the review is on concrete grounds. The interactive figure is rendered on the
+    frontend from these nodes and edges.
     """
     dag = state.refined_dag or state.discovered_dag
 
     dag_summary: dict | None = None
+    justification: dict | None = None
     if dag is not None:
         dag_summary = {
             "nodes": list(dag.nodes),
@@ -194,12 +233,14 @@ def _build_dag_gate_payload(state: AnalysisState) -> dict:
             "discovery_method": dag.discovery_method,
             "interpretation": dag.interpretation,
         }
+        justification = _dag_justification(state, dag)
 
     return {
         "gate": "dag",
         "treatment_variable": state.treatment_variable,
         "outcome_variable": state.outcome_variable,
         "dag": dag_summary,
+        "justification": justification,
     }
 
 
