@@ -36,18 +36,19 @@ def _state_at_gate() -> AnalysisState:
 
 
 @pytest.mark.asyncio
-async def test_execute_parks_without_calling_reason(monkeypatch):
+async def test_execute_parks_at_the_data_gate_before_any_analysis():
+    """A profiled, not-yet-approved state parks for review before the spine
+    dispatches any analysis agent."""
     orchestrator = StandardOrchestrator()
     state = _state_at_gate()
 
-    async def _explode(*args, **kwargs):
-        raise AssertionError("reason() must not be called when the gate fires")
-
-    monkeypatch.setattr(orchestrator, "reason", _explode)
-
     result = await orchestrator.execute(state)
+
     assert result.status == JobStatus.AWAITING_APPROVAL
     assert any(e["event_type"] == "approval_required" for e in result.sse_events)
+    # Parking happened before any dispatch: no specialists are registered, so a
+    # dispatch would have failed the job instead of parking it cleanly.
+    assert result.error_message is None
 
 
 @pytest.mark.asyncio
@@ -62,34 +63,20 @@ async def test_execute_invokes_status_callback_on_park():
 
     orchestrator.set_status_callback(cb)
 
-    async def _explode(*args, **kwargs):
-        raise AssertionError("reason() must not be called when the gate fires")
-
-    # bind the explosion onto the same instance
-    orchestrator.reason = _explode  # type: ignore[assignment]
-
     await orchestrator.execute(state)
     assert captured == [JobStatus.AWAITING_APPROVAL]
 
 
 @pytest.mark.asyncio
-async def test_execute_skips_gate_when_human_already_approved(monkeypatch):
+async def test_execute_does_not_park_again_when_already_approved():
     """A prior APPROVED decision means we resumed past the gate. The
-    orchestrator must call reason() normally instead of parking again."""
+    orchestrator must proceed into the spine, not park again."""
     orchestrator = StandardOrchestrator()
     state = _state_at_gate()
     state.human_approval = HumanApproval.approve()
 
-    called = {"reason": 0}
-
-    async def fake_reason(prompt, context):  # noqa: ARG001
-        called["reason"] += 1
-        # Stop the loop quickly: mark completed so execute returns.
-        state.status = JobStatus.COMPLETED
-        return {"pending_calls": [], "response": ""}
-
-    monkeypatch.setattr(orchestrator, "reason", fake_reason)
-
     result = await orchestrator.execute(state)
-    assert called["reason"] >= 1
-    assert result.status == JobStatus.COMPLETED
+
+    # It advanced into the spine (and only fails here because no specialists are
+    # registered in this test), rather than parking at the data gate again.
+    assert result.status != JobStatus.AWAITING_APPROVAL

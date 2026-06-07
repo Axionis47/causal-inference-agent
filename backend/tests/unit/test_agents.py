@@ -173,15 +173,13 @@ class TestOrchestratorAgent:
         """Test orchestrator initializes correctly."""
         assert orchestrator.AGENT_NAME == "orchestrator"
 
-    def test_orchestrator_has_system_prompt(self, orchestrator):
-        """Test orchestrator has system prompt."""
-        assert orchestrator.SYSTEM_PROMPT is not None
-        assert len(orchestrator.SYSTEM_PROMPT) > 0
-
-    def test_orchestrator_has_tools(self, orchestrator):
-        """Test orchestrator has required tools."""
-        assert orchestrator.TOOLS is not None
-        assert len(orchestrator.TOOLS) > 0
+    def test_orchestrator_is_a_deterministic_conductor(self, orchestrator):
+        """No LLM router: the orchestrator walks a fixed spine and defines no
+        system prompt or tool list of its own."""
+        cls = type(orchestrator)
+        assert "SYSTEM_PROMPT" not in cls.__dict__
+        assert "TOOLS" not in cls.__dict__
+        assert hasattr(orchestrator, "_run_forward_spine")
 
 
 class TestSensitivityAnalystAgent:

@@ -103,7 +103,7 @@ class TestStandardOrchestratorReject:
         orchestrator.register_specialist("critique", critique)
 
         state = _make_state()
-        result = await orchestrator._request_critique(state, args={"summary": "x"})
+        result = await orchestrator._run_critique(state)
 
         assert result.status == JobStatus.FAILED
         assert "rejected_by_critique" in (result.error_message or "")

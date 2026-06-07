@@ -5,7 +5,8 @@ the wiring: a specialist that seals a cyclic-DAG brief stops the run with a reas
 instead of letting the cycle flow into estimation; a refusal stops it too; a soft
 flag is surfaced but does not stop; a clean brief is unchanged. The parallel case
 also pins that a branch's brief now reaches the main state, which AGENT_WRITES
-does not carry. The final case drives the whole execute() loop end to end.
+does not carry. End-to-end halting through the full run is covered in
+test_spine_runner.py.
 """
 from __future__ import annotations
 
@@ -117,25 +118,5 @@ async def test_parallel_dispatch_merges_briefs_and_halts_on_a_fatal_one():
     assert "eda_agent" in result.agent_briefs
     assert "dag_expert" in result.agent_briefs
     # The cyclic brief stopped the run, after both branches merged.
-    assert result.status == JobStatus.FAILED
-    assert "cycle_detected" in (result.error_message or "")
-
-
-@pytest.mark.asyncio
-async def test_execute_loop_returns_failed_when_a_dispatched_agent_is_fatal(monkeypatch):
-    orch = StandardOrchestrator()
-    _register(orch, "dag_expert", _brief("dag_expert", "done", [Flag.CYCLE_DETECTED]))
-    state = _state()
-
-    async def fake_reason(prompt, context):  # noqa: ARG001
-        return {
-            "pending_calls": [{"name": "dispatch_to_agent", "args": _args("dag_expert")}],
-            "response": "",
-        }
-
-    monkeypatch.setattr(orch, "reason", fake_reason)
-
-    result = await orch.execute(state)
-
     assert result.status == JobStatus.FAILED
     assert "cycle_detected" in (result.error_message or "")
