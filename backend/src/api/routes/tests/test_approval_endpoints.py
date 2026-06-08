@@ -39,47 +39,68 @@ def test_get_approval_returns_404_when_not_parked(client, mock_manager):
     assert resp.status_code == 404
 
 
-def test_get_approval_returns_data_stage_snapshot(client, mock_manager):
-    # The gate now sits at the data-review stage, so the snapshot carries the
-    # downloaded file list and an optional data summary, not a DAG. The data
-    # summary is None when the gate parks before any profiling (the Plan B
-    # ordering), which is what a fresh gate looks like.
+def test_get_approval_returns_data_gate_snapshot(client, mock_manager):
+    # At the data gate the snapshot is { kind: "data", payload: <data payload> }.
+    # The endpoint passes kind + payload through untouched.
     mock_manager.get_parked_snapshot.return_value = {
-        "treatment_variable": "t",
-        "outcome_variable": "y",
-        "data_summary": None,
-        "files": [{"name": "lalonde.csv", "format": "csv", "used": True}],
-    }
-    resp = client.get("/jobs/job-1/approval")
-    assert resp.status_code == 200
-    body = resp.json()
-    assert body["treatment_variable"] == "t"
-    assert body["outcome_variable"] == "y"
-    assert body["data_summary"] is None
-    assert body["files"][0]["name"] == "lalonde.csv"
-    # The gate moved off the DAG stage; the old DAG payload must not resurface.
-    assert "proposed_dag" not in body
-
-
-def test_get_approval_surfaces_data_summary_when_profiled(client, mock_manager):
-    # If a snapshot does carry a summary (a profiled gate), the endpoint
-    # passes it through untouched.
-    mock_manager.get_parked_snapshot.return_value = {
-        "treatment_variable": "t",
-        "outcome_variable": "y",
-        "data_summary": {
-            "n_samples": 614,
-            "n_features": 11,
-            "treatment_candidates": ["t"],
-            "outcome_candidates": ["y"],
+        "kind": "data",
+        "payload": {
+            "treatment_variable": "t",
+            "outcome_variable": "y",
+            "data_summary": None,
+            "files": [{"name": "lalonde.csv", "format": "csv", "used": True}],
         },
-        "files": [{"name": "lalonde.csv", "format": "csv", "used": True}],
     }
     resp = client.get("/jobs/job-1/approval")
     assert resp.status_code == 200
     body = resp.json()
-    assert body["data_summary"]["n_samples"] == 614
-    assert body["data_summary"]["treatment_candidates"] == ["t"]
+    assert body["kind"] == "data"
+    assert body["payload"]["treatment_variable"] == "t"
+    assert body["payload"]["files"][0]["name"] == "lalonde.csv"
+    # The gate is at the data stage; no DAG payload should resurface.
+    assert body["payload"].get("dag") is None
+
+
+def test_get_approval_returns_dag_gate_snapshot(client, mock_manager):
+    # At the DAG gate the endpoint surfaces the dag payload so the panel
+    # rehydrates after a refresh, not the data-only shape it used to return.
+    mock_manager.get_parked_snapshot.return_value = {
+        "kind": "dag",
+        "payload": {
+            "gate": "dag",
+            "treatment_variable": "t",
+            "outcome_variable": "y",
+            "dag": {"nodes": ["t", "y", "x1"], "adjustment_set": ["x1"]},
+            "justification": {"identification": "identified by adjusting for x1"},
+        },
+    }
+    resp = client.get("/jobs/job-1/approval")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["kind"] == "dag"
+    assert body["payload"]["dag"]["adjustment_set"] == ["x1"]
+    assert body["payload"]["justification"]["identification"].startswith("identified")
+
+
+def test_get_approval_returns_results_gate_snapshot(client, mock_manager):
+    # At the results gate the endpoint surfaces the effects/sensitivity payload.
+    mock_manager.get_parked_snapshot.return_value = {
+        "kind": "results",
+        "payload": {
+            "gate": "results",
+            "treatment_variable": "t",
+            "outcome_variable": "y",
+            "effects": [{"method": "ipw", "estimate": 1.04}],
+            "sensitivity": [{"method": "evalue", "robustness_value": 1.8}],
+            "ps_diagnostics": None,
+            "balance": [],
+        },
+    }
+    resp = client.get("/jobs/job-1/approval")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["kind"] == "results"
+    assert body["payload"]["effects"][0]["method"] == "ipw"
 
 
 # --- POST /jobs/{id}/approval ----------------------------------------------

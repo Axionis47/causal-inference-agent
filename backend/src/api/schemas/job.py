@@ -411,15 +411,17 @@ class ApprovalRequest(BaseModel):
 
 
 class ApprovalSnapshotResponse(BaseModel):
-    """Snapshot the UI renders at the data-review gate (same shape as the
-    SSE event). Loosely typed and purely display; the full review surface
-    is the dataset view (GET /jobs/{id}/dataset and its rows endpoint).
+    """Gate snapshot the UI rehydrates from on refresh / SSE loss.
+
+    `kind` names which of the three gates the parked job sits at; `payload`
+    is that gate's snapshot, identical in shape to the SSE event the gate
+    emitted (approval_required / dag_approval_required / results_approval_required).
+    Loosely typed and purely for display; the full data-review surface is the
+    dataset view (GET /jobs/{id}/dataset and its rows endpoint).
     """
 
-    treatment_variable: str | None = None
-    outcome_variable: str | None = None
-    data_summary: dict[str, Any] | None = None
-    files: list[dict[str, Any]] = Field(default_factory=list)
+    kind: Literal["data", "dag", "results"]
+    payload: dict[str, Any]
 
 
 class ApprovalResultResponse(BaseModel):

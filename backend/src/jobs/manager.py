@@ -735,17 +735,33 @@ class JobManager:
     async def get_parked_snapshot(self, job_id: str) -> dict[str, Any] | None:
         """Return the gate snapshot for a parked job, or None if not parked.
 
-        The snapshot is the same shape the SSE `approval_required` event
-        carried at park-time — clients that arrive after the event fires
-        can pull it from here. None means the job is not at the gate.
+        `kind` names which of the three gates the parked state sits at;
+        `payload` is that gate's snapshot, the same shape the matching SSE
+        event carried at park-time (approval_required / dag_approval_required /
+        results_approval_required). Clients that arrive after the event fires,
+        or lost it to a refresh, an SSE drop, or event-buffer eviction, pull it
+        from here. None means the job is not at a gate.
         """
         state = await self.firestore.load_parked_state(job_id)
         if state is None:
             return None
         # Lazy import to keep manager.py free of orchestrator internals at import time.
-        from src.analysis.orchestrator.base import _build_gate_payload
+        from src.analysis.orchestrator.base import (
+            _build_dag_gate_payload,
+            _build_gate_payload,
+            _build_results_gate_payload,
+            should_pause_for_dag_approval,
+            should_pause_for_results,
+        )
 
-        return _build_gate_payload(state)
+        # Pick the gate the parked state is actually at, mirroring the resume
+        # router (resume_from_approval). The predicates are mutually exclusive,
+        # so check the most-progressed gate first.
+        if should_pause_for_results(state):
+            return {"kind": "results", "payload": _build_results_gate_payload(state)}
+        if should_pause_for_dag_approval(state):
+            return {"kind": "dag", "payload": _build_dag_gate_payload(state)}
+        return {"kind": "data", "payload": _build_gate_payload(state)}
 
     async def resume_from_approval(
         self, job_id: str, approval: "HumanApproval"
