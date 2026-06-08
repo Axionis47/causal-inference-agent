@@ -49,6 +49,24 @@ class TestBuildFallbackDag:
         assert "treat" not in dag.adjustment_set
         assert "re78" not in dag.adjustment_set
 
+    def test_prefers_real_profiler_confounders_over_generic_role_names(self):
+        # Regression: the ReAct loop classifies generic placeholders (feature_1)
+        # as confounders. A fallback built from those yields an adjustment set of
+        # non-existent columns that every downstream agent filters back to empty.
+        # The profiler's real column names must win.
+        roles = {
+            "treat": "treatment",
+            "re78": "outcome",
+            "feature_1": "confounder",
+            "feature_2": "confounder",
+        }
+        dag = build_fallback_dag(
+            _state("treat", "re78", roles, confounders=["age", "educ", "re74"]),
+            roles,
+        )
+        assert set(dag.adjustment_set) == {"age", "educ", "re74"}
+        assert "feature_1" not in dag.adjustment_set
+
 
 class TestPatternsForDomain:
     def test_healthcare(self):

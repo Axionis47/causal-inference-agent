@@ -245,23 +245,31 @@ def build_fallback_dag(state, variable_roles: dict[str, str]) -> CausalDAG:
     outcome = state.outcome_variable
     skip = {treatment, outcome, None}
 
-    confounders = [
-        v
-        for v, role in (variable_roles or {}).items()
-        if v not in skip
-        and role
-        and any(h in role.lower() for h in _CONFOUNDER_ROLE_HINTS)
-    ]
-    if not confounders:
-        profile = state.data_profile
-        candidates = (
-            list(getattr(profile, "potential_confounders", []) or [])
-            if profile is not None
-            else []
-        )
-        confounders = [c for c in candidates if c not in skip]
+    profile = state.data_profile
+    real_cols = set(getattr(profile, "feature_names", []) or []) if profile else set()
+    potential = (
+        list(getattr(profile, "potential_confounders", []) or []) if profile else []
+    )
 
-    roles = dict(variable_roles or {})
+    # Prefer the profiler's confounder list, which holds real column names. The
+    # ReAct loop often classifies roles against generic placeholders (feature_1,
+    # feature_2, ...) that are not real columns, so a fallback built from those
+    # produces an adjustment set that every downstream agent filters back to
+    # empty. Only trust classified confounders that exist in the data.
+    confounders = [c for c in potential if c not in skip]
+    if not confounders:
+        confounders = [
+            v
+            for v, role in (variable_roles or {}).items()
+            if v not in skip
+            and role
+            and any(h in role.lower() for h in _CONFOUNDER_ROLE_HINTS)
+            and (not real_cols or v in real_cols)
+        ]
+    if not confounders and real_cols:
+        confounders = [c for c in real_cols if c not in skip]
+
+    roles = {treatment: "treatment", outcome: "outcome"} if treatment and outcome else {}
     if treatment:
         roles.setdefault(treatment, "treatment")
     if outcome:
