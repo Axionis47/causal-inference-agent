@@ -1,11 +1,53 @@
 """Tests for the pure helpers: patterns_for_domain, fuse_edges, adjustment_set_from_dag."""
 
+import types
+
 from src.analysis.agents.base import CausalDAG, CausalEdge
 from src.analysis.agents.dag_expert.helpers import (
     adjustment_set_from_dag,
+    build_fallback_dag,
     fuse_edges,
     patterns_for_domain,
 )
+
+
+def _state(treatment, outcome, roles=None, confounders=None):
+    profile = types.SimpleNamespace(potential_confounders=confounders or [])
+    return types.SimpleNamespace(
+        job_id="t",
+        treatment_variable=treatment,
+        outcome_variable=outcome,
+        data_profile=profile,
+    )
+
+
+class TestBuildFallbackDag:
+    def test_uses_classified_confounder_roles(self):
+        roles = {
+            "treat": "treatment",
+            "re78": "outcome",
+            "age": "confounder",
+            "educ": "confounder",
+        }
+        dag = build_fallback_dag(_state("treat", "re78", roles), roles)
+        assert set(dag.adjustment_set) == {"age", "educ"}
+        # canonical edges: each confounder -> T and -> Y, plus T -> Y
+        pairs = {(e.source, e.target) for e in dag.edges}
+        assert ("age", "treat") in pairs and ("age", "re78") in pairs
+        assert ("treat", "re78") in pairs
+
+    def test_falls_back_to_profiler_confounders_when_no_roles(self):
+        dag = build_fallback_dag(
+            _state("treat", "re78", roles={}, confounders=["age", "re74"]),
+            {},
+        )
+        assert set(dag.adjustment_set) == {"age", "re74"}
+
+    def test_never_includes_treatment_or_outcome_in_adjustment_set(self):
+        roles = {"treat": "treatment", "re78": "outcome", "age": "confounder"}
+        dag = build_fallback_dag(_state("treat", "re78", roles), roles)
+        assert "treat" not in dag.adjustment_set
+        assert "re78" not in dag.adjustment_set
 
 
 class TestPatternsForDomain:

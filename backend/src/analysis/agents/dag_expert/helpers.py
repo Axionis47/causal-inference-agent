@@ -220,6 +220,76 @@ def adjustment_set_from_dag(dag: CausalDAG, treatment: str, outcome: str) -> dic
     }
 
 
+# Role substrings that mean "a pre-treatment common cause to adjust for".
+_CONFOUNDER_ROLE_HINTS = (
+    "confound",
+    "immutable",
+    "pre_treatment",
+    "pretreatment",
+    "covariate",
+)
+
+
+def build_fallback_dag(state, variable_roles: dict[str, str]) -> CausalDAG:
+    """Deterministic canonical confounder DAG for when the ReAct loop never fused.
+
+    The loop sometimes spends its whole step budget classifying roles and never
+    calls fuse_and_validate, leaving refined_dag None (which the readiness gate
+    treats as a hard failure). Rather than stall, build the safe observational
+    default: every identified confounder (LLM-classified, else the profiler's
+    potential_confounders) points at both treatment and outcome, plus
+    treatment -> outcome. The backdoor adjustment set is then exactly those
+    confounders.
+    """
+    treatment = state.treatment_variable
+    outcome = state.outcome_variable
+    skip = {treatment, outcome, None}
+
+    confounders = [
+        v
+        for v, role in (variable_roles or {}).items()
+        if v not in skip
+        and role
+        and any(h in role.lower() for h in _CONFOUNDER_ROLE_HINTS)
+    ]
+    if not confounders:
+        profile = state.data_profile
+        candidates = (
+            list(getattr(profile, "potential_confounders", []) or [])
+            if profile is not None
+            else []
+        )
+        confounders = [c for c in candidates if c not in skip]
+
+    roles = dict(variable_roles or {})
+    if treatment:
+        roles.setdefault(treatment, "treatment")
+    if outcome:
+        roles.setdefault(outcome, "outcome")
+    for c in confounders:
+        roles.setdefault(c, "confounder")
+
+    domain_edges: list[dict] = []
+    for c in confounders:
+        domain_edges.append({"source": c, "target": treatment, "confidence": "medium"})
+        domain_edges.append({"source": c, "target": outcome, "confidence": "medium"})
+    if treatment and outcome:
+        domain_edges.append({"source": treatment, "target": outcome, "confidence": "high"})
+
+    dag, _, _ = fuse_edges(
+        domain_edges=domain_edges,
+        data_edges=[],
+        forbidden_edges=[],
+        conflict_resolution="domain_priority",
+        treatment_var=treatment,
+        outcome_var=outcome,
+        variable_roles=roles,
+    )
+    info = adjustment_set_from_dag(dag, treatment, outcome)
+    dag.adjustment_set = info["adjustment_set"]
+    return dag
+
+
 def initial_observation_text(state) -> str:
     return f"""Task: Construct a validated causal DAG for job {state.job_id}
 

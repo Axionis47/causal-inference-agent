@@ -14,7 +14,11 @@ from src.logging_config.structured import get_logger
 
 from . import tools
 from .brief import CAPABILITY as DE_CAPABILITY, build_brief, preflight
-from .helpers import initial_observation_text
+from .helpers import (
+    adjustment_set_from_dag,
+    build_fallback_dag,
+    initial_observation_text,
+)
 from .prompt import SYSTEM_PROMPT
 
 logger = get_logger(__name__)
@@ -96,6 +100,34 @@ class DAGExpertAgent(ReActAgent, ContextTools):
 
         try:
             state = await super().execute(state)
+
+            # Robustness: the ReAct loop sometimes classifies roles but runs out
+            # of steps before calling fuse_and_validate, leaving refined_dag None
+            # (a hard halt) or without an adjustment set. Never hand back an
+            # unusable DAG: build the canonical confounder DAG so estimation
+            # always has a valid backdoor set.
+            if state.refined_dag is None:
+                state.refined_dag = build_fallback_dag(state, self._variable_roles)
+                self.logger.info(
+                    "dag_expert_fallback_dag",
+                    reason="loop produced no refined_dag",
+                    adjustment_set=state.refined_dag.adjustment_set,
+                )
+            elif not (state.refined_dag.adjustment_set or []):
+                info = adjustment_set_from_dag(
+                    state.refined_dag,
+                    state.treatment_variable,
+                    state.outcome_variable,
+                )
+                if info["adjustment_set"]:
+                    state.refined_dag.adjustment_set = info["adjustment_set"]
+                else:
+                    state.refined_dag = build_fallback_dag(state, self._variable_roles)
+                    self.logger.info(
+                        "dag_expert_fallback_dag",
+                        reason="empty adjustment set after fusion",
+                        adjustment_set=state.refined_dag.adjustment_set,
+                    )
 
             self.logger.info(
                 "dag_expert_complete",
