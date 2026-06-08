@@ -989,10 +989,11 @@ class ContextTools:
                 year = "19" + year if int(year) > 50 else "20" + year
             analysis["temporal_hint"] = f"Year {year} - check against treatment timing"
 
-        # Use domain knowledge if available
+        # Use domain knowledge if available. domain_knowledge is a typed
+        # DomainKnowledge model, not a dict, so read the attribute directly.
         if state.domain_knowledge:
             dk = state.domain_knowledge
-            if variable in dk.get("immutable_vars", []):
+            if variable in (dk.immutable_vars or []):
                 analysis["is_likely_immutable"] = True
                 analysis["causal_constraints"].append("Marked immutable by domain knowledge agent")
 

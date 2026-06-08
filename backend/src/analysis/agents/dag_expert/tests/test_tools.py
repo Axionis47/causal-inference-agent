@@ -121,3 +121,22 @@ class TestToolGetAdjustmentSet:
         assert result.status == ToolResultStatus.SUCCESS
         assert result.output["adjustment_set"] == ["age"]
         assert state.refined_dag.adjustment_set == ["age"]
+
+
+class TestClassifyVariableRoleWithDomainKnowledge:
+    @pytest.mark.asyncio
+    async def test_does_not_crash_when_domain_knowledge_is_set(self, agent, state):
+        """Regression: domain_knowledge is a typed DomainKnowledge model, not a
+        dict. _analyze_variable_semantics read it with dk.get(...), which raised
+        'DomainKnowledge object has no attribute get' on every real run (domain
+        knowledge runs before dag_expert), so classify_variable_role errored and
+        the agent looped without ever building a DAG."""
+        from src.analysis.agents.domain_knowledge.output import DomainKnowledge
+
+        state.domain_knowledge = DomainKnowledge(immutable_vars=["region"])
+        result = await agent._tool_classify_variable_role(state, variable="region")
+        assert result.status == ToolResultStatus.SUCCESS
+        # 'region' is not a built-in immutable indicator; it is flagged immutable
+        # only via the domain-knowledge branch, so this proves that branch ran.
+        assert result.output["semantic_analysis"]["is_likely_immutable"] is True
+        assert result.output["role"] == "confounder"
