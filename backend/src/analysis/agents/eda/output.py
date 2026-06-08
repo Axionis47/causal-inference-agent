@@ -27,8 +27,11 @@ class EDAResult(BaseModel):
     vif_scores: dict[str, float] = Field(default_factory=dict)  # Variance Inflation Factor
     multicollinearity_warnings: list[str] = Field(default_factory=list)
 
-    # Covariate balance (for treatment/control)
-    covariate_balance: dict[str, dict[str, float]] = Field(default_factory=dict)  # SMD, p-values
+    # Covariate balance (for treatment/control). Values mix floats (smd,
+    # p-values) with the covariate name string the balance tool stores, so the
+    # inner type is Any like distribution_stats/outliers above; a strict float
+    # type broke parked-state round-trip (the name failed float parsing).
+    covariate_balance: dict[str, dict[str, Any]] = Field(default_factory=dict)  # SMD, p-values, name
     balance_summary: str = ""
 
     # Data quality

@@ -31,6 +31,22 @@ class TestEDAResult:
         r2 = EDAResult.model_validate(r1.model_dump())
         assert r2.plot_captions == r1.plot_captions
 
+    def test_covariate_balance_round_trip_with_name_string(self):
+        """Regression: the balance tool stores the covariate name string inside
+        each metrics dict, alongside the float smd/p-values. A strict
+        dict[str, float] inner type rejected the name on model_validate, which
+        broke parked-state reload at the DAG and results gates (the whole
+        AnalysisState failed to deserialize)."""
+        r1 = EDAResult(
+            covariate_balance={
+                "married": {"covariate": "married", "smd": 0.43, "p_value": 0.01},
+                "re74": {"covariate": "re74", "smd": 0.12, "p_value": 0.3},
+            }
+        )
+        r2 = EDAResult.model_validate(r1.model_dump())
+        assert r2.covariate_balance["married"]["covariate"] == "married"
+        assert r2.covariate_balance["married"]["smd"] == 0.43
+
     def test_full_construction(self):
         r = EDAResult(
             data_quality_score=87.5,
