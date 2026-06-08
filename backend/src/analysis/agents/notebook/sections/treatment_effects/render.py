@@ -117,6 +117,12 @@ def render_treatment_effects(state: AnalysisState) -> list:
     md += f"**Treatment**: {state.treatment_variable}\n"
     md += f"**Outcome**: {state.outcome_variable}\n"
     md += f"**Methods applied**: {len(effects)}\n\n"
+    md += (
+        "The results table and forest plot below display the estimates the "
+        "pipeline computed. Further down, OLS is re-fit from the data as an "
+        "independent check; the other methods are shown as the pipeline produced "
+        "them, not recomputed in this notebook.\n\n"
+    )
     cells.append(new_markdown_cell(md))
 
     caveat_md = (

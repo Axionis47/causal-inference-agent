@@ -28,7 +28,10 @@ def render_eda_report(state: AnalysisState) -> list:
 
     cells = []
     cells.append(new_markdown_cell(
-        "## Exploratory Data Analysis\n\n*Findings from the EDA agent.*"
+        "## Exploratory Data Analysis\n\n*Findings from the EDA agent.*\n\n"
+        "The distributions below are recomputed from the loaded data; the "
+        "correlation matrix and the balance (Love) plot display the values the "
+        "EDA agent computed during the run."
     ))
 
     # Quality summary

@@ -35,7 +35,9 @@ def render_causal_structure(state: AnalysisState) -> list:
 
     md = "## Causal Structure\n\n"
     md += f"*{'Refined' if is_refined else 'Discovered'} by the {agent_label} using **{dag.discovery_method}**.*\n\n"
-    md += "The graph below represents the discovered causal relationships.\n"
+    md += "The graph below is drawn from the structure the pipeline decided. "
+    md += "Causal discovery is not re-run in this notebook; it is non-deterministic "
+    md += "and would not reproduce the same graph on every execution.\n"
     md += "**Green** = treatment, **Red** = outcome, **Blue** = other variables.\n"
     cells.append(new_markdown_cell(md))
 
