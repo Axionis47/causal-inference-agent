@@ -10,11 +10,28 @@ const MR = 44; // right margin for the value
 const ROW = 26;
 const TOP = 8;
 
-export function ForestPlot({ effects }: { effects: EffectRow[] }) {
-  if (effects.length === 0) return null;
+/** Drop exact-duplicate rows. The estimator can emit the same fit several times
+ *  (e.g. 7 identical OLS rows on a real run), which stacks indistinguishable
+ *  points on the plot. Identity = method + estimand + estimate + CI + p, so
+ *  distinct estimates are always kept; only byte-identical repeats collapse. */
+export function dedupeEffects(effects: EffectRow[]): EffectRow[] {
+  const seen = new Set<string>();
+  const out: EffectRow[] = [];
+  for (const e of effects) {
+    const key = [e.method, e.estimand, e.estimate, e.ci_lower, e.ci_upper, e.p_value].join('|');
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(e);
+  }
+  return out;
+}
 
-  let lo = Math.min(0, ...effects.map((e) => e.ci_lower));
-  let hi = Math.max(0, ...effects.map((e) => e.ci_upper));
+export function ForestPlot({ effects }: { effects: EffectRow[] }) {
+  const rows = dedupeEffects(effects);
+  if (rows.length === 0) return null;
+
+  let lo = Math.min(0, ...rows.map((e) => e.ci_lower));
+  let hi = Math.max(0, ...rows.map((e) => e.ci_upper));
   if (lo === hi) {
     lo -= 1;
     hi += 1;
@@ -23,7 +40,7 @@ export function ForestPlot({ effects }: { effects: EffectRow[] }) {
   lo -= pad;
   hi += pad;
   const x = (v: number) => ML + ((v - lo) / (hi - lo)) * (W - ML - MR);
-  const H = TOP * 2 + effects.length * ROW;
+  const H = TOP * 2 + rows.length * ROW;
   const zero = x(0);
 
   return (
@@ -32,12 +49,12 @@ export function ForestPlot({ effects }: { effects: EffectRow[] }) {
         x1={zero}
         y1={TOP}
         x2={zero}
-        y2={TOP + effects.length * ROW}
+        y2={TOP + rows.length * ROW}
         className="stroke-edge-strong"
         strokeDasharray="3 3"
         strokeWidth={1}
       />
-      {effects.map((e, i) => {
+      {rows.map((e, i) => {
         const cy = TOP + i * ROW + ROW / 2;
         const sig = e.p_value != null && e.p_value < 0.05;
         return (

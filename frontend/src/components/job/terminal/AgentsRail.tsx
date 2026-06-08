@@ -9,6 +9,8 @@ import { describeEvent } from './describe';
 export interface AgentsRailProps {
   tones: AgentStatusMap;
   latestByAgent: Map<string, AgentEvent>;
+  /** Latest finding per agent; its headline is preferred for the subtitle. */
+  findingByAgent: Map<string, AgentEvent>;
   /** Agents that raised a challenge; rendered with a rose marker. */
   challengedAgents: Set<string>;
   /** The agent currently pinned in the focus pane, or null. */
@@ -20,6 +22,7 @@ export interface AgentsRailProps {
 export function AgentsRail({
   tones,
   latestByAgent,
+  findingByAgent,
   challengedAgents,
   selected,
   onSelect,
@@ -31,9 +34,17 @@ export function AgentsRail({
         {SPECIALIST_ROSTER.map(row => {
           const tone = tones[row.key];
           const latest = latestByAgent.get(row.key);
-          const headline = latest
-            ? (typeof latest.data?.headline === 'string' ? latest.data.headline : describeEvent(latest))
-            : row.answers;
+          const finding = findingByAgent.get(row.key);
+          // Prefer the agent's finding headline; the generic latest event
+          // (agent_completed) would otherwise read as a bare "<agent> done".
+          const headline =
+            finding && typeof finding.data?.headline === 'string'
+              ? finding.data.headline
+              : latest
+                ? typeof latest.data?.headline === 'string'
+                  ? latest.data.headline
+                  : describeEvent(latest)
+                : row.answers;
           const isSelected = selected === row.key;
           const hasChallenge = challengedAgents.has(row.key);
           return (

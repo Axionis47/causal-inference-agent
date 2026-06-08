@@ -6,11 +6,13 @@ import type {
   AgentChallengePayload,
   AgentEvent,
   AgentFindingPayload,
+  AgentTrace,
   DatasetView,
   JobDetail,
 } from '../../../services/api';
 import type { AgentTone } from './agents';
 import { StatusDot, Caption, FocusRow } from './atoms';
+import { TraceSteps } from './TraceSteps';
 import { describeEvent } from './describe';
 import { statusPillLabel } from './format';
 
@@ -21,6 +23,7 @@ export interface FocusPaneProps {
   focusFinding: AgentEvent | undefined;
   focusChallenge: AgentEvent | undefined;
   focusTone: AgentTone | undefined;
+  focusTraces: AgentTrace[];
   failed: boolean;
   datasetView: DatasetView | null;
   onOpenData: () => void;
@@ -79,6 +82,7 @@ export function FocusPane({
   focusFinding,
   focusChallenge,
   focusTone,
+  focusTraces,
   failed,
   datasetView,
   onOpenData,
@@ -141,6 +145,15 @@ export function FocusPane({
                 ) : (
                   <p className="text-xs font-mono text-bone">{challenge.headline}</p>
                 )}
+              </div>
+            )}
+
+            {focusTraces.length > 0 && (
+              <div className="pt-2 border-t border-edge-subtle">
+                <div className="text-2xs font-mono text-indigo uppercase tracking-[0.15em] mb-2">
+                  reasoning
+                </div>
+                <TraceSteps traces={focusTraces} />
               </div>
             )}
 

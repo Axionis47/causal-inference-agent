@@ -2,9 +2,9 @@
 // without a real backend job. Effect estimator is "live" so the live/settled axis
 // shows both tones at once.
 
-import type { AgentEvent, JobDetail } from '../../../services/api';
+import type { AgentEvent, AgentTrace, JobDetail } from '../../../services/api';
 
-export function buildPreviewState(): { job: JobDetail; events: AgentEvent[] } {
+export function buildPreviewState(): { job: JobDetail; events: AgentEvent[]; traces: AgentTrace[] } {
   const now = Date.now();
   const stamp = (offsetSec: number) =>
     new Date(now - offsetSec * 1000).toISOString();
@@ -46,6 +46,45 @@ export function buildPreviewState(): { job: JobDetail; events: AgentEvent[] } {
     { timestamp: stamp(28),  agent_name: 'effect_estimator', event_type: 'agent_started', data: { headline: 'DML running · 2/3 methods done' } },
   ];
 
+  const traces: AgentTrace[] = [
+    {
+      agent_name: 'dag_expert',
+      timestamp: stamp(140),
+      action: 'step_1 · get_dag_adjustment_set',
+      reasoning:
+        'Treatment is `treatment`, outcome `re78`. Block the back-door paths via baseline covariates: age and education confound both training uptake and later earnings.',
+      duration_ms: 1840,
+      inputs: { treatment: 'treatment', outcome: 're78' },
+      outputs: { status: 'ok', output: 'adjustment set: {age, educ, married}' },
+      tools_called: ['get_dag_adjustment_set'],
+      token_usage: { input_tokens: 220, output_tokens: 120 },
+    },
+    {
+      agent_name: 'dag_expert',
+      timestamp: stamp(135),
+      action: 'step_2 · check_identifiability',
+      reasoning:
+        'With {age, educ, married} the back-door criterion is satisfied and no collider is opened. The effect is identifiable by adjustment.',
+      duration_ms: 920,
+      inputs: { adjustment_set: ['age', 'educ', 'married'] },
+      outputs: { status: 'ok', output: 'identifiable via back-door adjustment' },
+      tools_called: ['check_identifiability'],
+      token_usage: { input_tokens: 180, output_tokens: 90 },
+    },
+    {
+      agent_name: 'effect_estimator',
+      timestamp: stamp(70),
+      action: 'step_1 · run_method',
+      reasoning:
+        'Binary treatment with good overlap. Start with IPW, then a DML cross-fit as a doubly-robust check.',
+      duration_ms: 4100,
+      inputs: { method: 'ipw' },
+      outputs: { status: 'ok', output: 'ATE 1.04 (95% CI 0.22, 1.86)' },
+      tools_called: ['run_method'],
+      token_usage: { input_tokens: 260, output_tokens: 140 },
+    },
+  ];
+
   const job: JobDetail = {
     id: '7a3f1c2e-preview',
     status: 'estimating_effects',
@@ -59,5 +98,5 @@ export function buildPreviewState(): { job: JobDetail; events: AgentEvent[] } {
     updated_at: stamp(0),
   };
 
-  return { job, events };
+  return { job, events, traces };
 }

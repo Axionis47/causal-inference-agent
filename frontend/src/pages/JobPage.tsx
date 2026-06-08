@@ -12,10 +12,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getJob, getTraces, cancelJob, getNotebookUrl, AgentEvent, JobDetail, DagGatePayload, ResultsGatePayload, RelationalProfilePayload } from '../services/api';
+import { getJob, getTraces, getGateSnapshot, cancelJob, getNotebookUrl, AgentEvent, AgentTrace, JobDetail, DagGatePayload, ResultsGatePayload, RelationalProfilePayload } from '../services/api';
 import { JOB_DETAIL_POLL_INTERVAL_MS, TRACES_POLL_INTERVAL_MS } from '../config/constants';
 import { useJob } from '../hooks/useJob';
 import { deriveJobView } from '../components/job/terminal/deriveJobView';
+import { resolveGate } from '../components/job/terminal/resolveGate';
 import { TopBar } from '../components/job/terminal/TopBar';
 import { AgentsRail } from '../components/job/terminal/AgentsRail';
 import { Tape } from '../components/job/terminal/Tape';
@@ -81,6 +82,17 @@ export default function JobPage() {
     );
   }, [tracesQuery.data]);
 
+  // The gate snapshot, rehydrated from REST so the gate panel survives a
+  // refresh / SSE drop / event-buffer eviction. Only fetched while the job is
+  // parked; the live SSE gate event takes precedence when it is in the buffer.
+  const gateSnapshotQuery = useQuery({
+    queryKey: ['gate', jobId],
+    queryFn: () => getGateSnapshot(jobId!),
+    enabled: !!jobId && !isPreview && realJobQuery.data?.status === 'awaiting_approval',
+    refetchInterval: () =>
+      realJobQuery.data?.status === 'awaiting_approval' ? JOB_DETAIL_POLL_INTERVAL_MS : false,
+  });
+
   // Dataset view (F1). The analyst lands here on arrival so the raw data and
   // download status are the first thing seen; Esc / F1 toggles back to the
   // agent tape. useDatasetView polls /jobs/:id/dataset until the blocks settle.
@@ -126,6 +138,16 @@ export default function JobPage() {
     return { kind: 'data' };
   }, [job?.status, agentEvents]);
 
+  // The same gate, rehydrated from the REST snapshot. Used as the fallback when
+  // the live SSE gate event is not in the buffer (refresh / SSE drop / eviction).
+  const gateFromSnapshot = useMemo(
+    () => resolveGate(gateSnapshotQuery.data),
+    [gateSnapshotQuery.data],
+  );
+
+  // Live SSE gate wins; the REST snapshot fills in when the event is gone.
+  const gate = activeGate ?? gateFromSnapshot;
+
   // The bundle's relational structure, reported by the inspector right after
   // download. Shown in the dataset view so the analyst sees how the files relate
   // while reviewing the data. Null for single-file bundles.
@@ -136,13 +158,22 @@ export default function JobPage() {
     return (latest.data?.relational_profile as RelationalProfilePayload | null) ?? null;
   }, [agentEvents]);
 
+  // The data-gate snapshot carries the same relational profile, so the bundle
+  // structure block also survives a refresh at the data gate.
+  const relationalFromSnapshot = useMemo<RelationalProfilePayload | null>(() => {
+    const snap = gateSnapshotQuery.data;
+    if (!snap || snap.kind !== 'data') return null;
+    return (snap.payload as { relational?: RelationalProfilePayload | null }).relational ?? null;
+  }, [gateSnapshotQuery.data]);
+  const resolvedRelational = relational ?? relationalFromSnapshot;
+
   // The data gate reviews data in the dataset view; the DAG and results gates
   // have their own panels, so keep the dataset view closed there.
   useEffect(() => {
     if (job?.status === 'awaiting_approval') {
-      setShowDataset(activeGate === null || activeGate.kind === 'data');
+      setShowDataset(gate === null || gate.kind === 'data');
     }
-  }, [job?.status, activeGate]);
+  }, [job?.status, gate]);
 
   // F-key shortcuts. Always run the hook; gate the actions inside.
   useEffect(() => {
@@ -191,6 +222,13 @@ export default function JobPage() {
   const view = deriveJobView(job, agentEvents, nowMs, selectedAgent);
   const onCancel = () => cancelMutation.mutate();
 
+  // Per-agent reasoning steps for the focus pane. Reuse the traces already polled
+  // for the token counter; filter to the focused agent. Preview supplies its own.
+  const allTraces: AgentTrace[] = isPreview ? (preview!.traces ?? []) : (tracesQuery.data ?? []);
+  const focusTraces = view.focusAgent
+    ? allTraces.filter((t) => t.agent_name === view.focusAgent)
+    : [];
+
   return (
     <div className="terminal flex flex-col h-screen w-screen overflow-hidden bg-canvas text-ink">
       <TopBar
@@ -207,6 +245,7 @@ export default function JobPage() {
         <AgentsRail
           tones={view.agentTones}
           latestByAgent={view.latestByAgent}
+          findingByAgent={view.findingByAgent}
           challengedAgents={view.challengedAgents}
           selected={selectedAgent}
           onSelect={(key) => setSelectedAgent((prev) => (prev === key ? null : key))}
@@ -218,6 +257,7 @@ export default function JobPage() {
           focusLatest={view.focusLatest}
           focusFinding={view.focusFinding}
           focusChallenge={view.focusChallenge}
+          focusTraces={focusTraces}
           focusTone={view.focusAgent ? view.agentTones[view.focusAgent] : undefined}
           failed={view.failed}
           datasetView={datasetView}
@@ -237,16 +277,16 @@ export default function JobPage() {
         <DatasetView
           view={datasetView}
           jobId={jobId ?? null}
-          relational={relational}
+          relational={resolvedRelational}
           onClose={() => setShowDataset(false)}
         />
       )}
 
       {!isPreview && job.status === 'awaiting_approval' && (
-        activeGate?.kind === 'dag' ? (
-          <DagGate jobId={job.id} payload={activeGate.payload} />
-        ) : activeGate?.kind === 'results' ? (
-          <ResultsGate jobId={job.id} payload={activeGate.payload} />
+        gate?.kind === 'dag' ? (
+          <DagGate jobId={job.id} payload={gate.payload} />
+        ) : gate?.kind === 'results' ? (
+          <ResultsGate jobId={job.id} payload={gate.payload} />
         ) : (
           <ApprovalBar jobId={job.id} onOpenData={() => setShowDataset(true)} />
         )

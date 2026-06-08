@@ -415,6 +415,15 @@ export interface ResultsGatePayload {
   balance: BalanceRow[];
 }
 
+/** The current human-approval gate for a parked job, rehydrated from the
+ *  backend (GET /jobs/:id/approval). `kind` names the gate; `payload` is that
+ *  gate's snapshot, the same shape its SSE event carried (cast to
+ *  DagGatePayload / ResultsGatePayload by the consumer). */
+export interface GateSnapshot {
+  kind: 'data' | 'dag' | 'results';
+  payload: Record<string, unknown>;
+}
+
 export interface ApprovalResult {
   job_id: string;
   resumed: boolean;
@@ -522,6 +531,18 @@ export async function submitApproval(
 export async function getTraces(jobId: string): Promise<AgentTrace[]> {
   const response = await api.get(`/jobs/${jobId}/traces`);
   return response.data.traces;
+}
+
+/** The gate a parked job is at, so the panel survives a refresh / SSE drop /
+ *  event-buffer eviction. Returns null when the job is not parked (404). */
+export async function getGateSnapshot(jobId: string): Promise<GateSnapshot | null> {
+  try {
+    const response = await api.get(`/jobs/${jobId}/approval`);
+    return response.data as GateSnapshot;
+  } catch (e) {
+    if ((e as ApiError).status === 404) return null;
+    throw e;
+  }
 }
 
 export function getNotebookUrl(jobId: string): string {

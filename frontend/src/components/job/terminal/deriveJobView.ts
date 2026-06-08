@@ -13,6 +13,10 @@ export interface JobView {
   agentTones: AgentStatusMap;
   /** Latest event seen per agent_name, for rail subtitles + focus "last event". */
   latestByAgent: Map<string, AgentEvent>;
+  /** Latest finding per agent. The rail prefers its headline over the generic
+   *  latest event, so a finished agent shows "quality 82/100" not "eda done"
+   *  (agent_completed arrives after agent_finding and would otherwise win). */
+  findingByAgent: Map<string, AgentEvent>;
   /** Events in newest-first order for the tape pane. */
   reverseEvents: AgentEvent[];
   /** The agent the focus pane shows: the selected one, else the dispatched one. */
@@ -63,6 +67,7 @@ export function deriveJobView(
     elapsed: formatElapsed(job.created_at, nowMs),
     agentTones,
     latestByAgent,
+    findingByAgent,
     reverseEvents: [...agentEvents].reverse(),
     focusAgent,
     focusLatest,
