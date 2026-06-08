@@ -66,10 +66,19 @@ CAPABILITY = AgentCapability(
             raises_flag=Flag.WEAK_CONFOUNDER_EVIDENCE,
         ),
         Criterion(
-            id="dk.status.failed_when_incomplete",
+            id="dk.status.soft_when_incomplete",
             description=(
-                "brief.status is 'failed' when the agent finished "
-                "without both a treatment and an outcome hypothesis"
+                "brief.status stays 'done' when the agent ran but did not form "
+                "both a treatment and an outcome hypothesis; the thinness is "
+                "signalled by flags and a raised issue so downstream falls back "
+                "to data-driven discovery instead of the run halting"
+            ),
+        ),
+        Criterion(
+            id="dk.status.failed_only_on_crash",
+            description=(
+                "brief.status is 'failed' only when the ReAct loop crashed "
+                "before writing domain_knowledge (state.domain_knowledge is None)"
             ),
         ),
         Criterion(
@@ -164,7 +173,18 @@ def build_brief(state: AnalysisState) -> AgentBrief:
         )
 
     complete = n_treatment > 0 and n_outcome > 0
-    status = "done" if complete else "failed"
+    if not complete:
+        issues.append(
+            "no confident treatment and outcome hypothesis formed from "
+            "metadata; downstream relies on data-driven discovery"
+        )
+
+    # domain_knowledge is a best-effort, optional stage. A thin or empty
+    # investigation is a SOFT signal (fall back to data-driven discovery via
+    # causal_discovery), conveyed through flags and issues, not a fatal status.
+    # Only an actual crash (dk is None, handled above) seals a 'failed' brief,
+    # so a flaky empty LLM result cannot halt the whole run.
+    status = "done"
     headline = _headline(n_treatment, n_outcome, n_confounder, n_uncertainties)
     artifact_keys = ["domain_knowledge"]
 

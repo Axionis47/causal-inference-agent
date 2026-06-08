@@ -185,21 +185,27 @@ class TestBuildBriefStatus:
         assert brief.status == "done"
         assert brief.artifact_keys == ["domain_knowledge"]
 
-    def test_failed_when_treatment_hypothesis_absent(self):
+    def test_soft_when_treatment_hypothesis_absent(self):
+        # Incomplete is now soft (done + raised issue), not a fatal failure: a
+        # thin domain result must not halt the run; downstream falls back to
+        # data-driven discovery.
         dk = DomainKnowledge(hypotheses=[_hyp("infection is the outcome")])
         state = _make_state(domain_knowledge=dk)
         brief = build_brief(state)
-        assert brief.status == "failed"
+        assert brief.status == "done"
+        assert any("data-driven discovery" in i for i in brief.raised_issues)
 
-    def test_failed_when_outcome_hypothesis_absent(self):
+    def test_soft_when_outcome_hypothesis_absent(self):
         dk = DomainKnowledge(hypotheses=[_hyp("vaccinated is the treatment")])
         state = _make_state(domain_knowledge=dk)
         brief = build_brief(state)
-        assert brief.status == "failed"
+        assert brief.status == "done"
+        assert any("data-driven discovery" in i for i in brief.raised_issues)
 
     def test_low_confidence_hypothesis_does_not_count(self):
         # Brief's notion of "complete" matches helpers.has_treatment_and_outcome_
-        # hypotheses, which gates on confidence in {medium, high}.
+        # hypotheses, which gates on confidence in {medium, high}. Low-confidence
+        # T/Y leave it incomplete, which is now soft (done + issue), not failed.
         dk = DomainKnowledge(
             hypotheses=[
                 _hyp("treatment is X", confidence="low"),
@@ -208,7 +214,8 @@ class TestBuildBriefStatus:
         )
         state = _make_state(domain_knowledge=dk)
         brief = build_brief(state)
-        assert brief.status == "failed"
+        assert brief.status == "done"
+        assert any("data-driven discovery" in i for i in brief.raised_issues)
 
 
 # --- build_brief: flag derivation ------------------------------------------
