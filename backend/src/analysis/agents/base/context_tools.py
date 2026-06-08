@@ -1173,8 +1173,10 @@ class ContextTools:
         domain_confounders = set()
         if state.domain_knowledge:
             dk = state.domain_knowledge
-            # Add immutable variables as they're likely confounders
-            for var in dk.get("immutable_vars", []):
+            # Add immutable variables as they're likely confounders.
+            # domain_knowledge is a typed DomainKnowledge model, not a dict, so
+            # read the attribute directly (dk.get(...) raised AttributeError).
+            for var in (dk.immutable_vars or []):
                 if var in nodes and var not in {treatment, outcome}:
                     domain_confounders.add(var)
 
