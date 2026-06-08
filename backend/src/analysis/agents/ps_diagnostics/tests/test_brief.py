@@ -208,11 +208,14 @@ class TestBuildBriefStatus:
         brief = build_brief(state, Metrics(overlap_pct=95.0))
         assert brief.status == "done"
 
-    def test_status_failed_when_no_metrics_captured(self):
+    def test_no_metrics_is_soft_not_a_hard_failure(self):
+        # ps_diagnostics is an optional diagnostic: when it cannot compute it must
+        # not halt the run, so it reports status="done" with a soft
+        # PRECONDITION_FAILED flag rather than status="failed".
         state = _make_state()
         brief = build_brief(state, Metrics())
-        assert brief.status == "failed"
-        assert brief.flags == []
+        assert brief.status == "done"
+        assert Flag.PRECONDITION_FAILED in brief.flags
 
     def test_headline_summarises_each_captured_metric(self):
         state = _make_state()
@@ -226,10 +229,10 @@ class TestBuildBriefStatus:
         assert "SMD" in headline
         assert "calibration" in headline.lower()
 
-    def test_failed_status_headline_mentions_no_diagnostics(self):
+    def test_uncomputed_headline_says_not_computed(self):
         state = _make_state()
         brief = build_brief(state, Metrics())
-        assert "no diagnostics" in brief.headline.lower()
+        assert "not computed" in brief.headline.lower()
 
     def test_raised_issues_quote_the_breaching_value(self):
         state = _make_state()

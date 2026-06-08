@@ -194,8 +194,23 @@ def build_brief(state: AnalysisState, metrics: Metrics) -> AgentBrief:
             f"(> {CALIBRATION_MAE_MAX:.2f} threshold)"
         )
 
-    status = "done" if metrics.any_captured() else "failed"
-    headline = _headline(metrics, status)
+    # ps_diagnostics is an optional diagnostic. When it cannot compute (no usable
+    # propensity model, e.g. a degenerate or empty covariate set), it must not
+    # halt the run; surface a soft PRECONDITION_FAILED flag instead of
+    # status=failed so the orchestrator advances and critique can weigh in.
+    captured = metrics.any_captured()
+    status = "done"
+    if not captured:
+        flags.append(Flag.PRECONDITION_FAILED)
+        issues.append(
+            "no propensity diagnostics captured; insufficient covariates or "
+            "overlap to fit a propensity model"
+        )
+    headline = (
+        _headline(metrics, status)
+        if captured
+        else "propensity diagnostics not computed (insufficient covariates/overlap)"
+    )
     artifact_keys = ["ps_diagnostics"] if state.ps_diagnostics else []
 
     return AgentBrief(
