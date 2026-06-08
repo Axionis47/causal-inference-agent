@@ -12,7 +12,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getJob, getTraces, cancelJob, getNotebookUrl, AgentEvent, JobDetail, DagGatePayload, ResultsGatePayload } from '../services/api';
+import { getJob, getTraces, cancelJob, getNotebookUrl, AgentEvent, JobDetail, DagGatePayload, ResultsGatePayload, RelationalProfilePayload } from '../services/api';
 import { JOB_DETAIL_POLL_INTERVAL_MS, TRACES_POLL_INTERVAL_MS } from '../config/constants';
 import { useJob } from '../hooks/useJob';
 import { deriveJobView } from '../components/job/terminal/deriveJobView';
@@ -126,6 +126,16 @@ export default function JobPage() {
     return { kind: 'data' };
   }, [job?.status, agentEvents]);
 
+  // The bundle's relational structure, reported by the inspector right after
+  // download. Shown in the dataset view so the analyst sees how the files relate
+  // while reviewing the data. Null for single-file bundles.
+  const relational = useMemo<RelationalProfilePayload | null>(() => {
+    const evts = agentEvents.filter((e) => e.event_type === 'dataset_inspection_complete');
+    if (evts.length === 0) return null;
+    const latest = evts.reduce((a, b) => (a.timestamp >= b.timestamp ? a : b));
+    return (latest.data?.relational_profile as RelationalProfilePayload | null) ?? null;
+  }, [agentEvents]);
+
   // The data gate reviews data in the dataset view; the DAG and results gates
   // have their own panels, so keep the dataset view closed there.
   useEffect(() => {
@@ -227,6 +237,7 @@ export default function JobPage() {
         <DatasetView
           view={datasetView}
           jobId={jobId ?? null}
+          relational={relational}
           onClose={() => setShowDataset(false)}
         />
       )}

@@ -10,8 +10,10 @@ import { useEffect, type ReactNode } from 'react';
 import type {
   DatasetView as DatasetViewData,
   FileEntry,
+  RelationalProfilePayload,
 } from '../../../services/api';
 import { Caption, StatusLine } from './atoms';
+import { RelationalBlock } from './RelationalBlock';
 import { SampleRowsView } from './SampleRowsView';
 
 function fmtBytes(n: number): string {
@@ -158,10 +160,12 @@ function DownloadBlockView({ view }: { view: DatasetViewData }) {
 export function DatasetView({
   view,
   jobId,
+  relational,
   onClose,
 }: {
   view: DatasetViewData | null;
   jobId: string | null;
+  relational?: RelationalProfilePayload | null;
   onClose: () => void;
 }) {
   useEffect(() => {
@@ -200,6 +204,12 @@ export function DatasetView({
               <Caption>[ download ]</Caption>
               <div className="pt-3"><DownloadBlockView view={view} /></div>
             </div>
+            {relational && relational.files.length > 1 && (
+              <div>
+                <Caption>[ bundle structure ]</Caption>
+                <div className="pt-3"><RelationalBlock profile={relational} /></div>
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -364,6 +364,24 @@ export interface DagGatePayload {
   justification: DagJustification | null;
 }
 
+// How the files in a multi-file bundle relate. Descriptive only; one file still
+// feeds the analysis. Carried on the dataset_inspection_complete SSE event
+// (`relational_profile`) and the data-gate payload (`relational`). See backend
+// src/domain/relational.py.
+export interface RelationalFile {
+  file: string;
+  n_rows: number;
+  n_cols: number;
+  key_candidates: string[];
+}
+
+export interface RelationalProfilePayload {
+  shape_hint: 'single' | 'same_schema_shards' | 'multiple_files' | 'unrelated';
+  files: RelationalFile[];
+  same_schema_groups: string[][];
+  note: string;
+}
+
 // Payload carried by the `results_approval_required` SSE event. The frontend
 // renders a forest plot from `effects` and a balance (Love) plot from
 // `balance`. See backend orchestrator/base.py::_build_results_gate_payload.

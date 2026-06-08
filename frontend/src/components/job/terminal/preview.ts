@@ -12,6 +12,23 @@ export function buildPreviewState(): { job: JobDetail; events: AgentEvent[] } {
   const events: AgentEvent[] = [
     { timestamp: stamp(240), agent_name: 'dataset_inspector', event_type: 'agent_started', data: {} },
     { timestamp: stamp(232), agent_name: 'dataset_inspector', event_type: 'agent_completed', data: { headline: 'picked train.csv · 200k rows · 18 cols' } },
+    {
+      timestamp: stamp(231),
+      agent_name: 'dataset_inspector',
+      event_type: 'dataset_inspection_complete',
+      data: {
+        selected_file: 'train.csv',
+        relational_profile: {
+          shape_hint: 'same_schema_shards',
+          files: [
+            { file: 'train.csv', n_rows: 200000, n_cols: 18, key_candidates: ['id'] },
+            { file: 'test.csv', n_rows: 50000, n_cols: 18, key_candidates: ['id'] },
+          ],
+          same_schema_groups: [['test.csv', 'train.csv']],
+          note: 'One file feeds the analysis; nothing was assembled. This report describes the bundle structure only.',
+        },
+      },
+    },
     { timestamp: stamp(228), agent_name: 'data_profiler', event_type: 'agent_started', data: {} },
     { timestamp: stamp(210), agent_name: 'data_profiler', event_type: 'agent_completed', data: { headline: 'treatment=treatment, outcome=re78, 3 confounder candidates' } },
     { timestamp: stamp(208), agent_name: 'domain_knowledge', event_type: 'agent_started', data: {} },
