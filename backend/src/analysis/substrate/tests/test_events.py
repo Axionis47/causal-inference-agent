@@ -86,6 +86,9 @@ def test_preserves_wire_contract_event_names():
         "dataset_load_failed",
         "agent_started",
         "agent_completed",
+        # Live per-agent visibility (findings + challenges from the sealed brief)
+        "agent_finding",
+        "agent_challenge",
         # Human-approval gate (post-DAG, pre-estimation)
         "approval_required",
         "approval_granted",
@@ -102,6 +105,8 @@ def test_preserves_wire_contract_event_names():
         "dataset_load_failed",
         "agent_started",
         "agent_completed",
+        "agent_finding",
+        "agent_challenge",
         "approval_required",
         "approval_granted",
     ]

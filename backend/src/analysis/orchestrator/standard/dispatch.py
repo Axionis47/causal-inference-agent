@@ -22,6 +22,7 @@ from src.analysis.agents.base import AnalysisState, BaseAgent
 from src.analysis.orchestrator.common import (
     AGENT_STATUS_MAP,
     classify_brief,
+    publish_brief_events,
     validate_required_fields,
 )
 
@@ -130,6 +131,9 @@ class DispatchMixin:
             # raised a flag that makes downstream work unsafe (a cyclic DAG);
             # a soft quality flag is surfaced but does not stop the run.
             verdict, reason = classify_brief(state.agent_briefs.get(agent_name))
+            # Surface the brief to the panel as a live finding (and a challenge
+            # when it is not clean), once, before the halt/success branch.
+            publish_brief_events(state, agent_name, verdict)
             if verdict == "halt":
                 state.push_sse_event("agent_completed", {"agent_name": agent_name, "success": False})
                 state.mark_failed(reason, agent_name)
@@ -262,6 +266,7 @@ class DispatchMixin:
                 "agent_completed",
                 {"agent_name": name, "success": verdict != "halt"},
             )
+            publish_brief_events(state, name, verdict)
             if verdict == "halt":
                 readiness_halts.append(reason)
             elif verdict == "soft":

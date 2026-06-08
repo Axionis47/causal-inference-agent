@@ -100,6 +100,54 @@ async def test_single_dispatch_is_unchanged_for_a_clean_brief():
 
 
 @pytest.mark.asyncio
+async def test_single_dispatch_emits_a_finding_and_no_challenge_for_a_clean_brief():
+    # Wiring: dispatch must publish the brief as a live finding; a clean brief
+    # raises no challenge. Pins that the publish call exists and reads the right
+    # agent's brief.
+    orch = StandardOrchestrator()
+    _register(orch, "dag_expert", _brief("dag_expert", "done"))
+
+    result = await orch._dispatch_to_agent(_state(), _args("dag_expert"))
+
+    findings = [e for e in result.sse_events if e["event_type"] == "agent_finding"]
+    assert len(findings) == 1
+    assert findings[0]["data"]["agent_name"] == "dag_expert"
+    assert [e for e in result.sse_events if e["event_type"] == "agent_challenge"] == []
+
+
+@pytest.mark.asyncio
+async def test_single_dispatch_emits_a_challenge_for_a_flagged_brief():
+    orch = StandardOrchestrator()
+    _register(orch, "dag_expert", _brief("dag_expert", "done", [Flag.NO_ADJUSTMENT_SET]))
+
+    result = await orch._dispatch_to_agent(_state(), _args("dag_expert"))
+
+    challenges = [e for e in result.sse_events if e["event_type"] == "agent_challenge"]
+    assert len(challenges) == 1
+    assert challenges[0]["data"]["agent_name"] == "dag_expert"
+    assert "no_adjustment_set" in challenges[0]["data"]["flags"]
+
+
+@pytest.mark.asyncio
+async def test_parallel_dispatch_emits_a_finding_per_branch():
+    orch = StandardOrchestrator()
+    _register(orch, "eda_agent", _brief("eda_agent", "done"))
+    _register(orch, "causal_discovery", _brief("causal_discovery", "done"))
+
+    args = {
+        "agents": [
+            {"agent_name": "eda_agent", "task_description": "x"},
+            {"agent_name": "causal_discovery", "task_description": "y"},
+        ],
+        "reasoning": "independent learners",
+    }
+    result = await orch._dispatch_parallel(_state(), args)
+
+    findings = [e for e in result.sse_events if e["event_type"] == "agent_finding"]
+    assert {f["data"]["agent_name"] for f in findings} == {"eda_agent", "causal_discovery"}
+
+
+@pytest.mark.asyncio
 async def test_parallel_dispatch_merges_briefs_and_halts_on_a_fatal_one():
     orch = StandardOrchestrator()
     _register(orch, "eda_agent", _brief("eda_agent", "done"))

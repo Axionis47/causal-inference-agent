@@ -29,6 +29,7 @@ from src.analysis.orchestrator.base import (
     should_pause_for_dag_approval,
     should_pause_for_results,
 )
+from src.analysis.orchestrator.common import publish_brief_events
 from src.analysis.orchestrator.standard.dispatch import DispatchMixin
 from src.analysis.orchestrator.standard.spine import SPINE, Stage
 from src.logging_config.structured import get_logger
@@ -221,6 +222,7 @@ class StandardOrchestrator(DispatchMixin, BaseAgent):
         try:
             state = await critique_agent.execute_with_tracing(state)
             state.push_sse_event("agent_completed", {"agent_name": "critique", "success": True})
+            publish_brief_events(state, "critique")
         except Exception as e:
             self.logger.error("critique_failed", error=str(e))
             state.push_sse_event("agent_completed", {"agent_name": "critique", "success": False})

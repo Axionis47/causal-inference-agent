@@ -28,10 +28,12 @@ from .context import (
 )
 from .dispatch import AGENT_STATUS_MAP, validate_required_fields
 from .readiness import classify_brief
+from .visibility import publish_brief_events
 
 __all__ = [
     "AGENT_STATUS_MAP",
     "classify_brief",
+    "publish_brief_events",
     "summarize_dispatch_focus",
     "summarize_progress",
     "summarize_recent_dispatches",
