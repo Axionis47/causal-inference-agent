@@ -25,7 +25,11 @@ class DAGExpertAgent(ReActAgent, ContextTools):
     """Domain expert agent that constructs validated causal DAGs."""
 
     AGENT_NAME = "dag_expert"
-    MAX_STEPS = 12
+    # The procedure needs room to gather roles AND build: classify several roles,
+    # pull discovery edges, propose domain edges, fuse, then get the adjustment
+    # set. 12 was too tight, the loop spent it all on context tools and never
+    # committed a DAG. 25 leaves headroom for the build phase.
+    MAX_STEPS = 25
     WRITES_STATE_FIELDS = ["refined_dag"]
     REQUIRED_STATE_FIELDS = ["dataset_info", "discovered_dag"]
     JOB_STATUS = JobStatus.DISCOVERING_CAUSAL

@@ -10,7 +10,9 @@ class TestInitialization:
         assert agent.AGENT_NAME == "dag_expert"
 
     def test_max_steps(self, agent):
-        assert agent.MAX_STEPS == 12
+        # Needs room to gather roles AND build the DAG (classify, get discovery
+        # edges, propose, fuse, get adjustment set). 12 was too tight.
+        assert agent.MAX_STEPS == 25
 
     def test_tools_registered(self, agent):
         """All 7 dag_expert tools, context-tools mixin, and ReAct built-ins are present."""
