@@ -15,10 +15,16 @@ export interface JobView {
   latestByAgent: Map<string, AgentEvent>;
   /** Events in newest-first order for the tape pane. */
   reverseEvents: AgentEvent[];
-  /** The currently dispatched agent, or null when idle/terminal. */
+  /** The agent the focus pane shows: the selected one, else the dispatched one. */
   focusAgent: string | null;
   /** Latest event for the focus agent, or undefined if none yet. */
   focusLatest: AgentEvent | undefined;
+  /** The focus agent's latest finding event (brief headline + flags), if any. */
+  focusFinding: AgentEvent | undefined;
+  /** The focus agent's latest challenge event (refusal/flag + issues), if any. */
+  focusChallenge: AgentEvent | undefined;
+  /** Agents that raised at least one challenge, for the rail indicator. */
+  challengedAgents: Set<string>;
   /** Convenience: did the job fail? */
   failed: boolean;
 }
@@ -27,6 +33,7 @@ export function deriveJobView(
   job: JobDetail,
   agentEvents: AgentEvent[],
   nowMs: number,
+  selectedAgent: string | null = null,
 ): JobView {
   const failed = job.status === 'failed';
   const completedAgents = new Set(
@@ -35,12 +42,22 @@ export function deriveJobView(
   const agentTones = deriveAgentStatuses(job.current_agent, completedAgents, failed);
 
   const latestByAgent = new Map<string, AgentEvent>();
+  const findingByAgent = new Map<string, AgentEvent>();
+  const challengeByAgent = new Map<string, AgentEvent>();
   for (const ev of agentEvents) {
-    if (ev.agent_name) latestByAgent.set(ev.agent_name, ev);
+    if (!ev.agent_name) continue;
+    latestByAgent.set(ev.agent_name, ev);
+    if (ev.event_type === 'agent_finding') findingByAgent.set(ev.agent_name, ev);
+    else if (ev.event_type === 'agent_challenge') challengeByAgent.set(ev.agent_name, ev);
   }
 
-  const focusAgent = job.current_agent ?? null;
+  // Focus the selected agent (clickable rail) when one is set, otherwise the
+  // currently dispatched agent. A selection survives the run finishing, so a
+  // finished agent's findings stay inspectable.
+  const focusAgent = selectedAgent ?? job.current_agent ?? null;
   const focusLatest = focusAgent ? latestByAgent.get(focusAgent) : undefined;
+  const focusFinding = focusAgent ? findingByAgent.get(focusAgent) : undefined;
+  const focusChallenge = focusAgent ? challengeByAgent.get(focusAgent) : undefined;
 
   return {
     elapsed: formatElapsed(job.created_at, nowMs),
@@ -49,6 +66,9 @@ export function deriveJobView(
     reverseEvents: [...agentEvents].reverse(),
     focusAgent,
     focusLatest,
+    focusFinding,
+    focusChallenge,
+    challengedAgents: new Set(challengeByAgent.keys()),
     failed,
   };
 }

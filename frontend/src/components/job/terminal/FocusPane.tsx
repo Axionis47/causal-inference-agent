@@ -2,7 +2,13 @@
 // When no agent is dispatched (e.g. the fetch stage), it shows the download/dataset
 // dock instead, so the download status is visible without reaching for a key.
 
-import type { AgentEvent, DatasetView, JobDetail } from '../../../services/api';
+import type {
+  AgentChallengePayload,
+  AgentEvent,
+  AgentFindingPayload,
+  DatasetView,
+  JobDetail,
+} from '../../../services/api';
 import type { AgentTone } from './agents';
 import { StatusDot, Caption, FocusRow } from './atoms';
 import { describeEvent } from './describe';
@@ -12,6 +18,9 @@ export interface FocusPaneProps {
   job: JobDetail;
   focusAgent: string | null;
   focusLatest: AgentEvent | undefined;
+  focusFinding: AgentEvent | undefined;
+  focusChallenge: AgentEvent | undefined;
+  focusTone: AgentTone | undefined;
   failed: boolean;
   datasetView: DatasetView | null;
   onOpenData: () => void;
@@ -63,7 +72,19 @@ function DatasetDock({ view, onOpenData }: { view: DatasetView | null; onOpenDat
   );
 }
 
-export function FocusPane({ job, focusAgent, focusLatest, failed, datasetView, onOpenData }: FocusPaneProps) {
+export function FocusPane({
+  job,
+  focusAgent,
+  focusLatest,
+  focusFinding,
+  focusChallenge,
+  focusTone,
+  failed,
+  datasetView,
+  onOpenData,
+}: FocusPaneProps) {
+  const finding = focusFinding?.data as unknown as AgentFindingPayload | undefined;
+  const challenge = focusChallenge?.data as unknown as AgentChallengePayload | undefined;
   return (
     <aside className="w-[300px] shrink-0 bg-canvas-raised border-l border-edge-subtle flex flex-col overflow-hidden">
       <Caption>[ focus ]</Caption>
@@ -71,7 +92,7 @@ export function FocusPane({ job, focusAgent, focusLatest, failed, datasetView, o
         {focusAgent ? (
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <StatusDot tone={failed ? 'failed' : 'live'} />
+              <StatusDot tone={focusTone ?? (failed ? 'failed' : 'live')} />
               <span className="font-mono text-base text-ink">{focusAgent}</span>
             </div>
 
@@ -84,6 +105,44 @@ export function FocusPane({ job, focusAgent, focusLatest, failed, datasetView, o
               />
               <FocusRow label="iteration" value={String(job.iteration_count ?? 1)} mono />
             </dl>
+
+            {finding && (
+              <div className="pt-2 border-t border-edge-subtle">
+                <div className="text-2xs font-mono text-mint uppercase tracking-[0.15em] mb-2">
+                  finding
+                </div>
+                <p className="text-xs font-mono text-bone">{finding.headline}</p>
+                {finding.flags.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {finding.flags.map((f) => (
+                      <span
+                        key={f}
+                        className="text-2xs font-mono text-mint border border-mint/40 px-1.5 py-0.5"
+                      >
+                        {f}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {challenge && (
+              <div className="pt-2 border-t border-edge-subtle">
+                <div className="text-2xs font-mono text-rose uppercase tracking-[0.15em] mb-2">
+                  challenge
+                </div>
+                {challenge.issues.length > 0 ? (
+                  <ul className="space-y-1 text-xs font-mono text-ink-secondary">
+                    {challenge.issues.map((iss, i) => (
+                      <li key={i}>· {iss}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-xs font-mono text-bone">{challenge.headline}</p>
+                )}
+              </div>
+            )}
 
             <div className="pt-2 border-t border-edge-subtle">
               <div className="text-2xs font-mono text-ink-tertiary uppercase tracking-[0.15em] mb-2">

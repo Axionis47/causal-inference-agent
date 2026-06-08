@@ -193,9 +193,26 @@ export interface AgentEvent {
   agent_name: string;
   // A backend-defined discriminator. Beyond agent_started/agent_completed this
   // also carries gate events (approval_required, dag_approval_required, ...) and
-  // others routed through the same channel, so it is an open string.
+  // the live per-agent visibility events (agent_finding, agent_challenge), all
+  // routed through the same channel, so it is an open string.
   event_type: string;
   data: Record<string, unknown>;
+}
+
+// Payload of an `agent_finding` event: one per agent when it clears the
+// readiness gate, built from its sealed brief. Emitted by
+// orchestrator/common/visibility.py::publish_brief_events.
+export interface AgentFindingPayload {
+  agent_name: string;
+  headline: string;
+  status: string;
+  flags: string[];
+}
+
+// Payload of an `agent_challenge` event: emitted only when the brief is not
+// clean (refused, failed, or carrying a quality flag). Adds the raised issues.
+export interface AgentChallengePayload extends AgentFindingPayload {
+  issues: string[];
 }
 
 // Dataset lifecycle events arrive on the same SSE channel ('agent_event')

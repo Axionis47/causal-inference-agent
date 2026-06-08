@@ -22,7 +22,10 @@ export const DEFAULT_PAGE_SIZE = 20;
 export const DATASET_ROWS_PAGE_SIZE = 50;
 
 // Display limits
-export const MAX_AGENT_EVENTS = 20;
+// A full run emits, per agent: started, completed, a finding, and sometimes a
+// challenge, plus the gate events. 60 keeps a whole run's lifecycle in the ring
+// so finished agents are not evicted back to "pending" mid-run.
+export const MAX_AGENT_EVENTS = 60;
 
 // Statistical thresholds
 export const SIGNIFICANCE_ALPHA = 0.05;

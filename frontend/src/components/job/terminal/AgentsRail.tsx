@@ -9,9 +9,21 @@ import { describeEvent } from './describe';
 export interface AgentsRailProps {
   tones: AgentStatusMap;
   latestByAgent: Map<string, AgentEvent>;
+  /** Agents that raised a challenge; rendered with a rose marker. */
+  challengedAgents: Set<string>;
+  /** The agent currently pinned in the focus pane, or null. */
+  selected: string | null;
+  /** Click a row to inspect that agent (toggles off when re-clicked). */
+  onSelect: (key: string) => void;
 }
 
-export function AgentsRail({ tones, latestByAgent }: AgentsRailProps) {
+export function AgentsRail({
+  tones,
+  latestByAgent,
+  challengedAgents,
+  selected,
+  onSelect,
+}: AgentsRailProps) {
   return (
     <aside className="w-[260px] shrink-0 bg-canvas-raised border-r border-edge-subtle flex flex-col overflow-hidden">
       <Caption>[ agents ]</Caption>
@@ -22,11 +34,16 @@ export function AgentsRail({ tones, latestByAgent }: AgentsRailProps) {
           const headline = latest
             ? (typeof latest.data?.headline === 'string' ? latest.data.headline : describeEvent(latest))
             : row.answers;
+          const isSelected = selected === row.key;
+          const hasChallenge = challengedAgents.has(row.key);
           return (
-            <div
+            <button
               key={row.key}
-              className={`flex items-center gap-2 px-3 py-2 border-b border-edge-subtle/40 ${
-                tone === 'live' ? 'bg-amber/5' : ''
+              type="button"
+              onClick={() => onSelect(row.key)}
+              aria-pressed={isSelected}
+              className={`w-full text-left flex items-center gap-2 px-3 py-2 border-b border-edge-subtle/40 transition-colors hover:bg-canvas-overlay ${
+                isSelected ? 'bg-amber/10 border-l-2 border-l-amber' : tone === 'live' ? 'bg-amber/5' : ''
               }`}
             >
               <StatusDot tone={tone} />
@@ -38,7 +55,13 @@ export function AgentsRail({ tones, latestByAgent }: AgentsRailProps) {
                 }`}>{row.label}</div>
                 <div className="font-mono text-2xs text-ink-tertiary truncate">{headline}</div>
               </div>
-            </div>
+              {hasChallenge && (
+                <span
+                  title="raised a challenge"
+                  className="inline-block w-1.5 h-1.5 rounded-full bg-rose shrink-0"
+                />
+              )}
+            </button>
           );
         })}
       </div>

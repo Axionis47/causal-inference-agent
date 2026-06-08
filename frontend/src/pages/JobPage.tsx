@@ -87,6 +87,10 @@ export default function JobPage() {
   const [showDataset, setShowDataset] = useState(!isPreview);
   const { view: datasetView } = useDatasetView(isPreview ? null : (jobId ?? null));
 
+  // Which agent the focus pane is pinned to. null follows the live agent; a
+  // click pins any agent (even a finished one) so its findings stay inspectable.
+  const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
+
   // Memoise preview so timestamps freeze at first render of /jobs/__preview.
   const preview = useMemo(() => (isPreview ? buildPreviewState() : null), [isPreview]);
 
@@ -174,7 +178,7 @@ export default function JobPage() {
     );
   }
 
-  const view = deriveJobView(job, agentEvents, nowMs);
+  const view = deriveJobView(job, agentEvents, nowMs, selectedAgent);
   const onCancel = () => cancelMutation.mutate();
 
   return (
@@ -190,12 +194,21 @@ export default function JobPage() {
       />
 
       <div className="flex-1 flex overflow-hidden min-h-0">
-        <AgentsRail tones={view.agentTones} latestByAgent={view.latestByAgent} />
+        <AgentsRail
+          tones={view.agentTones}
+          latestByAgent={view.latestByAgent}
+          challengedAgents={view.challengedAgents}
+          selected={selectedAgent}
+          onSelect={(key) => setSelectedAgent((prev) => (prev === key ? null : key))}
+        />
         <Tape reverseEvents={view.reverseEvents} currentAgent={job.current_agent} />
         <FocusPane
           job={job}
           focusAgent={view.focusAgent}
           focusLatest={view.focusLatest}
+          focusFinding={view.focusFinding}
+          focusChallenge={view.focusChallenge}
+          focusTone={view.focusAgent ? view.agentTones[view.focusAgent] : undefined}
           failed={view.failed}
           datasetView={datasetView}
           onOpenData={() => setShowDataset(true)}
