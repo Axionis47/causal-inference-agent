@@ -7,8 +7,8 @@ import { useJobStore } from '../store';
 
 interface CreateJobParams {
   kaggleUrl: string;
-  treatmentVariable?: string;
-  outcomeVariable?: string;
+  treatmentVariable: string;
+  outcomeVariable: string;
 }
 
 /**

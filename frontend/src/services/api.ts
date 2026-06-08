@@ -73,9 +73,10 @@ export type OrchestratorMode = 'standard' | 'react';
 
 export interface CreateJobRequest {
   kaggle_url: string;
-  treatment_variable?: string;
-  outcome_variable?: string;
+  treatment_variable: string;
+  outcome_variable: string;
   orchestrator_mode?: OrchestratorMode;
+  user_context?: string;
 }
 
 export interface Job {

@@ -37,9 +37,15 @@ function renderPage() {
 }
 
 function fillUrlAndSubmit() {
-  const urlInput = screen.getByLabelText(/Dataset URL/i);
-  fireEvent.change(urlInput, {
+  fireEvent.change(screen.getByLabelText(/Dataset URL/i), {
     target: { value: 'https://www.kaggle.com/datasets/owner/name' },
+  });
+  // Treatment and outcome are required, so a valid submission must set them.
+  fireEvent.change(screen.getByLabelText(/Treatment variable/i), {
+    target: { value: 'treat' },
+  });
+  fireEvent.change(screen.getByLabelText(/Outcome variable/i), {
+    target: { value: 're78' },
   });
   fireEvent.click(screen.getByRole('button', { name: /Run Causal Analysis/i }));
 }
@@ -95,5 +101,45 @@ describe('HomePage orchestrator picker', () => {
     );
     const payload = vi.mocked(createJob).mock.calls[0][0];
     expect(payload.orchestrator_mode).toBe('react');
+  });
+});
+
+describe('HomePage required treatment/outcome', () => {
+  it('blocks submit and shows an error when treatment/outcome are empty', () => {
+    renderPage();
+    fireEvent.change(screen.getByLabelText(/Dataset URL/i), {
+      target: { value: 'https://www.kaggle.com/datasets/owner/name' },
+    });
+    fireEvent.click(
+      screen.getByRole('button', { name: /Run Causal Analysis/i }),
+    );
+    expect(screen.getByText(/Treatment variable is required/i)).toBeTruthy();
+    expect(vi.mocked(createJob)).not.toHaveBeenCalled();
+  });
+
+  it('forwards treatment, outcome and optional context in the payload', async () => {
+    renderPage();
+    fireEvent.change(screen.getByLabelText(/Dataset URL/i), {
+      target: { value: 'https://www.kaggle.com/datasets/owner/name' },
+    });
+    fireEvent.change(screen.getByLabelText(/Treatment variable/i), {
+      target: { value: 'treat' },
+    });
+    fireEvent.change(screen.getByLabelText(/Outcome variable/i), {
+      target: { value: 're78' },
+    });
+    fireEvent.change(screen.getByLabelText(/Context/i), {
+      target: { value: 'NSW job-training program; randomized treated arm' },
+    });
+    fireEvent.click(
+      screen.getByRole('button', { name: /Run Causal Analysis/i }),
+    );
+    await waitFor(() => expect(vi.mocked(createJob)).toHaveBeenCalled());
+    const payload = vi.mocked(createJob).mock.calls[0][0];
+    expect(payload.treatment_variable).toBe('treat');
+    expect(payload.outcome_variable).toBe('re78');
+    expect(payload.user_context).toBe(
+      'NSW job-training program; randomized treated arm',
+    );
   });
 });

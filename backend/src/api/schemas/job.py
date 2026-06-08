@@ -28,14 +28,16 @@ class CreateJobRequest(BaseModel):
         min_length=1,
         max_length=MAX_KAGGLE_URL_LENGTH,
     )
-    treatment_variable: str | None = Field(
-        None,
-        description="Optional treatment variable hint",
+    treatment_variable: str = Field(
+        ...,
+        description="Treatment variable column name (must exist in the dataset)",
+        min_length=1,
         max_length=MAX_VARIABLE_NAME_LENGTH,
     )
-    outcome_variable: str | None = Field(
-        None,
-        description="Optional outcome variable hint",
+    outcome_variable: str = Field(
+        ...,
+        description="Outcome variable column name (must exist in the dataset)",
+        min_length=1,
         max_length=MAX_VARIABLE_NAME_LENGTH,
     )
     orchestrator_mode: Literal["standard", "react"] | None = Field(
@@ -74,13 +76,17 @@ class CreateJobRequest(BaseModel):
 
     @field_validator("treatment_variable", "outcome_variable")
     @classmethod
-    def validate_variable_name(cls, v: str | None) -> str | None:
-        """Validate optional variable names."""
-        if v is None:
-            return None
+    def validate_variable_name(cls, v: str) -> str:
+        """Validate the required treatment/outcome variable names.
+
+        These are mandatory at submit (the analyst names the columns), so a
+        blank or whitespace-only value is rejected rather than coerced to None.
+        The name is matched against the real dataframe columns later, in
+        data_profiler; here we only enforce a safe character set.
+        """
         v = v.strip()
         if not v:
-            return None  # Treat empty/whitespace-only as None
+            raise ValueError("Variable name cannot be empty")
         # Basic validation: alphanumeric, underscores, hyphens
         if not re.match(r"^[\w\-]+$", v):
             raise ValueError(

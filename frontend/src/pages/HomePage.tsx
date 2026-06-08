@@ -15,6 +15,7 @@ export default function HomePage() {
   const [kaggleUrl, setKaggleUrl] = useState('');
   const [treatmentVar, setTreatmentVar] = useState('');
   const [outcomeVar, setOutcomeVar] = useState('');
+  const [causalQuestion, setCausalQuestion] = useState('');
   const [orchestratorMode, setOrchestratorMode] = useState<OrchestratorMode>('standard');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,11 +31,14 @@ export default function HomePage() {
     setError(null);
     const validationError = validateKaggleUrl(kaggleUrl.trim());
     if (validationError) { setError(validationError); return; }
+    if (!treatmentVar.trim()) { setError('Treatment variable is required'); return; }
+    if (!outcomeVar.trim()) { setError('Outcome variable is required'); return; }
     createJobMutation.mutate({
       kaggle_url: kaggleUrl.trim(),
-      treatment_variable: treatmentVar.trim() || undefined,
-      outcome_variable: outcomeVar.trim() || undefined,
+      treatment_variable: treatmentVar.trim(),
+      outcome_variable: outcomeVar.trim(),
       orchestrator_mode: orchestratorMode,
+      user_context: causalQuestion.trim() || undefined,
     });
   };
 
@@ -78,30 +82,47 @@ export default function HomePage() {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label htmlFor="treatment-var" className={labelCls}>
-              Treatment variable <span className="text-ink-tertiary normal-case">(optional)</span>
+              Treatment variable
             </label>
             <input
               id="treatment-var"
               type="text"
               value={treatmentVar}
               onChange={(e) => setTreatmentVar(e.target.value)}
-              placeholder="e.g. treatment"
+              placeholder="e.g. treat"
               className={inputCls}
             />
           </div>
           <div>
             <label htmlFor="outcome-var" className={labelCls}>
-              Outcome variable <span className="text-ink-tertiary normal-case">(optional)</span>
+              Outcome variable
             </label>
             <input
               id="outcome-var"
               type="text"
               value={outcomeVar}
               onChange={(e) => setOutcomeVar(e.target.value)}
-              placeholder="e.g. earnings"
+              placeholder="e.g. re78"
               className={inputCls}
             />
           </div>
+        </div>
+
+        <div>
+          <label htmlFor="causal-question" className={labelCls}>
+            Context <span className="text-ink-tertiary normal-case">(optional)</span>
+          </label>
+          <textarea
+            id="causal-question"
+            value={causalQuestion}
+            onChange={(e) => setCausalQuestion(e.target.value)}
+            placeholder="What the variables mean, the study it came from, known confounders, whether it was a randomized trial."
+            rows={3}
+            className={inputCls + ' resize-y'}
+          />
+          <p className="mt-1.5 text-xs text-ink-tertiary">
+            Helps the domain-knowledge agent when the dataset has no description
+          </p>
         </div>
 
         <div>

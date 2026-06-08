@@ -52,7 +52,7 @@ interface JobState {
 
 interface JobActions {
   // Job CRUD
-  createJob: (kaggleUrl: string, treatment?: string, outcome?: string) => Promise<string>;
+  createJob: (kaggleUrl: string, treatment: string, outcome: string) => Promise<string>;
   fetchJobs: (status?: string, limit?: number, offset?: number) => Promise<void>;
   cancelJob: (jobId: string) => Promise<void>;
 
@@ -97,7 +97,7 @@ export const useJobStore = create<JobState & JobActions>()(
       (set, _get) => ({
         ...initialState,
 
-        createJob: async (kaggleUrl: string, treatment?: string, outcome?: string) => {
+        createJob: async (kaggleUrl: string, treatment: string, outcome: string) => {
           set({ isCreating: true, error: null });
           try {
             const job = await apiCreateJob({
