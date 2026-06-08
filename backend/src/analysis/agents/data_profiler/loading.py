@@ -7,6 +7,7 @@ will replace this with reads from the sealed download module.
 """
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pandas as pd
@@ -15,6 +16,53 @@ from src.analysis.agents.base import AnalysisState, FileEntry
 from src.logging_config.structured import get_logger
 
 logger = get_logger(__name__)
+
+# Column names that are row identifiers, never causal variables. Catches the
+# CSV row index pandas writes back as "Unnamed: 0", plus id/index/row-number
+# columns. Matched case-insensitively against the stripped column name.
+_IDENTIFIER_NAME = re.compile(
+    r"^(unnamed(\s*:?\s*\d+)?|index|id|row_?num(ber)?|.+_id)$",
+    re.IGNORECASE,
+)
+
+
+def drop_identifier_columns(
+    df: pd.DataFrame,
+    protected: tuple[str | None, ...] = (),
+) -> tuple[pd.DataFrame, list[str]]:
+    """Drop row-index / id columns so they never become covariates.
+
+    A leaked row index (e.g. "Unnamed: 0") otherwise enters confounder lists,
+    balance checks, and the critique as a fake covariate with a huge SMD. We
+    drop a column when its name looks like an identifier, or when it is an
+    unnamed-style monotonic 0..n-1 integer index. A protected column (the chosen
+    treatment/outcome) is never dropped. Returns the cleaned frame and the names
+    dropped.
+    """
+    protected_set = {p for p in protected if p}
+    drop: list[str] = []
+    for col in df.columns:
+        if col in protected_set:
+            continue
+        name = str(col).strip()
+        if _IDENTIFIER_NAME.match(name):
+            drop.append(col)
+            continue
+        series = df[col]
+        # A pure 0..n-1 unique monotonic integer column is a row index whatever
+        # it is named.
+        if pd.api.types.is_integer_dtype(series) and series.is_unique:
+            n = len(series)
+            if (
+                n > 0
+                and series.min() == 0
+                and series.max() == n - 1
+                and series.is_monotonic_increasing
+            ):
+                drop.append(col)
+    if drop:
+        df = df.drop(columns=drop)
+    return df, drop
 
 
 def _setup_kaggle_credentials() -> tuple[str | None, str | None]:

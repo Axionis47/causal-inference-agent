@@ -24,6 +24,7 @@ import pytest
 from src.analysis.agents.base import AnalysisState, DatasetInfo
 from src.analysis.agents.data_profiler.loading import (
     download_to_workdir,
+    drop_identifier_columns,
     fetch_kaggle_metadata,
     load_dataset,
     load_from_kaggle,
@@ -474,3 +475,39 @@ async def test_load_from_kaggle_reads_existing_bundle_without_redownloading(tmp_
     assert df.shape == (3, 2)
     assert _event_types(state) == []
     assert {f.name for f in state.dataset_info.files} == {"winner.csv"}
+
+
+class TestDropIdentifierColumns:
+    """drop_identifier_columns removes leaked row indexes, never T/Y."""
+
+    def test_drops_unnamed_index_column(self):
+        df = pd.DataFrame(
+            {"Unnamed: 0": [0, 1, 2], "treat": [1, 0, 1], "re78": [9.0, 4.0, 7.0]}
+        )
+        cleaned, dropped = drop_identifier_columns(df, protected=("treat", "re78"))
+        assert dropped == ["Unnamed: 0"]
+        assert list(cleaned.columns) == ["treat", "re78"]
+
+    def test_drops_monotonic_index_under_any_name(self):
+        df = pd.DataFrame({"row": [0, 1, 2, 3], "x": [5, 9, 2, 7]})
+        cleaned, dropped = drop_identifier_columns(df)
+        assert "row" in dropped
+        assert "x" not in dropped
+
+    def test_drops_id_suffix_columns(self):
+        df = pd.DataFrame({"customer_id": [11, 22], "age": [30, 40]})
+        cleaned, dropped = drop_identifier_columns(df)
+        assert dropped == ["customer_id"]
+
+    def test_never_drops_protected_treatment_or_outcome(self):
+        # A binary 0/1 treatment must survive even though it is integer.
+        df = pd.DataFrame({"treat": [0, 1, 0, 1], "y": [1.0, 2.0, 3.0, 4.0]})
+        cleaned, dropped = drop_identifier_columns(df, protected=("treat", "y"))
+        assert dropped == []
+        assert list(cleaned.columns) == ["treat", "y"]
+
+    def test_keeps_ordinary_columns(self):
+        df = pd.DataFrame({"age": [25, 30, 45], "educ": [12, 16, 10]})
+        cleaned, dropped = drop_identifier_columns(df)
+        assert dropped == []
+        assert list(cleaned.columns) == ["age", "educ"]

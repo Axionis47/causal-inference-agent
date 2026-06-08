@@ -33,7 +33,7 @@ from .helpers import (
     populate_profile,
     save_dataframe,
 )
-from .loading import fetch_kaggle_metadata, load_dataset
+from .loading import drop_identifier_columns, fetch_kaggle_metadata, load_dataset
 from .output import DataProfile
 from .prompt import SYSTEM_PROMPT
 
@@ -140,6 +140,15 @@ class DataProfilerAgent(ReActAgent, ContextTools):
             if self._df is None:
                 state.mark_failed(load_error or "Failed to load dataset", self.AGENT_NAME)
                 return state
+
+            # Drop leaked row-index / id columns once, here, so the parquet every
+            # downstream agent reads never carries them into confounders/balance.
+            self._df, dropped_ids = drop_identifier_columns(
+                self._df,
+                protected=(state.treatment_variable, state.outcome_variable),
+            )
+            if dropped_ids:
+                self.logger.info("dropped_identifier_columns", columns=dropped_ids)
 
             self._df = exclude_oracle_columns(self._df, state, self.logger)
             self._profile = compute_basic_profile(self._df)
