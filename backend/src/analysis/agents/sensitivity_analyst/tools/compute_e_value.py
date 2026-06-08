@@ -40,6 +40,12 @@ async def handle(
             tool="compute_e_value",
             extra_keys=list(kwargs.keys()),
         )
+    # The LLM (Gemini) often passes integer args as floats (0.0), which then
+    # crash list indexing ("list indices must be integers, not float"). Coerce.
+    try:
+        method_index = int(method_index)
+    except (TypeError, ValueError):
+        method_index = 0
     if method_index >= len(agent._current_state.treatment_effects):
         return ToolResult(
             status=ToolResultStatus.ERROR,

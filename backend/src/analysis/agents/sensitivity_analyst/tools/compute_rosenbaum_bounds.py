@@ -40,6 +40,12 @@ async def handle(
             tool="compute_rosenbaum_bounds",
             extra_keys=list(kwargs.keys()),
         )
+    # Gemini often passes integer args as floats (0.0), which crash list
+    # indexing ("list indices must be integers, not float"). Coerce.
+    try:
+        method_index = int(method_index)
+    except (TypeError, ValueError):
+        method_index = 0
     if method_index >= len(agent._current_state.treatment_effects):
         return ToolResult(
             status=ToolResultStatus.ERROR,
