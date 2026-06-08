@@ -16,6 +16,7 @@ import { getJob, getTraces, getGateSnapshot, cancelJob, getNotebookUrl, AgentEve
 import { JOB_DETAIL_POLL_INTERVAL_MS, TRACES_POLL_INTERVAL_MS } from '../config/constants';
 import { useJob } from '../hooks/useJob';
 import { deriveJobView } from '../components/job/terminal/deriveJobView';
+import { tracesToEvents } from '../components/job/terminal/traceEvents';
 import { resolveGate } from '../components/job/terminal/resolveGate';
 import { TopBar } from '../components/job/terminal/TopBar';
 import { AgentsRail } from '../components/job/terminal/AgentsRail';
@@ -219,12 +220,19 @@ export default function JobPage() {
     );
   }
 
-  const view = deriveJobView(job, agentEvents, nowMs, selectedAgent);
+  // Per-agent reasoning steps, also used to hydrate the panes when there is no
+  // live SSE stream. Reuse the traces already polled for the token counter.
+  // Preview supplies its own.
+  const allTraces: AgentTrace[] = isPreview ? (preview!.traces ?? []) : (tracesQuery.data ?? []);
+
+  // A running job feeds the panes from live SSE events; a completed or reloaded
+  // job has none, so backfill from the persisted traces instead of leaving the
+  // tape stuck on "awaiting first event".
+  const sourceEvents = agentEvents.length > 0 ? agentEvents : tracesToEvents(allTraces);
+
+  const view = deriveJobView(job, sourceEvents, nowMs, selectedAgent);
   const onCancel = () => cancelMutation.mutate();
 
-  // Per-agent reasoning steps for the focus pane. Reuse the traces already polled
-  // for the token counter; filter to the focused agent. Preview supplies its own.
-  const allTraces: AgentTrace[] = isPreview ? (preview!.traces ?? []) : (tracesQuery.data ?? []);
   const focusTraces = view.focusAgent
     ? allTraces.filter((t) => t.agent_name === view.focusAgent)
     : [];
