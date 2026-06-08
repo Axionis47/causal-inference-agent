@@ -135,6 +135,24 @@ def test_gate_payload_data_summary_none_before_profile():
     assert payload["files"] == []
 
 
+def test_gate_payload_carries_relational_profile_when_present():
+    from src.domain.relational import FileRelational, RelationalProfile
+
+    rp = RelationalProfile(
+        shape_hint="same_schema_shards",
+        files=[FileRelational(file="part1.csv", n_rows=100, n_cols=4)],
+        same_schema_groups=[["part1.csv", "part2.csv"]],
+    )
+    payload = _build_gate_payload(_state(data_profile=_profile(), relational_profile=rp))
+    assert payload["relational"]["shape_hint"] == "same_schema_shards"
+    assert payload["relational"]["same_schema_groups"] == [["part1.csv", "part2.csv"]]
+
+
+def test_gate_payload_relational_is_none_for_single_file_runs():
+    payload = _build_gate_payload(_state(data_profile=_profile()))
+    assert payload["relational"] is None
+
+
 # --- park_for_approval async ----------------------------------------------
 
 

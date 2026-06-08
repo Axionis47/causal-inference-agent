@@ -40,6 +40,10 @@ from src.analysis.agents.dataset_inspector.helpers import (
     score_profile,
 )
 from src.analysis.agents.dataset_inspector.prompt import SYSTEM_PROMPT
+from src.analysis.agents.dataset_inspector.relational import (
+    build_relational_profile,
+    candidate_keys,
+)
 from src.analysis.agents.registry import register_agent
 from src.logging_config.structured import get_logger
 from src.storage.cleanup import CAUSAL_TEMP_DIR
@@ -172,6 +176,9 @@ class DatasetInspectorAgent(BaseAgent):
         for name, profile in profiles.items():
             if profile is not None:
                 state.file_profiles[name] = profile
+
+        # Describe how the files relate (read-only; nothing is assembled).
+        self._build_relational(state)
 
         scored = self._score_all(state.file_profiles)
         if not scored:
@@ -331,6 +338,35 @@ class DatasetInspectorAgent(BaseAgent):
             for name, profile in profiles.items()
         ]
 
+    def _build_relational(self, state: AnalysisState) -> None:
+        """Describe how the candidate files relate, from profiles + parquets.
+
+        Candidate keys need the FULL frame, so each candidate parquet is read
+        once (one at a time, then discarded) to avoid a false key from a sample.
+        When the inner profiler was stubbed (tests) the parquet is absent and
+        the keys default to empty; shape and counts still come from the profiles.
+        """
+        if not state.file_profiles:
+            return
+        key_candidates_by_file: dict[str, list[str]] = {}
+        for name in state.file_profiles:
+            path = self._candidate_paths.get(name)
+            if not path or not Path(path).is_file():
+                continue
+            try:
+                df = pd.read_parquet(path)
+                key_candidates_by_file[name] = candidate_keys(df)
+            except Exception as exc:
+                logger.warning(
+                    "dataset_inspector_key_scan_failed",
+                    job_id=state.job_id,
+                    file=name,
+                    error=str(exc),
+                )
+        state.relational_profile = build_relational_profile(
+            state.file_profiles, key_candidates_by_file
+        )
+
     def _commit_winner(
         self,
         state: AnalysisState,
@@ -391,5 +427,10 @@ class DatasetInspectorAgent(BaseAgent):
                     }
                     for name, p in state.file_profiles.items()
                 },
+                "relational_profile": (
+                    state.relational_profile.model_dump()
+                    if state.relational_profile is not None
+                    else None
+                ),
             },
         )

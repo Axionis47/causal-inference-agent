@@ -116,6 +116,12 @@ def _build_gate_payload(state: AnalysisState) -> dict:
         "outcome_variable": state.outcome_variable,
         "data_summary": data_summary,
         "files": files,
+        # How the bundle's files relate (read-only; one file feeds the analysis).
+        "relational": (
+            state.relational_profile.model_dump()
+            if state.relational_profile is not None
+            else None
+        ),
     }
 
 

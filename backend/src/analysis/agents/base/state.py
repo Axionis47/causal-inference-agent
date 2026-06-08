@@ -15,6 +15,7 @@ from src.analysis.agents.effect_estimator import TreatmentEffectResult
 from src.analysis.agents.sensitivity_analyst import SensitivityResult
 from src.domain.approval import HumanApproval
 from src.domain.briefs import AgentBrief
+from src.domain.relational import RelationalProfile
 
 
 class JobStatus(StrEnum):
@@ -215,6 +216,12 @@ class AnalysisState(BaseModel):
     # data_profile above so the rest of the pipeline reads one slot.
     # file_profiles is what the UI Data panel renders for the user.
     file_profiles: dict[str, DataProfile] = Field(default_factory=dict)
+
+    # Populated by Dataset Inspector: how the bundle's files relate (shape hint,
+    # per-file counts + candidate keys, same-schema groups). Descriptive only;
+    # the pipeline still analyses the single winner file. None for single-file
+    # runs and older states. See src/domain/relational.py.
+    relational_profile: RelationalProfile | None = None
 
     # Populated by EDA Agent
     eda_result: EDAResult | None = None

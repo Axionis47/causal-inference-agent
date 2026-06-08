@@ -121,6 +121,34 @@ async def test_happy_path_picks_winner_mutates_state_and_emits_events():
     assert "train.csv" in brief.headline
 
 
+# --- relational report: built from the per-file profiles, emitted on the event
+
+
+@pytest.mark.asyncio
+async def test_relational_profile_is_built_and_emitted():
+    # Wiring: execute() must compute state.relational_profile from the per-file
+    # profiles and fold it into the inspection_complete event. The stub gives
+    # both files the same schema, so the bundle classifies as same-schema shards.
+    agent = DatasetInspectorAgent()
+    agent._profile_one_file = _stub_profiler({
+        "part1.csv": _profile(n_samples=950, outcome=["y"]),
+        "part2.csv": _profile(n_samples=200),
+    })
+    state = _state(_files(("part1.csv", "csv"), ("part2.csv", "csv")))
+    result = await agent.execute(state)
+
+    rp = result.relational_profile
+    assert rp is not None
+    assert rp.shape_hint == "same_schema_shards"
+    assert rp.same_schema_groups == [["part1.csv", "part2.csv"]]
+    assert {f.file for f in rp.files} == {"part1.csv", "part2.csv"}
+
+    completed = next(
+        e for e in result.sse_events if e["event_type"] == "dataset_inspection_complete"
+    )
+    assert completed["data"]["relational_profile"]["shape_hint"] == "same_schema_shards"
+
+
 # --- single-candidate bundle: still works, no alternatives in audit -------
 
 

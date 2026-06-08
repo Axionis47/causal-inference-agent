@@ -12,5 +12,6 @@ causal_discovery.
 from __future__ import annotations
 
 from src.analysis.agents.data_profiler import DataProfile
+from src.domain.relational import FileRelational, RelationalProfile
 
-__all__ = ["DataProfile"]
+__all__ = ["DataProfile", "FileRelational", "RelationalProfile"]
