@@ -30,6 +30,7 @@ from src.logging_config.structured import get_logger
 from . import tools
 from .brief import CAPABILITY as EE_CAPABILITY, build_brief, preflight
 from .covariates import get_covariates_for_pair
+from .estimation_methods import run_method
 from .helpers import (
     auto_finalize,
     build_initial_observation,
@@ -54,6 +55,12 @@ class EffectEstimatorAgent(ReActAgent, ContextTools):
 
     AGENT_NAME = "effect_estimator"
     MAX_STEPS = 20
+
+    # Deterministic estimation: these methods run once each on the resolved DAG
+    # adjustment set, in execution order (OLS as the reference first, then the
+    # propensity and doubly-robust methods). Method choice is a lookup from the
+    # data, not an LLM judgment call, so it is not delegated to the ReAct loop.
+    FIXED_METHODS = ("ols", "ipw", "psm", "aipw")
 
     SYSTEM_PROMPT = SYSTEM_PROMPT
 
@@ -207,12 +214,15 @@ class EffectEstimatorAgent(ReActAgent, ContextTools):
 
                 self._covariates = get_covariates_for_pair(self, state, treatment, outcome)
 
-                await super().execute(state)
-
-                if not self._finalized:
+                # Deterministic: run the fixed method set on the DAG adjustment set
+                # instead of letting an LLM loop improvise method + covariates per
+                # call (which produced eight identical "OLS Regression" rows on
+                # ad-hoc covariate subsets). One run per method, one fixed set.
+                self._run_fixed_methods(state)
+                if not self._results:
                     self.logger.warning("estimation_auto_finalize")
                     self._auto_finalize()
-                    self._finalized = True
+                self._finalized = True
 
                 for result in self._results:
                     result.treatment_variable = treatment
@@ -252,6 +262,40 @@ class EffectEstimatorAgent(ReActAgent, ContextTools):
                 )
 
         return state
+
+    def _run_fixed_methods(self, state: AnalysisState) -> None:
+        """Run the fixed method set on the resolved adjustment set, once each.
+
+        Replaces the LLM ReAct loop's free choice of method and covariates. Every
+        method in FIXED_METHODS runs exactly once on self._covariates (the DAG
+        backdoor set), so the forest plot compares genuinely different methods on
+        one fixed control set rather than the same OLS re-run on improvised covariate
+        subsets. run_method self-gates on sample size, returning None for methods the
+        data cannot support (e.g. propensity methods on a tiny sample), which we skip.
+        """
+        for method in self.FIXED_METHODS:
+            try:
+                result = run_method(
+                    method,
+                    self._treatment_var,
+                    self._outcome_var,
+                    self._covariates,
+                    self._df,
+                    state,
+                )
+            except Exception as e:  # one method failing must not sink the rest
+                self.logger.warning("fixed_method_error", method=method, error=str(e))
+                continue
+            if result is not None:
+                self._results.append(result)
+                self.logger.info(
+                    "fixed_method_ran",
+                    method=method,
+                    estimate=round(float(result.estimate), 2),
+                    n_covariates=len(self._covariates),
+                )
+            else:
+                self.logger.info("fixed_method_skipped", method=method)
 
     def _auto_finalize(self) -> dict[str, Any]:
         return auto_finalize(
