@@ -13,7 +13,7 @@ from src.analysis.agents.registry import register_agent
 from src.logging_config.structured import get_logger
 
 from .brief import CAPABILITY as NB_CAPABILITY, build_brief, preflight
-from .helpers import save_notebook_async
+from .helpers import notebook_data_source, save_notebook_async
 from .sections import (
     render_causal_structure,
     render_conclusions,
@@ -126,9 +126,9 @@ When generating narratives:
             ))
 
             nb.cells = cells
-            data_source = state.dataframe_path or (
-                state.dataset_info.local_path if state.dataset_info else None
-            )
+            # Bundle raw data when repairs ran so the cleaning section can
+            # reproduce them; otherwise bundle the final dataframe directly.
+            data_source, _ = notebook_data_source(state)
             notebook_path = await save_notebook_async(
                 nb, state.job_id, data_source_path=data_source
             )

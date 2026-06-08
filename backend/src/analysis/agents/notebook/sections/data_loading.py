@@ -6,19 +6,33 @@ from nbformat.v4 import new_code_cell, new_markdown_cell
 
 from src.analysis.agents.base import AnalysisState
 
+from ..helpers import notebook_data_source
+
 
 def render_data_loading(state: AnalysisState) -> list:
     """Generate data loading cells using portable relative path."""
     cells = []
-    cells.append(new_markdown_cell(
-        "## Data Loading\n\n"
-        "Load the dataset bundled alongside this notebook."
-    ))
 
-    # Determine the data filename that was bundled by helpers.save_notebook()
-    data_source = state.dataframe_path or (
-        state.dataset_info.local_path if state.dataset_info else None
-    )
+    # The notebook agent bundles whichever file this returns under the same
+    # name, so the load cell must read the same one. is_raw means repairs ran
+    # and the cleaning section below transforms this raw data into the final set.
+    data_source, is_raw = notebook_data_source(state)
+
+    if is_raw:
+        intro = (
+            "## Data Loading\n\n"
+            "Load the **raw** dataset bundled with this notebook. The data "
+            "cleaning section below reproduces, in order, the repairs the "
+            "pipeline applied, turning this raw data into the analysis-ready "
+            "dataset used for everything that follows."
+        )
+    else:
+        intro = (
+            "## Data Loading\n\n"
+            "Load the dataset bundled alongside this notebook."
+        )
+    cells.append(new_markdown_cell(intro))
+
     ext = Path(data_source).suffix if data_source else ".parquet"
     data_filename = f"data_{state.job_id}{ext}"
 

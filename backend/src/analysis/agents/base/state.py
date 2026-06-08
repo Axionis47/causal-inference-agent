@@ -204,6 +204,12 @@ class AnalysisState(BaseModel):
     data_profile: DataProfile | None = None
     dataframe_path: str | None = None  # Path to parquet DataFrame
 
+    # Set by Data Repair when it applies repairs: a snapshot of the dataframe
+    # BEFORE cleaning, so the notebook can load the raw data and reproduce the
+    # cleaning rather than load the already-cleaned dataframe_path. None when no
+    # repairs were applied (then dataframe_path already is the raw == final data).
+    raw_dataframe_path: str | None = None
+
     # Populated by Dataset Inspector. One entry per candidate file in
     # the Kaggle bundle; the winner's profile is also copied into
     # data_profile above so the rest of the pipeline reads one slot.

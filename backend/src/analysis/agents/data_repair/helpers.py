@@ -25,6 +25,28 @@ def save_dataframe(df: pd.DataFrame, dataframe_path: str | None, logger) -> None
             logger.error("save_failed", error=str(e))
 
 
+def save_raw_snapshot(
+    df_original: pd.DataFrame, dataframe_path: str | None, logger
+) -> str | None:
+    """Persist the pre-repair dataframe beside dataframe_path; return its path.
+
+    Saving the raw snapshot is what lets the notebook load the raw data and
+    reproduce the cleaning, instead of loading the already-cleaned dataframe_path
+    (which makes the repair cells run on clean data and change nothing). Failures
+    are non-fatal: the notebook falls back to the cleaned dataframe.
+    """
+    if not dataframe_path:
+        return None
+    p = Path(dataframe_path)
+    raw_path = p.with_name(f"{p.stem}_raw{p.suffix or '.parquet'}")
+    try:
+        df_original.to_parquet(raw_path)
+        return str(raw_path)
+    except Exception as e:
+        logger.error("raw_snapshot_failed", error=str(e))
+        return None
+
+
 def count_outliers(data: pd.Series) -> int:
     """IQR-based outlier count for one numeric Series."""
     q1 = data.quantile(0.25)

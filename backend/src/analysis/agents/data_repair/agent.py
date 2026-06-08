@@ -22,6 +22,7 @@ from .helpers import (
     initial_observation_text,
     load_dataframe,
     save_dataframe,
+    save_raw_snapshot,
 )
 from .prompt import SYSTEM_PROMPT
 
@@ -108,6 +109,14 @@ class DataRepairAgent(ReActAgent, ContextTools):
 
             self._save_dataframe(self._df, state)
             state.data_repairs = self._repairs_applied
+
+            # When repairs were applied, keep the pre-repair dataframe so the
+            # notebook can load raw and genuinely reproduce the cleaning. With no
+            # repairs there is nothing to reproduce; dataframe_path is already raw.
+            if self._repairs_applied:
+                state.raw_dataframe_path = save_raw_snapshot(
+                    self._df_original, state.dataframe_path, self.logger
+                )
 
             duration_ms = int((time.time() - start_time) * 1000)
             trace = self.create_trace(

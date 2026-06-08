@@ -222,11 +222,12 @@ def render_data_repairs(state: AnalysisState) -> list:
 
     # ── Executable repair cells ────────────────────────────────
     repair_note = (
-        "### Reproducible Repair Code\n\n"
-        "> **Note**: The bundled dataset (`df`) has already been repaired by the pipeline. "
-        "The cells below document the exact repairs applied. Running them on the "
-        "already-repaired data should produce no changes (0 values repaired), serving "
-        "as a verification that the bundled data matches expectations."
+        "### Cleaning the Raw Data\n\n"
+        "> **Note**: The cells below apply, in order, the repairs the pipeline "
+        "made. They run on the raw dataset loaded above and transform it into the "
+        "cleaned dataset used for the analysis that follows. Each cell recomputes "
+        "its parameters (medians, IQR bounds, modes) from the data, so the result "
+        "reproduces the pipeline's cleaning rather than only restating it."
     )
     cells.append(new_markdown_cell(repair_note))
 

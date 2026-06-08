@@ -7,14 +7,36 @@ and notebook save logic used across section renderers.
 import shutil
 import tempfile
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import nbformat
 import numpy as np
 
 from src.logging_config.structured import get_logger
 
+if TYPE_CHECKING:
+    from src.analysis.agents.base import AnalysisState
+
 logger = get_logger(__name__)
+
+
+def notebook_data_source(state: "AnalysisState") -> tuple[str | None, bool]:
+    """Pick which dataframe the notebook bundles and loads. Returns (path, is_raw).
+
+    When data_repair applied repairs and saved a raw snapshot, the notebook loads
+    the RAW data and the repairs section reproduces the cleaning on it. Otherwise
+    it loads the final dataframe directly (no repairs means raw == final, nothing
+    to reproduce). Both the notebook agent (which bundles the file) and the
+    data-loading renderer (which writes the load cell) call this, so they never
+    disagree on which file ships beside the notebook.
+    """
+    raw = getattr(state, "raw_dataframe_path", None)
+    if state.data_repairs and raw and Path(raw).exists():
+        return raw, True
+    final = state.dataframe_path or (
+        state.dataset_info.local_path if state.dataset_info else None
+    )
+    return final, False
 
 
 async def generate_llm_narrative(
