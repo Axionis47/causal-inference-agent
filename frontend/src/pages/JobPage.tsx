@@ -9,7 +9,7 @@
 //
 // All presentation lives in components/job/terminal/.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getJob, getTraces, getGateSnapshot, cancelJob, getNotebookUrl, AgentEvent, AgentTrace, JobDetail, DagGatePayload, ResultsGatePayload, RelationalProfilePayload } from '../services/api';
@@ -17,6 +17,7 @@ import { JOB_DETAIL_POLL_INTERVAL_MS, TRACES_POLL_INTERVAL_MS } from '../config/
 import { useJob } from '../hooks/useJob';
 import { deriveJobView } from '../components/job/terminal/deriveJobView';
 import { tracesToEvents } from '../components/job/terminal/traceEvents';
+import { ResultsView } from '../components/job/terminal/ResultsView';
 import { resolveGate } from '../components/job/terminal/resolveGate';
 import { TopBar } from '../components/job/terminal/TopBar';
 import { AgentsRail } from '../components/job/terminal/AgentsRail';
@@ -104,6 +105,12 @@ export default function JobPage() {
   // click pins any agent (even a finished one) so its findings stay inspectable.
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
 
+  // The results overlay (effects, sensitivity, notebook). There is no separate
+  // route; it opens over the terminal. Auto-open once when a job is completed so
+  // the analysis output is visible instead of just the trace tape.
+  const [showResults, setShowResults] = useState(false);
+  const resultsAutoOpened = useRef(false);
+
   // Memoise preview so timestamps freeze at first render of /jobs/__preview.
   const preview = useMemo(() => (isPreview ? buildPreviewState() : null), [isPreview]);
 
@@ -175,6 +182,15 @@ export default function JobPage() {
       setShowDataset(gate === null || gate.kind === 'data');
     }
   }, [job?.status, gate]);
+
+  // Auto-open the results overlay once a job is completed, so the analysis output
+  // is what you see, not an empty page. Only once: a manual close stays closed.
+  useEffect(() => {
+    if (!isPreview && job?.status === 'completed' && !resultsAutoOpened.current) {
+      resultsAutoOpened.current = true;
+      setShowResults(true);
+    }
+  }, [isPreview, job?.status]);
 
   // F-key shortcuts. Always run the hook; gate the actions inside.
   useEffect(() => {
@@ -278,7 +294,7 @@ export default function JobPage() {
         isPreview={isPreview}
         onCancel={onCancel}
         onData={() => setShowDataset((v) => !v)}
-        onResults={() => navigate(`/jobs/${job.id}#results`)}
+        onResults={() => setShowResults((v) => !v)}
       />
 
       {showDataset && (
@@ -298,6 +314,10 @@ export default function JobPage() {
         ) : (
           <ApprovalBar jobId={job.id} onOpenData={() => setShowDataset(true)} />
         )
+      )}
+
+      {!isPreview && showResults && (
+        <ResultsView jobId={job.id} onClose={() => setShowResults(false)} />
       )}
     </div>
   );
