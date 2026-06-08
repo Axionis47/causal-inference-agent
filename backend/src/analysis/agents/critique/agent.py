@@ -100,7 +100,7 @@ class CritiqueAgent(BaseAgent):
 
             final_result = await self._run_agentic_loop(initial_prompt, max_iterations=10)
 
-            feedback = create_feedback(final_result, state.iteration_count + 1)
+            feedback = create_feedback(final_result, state.iteration_count + 1, state)
             state.critique_history.append(feedback)
 
             duration_ms = int((time.time() - start_time) * 1000)

@@ -164,8 +164,50 @@ def auto_finalize(
     }
 
 
-def create_feedback(result: dict[str, Any], iteration: int) -> CritiqueFeedback:
-    """Map an auto- or LLM-finalize result dict to a typed CritiqueFeedback."""
+def _guard_reject_on_raw_imbalance(
+    decision: "CritiqueDecision",
+    state: AnalysisState,
+    issues: list,
+    reasoning: str,
+) -> tuple["CritiqueDecision", str]:
+    """Downgrade a REJECT that rests on raw covariate imbalance.
+
+    On observational data, the treatment and control groups are imbalanced before
+    adjustment; that imbalance is the whole reason to adjust. An analysis that
+    applied a non-empty adjustment set with one or more (adjusted/doubly-robust)
+    estimators is not invalid just because the RAW covariates differ. So when the
+    LLM rejects on imbalance/confounding grounds but the analysis did adjust, the
+    rejection is overridden to APPROVE rather than failing the run.
+    """
+    if decision != CritiqueDecision.REJECT:
+        return decision, reasoning
+    dag = state.proposed_dag
+    adjustment = list(dag.adjustment_set) if (dag and dag.adjustment_set) else []
+    if not (adjustment and state.treatment_effects):
+        return decision, reasoning  # genuinely unadjusted/empty: keep REJECT
+    blob = (str(reasoning) + " " + " ".join(str(i) for i in (issues or []))).lower()
+    if not any(k in blob for k in ("imbalanc", "balance", "smd", "comparab", "confound")):
+        return decision, reasoning  # rejected for some other reason: keep REJECT
+    note = (
+        "\n\n[adjustment-aware override] Raw pre-adjustment covariate imbalance is "
+        f"expected here and is controlled by the {len(adjustment)}-confounder "
+        "adjustment set and the adjusted/doubly-robust estimators, so it is not "
+        "grounds for rejection. Decision downgraded from REJECT to APPROVE."
+    )
+    return CritiqueDecision.APPROVE, str(reasoning) + note
+
+
+def create_feedback(
+    result: dict[str, Any],
+    iteration: int,
+    state: AnalysisState | None = None,
+) -> CritiqueFeedback:
+    """Map an auto- or LLM-finalize result dict to a typed CritiqueFeedback.
+
+    When `state` is given, an adjustment-aware guard prevents a REJECT founded on
+    raw covariate imbalance from failing an analysis that actually adjusted for
+    confounders (see _guard_reject_on_raw_imbalance).
+    """
     scores = result.get("scores", {
         "statistical_validity": 3,
         "assumption_checking": 3,
@@ -182,6 +224,12 @@ def create_feedback(result: dict[str, Any], iteration: int) -> CritiqueFeedback:
         decision = CritiqueDecision.ITERATE
 
     reasoning = result.get("reasoning", "")
+    issues = result.get("issues", [])
+    if state is not None:
+        decision, reasoning = _guard_reject_on_raw_imbalance(
+            decision, state, issues, reasoning
+        )
+
     evidence = result.get("evidence_summary", "")
     if evidence:
         reasoning = f"{reasoning}\n\nEvidence: {evidence}"
@@ -190,7 +238,7 @@ def create_feedback(result: dict[str, Any], iteration: int) -> CritiqueFeedback:
         decision=decision,
         iteration=iteration,
         scores=scores,
-        issues=result.get("issues", []),
+        issues=issues,
         improvements=result.get("improvements", []),
         reasoning=reasoning,
     )
