@@ -15,8 +15,7 @@ from src.logging_config.structured import get_logger
 from . import tools
 from .brief import CAPABILITY as DE_CAPABILITY, build_brief, preflight
 from .helpers import (
-    adjustment_set_from_dag,
-    build_fallback_dag,
+    build_canonical_dag,
     initial_observation_text,
 )
 from .prompt import SYSTEM_PROMPT
@@ -101,37 +100,25 @@ class DAGExpertAgent(ReActAgent, ContextTools):
         try:
             state = await super().execute(state)
 
-            # Robustness: the ReAct loop sometimes classifies roles but runs out
-            # of steps before calling fuse_and_validate, leaving refined_dag None
-            # (a hard halt) or without an adjustment set. Never hand back an
-            # unusable DAG: build the canonical confounder DAG so estimation
-            # always has a valid backdoor set.
-            if state.refined_dag is None:
-                state.refined_dag = build_fallback_dag(state, self._variable_roles)
-                self.logger.info(
-                    "dag_expert_fallback_dag",
-                    reason="loop produced no refined_dag",
-                    adjustment_set=state.refined_dag.adjustment_set,
-                )
-            elif not (state.refined_dag.adjustment_set or []):
-                info = adjustment_set_from_dag(
-                    state.refined_dag,
-                    state.treatment_variable,
-                    state.outcome_variable,
-                )
-                if info["adjustment_set"]:
-                    state.refined_dag.adjustment_set = info["adjustment_set"]
-                else:
-                    state.refined_dag = build_fallback_dag(state, self._variable_roles)
-                    self.logger.info(
-                        "dag_expert_fallback_dag",
-                        reason="empty adjustment set after fusion",
-                        adjustment_set=state.refined_dag.adjustment_set,
-                    )
+            # The canonical backdoor decides the adjustment set, not the thin,
+            # noisily-oriented fusion DAG the ReAct loop builds. Default to
+            # adjusting for every pre-treatment covariate; a real confounder can
+            # no longer vanish just because the LLM or discovery never drew an
+            # edge for it. The loop's role classifications are carried over as
+            # advisory context (a later step turns them into justified
+            # exclusions). Data discovery is preserved untouched in
+            # state.discovered_dag as the advisory record.
+            canonical = build_canonical_dag(state)
+            if self._variable_roles:
+                merged = dict(canonical.variable_roles or {})
+                for var, role in self._variable_roles.items():
+                    merged.setdefault(var, role)
+                canonical.variable_roles = merged
+            state.refined_dag = canonical
 
             self.logger.info(
                 "dag_expert_complete",
-                n_edges=len(state.refined_dag.edges) if state.refined_dag else 0,
+                n_covariates=len(canonical.adjustment_set or []),
                 n_roles_classified=len(self._variable_roles),
             )
         finally:

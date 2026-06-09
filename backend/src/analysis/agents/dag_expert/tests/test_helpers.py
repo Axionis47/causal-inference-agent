@@ -1,18 +1,27 @@
-"""Tests for the pure helpers: patterns_for_domain, fuse_edges, adjustment_set_from_dag."""
+"""Tests for the pure helpers: covariate_universe, build_canonical_dag,
+patterns_for_domain, fuse_edges, adjustment_set_from_dag."""
 
 import types
 
 from src.analysis.agents.base import CausalDAG, CausalEdge
 from src.analysis.agents.dag_expert.helpers import (
     adjustment_set_from_dag,
-    build_fallback_dag,
+    build_canonical_dag,
+    covariate_universe,
     fuse_edges,
     patterns_for_domain,
 )
 
+_LALONDE = ["treat", "re78", "age", "educ", "black", "hispan", "married", "nodegree", "re74", "re75"]
+_LALONDE_COVARIATES = {"age", "educ", "black", "hispan", "married", "nodegree", "re74", "re75"}
 
-def _state(treatment, outcome, roles=None, confounders=None):
-    profile = types.SimpleNamespace(potential_confounders=confounders or [])
+
+def _state(treatment, outcome, feature_names=None, feature_types=None):
+    names = list(feature_names if feature_names is not None else [])
+    # Default every column to numeric so type filtering is a no-op unless a test
+    # supplies its own types.
+    ftypes = dict(feature_types if feature_types is not None else {n: "numeric" for n in names})
+    profile = types.SimpleNamespace(feature_names=names, feature_types=ftypes)
     return types.SimpleNamespace(
         job_id="t",
         treatment_variable=treatment,
@@ -21,51 +30,66 @@ def _state(treatment, outcome, roles=None, confounders=None):
     )
 
 
-class TestBuildFallbackDag:
-    def test_uses_classified_confounder_roles(self):
-        roles = {
-            "treat": "treatment",
-            "re78": "outcome",
-            "age": "confounder",
-            "educ": "confounder",
+class TestCovariateUniverse:
+    def test_includes_every_pretreatment_covariate(self):
+        # The whole point of the fix: all 8 LaLonde confounders survive, not 3.
+        st = _state("treat", "re78", feature_names=_LALONDE)
+        assert set(covariate_universe(st)) == _LALONDE_COVARIATES
+
+    def test_excludes_treatment_and_outcome(self):
+        st = _state("treat", "re78", feature_names=["treat", "re78", "age"])
+        universe = covariate_universe(st)
+        assert "treat" not in universe and "re78" not in universe
+        assert universe == ["age"]
+
+    def test_excludes_row_identifier_columns(self):
+        names = ["Unnamed: 0", "customer_id", "id", "age", "treat", "re78"]
+        st = _state("treat", "re78", feature_names=names)
+        assert covariate_universe(st) == ["age"]
+
+    def test_excludes_datetime_and_text_types(self):
+        names = ["treat", "re78", "age", "signup_date", "notes"]
+        ftypes = {
+            "treat": "binary", "re78": "numeric", "age": "numeric",
+            "signup_date": "datetime", "notes": "text",
         }
-        dag = build_fallback_dag(_state("treat", "re78", roles), roles)
-        assert set(dag.adjustment_set) == {"age", "educ"}
-        # canonical edges: each confounder -> T and -> Y, plus T -> Y
+        st = _state("treat", "re78", feature_names=names, feature_types=ftypes)
+        assert covariate_universe(st) == ["age"]
+
+    def test_empty_when_no_profile(self):
+        st = types.SimpleNamespace(
+            job_id="t", treatment_variable="treat", outcome_variable="re78", data_profile=None
+        )
+        assert covariate_universe(st) == []
+
+
+class TestBuildCanonicalDag:
+    def test_adjustment_set_is_the_full_covariate_universe(self):
+        dag = build_canonical_dag(_state("treat", "re78", feature_names=_LALONDE))
+        assert set(dag.adjustment_set) == _LALONDE_COVARIATES
+
+    def test_draws_canonical_edges_each_covariate_to_t_and_y(self):
+        dag = build_canonical_dag(_state("treat", "re78", feature_names=["treat", "re78", "age", "educ"]))
         pairs = {(e.source, e.target) for e in dag.edges}
         assert ("age", "treat") in pairs and ("age", "re78") in pairs
+        assert ("educ", "treat") in pairs and ("educ", "re78") in pairs
         assert ("treat", "re78") in pairs
 
-    def test_falls_back_to_profiler_confounders_when_no_roles(self):
-        dag = build_fallback_dag(
-            _state("treat", "re78", roles={}, confounders=["age", "re74"]),
-            {},
-        )
-        assert set(dag.adjustment_set) == {"age", "re74"}
-
     def test_never_includes_treatment_or_outcome_in_adjustment_set(self):
-        roles = {"treat": "treatment", "re78": "outcome", "age": "confounder"}
-        dag = build_fallback_dag(_state("treat", "re78", roles), roles)
+        dag = build_canonical_dag(_state("treat", "re78", feature_names=["treat", "re78", "age"]))
         assert "treat" not in dag.adjustment_set
         assert "re78" not in dag.adjustment_set
 
-    def test_prefers_real_profiler_confounders_over_generic_role_names(self):
-        # Regression: the ReAct loop classifies generic placeholders (feature_1)
-        # as confounders. A fallback built from those yields an adjustment set of
-        # non-existent columns that every downstream agent filters back to empty.
-        # The profiler's real column names must win.
-        roles = {
-            "treat": "treatment",
-            "re78": "outcome",
-            "feature_1": "confounder",
-            "feature_2": "confounder",
-        }
-        dag = build_fallback_dag(
-            _state("treat", "re78", roles, confounders=["age", "educ", "re74"]),
-            roles,
+    def test_caller_supplied_exclusions_are_removed(self):
+        # The Step 2 seam: a covariate the LLM justifies as a mediator/collider/
+        # instrument is dropped from the set; everything else stays in.
+        names = ["treat", "re78", "age", "post_treatment_earnings"]
+        dag = build_canonical_dag(
+            _state("treat", "re78", feature_names=names),
+            exclusions=("post_treatment_earnings",),
         )
-        assert set(dag.adjustment_set) == {"age", "educ", "re74"}
-        assert "feature_1" not in dag.adjustment_set
+        assert set(dag.adjustment_set) == {"age"}
+        assert "post_treatment_earnings" not in dag.adjustment_set
 
 
 class TestPatternsForDomain:

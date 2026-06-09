@@ -5,6 +5,8 @@ these touch agent state directly — they take their inputs explicitly so
 the logic can be unit-tested independently of the ReAct loop.
 """
 
+import re
+
 from src.analysis.agents.causal_discovery.output import CausalDAG, CausalEdge
 
 # Map domain -> typical causal patterns. Used by analyze_domain to hint at
@@ -220,60 +222,71 @@ def adjustment_set_from_dag(dag: CausalDAG, treatment: str, outcome: str) -> dic
     }
 
 
-# Role substrings that mean "a pre-treatment common cause to adjust for".
-_CONFOUNDER_ROLE_HINTS = (
-    "confound",
-    "immutable",
-    "pre_treatment",
-    "pretreatment",
-    "covariate",
+# Column-name patterns that are row identifiers, never causal covariates. Mirrors
+# the profiler's identifier drop so a leaked row index (e.g. "Unnamed: 0") cannot
+# re-enter the adjustment set here even if it survived loading.
+_IDENTIFIER_NAME = re.compile(
+    r"^(unnamed(\s*:?\s*\d+)?|index|id|row_?num(ber)?|.+_id)$",
+    re.IGNORECASE,
 )
 
+# Profiler feature types we cannot adjust on directly: a datetime is an ordering
+# signal, free text is unencoded high-cardinality. Everything else (numeric,
+# binary, ordinal, categorical) is an eligible covariate.
+_NON_ADJUSTABLE_TYPES = {"datetime", "text"}
 
-def build_fallback_dag(state, variable_roles: dict[str, str]) -> CausalDAG:
-    """Deterministic canonical confounder DAG for when the ReAct loop never fused.
 
-    The loop sometimes spends its whole step budget classifying roles and never
-    calls fuse_and_validate, leaving refined_dag None (which the readiness gate
-    treats as a hard failure). Rather than stall, build the safe observational
-    default: every identified confounder (LLM-classified, else the profiler's
-    potential_confounders) points at both treatment and outcome, plus
-    treatment -> outcome. The backdoor adjustment set is then exactly those
-    confounders.
+def covariate_universe(state) -> list[str]:
+    """Every pre-treatment covariate eligible for the backdoor adjustment set.
+
+    The safe observational default: treat every column as a confounder unless it
+    is the treatment, the outcome, a row identifier, or a type we cannot adjust
+    on. Derived entirely from the data with no column name hardcoded. The LLM's
+    later job is only to REMOVE a covariate it can justify as a mediator,
+    collider, or instrument; it never has to discover the set from scratch.
+    """
+    profile = state.data_profile
+    if profile is None:
+        return []
+    skip = {state.treatment_variable, state.outcome_variable, None}
+    feature_types = dict(getattr(profile, "feature_types", {}) or {})
+    universe: list[str] = []
+    for col in getattr(profile, "feature_names", []) or []:
+        if col in skip:
+            continue
+        if _IDENTIFIER_NAME.match(str(col).strip()):
+            continue
+        if feature_types.get(col) in _NON_ADJUSTABLE_TYPES:
+            continue
+        universe.append(col)
+    return universe
+
+
+def build_canonical_dag(state, exclusions: tuple[str, ...] = ()) -> CausalDAG:
+    """The safe observational-default DAG: the backdoor set IS the covariate universe.
+
+    Every pre-treatment covariate points at both treatment and outcome, plus
+    treatment -> outcome, so the backdoor adjustment set is exactly those
+    covariates. This replaces letting a thin, noisily-oriented discovery DAG
+    decide the set, which silently dropped real confounders the LLM or discovery
+    never drew an edge for. `exclusions` are covariates the LLM justified removing
+    as a mediator, collider, or instrument; with none passed the set is the full
+    universe. Over-adjusting on a genuine confounder is harmless; dropping one is
+    the bias we are preventing.
     """
     treatment = state.treatment_variable
     outcome = state.outcome_variable
     skip = {treatment, outcome, None}
+    excluded = set(exclusions)
+    confounders = [
+        c for c in covariate_universe(state) if c not in skip and c not in excluded
+    ]
 
-    profile = state.data_profile
-    real_cols = set(getattr(profile, "feature_names", []) or []) if profile else set()
-    potential = (
-        list(getattr(profile, "potential_confounders", []) or []) if profile else []
-    )
-
-    # Prefer the profiler's confounder list, which holds real column names. The
-    # ReAct loop often classifies roles against generic placeholders (feature_1,
-    # feature_2, ...) that are not real columns, so a fallback built from those
-    # produces an adjustment set that every downstream agent filters back to
-    # empty. Only trust classified confounders that exist in the data.
-    confounders = [c for c in potential if c not in skip]
-    if not confounders:
-        confounders = [
-            v
-            for v, role in (variable_roles or {}).items()
-            if v not in skip
-            and role
-            and any(h in role.lower() for h in _CONFOUNDER_ROLE_HINTS)
-            and (not real_cols or v in real_cols)
-        ]
-    if not confounders and real_cols:
-        confounders = [c for c in real_cols if c not in skip]
-
-    roles = {treatment: "treatment", outcome: "outcome"} if treatment and outcome else {}
+    roles: dict[str, str] = {}
     if treatment:
-        roles.setdefault(treatment, "treatment")
+        roles[treatment] = "treatment"
     if outcome:
-        roles.setdefault(outcome, "outcome")
+        roles[outcome] = "outcome"
     for c in confounders:
         roles.setdefault(c, "confounder")
 
