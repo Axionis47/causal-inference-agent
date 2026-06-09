@@ -72,6 +72,13 @@ def get_covariates_for_pair(
                     vars=raw_confounders[:5],
                 )
 
+    # Each lower priority is an independent `if not raw_confounders`, never an
+    # elif/else chained to Priority 1. An elif here binds to Priority 1's
+    # condition, so when Priority 0a already resolved the adjustment set and
+    # Priority 1 is merely absent (no confounder_discovery), the elif/else would
+    # still fire and clobber the DAG's confounders with the profiler's shorter
+    # potential_confounders list. The guard makes a higher priority's result win.
+
     # Priority 1: Discovered confounders.
     if not raw_confounders and state.confounder_discovery and state.confounder_discovery.get("ranked_confounders"):
         raw_confounders = [
@@ -80,14 +87,14 @@ def get_covariates_for_pair(
         ]
 
     # Priority 2: Profile's potential confounders.
-    elif state.data_profile and state.data_profile.potential_confounders:
+    if not raw_confounders and state.data_profile and state.data_profile.potential_confounders:
         raw_confounders = [
             c for c in state.data_profile.potential_confounders
             if c in agent._df.columns and c != treatment and c != outcome
         ]
 
     # Priority 3: All non-ID, non-date columns.
-    else:
+    if not raw_confounders:
         raw_confounders = [
             c for c in agent._df.columns
             if c != treatment
