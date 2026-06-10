@@ -97,3 +97,11 @@ coverage/
 
 # Personal self-study notes (intentionally never committed)
 BUGS_LESSONS.md
+
+# Local job artifacts (per-run data, generated at runtime)
+backend/data/*/
+backend/data/parked_states.json
+backend/data/parked_states.json.lock
+
+# Generated state map (local tooling output)
+_current_state_map/
