@@ -27,6 +27,7 @@ class JobStatus(StrEnum):
     EXPLORATORY_ANALYSIS = "exploratory_analysis"
     DISCOVERING_CAUSAL = "discovering_causal"
     AWAITING_APPROVAL = "awaiting_approval"  # Parked: human reviews data + DAG before estimation
+    CONFIRMED = "confirmed"  # Data + inputs confirmed at the data gate; analysis not yet run
     ESTIMATING_EFFECTS = "estimating_effects"
     SENSITIVITY_ANALYSIS = "sensitivity_analysis"
     CRITIQUE_REVIEW = "critique_review"

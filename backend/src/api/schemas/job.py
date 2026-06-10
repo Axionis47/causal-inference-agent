@@ -95,6 +95,39 @@ class CreateJobRequest(BaseModel):
         return v
 
 
+class UpdateInputsRequest(BaseModel):
+    """Analyst-corrected dataset inputs, applied at the data-review gate.
+
+    The names are validated against the profiled dataset's real columns by the
+    handler; here we only bound length. `time_column` is None to clear the time
+    tag, or a column name to set it.
+    """
+
+    treatment_variable: str = Field(
+        ..., min_length=1, max_length=MAX_VARIABLE_NAME_LENGTH
+    )
+    outcome_variable: str = Field(
+        ..., min_length=1, max_length=MAX_VARIABLE_NAME_LENGTH
+    )
+    time_column: str | None = Field(None, max_length=MAX_VARIABLE_NAME_LENGTH)
+
+
+class DatasetInputsResponse(BaseModel):
+    """The dataset inputs after an update, echoing what was stored."""
+
+    treatment_variable: str
+    outcome_variable: str
+    time_column: str | None = None
+    has_time_dimension: bool
+
+
+class ConfirmDatasetResponse(BaseModel):
+    """Result of confirming a dataset at the data-review gate."""
+
+    job_id: str
+    status: str
+
+
 class JobResponse(BaseModel):
     """Basic job response.
 

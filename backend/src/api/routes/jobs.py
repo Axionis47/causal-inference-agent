@@ -22,7 +22,9 @@ from src.api.schemas import (
     ApprovalSnapshotResponse,
     CancelJobResponse,
     CausalGraphResponse,
+    ConfirmDatasetResponse,
     CreateJobRequest,
+    DatasetInputsResponse,
     DatasetRowsPage,
     DatasetViewResponse,
     DeleteJobResponse,
@@ -32,6 +34,7 @@ from src.api.schemas import (
     JobStatusResponse,
     SensitivityResponse,
     TreatmentEffectResponse,
+    UpdateInputsRequest,
 )
 from src.api.utils import (
     build_data_context,
@@ -258,9 +261,13 @@ async def get_dataset_view(request: Request, job_id: str) -> DatasetViewResponse
         )
 
     state = manager.get_active_state(job_id)
-    if state is None and job.get("status") == JobStatus.AWAITING_APPROVAL.value:
-        # A job parked at the approval gate has no active state, but its full
-        # state (the data the user is reviewing) lives in the parked store.
+    if state is None and job.get("status") in (
+        JobStatus.AWAITING_APPROVAL.value,
+        JobStatus.CONFIRMED.value,
+    ):
+        # A job parked at the data gate (or confirmed and stopped) has no active
+        # state, but its full state (the data being reviewed, or the confirmed
+        # record) lives in the parked store.
         state = await manager.get_parked_state(job_id)
     if state is not None:
         return build_dataset_view_from_state(state)
@@ -302,6 +309,116 @@ async def get_dataset_rows(
             detail=f"No readable file {file_name!r} for job {job_id}",
         )
     return DatasetRowsPage(**page)
+
+
+@router.patch("/{job_id}/inputs", response_model=DatasetInputsResponse)
+@limiter.limit("30/minute")
+async def update_dataset_inputs(
+    request: Request, job_id: str, body: UpdateInputsRequest
+) -> DatasetInputsResponse:
+    """Apply analyst-corrected dataset inputs to a job at the data-review gate.
+
+    Treatment, outcome, and the optional time column are validated against the
+    profiled dataset's real columns; a name that is not a column is rejected
+    with 422. Valid only while the job is awaiting data review.
+    """
+    manager = get_job_manager()
+    job = await manager.get_job(job_id)
+    if job is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Job {job_id} not found",
+        )
+    if job.get("status") != JobStatus.AWAITING_APPROVAL.value:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"Job {job_id} is not awaiting data review "
+                f"(current status: {job.get('status')})"
+            ),
+        )
+    try:
+        result = await manager.set_dataset_inputs(
+            job_id,
+            treatment_variable=body.treatment_variable,
+            outcome_variable=body.outcome_variable,
+            time_column=body.time_column,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+    return DatasetInputsResponse(**result)
+
+
+@router.post("/{job_id}/confirm", response_model=ConfirmDatasetResponse)
+@limiter.limit("30/minute")
+async def confirm_dataset(request: Request, job_id: str) -> ConfirmDatasetResponse:
+    """Confirm the dataset at the data-review gate.
+
+    Stores the data + inputs as the confirmed-dataset record and ends the input
+    flow. The analysis is NOT started; launch it later via POST /jobs/{id}/run.
+    Valid only while the job is awaiting data review.
+    """
+    manager = get_job_manager()
+    job = await manager.get_job(job_id)
+    if job is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Job {job_id} not found",
+        )
+    if job.get("status") != JobStatus.AWAITING_APPROVAL.value:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"Job {job_id} is not awaiting data review "
+                f"(current status: {job.get('status')})"
+            ),
+        )
+    try:
+        result = await manager.confirm_dataset(job_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+    return ConfirmDatasetResponse(**result)
+
+
+@router.post("/{job_id}/run", response_model=ApprovalResultResponse)
+@limiter.limit("30/minute")
+async def run_analysis(request: Request, job_id: str) -> ApprovalResultResponse:
+    """Launch the analysis pipeline on a CONFIRMED dataset.
+
+    The dataset + inputs must already be confirmed (POST /confirm). Respawns the
+    orchestrator past the data gate. Valid only for a confirmed dataset.
+    """
+    manager = get_job_manager()
+    job = await manager.get_job(job_id)
+    if job is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Job {job_id} not found",
+        )
+    if job.get("status") != JobStatus.CONFIRMED.value:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"Job {job_id} is not a confirmed dataset "
+                f"(current status: {job.get('status')})"
+            ),
+        )
+    try:
+        result = await manager.run_analysis(job_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+    return ApprovalResultResponse(
+        job_id=job_id, resumed=result["resumed"], status=result["status"]
+    )
 
 
 @router.get("/{job_id}/status", response_model=JobStatusResponse)

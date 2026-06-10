@@ -110,3 +110,50 @@ async def test_download_failure_fails_job_and_does_not_park(manager_with_mocks):
     final = storage.update_job.await_args.args[0]
     assert final.status == JobStatus.FAILED
     assert "not accessible" in (final.error_message or "")
+
+
+@pytest.mark.asyncio
+async def test_gate_attaches_deterministic_profile(manager_with_mocks):
+    """The gate computes a facts-only profile (types, stats, time tag) before
+    parking, with no machine role guesses, so the preview can show the schema."""
+    manager, storage = manager_with_mocks
+
+    async def fake_load(state: AnalysisState):
+        state.dataset_info.files = [
+            FileEntry(name="d.csv", size_bytes=10, format="csv", used=True)
+        ]
+        return (
+            pd.DataFrame(
+                {
+                    "date": pd.to_datetime(
+                        ["2021-01-01", "2021-02-01", "2021-03-01"]
+                    ),
+                    "treat": [0, 1, 0],
+                    "sales": [10.0, 12.5, 11.0],
+                }
+            ),
+            None,
+        )
+
+    with (
+        patch(
+            "src.analysis.agents.data_profiler.loading.load_dataset",
+            side_effect=fake_load,
+        ),
+        patch.object(manager, "_create_orchestrator") as mk_create,
+    ):
+        await manager._run_job_inner(_fresh_state())
+        mk_create.assert_not_called()
+
+    parked_state = storage.save_parked_state.await_args.args[0]
+    profile = parked_state.data_profile
+    assert profile is not None
+    # Facts describe the downloaded frame.
+    assert profile.n_samples == 3
+    assert profile.feature_types["treat"] == "binary"
+    # Deterministic time tag is set from the date column.
+    assert profile.has_time_dimension is True
+    assert profile.time_column == "date"
+    # No machine role guesses are stored before confirm.
+    assert profile.treatment_candidates == []
+    assert profile.outcome_candidates == []

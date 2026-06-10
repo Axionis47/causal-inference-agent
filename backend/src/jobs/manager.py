@@ -49,6 +49,44 @@ def _describe_edits(approval: "HumanApproval") -> list[str]:
     if approval.appended_context:
         edited.append("appended_context")
     return edited
+
+
+def _require_valid_dataset_inputs(
+    columns: set[str],
+    treatment_variable: str | None,
+    outcome_variable: str | None,
+    *,
+    has_time_dimension: bool,
+    time_column: str | None,
+) -> None:
+    """Enforce the confirmed-dataset input invariants before a dataset is
+    accepted: treatment and outcome must be set and be real columns, and if the
+    dataset carries a time dimension the time column must be set and real. Raises
+    ValueError on the first violation so the caller can surface it as a 422.
+
+    See docs/input-slice/confirmed-dataset-format.md sections 6 and 9.
+    """
+    for label, name in (
+        ("treatment_variable", treatment_variable),
+        ("outcome_variable", outcome_variable),
+    ):
+        if not name:
+            raise ValueError(
+                f"{label} is required before the dataset can be confirmed"
+            )
+        if name not in columns:
+            raise ValueError(f"{label} '{name}' is not a column in the dataset")
+    if has_time_dimension:
+        if not time_column:
+            raise ValueError(
+                "time_column is required when the dataset has a time dimension"
+            )
+        if time_column not in columns:
+            raise ValueError(
+                f"time_column '{time_column}' is not a column in the dataset"
+            )
+
+
 from src.analysis.orchestrator import (
     Orchestrator,
     ReActOrchestrator,
@@ -381,12 +419,16 @@ class JobManager:
     ) -> None:
         """Download the dataset, then park the job for human data review.
 
-        This is the data-review gate. It pulls the raw files and writes the
-        manifest (the only thing the Data panel needs to show raw rows), but
-        runs no profiling or inference: every label-producing step lives in
+        This is the data-review gate. It pulls the raw files, writes the
+        manifest, and computes a deterministic structural profile (facts only:
+        types, stats, missingness, time detection) for the review surface. It
+        runs no LLM and no label inference: every label-producing step lives in
         the orchestrator, which does not run until the human approves. On a
         download failure the job is marked FAILED.
         """
+        from src.analysis.agents.data_profiler.helpers import (
+            compute_deterministic_profile,
+        )
         from src.analysis.agents.data_profiler.loading import (
             fetch_kaggle_metadata,
             load_dataset,
@@ -408,6 +450,12 @@ class JobManager:
             state.mark_failed(error or "Failed to download dataset", "data_profiler")
             await self.firestore.update_job(state)
             return
+
+        # Deterministic structural profile (facts only, no LLM) so the
+        # data-review surface can show the schema, stats, and time tag before
+        # the user confirms. The post-approval profiler later writes its own
+        # richer data_profile; this is the pre-gate, facts-only version.
+        state.data_profile = compute_deterministic_profile(df)
 
         await park_for_approval(state, persist_status)
         await self.firestore.save_parked_state(state)
@@ -501,6 +549,133 @@ class JobManager:
             Job data or None
         """
         return await self.firestore.get_job(job_id)
+
+    async def set_dataset_inputs(
+        self,
+        job_id: str,
+        treatment_variable: str,
+        outcome_variable: str,
+        time_column: str | None,
+    ) -> dict[str, Any]:
+        """Apply analyst-corrected inputs to a job parked at the data-review gate.
+
+        Validates the chosen names against the profiled dataset's real columns
+        and updates the parked state in place. Only valid before the data gate is
+        approved; after that the analysis has already run on the old inputs.
+
+        Raises:
+            ValueError: no parked state, past the data gate, or a name that is
+                not a column of the profiled dataset.
+        """
+        state = await self.get_parked_state(job_id)
+        if state is None:
+            raise ValueError(f"No parked state for job {job_id}")
+        if _human_approved(state):
+            raise ValueError(
+                "Inputs can only be edited at the data-review gate, before "
+                "the data is approved"
+            )
+        if state.data_profile is None:
+            raise ValueError("Dataset has not been profiled yet")
+
+        _require_valid_dataset_inputs(
+            set(state.data_profile.feature_names),
+            treatment_variable,
+            outcome_variable,
+            has_time_dimension=time_column is not None,
+            time_column=time_column,
+        )
+
+        state.treatment_variable = treatment_variable
+        state.outcome_variable = outcome_variable
+        state.data_profile.has_time_dimension = time_column is not None
+        state.data_profile.time_column = time_column
+
+        await self.firestore.save_parked_state(state)
+        await self.firestore.update_job(state)
+        logger.info(
+            "dataset_inputs_updated",
+            job_id=job_id,
+            treatment=treatment_variable,
+            outcome=outcome_variable,
+            time_column=time_column,
+        )
+        return {
+            "treatment_variable": treatment_variable,
+            "outcome_variable": outcome_variable,
+            "time_column": time_column,
+            "has_time_dimension": time_column is not None,
+        }
+
+    async def confirm_dataset(self, job_id: str) -> dict[str, Any]:
+        """Confirm a dataset at the data-review gate: accept the data + inputs
+        and stop. The job becomes CONFIRMED (terminal for the input flow); the
+        analysis pipeline is NOT started. Launch it later with run_analysis.
+
+        The parked state is kept as the confirmed-dataset record: the dataset
+        view reads it and run_analysis reloads it.
+
+        Raises:
+            ValueError: no parked state, or the job sits at a later (DAG/results)
+                gate rather than the data-review gate.
+        """
+        from src.analysis.orchestrator.base import (
+            should_pause_for_dag_approval,
+            should_pause_for_results,
+        )
+        from src.domain.approval import ApprovalDecision, HumanApproval
+
+        state = await self.firestore.load_parked_state(job_id)
+        if state is None:
+            raise ValueError(f"Job {job_id} is not parked at the data-review gate")
+        if should_pause_for_results(state) or should_pause_for_dag_approval(state):
+            raise ValueError(
+                "Only a dataset at the data-review gate can be confirmed"
+            )
+        if state.data_profile is None:
+            raise ValueError("Dataset has not been profiled; cannot confirm")
+        _require_valid_dataset_inputs(
+            set(state.data_profile.feature_names),
+            state.treatment_variable,
+            state.outcome_variable,
+            has_time_dimension=state.data_profile.has_time_dimension,
+            time_column=state.data_profile.time_column,
+        )
+
+        state.human_approval = HumanApproval(
+            decision=ApprovalDecision.APPROVED,
+            granted_at=datetime.now(timezone.utc),
+        )
+        state.status = JobStatus.CONFIRMED
+        await self.firestore.save_parked_state(state)
+        await self.firestore.update_job(state)
+        logger.info("dataset_confirmed", job_id=job_id)
+        return {"job_id": job_id, "status": state.status.value}
+
+    async def run_analysis(self, job_id: str) -> dict[str, Any]:
+        """Launch the analysis pipeline on a confirmed dataset.
+
+        Reloads the confirmed state, deletes the parked record, and respawns the
+        orchestrator. The data was confirmed (human_approval is set), so the
+        worker runs straight past the data gate into the analysis.
+
+        Raises:
+            ValueError: the job has no confirmed dataset to run.
+        """
+        state = await self.firestore.load_parked_state(job_id)
+        if state is None:
+            raise ValueError(f"Job {job_id} has no confirmed dataset to run")
+
+        state.status = JobStatus.DISCOVERING_CAUSAL
+        await self.firestore.delete_parked_state(job_id)
+        await self.firestore.update_job(state)
+
+        task = asyncio.create_task(self._run_job(state))
+        async with self._jobs_lock:
+            self._running_jobs[job_id] = task
+
+        logger.info("analysis_started_from_confirmed", job_id=job_id)
+        return {"resumed": True, "status": state.status.value}
 
     async def get_job_status(self, job_id: str) -> dict[str, Any] | None:
         """Get lightweight job status.
@@ -870,6 +1045,7 @@ class JobManager:
             "exploratory_analysis": 32,
             "discovering_causal": 44,
             "awaiting_approval": 50,  # parked after DAG, before estimation
+            "confirmed": 50,  # data + inputs confirmed; analysis not yet started
             "estimating_effects": 56,
             "sensitivity_analysis": 68,
             "critique_review": 78,

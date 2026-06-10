@@ -9,9 +9,11 @@ from .job import (
     ApprovalSnapshotResponse,
     CancelJobResponse,
     CausalGraphResponse,
+    ConfirmDatasetResponse,
     CreateJobRequest,
     DagEditPayload,
     DataContextResponse,
+    DatasetInputsResponse,
     DatasetRowsPage,
     DatasetViewResponse,
     DeleteJobResponse,
@@ -28,6 +30,7 @@ from .job import (
     ProfileBlock,
     SensitivityResponse,
     TreatmentEffectResponse,
+    UpdateInputsRequest,
 )
 
 __all__ = [
@@ -56,6 +59,9 @@ __all__ = [
     # Dataset view (for the live Data panel)
     "DatasetViewResponse",
     "DatasetRowsPage",
+    "UpdateInputsRequest",
+    "DatasetInputsResponse",
+    "ConfirmDatasetResponse",
     "DownloadBlock",
     "KaggleMetaBlock",
     "KaggleMetaData",
