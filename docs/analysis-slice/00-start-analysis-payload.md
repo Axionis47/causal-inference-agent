@@ -1,7 +1,7 @@
 # Start-analysis payload (what the analysis receives)
 
-**Status: draft, planning. Pairs with the agreed upstream contract
-`docs/input-slice/confirmed-dataset-format.md`.**
+**Status: finalized (v1). All open items resolved (section 9). Pairs with the
+agreed upstream contract `docs/input-slice/confirmed-dataset-format.md`.**
 
 This defines exactly what the analysis is handed the moment **start analysis**
 is triggered, and what it is allowed to rely on. It is the boundary between the
@@ -76,12 +76,23 @@ well-posed.
 | `outcome_variable` | str | must be a column of the used file |
 | `has_time_dimension` | bool | user-confirmed |
 | `time_column` | str \| null | if `has_time_dimension`, must be a real column |
+| `treatment_contrast` | obj \| null | the treated-vs-control comparison; proposed from the profile and human-confirmed at the gate (D-A, section 9). Null for a plain binary 0/1 treatment |
+| `ignored_columns` | list[str] | columns dropped from analysis (e.g. a row-index); real columns, disjoint from T/Y/time; default `[]` (D-D, section 9) |
 | `user_context` | str \| null | optional free prose, passed through verbatim |
 
-**Open addition (section 8, needs your call):** `treatment_contrast` (what counts
-as treated vs control / the comparison for a non-binary treatment). The current
-system guesses a binarization threshold at estimation time; "no guessing" means
-this should be locked here too.
+### 4.1 The two context channels (separate, never merged)
+
+Context reaches the analysis from two distinct sources. The first meaning-making
+agent reads both, labeled, and treats their presence as a signal:
+
+| channel | field(s) | provenance | when absent |
+|---|---|---|---|
+| analyst | `user_context` | what the human asserts / wants; authoritative | optional |
+| source | `kaggle_description`, `column_descriptions` (manifest, section 6) | Kaggle's own description; informative, not authoritative | common (LaLonde: none) |
+
+Never concatenated: the analysis weighs human intent against the source claim and
+must know when either is missing. If **both** are empty, that is a low-context /
+thin signal the analysis surfaces, not one it guesses past.
 
 ## 5. The facts (deterministic profile, no LLM)
 
@@ -104,12 +115,24 @@ Role-candidate guesses (`treatment_candidates`, `potential_confounders`, etc.)
 are **intentionally absent**: roles come from the user, so no machine guess is
 stored. They may exist as live UI hints only.
 
+### 5.1 Ignore-candidates (proposed, not decided)
+
+The profiler also flags likely non-features (a `Unnamed: *` column, a perfect
+`0..n-1` sequence, an all-unique monotonic id) as **ignore-candidates**. These
+only pre-check the gate's `ignored_columns` control; the human locks the set. By
+the time analysis starts, `ignored_columns` is fixed and the analysis frame
+already excludes it (section 7). No agent re-decides what to drop.
+
 ## 6. The index (manifest.json)
 
 Per file: `name`, `format`, `size_bytes`, `n_rows`, `columns`, `tabular`,
 `used`, normalized path, content hash. Plus the full raw Kaggle metadata dict
-(description, column descriptions, tags, subtitle), so the metadata block
-survives eviction of other artifacts.
+(`kaggle_description`, `column_descriptions`, tags, subtitle), so the metadata
+block survives eviction of other artifacts.
+
+This raw Kaggle metadata is the **source context channel** of section 4.1:
+`kaggle_description` and `column_descriptions` are the source's claim about the
+data, distinct from the analyst's `user_context`, and may be empty.
 
 ---
 
@@ -122,9 +145,12 @@ Given this payload, every agent can assume, without re-validating:
 3. If `has_time_dimension`, `time_column` is a real column of the used file.
 4. `profile.feature_names` equals the used file's columns.
 5. Everything in section 5 is reproducible from the data alone; no LLM ran.
-6. The estimand inputs (T, Y, time, and contrast once added) are **human-locked**.
-   The analysis must never infer, override, or "fix" them. A missing or invalid
-   required input is a gate failure, and the analysis refuses rather than guesses.
+6. The estimand inputs (T, Y, time, contrast) are **human-locked**. The analysis
+   must never infer, override, or "fix" them. A missing or invalid required input
+   is a gate failure, and the analysis refuses rather than guesses.
+7. `ignored_columns` are real columns, disjoint from T/Y/time. The **analysis
+   frame** is the used table with `ignored_columns` dropped; the effective feature
+   set is `feature_names` minus `ignored_columns`. No agent sees a dropped column.
 
 If any invariant cannot hold, the dataset never reaches `CONFIRMED` and the
 analysis never starts.
@@ -147,17 +173,25 @@ computes. No agent may assume any of these exist on entry:
 
 ---
 
-## 9. Open items to settle before designing the first agent
+## 9. Decisions (resolved)
 
-- **D-A. Treatment contrast.** Add a `treatment_contrast` to the locked estimand
-  (section 4)? Options: (a) propose from the profile and have the human confirm
-  at the gate, then lock it here; (b) leave it to the estimation agent.
-  Recommendation: (a), so the estimand is fully specified with zero downstream
-  guessing. Needs decision.
-- **D-B. Used-file selection when multiple files.** Who marks the single `used`
-  table when the bundle has more than one candidate: the human at the gate, or
-  an upstream heuristic? Recommendation: human-confirmed when ambiguous, to hold
-  the no-guessing line. Needs decision.
+- **D-A. Treatment contrast. RESOLVED: lock at the gate.** `treatment_contrast`
+  is added to the estimand (section 4), proposed from the profile and
+  human-confirmed at the gate, so a non-binary treatment's comparison is locked
+  with zero downstream guessing. Null for a plain binary 0/1 treatment. The exact
+  encoding (level pair vs threshold) is settled when the estimation agent is
+  designed; the contract reserves the field now.
+- **D-B. Used-file selection. RESOLVED: human-confirmed when ambiguous.** A single
+  tabular file is auto-marked `used`; when the bundle has more than one candidate
+  the human picks `used` at the gate. No upstream heuristic guesses.
+- **D-C. Two context channels. RESOLVED: separate, never merged.** `user_context`
+  (analyst) and `kaggle_description` / `column_descriptions` (source) travel as
+  distinct fields with presence flags (section 4.1). Both empty raises a
+  low-context flag rather than a guess.
+- **D-D. Columns to ignore. RESOLVED: deterministic proposal, human lock.**
+  `ignored_columns` (section 4) is pre-proposed by the profiler's index detector
+  (section 5.1) and locked by the human at the gate, validated as real columns
+  disjoint from T/Y/time. No LLM decides. Closes the `Unnamed: 0` leak.
 
 ---
 
@@ -175,3 +209,27 @@ The analysis tail, in spine order, against this payload:
 Each gets its own doc (`01-eda.md`, `02-causal-structure.md`, ...): what it
 reads from STATE, what it computes vs judges, its per-agent memory, the artifact
 shown in its center pane, and its gate or loop.
+
+---
+
+## 11. Persistence and checkpointing (local-first)
+
+The whole payload is **persisted locally**, which is exactly what makes
+checkpoint-and-reload work.
+
+On disk under `{local_storage_path}/{job_id}/` (default `./data`): `raw/`
+(original Kaggle files), `normalized/<table>.parquet` (the analysis frame),
+`manifest.json` (the typed index). See the upstream contract, section 2.
+
+Run record / state:
+- The job record (confirmed inputs + profile + status) persists to local JSON
+  (or Firestore when enabled), and the confirmed `AnalysisState` is parked to
+  `parked_states.json`. **`start analysis` reloads that parked record** to build
+  this payload, so a crash or restart between confirm and run loses nothing.
+
+Checkpointing the analysis tail (the STATE / MEMORY split, section 0):
+- Each agent seals its output back into shared STATE; STATE is the durable,
+  reloadable checkpoint. Per-agent MEMORY (the tool scratchpad) is ephemeral and
+  is **not** persisted. So the rebuild checkpoints after every agent by persisting
+  STATE and resumes mid-pipeline by reloading it, the same way the gate already
+  reloads the parked `CONFIRMED` state today.

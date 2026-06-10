@@ -105,11 +105,31 @@ of confirm, against the columns of the `used` file.
 | `outcome_variable` | str | **must** be a column of the used file |
 | `has_time_dimension` | bool | user-confirmed in the preview |
 | `time_column` | str \| null | if `has_time_dimension`, **must** be set and be a real column; else null |
+| `ignored_columns` | list[str] | columns to drop from analysis (e.g. a row-index like `Unnamed: 0`); each **must** be a real column and **must not** be treatment / outcome / time; default `[]` |
 | `user_context` | str \| null | optional free prose; passed through verbatim |
+
+`ignored_columns` is **deterministically proposed, then human-confirmed** (see
+section 7.1): the profiler pre-selects obvious non-features and the analyst
+confirms or edits at the gate. No LLM decides what to drop.
 
 A confirm that violates any rule is rejected and the user fixes it in the
 preview (the fix-in-preview behavior we agreed on). The record is never stored in
 a broken state.
+
+### 6.1 Two context channels (kept separate, never merged)
+
+Context reaches the analysis from two distinct sources, each carried as its own
+field with a present/absent signal:
+
+| channel | field(s) | provenance | when absent |
+|---|---|---|---|
+| analyst | `user_context` (this section) | what the human asserts / wants analysed; authoritative | optional, may be empty |
+| source | `kaggle_description`, `column_descriptions` (manifest, section 5) | Kaggle's own description; informative, not authoritative | common (LaLonde: "none provided by source") |
+
+They are never concatenated into one blob: the analysis must be able to weigh the
+human's intent against the source's claim, and to know when either is missing. If
+**both** are empty, that is a low-context / thin signal the analysis surfaces
+rather than papers over.
 
 ## 7. The deterministic profile (facts only, no LLM)
 
@@ -135,6 +155,16 @@ Roles come from the user, so storing a machine guess alongside them is the
 unnecessary fallback we are removing. (They may still be computed live as
 non-authoritative UI hints; see open decision D2.)
 
+### 7.1 Index / non-feature detection (proposes, does not decide)
+
+The profiler flags likely non-features as **ignore-candidates**, purely
+deterministically and reproducibly: a column named `Unnamed: *`, a column whose
+values are a perfect `0..n-1` sequence, or an all-unique monotonic integer id.
+These are **proposals only**: they pre-check the `ignored_columns` control at the
+gate. The human confirms or overrides; the confirmed set is what locks. This is
+the keystone fix for the row-index leak (`Unnamed: 0` entering balance and
+confounders as a phantom variable).
+
 ## 8. Lifecycle
 
 ```
@@ -156,6 +186,9 @@ Given a `CONFIRMED` record, analysis can assume, without re-checking:
 3. If `has_time_dimension`, `time_column` is a real column of the used file.
 4. `profile.feature_names` equals the used file's columns.
 5. Everything here is reproducible from the data alone; no LLM ran to produce it.
+6. `ignored_columns` are real columns of the used file, disjoint from treatment /
+   outcome / time. The analysis frame is the used table with `ignored_columns`
+   dropped; the effective feature set is `feature_names` minus `ignored_columns`.
 
 If any invariant cannot hold, the dataset never reaches `CONFIRMED`.
 
@@ -177,3 +210,12 @@ If any invariant cannot hold, the dataset never reaches `CONFIRMED`.
 - **D4, where it lives. RESOLVED: reuse what exists.** Store the confirmed inputs
   + profile by extending the existing `manifest.json` and job record. No new
   storage mechanism.
+- **D5, columns to ignore. RESOLVED: deterministic proposal, human lock.** A new
+  `ignored_columns` field (section 6). The profiler proposes obvious non-features
+  (section 7.1); the human confirms at the gate; the set is validated as real
+  columns disjoint from T/Y/time, and stored. No LLM decides what to drop, holding
+  the no-guessing line. Closes the `Unnamed: 0` row-index leak.
+- **D6, two context channels. RESOLVED: separate, never merged.** `user_context`
+  (analyst) and the source's `kaggle_description` / `column_descriptions` (in the
+  manifest) are distinct fields with presence flags (section 6.1). Both empty is a
+  low-context signal, not a prompt to guess.
