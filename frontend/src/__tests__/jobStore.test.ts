@@ -17,7 +17,6 @@ describe('jobStore', () => {
     expect(state.jobs).toEqual([]);
     expect(state.totalJobs).toBe(0);
     expect(state.isLoading).toBe(false);
-    expect(state.isCreating).toBe(false);
     expect(state.error).toBeNull();
   });
 
@@ -97,19 +96,9 @@ describe('jobStore', () => {
     expect(state.totalJobs).toBe(0);
   });
 
-  it('should have createJob action defined', () => {
-    const state = useJobStore.getState();
-    expect(typeof state.createJob).toBe('function');
-  });
-
   it('should have fetchJobs action defined', () => {
     const state = useJobStore.getState();
     expect(typeof state.fetchJobs).toBe('function');
-  });
-
-  it('should have cancelJob action defined', () => {
-    const state = useJobStore.getState();
-    expect(typeof state.cancelJob).toBe('function');
   });
 
   it('should have fetchResults action defined', () => {

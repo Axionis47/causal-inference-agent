@@ -228,12 +228,6 @@ export type DatasetEventType =
   | 'dataset_load_failed'
   | 'data_profile_ready';
 
-export interface DatasetSseEvent {
-  event_type: DatasetEventType;
-  data: Record<string, unknown>;
-  timestamp: string;
-}
-
 export interface FileEntry {
   name: string;
   size_bytes: number;
@@ -275,6 +269,9 @@ export interface DataProfileSummary {
   // they must be treated as optional on the frontend.
   feature_types?: Record<string, string>;
   missing_values?: Record<string, number>;
+  // Deterministic time tag set at the gate (facts-only profile).
+  has_time_dimension?: boolean;
+  time_column?: string | null;
   treatment_candidates: string[];
   outcome_candidates: string[];
   potential_confounders?: string[];
@@ -464,13 +461,43 @@ export async function createJob(request: CreateJobRequest): Promise<Job> {
   return response.data;
 }
 
-export async function getJob(jobId: string): Promise<JobDetail> {
-  const response = await api.get(`/jobs/${jobId}`);
+// Analyst-corrected dataset inputs, applied at the data-review gate.
+export interface UpdateInputsBody {
+  treatment_variable: string;
+  outcome_variable: string;
+  time_column: string | null;
+}
+
+export interface DatasetInputs extends UpdateInputsBody {
+  has_time_dimension: boolean;
+}
+
+export async function updateDatasetInputs(
+  jobId: string,
+  body: UpdateInputsBody,
+): Promise<DatasetInputs> {
+  const response = await api.patch(`/jobs/${jobId}/inputs`, body);
   return response.data;
 }
 
-export async function getJobStatus(jobId: string): Promise<JobStatus> {
-  const response = await api.get(`/jobs/${jobId}/status`);
+// Confirm the dataset at the data-review gate: store it and end the input flow.
+export async function confirmDataset(
+  jobId: string,
+): Promise<{ job_id: string; status: string }> {
+  const response = await api.post(`/jobs/${jobId}/confirm`);
+  return response.data;
+}
+
+// Launch the analysis pipeline on a confirmed dataset.
+export async function runAnalysis(
+  jobId: string,
+): Promise<{ job_id: string; resumed: boolean; status: string }> {
+  const response = await api.post(`/jobs/${jobId}/run`);
+  return response.data;
+}
+
+export async function getJob(jobId: string): Promise<JobDetail> {
+  const response = await api.get(`/jobs/${jobId}`);
   return response.data;
 }
 

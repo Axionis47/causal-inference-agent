@@ -1,48 +1,52 @@
-// Data-review gate action bar. Shown over the dataset view while a job sits
-// at AWAITING_APPROVAL: the analyst reviews the downloaded data, then approves
-// to run the analysis or rejects (with a reason) to fail the job. Posts to
-// POST /jobs/:id/approval and invalidates the job query so polling/SSE picks
-// up the resume or failure.
+// Data-review gate action bar. Shown over the dataset view while a job sits at
+// AWAITING_APPROVAL at the data gate: the analyst reviews the data + inputs, then
+// confirms (storing the confirmed dataset and ending the input flow) or rejects
+// (failing the job). Confirm posts to POST /jobs/:id/confirm; reject posts to
+// POST /jobs/:id/approval. Both invalidate the job query so polling picks up the
+// change.
 
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { submitApproval, ApprovalRequestBody } from '../../../services/api';
+import { confirmDataset, submitApproval } from '../../../services/api';
 
 const labelCls = 'text-2xs font-mono uppercase tracking-[0.15em]';
 const inputCls =
   'bg-canvas-inset border border-edge-subtle text-ink font-mono text-xs px-2 py-1 ' +
-  'focus:outline-none focus:border-amber';
+  'focus:outline-none focus:border-rose';
 
 export function ApprovalBar({
   jobId,
   onOpenData,
+  canConfirm = true,
 }: {
   jobId: string;
   onOpenData?: () => void;
+  // Advisory gate: false when the persisted treatment/outcome are not yet valid
+  // columns, so confirm is blocked before it can 422 server-side. The backend
+  // confirm guard remains authoritative.
+  canConfirm?: boolean;
 }) {
   const queryClient = useQueryClient();
   const [rejecting, setRejecting] = useState(false);
   const [reason, setReason] = useState('');
-  const [notes, setNotes] = useState('');
 
-  const mutation = useMutation({
-    mutationFn: (body: ApprovalRequestBody) => submitApproval(jobId, body),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['job', jobId] });
-      queryClient.invalidateQueries({ queryKey: ['jobs'] });
-    },
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ['job', jobId] });
+    queryClient.invalidateQueries({ queryKey: ['jobs'] });
+  };
+
+  const confirm = useMutation({
+    mutationFn: () => confirmDataset(jobId),
+    onSuccess: invalidate,
   });
 
-  const approve = () =>
-    mutation.mutate({
-      decision: 'approved',
-      appended_context: notes.trim() || undefined,
-    });
+  const reject = useMutation({
+    mutationFn: () =>
+      submitApproval(jobId, { decision: 'rejected', reason: reason.trim() }),
+    onSuccess: invalidate,
+  });
 
-  const reject = () => {
-    if (!reason.trim()) return;
-    mutation.mutate({ decision: 'rejected', reason: reason.trim() });
-  };
+  const pending = confirm.isPending || reject.isPending;
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-[60] border-t border-amber/40 bg-canvas-raised px-4 py-3">
@@ -51,7 +55,7 @@ export function ApprovalBar({
           <span className="h-1.5 w-1.5 rounded-full bg-amber animate-pulse" />
           <span className={`${labelCls} text-amber`}>review data</span>
           <span className="text-xs font-mono text-ink-tertiary">
-            approve to start the analysis on this data
+            confirm to store this dataset and its inputs
           </span>
         </div>
 
@@ -64,31 +68,31 @@ export function ApprovalBar({
           </button>
         )}
 
-        {mutation.isError && (
+        {(confirm.isError || reject.isError) && (
           <span className="text-2xs font-mono text-rose">submit failed, retry</span>
+        )}
+
+        {!canConfirm && !rejecting && (
+          <span className="text-2xs font-mono text-amber">
+            set a valid treatment &amp; outcome in the data view to confirm
+          </span>
         )}
 
         {!rejecting ? (
           <div className="ml-auto flex items-center gap-3">
-            <input
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="optional notes for the analysis"
-              className={`${inputCls} w-64 max-w-[40vw]`}
-            />
             <button
               onClick={() => setRejecting(true)}
-              disabled={mutation.isPending}
+              disabled={pending}
               className={`${labelCls} border border-rose/50 px-3 py-1.5 text-rose hover:bg-rose/10 disabled:opacity-50`}
             >
               reject
             </button>
             <button
-              onClick={approve}
-              disabled={mutation.isPending}
-              className={`${labelCls} bg-amber px-4 py-1.5 text-canvas hover:bg-amber/90 disabled:opacity-50`}
+              onClick={() => confirm.mutate()}
+              disabled={pending || !canConfirm}
+              className={`${labelCls} bg-mint px-4 py-1.5 text-ink-inverse hover:bg-mint-bright disabled:opacity-50`}
             >
-              {mutation.isPending ? 'submitting…' : 'approve · run analysis'}
+              {confirm.isPending ? 'confirming…' : 'confirm dataset'}
             </button>
           </div>
         ) : (
@@ -98,7 +102,7 @@ export function ApprovalBar({
               onChange={(e) => setReason(e.target.value)}
               placeholder="reason for rejecting (required)"
               autoFocus
-              className={`${inputCls} w-72 max-w-[45vw] focus:border-rose`}
+              className={`${inputCls} w-72 max-w-[45vw]`}
             />
             <button
               onClick={() => {
@@ -110,8 +114,8 @@ export function ApprovalBar({
               cancel
             </button>
             <button
-              onClick={reject}
-              disabled={mutation.isPending || !reason.trim()}
+              onClick={() => reject.mutate()}
+              disabled={pending || !reason.trim()}
               className={`${labelCls} bg-rose px-4 py-1.5 text-canvas hover:bg-rose/90 disabled:opacity-50`}
             >
               confirm reject

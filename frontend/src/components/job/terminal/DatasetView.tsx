@@ -1,10 +1,9 @@
 // Dedicated dataset overlay for the live job view (the F1 "data" key in
 // JobPage, and the default view on arrival). This is the data-review surface:
-// raw rows, the facts Kaggle supplied about the dataset, and what files were
-// downloaded. Everything here is a fact (rows, source metadata); no inference
-// or derived labels (no schema, no roles, no domain) — that is profiling that
-// belongs after the data is approved. useDatasetView polls /jobs/:id/dataset
-// until the blocks settle.
+// raw rows, a deterministic schema (column types, missingness, time tag), the
+// facts Kaggle supplied, and what files were downloaded. Everything here is a
+// fact; inferred roles and domain stay user-given / post-approval. useDatasetView
+// polls /jobs/:id/dataset until the blocks settle.
 
 import { useEffect, type ReactNode } from 'react';
 import type {
@@ -13,8 +12,10 @@ import type {
   RelationalProfilePayload,
 } from '../../../services/api';
 import { Caption, StatusLine } from './atoms';
+import { InputsBlock } from './InputsBlock';
 import { RelationalBlock } from './RelationalBlock';
 import { SampleRowsView } from './SampleRowsView';
+import { SchemaBlock } from './SchemaBlock';
 
 function fmtBytes(n: number): string {
   if (n < 1024) return `${n} B`;
@@ -160,11 +161,15 @@ function DownloadBlockView({ view }: { view: DatasetViewData }) {
 export function DatasetView({
   view,
   jobId,
+  treatment,
+  outcome,
   relational,
   onClose,
 }: {
   view: DatasetViewData | null;
   jobId: string | null;
+  treatment?: string | null;
+  outcome?: string | null;
   relational?: RelationalProfilePayload | null;
   onClose: () => void;
 }) {
@@ -195,6 +200,21 @@ export function DatasetView({
             <div>
               <Caption>[ raw data ]</Caption>
               <div className="pt-3"><SampleRowsView view={view} jobId={jobId} /></div>
+            </div>
+            <div>
+              <Caption>[ schema ]</Caption>
+              <div className="pt-3"><SchemaBlock block={view.profile} /></div>
+            </div>
+            <div>
+              <Caption>[ inputs ]</Caption>
+              <div className="pt-3">
+                <InputsBlock
+                  jobId={jobId}
+                  treatment={treatment ?? null}
+                  outcome={outcome ?? null}
+                  profile={view.profile}
+                />
+              </div>
             </div>
             <div>
               <Caption>[ metadata ]</Caption>

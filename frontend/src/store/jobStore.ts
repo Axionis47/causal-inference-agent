@@ -9,9 +9,7 @@
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import {
-  createJob as apiCreateJob,
   listJobs as apiListJobs,
-  cancelJob as apiCancelJob,
   getResults as apiGetResults,
   getTraces as apiGetTraces,
   Job,
@@ -44,7 +42,6 @@ interface JobState {
 
   // Loading states
   isLoading: boolean;
-  isCreating: boolean;
 
   // Error state
   error: string | null;
@@ -52,9 +49,7 @@ interface JobState {
 
 interface JobActions {
   // Job CRUD
-  createJob: (kaggleUrl: string, treatment: string, outcome: string) => Promise<string>;
   fetchJobs: (status?: string, limit?: number, offset?: number) => Promise<void>;
-  cancelJob: (jobId: string) => Promise<void>;
 
   // Results and traces
   fetchResults: (jobId: string) => Promise<void>;
@@ -81,7 +76,6 @@ const initialState: JobState = {
   jobs: [],
   totalJobs: 0,
   isLoading: false,
-  isCreating: false,
   error: null,
 };
 
@@ -97,25 +91,6 @@ export const useJobStore = create<JobState & JobActions>()(
       (set, _get) => ({
         ...initialState,
 
-        createJob: async (kaggleUrl: string, treatment: string, outcome: string) => {
-          set({ isCreating: true, error: null });
-          try {
-            const job = await apiCreateJob({
-              kaggle_url: kaggleUrl,
-              treatment_variable: treatment,
-              outcome_variable: outcome,
-            });
-            set({ isCreating: false, currentJobId: job.id });
-            return job.id;
-          } catch (error) {
-            const message =
-              error instanceof Error ? error.message :
-              (error as { message?: string })?.message || 'Failed to create job';
-            set({ isCreating: false, error: message });
-            throw error;
-          }
-        },
-
         fetchJobs: async (status?: string, limit = 20, offset = 0) => {
           set({ isLoading: true, error: null });
           try {
@@ -130,18 +105,6 @@ export const useJobStore = create<JobState & JobActions>()(
               error instanceof Error ? error.message :
               (error as { message?: string })?.message || 'Failed to fetch jobs';
             set({ isLoading: false, error: message });
-          }
-        },
-
-        cancelJob: async (jobId: string) => {
-          try {
-            await apiCancelJob(jobId);
-            // React Query will refetch automatically via invalidation in the component
-          } catch (error) {
-            const message =
-              error instanceof Error ? error.message :
-              (error as { message?: string })?.message || 'Failed to cancel job';
-            set({ error: message });
           }
         },
 

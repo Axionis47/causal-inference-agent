@@ -29,6 +29,3 @@ export const MAX_AGENT_EVENTS = 60;
 
 // Statistical thresholds
 export const SIGNIFICANCE_ALPHA = 0.05;
-
-// Animation
-export const RESULTS_ANIMATION_DELAY_MS = 50;

@@ -40,6 +40,7 @@ export function statusTone(status: string | undefined): AgentTone {
   if (status === 'completed') return 'ok';
   if (status === 'failed') return 'failed';
   if (status === 'cancelled' || status === 'cancelling') return 'pending';
+  if (status === 'confirmed') return 'ok';
   return 'live';
 }
 
@@ -50,5 +51,6 @@ export function statusPillLabel(status: string | undefined): string {
   if (status === 'failed') return 'FAIL';
   if (status === 'cancelled') return 'STOP';
   if (status === 'cancelling') return 'STOP…';
+  if (status === 'confirmed') return 'CONF';
   return 'LIVE';
 }

@@ -30,41 +30,9 @@ export type JobStatusValue =
   | 'critique_review'
   | 'iterating'
   | 'generating_notebook'
+  | 'confirmed'
   | 'completed'
   | 'failed';
-
-/**
- * Status categories for UI display
- */
-export type StatusCategory = 'pending' | 'running' | 'completed' | 'failed';
-
-/**
- * Map job status to category
- */
-export function getStatusCategory(status: JobStatusValue): StatusCategory {
-  if (status === 'pending') return 'pending';
-  if (status === 'completed') return 'completed';
-  if (status === 'failed') return 'failed';
-  return 'running';
-}
-
-/**
- * Human-readable status labels
- */
-export const STATUS_LABELS: Record<JobStatusValue, string> = {
-  pending: 'Pending',
-  fetching_data: 'Fetching Data',
-  profiling: 'Profiling Dataset',
-  exploratory_analysis: 'Exploratory Analysis',
-  discovering_causal: 'Discovering Causal Structure',
-  estimating_effects: 'Estimating Effects',
-  sensitivity_analysis: 'Sensitivity Analysis',
-  critique_review: 'Reviewing Analysis',
-  iterating: 'Iterating',
-  generating_notebook: 'Generating Notebook',
-  completed: 'Completed',
-  failed: 'Failed',
-};
 
 /**
  * Agent names used in the system

@@ -2,7 +2,7 @@
  * Utility functions for the Causal Orchestrator frontend
  */
 
-import type { TreatmentEffect, StatusCategory } from '../types';
+import type { TreatmentEffect } from '../types';
 import { SIGNIFICANCE_ALPHA } from '../config/constants';
 
 /**
@@ -98,35 +98,6 @@ export function formatDate(date: string | Date): string {
     hour: '2-digit',
     minute: '2-digit',
   });
-}
-
-/**
- * Get status category from status value
- */
-export function getStatusCategory(status: string): StatusCategory {
-  if (status === 'pending') return 'pending';
-  if (status === 'completed') return 'completed';
-  if (status === 'failed') return 'failed';
-  return 'running';
-}
-
-/**
- * Get status color for UI
- */
-export function getStatusColor(status: string): string {
-  const category = getStatusCategory(status);
-  switch (category) {
-    case 'pending':
-      return 'gray';
-    case 'running':
-      return 'blue';
-    case 'completed':
-      return 'green';
-    case 'failed':
-      return 'red';
-    default:
-      return 'gray';
-  }
 }
 
 /**

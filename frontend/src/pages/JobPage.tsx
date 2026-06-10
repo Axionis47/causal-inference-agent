@@ -24,6 +24,7 @@ import { AgentsRail } from '../components/job/terminal/AgentsRail';
 import { Tape } from '../components/job/terminal/Tape';
 import { FocusPane } from '../components/job/terminal/FocusPane';
 import { FKeyBar } from '../components/job/terminal/FKeyBar';
+import { RunAnalysisBar } from '../components/job/terminal/RunAnalysisBar';
 import { DatasetView } from '../components/job/terminal/DatasetView';
 import { ApprovalBar } from '../components/job/terminal/ApprovalBar';
 import { DagGate } from '../components/job/terminal/DagGate';
@@ -253,6 +254,21 @@ export default function JobPage() {
     ? allTraces.filter((t) => t.agent_name === view.focusAgent)
     : [];
 
+  // Advisory gate for the data-review confirm button: the persisted treatment
+  // and outcome must be real columns of the profiled dataset (and the time
+  // column, if the dataset has one), mirroring the backend confirm guard
+  // (manager._require_valid_dataset_inputs). The server stays authoritative;
+  // this just blocks a confirm that would otherwise 422.
+  const profileData = datasetView?.profile.data ?? null;
+  const profileColumns = profileData ? Object.keys(profileData.feature_types ?? {}) : [];
+  const hasTimeDim = profileData?.has_time_dimension ?? false;
+  const timeCol = profileData?.time_column ?? '';
+  const canConfirmData =
+    !!profileData &&
+    profileColumns.includes(job.treatment_variable ?? '') &&
+    profileColumns.includes(job.outcome_variable ?? '') &&
+    (!hasTimeDim || (timeCol !== '' && profileColumns.includes(timeCol)));
+
   return (
     <div className="terminal flex flex-col h-screen w-screen overflow-hidden bg-canvas text-ink">
       <TopBar
@@ -301,6 +317,8 @@ export default function JobPage() {
         <DatasetView
           view={datasetView}
           jobId={jobId ?? null}
+          treatment={job.treatment_variable ?? null}
+          outcome={job.outcome_variable ?? null}
           relational={resolvedRelational}
           onClose={() => setShowDataset(false)}
         />
@@ -312,8 +330,16 @@ export default function JobPage() {
         ) : gate?.kind === 'results' ? (
           <ResultsGate jobId={job.id} payload={gate.payload} />
         ) : (
-          <ApprovalBar jobId={job.id} onOpenData={() => setShowDataset(true)} />
+          <ApprovalBar
+            jobId={job.id}
+            canConfirm={canConfirmData}
+            onOpenData={() => setShowDataset(true)}
+          />
         )
+      )}
+
+      {!isPreview && job.status === 'confirmed' && (
+        <RunAnalysisBar jobId={job.id} onOpenData={() => setShowDataset(true)} />
       )}
 
       {!isPreview && showResults && (
