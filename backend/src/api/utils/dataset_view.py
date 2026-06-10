@@ -162,6 +162,8 @@ def build_from_state(state: AnalysisState) -> DatasetViewResponse:
                 "n_features": state.data_profile.n_features,
                 "feature_types": state.data_profile.feature_types,
                 "missing_values": state.data_profile.missing_values,
+                "has_time_dimension": state.data_profile.has_time_dimension,
+                "time_column": state.data_profile.time_column,
                 "treatment_candidates": state.data_profile.treatment_candidates,
                 "outcome_candidates": state.data_profile.outcome_candidates,
                 "potential_confounders": state.data_profile.potential_confounders,

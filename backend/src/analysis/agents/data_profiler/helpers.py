@@ -135,6 +135,40 @@ def compute_basic_profile(df: pd.DataFrame) -> DataProfile:
     )
 
 
+_TIME_COLUMN_KEYWORDS = ["time", "date", "year", "month", "period"]
+
+
+def detect_time_column(
+    df: pd.DataFrame, feature_types: dict[str, str]
+) -> tuple[bool, str | None]:
+    """Deterministically pick a single time column, or none.
+
+    A column qualifies if it is a datetime dtype, or its name contains a time
+    keyword. The first match wins. Pure: no LLM, reproducible from the frame.
+    """
+    for col in df.columns:
+        if feature_types.get(col) == "datetime":
+            return True, col
+        if any(kw in col.lower() for kw in _TIME_COLUMN_KEYWORDS):
+            return True, col
+    return False, None
+
+
+def compute_deterministic_profile(df: pd.DataFrame) -> DataProfile:
+    """The facts-only profile used before the data-review gate.
+
+    Pure and reproducible: the descriptive profile (types, stats, missingness)
+    plus deterministic time detection. It deliberately leaves the causal-role
+    candidate lists empty; treatment and outcome are user-given, so no machine
+    guess is stored. See docs/input-slice/confirmed-dataset-format.md section 7.
+    """
+    profile = compute_basic_profile(df)
+    profile.has_time_dimension, profile.time_column = detect_time_column(
+        df, profile.feature_types
+    )
+    return profile
+
+
 def auto_finalize(df: pd.DataFrame, profile: DataProfile) -> dict[str, Any]:
     """Heuristic finalize used when the agent never calls finalize_profile.
 
@@ -191,18 +225,7 @@ def auto_finalize(df: pd.DataFrame, profile: DataProfile) -> dict[str, Any]:
         if profile.feature_types.get(col) in ["categorical", "numeric", "ordinal", "binary"]:
             confounders.append(col)
 
-    has_time = False
-    time_column = None
-    time_keywords = ["time", "date", "year", "month", "period"]
-    for col in df.columns:
-        if profile.feature_types.get(col) == "datetime":
-            has_time = True
-            time_column = col
-            break
-        if any(kw in col.lower() for kw in time_keywords):
-            has_time = True
-            time_column = col
-            break
+    has_time, time_column = detect_time_column(df, profile.feature_types)
 
     enc_strategy = None
     enc_control = None

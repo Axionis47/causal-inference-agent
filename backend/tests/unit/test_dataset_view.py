@@ -261,6 +261,27 @@ def test_profile_loaded_when_data_profile_set():
     assert view.profile.data["treatment_candidates"] == ["t"]
 
 
+def test_profile_surfaces_time_tag():
+    """The profile block carries the deterministic time tag so the preview can
+    show whether the dataset has a time dimension."""
+    state = _make_state()
+    state.data_profile = DataProfile(
+        n_samples=12,
+        n_features=2,
+        feature_names=["date", "sales"],
+        feature_types={"date": "datetime", "sales": "numeric"},
+        missing_values={"date": 0, "sales": 0},
+        numeric_stats={},
+        categorical_stats={},
+        has_time_dimension=True,
+        time_column="date",
+    )
+    view = build_dataset_view_from_state(state)
+    assert view.profile.status == "loaded"
+    assert view.profile.data["has_time_dimension"] is True
+    assert view.profile.data["time_column"] == "date"
+
+
 # ─── build_from_persisted ─────────────────────────────────────────────────
 
 
