@@ -189,8 +189,17 @@ async def list_jobs(
 
     jobs, total = await manager.list_jobs(status=validated_status, limit=limit, offset=offset)
 
-    return JobListResponse(
-        jobs=[
+    # Tolerate legacy records: a job persisted before the analysis-engine
+    # teardown can carry a status the trimmed JobStatus enum no longer knows
+    # (e.g. "completed"). Skip those rather than 500 the whole list, and adjust
+    # the count so pagination stays honest.
+    items: list[JobResponse] = []
+    skipped = 0
+    for j in jobs:
+        if j.get("status") not in VALID_STATUSES:
+            skipped += 1
+            continue
+        items.append(
             JobResponse(
                 id=j["id"],
                 kaggle_url=j["kaggle_url"],
@@ -203,9 +212,13 @@ async def list_jobs(
                 outcome_variable=j.get("outcome_variable"),
                 iteration_count=j.get("iteration_count", 0),
             )
-            for j in jobs
-        ],
-        total=total,
+        )
+    if skipped:
+        logger.info("jobs_list_skipped_legacy_status", skipped=skipped)
+
+    return JobListResponse(
+        jobs=items,
+        total=max(0, total - skipped),
         limit=limit,
         offset=offset,
     )
