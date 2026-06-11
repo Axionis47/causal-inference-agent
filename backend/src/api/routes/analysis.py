@@ -7,14 +7,23 @@ resolver only.
 """
 from __future__ import annotations
 
+from typing import Literal
+
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response
+from pydantic import BaseModel, Field
 
 from src.analysis_v2.core import AnalysisRunState, stage_index
 from src.analysis_v2.persistence import load_run, read_artifact_bytes
 from src.api.rate_limit import limiter
 
 router = APIRouter(prefix="/jobs", tags=["analysis"])
+
+
+class PlanDecisionRequest(BaseModel):
+    decision: Literal["confirm", "reject"]
+    edits: dict[str, str] | None = None
+    reason: str | None = Field(default=None, max_length=500)
 
 
 def _view(run: AnalysisRunState) -> dict:
@@ -27,6 +36,16 @@ def _view(run: AnalysisRunState) -> dict:
             "outcome": spec.outcome.column,
             "treatment": spec.treatment.column,
         }
+    plan_gate = None
+    if run.plan_critique is not None:
+        card = run.plan_critique.confirmation_card
+        plan_gate = {
+            "status": run.plan_critique.status.value,
+            "reasons": run.plan_critique.reasons,
+            "missing_required": run.plan_critique.missing_required,
+            "summary": run.plan_critique.summary,
+            "confirmation_card": card.model_dump(mode="json") if card else None,
+        }
     return {
         "job_id": run.job_id,
         "status": run.status.value,
@@ -36,6 +55,13 @@ def _view(run: AnalysisRunState) -> dict:
         "causal_question": run.causal_question,
         "error_message": run.error_message,
         "spec_summary": spec_summary,
+        "plan_gate": plan_gate,
+        "method_plan": (
+            run.method_plan.model_dump(mode="json") if run.method_plan else None
+        ),
+        "selected_design": (
+            run.selected_design.model_dump(mode="json") if run.selected_design else None
+        ),
         "agents": [
             {
                 "agent": r.agent,
@@ -93,6 +119,37 @@ async def get_analysis_view(request: Request, job_id: str) -> dict:
     if run is None:
         raise HTTPException(status_code=404, detail=f"job {job_id} has no analysis run")
     return _view(run)
+
+
+@router.post("/{job_id}/plan")
+@limiter.limit("30/minute")
+async def submit_plan_decision(
+    request: Request, job_id: str, body: PlanDecisionRequest
+) -> dict:
+    from src.analysis_v2.runner.resume import (
+        InvalidPlanEdits,
+        NoAnalysisRun,
+        NotWaitingForUser,
+        apply_plan_decision,
+    )
+    from src.jobs import get_job_manager
+
+    if body.decision == "reject" and not (body.reason or "").strip():
+        raise HTTPException(status_code=422, detail="rejecting the plan requires a reason")
+    try:
+        return await apply_plan_decision(
+            job_id,
+            get_job_manager(),
+            decision=body.decision,
+            edits=body.edits,
+            reason=body.reason,
+        )
+    except NoAnalysisRun as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except NotWaitingForUser as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    except InvalidPlanEdits as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
 
 
 @router.get("/{job_id}/analysis/artifacts/{artifact_id:path}")

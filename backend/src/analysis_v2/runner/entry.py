@@ -27,7 +27,7 @@ logger = structlog.get_logger(__name__)
 
 async def start(state: AnalysisState, manager: Any) -> dict[str, Any]:
     """Spawn the analysis task for a CONFIRMED job. Returns the launch ack."""
-    if state.status != JobStatus.CONFIRMED:
+    if state.status not in (JobStatus.CONFIRMED, JobStatus.WAITING_FOR_USER):
         raise ValueError(
             f"job {state.job_id} is {state.status.value}, not confirmed; cannot run"
         )

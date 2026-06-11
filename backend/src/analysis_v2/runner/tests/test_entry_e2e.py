@@ -135,16 +135,16 @@ async def test_spine_runs_intake_profiling_design_and_stops_at_the_frontier(
     task = manager._running_jobs[JOB_ID]
     await asyncio.wait_for(task, timeout=30)
 
-    # the spine stopped at the S5 frontier and said so honestly
+    # the spine stopped at the S7 frontier and said so honestly
     run = await load_run(JOB_ID)
     assert run is not None
-    assert run.current_state == AnalysisStage.S4_TARGETED_EDA_COMPLETE
+    assert run.current_state == AnalysisStage.S6_USER_CONFIRMED_OR_AUTO_APPROVED
     assert run.status.value == "failed"
-    assert "s5_plan_critiqued" in run.error_message
+    assert "s7_method_executed" in run.error_message
 
-    # the four stages each passed and committed their slots
+    # the five stages each passed and committed their slots
     assert [r.agent for r in run.agent_runs] == [
-        "intake", "profiling", "design_detection", "targeted_eda",
+        "intake", "profiling", "design_detection", "targeted_eda", "plan_critic",
     ]
     assert all(r.status.value in ("passed", "warning") for r in run.agent_runs)
     assert run.causal_spec.outcome.column == "re78"
@@ -155,8 +155,11 @@ async def test_spine_runs_intake_profiling_design_and_stops_at_the_frontier(
     assert run.tool_eligibility is not None
     assert run.eda_summary is not None
     assert run.eda_summary.check("covariate_balance") is not None
-    assert len(run.state_events) == 4
-    assert run.state_version == 4
+    # the fully-resolved high-confidence plan auto-approved through S6
+    assert run.plan_critique.status.value == "pass_auto_approved"
+    assert run.method_plan.estimator == "regression_adjustment"
+    assert len(run.state_events) == 6  # S1..S5 plus the orchestrator-owned S6
+    assert run.state_version == 6
 
     # artifacts persisted on disk and registered
     for artifact in run.artifact_registry.artifacts:

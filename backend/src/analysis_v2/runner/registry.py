@@ -10,6 +10,7 @@ from __future__ import annotations
 from src.analysis_v2.agents.base import AnalysisAgent
 from src.analysis_v2.agents.design_detection import DesignDetectionAgent
 from src.analysis_v2.agents.intake import IntakeAgent
+from src.analysis_v2.agents.plan_critic import PlanCriticAgent
 from src.analysis_v2.agents.profiling import ProfilingAgent
 from src.analysis_v2.agents.targeted_eda import TargetedEDAAgent
 from src.analysis_v2.core import AnalysisStage
@@ -22,5 +23,6 @@ def build_agents() -> dict[AnalysisStage, AnalysisAgent]:
         ProfilingAgent(),
         DesignDetectionAgent(),
         TargetedEDAAgent(),
+        PlanCriticAgent(),
     ]
     return {agent.stage: agent for agent in agents}
