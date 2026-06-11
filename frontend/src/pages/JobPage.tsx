@@ -12,7 +12,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getJob, getTraces, getGateSnapshot, cancelJob, getNotebookUrl, AgentEvent, AgentTrace, JobDetail, DagGatePayload, ResultsGatePayload, RelationalProfilePayload } from '../services/api';
+import { getJob, getTraces, getGateSnapshot, cancelJob, getNotebookUrl, submitPlanDecision, AgentEvent, AgentTrace, JobDetail, DagGatePayload, PlanDecisionRequest, ResultsGatePayload, RelationalProfilePayload } from '../services/api';
 import { JOB_DETAIL_POLL_INTERVAL_MS, TRACES_POLL_INTERVAL_MS } from '../config/constants';
 import { useJob } from '../hooks/useJob';
 import { deriveJobView } from '../components/job/terminal/deriveJobView';
@@ -133,6 +133,17 @@ export default function JobPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['job', jobId] });
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
+    },
+  });
+
+  // Plan-gate decision (POST /jobs/:id/plan). Confirm resumes the run, reject
+  // fails it; either way the job and analysis views change, so invalidate both.
+  // AnalysisView -> PlanGate stay presentational; this page owns the mutation.
+  const planMutation = useMutation({
+    mutationFn: (body: PlanDecisionRequest) => submitPlanDecision(jobId!, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['job', jobId] });
+      queryClient.invalidateQueries({ queryKey: ['analysis', jobId] });
     },
   });
 
@@ -311,7 +322,18 @@ export default function JobPage() {
       <div className="flex-1 flex overflow-hidden min-h-0">
         {showAnalysisArea ? (
           analysis ? (
-            <AnalysisView analysis={analysis} />
+            <AnalysisView
+              analysis={analysis}
+              onPlanConfirm={(edits) =>
+                planMutation.mutate({
+                  decision: 'confirm',
+                  ...(Object.keys(edits).length > 0 ? { edits } : {}),
+                })
+              }
+              onPlanReject={(reason) => planMutation.mutate({ decision: 'reject', reason })}
+              planSubmitting={planMutation.isPending}
+              planError={planMutation.error ? planMutation.error.message : null}
+            />
           ) : (
             <div className="flex-1 flex items-center justify-center bg-canvas">
               <span className="text-2xs font-mono text-ink-tertiary uppercase tracking-[0.15em]">

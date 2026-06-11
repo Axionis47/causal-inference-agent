@@ -11,6 +11,9 @@ import { Caption } from '../terminal/atoms';
 import { AgentTile } from './AgentTile';
 import { ArtifactList } from './ArtifactList';
 import { CostLine } from './CostLine';
+import { PlanGate } from './PlanGate';
+
+const noop = () => {};
 
 const labelCls = 'text-2xs font-mono uppercase tracking-[0.15em]';
 
@@ -58,8 +61,23 @@ function StageStrip({
   );
 }
 
-export function AnalysisView({ analysis }: { analysis: AnalysisViewResponse }) {
-  const { spec_summary: spec } = analysis;
+export function AnalysisView({
+  analysis,
+  onPlanConfirm,
+  onPlanReject,
+  planSubmitting = false,
+  planError = null,
+}: {
+  analysis: AnalysisViewResponse;
+  // Plan-gate handlers; JobPage owns the POST /jobs/:id/plan mutation.
+  onPlanConfirm?: (edits: Record<string, string>) => void;
+  onPlanReject?: (reason: string) => void;
+  planSubmitting?: boolean;
+  planError?: string | null;
+}) {
+  const { spec_summary: spec, plan_gate: planGate, method_plan: methodPlan } = analysis;
+  const showPlanGate =
+    analysis.status === 'waiting_for_user' && !!planGate?.confirmation_card;
 
   return (
     <section className="flex-1 min-w-0 flex flex-col overflow-hidden bg-canvas">
@@ -107,10 +125,42 @@ export function AnalysisView({ analysis }: { analysis: AnalysisViewResponse }) {
             </div>
           )}
 
+          {/* compact method-plan line, whenever planning has produced one */}
+          {methodPlan && (
+            <div className="font-mono text-2xs text-ink-tertiary">
+              plan{' '}
+              <span className="text-ink-secondary">
+                {[
+                  methodPlan.lane,
+                  methodPlan.estimator,
+                  methodPlan.estimand,
+                  methodPlan.outcome,
+                ].join(' · ')}
+              </span>
+            </div>
+          )}
+
+          {planGate?.status === 'pass_auto_approved' && (
+            <p className="text-2xs font-mono text-mint">plan auto-approved</p>
+          )}
+
           {analysis.error_message && (
             <p className="text-xs font-mono text-rose">{analysis.error_message}</p>
           )}
         </div>
+
+        {/* the plan gate, prominent above the agent tiles while the run waits */}
+        {showPlanGate && planGate && (
+          <PlanGate
+            gate={planGate}
+            design={analysis.selected_design}
+            methodPlan={methodPlan}
+            onConfirm={onPlanConfirm ?? noop}
+            onReject={onPlanReject ?? noop}
+            submitting={planSubmitting}
+            error={planError}
+          />
+        )}
 
         {/* one tile per agent */}
         <div>

@@ -1,7 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { AnalysisView } from '../components/job/analysis/AnalysisView';
-import type { AnalysisViewResponse } from '../services/api';
+import type {
+  AnalysisPlanGate,
+  AnalysisViewResponse,
+  MethodPlan,
+  SelectedDesign,
+} from '../services/api';
 
 // A realistic mid-run payload: intake passed (summary + 2 artifacts),
 // profiling running, design_detection still waiting.
@@ -101,6 +106,51 @@ const fixture: AnalysisViewResponse = {
       warnings: [],
     },
   ],
+  plan_gate: null,
+  method_plan: null,
+  selected_design: null,
+};
+
+const methodPlan: MethodPlan = {
+  lane: 'observational',
+  estimator: 'aipw',
+  estimand: 'ate',
+  outcome: 're78',
+  treatment: 'treat',
+  covariates: ['age', 'educ'],
+  settings: { n_folds: 5 },
+  rationale: 'Doubly robust under the backdoor set.',
+};
+
+const selectedDesign: SelectedDesign = {
+  lane: 'observational',
+  design_label: 'backdoor adjustment',
+  confidence: 'medium',
+  rationale: 'No instrument or cutoff found; covariates close the backdoor.',
+  required_fields: { outcome: 're78' },
+  missing_requirements: [],
+  warnings: [],
+};
+
+const waitingGate: AnalysisPlanGate = {
+  status: 'needs_user_confirmation',
+  reasons: ['outcome was inferred from the question, not stated'],
+  missing_required: [],
+  summary: 'Confirm the outcome before estimation runs.',
+  confirmation_card: {
+    headline: 'Confirm the analysis plan',
+    plan_summary: 'AIPW on re78 with backdoor adjustment.',
+    items: [
+      {
+        field: 'outcome',
+        label: 'outcome column',
+        current_value: 're78',
+        options: ['re78', 're75'],
+        required: true,
+        why: 'The measured result the effect is estimated on.',
+      },
+    ],
+  },
 };
 
 describe('AnalysisView', () => {
@@ -159,6 +209,60 @@ describe('AnalysisView', () => {
     expect(screen.getByText('450')).toBeTruthy();
     expect(screen.getByText('$0.0163')).toBeTruthy();
     expect(screen.getByText('6')).toBeTruthy();
+  });
+
+  it('shows the plan gate when the run waits for the user and a card exists', () => {
+    render(
+      <AnalysisView
+        analysis={{
+          ...fixture,
+          status: 'waiting_for_user',
+          plan_gate: waitingGate,
+          method_plan: methodPlan,
+          selected_design: selectedDesign,
+        }}
+      />,
+    );
+    expect(screen.getByTestId('plan-gate')).toBeTruthy();
+    expect(screen.getByText('Confirm the analysis plan')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /confirm plan/i })).toBeTruthy();
+  });
+
+  it('does not show the plan gate while waiting if there is no confirmation card', () => {
+    render(
+      <AnalysisView
+        analysis={{
+          ...fixture,
+          status: 'waiting_for_user',
+          plan_gate: { ...waitingGate, confirmation_card: null },
+        }}
+      />,
+    );
+    expect(screen.queryByTestId('plan-gate')).toBeNull();
+  });
+
+  it('shows the auto-approved note instead of the gate when the plan passed', () => {
+    render(
+      <AnalysisView
+        analysis={{
+          ...fixture,
+          plan_gate: {
+            status: 'pass_auto_approved',
+            reasons: [],
+            missing_required: [],
+            summary: 'All required fields present.',
+            confirmation_card: null,
+          },
+        }}
+      />,
+    );
+    expect(screen.getByText('plan auto-approved')).toBeTruthy();
+    expect(screen.queryByTestId('plan-gate')).toBeNull();
+  });
+
+  it('renders the compact method-plan line whenever a method plan exists', () => {
+    render(<AnalysisView analysis={{ ...fixture, method_plan: methodPlan }} />);
+    expect(screen.getByText('observational · aipw · ate · re78')).toBeTruthy();
   });
 
   it('renders the error message text when the run failed', () => {

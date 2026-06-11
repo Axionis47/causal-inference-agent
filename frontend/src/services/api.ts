@@ -689,6 +689,62 @@ export interface AnalysisEventView {
   warnings: string[];
 }
 
+// --- Plan gate (human confirmation of the method plan) ---
+// While a run sits at waiting_for_user, `plan_gate.confirmation_card` carries
+// what the analyst must confirm or fill in; POST /jobs/{id}/plan resumes it.
+
+export type PlanGateStatus =
+  | 'pass_auto_approved'
+  | 'needs_user_confirmation'
+  | 'fail_missing_required_info';
+
+export interface PlanCardItem {
+  field: string; // e.g. "cutoff_value", "intervention_date", "outcome", "lane"
+  label: string;
+  current_value: string | null;
+  // Non-empty renders a select; empty renders a text input.
+  options: string[];
+  required: boolean;
+  why: string;
+}
+
+export interface PlanConfirmationCard {
+  headline: string;
+  plan_summary: string;
+  items: PlanCardItem[];
+}
+
+// Named AnalysisPlanGate (not PlanGate) to avoid clashing with the PlanGate
+// component in components/job/analysis/PlanGate.tsx.
+export interface AnalysisPlanGate {
+  status: PlanGateStatus;
+  reasons: string[];
+  missing_required: string[];
+  summary: string;
+  confirmation_card: PlanConfirmationCard | null;
+}
+
+export interface MethodPlan {
+  lane: string;
+  estimator: string;
+  estimand: string;
+  outcome: string;
+  treatment: string | null;
+  covariates: string[];
+  settings: Record<string, unknown>;
+  rationale: string;
+}
+
+export interface SelectedDesign {
+  lane: string;
+  design_label: string;
+  confidence: string;
+  rationale: string;
+  required_fields: Record<string, string>;
+  missing_requirements: string[];
+  warnings: string[];
+}
+
 export interface AnalysisViewResponse {
   job_id: string;
   status: AnalysisRunStatus;
@@ -702,11 +758,39 @@ export interface AnalysisViewResponse {
   artifacts: AnalysisArtifactView[];
   costs: AnalysisCosts;
   events: AnalysisEventView[];
+  // Null until design selection / planning ran (and for legacy runs).
+  plan_gate: AnalysisPlanGate | null;
+  method_plan: MethodPlan | null;
+  selected_design: SelectedDesign | null;
 }
 
 /** 404 (no analysis run yet) propagates as an ApiError; useAnalysis maps it to null. */
 export async function getAnalysisView(jobId: string): Promise<AnalysisViewResponse> {
   const response = await api.get(`/jobs/${jobId}/analysis`);
+  return response.data;
+}
+
+// Decision on the plan gate. `edits` values are sent as strings keyed by the
+// card item's `field`; `reason` is required when decision is 'reject'.
+export interface PlanDecisionRequest {
+  decision: 'confirm' | 'reject';
+  edits?: Record<string, string>;
+  reason?: string;
+}
+
+export interface PlanDecisionResponse {
+  job_id: string;
+  status: 'running_analysis' | 'failed';
+}
+
+/** Resolve the plan gate for a parked run. 404 no run; 409 job not
+ *  waiting_for_user; 422 invalid edits (ApiError.message explains). On
+ *  success invalidate ['job', jobId] and ['analysis', jobId]. */
+export async function submitPlanDecision(
+  jobId: string,
+  body: PlanDecisionRequest,
+): Promise<PlanDecisionResponse> {
+  const response = await api.post(`/jobs/${jobId}/plan`, body);
   return response.data;
 }
 
