@@ -146,24 +146,6 @@ async def create_job(
         )
 
 
-@router.get("/agents")
-@limiter.limit("30/minute")
-async def list_agents(request: Request):
-    """List all registered specialist agents and their metadata."""
-    from src.analysis.agents.registry import get_agent_registry
-
-    registry = get_agent_registry()
-    agents = []
-    for name, cls in registry.items():
-        agents.append({
-            "name": name,
-            "writes": getattr(cls, "WRITES_STATE_FIELDS", []),
-            "requires": getattr(cls, "REQUIRED_STATE_FIELDS", []),
-            "progress_weight": getattr(cls, "PROGRESS_WEIGHT", 0),
-        })
-    return {"agents": agents}
-
-
 @router.get("", response_model=JobListResponse)
 @limiter.limit("30/minute")
 async def list_jobs(
@@ -568,14 +550,14 @@ async def get_approval_snapshot(
 async def submit_approval(
     request: Request, job_id: str, body: ApprovalRequest
 ) -> ApprovalResultResponse:
-    """Apply a human approve/reject decision to a parked job.
+    """Apply a human approve/reject decision to a job parked at the data gate.
 
-    APPROVED: optional DAG edits are merged into `state.refined_dag`;
-    optional `appended_context` is appended to `dataset_info.user_provided_context`;
-    the orchestrator is respawned past the gate.
+    APPROVED: delegates to the confirm path; the dataset becomes the
+    CONFIRMED record and no pipeline is started.
 
-    REJECTED: job is marked FAILED with `reason` as the error_message.
-    `reason` is required when decision == "rejected".
+    REJECTED: job is marked FAILED with `reason` as the error_message and
+    the parked state is cleared. `reason` is required when
+    decision == "rejected".
     """
     from datetime import datetime, timezone
 
@@ -620,7 +602,7 @@ async def submit_approval(
             detail=str(exc),
         ) from exc
 
-    from src.jobs.dag_resume import RevisionLimitReached
+    from src.jobs.gate_resume import RevisionLimitReached
 
     try:
         result = await get_job_manager().resume_from_approval(job_id, approval)
