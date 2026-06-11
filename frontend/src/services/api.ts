@@ -605,6 +605,119 @@ export async function getGateSnapshot(jobId: string): Promise<GateSnapshot | nul
   }
 }
 
+// --- Analysis view (the new analysis slice) ---
+// One run per job. GET /jobs/{id}/analysis returns the whole view; partial
+// state arrives by refetch (SSE analysis_* events invalidate the query).
+
+export type AnalysisRunStatus =
+  | 'pending'
+  | 'running'
+  | 'waiting_for_user'
+  | 'failed'
+  | 'completed'
+  | 'cancelled';
+
+export type AnalysisAgentStatus =
+  | 'waiting'
+  | 'running'
+  | 'passed'
+  | 'warning'
+  | 'failed';
+
+export type AnalysisArtifactKind =
+  | 'json'
+  | 'table'
+  | 'plot'
+  | 'markdown'
+  | 'notebook'
+  | 'html';
+
+// Null until the intake agent ran.
+export interface AnalysisSpecSummary {
+  question_type: string;
+  confidence: string;
+  outcome: string | null;
+  treatment: string | null;
+}
+
+export interface AnalysisTokenUsage {
+  input_tokens: number;
+  output_tokens: number;
+}
+
+export interface AnalysisAgentView {
+  agent: string;
+  stage: string;
+  status: AnalysisAgentStatus;
+  public_summary: string | null;
+  current_step: string | null;
+  warnings: string[];
+  artifact_ids: string[];
+  tool_call_count: number;
+  tokens: AnalysisTokenUsage;
+  cost_usd: number;
+  elapsed_seconds: number | null;
+  attempt: number;
+}
+
+export interface AnalysisArtifactView {
+  // Contains slashes, e.g. "intake/causal_spec". Keep the slashes when
+  // building URLs (see analysisArtifactUrl).
+  artifact_id: string;
+  kind: AnalysisArtifactKind;
+  stage: string;
+  agent: string;
+  title: string;
+  summary: string | null;
+  media_type: string;
+  created_at: string;
+}
+
+export interface AnalysisCosts {
+  total_input_tokens: number;
+  total_output_tokens: number;
+  total_cost_usd: number;
+  total_tool_calls: number;
+}
+
+export interface AnalysisEventView {
+  sequence: number;
+  from_state: string;
+  to_state: string;
+  agent_name: string | null;
+  timestamp: string;
+  warnings: string[];
+}
+
+export interface AnalysisViewResponse {
+  job_id: string;
+  status: AnalysisRunStatus;
+  current_state: string;
+  stage_index: number;
+  total_stages: number;
+  causal_question: string;
+  error_message: string | null;
+  spec_summary: AnalysisSpecSummary | null;
+  agents: AnalysisAgentView[];
+  artifacts: AnalysisArtifactView[];
+  costs: AnalysisCosts;
+  events: AnalysisEventView[];
+}
+
+/** 404 (no analysis run yet) propagates as an ApiError; useAnalysis maps it to null. */
+export async function getAnalysisView(jobId: string): Promise<AnalysisViewResponse> {
+  const response = await api.get(`/jobs/${jobId}/analysis`);
+  return response.data;
+}
+
+/** Raw-bytes URL for one artifact. The artifact_id contains slashes that must
+ *  survive as path separators (the backend route uses a path parameter), so
+ *  encode each segment and rejoin with '/'. */
+export function analysisArtifactUrl(jobId: string, artifactId: string): string {
+  const idPath = artifactId.split('/').map(encodeURIComponent).join('/');
+  return `${API_BASE_URL}/jobs/${encodeURIComponent(jobId)}/analysis/artifacts/${idPath}`;
+}
+
 export function getNotebookUrl(jobId: string): string {
   return `${API_BASE_URL}/jobs/${jobId}/notebook`;
 }

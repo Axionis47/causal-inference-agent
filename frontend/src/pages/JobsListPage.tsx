@@ -67,6 +67,8 @@ function jobDuration(job: Job): string | null {
 function StatusDot({ tone }: { tone: string }) {
   const map: Record<string, string> = {
     live: 'bg-amber animate-pulse-live',
+    // Amber without the pulse: the run is parked on the analyst, not working.
+    attention: 'bg-amber',
     ok: 'bg-mint',
     failed: 'bg-rose',
     cancelled: 'bg-ink-tertiary',
@@ -82,9 +84,6 @@ function StatusDot({ tone }: { tone: string }) {
 
 /** Status tone + label. Tone maps to a semantic dot colour. */
 function statusDisplay(status: string): { tone: string; label: string } {
-  const isRunning = !['completed', 'failed', 'pending', 'cancelled'].includes(status);
-  if (isRunning) return { tone: 'live', label: status.replace('_', ' ') };
-
   switch (status) {
     case 'completed':
       return { tone: 'ok', label: 'done' };
@@ -93,8 +92,16 @@ function statusDisplay(status: string): { tone: string; label: string } {
     case 'cancelled':
       return { tone: 'cancelled', label: 'cancelled' };
     case 'pending':
-    default:
       return { tone: 'pending', label: 'pending' };
+    // The new analysis slice.
+    case 'running_analysis':
+      return { tone: 'live', label: 'analyzing' };
+    case 'waiting_for_user':
+      return { tone: 'attention', label: 'needs you' };
+    default:
+      // Everything else (fetching_data, profiling, awaiting_approval, ...) is
+      // a live in-flight state.
+      return { tone: 'live', label: status.replace('_', ' ') };
   }
 }
 

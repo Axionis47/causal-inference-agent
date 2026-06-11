@@ -85,6 +85,29 @@ describe('JobsListPage digest row', () => {
     expect(await screen.findByText('some-dataset')).toBeTruthy();
   });
 
+  it('maps running_analysis to an "analyzing" pulsing amber status', async () => {
+    renderPage([{ ...baseJob, status: 'running_analysis' }]);
+    const label = await screen.findByText('analyzing');
+    const dot = label.parentElement!.querySelector('span[aria-hidden="true"]');
+    expect(dot?.className).toContain('bg-amber');
+    expect(dot?.className).toContain('animate-pulse-live');
+  });
+
+  it('maps waiting_for_user to a "needs you" amber status without pulse', async () => {
+    renderPage([{ ...baseJob, status: 'waiting_for_user' }]);
+    const label = await screen.findByText('needs you');
+    const dot = label.parentElement!.querySelector('span[aria-hidden="true"]');
+    expect(dot?.className).toContain('bg-amber');
+    expect(dot?.className).not.toContain('animate-pulse-live');
+  });
+
+  it('maps completed to a "done" mint status', async () => {
+    renderPage([{ ...baseJob, status: 'completed' }]);
+    const label = await screen.findByText('done');
+    const dot = label.parentElement!.querySelector('span[aria-hidden="true"]');
+    expect(dot?.className).toContain('bg-mint');
+  });
+
   it('renders em-dash for duration on running jobs', async () => {
     renderPage([
       {

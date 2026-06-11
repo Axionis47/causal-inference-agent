@@ -30,6 +30,8 @@ import { ApprovalBar } from '../components/job/terminal/ApprovalBar';
 import { DagGate } from '../components/job/terminal/DagGate';
 import { ResultsGate } from '../components/job/terminal/ResultsGate';
 import { buildPreviewState } from '../components/job/terminal/preview';
+import { AnalysisView } from '../components/job/analysis/AnalysisView';
+import { useAnalysis } from '../hooks/useAnalysis';
 import { useDatasetView } from '../hooks/useDatasetView';
 
 export default function JobPage() {
@@ -95,6 +97,14 @@ export default function JobPage() {
     refetchInterval: () =>
       realJobQuery.data?.status === 'awaiting_approval' ? JOB_DETAIL_POLL_INTERVAL_MS : false,
   });
+
+  // The analysis view for the new analysis slice. Enabled once the job enters
+  // running_analysis / waiting_for_user / completed; 404 (no run yet, or a
+  // legacy job) resolves to null. SSE analysis_* events invalidate the query.
+  const { analysis, isLoading: analysisLoading } = useAnalysis(
+    isPreview ? null : (jobId ?? null),
+    realJobQuery.data?.status,
+  );
 
   // Dataset view (F1). The analyst lands here on arrival so the raw data and
   // download status are the first thing seen; Esc / F1 toggles back to the
@@ -186,12 +196,21 @@ export default function JobPage() {
 
   // Auto-open the results overlay once a job is completed, so the analysis output
   // is what you see, not an empty page. Only once: a manual close stays closed.
+  // Jobs completed by the new analysis slice show AnalysisView in the main area
+  // instead, so wait until the analysis query has settled to null (legacy job)
+  // before auto-opening.
   useEffect(() => {
-    if (!isPreview && job?.status === 'completed' && !resultsAutoOpened.current) {
+    if (
+      !isPreview &&
+      job?.status === 'completed' &&
+      !resultsAutoOpened.current &&
+      !analysisLoading &&
+      analysis === null
+    ) {
       resultsAutoOpened.current = true;
       setShowResults(true);
     }
-  }, [isPreview, job?.status]);
+  }, [isPreview, job?.status, analysis, analysisLoading]);
 
   // F-key shortcuts. Always run the hook; gate the actions inside.
   useEffect(() => {
@@ -250,6 +269,15 @@ export default function JobPage() {
   const view = deriveJobView(job, sourceEvents, nowMs, selectedAgent);
   const onCancel = () => cancelMutation.mutate();
 
+  // The new analysis slice owns the main area while it runs or waits, and once
+  // its view exists (which also covers completed runs). Legacy jobs, where
+  // /analysis 404s to null, keep the three-pane tape layout.
+  const showAnalysisArea =
+    !isPreview &&
+    (analysis !== null ||
+      job.status === 'running_analysis' ||
+      job.status === 'waiting_for_user');
+
   const focusTraces = view.focusAgent
     ? allTraces.filter((t) => t.agent_name === view.focusAgent)
     : [];
@@ -281,27 +309,41 @@ export default function JobPage() {
       />
 
       <div className="flex-1 flex overflow-hidden min-h-0">
-        <AgentsRail
-          tones={view.agentTones}
-          latestByAgent={view.latestByAgent}
-          findingByAgent={view.findingByAgent}
-          challengedAgents={view.challengedAgents}
-          selected={selectedAgent}
-          onSelect={(key) => setSelectedAgent((prev) => (prev === key ? null : key))}
-        />
-        <Tape reverseEvents={view.reverseEvents} currentAgent={job.current_agent} />
-        <FocusPane
-          job={job}
-          focusAgent={view.focusAgent}
-          focusLatest={view.focusLatest}
-          focusFinding={view.focusFinding}
-          focusChallenge={view.focusChallenge}
-          focusTraces={focusTraces}
-          focusTone={view.focusAgent ? view.agentTones[view.focusAgent] : undefined}
-          failed={view.failed}
-          datasetView={datasetView}
-          onOpenData={() => setShowDataset(true)}
-        />
+        {showAnalysisArea ? (
+          analysis ? (
+            <AnalysisView analysis={analysis} />
+          ) : (
+            <div className="flex-1 flex items-center justify-center bg-canvas">
+              <span className="text-2xs font-mono text-ink-tertiary uppercase tracking-[0.15em]">
+                {analysisLoading ? 'loading analysis…' : 'analysis starting…'}
+              </span>
+            </div>
+          )
+        ) : (
+          <>
+            <AgentsRail
+              tones={view.agentTones}
+              latestByAgent={view.latestByAgent}
+              findingByAgent={view.findingByAgent}
+              challengedAgents={view.challengedAgents}
+              selected={selectedAgent}
+              onSelect={(key) => setSelectedAgent((prev) => (prev === key ? null : key))}
+            />
+            <Tape reverseEvents={view.reverseEvents} currentAgent={job.current_agent} />
+            <FocusPane
+              job={job}
+              focusAgent={view.focusAgent}
+              focusLatest={view.focusLatest}
+              focusFinding={view.focusFinding}
+              focusChallenge={view.focusChallenge}
+              focusTraces={focusTraces}
+              focusTone={view.focusAgent ? view.agentTones[view.focusAgent] : undefined}
+              failed={view.failed}
+              datasetView={datasetView}
+              onOpenData={() => setShowDataset(true)}
+            />
+          </>
+        )}
       </div>
 
       <FKeyBar

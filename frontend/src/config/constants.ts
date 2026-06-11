@@ -10,6 +10,9 @@ export const JOBS_LIST_REFRESH_INTERVAL_MS = 10000;
 export const TRACES_POLL_INTERVAL_MS = 5000;
 // Dataset blocks resolve over a few seconds during the fetch stage.
 export const DATASET_VIEW_POLL_INTERVAL_MS = 2000;
+// The analysis view refetches on every analysis_* SSE event; this poll is the
+// safety net when the stream drops, so it can be gentle.
+export const ANALYSIS_POLL_INTERVAL_MS = 5000;
 
 // Toast durations
 export const TOAST_DEFAULT_DURATION_MS = 4000;

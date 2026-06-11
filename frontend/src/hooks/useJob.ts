@@ -18,6 +18,7 @@ import {
   getStreamUrl,
 } from '../services/api';
 import { DEFAULT_POLL_INTERVAL_MS, MAX_AGENT_EVENTS } from '../config/constants';
+import { analysisKeysToInvalidate } from './analysisEvents';
 import { useJobStore } from '../store/jobStore';
 
 interface UseJobOptions {
@@ -166,6 +167,12 @@ export function useJob(jobId: string | null, options: UseJobOptions = {}) {
           if (isDatasetEventType(parsed.event_type)) {
             dispatchDatasetEvent(parsed.event_type, parsed.data);
             return;
+          }
+          // Analysis lifecycle events: no fine-grained patching, just refetch
+          // the analysis view (and the job itself on the terminal events).
+          // The event still lands in the tape below; it carries a headline.
+          for (const key of analysisKeysToInvalidate(parsed.event_type, jobId)) {
+            queryClient.invalidateQueries({ queryKey: key });
           }
           addAgentEvent(parsed as AgentEvent);
         } catch {

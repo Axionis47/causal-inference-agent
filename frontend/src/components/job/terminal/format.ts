@@ -35,6 +35,18 @@ export function formatDelta(curISO: string, priorISO: string | undefined): strin
   return `+${m}m${s.toString().padStart(2, '0')}`;
 }
 
+/** "MM:SS" (or "H:MM:SS" past an hour) for a duration in seconds. "--:--" when missing. */
+export function formatSeconds(sec: number | null | undefined): string {
+  if (sec == null || !Number.isFinite(sec) || sec < 0) return '--:--';
+  const whole = Math.floor(sec);
+  const h = Math.floor(whole / 3600);
+  const m = Math.floor((whole % 3600) / 60);
+  const s = whole % 60;
+  const mm = String(m).padStart(2, '0');
+  const ss = String(s).padStart(2, '0');
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+
 /** Map a job status string onto the live/settled tone axis. */
 export function statusTone(status: string | undefined): AgentTone {
   if (status === 'completed') return 'ok';
