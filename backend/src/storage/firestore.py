@@ -6,7 +6,7 @@ from typing import Any
 
 from google.cloud import firestore
 
-from src.analysis.agents.base import AnalysisState, JobStatus
+from src.analysis_v2.state import AnalysisState, JobStatus
 from src.config import get_settings
 from src.logging_config.structured import get_logger
 from src.storage.job_data import read_manifest

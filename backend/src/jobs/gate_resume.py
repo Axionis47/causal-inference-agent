@@ -10,7 +10,7 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING
 
-from src.analysis.agents.base.state import AnalysisState
+from src.analysis_v2.state import AnalysisState
 from src.domain.approval import HumanApproval
 
 if TYPE_CHECKING:

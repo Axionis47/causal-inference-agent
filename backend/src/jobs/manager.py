@@ -12,7 +12,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Literal
 
-from src.analysis.agents import (
+from src.analysis_v2.state import (
     AnalysisState,
     DatasetInfo,
     JobStatus,
@@ -87,13 +87,6 @@ def _require_valid_dataset_inputs(
             )
 
 
-from src.analysis.orchestrator import (
-    Orchestrator,
-    ReActOrchestrator,
-    StandardOrchestrator,
-)
-from src.analysis.orchestrator import react as react_pkg
-from src.analysis.orchestrator import standard as standard_pkg
 from src.config import get_settings
 from src.logging_config.structured import get_logger
 from src.storage.cleanup import cleanup_local_artifacts
@@ -175,32 +168,6 @@ class JobManager:
             mode=orchestrator_mode,
             instance_id=settings.instance_id,
         )
-
-    def _create_orchestrator(self, mode: OrchestratorMode) -> Orchestrator:
-        """Create a fresh orchestrator with fresh agent instances per job.
-
-        Each job gets its own agent instances to prevent concurrent jobs from
-        cross-contaminating mutable instance state (e.g., _df, _profile).
-        Each orchestrator package owns its specialist roster, so adding or
-        swapping a specialist for a single mode does not require editing
-        JobManager.
-
-        The mode is read per-job (off `AnalysisState.orchestrator_mode`)
-        rather than off the manager instance, so a single JobManager can
-        run both modes concurrently.
-        """
-        orchestrator: Orchestrator
-        if mode == "react":
-            orchestrator = ReActOrchestrator()
-            agents = react_pkg.build_specialists()
-        else:
-            orchestrator = StandardOrchestrator()
-            agents = standard_pkg.build_specialists()
-
-        for name, agent in agents.items():
-            orchestrator.register_specialist(name, agent)
-
-        return orchestrator
 
     async def create_job(
         self,
@@ -297,121 +264,34 @@ class JobManager:
             await self._run_job_inner(state)
 
     async def _run_job_inner(self, state: AnalysisState) -> None:
-        """Inner job execution (runs under semaphore)."""
+        """Download the dataset and park it at the data-review gate.
+
+        This slice does not run analysis: it ends at the gate. run_analysis is
+        the launch boundary (a stub until the analysis slice is built).
+        """
         job_id = state.job_id
-        settings = get_settings()
-        timeout_seconds = settings.agent_timeout_seconds * settings.job_timeout_multiplier  # Total job timeout
-
-        logger.info("job_started", job_id=job_id, timeout_seconds=timeout_seconds)
-
-        # Store live state reference for SSE streaming
         self._active_states[job_id] = state
 
-        try:
-            # Set up status callback so the orchestrator can persist
-            # intermediate status updates to Firestore during the pipeline
-            async def _persist_status(s: AnalysisState) -> None:
-                try:
-                    await self.firestore.update_job(s)
-                except Exception:
-                    logger.debug("status_persist_failed", job_id=s.job_id, exc_info=True)
-
-            # Data-review gate: on the first run (before the human has
-            # approved), download the dataset and park for review. No analysis
-            # agent runs until approval, so nothing infers labels on data the
-            # user has not yet accepted. Resume re-enters here with an APPROVED
-            # human_approval and skips straight to the orchestrator (which
-            # reuses the already-downloaded bundle).
-            if not _human_approved(state):
-                await self._download_and_gate(state, _persist_status)
-                return
-
-            orchestrator = self._create_orchestrator(state.orchestrator_mode)
-            orchestrator.set_status_callback(_persist_status)
-
-            # Run the orchestrator with timeout
+        async def _persist_status(s: AnalysisState) -> None:
             try:
-                final_state = await asyncio.wait_for(
-                    orchestrator.execute_with_tracing(state),
-                    timeout=timeout_seconds,
-                )
-                # Update live state reference (orchestrator may return a new object)
-                self._active_states[job_id] = final_state
-            except TimeoutError:
-                logger.error(
-                    "job_timeout",
-                    job_id=job_id,
-                    timeout_seconds=timeout_seconds,
-                )
-                state.mark_failed(
-                    f"Job timed out after {timeout_seconds} seconds",
-                    "job_manager"
-                )
-                await self.firestore.update_job(state)
-                return
+                await self.firestore.update_job(s)
+            except Exception:
+                logger.debug("status_persist_failed", job_id=s.job_id, exc_info=True)
 
-            # Human-approval gate: orchestrator yielded with AWAITING_APPROVAL.
-            # Persist the full state so the approval API can reload it later,
-            # save the partial traces, update the job row, and return cleanly.
-            # Results are NOT saved here — estimation hasn't run.
-            if final_state.status == JobStatus.AWAITING_APPROVAL:
-                await self.firestore.save_parked_state(final_state)
-                await self.firestore.save_traces(final_state)
-                await self.firestore.update_job(final_state)
-                logger.info(
-                    "job_parked_for_approval",
-                    job_id=job_id,
-                    has_refined_dag=final_state.refined_dag is not None,
-                )
-                return
-
-            # Save results if completed or has treatment effects
-            if final_state.status == JobStatus.COMPLETED or final_state.treatment_effects:
-                await self.firestore.save_results(final_state)
-
-            # Save traces
-            await self.firestore.save_traces(final_state)
-
-            # Final update
-            await self.firestore.update_job(final_state)
-
-            logger.info(
-                "job_completed",
-                job_id=job_id,
-                status=final_state.status.value,
-                n_effects=len(final_state.treatment_effects),
-            )
-
+        try:
+            await self._download_and_gate(state, _persist_status)
         except asyncio.CancelledError:
             logger.info("job_cancelled", job_id=job_id)
-            state.mark_cancelled("Job was cancelled by user")
+            state.mark_cancelled()
             await self.firestore.update_job(state)
-
-            # Best effort: save partial traces if any exist
-            if state.agent_traces:
-                try:
-                    await self.firestore.save_traces(state)
-                except Exception:
-                    logger.warning("trace_save_on_cancel_failed", job_id=state.job_id, exc_info=True)
-
-            # Re-raise to complete cancellation
             raise
-
         except Exception as e:
-            logger.error(
-                "job_failed",
-                job_id=job_id,
-                error=str(e),
-            )
-
+            logger.error("job_failed", job_id=job_id, error=str(e))
             state.mark_failed(str(e), "job_manager")
             await self.firestore.update_job(state)
-
         finally:
-            # Remove from running jobs (under lock to avoid race with cancel)
             async with self._jobs_lock:
                 self._running_jobs.pop(job_id, None)
-            # Clean up live state reference
             self._active_states.pop(job_id, None)
 
     async def _download_and_gate(
@@ -426,14 +306,9 @@ class JobManager:
         the orchestrator, which does not run until the human approves. On a
         download failure the job is marked FAILED.
         """
-        from src.analysis.agents.data_profiler.helpers import (
-            compute_deterministic_profile,
-        )
-        from src.analysis.agents.data_profiler.loading import (
-            fetch_kaggle_metadata,
-            load_dataset,
-        )
-        from src.analysis.orchestrator.base import park_for_approval
+        from src.download.legacy_loading import fetch_kaggle_metadata, load_dataset
+        from src.jobs.gate import park_for_approval
+        from src.profiling import compute_deterministic_profile
 
         state.status = JobStatus.FETCHING_DATA
         await self.firestore.update_job(state, expected_status=JobStatus.PENDING)
@@ -459,7 +334,6 @@ class JobManager:
 
         await park_for_approval(state, persist_status)
         await self.firestore.save_parked_state(state)
-        await self.firestore.save_traces(state)
         await self.firestore.update_job(state)
         logger.info(
             "job_parked_for_review",
@@ -619,19 +493,11 @@ class JobManager:
             ValueError: no parked state, or the job sits at a later (DAG/results)
                 gate rather than the data-review gate.
         """
-        from src.analysis.orchestrator.base import (
-            should_pause_for_dag_approval,
-            should_pause_for_results,
-        )
         from src.domain.approval import ApprovalDecision, HumanApproval
 
         state = await self.firestore.load_parked_state(job_id)
         if state is None:
             raise ValueError(f"Job {job_id} is not parked at the data-review gate")
-        if should_pause_for_results(state) or should_pause_for_dag_approval(state):
-            raise ValueError(
-                "Only a dataset at the data-review gate can be confirmed"
-            )
         if state.data_profile is None:
             raise ValueError("Dataset has not been profiled; cannot confirm")
         _require_valid_dataset_inputs(
@@ -653,29 +519,15 @@ class JobManager:
         return {"job_id": job_id, "status": state.status.value}
 
     async def run_analysis(self, job_id: str) -> dict[str, Any]:
-        """Launch the analysis pipeline on a confirmed dataset.
-
-        Reloads the confirmed state, deletes the parked record, and respawns the
-        orchestrator. The data was confirmed (human_approval is set), so the
-        worker runs straight past the data gate into the analysis.
-
-        Raises:
-            ValueError: the job has no confirmed dataset to run.
+        """Launch boundary. The analysis slice is not built yet, so this records
+        the request and leaves the dataset CONFIRMED and ready. It starts no
+        pipeline.
         """
         state = await self.firestore.load_parked_state(job_id)
         if state is None:
             raise ValueError(f"Job {job_id} has no confirmed dataset to run")
-
-        state.status = JobStatus.DISCOVERING_CAUSAL
-        await self.firestore.delete_parked_state(job_id)
-        await self.firestore.update_job(state)
-
-        task = asyncio.create_task(self._run_job(state))
-        async with self._jobs_lock:
-            self._running_jobs[job_id] = task
-
-        logger.info("analysis_started_from_confirmed", job_id=job_id)
-        return {"resumed": True, "status": state.status.value}
+        logger.info("analysis_launch_requested_stub", job_id=job_id)
+        return {"resumed": False, "status": state.status.value}
 
     async def get_job_status(self, job_id: str) -> dict[str, Any] | None:
         """Get lightweight job status.
@@ -920,23 +772,13 @@ class JobManager:
         state = await self.firestore.load_parked_state(job_id)
         if state is None:
             return None
-        # Lazy import to keep manager.py free of orchestrator internals at import time.
-        from src.analysis.orchestrator.base import (
-            _build_dag_gate_payload,
-            _build_gate_payload,
-            _build_results_gate_payload,
-            should_pause_for_dag_approval,
-            should_pause_for_results,
+        # This slice has only the data-review gate.
+        relational = (
+            state.relational_profile.model_dump()
+            if state.relational_profile is not None
+            else None
         )
-
-        # Pick the gate the parked state is actually at, mirroring the resume
-        # router (resume_from_approval). The predicates are mutually exclusive,
-        # so check the most-progressed gate first.
-        if should_pause_for_results(state):
-            return {"kind": "results", "payload": _build_results_gate_payload(state)}
-        if should_pause_for_dag_approval(state):
-            return {"kind": "dag", "payload": _build_dag_gate_payload(state)}
-        return {"kind": "data", "payload": _build_gate_payload(state)}
+        return {"kind": "data", "payload": {"relational": relational}}
 
     async def resume_from_approval(
         self, job_id: str, approval: "HumanApproval"
@@ -960,76 +802,20 @@ class JobManager:
         if state is None:
             raise ValueError(f"Job {job_id} is not parked at the approval gate")
 
-        # The DAG and results gates land on their own approval fields (not
-        # human_approval) and support a REVISE redo loop, so they route
-        # separately. Check the most-progressed gate first; the predicates are
-        # mutually exclusive, so order only picks the active one.
-        from src.analysis.orchestrator.base import (
-            should_pause_for_dag_approval,
-            should_pause_for_results,
-        )
-        from src.jobs.dag_resume import resume_dag_gate
-        from src.jobs.results_resume import resume_results_gate
-
-        if should_pause_for_results(state):
-            return await resume_results_gate(self, job_id, state, approval)
-        if should_pause_for_dag_approval(state):
-            return await resume_dag_gate(self, job_id, state, approval)
-
+        # This slice has only the data-review gate. Approve is handled by
+        # confirm_dataset; here we handle the reject action from the review bar.
         if approval.decision == ApprovalDecision.APPROVED:
-            # Apply DAG edits in place. refined_dag should be set at the
-            # gate (dag_expert produced it); discovered_dag is the fallback.
-            target_dag = state.refined_dag or state.discovered_dag
-            if target_dag is not None and approval.dag_edits is not None:
-                edits = approval.dag_edits
-                if edits.adjustment_set is not None:
-                    target_dag.adjustment_set = list(edits.adjustment_set)
-                if edits.forbidden_edges is not None:
-                    target_dag.forbidden_edges = list(edits.forbidden_edges)
-                if edits.variable_roles is not None:
-                    target_dag.variable_roles = dict(edits.variable_roles)
+            result = await self.confirm_dataset(job_id)
+            return {"resumed": False, "status": result["status"]}
 
-            # Append free-text notes (existing prose stays first).
-            if approval.appended_context:
-                existing = state.dataset_info.user_provided_context or ""
-                joined = (existing + "\n\n" + approval.appended_context).strip()
-                state.dataset_info.user_provided_context = joined
-
-            state.human_approval = approval
-            # Set a sensible resume status — orchestrator will overwrite as it dispatches.
-            state.status = JobStatus.DISCOVERING_CAUSAL
-
-            # Wire-contract event the UI watches to flip out of the gate UI.
-            edited_fields = _describe_edits(approval)
-            state.push_sse_event(
-                "approval_granted",
-                {
-                    "decision": approval.decision.value,
-                    "edited_fields": edited_fields,
-                    "appended_context_chars": len(approval.appended_context or ""),
-                },
-            )
-
-            await self.firestore.delete_parked_state(job_id)
-            await self.firestore.update_job(state)
-
-            task = asyncio.create_task(self._run_job(state))
-            async with self._jobs_lock:
-                self._running_jobs[job_id] = task
-
-            logger.info("job_resumed_after_approval", job_id=job_id)
-            return {"resumed": True, "status": state.status.value}
-
-        # REJECTED
         state.human_approval = approval
         state.mark_failed(
-            f"Rejected at human-approval gate: {approval.reason}",
-            "human_approval",
+            f"Rejected at data-review gate: {approval.reason}",
+            "data_review",
         )
         await self.firestore.update_job(state)
-        await self.firestore.save_traces(state)
         await self.firestore.delete_parked_state(job_id)
-        logger.info("job_rejected_at_approval", job_id=job_id, reason=approval.reason)
+        logger.info("job_rejected_at_gate", job_id=job_id, reason=approval.reason)
         return {"resumed": False, "status": state.status.value}
 
     def _calculate_progress(self, status: str) -> int:

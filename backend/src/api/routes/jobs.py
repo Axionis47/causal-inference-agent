@@ -11,7 +11,7 @@ from fastapi import APIRouter, Header, HTTPException, Query, Request, status
 from fastapi.responses import FileResponse, StreamingResponse
 from sse_starlette.sse import EventSourceResponse
 
-from src.analysis.agents.base import JobStatus
+from src.analysis_v2.state import JobStatus
 from src.api.idempotency import get_idempotency_store
 from src.api.rate_limit import limiter
 from src.api.schemas import (

@@ -8,7 +8,7 @@ from typing import Any
 
 from filelock import FileLock
 
-from src.analysis.agents.base import AnalysisState, JobStatus
+from src.analysis_v2.state import AnalysisState, JobStatus
 from src.config import get_settings
 from src.logging_config.structured import get_logger
 from src.storage.job_data import read_manifest
@@ -80,8 +80,6 @@ class LocalStorageClient:
             "status": state.status.value,
             "treatment_variable": state.treatment_variable,
             "outcome_variable": state.outcome_variable,
-            "iteration_count": state.iteration_count,
-            "max_iterations": state.max_iterations,
             "created_at": state.created_at.isoformat() if state.created_at else None,
             "updated_at": state.updated_at.isoformat() if state.updated_at else None,
             "error_message": state.error_message,
@@ -177,11 +175,9 @@ class LocalStorageClient:
                     "status": state.status.value,
                     "treatment_variable": state.treatment_variable,
                     "outcome_variable": state.outcome_variable,
-                    "iteration_count": state.iteration_count,
                     "updated_at": _utcnow().isoformat(),
                     "error_message": state.error_message,
                     "error_agent": state.error_agent,
-                    "notebook_path": state.notebook_path,
                     "instance_id": settings.instance_id,
                 })
 
