@@ -138,14 +138,14 @@ async def test_spine_runs_intake_profiling_design_and_stops_at_the_frontier(
     # the spine stopped at the S8 frontier and said so honestly
     run = await load_run(JOB_ID)
     assert run is not None
-    assert run.current_state == AnalysisStage.S8_DIAGNOSTICS_SENSITIVITY_COMPLETE
+    assert run.current_state == AnalysisStage.S9_CLAIM_CRITIQUED
     assert run.status.value == "failed"
-    assert "s9_claim_critiqued" in run.error_message
+    assert "s10_report_notebook_created" in run.error_message
 
     # the six stages each passed and committed their slots
     assert [r.agent for r in run.agent_runs] == [
         "intake", "profiling", "design_detection", "targeted_eda",
-        "plan_critic", "method_lane", "diagnostics_sensitivity",
+        "plan_critic", "method_lane", "diagnostics_sensitivity", "claim_critic",
     ]
     assert all(r.status.value in ("passed", "warning") for r in run.agent_runs)
     assert run.causal_spec.outcome.column == "re78"
@@ -163,8 +163,9 @@ async def test_spine_runs_intake_profiling_design_and_stops_at_the_frontier(
     assert run.estimate_result is not None
     assert 500 < run.estimate_result.primary.estimate < 3000
     assert run.sensitivity_result is not None
-    assert len(run.state_events) == 8  # S1..S5, the orchestrator-owned S6, S7, S8
-    assert run.state_version == 8
+    assert run.claim_critique is not None
+    assert len(run.state_events) == 9  # S1..S5, the orchestrator-owned S6, S7..S9
+    assert run.state_version == 9
 
     # artifacts persisted on disk and registered
     for artifact in run.artifact_registry.artifacts:

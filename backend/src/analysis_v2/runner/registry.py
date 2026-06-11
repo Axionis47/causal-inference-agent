@@ -8,6 +8,7 @@ owned approval transition, S12 is terminal.
 from __future__ import annotations
 
 from src.analysis_v2.agents.base import AnalysisAgent
+from src.analysis_v2.agents.claim_critic import ClaimCriticAgent
 from src.analysis_v2.agents.design_detection import DesignDetectionAgent
 from src.analysis_v2.agents.diagnostics import DiagnosticsSensitivityAgent
 from src.analysis_v2.agents.intake import IntakeAgent
@@ -28,5 +29,6 @@ def build_agents() -> dict[AnalysisStage, AnalysisAgent]:
         PlanCriticAgent(),
         MethodLaneAgent(),
         DiagnosticsSensitivityAgent(),
+        ClaimCriticAgent(),
     ]
     return {agent.stage: agent for agent in agents}
