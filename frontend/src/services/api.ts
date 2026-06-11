@@ -28,14 +28,42 @@ export interface ApiError {
   details?: unknown;
 }
 
+// FastAPI returns validation errors as `detail: [{loc, msg, type, input}, ...]`
+// and other errors as `detail: "<string>"`. Normalize both to a readable string
+// so the UI never tries to render an error object as a React child.
+function extractDetailMessage(
+  data: Record<string, unknown> | undefined,
+): string | null {
+  if (!data) return null;
+  const detail = data.detail;
+  if (typeof detail === 'string') return detail;
+  if (Array.isArray(detail)) {
+    const msgs = detail
+      .map((e) => {
+        if (e && typeof e === 'object' && 'msg' in e) {
+          const entry = e as { msg: unknown; loc?: unknown[] };
+          const loc = Array.isArray(entry.loc)
+            ? entry.loc.filter((p) => p !== 'body').join('.')
+            : '';
+          const msg = String(entry.msg);
+          return loc ? `${loc}: ${msg}` : msg;
+        }
+        return null;
+      })
+      .filter(Boolean);
+    if (msgs.length) return msgs.join('; ');
+  }
+  if (typeof data.message === 'string') return data.message;
+  return null;
+}
+
 function toApiError(error: AxiosError): ApiError {
   if (error.response) {
     const data = error.response.data as Record<string, unknown> | undefined;
     return {
       status: error.response.status,
       message:
-        (data?.detail as string) ||
-        (data?.message as string) ||
+        extractDetailMessage(data) ||
         `Request failed with status ${error.response.status}`,
       details: data,
     };
