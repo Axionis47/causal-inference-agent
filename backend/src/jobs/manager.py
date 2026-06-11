@@ -110,11 +110,21 @@ async def recover_orphaned_jobs() -> int:
         logger.warning("orphan_recovery_skipped", reason="storage unavailable")
         return 0
 
+    # Jobs parked at a gate are durable: their full state lives in the
+    # parked-state store and reloads after a restart, so they must survive
+    # recovery instead of being failed. Only actively-running jobs (download /
+    # profiling) were truly interrupted.
+    parked = {JobStatus.AWAITING_APPROVAL.value, JobStatus.CONFIRMED.value}
+
     recovered = 0
+    skipped_parked = 0
     for job in orphaned:
         job_id = job.get("id", "unknown")
         old_status = job.get("status", "unknown")
         old_instance = job.get("instance_id", "unknown")
+        if old_status in parked:
+            skipped_parked += 1
+            continue
         try:
             await storage.update_job_status(
                 job_id,
@@ -131,8 +141,12 @@ async def recover_orphaned_jobs() -> int:
         except Exception:
             logger.warning("orphan_recovery_failed", job_id=job_id, exc_info=True)
 
-    if recovered:
-        logger.info("orphan_recovery_complete", recovered=recovered)
+    if recovered or skipped_parked:
+        logger.info(
+            "orphan_recovery_complete",
+            recovered=recovered,
+            parked_preserved=skipped_parked,
+        )
     return recovered
 
 
