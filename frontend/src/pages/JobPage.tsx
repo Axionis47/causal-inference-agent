@@ -254,10 +254,10 @@ export default function JobPage() {
     ? allTraces.filter((t) => t.agent_name === view.focusAgent)
     : [];
 
-  // Advisory gate for the data-review confirm button: the persisted treatment
-  // and outcome must be real columns of the profiled dataset (and the time
-  // column, if the dataset has one), mirroring the backend confirm guard
-  // (manager._require_valid_dataset_inputs). The server stays authoritative;
+  // Advisory gate for the data-review confirm button: a non-empty causal
+  // question must be set (and the time column, if the dataset has one, must be
+  // a real column), mirroring the backend confirm guard
+  // (manager._require_confirmable_dataset). The server stays authoritative;
   // this just blocks a confirm that would otherwise 422.
   const profileData = datasetView?.profile.data ?? null;
   const profileColumns = profileData ? Object.keys(profileData.feature_types ?? {}) : [];
@@ -265,8 +265,7 @@ export default function JobPage() {
   const timeCol = profileData?.time_column ?? '';
   const canConfirmData =
     !!profileData &&
-    profileColumns.includes(job.treatment_variable ?? '') &&
-    profileColumns.includes(job.outcome_variable ?? '') &&
+    !!(job.causal_question && job.causal_question.trim()) &&
     (!hasTimeDim || (timeCol !== '' && profileColumns.includes(timeCol)));
 
   return (
@@ -317,8 +316,7 @@ export default function JobPage() {
         <DatasetView
           view={datasetView}
           jobId={jobId ?? null}
-          treatment={job.treatment_variable ?? null}
-          outcome={job.outcome_variable ?? null}
+          causalQuestion={job.causal_question ?? null}
           relational={resolvedRelational}
           onClose={() => setShowDataset(false)}
         />

@@ -1,8 +1,10 @@
-// Inputs block for the data-review surface: the analyst's treatment, outcome,
-// and time column, picked from the dataset's real columns. Seeded from what was
-// given on the input page (treatment/outcome) and the detected time column; a
-// mismatch such as a typo is flagged and corrected here. Saving persists to the
-// parked job via PATCH /jobs/:id/inputs.
+// Inputs block for the data-review surface: the analyst's causal question and
+// the time column. The question is seeded from what was given on the input page
+// and can be refined here after seeing the data; the time column is picked from
+// the dataset's real columns (a deterministic detection the analyst can
+// correct). Treatment and outcome are no longer chosen here, the analysis
+// derives them from the question. Saving persists to the parked job via
+// PATCH /jobs/:id/inputs.
 
 import { useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -29,10 +31,11 @@ function Field({
   allowNone?: boolean;
 }) {
   const missing = value !== '' && !columns.includes(value);
+  const present = value !== '' && columns.includes(value);
   return (
     <div className="flex gap-4 py-1.5 border-b border-edge-subtle/40">
       <span className={labelCls}>{label}</span>
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 flex items-center flex-wrap gap-y-1">
         <select
           aria-label={label}
           value={value}
@@ -47,6 +50,7 @@ function Field({
             </option>
           ))}
         </select>
+        {present && <span className="ml-3 text-2xs font-mono text-mint">in dataset</span>}
         {missing && <span className="ml-3 text-2xs font-mono text-rose">not a column</span>}
       </div>
     </div>
@@ -55,13 +59,11 @@ function Field({
 
 export function InputsBlock({
   jobId,
-  treatment,
-  outcome,
+  causalQuestion,
   profile,
 }: {
   jobId: string | null;
-  treatment: string | null;
-  outcome: string | null;
+  causalQuestion: string | null;
   profile: ProfileBlock;
 }) {
   const queryClient = useQueryClient();
@@ -70,21 +72,18 @@ export function InputsBlock({
     ? profile.data.time_column ?? ''
     : '';
 
-  const [selT, setSelT] = useState(treatment ?? '');
-  const [selY, setSelY] = useState(outcome ?? '');
+  const [question, setQuestion] = useState(causalQuestion ?? '');
   const [selTime, setSelTime] = useState(detectedTime);
 
   // Re-seed from the persisted values when they change (e.g. after a save
   // refetches the job and the dataset view).
-  useEffect(() => setSelT(treatment ?? ''), [treatment]);
-  useEffect(() => setSelY(outcome ?? ''), [outcome]);
+  useEffect(() => setQuestion(causalQuestion ?? ''), [causalQuestion]);
   useEffect(() => setSelTime(detectedTime), [detectedTime]);
 
   const mutation = useMutation({
     mutationFn: () =>
       updateDatasetInputs(jobId!, {
-        treatment_variable: selT,
-        outcome_variable: selY,
+        causal_question: question.trim(),
         time_column: selTime || null,
       }),
     onSuccess: () => {
@@ -93,7 +92,7 @@ export function InputsBlock({
     },
   });
 
-  // Read-only until the schema (columns) is available to pick from.
+  // Read-only until the schema (columns) is available to pick the time column.
   if (!profile.data) {
     return (
       <p className="text-xs font-mono text-ink-tertiary">
@@ -103,20 +102,32 @@ export function InputsBlock({
   }
 
   const dirty =
-    selT !== (treatment ?? '') ||
-    selY !== (outcome ?? '') ||
-    selTime !== detectedTime;
+    question.trim() !== (causalQuestion ?? '').trim() || selTime !== detectedTime;
   const valid =
-    columns.includes(selT) &&
-    columns.includes(selY) &&
-    (selTime === '' || columns.includes(selTime));
+    question.trim() !== '' && (selTime === '' || columns.includes(selTime));
   const canSave = dirty && valid && !!jobId && !mutation.isPending;
 
   return (
     <div className="space-y-3">
+      <p className="text-2xs font-mono text-ink-tertiary">
+        the question you are asking of this dataset; treatment and outcome are derived later
+      </p>
       <div>
-        <Field label="treatment" value={selT} columns={columns} onChange={setSelT} />
-        <Field label="outcome" value={selY} columns={columns} onChange={setSelY} />
+        <div className="flex gap-4 py-1.5 border-b border-edge-subtle/40">
+          <span className={labelCls}>question</span>
+          <div className="flex-1 min-w-0">
+            <textarea
+              aria-label="causal question"
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              rows={2}
+              placeholder="e.g. Does job training increase income?"
+              className={
+                'w-full ' + selectCls + ' resize-y'
+              }
+            />
+          </div>
+        </div>
         <Field
           label="time column"
           value={selTime}
@@ -125,15 +136,26 @@ export function InputsBlock({
           allowNone
         />
       </div>
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={() => mutation.mutate()}
-          disabled={!canSave}
-          className="text-2xs font-mono uppercase tracking-[0.15em] bg-mint px-3 py-1.5 text-ink-inverse disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          {mutation.isPending ? 'saving…' : 'save inputs'}
-        </button>
+      <div className="flex items-center gap-3 min-h-[1.75rem]">
+        {valid ? (
+          <span className="text-2xs font-mono uppercase tracking-[0.15em] text-mint">
+            ready to confirm
+          </span>
+        ) : (
+          <span className="text-2xs font-mono uppercase tracking-[0.15em] text-rose">
+            a question is required
+          </span>
+        )}
+        {dirty && (
+          <button
+            type="button"
+            onClick={() => mutation.mutate()}
+            disabled={!canSave}
+            className="text-2xs font-mono uppercase tracking-[0.15em] bg-mint px-3 py-1.5 text-ink-inverse disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {mutation.isPending ? 'saving…' : 'save inputs'}
+          </button>
+        )}
         {mutation.isError && (
           <span className="text-2xs font-mono text-rose">
             {(mutation.error as { message?: string })?.message || 'save failed'}

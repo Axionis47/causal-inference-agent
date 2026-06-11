@@ -200,7 +200,7 @@ export default function JobsListPage() {
           <table className="w-full text-sm" role="table" aria-label="Analysis jobs">
             <thead>
               <tr className="border-b border-edge">
-                {['Status', 'Dataset', 'T → Y', 'Iter', 'Duration', 'Created', 'Actions'].map((h) => (
+                {['Status', 'Dataset', 'Question', 'Iter', 'Duration', 'Created', 'Actions'].map((h) => (
                   <th
                     key={h}
                     scope="col"
@@ -284,11 +284,7 @@ function JobRow({ job }: { job: Job }) {
   const { tone, label } = statusDisplay(job.status);
   const datasetName = job.dataset_name || extractDatasetName(job.kaggle_url);
   const duration = jobDuration(job);
-  const treatment = job.treatment_variable;
-  const outcome = job.outcome_variable;
-  const tyDisplay = treatment || outcome
-    ? `${treatment || '—'} → ${outcome || '—'}`
-    : null;
+  const question = job.causal_question?.trim() || null;
   const iter = job.iteration_count ?? 0;
 
   return (
@@ -318,12 +314,14 @@ function JobRow({ job }: { job: Job }) {
           </p>
         </td>
 
-        {/* T → Y — inferred or specified */}
-        <td className="py-2.5 px-3">
-          {tyDisplay ? (
-            <span className="font-mono text-xs text-ink-secondary">{tyDisplay}</span>
+        {/* Causal question */}
+        <td className="py-2.5 px-3 max-w-xs">
+          {question ? (
+            <span className="text-xs text-ink-secondary line-clamp-2" title={question}>
+              {question}
+            </span>
           ) : (
-            <span className="text-xs text-ink-tertiary italic">auto-detect</span>
+            <span className="text-xs text-ink-tertiary italic">no question set</span>
           )}
         </td>
 

@@ -36,8 +36,7 @@ function renderBlock(props: Partial<Props> = {}) {
     <QueryClientProvider client={client}>
       <InputsBlock
         jobId="job-1"
-        treatment="treat"
-        outcome="re78"
+        causalQuestion="Does training raise income?"
         profile={profile}
         {...props}
       />
@@ -50,39 +49,39 @@ beforeEach(() => {
 });
 
 describe('InputsBlock', () => {
-  it('seeds the selectors with the current treatment, outcome, and time column', () => {
+  it('seeds the question and the time column from the current values', () => {
     renderBlock();
-    expect((screen.getByLabelText('treatment') as HTMLSelectElement).value).toBe('treat');
-    expect((screen.getByLabelText('outcome') as HTMLSelectElement).value).toBe('re78');
+    expect((screen.getByLabelText('causal question') as HTMLTextAreaElement).value).toBe(
+      'Does training raise income?',
+    );
     expect((screen.getByLabelText('time column') as HTMLSelectElement).value).toBe('date');
   });
 
-  it('flags a treatment that is not a real column', () => {
-    renderBlock({ treatment: 'tret' });
-    expect(screen.getByText('not a column')).toBeTruthy();
+  it('marks an empty question as not ready to confirm', () => {
+    renderBlock({ causalQuestion: '' });
+    expect(screen.getByText(/a question is required/i)).toBeTruthy();
   });
 
-  it('saves a corrected treatment via the endpoint', async () => {
+  it('saves a refined question via the endpoint', async () => {
     vi.mocked(updateDatasetInputs).mockResolvedValue({
-      treatment_variable: 'treat',
-      outcome_variable: 're78',
+      causal_question: 'Does training raise earnings?',
       time_column: 'date',
       has_time_dimension: true,
     });
-    renderBlock({ treatment: 'tret' });
-    fireEvent.change(screen.getByLabelText('treatment'), { target: { value: 'treat' } });
+    renderBlock();
+    fireEvent.change(screen.getByLabelText('causal question'), {
+      target: { value: 'Does training raise earnings?' },
+    });
     fireEvent.click(screen.getByRole('button', { name: /save inputs/i }));
     await waitFor(() => expect(vi.mocked(updateDatasetInputs)).toHaveBeenCalled());
     const [jobId, body] = vi.mocked(updateDatasetInputs).mock.calls[0];
     expect(jobId).toBe('job-1');
-    expect(body.treatment_variable).toBe('treat');
-    expect(body.outcome_variable).toBe('re78');
+    expect(body.causal_question).toBe('Does training raise earnings?');
   });
 
   it('can clear the time column to none', async () => {
     vi.mocked(updateDatasetInputs).mockResolvedValue({
-      treatment_variable: 'treat',
-      outcome_variable: 're78',
+      causal_question: 'Does training raise income?',
       time_column: null,
       has_time_dimension: false,
     });

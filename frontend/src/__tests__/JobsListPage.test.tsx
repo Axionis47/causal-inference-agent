@@ -40,6 +40,7 @@ const baseJob: Job = {
   created_at: '2026-05-10T12:00:00Z',
   updated_at: '2026-05-10T12:03:10Z',
   dataset_name: 'lalonde',
+  causal_question: 'Does training raise income?',
   treatment_variable: 'treat',
   outcome_variable: 're78',
   iteration_count: 2,
@@ -50,10 +51,10 @@ beforeEach(() => {
 });
 
 describe('JobsListPage digest row', () => {
-  it('renders dataset name and T → Y from the response', async () => {
+  it('renders the dataset name and the causal question from the response', async () => {
     renderPage([baseJob]);
     expect(await screen.findByText('lalonde')).toBeTruthy();
-    expect(screen.getByText('treat → re78')).toBeTruthy();
+    expect(screen.getByText('Does training raise income?')).toBeTruthy();
   });
 
   it('renders iteration count and a computed duration for terminal jobs', async () => {
@@ -63,15 +64,14 @@ describe('JobsListPage digest row', () => {
     expect(screen.getByText('2')).toBeTruthy(); // iteration count
   });
 
-  it('shows auto-detect placeholder when T/Y are unspecified', async () => {
+  it('shows a placeholder when no question is set', async () => {
     renderPage([
       {
         ...baseJob,
-        treatment_variable: null,
-        outcome_variable: null,
+        causal_question: null,
       },
     ]);
-    expect(await screen.findByText(/auto-detect/i)).toBeTruthy();
+    expect(await screen.findByText(/no question set/i)).toBeTruthy();
   });
 
   it('falls back to extracted dataset name when backend did not populate it', async () => {

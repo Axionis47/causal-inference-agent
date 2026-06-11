@@ -161,15 +161,13 @@ function DownloadBlockView({ view }: { view: DatasetViewData }) {
 export function DatasetView({
   view,
   jobId,
-  treatment,
-  outcome,
+  causalQuestion,
   relational,
   onClose,
 }: {
   view: DatasetViewData | null;
   jobId: string | null;
-  treatment?: string | null;
-  outcome?: string | null;
+  causalQuestion?: string | null;
   relational?: RelationalProfilePayload | null;
   onClose: () => void;
 }) {
@@ -210,8 +208,7 @@ export function DatasetView({
               <div className="pt-3">
                 <InputsBlock
                   jobId={jobId}
-                  treatment={treatment ?? null}
-                  outcome={outcome ?? null}
+                  causalQuestion={causalQuestion ?? null}
                   profile={view.profile}
                 />
               </div>

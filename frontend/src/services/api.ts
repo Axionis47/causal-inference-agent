@@ -73,8 +73,9 @@ export type OrchestratorMode = 'standard' | 'react';
 
 export interface CreateJobRequest {
   kaggle_url: string;
-  treatment_variable: string;
-  outcome_variable: string;
+  // The causal question to investigate, in plain language. Required at submit;
+  // treatment and outcome are no longer chosen here, the analysis derives them.
+  causal_question: string;
   orchestrator_mode?: OrchestratorMode;
   user_context?: string;
 }
@@ -88,6 +89,7 @@ export interface Job {
   // Digest fields populated by /jobs list. Optional because just-
   // created jobs won't have them populated yet.
   dataset_name?: string | null;
+  causal_question?: string | null;
   treatment_variable?: string | null;
   outcome_variable?: string | null;
   iteration_count?: number;
@@ -461,14 +463,16 @@ export async function createJob(request: CreateJobRequest): Promise<Job> {
   return response.data;
 }
 
-// Analyst-corrected dataset inputs, applied at the data-review gate.
+// Analyst edits applied at the data-review gate.
 export interface UpdateInputsBody {
-  treatment_variable: string;
-  outcome_variable: string;
+  // Refine the causal question after seeing the data (omit to leave unchanged).
+  causal_question?: string | null;
   time_column: string | null;
 }
 
-export interface DatasetInputs extends UpdateInputsBody {
+export interface DatasetInputs {
+  causal_question: string | null;
+  time_column: string | null;
   has_time_dimension: boolean;
 }
 

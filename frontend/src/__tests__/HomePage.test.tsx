@@ -40,12 +40,9 @@ function fillUrlAndSubmit() {
   fireEvent.change(screen.getByLabelText(/Dataset URL/i), {
     target: { value: 'https://www.kaggle.com/datasets/owner/name' },
   });
-  // Treatment and outcome are required, so a valid submission must set them.
-  fireEvent.change(screen.getByLabelText(/Treatment variable/i), {
-    target: { value: 'treat' },
-  });
-  fireEvent.change(screen.getByLabelText(/Outcome variable/i), {
-    target: { value: 're78' },
+  // A causal question is required, so a valid submission must set it.
+  fireEvent.change(screen.getByLabelText(/Causal question/i), {
+    target: { value: 'Does job training increase income?' },
   });
   fireEvent.click(screen.getByRole('button', { name: /Run Causal Analysis/i }));
 }
@@ -104,8 +101,8 @@ describe('HomePage orchestrator picker', () => {
   });
 });
 
-describe('HomePage required treatment/outcome', () => {
-  it('blocks submit and shows an error when treatment/outcome are empty', () => {
+describe('HomePage required causal question', () => {
+  it('blocks submit and shows an error when the question is empty', () => {
     renderPage();
     fireEvent.change(screen.getByLabelText(/Dataset URL/i), {
       target: { value: 'https://www.kaggle.com/datasets/owner/name' },
@@ -113,20 +110,17 @@ describe('HomePage required treatment/outcome', () => {
     fireEvent.click(
       screen.getByRole('button', { name: /Run Causal Analysis/i }),
     );
-    expect(screen.getByText(/Treatment variable is required/i)).toBeTruthy();
+    expect(screen.getByText(/A causal question is required/i)).toBeTruthy();
     expect(vi.mocked(createJob)).not.toHaveBeenCalled();
   });
 
-  it('forwards treatment, outcome and optional context in the payload', async () => {
+  it('forwards the causal question and optional context in the payload', async () => {
     renderPage();
     fireEvent.change(screen.getByLabelText(/Dataset URL/i), {
       target: { value: 'https://www.kaggle.com/datasets/owner/name' },
     });
-    fireEvent.change(screen.getByLabelText(/Treatment variable/i), {
-      target: { value: 'treat' },
-    });
-    fireEvent.change(screen.getByLabelText(/Outcome variable/i), {
-      target: { value: 're78' },
+    fireEvent.change(screen.getByLabelText(/Causal question/i), {
+      target: { value: 'Does job training increase income?' },
     });
     fireEvent.change(screen.getByLabelText(/Context/i), {
       target: { value: 'NSW job-training program; randomized treated arm' },
@@ -136,8 +130,7 @@ describe('HomePage required treatment/outcome', () => {
     );
     await waitFor(() => expect(vi.mocked(createJob)).toHaveBeenCalled());
     const payload = vi.mocked(createJob).mock.calls[0][0];
-    expect(payload.treatment_variable).toBe('treat');
-    expect(payload.outcome_variable).toBe('re78');
+    expect(payload.causal_question).toBe('Does job training increase income?');
     expect(payload.user_context).toBe(
       'NSW job-training program; randomized treated arm',
     );
