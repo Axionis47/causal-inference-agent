@@ -38,14 +38,28 @@ confirmed record. Everything below is a field on it.
 | approval record | `state.human_approval` | set at confirm (APPROVED) |
 | run-config | `state.orchestrator_mode` | recorded, not data |
 
-### The estimand (human-locked inputs)
+### The question (the human's input)
 | data | location | rule |
 |---|---|---|
-| treatment | `state.treatment_variable` | a real column (validated at confirm) |
-| outcome | `state.outcome_variable` | a real column (validated at confirm) |
-| ignored columns | `state.ignored_columns` | columns to drop (e.g. `Unnamed: 0`); real, disjoint from T/Y/time |
+| causal question | `state.causal_question` | required, free text; what the human wants to know ("Does job training increase income?"). Validated non-empty at submit and confirm |
+| ignored columns | `state.ignored_columns` | columns to drop (e.g. `Unnamed: 0`); real |
 | time dimension | `state.data_profile.has_time_dimension` | |
 | time column | `state.data_profile.time_column` | real column when has_time_dimension |
+
+The human no longer names treatment and outcome. `state.treatment_variable` and
+`state.outcome_variable` are nullable **derived-later slots**: empty at pickup,
+for the analysis to fill once it has read the question and the data. Do not
+expect the human to have set them.
+
+The first thing the analysis does with `state.causal_question` is recognize
+which **kind** of causal question it is (a plain X to Y effect, a
+difference-in-differences / policy effect, a regression-discontinuity cutoff, an
+instrumental-variable question, mediation, survival, before-after, driver
+discovery, and so on). That recognition is what routes the identification
+strategy and, with it, which columns become treatment / outcome / running
+variable / instrument / mediator. How that recognition and routing work is
+decided when the first analysis agent is designed; this doc only fixes where the
+question is read from.
 
 ### The facts (deterministic profile, no LLM)
 | data | location |
