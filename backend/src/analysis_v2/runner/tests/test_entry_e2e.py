@@ -135,16 +135,17 @@ async def test_spine_runs_intake_profiling_design_and_stops_at_the_frontier(
     task = manager._running_jobs[JOB_ID]
     await asyncio.wait_for(task, timeout=30)
 
-    # the spine stopped at the S7 frontier and said so honestly
+    # the spine stopped at the S8 frontier and said so honestly
     run = await load_run(JOB_ID)
     assert run is not None
-    assert run.current_state == AnalysisStage.S6_USER_CONFIRMED_OR_AUTO_APPROVED
+    assert run.current_state == AnalysisStage.S7_METHOD_EXECUTED
     assert run.status.value == "failed"
-    assert "s7_method_executed" in run.error_message
+    assert "s8_diagnostics_sensitivity_complete" in run.error_message
 
-    # the five stages each passed and committed their slots
+    # the six stages each passed and committed their slots
     assert [r.agent for r in run.agent_runs] == [
-        "intake", "profiling", "design_detection", "targeted_eda", "plan_critic",
+        "intake", "profiling", "design_detection", "targeted_eda",
+        "plan_critic", "method_lane",
     ]
     assert all(r.status.value in ("passed", "warning") for r in run.agent_runs)
     assert run.causal_spec.outcome.column == "re78"
@@ -158,8 +159,11 @@ async def test_spine_runs_intake_profiling_design_and_stops_at_the_frontier(
     # the fully-resolved high-confidence plan auto-approved through S6
     assert run.plan_critique.status.value == "pass_auto_approved"
     assert run.method_plan.estimator == "regression_adjustment"
-    assert len(run.state_events) == 6  # S1..S5 plus the orchestrator-owned S6
-    assert run.state_version == 6
+    # and the lane actually estimated: the adjusted LaLonde effect is positive
+    assert run.estimate_result is not None
+    assert 500 < run.estimate_result.primary.estimate < 3000
+    assert len(run.state_events) == 7  # S1..S5, the orchestrator-owned S6, S7
+    assert run.state_version == 7
 
     # artifacts persisted on disk and registered
     for artifact in run.artifact_registry.artifacts:

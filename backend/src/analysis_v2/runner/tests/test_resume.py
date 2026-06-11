@@ -151,8 +151,12 @@ async def test_confirm_with_the_cutoff_records_s6_and_relaunches(storage_dir, mo
     assert run.causal_spec.cutoff_value == 50.0
     assert run.method_plan.settings["cutoff"] == 50.0
     assert run.selected_design.lane == MethodLane.RDD
-    # the spine resumed and stopped honestly at the next frontier (S7)
-    assert "s7_method_executed" in (run.error_message or "")
+    # the resumed spine ran the rdd lane and recovered the built-in jump
+    assert run.estimate_result is not None
+    jump = next(e for e in run.estimate_result.effects if e.estimand == "itt_jump")
+    assert abs(jump.estimate - 8.0) < 2.0
+    # then stopped honestly at the next frontier (S8)
+    assert "s8_diagnostics_sensitivity_complete" in (run.error_message or "")
 
 
 async def test_reject_fails_the_run_with_the_reason(storage_dir):
