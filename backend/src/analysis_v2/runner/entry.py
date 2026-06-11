@@ -105,6 +105,14 @@ async def _finalize(
     state: AnalysisState, run: AnalysisRunState, manager: Any, outcome: str
 ) -> None:
     if outcome == "complete":
+        from src.analysis_v2.core import AnalysisStage, GateResult
+
+        if run.current_state != AnalysisStage.S12_JOB_COMPLETE:
+            run.record_transition(
+                to_state=AnalysisStage.S12_JOB_COMPLETE,
+                agent_name=None,
+                gate_result=GateResult.advance(),
+            )
         run.mark_completed()
         await save_run(run)
         state.status = JobStatus.COMPLETED

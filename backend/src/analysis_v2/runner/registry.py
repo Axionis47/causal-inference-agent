@@ -14,7 +14,9 @@ from src.analysis_v2.agents.diagnostics import DiagnosticsSensitivityAgent
 from src.analysis_v2.agents.intake import IntakeAgent
 from src.analysis_v2.agents.method_lane import MethodLaneAgent
 from src.analysis_v2.agents.plan_critic import PlanCriticAgent
+from src.analysis_v2.agents.notebook_verify import NotebookVerificationAgent
 from src.analysis_v2.agents.profiling import ProfilingAgent
+from src.analysis_v2.agents.report import ReportNotebookAgent
 from src.analysis_v2.agents.targeted_eda import TargetedEDAAgent
 from src.analysis_v2.core import AnalysisStage
 
@@ -30,5 +32,7 @@ def build_agents() -> dict[AnalysisStage, AnalysisAgent]:
         MethodLaneAgent(),
         DiagnosticsSensitivityAgent(),
         ClaimCriticAgent(),
+        ReportNotebookAgent(),
+        NotebookVerificationAgent(),
     ]
     return {agent.stage: agent for agent in agents}

@@ -1,9 +1,9 @@
 """End-to-end spine run over the LaLonde fixture with a stubbed LLM.
 
 This is the workflow harness: a real CONFIRMED record, a real manifest
-with a normalized parquet, the real intake/profiling/design agents, and
-the real persistence layer. Only the LLM is stubbed. The spine runs
-S1 -> S2 -> S3 and stops honestly at the S4 frontier.
+with a normalized parquet, all ten real agents, and the real persistence
+layer. Only the LLM is stubbed. The spine runs S1 through S11 (including
+executing the generated notebook) and completes at S12.
 """
 from __future__ import annotations
 
@@ -115,7 +115,7 @@ def _confirmed_state() -> AnalysisState:
     )
 
 
-async def test_spine_runs_intake_profiling_design_and_stops_at_the_frontier(
+async def test_spine_runs_all_stages_and_completes_with_a_verified_notebook(
     storage_dir, monkeypatch
 ):
     monkeypatch.setattr(
@@ -133,19 +133,20 @@ async def test_spine_runs_intake_profiling_design_and_stops_at_the_frontier(
     assert ack == {"resumed": True, "status": "running_analysis"}
 
     task = manager._running_jobs[JOB_ID]
-    await asyncio.wait_for(task, timeout=30)
+    await asyncio.wait_for(task, timeout=180)
 
-    # the spine stopped at the S8 frontier and said so honestly
+    # the spine ran the whole way: S1..S11, then the terminal S12
     run = await load_run(JOB_ID)
     assert run is not None
-    assert run.current_state == AnalysisStage.S9_CLAIM_CRITIQUED
-    assert run.status.value == "failed"
-    assert "s10_report_notebook_created" in run.error_message
+    assert run.current_state == AnalysisStage.S12_JOB_COMPLETE
+    assert run.status.value == "completed"
+    assert run.error_message is None
 
     # the six stages each passed and committed their slots
     assert [r.agent for r in run.agent_runs] == [
         "intake", "profiling", "design_detection", "targeted_eda",
         "plan_critic", "method_lane", "diagnostics_sensitivity", "claim_critic",
+        "report_notebook", "notebook_verification",
     ]
     assert all(r.status.value in ("passed", "warning") for r in run.agent_runs)
     assert run.causal_spec.outcome.column == "re78"
@@ -164,8 +165,13 @@ async def test_spine_runs_intake_profiling_design_and_stops_at_the_frontier(
     assert 500 < run.estimate_result.primary.estimate < 3000
     assert run.sensitivity_result is not None
     assert run.claim_critique is not None
-    assert len(run.state_events) == 9  # S1..S5, the orchestrator-owned S6, S7..S9
-    assert run.state_version == 9
+    # the notebook was built, executed top to bottom, and verified
+    assert run.notebook_build is not None
+    assert run.notebook_verification is not None
+    assert run.notebook_verification.notebook_status.value == "verified_running"
+    assert run.notebook_verification.executed_all_cells is True
+    assert len(run.state_events) == 12  # S1..S5, S6, S7..S11, terminal S12
+    assert run.state_version == 12
 
     # artifacts persisted on disk and registered
     for artifact in run.artifact_registry.artifacts:
@@ -176,10 +182,10 @@ async def test_spine_runs_intake_profiling_design_and_stops_at_the_frontier(
     assert "analysis_started" in kinds
     assert "analysis_stage_started" in kinds
     assert "analysis_agent_completed" in kinds
-    assert "analysis_failed" in kinds  # frontier, until S4+ exist
+    assert "analysis_completed" in kinds
     assert all("headline" in e["data"] for e in state.sse_events)
 
-    # public job status reflects the frontier failure; live tables drained
-    assert state.status == JobStatus.FAILED
+    # public job status is the terminal completed; live tables drained
+    assert state.status == JobStatus.COMPLETED
     assert manager._active_states == {}
     assert manager._running_jobs == {} or JOB_ID not in manager._running_jobs

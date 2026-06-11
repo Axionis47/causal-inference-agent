@@ -62,6 +62,16 @@ def _view(run: AnalysisRunState) -> dict:
         "selected_design": (
             run.selected_design.model_dump(mode="json") if run.selected_design else None
         ),
+        "notebook": (
+            {
+                "status": run.notebook_verification.notebook_status.value,
+                "attempts": run.notebook_verification.attempts,
+                "verified_artifact_id": run.notebook_verification.verified_notebook_artifact_id,
+                "html_artifact_id": run.notebook_verification.html_preview_artifact_id,
+            }
+            if run.notebook_verification is not None
+            else None
+        ),
         "agents": [
             {
                 "agent": r.agent,
