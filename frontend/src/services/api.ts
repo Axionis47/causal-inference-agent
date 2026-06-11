@@ -689,6 +689,16 @@ export interface AnalysisEventView {
   warnings: string[];
 }
 
+// Null until the verification agent recorded a result. The artifact ids feed
+// analysisArtifactUrl: verified_artifact_id is the executed .ipynb,
+// html_artifact_id the rendered preview.
+export interface AnalysisNotebookView {
+  status: 'verified_running' | 'failed';
+  attempts: number;
+  verified_artifact_id: string | null;
+  html_artifact_id: string | null;
+}
+
 // --- Plan gate (human confirmation of the method plan) ---
 // While a run sits at waiting_for_user, `plan_gate.confirmation_card` carries
 // what the analyst must confirm or fill in; POST /jobs/{id}/plan resumes it.
@@ -762,6 +772,7 @@ export interface AnalysisViewResponse {
   plan_gate: AnalysisPlanGate | null;
   method_plan: MethodPlan | null;
   selected_design: SelectedDesign | null;
+  notebook: AnalysisNotebookView | null;
 }
 
 /** 404 (no analysis run yet) propagates as an ApiError; useAnalysis maps it to null. */

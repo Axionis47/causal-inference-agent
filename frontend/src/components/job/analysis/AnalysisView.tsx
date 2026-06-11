@@ -11,6 +11,7 @@ import { Caption } from '../terminal/atoms';
 import { AgentTile } from './AgentTile';
 import { ArtifactList } from './ArtifactList';
 import { CostLine } from './CostLine';
+import { NotebookDownloadCard } from './NotebookDownloadCard';
 import { PlanGate } from './PlanGate';
 
 const noop = () => {};
@@ -148,6 +149,11 @@ export function AnalysisView({
             <p className="text-xs font-mono text-rose">{analysis.error_message}</p>
           )}
         </div>
+
+        {/* the deliverable: notebook download once verification recorded a result */}
+        {analysis.notebook && (
+          <NotebookDownloadCard jobId={analysis.job_id} notebook={analysis.notebook} />
+        )}
 
         {/* the plan gate, prominent above the agent tiles while the run waits */}
         {showPlanGate && planGate && (

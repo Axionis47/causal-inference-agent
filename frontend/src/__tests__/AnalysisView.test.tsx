@@ -109,6 +109,7 @@ const fixture: AnalysisViewResponse = {
   plan_gate: null,
   method_plan: null,
   selected_design: null,
+  notebook: null,
 };
 
 const methodPlan: MethodPlan = {
@@ -263,6 +264,58 @@ describe('AnalysisView', () => {
   it('renders the compact method-plan line whenever a method plan exists', () => {
     render(<AnalysisView analysis={{ ...fixture, method_plan: methodPlan }} />);
     expect(screen.getByText('observational · aipw · ate · re78')).toBeTruthy();
+  });
+
+  it('shows no notebook card while verification has not recorded a result', () => {
+    render(<AnalysisView analysis={fixture} />);
+    expect(screen.queryByTestId('notebook-download-card')).toBeNull();
+  });
+
+  it('offers the verified notebook download and the html preview link', () => {
+    render(
+      <AnalysisView
+        analysis={{
+          ...fixture,
+          status: 'completed',
+          notebook: {
+            status: 'verified_running',
+            attempts: 2,
+            verified_artifact_id: 'notebook/verified',
+            html_artifact_id: 'notebook/preview',
+          },
+        }}
+      />,
+    );
+    expect(screen.getByText('verified: ran top to bottom')).toBeTruthy();
+    expect(screen.getByText('2 attempts')).toBeTruthy();
+    const download = screen.getByRole('link', { name: /download notebook/i });
+    expect(download.getAttribute('href')).toContain(
+      '/jobs/job-1/analysis/artifacts/notebook/verified',
+    );
+    expect(download.hasAttribute('download')).toBe(true);
+    const preview = screen.getByRole('link', { name: /preview html/i });
+    expect(preview.getAttribute('href')).toContain(
+      '/jobs/job-1/analysis/artifacts/notebook/preview',
+    );
+  });
+
+  it('states the failure instead of offering a file when verification failed', () => {
+    render(
+      <AnalysisView
+        analysis={{
+          ...fixture,
+          status: 'completed',
+          notebook: {
+            status: 'failed',
+            attempts: 3,
+            verified_artifact_id: null,
+            html_artifact_id: null,
+          },
+        }}
+      />,
+    );
+    expect(screen.getByText('verification failed')).toBeTruthy();
+    expect(screen.queryByRole('link', { name: /download notebook/i })).toBeNull();
   });
 
   it('renders the error message text when the run failed', () => {
