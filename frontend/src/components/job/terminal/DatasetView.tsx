@@ -180,9 +180,12 @@ export function DatasetView({
   }, [onClose]);
 
   return (
-    <div className="terminal fixed inset-0 z-40 bg-canvas flex flex-col">
+    <div className="terminal fixed inset-0 z-40 bg-canvas flex flex-col animate-fade-in">
       <div className="flex items-center justify-between h-10 px-3 bg-canvas-raised border-b border-edge-subtle shrink-0">
-        <span className="text-2xs font-mono uppercase tracking-[0.15em] text-ink-tertiary">[ dataset ]</span>
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="text-2xs font-mono uppercase tracking-[0.15em] text-ink-secondary truncate">causal inference orchestrator</span>
+          <span className="text-2xs font-mono uppercase tracking-[0.15em] text-ink-tertiary">[ dataset ]</span>
+        </div>
         <button
           onClick={onClose}
           className="text-2xs font-mono uppercase tracking-[0.15em] text-ink-secondary hover:text-ink"
@@ -194,7 +197,7 @@ export function DatasetView({
         {!view ? (
           <p className="p-4 text-xs text-ink-tertiary">No dataset information yet.</p>
         ) : (
-          <div className="max-w-5xl p-4 space-y-8">
+          <div className="max-w-5xl p-4 pb-28 space-y-8">
             <div>
               <Caption>[ raw data ]</Caption>
               <div className="pt-3"><SampleRowsView view={view} jobId={jobId} /></div>
