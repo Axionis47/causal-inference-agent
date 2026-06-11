@@ -63,6 +63,12 @@ class StubLLM:
             reasoning_summary="Binary treatment question mapping treat to re78.",
         )
 
+    async def generate(self, prompt, system_instruction=None, tools=None):
+        class R:
+            text = "Groups differ in size and prior earnings; adjustment looks necessary."
+
+        return R()
+
 
 def _stage_dataset(storage_dir: Path) -> None:
     raw = job_raw_dir(JOB_ID)
@@ -115,6 +121,9 @@ async def test_spine_runs_intake_profiling_design_and_stops_at_the_frontier(
     monkeypatch.setattr(
         "src.analysis_v2.agents.intake.agent.get_llm_client", lambda: StubLLM()
     )
+    monkeypatch.setattr(
+        "src.analysis_v2.agents.targeted_eda.agent.get_llm_client", lambda: StubLLM()
+    )
     _stage_dataset(storage_dir)
     state = _confirmed_state()
     manager = StubManager()
@@ -126,15 +135,17 @@ async def test_spine_runs_intake_profiling_design_and_stops_at_the_frontier(
     task = manager._running_jobs[JOB_ID]
     await asyncio.wait_for(task, timeout=30)
 
-    # the spine stopped at the S4 frontier and said so honestly
+    # the spine stopped at the S5 frontier and said so honestly
     run = await load_run(JOB_ID)
     assert run is not None
-    assert run.current_state == AnalysisStage.S3_DESIGN_CANDIDATES_CREATED
+    assert run.current_state == AnalysisStage.S4_TARGETED_EDA_COMPLETE
     assert run.status.value == "failed"
-    assert "s4_targeted_eda_complete" in run.error_message
+    assert "s5_plan_critiqued" in run.error_message
 
-    # the three stages each passed and committed their slots
-    assert [r.agent for r in run.agent_runs] == ["intake", "profiling", "design_detection"]
+    # the four stages each passed and committed their slots
+    assert [r.agent for r in run.agent_runs] == [
+        "intake", "profiling", "design_detection", "targeted_eda",
+    ]
     assert all(r.status.value in ("passed", "warning") for r in run.agent_runs)
     assert run.causal_spec.outcome.column == "re78"
     assert run.dataset_profile.n_rows == 614
@@ -142,8 +153,10 @@ async def test_spine_runs_intake_profiling_design_and_stops_at_the_frontier(
     assert "Unnamed: 0" not in run.dataset_profile.column_names()
     assert run.design_candidates[0].lane == MethodLane.OBSERVATIONAL
     assert run.tool_eligibility is not None
-    assert len(run.state_events) == 3
-    assert run.state_version == 3
+    assert run.eda_summary is not None
+    assert run.eda_summary.check("covariate_balance") is not None
+    assert len(run.state_events) == 4
+    assert run.state_version == 4
 
     # artifacts persisted on disk and registered
     for artifact in run.artifact_registry.artifacts:
