@@ -113,8 +113,12 @@ async def recover_orphaned_jobs() -> int:
     # Jobs parked at a gate are durable: their full state lives in the
     # parked-state store and reloads after a restart, so they must survive
     # recovery instead of being failed. Only actively-running jobs (download /
-    # profiling) were truly interrupted.
-    parked = {JobStatus.AWAITING_APPROVAL.value, JobStatus.CONFIRMED.value}
+    # profiling / spine execution) were truly interrupted.
+    parked = {
+        JobStatus.AWAITING_APPROVAL.value,
+        JobStatus.CONFIRMED.value,
+        JobStatus.WAITING_FOR_USER.value,
+    }
 
     recovered = 0
     skipped_parked = 0
@@ -525,15 +529,22 @@ class JobManager:
         return {"job_id": job_id, "status": state.status.value}
 
     async def run_analysis(self, job_id: str) -> dict[str, Any]:
-        """Launch boundary. The analysis slice is not built yet, so this records
-        the request and leaves the dataset CONFIRMED and ready. It starts no
-        pipeline.
+        """Launch boundary: hand the confirmed record to the analysis runner.
+
+        The runner re-registers the state in the live tables (SSE), flips
+        the job to running_analysis, and drives the S0..S12 spine in a job
+        task. Raises ValueError when there is no confirmed dataset.
         """
+        from src.analysis_v2 import runner as analysis_runner
+
         state = await self.firestore.load_parked_state(job_id)
         if state is None:
             raise ValueError(f"Job {job_id} has no confirmed dataset to run")
-        logger.info("analysis_launch_requested_stub", job_id=job_id)
-        return {"resumed": False, "status": state.status.value}
+        async with self._jobs_lock:
+            already_running = job_id in self._running_jobs
+        if already_running:
+            return {"resumed": False, "status": state.status.value}
+        return await analysis_runner.start(state, self)
 
     async def get_job_status(self, job_id: str) -> dict[str, Any] | None:
         """Get lightweight job status.
@@ -838,6 +849,8 @@ class JobManager:
             "discovering_causal": 44,
             "awaiting_approval": 50,  # parked after DAG, before estimation
             "confirmed": 50,  # data + inputs confirmed; analysis not yet started
+            "running_analysis": 60,  # spine executing; stage detail on /analysis
+            "waiting_for_user": 70,  # parked at the plan-confirmation gate
             "estimating_effects": 56,
             "sensitivity_analysis": 68,
             "critique_review": 78,
@@ -854,6 +867,7 @@ class JobManager:
         """Get current agent name from status."""
         agent_map = {
             "profiling": "data_profiler",
+            "running_analysis": "analysis",
             "exploratory_analysis": "eda_agent",
             "discovering_causal": "causal_discovery",
             "estimating_effects": "effect_estimator",

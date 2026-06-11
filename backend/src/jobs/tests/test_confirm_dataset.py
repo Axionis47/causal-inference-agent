@@ -5,9 +5,9 @@ Confirming requires a causal question (treatment and outcome are no longer named
 by the human), marks the job CONFIRMED, keeps the parked state as the confirmed
 record, and does not start the pipeline. resume_from_approval routes an APPROVED
 decision through confirm_dataset and fails the job on REJECTED, clearing the
-parked state. run_analysis is a stub until the analysis slice is built: it loads
-the confirmed record and stops, without a respawn and without clearing the
-parked state.
+parked state. run_analysis hands the confirmed record to the analysis runner,
+which flips the job to running_analysis and spawns the spine task; the parked
+state is kept as the confirmed record.
 """
 from __future__ import annotations
 
@@ -151,19 +151,35 @@ async def test_approval_decision_delegates_to_confirm(manager):
 
 
 @pytest.mark.asyncio
-async def test_run_analysis_stub_keeps_parked_and_does_not_respawn(manager):
+async def test_run_analysis_hands_the_confirmed_record_to_the_runner(manager):
     mgr, storage = manager
     state = _data_gate_state()
     state.status = JobStatus.CONFIRMED
     storage.load_parked_state = AsyncMock(return_value=state)
 
-    with patch.object(mgr, "_run_job", new=AsyncMock()) as run_job:
+    launched = AsyncMock(return_value={"resumed": True, "status": "running_analysis"})
+    with patch("src.analysis_v2.runner.start", new=launched):
         result = await mgr.run_analysis("job-confirm")
-        run_job.assert_not_called()
 
+    launched.assert_awaited_once_with(state, mgr)
     storage.delete_parked_state.assert_not_awaited()
-    assert result["resumed"] is False
-    assert result["status"] == "confirmed"
+    assert result == {"resumed": True, "status": "running_analysis"}
+
+
+@pytest.mark.asyncio
+async def test_run_analysis_is_idempotent_while_the_job_task_is_live(manager):
+    mgr, storage = manager
+    state = _data_gate_state()
+    state.status = JobStatus.CONFIRMED
+    storage.load_parked_state = AsyncMock(return_value=state)
+    mgr._running_jobs["job-confirm"] = MagicMock()
+
+    launched = AsyncMock()
+    with patch("src.analysis_v2.runner.start", new=launched):
+        result = await mgr.run_analysis("job-confirm")
+
+    launched.assert_not_awaited()
+    assert result == {"resumed": False, "status": "confirmed"}
 
 
 @pytest.mark.asyncio
