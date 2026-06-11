@@ -27,6 +27,8 @@ dependencies = [
     "uvicorn[standard]>=0.27.0",
     "python-multipart>=0.0.6",
     "websockets>=12.0",
+    "slowapi>=0.1.9",
+    "sse-starlette>=2.0.0",
 
     # Google Cloud
     "google-cloud-firestore>=2.14.0",
@@ -46,6 +48,7 @@ dependencies = [
     "scikit-learn>=1.4.0",
     "statsmodels>=0.14.0",
     "openpyxl>=3.1.0",  # read .xlsx/.xls at the gate normalisation pass
+    "pyarrow>=15.0.0",  # parquet engine for the normalized dataset store
 
     # DAG and graphs
     "networkx>=3.2.0",
@@ -65,6 +68,11 @@ dependencies = [
     "tenacity>=8.2.0",
     "structlog>=24.1.0",
     "python-json-logger>=2.0.0",
+    "filelock>=3.13.0",
+
+    # Analysis orchestration spine
+    "langgraph>=1.0.0",
+    "langchain-core>=1.0.0",
 ]
 
 [project.optional-dependencies]
