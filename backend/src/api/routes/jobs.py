@@ -106,8 +106,7 @@ async def create_job(
     try:
         job_id = await manager.create_job(
             kaggle_url=body.kaggle_url,
-            treatment_variable=body.treatment_variable,
-            outcome_variable=body.outcome_variable,
+            causal_question=body.causal_question,
             orchestrator_mode=body.orchestrator_mode,
             user_context=body.user_context,
         )
@@ -199,6 +198,7 @@ async def list_jobs(
                 created_at=j["created_at"],
                 updated_at=j["updated_at"],
                 dataset_name=j.get("dataset_name"),
+                causal_question=j.get("causal_question"),
                 treatment_variable=j.get("treatment_variable"),
                 outcome_variable=j.get("outcome_variable"),
                 iteration_count=j.get("iteration_count", 0),
@@ -237,6 +237,7 @@ async def get_job(request: Request, job_id: str) -> JobDetailResponse:
         iteration_count=job.get("iteration_count", 0),
         error_message=job.get("error_message"),
         progress_percentage=status_data.get("progress_percentage", 0) if status_data else 0,
+        causal_question=job.get("causal_question"),
         treatment_variable=job.get("treatment_variable"),
         outcome_variable=job.get("outcome_variable"),
     )
@@ -316,11 +317,11 @@ async def get_dataset_rows(
 async def update_dataset_inputs(
     request: Request, job_id: str, body: UpdateInputsRequest
 ) -> DatasetInputsResponse:
-    """Apply analyst-corrected dataset inputs to a job at the data-review gate.
+    """Apply analyst edits to a job at the data-review gate.
 
-    Treatment, outcome, and the optional time column are validated against the
-    profiled dataset's real columns; a name that is not a column is rejected
-    with 422. Valid only while the job is awaiting data review.
+    The analyst may refine the causal question and set or clear the time column;
+    a time column that is not a real column is rejected with 422. Valid only
+    while the job is awaiting data review.
     """
     manager = get_job_manager()
     job = await manager.get_job(job_id)
@@ -340,8 +341,7 @@ async def update_dataset_inputs(
     try:
         result = await manager.set_dataset_inputs(
             job_id,
-            treatment_variable=body.treatment_variable,
-            outcome_variable=body.outcome_variable,
+            causal_question=body.causal_question,
             time_column=body.time_column,
         )
     except ValueError as exc:

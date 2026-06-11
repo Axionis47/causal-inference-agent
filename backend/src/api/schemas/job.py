@@ -17,6 +17,7 @@ KAGGLE_URL_PATTERN = re.compile(
 # Maximum lengths for string fields
 MAX_KAGGLE_URL_LENGTH = 500
 MAX_VARIABLE_NAME_LENGTH = 100
+MAX_CAUSAL_QUESTION_LENGTH = 1000
 
 
 class CreateJobRequest(BaseModel):
@@ -28,17 +29,16 @@ class CreateJobRequest(BaseModel):
         min_length=1,
         max_length=MAX_KAGGLE_URL_LENGTH,
     )
-    treatment_variable: str = Field(
+    causal_question: str = Field(
         ...,
-        description="Treatment variable column name (must exist in the dataset)",
+        description=(
+            "The causal question to investigate, in plain language "
+            "(e.g. 'Does job training increase income?'). The analyst states "
+            "what they want to know; treatment and outcome are derived later, "
+            "not chosen here."
+        ),
         min_length=1,
-        max_length=MAX_VARIABLE_NAME_LENGTH,
-    )
-    outcome_variable: str = Field(
-        ...,
-        description="Outcome variable column name (must exist in the dataset)",
-        min_length=1,
-        max_length=MAX_VARIABLE_NAME_LENGTH,
+        max_length=MAX_CAUSAL_QUESTION_LENGTH,
     )
     orchestrator_mode: Literal["standard", "react"] | None = Field(
         None,
@@ -74,40 +74,32 @@ class CreateJobRequest(BaseModel):
             )
         return v
 
-    @field_validator("treatment_variable", "outcome_variable")
+    @field_validator("causal_question")
     @classmethod
-    def validate_variable_name(cls, v: str) -> str:
-        """Validate the required treatment/outcome variable names.
+    def validate_causal_question(cls, v: str) -> str:
+        """Require a non-empty question.
 
-        These are mandatory at submit (the analyst names the columns), so a
-        blank or whitespace-only value is rejected rather than coerced to None.
-        The name is matched against the real dataframe columns later, in
-        data_profiler; here we only enforce a safe character set.
+        It is free text (a real sentence the analyst types), so no character-set
+        restriction applies. We only strip surrounding whitespace and reject a
+        blank or whitespace-only value.
         """
         v = v.strip()
         if not v:
-            raise ValueError("Variable name cannot be empty")
-        # Basic validation: alphanumeric, underscores, hyphens
-        if not re.match(r"^[\w\-]+$", v):
-            raise ValueError(
-                "Variable name must contain only alphanumeric characters, underscores, and hyphens"
-            )
+            raise ValueError("Causal question cannot be empty")
         return v
 
 
 class UpdateInputsRequest(BaseModel):
     """Analyst-corrected dataset inputs, applied at the data-review gate.
 
-    The names are validated against the profiled dataset's real columns by the
-    handler; here we only bound length. `time_column` is None to clear the time
-    tag, or a column name to set it.
+    `causal_question` lets the analyst refine the question after seeing the data
+    (omit to leave it unchanged). `time_column` is validated against the profiled
+    dataset's real columns by the handler: None to clear the time tag, or a
+    column name to set it.
     """
 
-    treatment_variable: str = Field(
-        ..., min_length=1, max_length=MAX_VARIABLE_NAME_LENGTH
-    )
-    outcome_variable: str = Field(
-        ..., min_length=1, max_length=MAX_VARIABLE_NAME_LENGTH
+    causal_question: str | None = Field(
+        None, min_length=1, max_length=MAX_CAUSAL_QUESTION_LENGTH
     )
     time_column: str | None = Field(None, max_length=MAX_VARIABLE_NAME_LENGTH)
 
@@ -115,8 +107,7 @@ class UpdateInputsRequest(BaseModel):
 class DatasetInputsResponse(BaseModel):
     """The dataset inputs after an update, echoing what was stored."""
 
-    treatment_variable: str
-    outcome_variable: str
+    causal_question: str | None = None
     time_column: str | None = None
     has_time_dimension: bool
 
@@ -144,8 +135,9 @@ class JobResponse(BaseModel):
     updated_at: datetime
 
     # Optional digest fields populated by /jobs list. Absent on
-    # just-created jobs; that's fine — UI falls back gracefully.
+    # just-created jobs; that's fine, the UI falls back gracefully.
     dataset_name: str | None = None
+    causal_question: str | None = None
     treatment_variable: str | None = None
     outcome_variable: str | None = None
     iteration_count: int = 0
@@ -161,6 +153,7 @@ class JobDetailResponse(JobResponse):
     iteration_count: int = 0
     error_message: str | None = None
     progress_percentage: int = 0
+    causal_question: str | None = None
     treatment_variable: str | None = None
     outcome_variable: str | None = None
 

@@ -1,7 +1,10 @@
-"""JobManager.confirm_dataset: accept the dataset at the data gate and stop.
+"""JobManager.confirm_dataset and run_analysis at the data gate.
 
-Confirming marks the job CONFIRMED, keeps the parked state as the confirmed
-record, and does NOT respawn the pipeline. Only valid at the data gate.
+Confirming requires a causal question (treatment and outcome are no longer named
+by the human), marks the job CONFIRMED, keeps the parked state as the confirmed
+record, and does not start the pipeline. run_analysis is a stub until the
+analysis slice is built: it loads the confirmed record and stops, without a
+respawn and without clearing the parked state.
 """
 from __future__ import annotations
 
@@ -9,7 +12,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.analysis.agents.base import (
+from src.analysis_v2.state import (
     AnalysisState,
     DataProfile,
     DatasetInfo,
@@ -21,16 +24,11 @@ from src.analysis.agents.base import (
 def manager():
     fake_settings = MagicMock()
     fake_settings.max_concurrent_jobs = 2
-    fake_settings.agent_timeout_seconds = 300
-    fake_settings.job_timeout_multiplier = 4
     fake_settings.instance_id = "test1234"
 
     with (
-        patch("src.config.get_settings", return_value=fake_settings),
         patch("src.jobs.manager.get_settings", return_value=fake_settings),
         patch("src.jobs.manager.get_storage_client") as mock_storage,
-        patch("src.jobs.manager.standard_pkg.build_specialists", return_value={}),
-        patch("src.jobs.manager.react_pkg.build_specialists", return_value={}),
     ):
         storage = MagicMock()
         storage.save_parked_state = AsyncMock()
@@ -47,8 +45,7 @@ def _data_gate_state() -> AnalysisState:
     state = AnalysisState(
         job_id="job-confirm",
         dataset_info=DatasetInfo(url="https://www.kaggle.com/datasets/o/n"),
-        treatment_variable="treat",
-        outcome_variable="re78",
+        causal_question="Does training raise income?",
     )
     state.status = JobStatus.AWAITING_APPROVAL
     state.data_profile = DataProfile(
@@ -57,8 +54,6 @@ def _data_gate_state() -> AnalysisState:
         feature_names=["treat", "re78"],
         feature_types={"treat": "binary", "re78": "numeric"},
         missing_values={},
-        numeric_stats={},
-        categorical_stats={},
     )
     return state
 
@@ -80,21 +75,6 @@ async def test_confirm_marks_confirmed_keeps_parked_no_respawn(manager):
 
 
 @pytest.mark.asyncio
-async def test_confirm_rejected_at_a_later_gate(manager):
-    mgr, storage = manager
-    state = _data_gate_state()
-    storage.load_parked_state = AsyncMock(return_value=state)
-
-    with patch(
-        "src.analysis.orchestrator.base.should_pause_for_dag_approval",
-        return_value=True,
-    ):
-        with pytest.raises(ValueError, match="data-review gate"):
-            await mgr.confirm_dataset("job-confirm")
-    storage.save_parked_state.assert_not_awaited()
-
-
-@pytest.mark.asyncio
 async def test_confirm_without_parked_state_raises(manager):
     mgr, storage = manager
     storage.load_parked_state = AsyncMock(return_value=None)
@@ -103,25 +83,10 @@ async def test_confirm_without_parked_state_raises(manager):
 
 
 @pytest.mark.asyncio
-async def test_confirm_rejected_when_treatment_is_not_a_real_column(manager):
+async def test_confirm_rejected_when_question_is_missing(manager):
     mgr, storage = manager
     state = _data_gate_state()
-    state.treatment_variable = "typo"  # not in feature_names
-    storage.load_parked_state = AsyncMock(return_value=state)
-
-    with pytest.raises(ValueError, match="not a column"):
-        await mgr.confirm_dataset("job-confirm")
-
-    # The dataset never reaches CONFIRMED on invalid inputs (format contract s9).
-    assert state.status == JobStatus.AWAITING_APPROVAL
-    storage.save_parked_state.assert_not_awaited()
-
-
-@pytest.mark.asyncio
-async def test_confirm_rejected_when_a_required_input_is_missing(manager):
-    mgr, storage = manager
-    state = _data_gate_state()
-    state.outcome_variable = None  # required, never set
+    state.causal_question = None  # required, never set
     storage.load_parked_state = AsyncMock(return_value=state)
 
     with pytest.raises(ValueError, match="required"):
@@ -147,7 +112,7 @@ async def test_confirm_rejected_when_time_dimension_lacks_a_column(manager):
 
 
 @pytest.mark.asyncio
-async def test_run_analysis_respawns_and_clears_parked(manager):
+async def test_run_analysis_stub_keeps_parked_and_does_not_respawn(manager):
     mgr, storage = manager
     state = _data_gate_state()
     state.status = JobStatus.CONFIRMED
@@ -155,14 +120,11 @@ async def test_run_analysis_respawns_and_clears_parked(manager):
 
     with patch.object(mgr, "_run_job", new=AsyncMock()) as run_job:
         result = await mgr.run_analysis("job-confirm")
-        run_job.assert_called_once()
+        run_job.assert_not_called()
 
-    storage.delete_parked_state.assert_awaited_once()
-    assert result["resumed"] is True
-    # Clean up the scheduled task so it doesn't leak past the test.
-    task = mgr._running_jobs.get("job-confirm")
-    if task is not None:
-        task.cancel()
+    storage.delete_parked_state.assert_not_awaited()
+    assert result["resumed"] is False
+    assert result["status"] == "confirmed"
 
 
 @pytest.mark.asyncio

@@ -43,9 +43,16 @@ class AnalysisState(BaseModel):
     # reads it to pick its runner.
     orchestrator_mode: Literal["standard", "react"] = "standard"
 
-    # The estimand: human-locked inputs, validated against real columns at the
-    # gate. `ignored_columns` is the deterministically-proposed, human-confirmed
-    # drop set (e.g. a row-index like "Unnamed: 0").
+    # The causal question the analyst is asking, in plain language. This is the
+    # intake's primary input now: the human states what they want to know
+    # ("Does job training increase income?"), not which columns are treatment
+    # and outcome. Required at submit; may be refined at the data-review gate.
+    causal_question: str | None = None
+
+    # Derived-later slots. Treatment and outcome are no longer chosen by the
+    # human; the analysis derives them from the question + data after run. Kept
+    # nullable so the analysis tail can fill them. `ignored_columns` is the
+    # deterministically-proposed, human-confirmed drop set (e.g. "Unnamed: 0").
     treatment_variable: str | None = None
     outcome_variable: str | None = None
     ignored_columns: list[str] = Field(default_factory=list)

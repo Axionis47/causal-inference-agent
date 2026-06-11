@@ -78,6 +78,7 @@ class LocalStorageClient:
             "kaggle_url": state.dataset_info.url,
             "dataset_name": state.dataset_info.name,
             "status": state.status.value,
+            "causal_question": state.causal_question,
             "treatment_variable": state.treatment_variable,
             "outcome_variable": state.outcome_variable,
             "created_at": state.created_at.isoformat() if state.created_at else None,
@@ -173,6 +174,7 @@ class LocalStorageClient:
 
                 jobs[state.job_id].update({
                     "status": state.status.value,
+                    "causal_question": state.causal_question,
                     "treatment_variable": state.treatment_variable,
                     "outcome_variable": state.outcome_variable,
                     "updated_at": _utcnow().isoformat(),

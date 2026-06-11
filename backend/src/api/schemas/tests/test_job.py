@@ -1,8 +1,9 @@
 """Validation tests for the create-job request schema.
 
-Treatment and outcome are mandatory at submit (the analyst names the columns so
-the pipeline never has to guess them). These tests pin that contract: a request
-without a real, non-blank treatment/outcome is rejected at the API boundary.
+The causal question is mandatory at submit (the analyst states what they want to
+know; treatment and outcome are derived later, not named here). These tests pin
+that contract: a request without a non-blank causal question is rejected at the
+API boundary, and the question is free text (a real sentence), not a column name.
 """
 import pytest
 from pydantic import ValidationError
@@ -15,8 +16,7 @@ VALID_URL = "https://www.kaggle.com/datasets/owner/dataset-name"
 def _payload(**overrides):
     base = {
         "kaggle_url": VALID_URL,
-        "treatment_variable": "treat",
-        "outcome_variable": "re78",
+        "causal_question": "Does job training increase income?",
     }
     base.update(overrides)
     return base
@@ -24,42 +24,47 @@ def _payload(**overrides):
 
 def test_valid_request_parses():
     req = CreateJobRequest(**_payload())
-    assert req.treatment_variable == "treat"
-    assert req.outcome_variable == "re78"
+    assert req.causal_question == "Does job training increase income?"
 
 
-def test_treatment_variable_is_required():
+def test_causal_question_is_required():
     payload = _payload()
-    del payload["treatment_variable"]
+    del payload["causal_question"]
     with pytest.raises(ValidationError):
         CreateJobRequest(**payload)
 
 
-def test_outcome_variable_is_required():
-    payload = _payload()
-    del payload["outcome_variable"]
+def test_empty_causal_question_rejected():
     with pytest.raises(ValidationError):
-        CreateJobRequest(**payload)
+        CreateJobRequest(**_payload(causal_question=""))
 
 
-def test_empty_treatment_variable_rejected():
+def test_whitespace_only_causal_question_rejected():
     with pytest.raises(ValidationError):
-        CreateJobRequest(**_payload(treatment_variable=""))
-
-
-def test_whitespace_only_outcome_variable_rejected():
-    with pytest.raises(ValidationError):
-        CreateJobRequest(**_payload(outcome_variable="   "))
+        CreateJobRequest(**_payload(causal_question="   "))
 
 
 def test_surrounding_whitespace_is_stripped():
-    req = CreateJobRequest(**_payload(treatment_variable="  treat  "))
-    assert req.treatment_variable == "treat"
+    req = CreateJobRequest(**_payload(causal_question="  Does X cause Y?  "))
+    assert req.causal_question == "Does X cause Y?"
 
 
-def test_invalid_character_set_rejected():
+def test_free_text_question_with_spaces_and_punctuation_is_allowed():
+    # Unlike the old treatment/outcome column names, the question is prose: a
+    # sentence with spaces and punctuation must not be rejected.
+    q = "Did the 2020 policy reduce unemployment, and for whom?"
+    req = CreateJobRequest(**_payload(causal_question=q))
+    assert req.causal_question == q
+
+
+def test_treatment_and_outcome_are_not_part_of_the_contract():
+    # They are no longer submit inputs. Passing them is ignored (extra keys), and
+    # a request carrying only them (no question) is rejected for the missing
+    # required question.
     with pytest.raises(ValidationError):
-        CreateJobRequest(**_payload(outcome_variable="re 78!"))
+        CreateJobRequest(
+            kaggle_url=VALID_URL, treatment_variable="t", outcome_variable="y"
+        )
 
 
 def test_user_context_still_optional():

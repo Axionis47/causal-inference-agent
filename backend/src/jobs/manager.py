@@ -51,31 +51,24 @@ def _describe_edits(approval: "HumanApproval") -> list[str]:
     return edited
 
 
-def _require_valid_dataset_inputs(
+def _require_confirmable_dataset(
     columns: set[str],
-    treatment_variable: str | None,
-    outcome_variable: str | None,
+    causal_question: str | None,
     *,
     has_time_dimension: bool,
     time_column: str | None,
 ) -> None:
-    """Enforce the confirmed-dataset input invariants before a dataset is
-    accepted: treatment and outcome must be set and be real columns, and if the
-    dataset carries a time dimension the time column must be set and real. Raises
-    ValueError on the first violation so the caller can surface it as a 422.
-
-    See docs/input-slice/confirmed-dataset-format.md sections 6 and 9.
+    """Enforce the invariants before a dataset can be confirmed: a non-empty
+    causal question must be set (treatment and outcome are no longer chosen by
+    the human; the analysis derives them from the question after run), and if
+    the dataset carries a time dimension the time column must be set and real.
+    Raises ValueError on the first violation so the caller can surface it as a
+    422.
     """
-    for label, name in (
-        ("treatment_variable", treatment_variable),
-        ("outcome_variable", outcome_variable),
-    ):
-        if not name:
-            raise ValueError(
-                f"{label} is required before the dataset can be confirmed"
-            )
-        if name not in columns:
-            raise ValueError(f"{label} '{name}' is not a column in the dataset")
+    if not (causal_question and causal_question.strip()):
+        raise ValueError(
+            "a causal question is required before the dataset can be confirmed"
+        )
     if has_time_dimension:
         if not time_column:
             raise ValueError(
@@ -172,8 +165,7 @@ class JobManager:
     async def create_job(
         self,
         kaggle_url: str,
-        treatment_variable: str | None = None,
-        outcome_variable: str | None = None,
+        causal_question: str | None = None,
         orchestrator_mode: OrchestratorMode | None = None,
         user_context: str | None = None,
     ) -> str:
@@ -185,8 +177,9 @@ class JobManager:
 
         Args:
             kaggle_url: Kaggle dataset URL
-            treatment_variable: Optional treatment variable hint
-            outcome_variable: Optional outcome variable hint
+            causal_question: The causal question to investigate, in plain
+                language. The intake's primary input; treatment and outcome
+                are derived later, not chosen here.
             orchestrator_mode: Which orchestrator to run for this job.
                 When None, falls back to the manager's default mode
                 (set at construction time from settings).
@@ -222,8 +215,7 @@ class JobManager:
                 url=kaggle_url,
                 user_provided_context=user_context,
             ),
-            treatment_variable=treatment_variable,
-            outcome_variable=outcome_variable,
+            causal_question=causal_question,
             orchestrator_mode=orchestrator_mode or self._orchestrator_mode,
             status=JobStatus.PENDING,
             created_at=now,
@@ -427,19 +419,19 @@ class JobManager:
     async def set_dataset_inputs(
         self,
         job_id: str,
-        treatment_variable: str,
-        outcome_variable: str,
+        causal_question: str | None,
         time_column: str | None,
     ) -> dict[str, Any]:
-        """Apply analyst-corrected inputs to a job parked at the data-review gate.
+        """Apply analyst edits to a job parked at the data-review gate.
 
-        Validates the chosen names against the profiled dataset's real columns
-        and updates the parked state in place. Only valid before the data gate is
-        approved; after that the analysis has already run on the old inputs.
+        Lets the analyst refine the causal question after seeing the data, and
+        set or clear the time column. The time column is validated against the
+        profiled dataset's real columns. Only valid before the data gate is
+        approved; after that the analysis has already started.
 
         Raises:
-            ValueError: no parked state, past the data gate, or a name that is
-                not a column of the profiled dataset.
+            ValueError: no parked state, past the data gate, a blank question, or
+                a time column that is not a column of the profiled dataset.
         """
         state = await self.get_parked_state(job_id)
         if state is None:
@@ -452,16 +444,19 @@ class JobManager:
         if state.data_profile is None:
             raise ValueError("Dataset has not been profiled yet")
 
-        _require_valid_dataset_inputs(
-            set(state.data_profile.feature_names),
-            treatment_variable,
-            outcome_variable,
-            has_time_dimension=time_column is not None,
-            time_column=time_column,
-        )
+        if time_column is not None and time_column not in set(
+            state.data_profile.feature_names
+        ):
+            raise ValueError(
+                f"time_column '{time_column}' is not a column in the dataset"
+            )
 
-        state.treatment_variable = treatment_variable
-        state.outcome_variable = outcome_variable
+        if causal_question is not None:
+            q = causal_question.strip()
+            if not q:
+                raise ValueError("causal_question cannot be blank")
+            state.causal_question = q
+
         state.data_profile.has_time_dimension = time_column is not None
         state.data_profile.time_column = time_column
 
@@ -470,13 +465,11 @@ class JobManager:
         logger.info(
             "dataset_inputs_updated",
             job_id=job_id,
-            treatment=treatment_variable,
-            outcome=outcome_variable,
+            causal_question=state.causal_question,
             time_column=time_column,
         )
         return {
-            "treatment_variable": treatment_variable,
-            "outcome_variable": outcome_variable,
+            "causal_question": state.causal_question,
             "time_column": time_column,
             "has_time_dimension": time_column is not None,
         }
@@ -500,10 +493,9 @@ class JobManager:
             raise ValueError(f"Job {job_id} is not parked at the data-review gate")
         if state.data_profile is None:
             raise ValueError("Dataset has not been profiled; cannot confirm")
-        _require_valid_dataset_inputs(
+        _require_confirmable_dataset(
             set(state.data_profile.feature_names),
-            state.treatment_variable,
-            state.outcome_variable,
+            state.causal_question,
             has_time_dimension=state.data_profile.has_time_dimension,
             time_column=state.data_profile.time_column,
         )
