@@ -55,7 +55,7 @@ def sample_dataframe():
 @pytest.fixture
 def analysis_state():
     """Create a sample AnalysisState for testing."""
-    from src.analysis.agents import AnalysisState, DatasetInfo
+    from src.analysis_v2.state import AnalysisState, DatasetInfo
 
     return AnalysisState(
         job_id="test-job-123",

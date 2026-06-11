@@ -6,7 +6,7 @@ import types
 
 import pytest
 
-from src.analysis.agents.base import FileEntry
+from src.analysis_v2.state import FileEntry
 from src.storage.job_data import (
     build_manifest,
     job_data_dir,

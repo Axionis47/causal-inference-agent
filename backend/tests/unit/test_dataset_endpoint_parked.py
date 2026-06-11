@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi.testclient import TestClient
 
-from src.analysis.agents.base.state import (
+from src.analysis_v2.state import (
     AnalysisState,
     DatasetInfo,
     FileEntry,

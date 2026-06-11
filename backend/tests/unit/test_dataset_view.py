@@ -19,7 +19,7 @@ import types
 
 import pytest
 
-from src.analysis.agents.base import (
+from src.analysis_v2.state import (
     AnalysisState,
     DataProfile,
     DatasetInfo,

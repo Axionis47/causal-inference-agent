@@ -63,8 +63,7 @@ class TestJobEndpoints:
                 "/jobs",
                 json={
                     "kaggle_url": "https://www.kaggle.com/datasets/test/test-dataset",
-                    "treatment_variable": "treatment",
-                    "outcome_variable": "outcome",
+                    "causal_question": "Does the program increase the outcome?",
                 },
             )
 
@@ -110,16 +109,15 @@ class TestAPISchemas:
         # Valid schema
         job = CreateJobRequest(
             kaggle_url="https://www.kaggle.com/datasets/user/dataset",
-            treatment_variable="treatment",
-            outcome_variable="outcome",
+            causal_question="Does the program increase the outcome?",
         )
         assert job.kaggle_url is not None
-        assert job.treatment_variable == "treatment"
+        assert job.causal_question == "Does the program increase the outcome?"
 
     def test_job_response_schema(self):
         """Test JobResponse schema."""
         from src.api.schemas import JobResponse
-        from src.analysis.agents.base import JobStatus
+        from src.analysis_v2.state import JobStatus
         from datetime import datetime
 
         response = JobResponse(
@@ -135,9 +133,10 @@ class TestAPISchemas:
 
     def test_job_status_enum(self):
         """Test JobStatus enum values."""
-        from src.analysis.agents.base import JobStatus
+        from src.analysis_v2.state import JobStatus
 
         assert JobStatus.PENDING.value == "pending"
         assert JobStatus.FETCHING_DATA.value == "fetching_data"
-        assert JobStatus.COMPLETED.value == "completed"
+        assert JobStatus.AWAITING_APPROVAL.value == "awaiting_approval"
+        assert JobStatus.CONFIRMED.value == "confirmed"
         assert JobStatus.FAILED.value == "failed"

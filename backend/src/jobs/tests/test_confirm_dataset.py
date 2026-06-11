@@ -1,10 +1,13 @@
-"""JobManager.confirm_dataset and run_analysis at the data gate.
+"""JobManager.confirm_dataset, resume_from_approval, and run_analysis at the
+data gate.
 
 Confirming requires a causal question (treatment and outcome are no longer named
 by the human), marks the job CONFIRMED, keeps the parked state as the confirmed
-record, and does not start the pipeline. run_analysis is a stub until the
-analysis slice is built: it loads the confirmed record and stops, without a
-respawn and without clearing the parked state.
+record, and does not start the pipeline. resume_from_approval routes an APPROVED
+decision through confirm_dataset and fails the job on REJECTED, clearing the
+parked state. run_analysis is a stub until the analysis slice is built: it loads
+the confirmed record and stops, without a respawn and without clearing the
+parked state.
 """
 from __future__ import annotations
 
@@ -109,6 +112,42 @@ async def test_confirm_rejected_when_time_dimension_lacks_a_column(manager):
 
     assert state.status == JobStatus.AWAITING_APPROVAL
     storage.save_parked_state.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_reject_at_gate_marks_failed_and_clears_parked_state(manager):
+    from src.domain.approval import HumanApproval
+
+    mgr, storage = manager
+    state = _data_gate_state()
+    storage.load_parked_state = AsyncMock(return_value=state)
+
+    result = await mgr.resume_from_approval(
+        "job-confirm", HumanApproval.reject(reason="wrong dataset")
+    )
+
+    assert result == {"resumed": False, "status": "failed"}
+    assert state.status == JobStatus.FAILED
+    assert "wrong dataset" in (state.error_message or "")
+    storage.update_job.assert_awaited_once()
+    storage.delete_parked_state.assert_awaited_once_with("job-confirm")
+
+
+@pytest.mark.asyncio
+async def test_approval_decision_delegates_to_confirm(manager):
+    from src.domain.approval import HumanApproval
+
+    mgr, storage = manager
+    state = _data_gate_state()
+    storage.load_parked_state = AsyncMock(return_value=state)
+
+    result = await mgr.resume_from_approval("job-confirm", HumanApproval.approve())
+
+    assert result == {"resumed": False, "status": "confirmed"}
+    assert state.status == JobStatus.CONFIRMED
+    # Confirm keeps the record; nothing is deleted and nothing respawns.
+    storage.save_parked_state.assert_awaited_once()
+    storage.delete_parked_state.assert_not_awaited()
 
 
 @pytest.mark.asyncio

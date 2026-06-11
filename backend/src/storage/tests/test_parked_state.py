@@ -1,9 +1,10 @@
 """LocalStorageClient parked-state round-trip.
 
-The approval gate persists the full AnalysisState mid-run, then reloads
-it after the human approves. These tests pin that round-trip preserves
-the fields downstream code reads — DAG, EDA, briefs, human_approval —
-and that delete is idempotent.
+The data-review gate persists the full AnalysisState mid-flow, then reloads it
+when the analyst edits inputs, confirms, or rejects. These tests pin that the
+round-trip preserves the fields the gate reads back (question, profile,
+approval), that delete is idempotent, and that the schema-version guard
+refuses incompatible payloads.
 
 Firestore round-trip lives in integration tests (needs emulator); the
 local backend covers shape and idempotency.
@@ -12,17 +13,15 @@ from __future__ import annotations
 
 import pytest
 
-from src.analysis.agents.base.state import (
+from src.analysis_v2.state import (
     SCHEMA_VERSION,
     AnalysisState,
+    DataProfile,
     DatasetInfo,
     JobStatus,
     StaleParkedState,
 )
-from src.analysis.agents.causal_discovery.output import CausalDAG, CausalEdge
-from src.analysis.agents.eda.output import EDAResult
-from src.domain.approval import DagEdit, HumanApproval
-from src.domain.briefs import AgentBrief, Flag
+from src.domain.approval import HumanApproval
 from src.storage.local_storage import LocalStorageClient
 
 
@@ -39,41 +38,30 @@ def storage(tmp_path, monkeypatch) -> LocalStorageClient:
 
 
 def _gate_state(job_id: str = "job-1") -> AnalysisState:
-    state = AnalysisState(
+    return AnalysisState(
         job_id=job_id,
-        dataset_info=DatasetInfo(url="kaggle.com/x", user_provided_context="initial notes"),
-        treatment_variable="t",
-        outcome_variable="y",
+        dataset_info=DatasetInfo(
+            url="https://www.kaggle.com/datasets/o/n",
+            user_provided_context="initial notes",
+        ),
+        causal_question="Does training raise income?",
         status=JobStatus.AWAITING_APPROVAL,
-        refined_dag=CausalDAG(
-            nodes=["t", "y", "x1"],
-            edges=[CausalEdge(source="t", target="y"), CausalEdge(source="x1", target="y")],
-            discovery_method="domain_expert_fusion",
-            interpretation="x1 confounds t→y",
-            adjustment_set=["x1"],
-            variable_roles={"x1": "confounder"},
-        ),
-        eda_result=EDAResult(
-            data_quality_score=82.0,
-            data_quality_issues=["small control group"],
-            balance_summary="moderate imbalance",
+        data_profile=DataProfile(
+            n_samples=614,
+            n_features=2,
+            feature_names=["treat", "re78"],
+            feature_types={"treat": "binary", "re78": "numeric"},
+            missing_values={"treat": 0, "re78": 3},
+            has_time_dimension=False,
         ),
     )
-    state.agent_briefs["eda_agent"] = AgentBrief(
-        agent="eda_agent",
-        status="done",
-        headline="moderate treatment-control imbalance",
-        flags=[Flag.TC_IMBALANCE],
-        raised_issues=["control ~20% smaller than treated"],
-    )
-    return state
 
 
 # --- save → load round-trip preserves the gate snapshot --------------------
 
 
 @pytest.mark.asyncio
-async def test_round_trip_preserves_dag_eda_and_briefs(storage):
+async def test_round_trip_preserves_question_profile_and_context(storage):
     original = _gate_state()
     await storage.save_parked_state(original)
     restored = await storage.load_parked_state("job-1")
@@ -81,28 +69,30 @@ async def test_round_trip_preserves_dag_eda_and_briefs(storage):
     assert restored is not None
     assert restored.job_id == "job-1"
     assert restored.status == JobStatus.AWAITING_APPROVAL
-    assert restored.refined_dag.adjustment_set == ["x1"]
-    assert restored.refined_dag.variable_roles == {"x1": "confounder"}
-    assert restored.eda_result.data_quality_score == 82.0
-    assert "eda_agent" in restored.agent_briefs
-    assert restored.agent_briefs["eda_agent"].flags == [Flag.TC_IMBALANCE]
+    assert restored.causal_question == "Does training raise income?"
+    assert restored.dataset_info.user_provided_context == "initial notes"
+    assert restored.data_profile.feature_types == {
+        "treat": "binary",
+        "re78": "numeric",
+    }
+    assert restored.data_profile.missing_values["re78"] == 3
 
 
 @pytest.mark.asyncio
 async def test_round_trip_preserves_human_approval_when_set(storage):
-    """Resume case: state already has an APPROVED decision attached when
-    the worker writes it back (defence in depth)."""
+    """Confirm case: the APPROVED decision is attached when the worker writes
+    the confirmed record back, and must survive the reload."""
     state = _gate_state()
     state.human_approval = HumanApproval.approve(
-        granted_by="r",
-        dag_edits=DagEdit(adjustment_set=["age", "education"]),
-        appended_context="extra notes",
+        granted_by="r", appended_context="extra notes"
     )
+    state.status = JobStatus.CONFIRMED
     await storage.save_parked_state(state)
     restored = await storage.load_parked_state("job-1")
     assert restored.human_approval is not None
     assert restored.human_approval.granted_by == "r"
-    assert restored.human_approval.dag_edits.adjustment_set == ["age", "education"]
+    assert restored.human_approval.appended_context == "extra notes"
+    assert restored.is_approved() is True
 
 
 # --- load missing returns None --------------------------------------------
@@ -147,10 +137,10 @@ async def test_two_jobs_coexist_in_store(storage):
 async def test_resave_overwrites_existing_entry(storage):
     state = _gate_state()
     await storage.save_parked_state(state)
-    state.eda_result = EDAResult(data_quality_score=99.0)
+    state.causal_question = "Does training raise earnings instead?"
     await storage.save_parked_state(state)
     restored = await storage.load_parked_state("job-1")
-    assert restored.eda_result.data_quality_score == 99.0
+    assert restored.causal_question == "Does training raise earnings instead?"
 
 
 # --- schema_version guard --------------------------------------------------

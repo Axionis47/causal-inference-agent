@@ -25,7 +25,7 @@ class TestAPIKeyAuth:
             from src.api.main import verify_api_key
 
             # Should not raise any exception
-            result = asyncio.get_event_loop().run_until_complete(
+            result = asyncio.run(
                 verify_api_key(x_api_key=None)
             )
             assert result is None
@@ -42,7 +42,7 @@ class TestAPIKeyAuth:
             from src.api.main import verify_api_key
 
             # Should not raise any exception
-            result = asyncio.get_event_loop().run_until_complete(
+            result = asyncio.run(
                 verify_api_key(x_api_key="test-secret-key-123")
             )
             assert result is None
@@ -60,7 +60,7 @@ class TestAPIKeyAuth:
             from src.api.main import verify_api_key
 
             with pytest.raises(HTTPException) as exc_info:
-                asyncio.get_event_loop().run_until_complete(
+                asyncio.run(
                     verify_api_key(x_api_key="wrong-key")
                 )
             assert exc_info.value.status_code == 401
@@ -78,7 +78,7 @@ class TestAPIKeyAuth:
             from src.api.main import verify_api_key
 
             with pytest.raises(HTTPException) as exc_info:
-                asyncio.get_event_loop().run_until_complete(
+                asyncio.run(
                     verify_api_key(x_api_key=None)
                 )
             assert exc_info.value.status_code == 401
@@ -92,7 +92,8 @@ class TestKaggleURLValidation:
         from src.api.schemas.job import CreateJobRequest
 
         req = CreateJobRequest(
-            kaggle_url="https://www.kaggle.com/datasets/owner/dataset-name"
+            kaggle_url="https://www.kaggle.com/datasets/owner/dataset-name",
+            causal_question="Does the program increase the outcome?"
         )
         assert req.kaggle_url == "https://www.kaggle.com/datasets/owner/dataset-name"
 
@@ -101,7 +102,8 @@ class TestKaggleURLValidation:
         from src.api.schemas.job import CreateJobRequest
 
         req = CreateJobRequest(
-            kaggle_url="https://www.kaggle.com/datasets/owner/dataset-name/"
+            kaggle_url="https://www.kaggle.com/datasets/owner/dataset-name/",
+            causal_question="Does the program increase the outcome?"
         )
         assert req.kaggle_url.startswith("https://www.kaggle.com/datasets/")
 
@@ -110,7 +112,8 @@ class TestKaggleURLValidation:
         from src.api.schemas.job import CreateJobRequest
 
         req = CreateJobRequest(
-            kaggle_url="https://kaggle.com/datasets/owner/dataset-name"
+            kaggle_url="https://kaggle.com/datasets/owner/dataset-name",
+            causal_question="Does the program increase the outcome?"
         )
         assert "kaggle.com" in req.kaggle_url
 
@@ -119,7 +122,8 @@ class TestKaggleURLValidation:
         from src.api.schemas.job import CreateJobRequest
 
         req = CreateJobRequest(
-            kaggle_url="http://www.kaggle.com/datasets/owner/dataset-name"
+            kaggle_url="http://www.kaggle.com/datasets/owner/dataset-name",
+            causal_question="Does the program increase the outcome?"
         )
         assert "kaggle.com" in req.kaggle_url
 
@@ -130,7 +134,8 @@ class TestKaggleURLValidation:
 
         with pytest.raises(ValidationError) as exc_info:
             CreateJobRequest(
-                kaggle_url="https://www.google.com/datasets/owner/dataset"
+                kaggle_url="https://www.google.com/datasets/owner/dataset",
+                causal_question="Does the program increase the outcome?"
             )
         error_str = str(exc_info.value)
         assert "Invalid Kaggle URL" in error_str or "kaggle" in error_str.lower()
@@ -142,7 +147,8 @@ class TestKaggleURLValidation:
 
         with pytest.raises(ValidationError):
             CreateJobRequest(
-                kaggle_url="https://www.kaggle.com/competitions/some-comp"
+                kaggle_url="https://www.kaggle.com/competitions/some-comp",
+                causal_question="Does the program increase the outcome?"
             )
 
     def test_invalid_url_missing_owner(self):
@@ -152,7 +158,8 @@ class TestKaggleURLValidation:
 
         with pytest.raises(ValidationError):
             CreateJobRequest(
-                kaggle_url="https://www.kaggle.com/datasets/"
+                kaggle_url="https://www.kaggle.com/datasets/",
+                causal_question="Does the program increase the outcome?"
             )
 
     def test_empty_url_rejected(self):
@@ -161,7 +168,7 @@ class TestKaggleURLValidation:
         from src.api.schemas.job import CreateJobRequest
 
         with pytest.raises(ValidationError):
-            CreateJobRequest(kaggle_url="")
+            CreateJobRequest(kaggle_url="", causal_question="Does the program increase the outcome?")
 
     def test_whitespace_only_url_rejected(self):
         """A whitespace-only URL should be rejected."""
@@ -169,77 +176,17 @@ class TestKaggleURLValidation:
         from src.api.schemas.job import CreateJobRequest
 
         with pytest.raises(ValidationError):
-            CreateJobRequest(kaggle_url="   ")
+            CreateJobRequest(kaggle_url="   ", causal_question="Does the program increase the outcome?")
 
     def test_url_with_hyphens_and_numbers(self):
         """A Kaggle URL with hyphens and numbers should pass."""
         from src.api.schemas.job import CreateJobRequest
 
         req = CreateJobRequest(
-            kaggle_url="https://www.kaggle.com/datasets/user-123/my-dataset-v2"
+            kaggle_url="https://www.kaggle.com/datasets/user-123/my-dataset-v2",
+            causal_question="Does the program increase the outcome?"
         )
         assert "my-dataset-v2" in req.kaggle_url
-
-
-class TestVariableNameValidation:
-    """Tests for treatment/outcome variable name validation."""
-
-    def test_valid_variable_name(self):
-        """Alphanumeric variable names with underscores should pass."""
-        from src.api.schemas.job import CreateJobRequest
-
-        req = CreateJobRequest(
-            kaggle_url="https://www.kaggle.com/datasets/owner/dataset-name",
-            treatment_variable="treatment_var",
-            outcome_variable="outcome_var",
-        )
-        assert req.treatment_variable == "treatment_var"
-        assert req.outcome_variable == "outcome_var"
-
-    def test_none_variable_name(self):
-        """None variable names should be accepted."""
-        from src.api.schemas.job import CreateJobRequest
-
-        req = CreateJobRequest(
-            kaggle_url="https://www.kaggle.com/datasets/owner/dataset-name",
-            treatment_variable=None,
-            outcome_variable=None,
-        )
-        assert req.treatment_variable is None
-        assert req.outcome_variable is None
-
-    def test_empty_variable_name_becomes_none(self):
-        """Empty or whitespace-only variable names should become None."""
-        from src.api.schemas.job import CreateJobRequest
-
-        req = CreateJobRequest(
-            kaggle_url="https://www.kaggle.com/datasets/owner/dataset-name",
-            treatment_variable="",
-            outcome_variable="  ",
-        )
-        assert req.treatment_variable is None
-        assert req.outcome_variable is None
-
-    def test_invalid_variable_name_special_chars(self):
-        """Variable names with special characters should be rejected."""
-        from pydantic import ValidationError
-        from src.api.schemas.job import CreateJobRequest
-
-        with pytest.raises(ValidationError):
-            CreateJobRequest(
-                kaggle_url="https://www.kaggle.com/datasets/owner/dataset-name",
-                treatment_variable="var with spaces",
-            )
-
-    def test_variable_name_with_hyphens(self):
-        """Variable names with hyphens should pass."""
-        from src.api.schemas.job import CreateJobRequest
-
-        req = CreateJobRequest(
-            kaggle_url="https://www.kaggle.com/datasets/owner/dataset-name",
-            treatment_variable="my-var",
-        )
-        assert req.treatment_variable == "my-var"
 
 
 class TestKaggleURLPattern:
