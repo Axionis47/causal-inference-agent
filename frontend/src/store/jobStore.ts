@@ -155,10 +155,16 @@ export const useJobStore = create<JobState & JobActions>()(
         patchKaggleMeta: (partial: Partial<KaggleMetaBlock>) => {
           set((state) => {
             const current = state.datasetView ?? emptyDatasetView();
+            // Deep-merge data: a partial SSE metadata patch (description/tags
+            // only) must not clobber the richer fields already loaded over REST
+            // (title, subtitle, size, downloads, votes, license).
+            const data = partial.data
+              ? { ...(current.kaggle_meta.data ?? {}), ...partial.data }
+              : current.kaggle_meta.data;
             return {
               datasetView: {
                 ...current,
-                kaggle_meta: { ...current.kaggle_meta, ...partial },
+                kaggle_meta: { ...current.kaggle_meta, ...partial, data },
               },
             };
           });
