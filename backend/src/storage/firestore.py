@@ -37,6 +37,9 @@ class FirestoreClient:
         # Parked states: full AnalysisState dumps for jobs waiting at the
         # human-approval gate. Keyed by job_id. Cleared on approve/reject.
         self.parked_states_collection = "parked_states"
+        # Analysis runs: AnalysisRunState dumps for the analysis slice,
+        # keyed by job_id. Kept after completion so old jobs can reopen.
+        self.analysis_runs_collection = "analysis_runs"
 
     def _job_data_from_state(self, state: AnalysisState) -> dict[str, Any]:
         """Build a job data dict from state, including instance_id."""
@@ -296,7 +299,7 @@ class FirestoreClient:
             Dict with deletion results
         """
         def _sync():
-            result = {"job": False, "results": False, "traces": False}
+            result = {"job": False, "results": False, "traces": False, "analysis_run": False}
 
             doc_ref = self.db.collection(self.jobs_collection).document(job_id)
             doc = doc_ref.get()
@@ -318,6 +321,12 @@ class FirestoreClient:
                 # Delete traces subcollection
                 traces_deleted = self._delete_traces_collection(job_id)
                 result["traces"] = traces_deleted > 0
+
+                # Delete the analysis run record
+                run_ref = self.db.collection(self.analysis_runs_collection).document(job_id)
+                if run_ref.get().exists:
+                    run_ref.delete()
+                    result["analysis_run"] = True
 
             return result
 
@@ -535,6 +544,47 @@ class FirestoreClient:
         removed = await asyncio.to_thread(_sync)
         if removed:
             logger.info("parked_state_deleted", job_id=job_id)
+        return removed
+
+    # ── Analysis-run store (analysis slice) ──────────────────────────────
+
+    async def save_analysis_run(self, run: "AnalysisRunState") -> None:
+        """Persist the analysis run state. Keyed by job_id; last write wins."""
+        payload = dump_state_jsonable(run)
+
+        def _sync():
+            doc_ref = self.db.collection(self.analysis_runs_collection).document(run.job_id)
+            doc_ref.set(payload)
+
+        await asyncio.to_thread(_sync)
+        logger.info("analysis_run_saved", job_id=run.job_id)
+
+    async def load_analysis_run(self, job_id: str) -> "AnalysisRunState | None":
+        """Return the AnalysisRunState for `job_id`, or None if absent."""
+        from src.analysis_v2.core import AnalysisRunState
+
+        def _sync() -> AnalysisRunState | None:
+            doc_ref = self.db.collection(self.analysis_runs_collection).document(job_id)
+            doc = doc_ref.get()
+            if not doc.exists:
+                return None
+            return AnalysisRunState.load(doc.to_dict())
+
+        return await asyncio.to_thread(_sync)
+
+    async def delete_analysis_run(self, job_id: str) -> bool:
+        """Remove the analysis run for `job_id`. Returns True if removed."""
+        def _sync() -> bool:
+            doc_ref = self.db.collection(self.analysis_runs_collection).document(job_id)
+            doc = doc_ref.get()
+            if not doc.exists:
+                return False
+            doc_ref.delete()
+            return True
+
+        removed = await asyncio.to_thread(_sync)
+        if removed:
+            logger.info("analysis_run_deleted", job_id=job_id)
         return removed
 
     async def save_traces(self, state: AnalysisState) -> None:

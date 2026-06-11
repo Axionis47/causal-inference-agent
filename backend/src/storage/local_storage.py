@@ -39,6 +39,9 @@ class LocalStorageClient:
         # Parked states: full AnalysisState dumps for jobs waiting at the
         # human-approval gate. Keyed by job_id. Cleared on approve/reject.
         self.parked_states_file = self.storage_path / "parked_states.json"
+        # Analysis runs: AnalysisRunState dumps for the analysis slice,
+        # keyed by job_id. Kept after completion so old jobs can reopen.
+        self.analysis_runs_file = self.storage_path / "analysis_runs.json"
 
         # Create storage directory
         self.storage_path.mkdir(parents=True, exist_ok=True)
@@ -49,6 +52,7 @@ class LocalStorageClient:
             self.results_file,
             self.traces_file,
             self.parked_states_file,
+            self.analysis_runs_file,
         ]:
             if not file.exists():
                 file.write_text("{}")
@@ -256,7 +260,7 @@ class LocalStorageClient:
     async def delete_job(self, job_id: str, cascade: bool = True) -> dict[str, Any]:
         """Delete a job and optionally cascade to related data."""
         def _sync():
-            result = {"job": False, "results": False, "traces": False}
+            result = {"job": False, "results": False, "traces": False, "analysis_run": False}
 
             lock = self._get_lock(self.jobs_file)
             with lock:
@@ -286,6 +290,15 @@ class LocalStorageClient:
                         del traces[job_id]
                         self._save_json(self.traces_file, traces)
                         result["traces"] = True
+
+                # Delete the analysis run record
+                runs_lock = self._get_lock(self.analysis_runs_file)
+                with runs_lock:
+                    runs = self._load_json(self.analysis_runs_file)
+                    if job_id in runs:
+                        del runs[job_id]
+                        self._save_json(self.analysis_runs_file, runs)
+                        result["analysis_run"] = True
 
             return result
 
@@ -476,6 +489,52 @@ class LocalStorageClient:
         removed = await asyncio.to_thread(_sync)
         if removed:
             logger.info("parked_state_deleted", job_id=job_id)
+        return removed
+
+    # ── Analysis-run store (analysis slice) ──────────────────────────────
+
+    async def save_analysis_run(self, run: "AnalysisRunState") -> None:
+        """Persist the analysis run state. Keyed by job_id; last write wins."""
+        payload = dump_state_jsonable(run)
+
+        def _sync():
+            lock = self._get_lock(self.analysis_runs_file)
+            with lock:
+                store = self._load_json(self.analysis_runs_file)
+                store[run.job_id] = payload
+                self._save_json(self.analysis_runs_file, store)
+
+        await asyncio.to_thread(_sync)
+        logger.info("analysis_run_saved", job_id=run.job_id)
+
+    async def load_analysis_run(self, job_id: str) -> "AnalysisRunState | None":
+        """Return the AnalysisRunState for `job_id`, or None if absent."""
+        from src.analysis_v2.core import AnalysisRunState
+
+        def _sync() -> AnalysisRunState | None:
+            store = self._load_json(self.analysis_runs_file)
+            payload = store.get(job_id)
+            if payload is None:
+                return None
+            return AnalysisRunState.load(payload)
+
+        return await asyncio.to_thread(_sync)
+
+    async def delete_analysis_run(self, job_id: str) -> bool:
+        """Remove the analysis run for `job_id`. Returns True if removed."""
+        def _sync() -> bool:
+            lock = self._get_lock(self.analysis_runs_file)
+            with lock:
+                store = self._load_json(self.analysis_runs_file)
+                if job_id not in store:
+                    return False
+                store.pop(job_id)
+                self._save_json(self.analysis_runs_file, store)
+                return True
+
+        removed = await asyncio.to_thread(_sync)
+        if removed:
+            logger.info("analysis_run_deleted", job_id=job_id)
         return removed
 
     async def save_traces(self, state: AnalysisState) -> None:
