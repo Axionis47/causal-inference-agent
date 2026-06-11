@@ -1,0 +1,1072 @@
+manifest_version: 1
+purpose: Representative eval cases for the analysis slice. Real datasets assert structure, lane selection,
+  direction, and published benchmarks; synthetic_eval_fixture cases assert magnitudes against generated
+  ground truth. Never hardcode these column names outside evals/.
+taxonomy:
+  type_1: simple_effect
+  type_2: binary_treatment
+  type_3: dose_response
+  type_4: multi_factor
+  type_5: interaction
+  type_6: mediation
+  type_7: did
+  type_8: rdd
+  type_9: iv
+  type_10: time_series_intervention
+  type_11: survival
+  type_12: before_after
+  type_13: heterogeneous_effects
+  type_14: driver_analysis
+  type_15: no_effect
+  type_16: mechanism_search
+cases:
+- case_id: lalonde-nsw-experimental
+  tier: secondary
+  question_type: simple_effect
+  source:
+    kaggle_slug: wakizashe/lalonde-1986-nsw-dataset
+    data_file: lalonde_nsw (1).csv
+    synthetic_eval_fixture: false
+    verified: true
+    n_rows: 445
+  causal_question: In the NSW randomized experiment, what is the effect of job training (treat) on 1978
+    earnings (re78)?
+  expected_fields:
+    treatment: treat
+    outcome: re78
+    confounders:
+    - age
+    - educ
+    - black
+    - hisp
+    - marr
+    - nodegree
+    - re74
+    - re75
+  expected_lane: observational/matching (or RCT-style simple comparison; covariates are balanced, re74
+    $2,096 vs $2,107)
+  expected_disabled_lanes:
+  - lane: IV
+    reason: no instrument column
+  - lane: RDD
+    reason: no running variable or cutoff
+  - lane: DiD/panel
+    reason: single cross-section, no time index
+  min_assertions:
+  - identifies treat as treatment and re78 as outcome
+  - estimated ATE is positive, roughly $1,000-$2,500 (experimental truth $1,794)
+  - adjusted estimate stays close to the naive difference (covariates balanced), no sign flip
+  - effect reported as statistically meaningful (CI excludes large negative values)
+  notes: 'Kaggle upload is new (0 downloads) but the data is the canonical 445-row experimental sample;
+    naive diff computed = $1,794.34 exactly matching the literature. Good ground-truth anchor since the
+    true ATE is experimentally known. Filename contains a space and parentheses: ''lalonde_nsw (1).csv''.'
+- case_id: lalonde-observational
+  tier: primary
+  question_type: binary_treatment
+  source:
+    kaggle_slug: samuelzakouri/lalonde
+    data_file: lalonde.csv
+    synthetic_eval_fixture: false
+    verified: true
+    n_rows: 614
+  causal_question: Does participating in the job training program (treat) increase 1978 earnings (re78)?
+  expected_fields:
+    treatment: treat
+    outcome: re78
+    confounders:
+    - age
+    - educ
+    - black
+    - hispan
+    - married
+    - nodegree
+    - re74
+    - re75
+  expected_lane: observational/matching
+  expected_disabled_lanes:
+  - lane: RCT/naive difference
+    reason: 'treated and PSID controls are non-comparable (re74: $2,096 vs $5,619); naive diff is -$635,
+      wrong sign'
+  - lane: IV
+    reason: no instrument column
+  - lane: RDD
+    reason: no running variable or cutoff
+  - lane: DiD/panel
+    reason: single cross-section outcome, no unit-time panel structure
+  min_assertions:
+  - identifies treat as binary treatment and re78 as continuous outcome
+  - adjustment set includes pre-treatment earnings re74 and re75
+  - 'Unnamed: 0 index column is not selected as a confounder or covariate'
+  - naive difference in means is negative (~ -$635)
+  - adjusted/matched ATT is positive, roughly in $500-$3,000 (sign flip vs naive)
+  - lane chosen is observational adjustment (matching/PSM/IPW/regression adjustment), not naive comparison
+  notes: Classic confounding benchmark; 581 downloads, CC0. The headline behavior to test is the naive-negative
+    -> adjusted-positive sign flip. Experimental benchmark ATT ~ $1,794.
+- case_id: nsw74-terse-columns
+  tier: secondary
+  question_type: binary_treatment
+  source:
+    kaggle_slug: arlcord/national-supported-work-demonstration-nsw
+    data_file: nsw74demo.csv
+    synthetic_eval_fixture: false
+    verified: true
+    n_rows: 445
+  causal_question: Did the NSW program (trt) raise participants' 1978 earnings (re78)?
+  expected_fields:
+    treatment: trt
+    outcome: re78
+    confounders:
+    - age
+    - educ
+    - black
+    - hisp
+    - marr
+    - nodeg
+    - re74
+    - re75
+  expected_lane: observational/matching (experimental sample, simple comparison also valid)
+  expected_disabled_lanes:
+  - lane: IV
+    reason: no instrument column
+  - lane: RDD
+    reason: no running variable or cutoff
+  - lane: DiD/panel
+    reason: single cross-section, no time index
+  min_assertions:
+  - maps abbreviated column 'trt' to treatment and 're78' to outcome despite non-standard naming
+  - rownames is not selected as a confounder
+  - estimated ATE positive, roughly $1,000-$2,500 (same 445-row experimental sample, truth $1,794)
+  notes: Identical data to wakizashe entry (naive diff = $1,794.34) but with terse column names; useful
+    as a robustness variant for treatment/outcome identification. New upload, 0 downloads, MIT license.
+- case_id: marketing-ab
+  tier: secondary
+  question_type: binary_treatment
+  source:
+    kaggle_slug: faviovaz/marketing-ab-testing
+    data_file: marketing_AB.csv
+    synthetic_eval_fixture: false
+    verified: true
+    n_rows: 588101
+  causal_question: Did showing users the ad (vs the public service announcement) increase conversion?
+  expected_fields:
+    treatment: test group
+    outcome: converted
+  expected_lane: randomized_experiment
+  expected_disabled_lanes:
+  - lane: iv
+    reason: no instrument; assignment is randomized
+  - lane: rdd
+    reason: no running variable or cutoff
+  - lane: did
+    reason: no time/panel dimension
+  min_assertions:
+  - identifies ad/psa as a randomized A/B test with psa as control despite heavy 96/4 imbalance (564,577
+    ad vs 23,524 psa)
+  - 'ATE on converted is positive and significant: absolute lift in range +0.005 to +0.010 (point ~+0.0077,
+    ~43% relative lift, z~8.7)'
+  - does NOT adjust for 'total ads', 'most ads day', or 'most ads hour' as confounders; flags them as
+    post-treatment exposure measures (or at minimum the estimate is not conditioned on them)
+  - 'handles boolean outcome dtype and the junk ''Unnamed: 0'' index column without error'
+  notes: '9,155 downloads / 75 votes; well-known. Zip is 5.2MB, CSV unzips to ~22MB. Main eval value beyond
+    the ATE is the post-treatment-variable trap: a naive system that ''controls for total ads'' biases
+    the estimate. HTE by most-ads-day/hour is NOT a valid type-13 question since those are post-treatment;
+    use Hillstrom for HTE.'
+- case_id: advertising-dose-response
+  tier: primary
+  question_type: dose_response
+  source:
+    kaggle_slug: yasserh/advertising-sales-dataset
+    data_file: Advertising Budget and Sales.csv
+    synthetic_eval_fixture: false
+    verified: true
+    n_rows: 200
+  causal_question: Does more TV advertising spend increase sales?
+  expected_fields:
+    treatment: TV Ad Budget ($)
+    outcome: Sales ($)
+    confounders:
+    - Radio Ad Budget ($)
+    - Newspaper Ad Budget ($)
+  expected_lane: observational (regression, continuous treatment)
+  expected_disabled_lanes:
+  - lane: rct/experimental
+    reason: no randomization or assignment indicator; spend is observational
+  - lane: iv
+    reason: no plausible instrument column
+  - lane: rdd
+    reason: no cutoff or running variable
+  - lane: did/panel
+    reason: no time dimension; single cross-section of 200 markets
+  min_assertions:
+  - treatment is identified as the continuous TV ad budget column (exact name 'TV Ad Budget ($)', spaces
+    and $ included), not arbitrarily dichotomized without saying so
+  - outcome is 'Sales ($)'
+  - lane chosen is observational regression; no experimental claim
+  - TV partial effect is positive and significant (textbook OLS coef ~0.046 per unit, univariate ~0.0475)
+  - in a multi-factor model, newspaper effect is reported as near zero / not significant (coef ~-0.001)
+    while radio is positive (~0.19)
+  - 'the ''Unnamed: 0'' index column is excluded from covariates'
+  notes: 'Exact ISLR Advertising data (verified: OLS coefficients match textbook). 22.5k downloads, usability
+    1.0. No nulls. Column names with spaces/$/parens are a realistic naming stressor. Also exercises type
+    4 if asked about all three channels jointly.'
+- case_id: habits-dose-response
+  tier: secondary
+  question_type: dose_response
+  source:
+    kaggle_slug: jayaantanaath/student-habits-vs-academic-performance
+    data_file: student_habits_performance.csv
+    synthetic_eval_fixture: false
+    verified: true
+    n_rows: 1000
+  causal_question: Does studying more hours per day increase exam scores?
+  expected_fields:
+    treatment: study_hours_per_day
+    outcome: exam_score
+    confounders:
+    - sleep_hours
+    - attendance_percentage
+    - mental_health_rating
+    - parental_education_level
+    - part_time_job
+  expected_lane: observational (regression, continuous treatment)
+  expected_disabled_lanes:
+  - lane: rct/experimental
+    reason: self-reported habits; no assignment
+  - lane: iv
+    reason: no instrument column
+  - lane: rdd
+    reason: no cutoff or running variable
+  - lane: did/panel
+    reason: single cross-section per student
+  min_assertions:
+  - treatment is continuous study_hours_per_day (range 0-8.3), outcome is exam_score (18.4-100)
+  - dose-response slope is positive and large (adjusted OLS ~9.5 score points per extra daily hour; raw
+    corr 0.825)
+  - student_id is excluded from covariates
+  - the 91 missing values in parental_education_level are handled without dropping the run
+  - lane is observational regression
+  notes: Kaggle-popular (67k downloads) but author-simulated data, so the strong clean signal is by construction;
+    exam_score is capped at 100 (mild ceiling truncation). Useful as a larger-n, missing-data variant
+    of type 3; do not treat its effect size as real-world ground truth.
+- case_id: student-multi-factor
+  tier: primary
+  question_type: multi_factor
+  source:
+    kaggle_slug: devansodariya/student-performance-data
+    data_file: student_data.csv
+    synthetic_eval_fixture: false
+    verified: true
+    n_rows: 395
+  causal_question: Do study time, absences, and past failures together affect a student's final grade
+    (G3)?
+  expected_fields:
+    treatment: studytime (with absences and failures as co-factors in the multi-factor model)
+    outcome: G3
+    confounders:
+    - Medu
+    - Fedu
+    - age
+    - goout
+    - schoolsup
+    - famsup
+    - higher
+    - internet
+  expected_lane: observational (regression)
+  expected_disabled_lanes:
+  - lane: rct/experimental
+    reason: purely observational school survey; no assignment mechanism
+  - lane: iv
+    reason: no credible instrument among columns
+  - lane: rdd
+    reason: no cutoff rule in the data
+  - lane: did/panel
+    reason: single cross-section; G1/G2/G3 are within-course grades, not panel waves
+  min_assertions:
+  - outcome is G3 (final grade), not G1 or G2
+  - failures has the largest-magnitude association among the three factors and is negative (joint OLS
+    coef ~-2.2 per prior failure)
+  - studytime association is positive but weak (joint OLS coef ~+0.2 per level; ordinal 1-4)
+  - G1 and G2 are not included as confounders for these factors (they are post-treatment/intermediate
+    grades)
+  - lane is observational; conclusions framed as adjusted associations, not experimental effects
+  - all three named factors (studytime, absences, failures) appear in the fitted model
+  notes: 'Real UCI Cortez & Silva math-class data, 84.5k downloads. Trap built in: 38 students have G3==0
+    (dropouts), which makes the raw absences-G3 correlation ~+0.03 (counterintuitive sign); failures dominates
+    (corr -0.36). G1/G2 are a post-treatment-adjustment trap. The whenamancodes/student-performance mirror
+    was rejected: its Maths.csv is malformed (non-UTF-8 bytes plus tokenization errors).'
+- case_id: insurance-interaction
+  tier: primary
+  question_type: interaction
+  source:
+    kaggle_slug: mirichoi0218/insurance
+    data_file: insurance.csv
+    synthetic_eval_fixture: false
+    verified: true
+    n_rows: 1338
+  causal_question: Does the effect of being a smoker on insurance charges depend on BMI? Quantify how
+    the smoking premium changes for obese vs non-obese individuals.
+  expected_fields:
+    treatment: smoker
+    outcome: charges
+    group: bmi (or obese = bmi>=30)
+    confounders:
+    - age
+    - children
+    - sex
+    - region
+  expected_lane: effect_modification
+  expected_disabled_lanes:
+  - lane: mediation
+    reason: Cross-sectional, no temporal ordering; smokers and non-smokers have near-identical mean BMI
+      (30.65 vs 30.71), so BMI does not carry the smoking effect. No credible X->M->Y chain.
+  - lane: instrumental_variable
+    reason: No instrument available; all covariates plausibly affect charges directly.
+  min_assertions:
+  - An interaction term smoker x bmi (or smoker x obese) is estimated and is positive and statistically
+    significant
+  - The subgroup/conditional ATE of smoker is substantially larger for high-BMI (obese) than low-BMI individuals
+    (effect modification present, ~$33k vs ~$13k)
+  - The marginal ATE of smoker on charges is large and positive (order ~$20k-$24k)
+  - The system reports heterogeneity by BMI rather than collapsing to a single homogeneous effect
+  notes: 'Famous dataset (410k downloads, 3249 votes). Verified via pandas. smoker:bmi OLS coef +1433.8/BMI-unit,
+    p=1.66e-129. Raw smoker mean-diff: $13,386 (non-obese) vs $32,715 (obese). Strong, clean effect modification.
+    Explicitly NOT a mediation dataset.'
+- case_id: synthetic-mediation
+  tier: primary
+  question_type: mediation
+  source:
+    kaggle_slug: synthetic
+    data_file: mediation_fixture.csv (generated)
+    synthetic_eval_fixture: true
+    verified: false
+    n_rows: 2000
+    synthetic_recipe: 'numpy seed=42, n=2000. C ~ Normal(0,1). T ~ Bernoulli(0.5) (randomized, so T is
+      unconfounded). M = 0.6*T + 0.4*C + Normal(0,1). Y = 0.5*M + 0.3*T + 0.5*C + Normal(0,1). Ground
+      truth: a (T->M) = 0.6, b (M->Y | T,C) = 0.5, indirect = a*b = 0.30, direct = 0.30, total = 0.60,
+      proportion mediated = 0.50. Correct recovery REQUIRES conditioning on C in the outcome regression
+      (Y ~ M + T + C); omitting C biases b. This is the standard reason a real cross-sectional dataset
+      cannot give clean mediation ground truth, so the fixture is the honest choice.'
+  causal_question: Decompose the total effect of treatment T on outcome Y into a direct effect and an
+    indirect effect operating through mediator M.
+  expected_fields:
+    treatment: T
+    mediator: M
+    outcome: Y
+    confounders:
+    - C
+  expected_lane: mediation
+  expected_disabled_lanes:
+  - lane: instrumental_variable
+    reason: T is randomized; no instrument needed and none present.
+  - lane: regression_discontinuity
+    reason: No running variable or cutoff in the DGP.
+  min_assertions:
+  - Reports a mediation decomposition where total effect = direct effect + indirect effect (additivity
+    holds)
+  - Indirect effect (T->M->Y) recovered close to ground-truth a*b = 0.30 within tolerance
+  - Direct effect recovered close to ground-truth 0.30 within tolerance
+  - Total effect recovered close to 0.60; proportion mediated close to 0.50
+  - The mediator-outcome confounder C is adjusted for in the outcome model (omitting C biases the b path
+    / indirect estimate)
+  notes: 'No real Kaggle dataset cleanly supports mediation: insurance is contemporaneous (and BMI does
+    not carry the smoking effect); Framingham (aasheesh200/framingham-heart-study-dataset, 4240 rows,
+    smoking/sysBP/glucose/TenYearCHD) measures treatment and mediators at the same baseline visit, so
+    mediator-after-treatment ordering is violated. Synthetic fixture gives a known direct/indirect split
+    for exact-recovery assertions.'
+- case_id: card-krueger-did
+  tier: primary
+  question_type: did
+  source:
+    kaggle_slug: harrywang/propensity-score-matching
+    data_file: employment.csv
+    synthetic_eval_fixture: false
+    verified: true
+    n_rows: 384
+  causal_question: New Jersey raised its minimum wage from $4.25 to $5.05 in April 1992; Pennsylvania
+    did not. Using fast-food restaurant employment measured in February (before) and November (after),
+    did the minimum wage increase reduce employment in NJ relative to PA?
+  expected_fields:
+    group: state
+    time: 'implicit wide format: total_emp_feb=pre, total_emp_nov=post (no time column; requires reshape
+      or wide-DID handling)'
+    treatment: state (1=NJ, exposed to wage increase)
+    outcome: total_emp_nov vs total_emp_feb (FTE employment)
+  expected_lane: difference_in_differences
+  expected_disabled_lanes:
+  - lane: rdd
+    reason: no running variable or cutoff
+  - lane: iv
+    reason: no instrument present
+  - lane: rct
+    reason: state assignment is not randomized; natural experiment
+  min_assertions:
+  - selects the DID lane (not naive cross-sectional comparison)
+  - identifies state as the group variable with 1=NJ treated, 0=PA control
+  - recognizes total_emp_feb as pre-period and total_emp_nov as post-period outcome (handles wide format,
+    e.g., reshapes to long)
+  - DID point estimate is positive, in range [1.5, 4.0] FTE (ground truth +2.75)
+  - conclusion states no employment decline in NJ relative to PA (does not report a negative effect)
+  - uses all 384 stores (no rows dropped; data has zero nulls)
+  notes: 'Canonical Card & Krueger (1994) balanced subsample, 2204 downloads, CC0. Verified by download+pandas;
+    manual DID reproduces published +2.75 exactly. Main hazard: wide format with no time column, so the
+    eval also tests reshape capability. Two-period two-group, so no pre-trend test possible.'
+- case_id: synthetic-did-panel
+  tier: primary
+  question_type: did
+  source:
+    kaggle_slug: synthetic
+    data_file: did_panel.csv (generated)
+    synthetic_eval_fixture: true
+    verified: false
+    n_rows: 480
+    synthetic_recipe: seed=42; 60 units (30 treated, 30 control) x 8 periods (0..7), T0=4. y_it = alpha_i
+      + 0.3*t + 2.0*1[treated_i]*1[t>=4] + eps_it; alpha_i ~ N(10,2) for control, N(11.5,2) for treated
+      (level gap, parallel trends); eps_it ~ N(0,1). Columns unit_id, group, period, post, outcome. Ground
+      truth ATT = 2.0; OLS y ~ treated*post recovers it; baseline gap 1.5 is a distractor.
+  causal_question: A policy took effect for the treated group starting in period 4. Estimate its effect
+    on the outcome using the control group as the counterfactual.
+  expected_fields:
+    group: group
+    time: 'period (post indicator: post)'
+    treatment: group == treated
+    outcome: outcome
+  expected_lane: difference_in_differences
+  expected_disabled_lanes:
+  - lane: rdd
+    reason: no running variable or cutoff
+  - lane: iv
+    reason: no instrument present
+  min_assertions:
+  - selects DID lane and uses two-way structure (group x post interaction or unit/period fixed effects)
+  - point estimate within [1.6, 2.4] (ground truth delta = 2.0)
+  - pre-trend check passes (pre-period group trends parallel by construction)
+  - does not report the baseline level gap (+1.5) as the treatment effect
+  notes: 'Complements the wide-format Card-Krueger entry: canonical long format with explicit group/time
+    columns, multi-period pre-trends testable, exact known delta. Use when the eval needs a deterministic
+    pass/fail band.'
+- case_id: njmin-full-did
+  tier: secondary
+  question_type: did
+  source:
+    kaggle_slug: nathanlazarus/njminwage
+    data_file: public.dat
+    synthetic_eval_fixture: false
+    verified: true
+    n_rows: 410
+  causal_question: Using the full Card-Krueger survey of 410 fast-food restaurants, estimate the effect
+    of New Jersey's 1992 minimum wage increase on full-time-equivalent employment (FTE = EMPFT + 0.5*EMPPT
+    + NMGRS) relative to Pennsylvania.
+  expected_fields:
+    group: STATE (col 3)
+    time: 'implicit: wave-1 vs wave-2 column pairs'
+    treatment: STATE=1 (NJ)
+    outcome: FTE constructed from EMPFT/EMPPT/NMGRS (waves 1 and 2)
+  expected_lane: difference_in_differences
+  expected_disabled_lanes:
+  - lane: rdd
+    reason: no running variable or cutoff
+  - lane: iv
+    reason: no instrument present
+  min_assertions:
+  - DID estimate on FTE approximately +2.75 (NJ delta +0.47, PA delta -2.28); range [1.5, 4.0]
+  - handles '.' missing values (complete-case n=384 for the balanced comparison)
+  notes: 'This IS the original Card-Krueger release; verified to parse (sep=whitespace, na=''.'', 410x46)
+    and to reproduce DID=+2.75. NOT suitable as a raw eval fixture: no header row, column meanings require
+    the external codebook, FTE must be constructed. Usable only if the eval ships a preprocessed CSV with
+    codebook names; then it also enables covariate-adjusted DID (chain, co-owned). Low visibility (10
+    downloads, unknown license).'
+- case_id: bank-recovery-rdd
+  tier: primary
+  question_type: rdd
+  source:
+    kaggle_slug: kingabzpro/bank-debt-data
+    data_file: bank_data.csv
+    synthetic_eval_fixture: false
+    verified: true
+    n_rows: 1882
+  causal_question: Did assigning debts to the more intensive Level 1 recovery strategy (used for debts
+    with expected recovery above $1000) cause higher actual recovery amounts than the cheaper Level 0
+    strategy? Use the $1000 threshold.
+  expected_fields:
+    running_variable: expected_recovery_amount
+    cutoff: 1000 (Level 0 covers 194-1000 inclusive; Level 1 starts at 1001, so treated = expected_recovery_amount
+      > 1000)
+    treatment: recovery_strategy Level 1 vs Level 0 (equivalently above/below the $1000 threshold)
+    outcome: actual_recovery_amount
+    confounders:
+    - age
+    - sex
+  expected_lane: regression_discontinuity
+  expected_disabled_lanes:
+  - lane: difference_in_differences
+    reason: no time dimension; single cross-section of debts
+  - lane: panel_event_study
+    reason: no panel structure or event dates
+  - lane: instrumental_variables
+    reason: no instrument separate from the assignment threshold; design is sharp, not fuzzy
+  - lane: naive_group_comparison
+    reason: expected recovery amount mechanically drives both strategy assignment and actual recovery;
+      raw above/below comparison is confounded
+  min_assertions:
+  - RDD lane is selected and running variable is identified as expected_recovery_amount with cutoff at/near
+    1000
+  - analysis restricts to a local window around 1000 (e.g. 900-1100 or the 0-2000 Level0/Level1 band),
+    not the full 194-9964 range spanning four thresholds
+  - estimated jump in actual_recovery_amount at the cutoff is positive and statistically significant;
+    magnitude roughly in the 150-400 dollar range (local linear in 900-1100 gives ~278, p<0.001)
+  - 'covariate smoothness is checked: age and sex show no significant discontinuity at 1000 (age jump
+    ~2.5, p~0.16 in the 900-1100 window)'
+  - 'assignment is recognized as deterministic (sharp): recovery_strategy is a step function of expected_recovery_amount
+    with breaks at 1000/2000/3000/5000'
+  notes: 'Verified by download and local-linear fit. Sharp assignment confirmed: Level 0 = 194-1000, Level
+    1 = 1001-1997, etc. Boundary convention matters: 1000 itself is untreated. Multiple higher thresholds
+    (2000/3000/5000) exist and can serve as bonus placebo/extra-cutoff checks. 894 downloads, 12 votes,
+    usability 1.0, no missing values. Also inspected jocelyndumlao/tripadvisor-rating-impact-on-hotel-popularity
+    (real rounding-discontinuity design, 4599 rows) but rejected it: multi-cutoff (rating rounded to nearest
+    0.5 across 8 thresholds), 272 columns, latin-1 encoding; requires bespoke running-variable centering
+    an automated lane should not be graded on.'
+- case_id: synthetic-scholarship-rdd
+  tier: primary
+  question_type: rdd
+  source:
+    kaggle_slug: synthetic
+    data_file: scholarship_rdd.csv (generated)
+    synthetic_eval_fixture: true
+    verified: true
+    n_rows: 2000
+    synthetic_recipe: 'numpy default_rng(seed=42), n=2000. score = round(Uniform(0,100), 2); elig = 1{score>=50}.
+      Sharp: d_sharp=elig; y_sharp = 20 + 0.3*score + 8.0*d_sharp + N(0,4). Fuzzy: takeup p = 0.90 if
+      elig else 0.15; d_fuzzy ~ Bernoulli(p); y_fuzzy = 20 + 0.3*score + 8.0*d_fuzzy + N(0,4), independent
+      noise draw. Round outcomes to 3dp. Ground truth: jump at cutoff = 8.0 for both variants (constant
+      effect, so LATE = ATE = 8.0); fuzzy ITT jump = 8.0 * 0.75 = 6.0. Validated with statsmodels local
+      linear (separate slopes) on |score-50|<=15: sharp 7.17 (se 0.65), fuzzy ITT 7.14, first stage 0.843,
+      Wald LATE 8.46.'
+  causal_question: 'Students scoring at least 50 on the entrance exam receive a scholarship. What is the
+    causal effect of the scholarship on the academic outcome at the eligibility cutoff? (Fuzzy variant:
+    eligibility only raises takeup from 15% to 90%; estimate the effect for compliers at the cutoff.)'
+  expected_fields:
+    running_variable: entrance_score
+    cutoff: '50'
+    treatment: scholarship_sharp (sharp) / scholarship_fuzzy (fuzzy)
+    instrument: 'eligible (fuzzy variant only: threshold crossing instruments takeup)'
+    outcome: gpa_outcome_sharp / gpa_outcome_fuzzy
+  expected_lane: regression_discontinuity
+  expected_disabled_lanes:
+  - lane: difference_in_differences
+    reason: no time dimension
+  - lane: naive_group_comparison
+    reason: outcome trends in entrance_score (slope 0.3), so above/below means without local control are
+      biased upward
+  min_assertions:
+  - RDD lane selected; running variable entrance_score and cutoff 50 identified
+  - 'sharp variant: local linear (or local poly) jump estimate within [6.0, 10.0] (true 8.0; seed-42 +/-15
+    window gives 7.17, se 0.65)'
+  - 'fuzzy variant: imperfect compliance detected (treated units below cutoff and untreated above); first-stage
+    discontinuity in [0.6, 0.95] (true 0.75)'
+  - 'fuzzy variant: LATE via ITT/first-stage (or 2SLS with eligible as instrument) within [6.0, 10.5]
+    (true 8.0; seed-42 gives 8.46)'
+  - global OLS of outcome on treatment alone is NOT reported as the causal estimate (it would absorb the
+    0.3*score trend and exceed ~20)
+  notes: 'No real Kaggle dataset with a fuzzy RDD design was found (''mlda'', ''drinking age'', ''scholarship
+    cutoff'', ''incumbency'' searches all came up empty; ''rdd'' on Kaggle means Road Damage Detection).
+    arlcord/student-performance-rdd-reading-to-math was downloaded and rejected: file acces_colombia.csv
+    has only department/saber11/cutoff/elig, no outcome column, so no effect question is answerable. This
+    fixture covers the fuzzy case the bank data cannot.'
+- case_id: card-proximity-iv
+  tier: primary
+  question_type: iv
+  source:
+    kaggle_slug: aloneintokyo11/college-proximity-schooling-and-wages-card-1995
+    data_file: card_schooling_wages.csv
+    synthetic_eval_fixture: false
+    verified: true
+    n_rows: 3010
+  causal_question: Does an additional year of education causally increase wages? Education is self-selected
+    and confounded by unobserved ability; use growing up near a 4-year college (nearc4) as an instrument
+    for years of education (educ) on log hourly wage (lwage).
+  expected_fields:
+    instrument: nearc4
+    treatment: educ
+    outcome: lwage
+    confounders:
+    - exper
+    - expersq
+    - black
+    - south
+    - smsa
+    - smsa66
+    - reg662
+    - reg663
+    - reg664
+    - reg665
+    - reg666
+    - reg667
+    - reg668
+    - reg669
+  expected_lane: instrumental_variables
+  expected_disabled_lanes:
+  - lane: regression_discontinuity
+    reason: no running variable with a cutoff
+  - lane: difference_in_differences
+    reason: single cross-section (1976), no time dimension
+  - lane: rct
+    reason: education is self-selected, not randomized
+  min_assertions:
+  - IV/2SLS lane is selected with nearc4 identified as the instrument (not as a confounder or treatment)
+  - 'first-stage strength is checked and reported; single-instrument F is in the 10-20 range (verified:
+    13.3), i.e. flagged as adequate but not overwhelming'
+  - '2SLS coefficient of educ on lwage is positive and larger than the OLS coefficient (verified: 2SLS
+    0.132 vs OLS 0.075)'
+  - 2SLS point estimate lies roughly in [0.08, 0.20] per year of schooling depending on control set
+  - exclusion restriction for nearc4 is discussed or probed (proximity may correlate with urban/regional
+    factors; smsa66/region dummies as controls)
+  - NaNs in fatheduc/motheduc/IQ/KWW do not derail the analysis (core IV columns are complete)
+  notes: 'Byte-identical to canonical Wooldridge card.csv; reproduces Card (1995) published estimates
+    exactly. Only Kaggle mirror is brand new (uploaded 2026-06-09, 1 download, 0 votes), so pin a copy
+    as a local fixture in case the slug disappears. nearc2 available as a second (weaker) instrument.
+    wage is in cents/hour; lwage already provided. CC0 license. Local copy: /tmp/kaggle-research/instrumental-variables/card1995/card_schooling_wages.csv'
+- case_id: cigarettes-iv
+  tier: secondary
+  question_type: iv
+  source:
+    kaggle_slug: deepikakoche/cigarette-consumption-panel-data
+    data_file: CigarettesSW.csv
+    synthetic_eval_fixture: false
+    verified: true
+    n_rows: 96
+  causal_question: What is the causal price elasticity of cigarette demand? Price is simultaneously determined
+    with demand; use the state sales tax (taxs, or derived salestax=(taxs-tax)/cpi) as an instrument for
+    price on per-capita packs, controlling for income.
+  expected_fields:
+    instrument: taxs (or derived salestax = (taxs - tax)/cpi)
+    treatment: price (log real price = log(price/cpi))
+    outcome: packs (log per-capita packs)
+    confounders:
+    - income (as real per-capita income = income/population/cpi)
+    time: year
+  expected_lane: instrumental_variables
+  expected_disabled_lanes:
+  - lane: regression_discontinuity
+    reason: no running variable with a cutoff
+  - lane: propensity_score_matching
+    reason: treatment (price) is continuous, no binary treatment groups
+  - lane: rct
+    reason: prices are market-determined, not randomized
+  min_assertions:
+  - IV lane is selected with a tax column as the instrument for price (not price as instrument)
+  - 'first-stage strength reported as strong (verified: derived salestax F=45 on 1995 cross-section; raw
+    taxs on raw price F=610)'
+  - estimated price effect on packs is negative (verified textbook 2SLS log-log elasticity about -1.14
+    on 1995 cross-section)
+  - simultaneity/endogeneity of price is the stated reason for needing an instrument
+  - small-n is acknowledged (96 rows total, 48 per year)
+  notes: 'Exact AER/Stock-Watson CigarettesSW data despite the low-profile slug (219 downloads, usability
+    0.24, license unknown). Stress-tests the bot: the textbook instrument is a DERIVED column (real sales
+    tax) and treatment/outcome need log+CPI transforms; raw taxs->price->packs still works. Panel structure
+    (48 states x 2 years) could tempt a DiD lane; IV is the canonical use. Local copy: /tmp/kaggle-research/instrumental-variables/cigarettes/CigarettesSW.csv'
+- case_id: synthetic-iv-late
+  tier: secondary
+  question_type: iv
+  source:
+    kaggle_slug: synthetic
+    data_file: synthetic_iv.csv (generated)
+    synthetic_eval_fixture: true
+    verified: false
+    n_rows: 5000
+    synthetic_recipe: 'seed=47, n=5000. U~N(0,1) latent. Compliance type: sample p_always=expit(-2.2+0.8*U),
+      p_never=expit(-2.2-0.8*U) per unit, type in {always,never,complier} (no defiers => monotonicity);
+      calibrated to ~60% compliers. Z~Bernoulli(0.5) independent of everything. X = 1 for always-takers,
+      0 for never-takers, Z for compliers. C1~N(0,1), C2~Bernoulli(0.4). Y = 2.0*X + 1.5*U + 0.8*C1 +
+      0.5*C2 + N(0,1). True LATE = ATE = 2.0 (constant effect). U drives both type (hence X) and Y, so
+      OLS of Y on X is biased upward; Wald = (E[Y|Z=1]-E[Y|Z=0]) / (E[X|Z=1]-E[X|Z=0]) recovers 2.0. Save
+      z,x,y,c1,c2 only (drop U, type).'
+  causal_question: An encouragement (z) was randomly assigned; uptake of the program (x) was voluntary.
+    What is the causal effect of the program on outcome y for those induced to take it up?
+  expected_fields:
+    instrument: z
+    treatment: x
+    outcome: y
+    confounders:
+    - c1
+    - c2
+  expected_lane: instrumental_variables
+  expected_disabled_lanes:
+  - lane: naive_ols
+    reason: unobserved U confounds x and y by construction; naive estimate is biased upward (~2.5 vs true
+      2.0)
+  min_assertions:
+  - IV/Wald or 2SLS estimate within [1.8, 2.2] (true LATE = ATE = 2.0 by constant-effect construction)
+  - first-stage compliance rate ~0.6 detected (F >> 100 at n=5000)
+  - naive difference-in-means / OLS estimate exceeds the IV estimate (upward confounding bias built in)
+- case_id: rossmann-competitor-its
+  tier: primary
+  question_type: time_series_intervention
+  source:
+    kaggle_slug: pratyushakar/rossmann-store-sales
+    data_file: train.csv (filter Store==905, Open==1; intervention date from store.csv)
+    synthetic_eval_fixture: false
+    verified: true
+    n_rows: 1017209
+  causal_question: A competing store opened 90 meters from Rossmann store 905 in June 2014. Using store
+    905's daily sales, estimate the causal impact of the competitor's opening on this store's sales.
+  expected_fields:
+    outcome: Sales
+    time: Date
+    event: competitor store opening (store.csv CompetitionOpenSinceMonth=6, CompetitionOpenSinceYear=2014
+      for Store 905)
+    cutoff: '2014-06-01'
+    group: Store == 905
+    confounders:
+    - Promo
+    - DayOfWeek
+    - SchoolHoliday
+    - StateHoliday
+    - Open
+  expected_lane: interrupted_time_series
+  expected_disabled_lanes:
+  - lane: iv
+    reason: no instrument; intervention is a calendar event, not unit-level assignment
+  - lane: rdd
+    reason: no running variable with a cutoff; time is the only axis
+  - lane: propensity_matching
+    reason: single treated unit observed over time; no cross-sectional treatment/control units at this
+      grain
+  - lane: mediation
+    reason: no mediator in the question
+  min_assertions:
+  - lane selected is interrupted time series / event-study on a time axis, not cross-sectional
+  - intervention date resolved to 2014-06-01 (month granularity from store.csv is acceptable)
+  - closed days (Open==0) excluded or explicitly modeled; open-day counts approx pre=427, post=352
+  - effect direction is negative (sales drop after competitor entry)
+  - 'estimated level shift between -15% and -40% of pre mean (point reference: pre mean ~9791, post mean
+    ~7001, shift ~-2790, -28.5%)'
+  - Promo and day-of-week seasonality controlled or explicitly acknowledged (promo share pre 0.433 vs
+    post 0.469)
+  notes: 'Well-known dataset (15.4k downloads). Real, documented intervention: store.csv records competitor
+    opening month per store. 57 stores have competition opening mid-sample at <2km; store 905 is the cleanest
+    (90m away, balanced pre/post, -28.5%). Backups: store 1086 (2013-11-01, -27.8%), store 983 (2014-03-01,
+    40m, -24.9%). Effect magnitude is observed, not constructed, so assertions are bands not exact values.
+    DiD/synthetic control with never-treated stores is a valid alternative lane, do not assert it disabled.
+    train.csv is 38MB unzipped (6.9MB zip); a pre-filtered store-905 CSV (942 rows) makes a lighter fixture
+    if eval runtime matters.'
+- case_id: website-visitors-its-step
+  tier: primary
+  question_type: time_series_intervention
+  source:
+    kaggle_slug: bobnau/daily-website-visitors
+    data_file: daily-website-visitors.csv (base); fixture = 2018-04-01..2020-03-31 window with injected
+      step
+    synthetic_eval_fixture: true
+    verified: true
+    n_rows: 2167
+    synthetic_recipe: 'Base: bobnau/daily-website-visitors, parse with pd.read_csv(..., thousands='',''),
+      parse Date. Keep balanced window 2018-04-01 <= Date < 2020-04-01 (365 pre / 366 post days around
+      cut 2019-04-01). Generate visits = round(Unique.Visits * step * noise) where step = 1.25 if Date
+      >= 2019-04-01 else 1.0, noise ~ Normal(1.0, 0.02) with np.random.default_rng(42). Ground truth:
+      exact +25% multiplicative level shift at 2019-04-01 by construction (real series is the counterfactual).
+      Verified: pre mean 3147, post mean 3866, naive ratio 1.187 (truth 1.25; gap is the real series''
+      0.951 organic drift, intentionally kept so naive before-after and proper ITS give distinguishable
+      answers). Drop or keep Page.Loads etc. as decoys; rename injected column to ''visits''.'
+  causal_question: The site shipped a redesign on 2019-04-01. Estimate the causal effect of the redesign
+    on daily unique visits.
+  expected_fields:
+    outcome: visits (synthetic column derived from Unique.Visits)
+    time: Date
+    event: site redesign (stipulated in question)
+    cutoff: '2019-04-01'
+    confounders:
+    - Day.Of.Week (strong weekly seasonality)
+  expected_lane: interrupted_time_series
+  expected_disabled_lanes:
+  - lane: did
+    reason: single univariate series, no control group exists in the fixture
+  - lane: iv
+    reason: no instrument
+  - lane: propensity_matching
+    reason: no unit-level treatment indicator; only a time cutoff
+  min_assertions:
+  - lane is interrupted time series with day-of-week seasonality handled
+  - intervention date 2019-04-01 used as the break
+  - estimated multiplicative level shift in [1.15, 1.35] (ground truth 1.25)
+  - effect direction positive and statistically significant
+  - a naive pre/post mean ratio (~1.19, biased low by -4.9% organic drift) is either corrected by trend
+    modeling or the bias is acknowledged
+  notes: 'Honesty: the REAL series has no documented intervention; the COVID-2020 window showed no clean
+    shift (Page.Loads +0.7% yoy), so a real-data ITS eval here would be asserting noise. The injected-step
+    fixture is the right design: exact ground truth, real seasonality/noise texture. Parsing gotcha: numeric
+    columns use comma thousands separators and load as object without thousands='',''.'
+- case_id: heart-failure-survival
+  tier: primary
+  question_type: survival
+  source:
+    kaggle_slug: andrewmvd/heart-failure-clinical-data
+    data_file: heart_failure_clinical_records_dataset.csv
+    synthetic_eval_fixture: false
+    verified: true
+    n_rows: 299
+  causal_question: Does having high blood pressure affect time to death in heart-failure patients?
+  expected_fields:
+    time: time
+    event: DEATH_EVENT
+    treatment: high_blood_pressure
+    confounders:
+    - age
+    - ejection_fraction
+    - serum_creatinine
+    - serum_sodium
+    - diabetes
+    - anaemia
+    - smoking
+    - sex
+  expected_lane: 'survival (right-censored time-to-event: Kaplan-Meier + Cox proportional hazards)'
+  expected_disabled_lanes:
+  - lane: linear_ate_on_event
+    reason: ignoring censoring via OLS/logit on DEATH_EVENT discards follow-up time; survival model required
+  - lane: did
+    reason: single cross-section, no pre/post periods
+  - lane: rdd
+    reason: no running variable/cutoff
+  - lane: iv
+    reason: no instrument available
+  min_assertions:
+  - time used as duration and DEATH_EVENT as the (1=event, 0=censored) indicator
+  - right-censoring handled (203 censored / 96 deaths) rather than dropped
+  - fits a Cox PH or Kaplan-Meier, not a plain logistic/OLS on the event flag
+  - reports a hazard ratio (or survival-curve contrast) for the treatment
+  - adjusts for clinical confounders (age, ejection_fraction, serum_creatinine)
+  notes: 'Canonical survival dataset (184k downloads, 2495 votes). Exact columns confirmed: time (int
+    days, 4-285) and DEATH_EVENT (96 ones / 203 zeros). Alt framing: ejection_fraction (continuous, 14-80)
+    as predictor of time-to-death. Small n=299 - eval should assert model choice & censoring handling,
+    not significance of weak covariates. No injected ground truth; observational.'
+- case_id: telco-tenure-survival
+  tier: secondary
+  question_type: survival
+  source:
+    kaggle_slug: blastchar/telco-customer-churn
+    data_file: WA_Fn-UseC_-Telco-Customer-Churn.csv
+    synthetic_eval_fixture: false
+    verified: true
+    n_rows: 7043
+  causal_question: How does contract type affect customer time-to-churn (tenure)?
+  expected_fields:
+    time: tenure
+    event: Churn
+    treatment: Contract
+    confounders:
+    - MonthlyCharges
+    - InternetService
+    - PaymentMethod
+    - SeniorCitizen
+    - OnlineSecurity
+    - TechSupport
+  expected_lane: survival (tenure as duration, Churn as event; Kaplan-Meier + Cox PH)
+  expected_disabled_lanes:
+  - lane: did
+    reason: cross-sectional, no period dimension
+  - lane: rdd
+    reason: no cutoff/running variable
+  - lane: iv
+    reason: no instrument
+  min_assertions:
+  - tenure mapped to duration and Churn (Yes=event, No=right-censored) to the event flag
+  - Churn=No rows treated as censored at their observed tenure, not as completed survival
+  - uses a survival estimator (KM/Cox), not logistic regression on Churn
+  - Month-to-month contracts show shorter time-to-churn / higher hazard than one/two-year
+  notes: 'Same file as entry 1, reused under a survival lens to test that the router recognizes tenure+Churn
+    as a time-to-event structure. Censoring is the key test: 5174 active customers are right-censored,
+    not survivors-to-infinity. Same TotalCharges blank-string gotcha. Secondary pick; heart-failure is
+    the cleaner survival fixture because it has an explicit follow-up time + event design.'
+- case_id: rossmann-before-after
+  tier: primary
+  question_type: before_after
+  source:
+    kaggle_slug: pratyushakar/rossmann-store-sales
+    data_file: train.csv (filter Store==905, Open==1)
+    synthetic_eval_fixture: false
+    verified: true
+    n_rows: 1017209
+  causal_question: Did average daily sales at store 905 change after 2014-06-01, when a competitor opened
+    nearby? Compare sales before and after that date.
+  expected_fields:
+    outcome: Sales
+    time: Date
+    cutoff: '2014-06-01'
+    group: Store == 905
+  expected_lane: before_after
+  expected_disabled_lanes:
+  - lane: iv
+    reason: no instrument
+  - lane: rdd
+    reason: no running variable; the date is an event boundary, not a score cutoff
+  - lane: did
+    reason: question as phrased provides no control group; if the system proposes other stores as controls
+      it should upgrade the lane explicitly, not silently
+  min_assertions:
+  - lane is plain pre/post comparison keyed on the 2014-06-01 cutoff
+  - pre-period mean ~9791 and post-period mean ~7001 on open days (tolerance +-5%)
+  - direction of change is negative
+  - output flags the limitation that before-after cannot separate the competitor effect from secular trend/seasonality
+    without a control
+  notes: Same physical data as entry 1; exists to test lane disambiguation between type 10 (model the
+    series) and type 12 (compare two means with caveats). The question wording omits trend language on
+    purpose.
+- case_id: hillstrom-hte
+  tier: primary
+  question_type: heterogeneous_effects
+  source:
+    kaggle_slug: bofulee/kevin-hillstrom-minethatdata-e-mailanalytics
+    data_file: Kevin_Hillstrom_MineThatData_E-MailAnalytics_DataMiningChallenge_2008.03.20.csv
+    synthetic_eval_fixture: false
+    verified: true
+    n_rows: 64000
+  causal_question: 'Which customer segments benefit most from the email campaign? Estimate the effect
+    of the email (segment: Mens E-Mail / Womens E-Mail vs No E-Mail) on site visits, and how it varies
+    by past purchase history (mens, womens), newbie status, and channel.'
+  expected_fields:
+    treatment: segment
+    outcome: visit
+    group: womens
+  expected_lane: randomized_experiment
+  expected_disabled_lanes:
+  - lane: iv
+    reason: no instrument; treatment is directly randomized
+  - lane: rdd
+    reason: no running variable or cutoff
+  - lane: did
+    reason: single cross-section, no pre/post time dimension
+  min_assertions:
+  - recognizes a 3-arm randomized experiment with No E-Mail as control (arms ~21.3k each, near-equal split
+    confirms randomization)
+  - Mens E-Mail effect on visit is positive and significant, in range +0.06 to +0.09 (point ~+0.077);
+    Womens E-Mail in range +0.03 to +0.06 (point ~+0.045)
+  - 'HTE: Womens E-Mail visit effect for womens-merchandise buyers (womens=1, ~+0.073) is at least 3x
+    the effect for non-buyers (womens=0, ~+0.011); gender purchase history identified as the dominant
+    effect modifier'
+  - treats recency/history/mens/womens/newbie/channel/zip_code as pre-treatment covariates usable for
+    CATE, and does not require adjustment for identification
+  - spend effect of Mens E-Mail vs control is positive (~+$0.77) and significant despite zero-inflated
+    outcome
+  notes: 'Canonical uplift/HTE benchmark; e2e suite in this repo already uses it (Hillstrom ATE~$0.02
+    on spend). Download counts low on this mirror (506) but the dataset itself is famous. davinwijaya/customer-retention
+    (6,364 downloads) is the SAME data relabeled: segment->offer (BOGO/Discount/No Offer), visit->conversion,
+    mens->used_discount, womens->used_bogo, newbie->is_referral; verified identical marginals; do not
+    use both.'
+- case_id: telco-churn-drivers
+  tier: primary
+  question_type: driver_analysis
+  source:
+    kaggle_slug: blastchar/telco-customer-churn
+    data_file: WA_Fn-UseC_-Telco-Customer-Churn.csv
+    synthetic_eval_fixture: false
+    verified: true
+    n_rows: 7043
+  causal_question: What factors appear to drive customer churn?
+  expected_fields:
+    outcome: Churn
+    confounders:
+    - Contract
+    - tenure
+    - MonthlyCharges
+    - InternetService
+    - PaymentMethod
+    - OnlineSecurity
+    - TechSupport
+    - SeniorCitizen
+  expected_lane: 'driver_analysis (associational/exploratory: rank candidate drivers, no single designated
+    treatment)'
+  expected_disabled_lanes:
+  - lane: did
+    reason: no time-period treatment switch; cross-sectional snapshot
+  - lane: rdd
+    reason: no running variable with a policy cutoff
+  - lane: iv
+    reason: no instrument; open-ended question names no treatment
+  - lane: single_treatment_ate
+    reason: question is open-ended (no designated treatment), so a single-treatment ATE estimator should
+      not be the primary lane
+  min_assertions:
+  - output ranks/scores multiple candidate drivers rather than reporting one ATE
+  - Contract (Month-to-month) surfaces as a top churn-associated factor
+  - short tenure is associated with higher churn
+  - report frames findings as associational, not a single identified causal effect
+  - no DiD/RDD/IV lane is selected
+  notes: 'Well-known (556k downloads, 3696 votes). Clean for driver analysis. Gotcha: TotalCharges is
+    object dtype with 11 blank strings (the tenure=0 rows) - needs coercion to numeric. Churn 1869 Yes
+    / 5174 No. No ground-truth causal effect (observational), so eval must assert structure/direction,
+    not magnitudes.'
+- case_id: hillstrom-null-subgroup
+  tier: primary
+  question_type: no_effect
+  source:
+    kaggle_slug: bofulee/kevin-hillstrom-minethatdata-e-mailanalytics
+    data_file: hillstrom_null_womens_email_mens_buyers.csv (derived; recipe below)
+    synthetic_eval_fixture: true
+    verified: true
+    n_rows: 19260
+    synthetic_recipe: 'Deterministic filter of the verified Hillstrom CSV, no simulation: load Kevin_Hillstrom_MineThatData_E-MailAnalytics_DataMiningChallenge_2008.03.20.csv;
+      keep rows where mens==1 & womens==0 & segment in {''Womens E-Mail'',''No E-Mail''} (n=19,260: 9,622
+      treated / 9,638 control); add received_email = (segment==''Womens E-Mail'').astype(int); drop segment,
+      mens, womens columns (constant/leaky); save CSV. Ground truth computed on the real data: ATE on
+      conversion = +0.00063 (Welch t=0.58, p=0.564), ATE on spend = +$0.28 (p=0.175), while visit shows
+      a small real +0.011 effect (p=0.012), so ''conversion'' is the null target.'
+  causal_question: We sent a womens-merchandise email campaign to customers who have only ever bought
+    mens merchandise. Did it increase their purchase (conversion) rate?
+  expected_fields:
+    treatment: received_email
+    outcome: conversion
+  expected_lane: randomized_experiment
+  expected_disabled_lanes:
+  - lane: iv
+    reason: no instrument; randomized
+  - lane: rdd
+    reason: no running variable
+  - lane: did
+    reason: no time dimension
+  min_assertions:
+  - 'concludes no statistically significant effect on conversion: point estimate within [-0.003, +0.004]
+    (ground truth +0.00063, p=0.56), 95% CI includes 0'
+  - explicitly reports a null/no-effect finding rather than spinning a positive claim or silently dropping
+    the question
+  - does not p-hack by switching to a different outcome or subgroup to manufacture significance (spend
+    diff +$0.28 is also non-significant, p=0.175)
+  - still identifies the design as a randomized experiment (arms 9,622 treated vs 9,638 control)
+- case_id: student-por-mechanism
+  tier: primary
+  question_type: mechanism_search
+  source:
+    kaggle_slug: larsen0966/student-performance-data-set
+    data_file: student-por.csv
+    synthetic_eval_fixture: false
+    verified: true
+    n_rows: 649
+  causal_question: Through which pathway does study time raise final grades (G3)? Does early-period performance
+    (G1/G2) carry the effect, or is there a residual direct effect after controlling for it?
+  expected_fields:
+    treatment: studytime
+    mediator: G2 (period-2 grade; G1 alternative)
+    outcome: G3
+    confounders:
+    - failures
+    - Medu
+    - Fedu
+    - schoolsup
+    - absences
+  expected_lane: mediation
+  expected_disabled_lanes:
+  - lane: instrumental_variable
+    reason: No credible instrument for studytime; behavioral covariates affect grades directly.
+  - lane: regression_discontinuity
+    reason: No running variable / cutoff design in the data.
+  min_assertions:
+  - System identifies the period grades (G1/G2) as candidate mediators on the studytime/failures -> G3
+    pathway, exploiting the real temporal ordering G1 -> G2 -> G3
+  - Reports that controlling for G2 substantially attenuates the studytime->G3 association (large indirect
+    component), with sign of the indirect effect positive
+  - 'Decomposition is structurally coherent: total = direct + indirect, and the system flags that G2 is
+    an earlier measurement of the same construct (mediator-as-proxy caveat)'
+  - No assertion on exact direct/indirect magnitudes (no ground truth in observational data)
+  notes: 'Verified via pandas: 649 rows, 33 cols. Real, credible temporal ordering (G1 first period, G2
+    second, G3 final). Corr studytime-G1=0.26, G1-G3=0.83, G2-G3=0.92. Good for MECHANISM SEARCH (which
+    path carries the effect) and structural mediation tests, but G1/G2 are highly collinear proxies of
+    the outcome (0.86-0.92), so any ''indirect'' estimate lacks ground truth -> structural-only assertions.
+    Use the synthetic fixture when exact decomposition recovery must be scored.'
