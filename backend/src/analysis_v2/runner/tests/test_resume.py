@@ -156,7 +156,7 @@ async def test_confirm_with_the_cutoff_records_s6_and_relaunches(storage_dir, mo
     jump = next(e for e in run.estimate_result.effects if e.estimand == "itt_jump")
     assert abs(jump.estimate - 8.0) < 2.0
     # then stopped honestly at the next frontier (S8)
-    assert "s8_diagnostics_sensitivity_complete" in (run.error_message or "")
+    assert "s9_claim_critiqued" in (run.error_message or "")
 
 
 async def test_reject_fails_the_run_with_the_reason(storage_dir):
