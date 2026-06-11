@@ -4,7 +4,9 @@ The PICKUP contract: the data lives at the manifest winner's normalized
 parquet under the job data dir. state.dataframe_path is never set by the
 input slice, so the manifest is the source of truth; raw CSV is the
 fallback for pre-normalization bundles. Human-confirmed ignored_columns
-are dropped here, once, so every agent sees the same frame.
+are dropped here, once, so every agent sees the same frame. Boolean
+columns are coerced to numeric here for the same reason: one seam, every
+lane gets a matrix estimators can consume.
 """
 from __future__ import annotations
 
@@ -46,4 +48,19 @@ def load_analysis_frame(state: AnalysisState) -> pd.DataFrame:
     ignored = [c for c in state.ignored_columns if c in frame.columns]
     if ignored:
         frame = frame.drop(columns=ignored)
+    return coerce_bool_columns(frame)
+
+
+def coerce_bool_columns(frame: pd.DataFrame) -> pd.DataFrame:
+    """Cast bool columns to numeric; shared with the generated notebook.
+
+    np.asarray on a frame mixing bool and float columns yields dtype=object,
+    which statsmodels and sklearn reject; treatment flags often arrive as
+    True/False in CSVs.
+    """
+    for col in frame.columns:
+        if pd.api.types.is_bool_dtype(frame[col]):
+            frame[col] = frame[col].astype(
+                "float64" if frame[col].isna().any() else "int8"
+            )
     return frame

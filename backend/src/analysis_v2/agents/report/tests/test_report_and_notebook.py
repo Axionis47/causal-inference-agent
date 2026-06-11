@@ -100,3 +100,42 @@ def test_notebook_has_all_sections_and_placeholders_for_missing_artifacts():
     code = "\n".join(c.source for c in notebook.cells if c.cell_type == "code")
     assert "LANES[MethodLane(plan['lane'])]" in code  # the verification cell
     assert "assert abs(fresh - stored)" in code
+
+
+def test_notebook_load_cell_coerces_bool_columns_like_the_pipeline_loader(
+    tmp_path, monkeypatch
+):
+    import json
+    from pathlib import Path
+
+    import numpy as np
+    import pandas as pd
+
+    backend_dir = Path.cwd()
+    pd.DataFrame(
+        {"treatment": [True, False, True], "y_factual": [5.6, 6.9, 4.8]}
+    ).to_parquet(tmp_path / "data.parquet", index=False)
+    (tmp_path / "notebook").mkdir()
+    (tmp_path / "notebook" / "notebook_config.json").write_text(
+        json.dumps(
+            {
+                "backend_dir": str(backend_dir),
+                "dataset_path": str(tmp_path / "data.parquet"),
+                "ignored_columns": [],
+            }
+        )
+    )
+
+    notebook = build_notebook(_run_state())
+    load_cell = next(
+        c.source
+        for c in notebook.cells
+        if c.cell_type == "code" and "dataset_path" in c.source
+    )
+    monkeypatch.chdir(tmp_path)
+    namespace: dict = {}
+    exec(load_cell, namespace)
+
+    df = namespace["df"]
+    assert df["treatment"].dtype.kind in "iu"
+    assert np.asarray(df).dtype != object
