@@ -28,6 +28,10 @@ const EXACT: Record<string, DirectoryEntry> = {
   'profiling/missingness': { description: 'Missing share by column.' },
   'profiling/numeric_distributions': { description: 'Histograms of the numeric columns.' },
   'profiling/summary': { description: 'Narrative profile summary.' },
+  // s2a investigator
+  'investigator/dossier': { description: 'Provenance, the role of every column with its reason, and the context ledger.' },
+  'investigator/transcript': { description: 'Every tool call and observation from the investigation, in order.' },
+  'investigator/summary': { description: 'The investigator narrative summary.' },
   // s3 design detection
   'design/candidates': { description: 'Candidate designs with confidence and rationale.' },
   'design/tool_eligibility': { description: 'Which method lanes are enabled, conditional, or disabled, and why.' },
