@@ -19,7 +19,6 @@ function renderTopBar(tokens: number | null) {
     <MemoryRouter>
       <TopBar
         job={job}
-        agentTones={{}}
         elapsed="00:01:00"
         tokens={tokens}
         isPreview={false}

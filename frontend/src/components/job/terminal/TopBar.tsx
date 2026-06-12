@@ -1,16 +1,13 @@
-// Top bar: back link + job id + orchestrator mode (left), phase strip (middle),
+// Top bar: back link + job id + orchestrator mode (left),
 // status + elapsed + tokens + cancel (right).
 
 import { Link } from 'react-router-dom';
 import type { JobDetail } from '../../../services/api';
-import type { AgentStatusMap } from './agents';
 import { StatusDot } from './atoms';
-import { PhaseStrip } from './PhaseStrip';
 import { statusTone, statusPillLabel } from './format';
 
 export interface TopBarProps {
   job: JobDetail;
-  agentTones: AgentStatusMap;
   elapsed: string;
   /** Total tokens (input + output) summed across traces; null while unknown. */
   tokens: number | null;
@@ -19,7 +16,7 @@ export interface TopBarProps {
   cancelPending: boolean;
 }
 
-export function TopBar({ job, agentTones, elapsed, tokens, isPreview, onCancel, cancelPending }: TopBarProps) {
+export function TopBar({ job, elapsed, tokens, isPreview, onCancel, cancelPending }: TopBarProps) {
   const canCancel = !isPreview && job.status !== 'completed' && job.status !== 'failed';
 
   return (
@@ -39,7 +36,7 @@ export function TopBar({ job, agentTones, elapsed, tokens, isPreview, onCancel, 
         </span>
       </div>
 
-      <PhaseStrip tones={agentTones} />
+      <div className="flex-1" />
 
       <div className="flex items-center gap-4 text-xs font-mono tabular shrink-0">
         <span className="inline-flex items-center gap-1.5">

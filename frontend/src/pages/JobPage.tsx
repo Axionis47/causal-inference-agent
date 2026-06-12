@@ -311,7 +311,6 @@ export default function JobPage() {
     <div className="terminal flex flex-col h-screen w-screen overflow-hidden bg-canvas text-ink">
       <TopBar
         job={job}
-        agentTones={view.agentTones}
         elapsed={view.elapsed}
         tokens={isPreview ? null : tokens}
         isPreview={isPreview}
