@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -152,6 +153,32 @@ async def test_survival_km_crossing_check_runs_on_heart_failure(data_dir):
     km = run.diagnostics_result.check("km_crossing")
     assert km is not None
     assert km.status in (CheckStatus.PASS, CheckStatus.WARNING)
+
+
+async def test_a_true_null_is_no_clear_effect_not_a_broken_design(data_dir):
+    """The e-value explain-away logic does not apply when the CI spans
+    zero; before this rule every honest null failed as NOT_SUPPORTED."""
+    rng = np.random.default_rng(5)
+    n = 4000
+    frame = pd.DataFrame(
+        {
+            "t": rng.binomial(1, 0.5, n),
+            "y": np.round(rng.normal(10, 2, n), 4),  # independent of t
+            "c": np.round(rng.normal(0, 1, n), 4),
+        }
+    )
+    plan = MethodPlan(
+        lane=MethodLane.OBSERVATIONAL, estimator="regression_adjustment",
+        estimand="ate", outcome="y", treatment="t", covariates=["c"],
+        settings={"include_ipw": False},
+    )
+    result, run = await _run_stage(frame, plan, QuestionType.NO_EFFECT)
+
+    assert result.gate.status == GateStatus.ADVANCE
+    ev = next(c for c in run.sensitivity_result.checks if c.name == "e_value")
+    assert ev.status == CheckStatus.NOT_APPLICABLE
+    assert "spans zero" in ev.detail
+    assert run.sensitivity_result.robustness != RobustnessStatus.NOT_SUPPORTED
 
 
 async def test_a_fragile_estimate_advances_instead_of_rerunning(data_dir):

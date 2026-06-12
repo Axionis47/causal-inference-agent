@@ -60,6 +60,18 @@ def evalue(result: EstimateResult, frame: pd.DataFrame) -> DiagnosticCheck:
     """VanderWeele E-value via the standardized-effect approximation."""
     primary = result.primary
     outcome = result.outcome
+    if (
+        primary.ci_lower is not None
+        and primary.ci_upper is not None
+        and primary.ci_lower <= 0 <= primary.ci_upper
+    ):
+        # a null finding has no nonzero estimate to explain away; failing it
+        # here would misreport every true null as a broken design
+        return _check(
+            "e_value", CheckStatus.NOT_APPLICABLE,
+            "the interval spans zero, so there is no effect to explain away; "
+            "note confounding could mask a true effect rather than create one",
+        )
     if outcome not in frame.columns:
         return _check("e_value", CheckStatus.NOT_APPLICABLE, "outcome column unavailable")
     sd = float(pd.to_numeric(frame[outcome], errors="coerce").std())
