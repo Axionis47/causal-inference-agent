@@ -41,4 +41,11 @@ describe('RunAnalysisBar', () => {
     fireEvent.click(screen.getByRole('button', { name: /view data/i }));
     expect(onOpenData).toHaveBeenCalledTimes(1);
   });
+
+  it('retry variant relaunches a failed run through the same endpoint', async () => {
+    render(wrap(<RunAnalysisBar jobId="t" retry />));
+    expect(screen.getByText(/analysis failed/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /retry analysis/i }));
+    await waitFor(() => expect(runAnalysis).toHaveBeenCalledWith('t'));
+  });
 });

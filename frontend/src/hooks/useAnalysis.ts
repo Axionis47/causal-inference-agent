@@ -2,9 +2,11 @@
  * useAnalysis — hydrate the analysis view for a job.
  *
  * The query is enabled only once the job is in (or past) the analysis slice
- * (running_analysis | waiting_for_user | completed), or after the view has
- * been seen once (so it survives a later status flip to failed/cancelled).
- * A 404 means no analysis run exists yet and resolves to null, not an error.
+ * (running_analysis | waiting_for_user | completed | failed), or after the
+ * view has been seen once (so it survives a status flip to cancelled).
+ * A 404 means no analysis run exists yet and resolves to null, not an error;
+ * for failed jobs that distinguishes an analysis failure (retryable) from an
+ * input-slice failure (not retryable, no run ever existed).
  *
  * SSE analysis_* events invalidate ['analysis', jobId] (see useJob), so the
  * 5s poll while running is only the fallback when the stream drops.
@@ -19,7 +21,12 @@ import {
 } from '../services/api';
 import { ANALYSIS_POLL_INTERVAL_MS } from '../config/constants';
 
-const ANALYSIS_JOB_STATUSES = ['running_analysis', 'waiting_for_user', 'completed'];
+const ANALYSIS_JOB_STATUSES = [
+  'running_analysis',
+  'waiting_for_user',
+  'completed',
+  'failed',
+];
 
 export function useAnalysis(
   jobId: string | null,

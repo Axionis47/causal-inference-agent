@@ -404,6 +404,16 @@ export default function JobPage() {
         <RunAnalysisBar jobId={job.id} onOpenData={() => setShowDataset(true)} />
       )}
 
+      {/* A failed run whose analysis view exists got past the data gate, so the
+          confirmed dataset is still on disk and the run can be retried. */}
+      {!isPreview && job.status === 'failed' && analysis !== null && (
+        <RunAnalysisBar
+          jobId={job.id}
+          retry
+          onOpenData={() => setShowDataset(true)}
+        />
+      )}
+
       {!isPreview && showResults && (
         <ResultsView jobId={job.id} onClose={() => setShowResults(false)} />
       )}
