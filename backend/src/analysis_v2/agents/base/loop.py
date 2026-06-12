@@ -13,8 +13,9 @@ from __future__ import annotations
 import inspect
 import json
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any
 
 from src.analysis_v2.core import TokenUsage, ToolCallRecord
 from src.analysis_v2.persistence import save_run

@@ -7,7 +7,7 @@ import pytest
 from src.analysis_v2.agents.base import AgentCtx
 from src.analysis_v2.agents.investigator import InvestigatorAgent
 from src.analysis_v2.agents.profiling.tools import build_profile_summary
-from src.analysis_v2.core import AnalysisRunState, AgentRun, AnalysisStage, GateStatus
+from src.analysis_v2.core import AgentRun, AnalysisRunState, AnalysisStage, GateStatus
 from src.analysis_v2.spec import (
     CausalSpec,
     DatasetDossier,

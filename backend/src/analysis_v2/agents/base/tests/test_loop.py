@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 
 from src.analysis_v2.agents.base import AgentCtx, LoopTool, react_loop
-from src.analysis_v2.core import AnalysisRunState, AgentRun, AnalysisStage
+from src.analysis_v2.core import AgentRun, AnalysisRunState, AnalysisStage
 
 
 class FakeLLM:
