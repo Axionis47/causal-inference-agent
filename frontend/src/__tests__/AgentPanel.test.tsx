@@ -82,13 +82,13 @@ describe('AgentPanel', () => {
     expect(img.getAttribute('src')).toContain(
       '/jobs/job-1/analysis/artifacts/eda/covariate_balance_plot',
     );
-    const open = screen.getByRole('link', { name: 'open' });
-    expect(open.getAttribute('target')).toBe('_blank');
+    const raw = screen.getByRole('link', { name: 'raw' });
+    expect(raw.getAttribute('target')).toBe('_blank');
   });
 
   it('renders no artifact section when the agent has emitted nothing', () => {
     renderPanel(base, []);
-    expect(screen.queryByRole('link', { name: 'open' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'raw' })).toBeNull();
   });
 
   it('renders the tokens, cost, elapsed, and tools footer values', () => {
