@@ -44,6 +44,13 @@ def run(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> LaneOutcome:
     if plan.treatment is None and not plan.settings.get("factors"):
         raise LaneInputError(f"{lane}: no treatment and no factors to regress on")
 
+    # effect-modification questions carry a moderator; the interaction
+    # model owns that path end to end
+    if plan.treatment is not None and plan.settings.get("moderator"):
+        from .effect_modification import run_interaction
+
+        return run_interaction(frame, plan, spec)
+
     warnings: list[str] = []
     if plan.treatment is not None:
         columns = [plan.outcome, plan.treatment, *plan.covariates]
