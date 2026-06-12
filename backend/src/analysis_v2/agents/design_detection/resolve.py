@@ -36,6 +36,23 @@ def resolve_spec(spec: CausalSpec, profile: ProfileSummary) -> tuple[CausalSpec,
         )
         notes.append(f"time_column: promoted sole profile candidate '{column}'")
 
+    # Survival questions: time-to-event IS the outcome. A live intake that
+    # resolved duration+event reasonably leaves outcome null; promoting it
+    # here keeps the plan gate from failing a well-specified question.
+    outcome_unresolved = refined.outcome is None or not refined.outcome.resolved
+    if (
+        outcome_unresolved
+        and refined.duration_column is not None
+        and refined.duration_column.resolved
+        and refined.event_column is not None
+        and refined.event_column.resolved
+    ):
+        refined.outcome = VariableRef(column=refined.duration_column.column)
+        notes.append(
+            f"outcome: promoted duration column '{refined.duration_column.column}' "
+            "(time-to-event is the outcome of a survival question)"
+        )
+
     # Correct the continuity flag from observed data, not the model's guess.
     if refined.treatment.resolved:
         col = profile.column(refined.treatment.column)

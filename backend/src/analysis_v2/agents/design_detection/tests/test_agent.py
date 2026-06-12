@@ -154,3 +154,25 @@ async def test_missing_upstream_slots_fail_the_gate(data_dir):
     ctx = AgentCtx(job_id="job-design", run=run, frame=pd.DataFrame({"a": [1]}))
     result = await DesignDetectionAgent().execute(ctx)
     assert result.gate.status == GateStatus.FAIL
+
+
+async def test_survival_question_promotes_duration_as_the_outcome(data_dir):
+    """Live intake reasonably leaves outcome null when duration+event are
+    resolved; the refinement must promote it or the plan gate fails a
+    well-specified survival question."""
+    spec = CausalSpec(
+        question_type=QuestionType.SURVIVAL,
+        treatment=VariableRef(column="high_blood_pressure"),
+        duration_column=VariableRef(column="time"),
+        event_column=VariableRef(column="DEATH_EVENT"),
+    )
+    frame = pd.read_csv(DATA / "heart_failure.csv")
+    result, run = await _run(spec, frame)
+
+    assert result.gate.status == GateStatus.ADVANCE
+    refined = run.causal_spec
+    assert refined.outcome is not None and refined.outcome.column == "time"
+    survival = next(
+        c for c in run.design_candidates if c.lane == MethodLane.SURVIVAL
+    )
+    assert survival is not None
