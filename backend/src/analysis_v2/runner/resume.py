@@ -175,5 +175,5 @@ def _apply_edits(run, edits: dict[str, str]) -> dict[str, str]:
     run.tool_eligibility = eligibility
     run.design_candidates = candidates
     run.selected_design = chosen
-    run.method_plan = build_method_plan(refined, chosen)
+    run.method_plan = build_method_plan(refined, chosen, run.dataset_dossier)
     return applied

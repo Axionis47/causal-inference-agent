@@ -62,7 +62,11 @@ class PlanCriticAgent(AnalysisAgent):
         primary = candidates[0]
         # The plan freezes a concrete outcome; with candidates still open it
         # is derived at S6 from the user's answer instead.
-        plan = build_method_plan(spec, primary) if spec.outcome.resolved else None
+        plan = (
+            build_method_plan(spec, primary, run.dataset_dossier)
+            if spec.outcome.resolved
+            else None
+        )
         items = confirmation_items(spec, candidates, run.tool_eligibility)
         reasons = needs_confirmation_reasons(spec, candidates)
 
