@@ -311,16 +311,19 @@ class ClaudeClient:
         response_schema: type[T],
         system_instruction: str | None = None,
     ) -> T:
-        """Generate structured output matching a Pydantic schema.
+        """Generate structured output matching a Pydantic schema."""
+        model, _ = await self.generate_structured_with_usage(
+            prompt, response_schema, system_instruction
+        )
+        return model
 
-        Args:
-            prompt: The user prompt
-            response_schema: Pydantic model class for the response
-            system_instruction: Optional system instruction
-
-        Returns:
-            Parsed response matching the schema
-        """
+    async def generate_structured_with_usage(
+        self,
+        prompt: str,
+        response_schema: type[T],
+        system_instruction: str | None = None,
+    ) -> tuple[T, dict[str, int]]:
+        """Structured output plus the call's token usage."""
         # Add JSON formatting instruction
         schema_json = json.dumps(response_schema.model_json_schema(), indent=2)
         structured_prompt = f"""{prompt}
@@ -342,18 +345,90 @@ Output only the JSON, no other text."""
             if block.get("type") == "text":
                 response_text += block.get("text", "")
 
-        response_text = response_text.strip()
+        from .parsing import strip_fences
 
-        # Handle markdown code blocks
-        if response_text.startswith("```json"):
-            response_text = response_text[7:]
-        if response_text.startswith("```"):
-            response_text = response_text[3:]
-        if response_text.endswith("```"):
-            response_text = response_text[:-3]
+        parsed = json.loads(strip_fences(response_text))
+        usage = result.get("_token_usage", {"input_tokens": 0, "output_tokens": 0})
+        return response_schema.model_validate(parsed), usage
 
-        parsed = json.loads(response_text.strip())
-        return response_schema.model_validate(parsed)
+    async def generate_text_with_usage(
+        self, prompt: str, system_instruction: str | None = None
+    ) -> tuple[str, dict[str, int]]:
+        """Plain text plus the call's token usage."""
+        result = await self.generate(prompt=prompt, system_instruction=system_instruction)
+        content = result.get("content", [])
+        text = "".join(b.get("text", "") for b in content if b.get("type") == "text")
+        usage = result.get("_token_usage", {"input_tokens": 0, "output_tokens": 0})
+        return text, usage
+
+    def user_message(self, text: str) -> dict[str, Any]:
+        return {"role": "user", "content": text}
+
+    def tool_result_message(self, call: dict[str, Any], output: str) -> dict[str, Any]:
+        return {
+            "role": "user",
+            "content": [
+                {
+                    "type": "tool_result",
+                    "tool_use_id": call.get("id"),
+                    "content": output[:8000],
+                }
+            ],
+        }
+
+    async def chat_with_tools(
+        self,
+        messages: list[Any],
+        system_instruction: str | None,
+        tools: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        """One model turn over a running tool conversation.
+
+        Returns {"text", "tool_calls": [{"id","name","args"}],
+        "assistant_message", "usage"}; the caller executes the tools and
+        appends assistant_message plus tool_result_message()s.
+        """
+        self._check_circuit_breaker()
+        headers = {
+            "Content-Type": "application/json",
+            "x-api-key": self.api_key,
+            "anthropic-version": "2023-06-01",
+        }
+        payload: dict[str, Any] = {
+            "model": self.model_name,
+            "max_tokens": self.max_tokens,
+            "temperature": self.temperature,
+            "messages": messages,
+            "tools": [self._convert_tool(t) for t in tools],
+        }
+        if system_instruction:
+            payload["system"] = system_instruction
+        try:
+            response = await self._client.post(self.API_URL, headers=headers, json=payload)
+            response.raise_for_status()
+            result = response.json()
+            await self._record_success()
+        except Exception:
+            await self._record_failure()
+            raise
+
+        usage_raw = result.get("usage", {})
+        content = result.get("content", [])
+        text = "".join(b.get("text", "") for b in content if b.get("type") == "text")
+        calls = [
+            {"id": b.get("id"), "name": b.get("name"), "args": b.get("input", {})}
+            for b in content
+            if b.get("type") == "tool_use"
+        ]
+        return {
+            "text": text or None,
+            "tool_calls": calls,
+            "assistant_message": {"role": "assistant", "content": content},
+            "usage": {
+                "input_tokens": usage_raw.get("input_tokens", 0),
+                "output_tokens": usage_raw.get("output_tokens", 0),
+            },
+        }
 
     async def close(self) -> None:
         """Close the underlying httpx client to release connections."""

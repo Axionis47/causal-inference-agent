@@ -37,6 +37,17 @@ def _init_vertexai() -> None:
     _vertexai_initialized = True
 
 
+def _usage_of(response: Any) -> dict[str, int]:
+    """Token usage from an SDK response; zeros when the field is absent."""
+    meta = getattr(response, "usage_metadata", None)
+    if meta is None:
+        return {"input_tokens": 0, "output_tokens": 0}
+    return {
+        "input_tokens": int(getattr(meta, "prompt_token_count", 0) or 0),
+        "output_tokens": int(getattr(meta, "candidates_token_count", 0) or 0),
+    }
+
+
 class VertexAIClient:
     """Client for interacting with Google Vertex AI Gemini models."""
 
@@ -276,17 +287,21 @@ class VertexAIClient:
         response_schema: type[T],
         system_instruction: str | None = None,
     ) -> T:
-        """Generate structured output matching a Pydantic schema.
+        """Generate structured output matching a Pydantic schema."""
+        model, _ = await self.generate_structured_with_usage(
+            prompt, response_schema, system_instruction
+        )
+        return model
 
-        Args:
-            prompt: The user prompt
-            response_schema: Pydantic model class for the response
-            system_instruction: Optional system instruction
+    async def generate_structured_with_usage(
+        self,
+        prompt: str,
+        response_schema: type[T],
+        system_instruction: str | None = None,
+    ) -> tuple[T, dict[str, int]]:
+        """Structured output plus the call's token usage."""
+        from .parsing import strip_fences
 
-        Returns:
-            Parsed response matching the schema
-        """
-        # Add JSON formatting instruction
         schema_json = json.dumps(response_schema.model_json_schema(), indent=2)
         structured_prompt = f"""{prompt}
 
@@ -299,20 +314,95 @@ Output only the JSON, no other text."""
             prompt=structured_prompt,
             system_instruction=system_instruction,
         )
+        parsed = json.loads(strip_fences(response.text))
+        return response_schema.model_validate(parsed), _usage_of(response)
 
-        # Parse JSON from response
-        response_text = response.text.strip()
+    async def generate_text_with_usage(
+        self, prompt: str, system_instruction: str | None = None
+    ) -> tuple[str, dict[str, int]]:
+        """Plain text plus the call's token usage."""
+        response = await self.generate(prompt=prompt, system_instruction=system_instruction)
+        return response.text, _usage_of(response)
 
-        # Handle markdown code blocks
-        if response_text.startswith("```json"):
-            response_text = response_text[7:]
-        if response_text.startswith("```"):
-            response_text = response_text[3:]
-        if response_text.endswith("```"):
-            response_text = response_text[:-3]
+    def user_message(self, text: str) -> Any:
+        from vertexai.generative_models import Content, Part
 
-        parsed = json.loads(response_text.strip())
-        return response_schema.model_validate(parsed)
+        return Content(role="user", parts=[Part.from_text(text)])
+
+    def tool_result_message(self, call: dict[str, Any], output: str) -> Any:
+        from vertexai.generative_models import Content, Part
+
+        return Content(
+            role="user",
+            parts=[
+                Part.from_function_response(
+                    name=call["name"], response={"result": output[:8000]}
+                )
+            ],
+        )
+
+    async def chat_with_tools(
+        self,
+        messages: list[Any],
+        system_instruction: str | None,
+        tools: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        """One model turn over a running tool conversation.
+
+        Native multi-declaration tools (no execute_action packing); the
+        caller executes tool calls and appends assistant_message plus
+        tool_result_message()s.
+        """
+        from vertexai.generative_models import (
+            FunctionDeclaration,
+            GenerationConfig,
+            GenerativeModel,
+            Tool,
+        )
+
+        from src.llm.schema_sanitize import sanitize_vertex_schema
+
+        model = self.model
+        if system_instruction:
+            model = GenerativeModel(
+                model_name=self.model_name,
+                generation_config=GenerationConfig(
+                    temperature=self.temperature,
+                    max_output_tokens=self.max_tokens,
+                ),
+                system_instruction=system_instruction,
+            )
+        declarations = [
+            FunctionDeclaration(
+                name=t["name"],
+                description=t.get("description", ""),
+                parameters=sanitize_vertex_schema(t.get("parameters", {"type": "object"})),
+            )
+            for t in tools
+        ]
+        response = await model.generate_content_async(
+            messages, tools=[Tool(function_declarations=declarations)]
+        )
+
+        text_parts: list[str] = []
+        calls: list[dict[str, Any]] = []
+        candidate = response.candidates[0] if response.candidates else None
+        if candidate is not None and candidate.content and candidate.content.parts:
+            for part in candidate.content.parts:
+                fc = getattr(part, "function_call", None)
+                if fc is not None and getattr(fc, "name", ""):
+                    calls.append({"id": None, "name": fc.name, "args": dict(fc.args)})
+                    continue
+                try:
+                    text_parts.append(part.text)
+                except (AttributeError, ValueError):
+                    continue
+        return {
+            "text": "".join(text_parts) or None,
+            "tool_calls": calls,
+            "assistant_message": candidate.content if candidate else None,
+            "usage": _usage_of(response),
+        }
 
     def _convert_tool(self, tool_def: dict[str, Any]):
         """Convert a tool definition dict to Vertex AI Tool format."""

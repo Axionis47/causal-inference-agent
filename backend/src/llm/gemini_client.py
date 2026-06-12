@@ -254,6 +254,36 @@ Output only the JSON, no other text."""
         parsed = json.loads(response_text.strip())
         return response_schema.model_validate(parsed)
 
+    async def generate_structured_with_usage(
+        self,
+        prompt: str,
+        response_schema: type[T],
+        system_instruction: str | None = None,
+    ) -> tuple[T, dict[str, int]]:
+        """Structured output plus usage; this SDK surfaces no usage."""
+        model = await self.generate_structured(prompt, response_schema, system_instruction)
+        return model, {"input_tokens": 0, "output_tokens": 0}
+
+    async def generate_text_with_usage(
+        self, prompt: str, system_instruction: str | None = None
+    ) -> tuple[str, dict[str, int]]:
+        response = await self.generate(prompt=prompt, system_instruction=system_instruction)
+        return response.text, {"input_tokens": 0, "output_tokens": 0}
+
+    def user_message(self, text: str) -> Any:
+        raise NotImplementedError("tool conversations are not supported on the gemini client")
+
+    def tool_result_message(self, call: dict[str, Any], output: str) -> Any:
+        raise NotImplementedError("tool conversations are not supported on the gemini client")
+
+    async def chat_with_tools(
+        self,
+        messages: list[Any],
+        system_instruction: str | None,
+        tools: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        raise NotImplementedError("tool conversations are not supported on the gemini client")
+
     def _convert_tool(self, tool_def: dict[str, Any]) -> Tool:
         """Convert a tool definition dict to Gemini Tool format."""
         function_declaration = FunctionDeclaration(
