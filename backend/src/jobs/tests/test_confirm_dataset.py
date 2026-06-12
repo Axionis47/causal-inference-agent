@@ -7,7 +7,8 @@ record, and does not start the pipeline. resume_from_approval routes an APPROVED
 decision through confirm_dataset and fails the job on REJECTED, clearing the
 parked state. run_analysis hands the confirmed record to the analysis runner,
 which flips the job to running_analysis and spawns the spine task; the parked
-state is kept as the confirmed record.
+state is kept as the confirmed record. A failed or interrupted run retries by
+re-arming that record to CONFIRMED; a record still at the data gate is refused.
 """
 from __future__ import annotations
 
@@ -188,3 +189,36 @@ async def test_run_analysis_without_confirmed_state_raises(manager):
     storage.load_parked_state = AsyncMock(return_value=None)
     with pytest.raises(ValueError):
         await mgr.run_analysis("job-confirm")
+
+
+@pytest.mark.asyncio
+async def test_run_analysis_rearms_a_failed_run_for_retry(manager):
+    # A launch overwrites the confirmed record's status with running_analysis,
+    # and a crash leaves it there (or marks it failed). Retrying must re-arm
+    # the record to CONFIRMED so the runner accepts it.
+    mgr, storage = manager
+    state = _data_gate_state()
+    state.status = JobStatus.RUNNING_ANALYSIS
+    storage.load_parked_state = AsyncMock(return_value=state)
+
+    launched = AsyncMock(return_value={"resumed": True, "status": "running_analysis"})
+    with patch("src.analysis_v2.runner.start", new=launched):
+        result = await mgr.run_analysis("job-confirm")
+
+    launched.assert_awaited_once_with(state, mgr)
+    assert state.status == JobStatus.CONFIRMED
+    assert result == {"resumed": True, "status": "running_analysis"}
+
+
+@pytest.mark.asyncio
+async def test_run_analysis_refuses_a_record_still_at_the_data_gate(manager):
+    # An awaiting_approval record means the data gate never passed; retry must
+    # not become a path around the human confirmation.
+    mgr, storage = manager
+    state = _data_gate_state()  # status AWAITING_APPROVAL
+    storage.load_parked_state = AsyncMock(return_value=state)
+
+    with pytest.raises(ValueError, match="awaiting_approval"):
+        await mgr.run_analysis("job-confirm")
+
+    assert state.status == JobStatus.AWAITING_APPROVAL

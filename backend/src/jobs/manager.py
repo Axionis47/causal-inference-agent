@@ -533,7 +533,10 @@ class JobManager:
 
         The runner re-registers the state in the live tables (SSE), flips
         the job to running_analysis, and drives the S0..S12 spine in a job
-        task. Raises ValueError when there is no confirmed dataset.
+        task. Raises ValueError when there is no confirmed dataset. A failed
+        or interrupted run can be retried: launching overwrites the confirmed
+        record's status, and that record only exists because the data gate
+        passed, so it is re-armed to CONFIRMED instead of refused.
         """
         from src.analysis_v2 import runner as analysis_runner
 
@@ -544,6 +547,8 @@ class JobManager:
             already_running = job_id in self._running_jobs
         if already_running:
             return {"resumed": False, "status": state.status.value}
+        if state.status in (JobStatus.RUNNING_ANALYSIS, JobStatus.FAILED):
+            state.status = JobStatus.CONFIRMED
         return await analysis_runner.start(state, self)
 
     async def get_job_status(self, job_id: str) -> dict[str, Any] | None:

@@ -387,7 +387,8 @@ async def run_analysis(request: Request, job_id: str) -> ApprovalResultResponse:
     """Launch the analysis pipeline on a CONFIRMED dataset.
 
     The dataset + inputs must already be confirmed (POST /confirm). Respawns the
-    orchestrator past the data gate. Valid only for a confirmed dataset.
+    orchestrator past the data gate. A FAILED job retries from the same
+    confirmed dataset; jobs that never passed the data gate are refused.
     """
     manager = get_job_manager()
     job = await manager.get_job(job_id)
@@ -396,11 +397,11 @@ async def run_analysis(request: Request, job_id: str) -> ApprovalResultResponse:
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Job {job_id} not found",
         )
-    if job.get("status") != JobStatus.CONFIRMED.value:
+    if job.get("status") not in (JobStatus.CONFIRMED.value, JobStatus.FAILED.value):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=(
-                f"Job {job_id} is not a confirmed dataset "
+                f"Job {job_id} has no confirmed dataset ready to run "
                 f"(current status: {job.get('status')})"
             ),
         )
