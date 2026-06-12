@@ -173,7 +173,11 @@ CASES = [
         Case(
             case_id="hillstrom-hte",  # type 13: heterogeneous_effects
             frame_fn=_hillstrom_two_arm,
-            question="Which customers respond most to the womens email campaign?",
+            question=(
+                "Did receiving the womens email campaign (received_email) "
+                "increase site visits, and does the effect differ by womens "
+                "purchase history?"
+            ),
             draft=IntakeDraft(
                 question_type=QuestionType.HETEROGENEOUS_EFFECTS,
                 confidence=Confidence.HIGH,
