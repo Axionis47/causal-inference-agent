@@ -33,7 +33,9 @@ PRIMARY_LANE: dict[QuestionType, MethodLane] = {
     QuestionType.HETEROGENEOUS_EFFECTS: MethodLane.OBSERVATIONAL,
     QuestionType.DRIVER_ANALYSIS: MethodLane.OBSERVATIONAL,
     QuestionType.NO_EFFECT: MethodLane.OBSERVATIONAL,
-    QuestionType.MECHANISM_SEARCH: MethodLane.OBSERVATIONAL,
+    # which-pathway questions are mediation questions; the observational
+    # fallback still applies when no mediator is resolved
+    QuestionType.MECHANISM_SEARCH: MethodLane.MEDIATION,
 }
 
 _LABELS: dict[MethodLane, str] = {
