@@ -13,7 +13,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
-from src.analysis_v2.core import AnalysisRunState, stage_index
+from src.analysis_v2.core import SPINE, AnalysisRunState, stage_index
 from src.analysis_v2.persistence import load_run, read_artifact_bytes
 from src.api.rate_limit import limiter
 
@@ -51,7 +51,7 @@ def _view(run: AnalysisRunState) -> dict:
         "status": run.status.value,
         "current_state": run.current_state.value,
         "stage_index": stage_index(run.current_state),
-        "total_stages": 13,
+        "total_stages": len(SPINE),
         "causal_question": run.causal_question,
         "error_message": run.error_message,
         "spec_summary": spec_summary,

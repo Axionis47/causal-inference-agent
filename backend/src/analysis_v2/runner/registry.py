@@ -12,6 +12,7 @@ from src.analysis_v2.agents.claim_critic import ClaimCriticAgent
 from src.analysis_v2.agents.design_detection import DesignDetectionAgent
 from src.analysis_v2.agents.diagnostics import DiagnosticsSensitivityAgent
 from src.analysis_v2.agents.intake import IntakeAgent
+from src.analysis_v2.agents.investigator import InvestigatorAgent
 from src.analysis_v2.agents.method_lane import MethodLaneAgent
 from src.analysis_v2.agents.plan_critic import PlanCriticAgent
 from src.analysis_v2.agents.notebook_verify import NotebookVerificationAgent
@@ -26,6 +27,7 @@ def build_agents() -> dict[AnalysisStage, AnalysisAgent]:
     agents: list[AnalysisAgent] = [
         IntakeAgent(),
         ProfilingAgent(),
+        InvestigatorAgent(),
         DesignDetectionAgent(),
         TargetedEDAAgent(),
         PlanCriticAgent(),

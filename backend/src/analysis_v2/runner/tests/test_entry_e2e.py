@@ -124,6 +124,9 @@ async def test_spine_runs_all_stages_and_completes_with_a_verified_notebook(
     monkeypatch.setattr(
         "src.analysis_v2.agents.targeted_eda.agent.get_llm_client", lambda: StubLLM()
     )
+    monkeypatch.setattr(
+        "src.analysis_v2.agents.investigator.agent.get_llm_client", lambda: StubLLM()
+    )
     _stage_dataset(storage_dir)
     state = _confirmed_state()
     manager = StubManager()
@@ -144,13 +147,15 @@ async def test_spine_runs_all_stages_and_completes_with_a_verified_notebook(
 
     # the six stages each passed and committed their slots
     assert [r.agent for r in run.agent_runs] == [
-        "intake", "profiling", "design_detection", "targeted_eda",
+        "intake", "profiling", "investigator", "design_detection", "targeted_eda",
         "plan_critic", "method_lane", "diagnostics_sensitivity", "claim_critic",
         "report_notebook", "notebook_verification",
     ]
     assert all(r.status.value in ("passed", "warning") for r in run.agent_runs)
     assert run.causal_spec.outcome.column == "re78"
     assert run.dataset_profile.n_rows == 614
+    # the new investigator slot is committed even on the degraded path
+    assert run.dataset_dossier is not None and run.dataset_dossier.investigated is False
     # the human-ignored index column never reached the agents
     assert "Unnamed: 0" not in run.dataset_profile.column_names()
     assert run.design_candidates[0].lane == MethodLane.OBSERVATIONAL
@@ -170,8 +175,8 @@ async def test_spine_runs_all_stages_and_completes_with_a_verified_notebook(
     assert run.notebook_verification is not None
     assert run.notebook_verification.notebook_status.value == "verified_running"
     assert run.notebook_verification.executed_all_cells is True
-    assert len(run.state_events) == 12  # S1..S5, S6, S7..S11, terminal S12
-    assert run.state_version == 12
+    assert len(run.state_events) == 13  # S1..S2a..S5, S6, S7..S11, terminal S12
+    assert run.state_version == 13
 
     # artifacts persisted on disk and registered
     for artifact in run.artifact_registry.artifacts:

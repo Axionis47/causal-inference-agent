@@ -15,7 +15,8 @@ from src.analysis_v2.core import (
 def test_spine_runs_s0_through_s12_in_order():
     assert SPINE[0] == AnalysisStage.S0_DATASET_SAVED
     assert SPINE[-1] == AnalysisStage.S12_JOB_COMPLETE
-    assert len(SPINE) == 13
+    assert len(SPINE) == 14
+    assert SPINE[3] == AnalysisStage.S2A_DATASET_INVESTIGATED
     indices = [stage_index(s) for s in SPINE]
     assert indices == sorted(indices)
 

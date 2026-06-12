@@ -20,6 +20,13 @@ from .design import (
     MethodPlan,
     ToolEligibility,
 )
+from .dossier import (
+    ColumnRole,
+    ContextLedgerItem,
+    DatasetDossier,
+    LedgerStatus,
+    RoleLabel,
+)
 from .diagnostics import (
     CheckStatus,
     DiagnosticCheck,
@@ -49,6 +56,11 @@ __all__ = [
     "MethodLane",
     "MethodPlan",
     "ToolEligibility",
+    "ColumnRole",
+    "ContextLedgerItem",
+    "DatasetDossier",
+    "LedgerStatus",
+    "RoleLabel",
     "CheckStatus",
     "DiagnosticCheck",
     "DiagnosticsResult",

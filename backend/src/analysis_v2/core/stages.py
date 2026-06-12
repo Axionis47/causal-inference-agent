@@ -15,6 +15,7 @@ class AnalysisStage(StrEnum):
     S0_DATASET_SAVED = "s0_dataset_saved"
     S1_INTAKE_PARSED = "s1_intake_parsed"
     S2_PROFILE_CREATED = "s2_profile_created"
+    S2A_DATASET_INVESTIGATED = "s2a_dataset_investigated"
     S3_DESIGN_CANDIDATES_CREATED = "s3_design_candidates_created"
     S4_TARGETED_EDA_COMPLETE = "s4_targeted_eda_complete"
     S5_PLAN_CRITIQUED = "s5_plan_critiqued"
@@ -37,6 +38,7 @@ STAGE_AGENT: dict[AnalysisStage, str | None] = {
     AnalysisStage.S0_DATASET_SAVED: None,
     AnalysisStage.S1_INTAKE_PARSED: "intake",
     AnalysisStage.S2_PROFILE_CREATED: "profiling",
+    AnalysisStage.S2A_DATASET_INVESTIGATED: "investigator",
     AnalysisStage.S3_DESIGN_CANDIDATES_CREATED: "design_detection",
     AnalysisStage.S4_TARGETED_EDA_COMPLETE: "targeted_eda",
     AnalysisStage.S5_PLAN_CRITIQUED: "plan_critic",

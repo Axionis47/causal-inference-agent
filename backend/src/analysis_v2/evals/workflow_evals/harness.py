@@ -49,6 +49,10 @@ def stub_llm(monkeypatch, draft: IntakeDraft) -> None:
     monkeypatch.setattr(
         "src.analysis_v2.agents.targeted_eda.agent.get_llm_client", lambda: StubLLM()
     )
+    # no chat_with_tools on the stub: the investigator takes its degraded path
+    monkeypatch.setattr(
+        "src.analysis_v2.agents.investigator.agent.get_llm_client", lambda: StubLLM()
+    )
 
 
 def stage(job_id: str, frame: pd.DataFrame) -> None:

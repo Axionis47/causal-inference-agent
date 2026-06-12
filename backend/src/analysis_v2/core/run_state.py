@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field, ValidationError
 from src.analysis_v2.spec import (
     CausalSpec,
     ClaimCritique,
+    DatasetDossier,
     DesignCandidate,
     DiagnosticsResult,
     EDAPlan,
@@ -65,6 +66,7 @@ class AnalysisRunState(BaseModel):
     # Typed slots, one producer each, filled as the spine advances.
     causal_spec: CausalSpec | None = None
     dataset_profile: ProfileSummary | None = None
+    dataset_dossier: DatasetDossier | None = None
     design_candidates: list[DesignCandidate] = Field(default_factory=list)
     selected_design: DesignCandidate | None = None
     tool_eligibility: ToolEligibility | None = None
