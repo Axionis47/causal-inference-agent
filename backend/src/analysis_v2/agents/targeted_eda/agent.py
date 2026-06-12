@@ -11,7 +11,13 @@ from __future__ import annotations
 import structlog
 
 from src.analysis_v2.agents.base import AgentCtx, AgentResult, AnalysisAgent
-from src.analysis_v2.core import AnalysisRunState, AnalysisStage, ArtifactKind, GateResult
+from src.analysis_v2.core import (
+    AnalysisRunState,
+    AnalysisStage,
+    ArtifactKind,
+    GateResult,
+    TokenUsage,
+)
 from src.analysis_v2.spec import EDACheck, EDACheckStatus, EDAPlan, EDASummary
 from src.llm import get_llm_client
 
@@ -90,7 +96,7 @@ class TargetedEDAAgent(AnalysisAgent):
                 if c.status in (EDACheckStatus.WARNING, EDACheckStatus.FAILED)
             ],
         )
-        summary.story = await self._story(summary, run)
+        summary.story, story_tokens = await self._story(summary, run)
 
         artifact_ids = self._write_artifacts(ctx, summary)
         artifact_ids.extend(sink.emitted)
@@ -100,9 +106,12 @@ class TargetedEDAAgent(AnalysisAgent):
             public_summary=summary.story,
             warnings=list(summary.warnings),
             artifact_ids=artifact_ids,
+            tokens=story_tokens,
         )
 
-    async def _story(self, summary: EDASummary, run: AnalysisRunState) -> str:
+    async def _story(
+        self, summary: EDASummary, run: AnalysisRunState
+    ) -> tuple[str, TokenUsage]:
         rendered = "\n".join(
             f"- {c.name} [{c.status.value}] {c.detail} {c.metrics or ''}"
             for c in summary.checks
@@ -112,17 +121,26 @@ class TargetedEDAAgent(AnalysisAgent):
             lane=summary.plan.target_lane.value if summary.plan.target_lane else "undecided",
             checks=rendered[:8000],
         )
+        tokens = TokenUsage()
         try:
-            response = await get_llm_client().generate(prompt)
-            text = getattr(response, "text", None) or str(response)
+            llm = get_llm_client()
+            if hasattr(llm, "generate_text_with_usage"):
+                text, usage = await llm.generate_text_with_usage(prompt)
+                tokens = TokenUsage(
+                    input_tokens=int(usage.get("input_tokens", 0)),
+                    output_tokens=int(usage.get("output_tokens", 0)),
+                )
+            else:  # older stubs expose only generate()
+                response = await llm.generate(prompt)
+                text = getattr(response, "text", None) or str(response)
             text = text.strip()
             if text and "cause" not in text.lower().replace("because", ""):
-                return text[:4000]
+                return text[:4000], tokens
             if text:  # the model used causal language; fall back rather than ship it
                 logger.warning("eda_story_used_causal_language", job_id=run.job_id)
         except Exception as exc:
             logger.warning("eda_story_generation_failed", error=str(exc))
-        return _fallback_story(summary)
+        return _fallback_story(summary), tokens
 
     def _write_artifacts(self, ctx: AgentCtx, summary: EDASummary) -> list[str]:
         ids: list[str] = []

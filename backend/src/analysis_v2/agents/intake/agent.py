@@ -18,6 +18,7 @@ from src.analysis_v2.core import (
     FailureType,
     GateResult,
     NextAction,
+    TokenUsage,
 )
 from src.analysis_v2.spec import CausalSpec
 from src.llm import get_llm_client
@@ -76,14 +77,28 @@ class IntakeAgent(AnalysisAgent):
         spec: CausalSpec | None = None
         violations: list[str] = []
         last_error: str | None = None
+        tokens = TokenUsage()
 
         for attempt in range(1, MAX_ATTEMPTS + 1):
             try:
-                draft = await llm.generate_structured(
-                    prompt=prompt,
-                    response_schema=IntakeDraft,
-                    system_instruction=SYSTEM_PROMPT,
-                )
+                if hasattr(llm, "generate_structured_with_usage"):
+                    draft, usage = await llm.generate_structured_with_usage(
+                        prompt=prompt,
+                        response_schema=IntakeDraft,
+                        system_instruction=SYSTEM_PROMPT,
+                    )
+                    tokens = tokens.add(
+                        TokenUsage(
+                            input_tokens=int(usage.get("input_tokens", 0)),
+                            output_tokens=int(usage.get("output_tokens", 0)),
+                        )
+                    )
+                else:  # older stubs expose only generate_structured()
+                    draft = await llm.generate_structured(
+                        prompt=prompt,
+                        response_schema=IntakeDraft,
+                        system_instruction=SYSTEM_PROMPT,
+                    )
             except Exception as exc:  # generation/parse error: retry
                 last_error = f"attempt {attempt}: {exc}"
                 logger.warning("intake_generation_failed", attempt=attempt, error=str(exc))
@@ -112,6 +127,7 @@ class IntakeAgent(AnalysisAgent):
                 gate=GateResult.fail([failure.message]),
                 public_summary="The question could not be parsed into a causal spec.",
                 failure=failure,
+                tokens=tokens,
             )
 
         warnings = list(violations)
@@ -122,6 +138,7 @@ class IntakeAgent(AnalysisAgent):
             public_summary=draft.reasoning_summary,
             warnings=warnings,
             artifact_ids=artifact_ids,
+            tokens=tokens,
         )
 
     def _write_artifacts(
