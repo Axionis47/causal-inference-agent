@@ -1,17 +1,18 @@
-// The analysis panel for the new analysis slice: a compact 13-stage progress
-// strip, one tile per agent, the artifact listing, and the run cost line.
-// Presentational: takes the full AnalysisViewResponse; JobPage owns fetching
-// (useAnalysis) and live updates (SSE invalidation in useJob).
+// The analysis panel for the new analysis slice: a compact stage-progress
+// strip, one panel per agent (each owning its artifact lines), and the run
+// cost line. Presentational: takes the full AnalysisViewResponse; JobPage
+// owns fetching (useAnalysis) and live updates (SSE invalidation in useJob).
 
 import type {
+  AnalysisArtifactView,
   AnalysisRunStatus,
   AnalysisViewResponse,
 } from '../../../services/api';
 import { Caption } from '../terminal/atoms';
-import { AgentTile } from './AgentTile';
-import { ArtifactList } from './ArtifactList';
+import { ArtifactLine } from './artifacts/ArtifactLine';
 import { CostLine } from './CostLine';
 import { NotebookDownloadCard } from './NotebookDownloadCard';
+import { AgentPanel } from './panels/AgentPanel';
 import { PlanGate } from './PlanGate';
 
 const noop = () => {};
@@ -79,6 +80,18 @@ export function AnalysisView({
   const { spec_summary: spec, plan_gate: planGate, method_plan: methodPlan } = analysis;
   const showPlanGate =
     analysis.status === 'waiting_for_user' && !!planGate?.confirmation_card;
+
+  // Each artifact renders inside the panel of the agent that emitted it.
+  // Anything whose agent has no run entry falls through to a trailing list
+  // so no artifact silently disappears.
+  const byAgent = new Map<string, AnalysisArtifactView[]>();
+  for (const a of analysis.artifacts) {
+    const list = byAgent.get(a.agent);
+    if (list) list.push(a);
+    else byAgent.set(a.agent, [a]);
+  }
+  const knownAgents = new Set(analysis.agents.map((a) => a.agent));
+  const orphanArtifacts = analysis.artifacts.filter((a) => !knownAgents.has(a.agent));
 
   return (
     <section className="flex-1 min-w-0 flex flex-col overflow-hidden bg-canvas">
@@ -168,21 +181,32 @@ export function AnalysisView({
           />
         )}
 
-        {/* one tile per agent */}
+        {/* one panel per agent, in spine order, each owning its artifacts */}
         <div>
           <div className={`${labelCls} text-ink-tertiary mb-1.5`}>[ agents ]</div>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
+          <div className="space-y-2">
             {analysis.agents.map((a) => (
-              <AgentTile key={a.agent} agent={a} />
+              <AgentPanel
+                key={a.agent}
+                jobId={analysis.job_id}
+                agent={a}
+                artifacts={byAgent.get(a.agent) ?? []}
+              />
             ))}
           </div>
         </div>
 
-        {/* artifacts grouped by agent */}
-        <div>
-          <div className={`${labelCls} text-ink-tertiary mb-1.5`}>[ artifacts ]</div>
-          <ArtifactList jobId={analysis.job_id} artifacts={analysis.artifacts} />
-        </div>
+        {/* artifacts from agents without a run entry; normally empty */}
+        {orphanArtifacts.length > 0 && (
+          <div>
+            <div className={`${labelCls} text-ink-tertiary mb-1.5`}>
+              [ other artifacts ]
+            </div>
+            {orphanArtifacts.map((a) => (
+              <ArtifactLine key={a.artifact_id} jobId={analysis.job_id} artifact={a} />
+            ))}
+          </div>
+        )}
 
         {/* run totals */}
         <div className="border-t border-edge-subtle pt-2">

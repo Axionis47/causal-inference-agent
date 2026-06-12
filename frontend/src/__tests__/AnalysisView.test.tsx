@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { AnalysisView } from '../components/job/analysis/AnalysisView';
 import type {
   AnalysisPlanGate,
@@ -155,14 +155,51 @@ const waitingGate: AnalysisPlanGate = {
 };
 
 describe('AnalysisView', () => {
-  it('renders one tile per agent with its status chip', () => {
+  it('renders one panel per agent with its status chip', () => {
     render(<AnalysisView analysis={fixture} />);
-    expect(screen.getByTestId('agent-tile-intake')).toBeTruthy();
-    expect(screen.getByTestId('agent-tile-profiling')).toBeTruthy();
-    expect(screen.getByTestId('agent-tile-design_detection')).toBeTruthy();
+    expect(screen.getByTestId('agent-panel-intake')).toBeTruthy();
+    expect(screen.getByTestId('agent-panel-profiling')).toBeTruthy();
+    expect(screen.getByTestId('agent-panel-design_detection')).toBeTruthy();
     expect(screen.getByText('passed')).toBeTruthy();
     expect(screen.getAllByText('running').length).toBeGreaterThan(0);
     expect(screen.getByText('waiting')).toBeTruthy();
+  });
+
+  it('renders each artifact inside the panel of the agent that emitted it', () => {
+    render(<AnalysisView analysis={fixture} />);
+    const intake = within(screen.getByTestId('agent-panel-intake'));
+    expect(intake.getByText('Causal spec')).toBeTruthy();
+    expect(intake.getByText('Overlap plot')).toBeTruthy();
+    // no standalone artifacts section anymore
+    expect(screen.queryByText('[ artifacts ]')).toBeNull();
+    // an empty-handed agent panel carries no artifact rows
+    const profiling = within(screen.getByTestId('agent-panel-profiling'));
+    expect(profiling.queryByRole('link', { name: 'open' })).toBeNull();
+  });
+
+  it('lists artifacts from agents without a run entry under other artifacts', () => {
+    render(
+      <AnalysisView
+        analysis={{
+          ...fixture,
+          artifacts: [
+            ...fixture.artifacts,
+            {
+              artifact_id: 'report/final_report',
+              kind: 'markdown',
+              stage: 's10_report',
+              agent: 'report_notebook',
+              title: 'Final report',
+              summary: null,
+              media_type: 'text/markdown',
+              created_at: '2026-06-11T10:05:00Z',
+            },
+          ],
+        }}
+      />,
+    );
+    expect(screen.getByText('[ other artifacts ]')).toBeTruthy();
+    expect(screen.getByText('Final report')).toBeTruthy();
   });
 
   it('shows the passed agent public summary and the running agent current step', () => {
