@@ -364,7 +364,8 @@ Output only the JSON, no other text."""
     def user_message(self, text: str) -> dict[str, Any]:
         return {"role": "user", "content": text}
 
-    def tool_result_message(self, call: dict[str, Any], output: str) -> dict[str, Any]:
+    def tool_results_message(self, results: list[tuple[dict[str, Any], str]]) -> dict[str, Any]:
+        """All of one turn's tool results in a single user message."""
         return {
             "role": "user",
             "content": [
@@ -373,6 +374,7 @@ Output only the JSON, no other text."""
                     "tool_use_id": call.get("id"),
                     "content": output[:8000],
                 }
+                for call, output in results
             ],
         }
 

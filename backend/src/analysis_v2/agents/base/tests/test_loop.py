@@ -18,8 +18,11 @@ class FakeLLM:
     def user_message(self, text):
         return {"role": "user", "content": text}
 
-    def tool_result_message(self, call, output):
-        return {"role": "tool_result", "name": call["name"], "content": output}
+    def tool_results_message(self, results):
+        return {
+            "role": "tool_result",
+            "content": [{"name": c["name"], "output": o} for c, o in results],
+        }
 
     async def chat_with_tools(self, messages, system_instruction, tools):
         self.seen_messages.append(list(messages))

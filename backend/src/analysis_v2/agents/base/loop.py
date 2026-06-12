@@ -102,10 +102,12 @@ async def react_loop(
 
         messages.append(response["assistant_message"])
         budget_hit = False
+        # every call of the turn answers in ONE message: providers require
+        # response parts to match the turn's call parts exactly
+        turn_results: list[tuple[dict, str]] = []
         for call in calls:
             args = call.get("args") or {}
             if used >= max_tool_calls:
-                # every requested call still needs a result message
                 output, ok, error = "tool budget exhausted", False, "budget exhausted"
                 budget_hit = True
             else:
@@ -138,7 +140,8 @@ async def react_loop(
                     }
                 )
                 await _live_step(ctx, call, ok)
-            messages.append(llm.tool_result_message(call, output))
+            turn_results.append((call, output))
+        messages.append(llm.tool_results_message(turn_results))
         if budget_hit:
             messages.append(llm.user_message(BUDGET_NOTE))
 

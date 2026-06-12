@@ -71,8 +71,8 @@ class ScriptedLLM:
     def user_message(self, text):
         return {"role": "user", "content": text}
 
-    def tool_result_message(self, call, output):
-        return {"role": "tool_result", "name": call["name"], "content": output}
+    def tool_results_message(self, results):
+        return {"role": "tool_result", "content": [o for _, o in results]}
 
     async def chat_with_tools(self, messages, system_instruction, tools):
         if len(messages) == 1:

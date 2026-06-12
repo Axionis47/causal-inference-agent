@@ -329,7 +329,9 @@ Output only the JSON, no other text."""
 
         return Content(role="user", parts=[Part.from_text(text)])
 
-    def tool_result_message(self, call: dict[str, Any], output: str) -> Any:
+    def tool_results_message(self, results: list[tuple[dict[str, Any], str]]) -> Any:
+        """All of one turn's tool results in a single message; the API
+        requires response parts to match the turn's call parts 1:1."""
         from vertexai.generative_models import Content, Part
 
         return Content(
@@ -338,6 +340,7 @@ Output only the JSON, no other text."""
                 Part.from_function_response(
                     name=call["name"], response={"result": output[:8000]}
                 )
+                for call, output in results
             ],
         )
 

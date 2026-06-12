@@ -273,7 +273,7 @@ Output only the JSON, no other text."""
     def user_message(self, text: str) -> Any:
         raise NotImplementedError("tool conversations are not supported on the gemini client")
 
-    def tool_result_message(self, call: dict[str, Any], output: str) -> Any:
+    def tool_results_message(self, results: list[tuple[dict[str, Any], str]]) -> Any:
         raise NotImplementedError("tool conversations are not supported on the gemini client")
 
     async def chat_with_tools(
