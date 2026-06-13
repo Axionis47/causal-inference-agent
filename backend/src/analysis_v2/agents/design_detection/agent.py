@@ -83,7 +83,7 @@ class DesignDetectionAgent(AnalysisAgent):
                 public_summary="Upstream slots are missing; the spine is out of order.",
             )
 
-        refined, notes = resolve_spec(spec, profile)
+        refined, notes = resolve_spec(spec, profile, ctx.run.dataset_dossier)
         eligibility = evaluate_all_lanes(refined, profile)
         candidates = build_candidates(refined, eligibility)
         output = DesignDetectionOutput(

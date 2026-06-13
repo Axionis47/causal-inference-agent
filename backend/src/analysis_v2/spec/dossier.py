@@ -26,6 +26,29 @@ class RoleLabel(StrEnum):
     UNCLEAR = "unclear"
 
 
+# Roles that must never enter the adjustment set: structural columns
+# (treatment / outcome / instrument / time / group), columns whose adjustment
+# would bias the estimate (post-treatment, mediator, leakage), or columns that
+# are never covariates (identifier). PRE_TREATMENT is the safe adjustment label
+# and UNCLEAR is left untouched. design_detection (S3) folds the role table into
+# the spec's candidate_confounders using this set; plan_builder (S5) re-applies
+# it as a defensive assertion, so the two stages read one source and cannot
+# disagree about what is adjusted on.
+BANNED_ADJUSTMENT_ROLES: frozenset[RoleLabel] = frozenset(
+    {
+        RoleLabel.TREATMENT,
+        RoleLabel.OUTCOME,
+        RoleLabel.POST_TREATMENT,
+        RoleLabel.MEDIATOR,
+        RoleLabel.INSTRUMENT,
+        RoleLabel.TIME,
+        RoleLabel.GROUP,
+        RoleLabel.IDENTIFIER,
+        RoleLabel.LEAKAGE,
+    }
+)
+
+
 class ColumnRole(BaseModel):
     column: str = Field(min_length=1)
     role: RoleLabel

@@ -151,7 +151,7 @@ def _apply_edits(run, edits: dict[str, str]) -> dict[str, str]:
         else:
             raise InvalidPlanEdits(f"unknown edit field '{field}'")
 
-    refined, _notes = resolve_spec(spec, profile)
+    refined, _notes = resolve_spec(spec, profile, run.dataset_dossier)
     eligibility = evaluate_all_lanes(refined, profile)
     candidates = build_candidates(refined, eligibility)
     if lane_choice is not None:

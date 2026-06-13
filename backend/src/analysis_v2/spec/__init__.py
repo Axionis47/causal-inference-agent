@@ -20,19 +20,20 @@ from .design import (
     MethodPlan,
     ToolEligibility,
 )
-from .dossier import (
-    ColumnRole,
-    ContextLedgerItem,
-    DatasetDossier,
-    LedgerStatus,
-    RoleLabel,
-)
 from .diagnostics import (
     CheckStatus,
     DiagnosticCheck,
     DiagnosticsResult,
     RobustnessStatus,
     SensitivityResult,
+)
+from .dossier import (
+    BANNED_ADJUSTMENT_ROLES,
+    ColumnRole,
+    ContextLedgerItem,
+    DatasetDossier,
+    LedgerStatus,
+    RoleLabel,
 )
 from .eda import EDACheck, EDACheckStatus, EDAPlan, EDASummary
 from .estimate import EffectEstimate, EstimateResult
@@ -56,6 +57,7 @@ __all__ = [
     "MethodLane",
     "MethodPlan",
     "ToolEligibility",
+    "BANNED_ADJUSTMENT_ROLES",
     "ColumnRole",
     "ContextLedgerItem",
     "DatasetDossier",

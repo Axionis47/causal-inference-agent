@@ -2,34 +2,21 @@
 
 One lane, one estimator family, explicit settings. The plan critic
 proposes this; S6 freezes it (possibly after user edits re-derive it).
-The dossier's role table completes and vetoes the adjustment set: a
-column the investigator labeled post-treatment, mediator, leakage, or
-identifier never enters the covariates, and pre-treatment columns fill
-in when intake named none.
+The adjustment set is the candidate_confounders list design_detection (S3)
+already reconciled from the investigator's role table; _covariates only
+re-asserts the banned-role veto, so a structural or post-treatment column
+can never slip in even if an upstream change regresses.
 """
 from __future__ import annotations
 
 from src.analysis_v2.spec import (
+    BANNED_ADJUSTMENT_ROLES,
     CausalSpec,
     DatasetDossier,
     DesignCandidate,
     MethodLane,
     MethodPlan,
-    RoleLabel,
 )
-
-# roles that must never be adjusted on (or are already structural)
-_BANNED_ROLES = {
-    RoleLabel.POST_TREATMENT,
-    RoleLabel.MEDIATOR,
-    RoleLabel.LEAKAGE,
-    RoleLabel.IDENTIFIER,
-    RoleLabel.OUTCOME,
-    RoleLabel.TREATMENT,
-    RoleLabel.INSTRUMENT,
-    RoleLabel.TIME,
-    RoleLabel.GROUP,
-}
 
 
 def _covariates(
@@ -37,20 +24,13 @@ def _covariates(
     exclude: list[str | None],
     dossier: DatasetDossier | None = None,
 ) -> list[str]:
+    """Read the adjustment set S3 folded into candidate_confounders. The
+    banned-role filter is a defensive assertion: with one source it is a no-op,
+    but it guarantees a banned column can never reach the covariates."""
     drop = {c for c in exclude if c}
-    base = [c for c in spec.candidate_confounders if c not in drop]
-    if dossier is None or not dossier.roles:
-        return base
-    banned = {r.column for r in dossier.roles if r.role in _BANNED_ROLES}
-    out = [c for c in base if c not in banned]
-    for role in dossier.roles:
-        if (
-            role.role == RoleLabel.PRE_TREATMENT
-            and role.column not in out
-            and role.column not in drop
-        ):
-            out.append(role.column)
-    return out
+    if dossier is not None and dossier.roles:
+        drop |= {r.column for r in dossier.roles if r.role in BANNED_ADJUSTMENT_ROLES}
+    return [c for c in spec.candidate_confounders if c not in drop]
 
 
 def build_method_plan(

@@ -1,4 +1,5 @@
-"""The dossier's role table completes and vetoes the adjustment set."""
+"""plan_builder reads the adjustment set design_detection (S3) folded into
+candidate_confounders, and re-asserts the banned-role veto defensively."""
 from __future__ import annotations
 
 from src.analysis_v2.agents.plan_critic.plan_builder import build_method_plan
@@ -32,18 +33,18 @@ def _dossier(roles: list[tuple[str, RoleLabel]]) -> DatasetDossier:
     )
 
 
-def test_dossier_pre_treatment_roles_fill_an_empty_adjustment_set():
-    """The live-lalonde regression: intake named no confounders, the
-    estimate was the naive -$635. The dossier knew all eight roles."""
+def test_plan_reads_the_adjustment_set_design_detection_folded():
+    """S3 reconciles the dossier into candidate_confounders; plan_builder reads
+    that single source rather than re-deriving from the role table (the fold
+    itself is covered in design_detection/tests/test_resolve.py)."""
     spec = CausalSpec(
         question_type=QuestionType.BINARY_TREATMENT,
         outcome=VariableRef(column="re78"),
         treatment=VariableRef(column="treat"),
-        candidate_confounders=[],
+        candidate_confounders=["age", "re74", "re75"],  # already folded by S3
     )
     dossier = _dossier(
         [
-            ("Unnamed: 0", RoleLabel.IDENTIFIER),
             ("treat", RoleLabel.TREATMENT),
             ("re78", RoleLabel.OUTCOME),
             ("age", RoleLabel.PRE_TREATMENT),
