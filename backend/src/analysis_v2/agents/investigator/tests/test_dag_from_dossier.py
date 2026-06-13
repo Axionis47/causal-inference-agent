@@ -38,7 +38,7 @@ def test_pre_treatment_roles_become_the_backdoor_set():
         ]),
         _spec(),
     )
-    z, _ = dag.adjustment_set()
+    z = dag.adjustment_set()
     assert z == {"age", "educ"}
     assert dag.treatment == "treat" and dag.outcome == "re78"
 
@@ -48,7 +48,7 @@ def test_intake_confounders_are_included():
         _dossier([("treat", RoleLabel.TREATMENT), ("re78", RoleLabel.OUTCOME)]),
         _spec(confounders=("age",)),
     )
-    z, _ = dag.adjustment_set()
+    z = dag.adjustment_set()
     assert z == {"age"}
 
 
@@ -60,7 +60,7 @@ def test_a_mediator_is_in_the_dag_but_not_adjusted_for():
         ]),
         _spec(),
     )
-    z, _ = dag.adjustment_set()
+    z = dag.adjustment_set()
     assert z == set()  # the mediator is a descendant of the treatment
     assert any(n.name == "m" for n in dag.nodes)
 
@@ -74,5 +74,5 @@ def test_a_banned_role_is_excluded_from_the_backdoor_set():
         ]),
         _spec(confounders=("leaky", "age")),
     )
-    z, _ = dag.adjustment_set()
+    z = dag.adjustment_set()
     assert z == {"age"}

@@ -77,46 +77,58 @@ class CausalDAG(BaseModel):
 
     # -- identification -----------------------------------------------------
 
-    def adjustment_set(self) -> tuple[set[str] | None, str]:
-        """The backdoor adjustment set of observed variables, or (None, reason)
-        when the treatment effect is not identifiable by covariate adjustment.
-
-        Candidate set: observed common ancestors of treatment and outcome that
-        are not descendants of the treatment (so mediators and colliders are
-        excluded). Validity is verified on the proper backdoor graph (the
-        treatment's outgoing edges removed): the candidate must d-separate
-        treatment from outcome. When it cannot, a backdoor path runs through an
-        unobserved variable and adjustment cannot identify the effect.
-        """
-        if self.treatment is None or self.outcome is None:
-            return None, "treatment or outcome is not set on the graph"
-        g = self._graph()
+    def _candidate_adjustment(self, g: nx.DiGraph) -> set[str]:
+        """Observed common ancestors of treatment and outcome that are not
+        descendants of the treatment, so mediators and colliders are excluded."""
         t, y = self.treatment, self.outcome
-        if t not in g or y not in g:
-            return None, "treatment or outcome is missing from the graph"
-        if not nx.is_directed_acyclic_graph(g):
-            return None, "the causal graph has a cycle"
-
         descendants_t = nx.descendants(g, t) | {t}
         candidate = nx.ancestors(g, t) | nx.ancestors(g, y)
-        z = {
+        return {
             n for n in candidate
             if n not in descendants_t and n != y and n in self.observed_names()
         }
 
+    def adjustment_set(self) -> set[str]:
+        """The observed variables to adjust on: the common ancestors of
+        treatment and outcome that are not descendants of the treatment. Empty
+        when there are none, or when treatment/outcome are unset or absent. This
+        is the covariate set; whether adjusting for it identifies the effect is
+        is_identifiable()."""
+        if self.treatment is None or self.outcome is None:
+            return set()
+        g = self._graph()
+        if (
+            self.treatment not in g
+            or self.outcome not in g
+            or not nx.is_directed_acyclic_graph(g)
+        ):
+            return set()
+        return self._candidate_adjustment(g)
+
+    def is_identifiable(self) -> tuple[bool, str]:
+        """Whether adjusting for adjustment_set blocks every backdoor path,
+        verified by d-separation on the proper backdoor graph (treatment's
+        outgoing edges removed). False when a backdoor path runs through an
+        unobserved variable: the adjusted estimate is then an association, not
+        the identified effect."""
+        if self.treatment is None or self.outcome is None:
+            return False, "treatment or outcome is not set on the graph"
+        g = self._graph()
+        t, y = self.treatment, self.outcome
+        if t not in g or y not in g:
+            return False, "treatment or outcome is missing from the graph"
+        if not nx.is_directed_acyclic_graph(g):
+            return False, "the causal graph has a cycle"
+        z = self._candidate_adjustment(g)
         backdoor = g.copy()
         backdoor.remove_edges_from([(t, s) for s in list(g.successors(t))])
         if is_d_separator(backdoor, {t}, {y}, z):
-            return z, "identified by backdoor adjustment"
+            return True, "identified by backdoor adjustment"
         return (
-            None,
+            False,
             "an open backdoor path runs through an unobserved variable; "
-            "the effect is not identifiable by covariate adjustment",
+            "the adjusted estimate is an association, not the identified effect",
         )
-
-    def is_identifiable(self) -> tuple[bool, str]:
-        z, reason = self.adjustment_set()
-        return z is not None, reason
 
     def testable_implications(self) -> list[tuple[str, str, frozenset[str]]]:
         """Conditional independencies the graph implies (the local Markov set):

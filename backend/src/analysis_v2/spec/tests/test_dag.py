@@ -3,6 +3,8 @@
 Each case fixes the right answer from causal-inference first principles:
 adjust for confounders, never for mediators or colliders, and report
 "not identifiable" when a backdoor path runs through an unobserved variable.
+adjustment_set() is the observed covariate set (always available);
+is_identifiable() is the separate verdict on whether it suffices.
 """
 from __future__ import annotations
 
@@ -23,31 +25,27 @@ def _dag(edges, latent=(), treatment="T", outcome="Y") -> CausalDAG:
 
 def test_a_confounder_is_adjusted_for():
     dag = _dag([("C", "T"), ("C", "Y"), ("T", "Y")])
-    z, _ = dag.adjustment_set()
-    assert z == {"C"}
+    assert dag.adjustment_set() == {"C"}
     assert dag.is_identifiable()[0] is True
 
 
 def test_a_mediator_is_not_adjusted_for():
     dag = _dag([("T", "M"), ("M", "Y"), ("T", "Y")])
-    z, _ = dag.adjustment_set()
-    assert z == set()  # adjusting for M would block part of the effect
+    assert dag.adjustment_set() == set()  # adjusting for M blocks part of the effect
     assert dag.is_identifiable()[0] is True
 
 
 def test_a_collider_is_not_adjusted_for():
     dag = _dag([("T", "Y"), ("T", "C"), ("Y", "C")])
-    z, _ = dag.adjustment_set()
-    assert z == set()  # conditioning on the collider C would open a path
+    assert dag.adjustment_set() == set()  # conditioning on C would open a path
     assert dag.is_identifiable()[0] is True
 
 
 def test_a_latent_confounder_makes_the_effect_unidentifiable():
     dag = _dag([("U", "T"), ("U", "Y"), ("T", "Y")], latent=("U",))
-    z, reason = dag.adjustment_set()
-    assert z is None
-    assert "unobserved" in reason
-    assert dag.is_identifiable()[0] is False
+    assert dag.adjustment_set() == set()  # U is unobserved, nothing to adjust on
+    ok, reason = dag.is_identifiable()
+    assert ok is False and "unobserved" in reason
 
 
 def test_advertising_with_a_latent_market_size_is_unidentifiable():
@@ -70,15 +68,15 @@ def test_advertising_without_a_latent_confounder_adjusts_for_the_parallel_cause(
     dag = _dag(
         [("TV", "Sales"), ("Radio", "Sales")], treatment="TV", outcome="Sales"
     )
-    z, _ = dag.adjustment_set()
-    assert z == {"Radio"}
+    assert dag.adjustment_set() == {"Radio"}
     assert dag.is_identifiable()[0] is True
 
 
 def test_a_cycle_is_reported_not_crashed():
     dag = _dag([("T", "Y"), ("Y", "T")])
-    z, reason = dag.adjustment_set()
-    assert z is None and "cycle" in reason
+    assert dag.adjustment_set() == set()
+    ok, reason = dag.is_identifiable()
+    assert ok is False and "cycle" in reason
 
 
 def test_missing_treatment_or_outcome_is_not_identifiable():
@@ -88,8 +86,9 @@ def test_missing_treatment_or_outcome_is_not_identifiable():
         treatment="T",
         outcome="Z",  # not a node
     )
-    z, reason = dag.adjustment_set()
-    assert z is None and "missing" in reason
+    assert dag.adjustment_set() == set()
+    ok, reason = dag.is_identifiable()
+    assert ok is False and "missing" in reason
 
 
 def test_testable_implications_lists_an_observed_independence():
