@@ -74,6 +74,20 @@ def evalue(result: EstimateResult, frame: pd.DataFrame) -> DiagnosticCheck:
         )
     if outcome not in frame.columns:
         return _check("e_value", CheckStatus.NOT_APPLICABLE, "outcome column unavailable")
+    # The standardized-effect approximation assumes a mean-difference
+    # contrast (a binary treatment). For a continuous treatment the estimate
+    # is a per-unit slope whose size depends on the treatment's units, so
+    # |coef|/sd(outcome) is not a standardized effect and collapses to ~0
+    # for fine-grained units; skip rather than misreport a strong effect.
+    treatment = result.treatment
+    if treatment is not None and treatment in frame.columns:
+        levels = pd.to_numeric(frame[treatment], errors="coerce").dropna().nunique()
+        if levels > 2:
+            return _check(
+                "e_value", CheckStatus.NOT_APPLICABLE,
+                "continuous treatment: the e-value's standardized-effect "
+                "approximation needs a binary contrast, not a per-unit slope",
+            )
     sd = float(pd.to_numeric(frame[outcome], errors="coerce").std())
     if not sd or not np.isfinite(sd):
         return _check("e_value", CheckStatus.NOT_APPLICABLE, "outcome has no spread")

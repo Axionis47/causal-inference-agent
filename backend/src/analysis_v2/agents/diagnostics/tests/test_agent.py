@@ -181,6 +181,25 @@ async def test_a_true_null_is_no_clear_effect_not_a_broken_design(data_dir):
     assert run.sensitivity_result.robustness != RobustnessStatus.NOT_SUPPORTED
 
 
+async def test_continuous_treatment_skips_the_evalue_instead_of_failing_it(data_dir):
+    """The advertising regression: a strong dose-response (slope 0.0475,
+    textbook 0.046) was declared not_supported because |slope|/sd(outcome)
+    collapsed the e-value to ~1.1. The e-value needs a binary contrast."""
+    frame = pd.read_csv(DATA / "advertising.csv").drop(columns=["Unnamed: 0"])
+    plan = MethodPlan(
+        lane=MethodLane.OBSERVATIONAL, estimator="regression_adjustment",
+        estimand="ate", outcome="Sales ($)", treatment="TV Ad Budget ($)",
+        covariates=["Radio Ad Budget ($)", "Newspaper Ad Budget ($)"],
+        settings={"include_ipw": False},
+    )
+    result, run = await _run_stage(frame, plan, QuestionType.DOSE_RESPONSE)
+
+    ev = next(c for c in run.sensitivity_result.checks if c.name == "e_value")
+    assert ev.status == CheckStatus.NOT_APPLICABLE
+    assert "continuous treatment" in ev.detail
+    assert run.sensitivity_result.robustness != RobustnessStatus.NOT_SUPPORTED
+
+
 async def test_a_fragile_estimate_advances_instead_of_rerunning(data_dir):
     """The core policy: weak results report honestly; no rerun, no failure."""
     frame = generators.mediation()
