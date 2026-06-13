@@ -4,9 +4,10 @@
 // (analysis_started, analysis_stage_started, analysis_agent_completed,
 // analysis_artifact_emitted, analysis_waiting_for_user, analysis_completed,
 // analysis_failed) the frontend invalidates the ['analysis', jobId] query and
-// lets the refetch carry the new state; no fine-grained patching. The two
-// terminal events also invalidate ['job', jobId] because they flip
-// JobDetail.status.
+// lets the refetch carry the new state; no fine-grained patching. The events
+// that flip JobDetail.status (analysis_completed, analysis_failed, and
+// analysis_waiting_for_user) also invalidate ['job', jobId], so the job view
+// follows the run into its parked or terminal state without a manual refresh.
 
 export function isAnalysisEventType(eventType: string): boolean {
   return eventType.startsWith('analysis');
@@ -19,7 +20,11 @@ export function analysisKeysToInvalidate(
 ): string[][] {
   if (!isAnalysisEventType(eventType)) return [];
   const keys: string[][] = [['analysis', jobId]];
-  if (eventType === 'analysis_completed' || eventType === 'analysis_failed') {
+  if (
+    eventType === 'analysis_completed' ||
+    eventType === 'analysis_failed' ||
+    eventType === 'analysis_waiting_for_user'
+  ) {
     keys.push(['job', jobId]);
   }
   return keys;

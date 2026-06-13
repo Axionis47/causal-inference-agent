@@ -212,10 +212,12 @@ export function useJob(jobId: string | null, options: UseJobOptions = {}) {
     enabled: !!jobId,
     refetchInterval: autoPolling
       ? (q: { state: { data?: { status?: string } } }) => {
-          // If SSE is connected, don't poll
-          if (sseRef.current && sseRef.current.readyState === EventSource.OPEN) {
-            return false;
-          }
+          // Poll every non-terminal job even while SSE is connected. An
+          // EventSource can sit readyState===OPEN with no events flowing (the
+          // run briefly blocks the event loop, or the stream stalls behind a
+          // proxy) and onerror never fires, so "SSE is open" is not proof the
+          // stream is live. SSE still delivers instant updates between polls;
+          // this floor guarantees the view cannot freeze on a dead stream.
           const status = q.state.data?.status;
           const isTerminal =
             status === 'completed' ||
