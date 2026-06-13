@@ -75,6 +75,10 @@ class DatasetDossier(BaseModel):
     roles: list[ColumnRole] = Field(default_factory=list)
     quality_notes: list[str] = Field(default_factory=list)
     recommended_exclusions: list[str] = Field(default_factory=list)
+    # Plausible unmeasured common causes of treatment and outcome. They are not
+    # dataset columns; design_detection adds them to the DAG as latent nodes, so
+    # an observational effect with one becomes "not identified" honestly.
+    suspected_latent_confounders: list[str] = Field(default_factory=list)
     context_ledger: list[ContextLedgerItem] = Field(default_factory=list)
     open_questions: list[str] = Field(default_factory=list)
     summary: str = Field(min_length=1, max_length=2000)

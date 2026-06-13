@@ -78,6 +78,18 @@ def test_a_banned_role_is_excluded_from_the_backdoor_set():
     assert dag.adjustment_set() == {"age"}
 
 
+def test_a_suspected_latent_confounder_makes_the_effect_unidentifiable():
+    dossier = _dossier([
+        ("treat", RoleLabel.TREATMENT), ("re78", RoleLabel.OUTCOME),
+        ("age", RoleLabel.PRE_TREATMENT),
+    ])
+    dossier.suspected_latent_confounders = ["ability"]
+    dag = dag_from_dossier(_spec(), dossier)
+    assert dag.adjustment_set() == {"age"}  # still adjust for the observed confounder
+    assert dag.is_identifiable()[0] is False  # but the latent leaves an open backdoor
+    assert dag.has_latent_confounding() is True
+
+
 def test_apply_dag_adjustment_sets_candidate_confounders_from_the_backdoor_set():
     spec = _spec(confounders=("age", "educ"))
     dag = apply_dag_adjustment(

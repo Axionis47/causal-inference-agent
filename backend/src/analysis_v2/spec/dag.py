@@ -130,6 +130,26 @@ class CausalDAG(BaseModel):
             "the adjusted estimate is an association, not the identified effect",
         )
 
+    def has_latent_confounding(self) -> bool:
+        """True when the effect is unidentifiable specifically because a latent
+        (unobserved) variable lies on an open backdoor path, not merely because
+        the treatment or outcome is unset, which is a different design. This is
+        the honest "an association, not the identified effect" condition, and it
+        is what should cap the claim strength."""
+        if self.treatment is None or self.outcome is None:
+            return False
+        g = self._graph()
+        if (
+            self.treatment not in g
+            or self.outcome not in g
+            or not nx.is_directed_acyclic_graph(g)
+        ):
+            return False
+        if all(node.observed for node in self.nodes):
+            return False
+        identifiable, _ = self.is_identifiable()
+        return not identifiable
+
     def testable_implications(self) -> list[tuple[str, str, frozenset[str]]]:
         """Conditional independencies the graph implies (the local Markov set):
         each node is independent of its non-descendants given its parents. Each

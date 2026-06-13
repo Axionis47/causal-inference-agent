@@ -91,6 +91,17 @@ def test_missing_treatment_or_outcome_is_not_identifiable():
     assert ok is False and "missing" in reason
 
 
+def test_has_latent_confounding_distinguishes_a_latent_from_an_unset_design():
+    latent = _dag([("U", "T"), ("U", "Y"), ("T", "Y")], latent=("U",))
+    assert latent.has_latent_confounding() is True
+    clean = _dag([("C", "T"), ("C", "Y"), ("T", "Y")])
+    assert clean.has_latent_confounding() is False  # not identified by nothing; no latent
+    unset = CausalDAG(
+        nodes=[CausalNode(name="Y")], edges=[], treatment=None, outcome="Y"
+    )
+    assert unset.has_latent_confounding() is False  # unset treatment, not a latent
+
+
 def test_testable_implications_lists_an_observed_independence():
     # T -> Y, and an isolated cause C -> Y: T and C are independent (no edge,
     # no common cause), an implication the data can check.

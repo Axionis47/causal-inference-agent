@@ -18,6 +18,7 @@ from src.analysis_v2.spec import (
     CausalEdge,
     CausalNode,
     CausalSpec,
+    Confidence,
     DatasetDossier,
     EdgeProvenance,
     RoleLabel,
@@ -87,6 +88,27 @@ def dag_from_dossier(spec: CausalSpec, dossier: DatasetDossier | None) -> Causal
                 source=role.column, target=outcome,
                 mechanism="the mediator changes the outcome",
                 provenance=EdgeProvenance.DOMAIN,
+            ))
+
+    # Suspected unmeasured common causes enter as latent nodes (observed=False),
+    # opening a backdoor path that observed adjustment cannot block, so the
+    # effect becomes "not identified" rather than silently treated as identified.
+    latents = dossier.suspected_latent_confounders if dossier else []
+    for latent in latents:
+        if latent in nodes or latent in protected:
+            continue
+        nodes[latent] = CausalNode(name=latent, observed=False)
+        if treatment:
+            edges.append(CausalEdge(
+                source=latent, target=treatment,
+                mechanism="suspected unmeasured common cause of treatment and outcome",
+                provenance=EdgeProvenance.DOMAIN, confidence=Confidence.LOW,
+            ))
+        if outcome:
+            edges.append(CausalEdge(
+                source=latent, target=outcome,
+                mechanism="suspected unmeasured common cause of treatment and outcome",
+                provenance=EdgeProvenance.DOMAIN, confidence=Confidence.LOW,
             ))
 
     return CausalDAG(
