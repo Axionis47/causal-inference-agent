@@ -58,6 +58,7 @@ def _dossier(roles_columns: list[tuple[str, RoleLabel]]) -> dict:
             {"column": c, "role": r, "reason": "seen in investigation"}
             for c, r in roles_columns
         ],
+        suspected_latent_confounders=["unobserved ability"],
         summary="A small experimental subset; row_id is an index.",
     ).model_dump(mode="json")
 
@@ -125,6 +126,9 @@ async def test_scripted_investigation_builds_a_dossier_with_tool_evidence(ctx, m
     dossier = result.output
     assert dossier.role_of("ghost_column") is None
     assert dossier.role_of("row_id").role == RoleLabel.IDENTIFIER
+    # latent confounders are domain knowledge, not columns; the column
+    # quarantine leaves them intact
+    assert dossier.suspected_latent_confounders == ["unobserved ability"]
     assert any("ghost_column" in w for w in result.warnings)
     assert {"investigator/dossier", "investigator/transcript", "investigator/summary"} <= set(
         result.artifact_ids

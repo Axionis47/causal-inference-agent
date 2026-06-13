@@ -39,6 +39,12 @@ needs_user (only a human can answer). Put at most three sharp questions in
 open_questions, each one only a human can answer and each materially
 affecting the analysis.
 
+In suspected_latent_confounders, name plausible unmeasured common causes of
+BOTH the treatment and the outcome that are NOT columns in this dataset (for
+example overall market size, baseline health, or innate ability). These come
+from domain reasoning, not the data; they are not dataset column names. Leave
+the list empty only when you are confident no important common cause is missing.
+
 TRANSCRIPT:
 {transcript}"""
 
