@@ -38,6 +38,7 @@ from .dossier import (
 from .eda import EDACheck, EDACheckStatus, EDAPlan, EDASummary
 from .estimate import EffectEstimate, EstimateResult
 from .profile import ColumnProfile, ProfileSummary
+from .readiness import ReadinessResult
 from .report import NotebookBuildResult, NotebookStatus, NotebookVerificationResult
 
 __all__ = [
@@ -76,6 +77,7 @@ __all__ = [
     "EstimateResult",
     "ColumnProfile",
     "ProfileSummary",
+    "ReadinessResult",
     "NotebookBuildResult",
     "NotebookStatus",
     "NotebookVerificationResult",

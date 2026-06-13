@@ -20,6 +20,7 @@ class AnalysisStage(StrEnum):
     S4_TARGETED_EDA_COMPLETE = "s4_targeted_eda_complete"
     S5_PLAN_CRITIQUED = "s5_plan_critiqued"
     S6_USER_CONFIRMED_OR_AUTO_APPROVED = "s6_user_confirmed_or_auto_approved"
+    S6B_ANALYSIS_READY = "s6b_analysis_ready"
     S7_METHOD_EXECUTED = "s7_method_executed"
     S8_DIAGNOSTICS_SENSITIVITY_COMPLETE = "s8_diagnostics_sensitivity_complete"
     S9_CLAIM_CRITIQUED = "s9_claim_critiqued"
@@ -43,6 +44,7 @@ STAGE_AGENT: dict[AnalysisStage, str | None] = {
     AnalysisStage.S4_TARGETED_EDA_COMPLETE: "targeted_eda",
     AnalysisStage.S5_PLAN_CRITIQUED: "plan_critic",
     AnalysisStage.S6_USER_CONFIRMED_OR_AUTO_APPROVED: None,
+    AnalysisStage.S6B_ANALYSIS_READY: "readiness",
     AnalysisStage.S7_METHOD_EXECUTED: "method_lane",
     AnalysisStage.S8_DIAGNOSTICS_SENSITIVITY_COMPLETE: "diagnostics_sensitivity",
     AnalysisStage.S9_CLAIM_CRITIQUED: "claim_critic",

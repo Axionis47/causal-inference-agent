@@ -27,6 +27,7 @@ from src.analysis_v2.spec import (
     NotebookVerificationResult,
     PlanCritique,
     ProfileSummary,
+    ReadinessResult,
     SensitivityResult,
     ToolEligibility,
 )
@@ -74,6 +75,7 @@ class AnalysisRunState(BaseModel):
     eda_summary: EDASummary | None = None
     plan_critique: PlanCritique | None = None
     method_plan: MethodPlan | None = None
+    readiness: ReadinessResult | None = None
     estimate_result: EstimateResult | None = None
     diagnostics_result: DiagnosticsResult | None = None
     sensitivity_result: SensitivityResult | None = None

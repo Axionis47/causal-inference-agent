@@ -171,7 +171,7 @@ async def test_a_completed_job_reopens_through_the_api_with_full_tiles(
     view = client.get("/jobs/wf-reopen/analysis").json()
     assert view["status"] == "completed"
     assert view["current_state"] == "s12_job_complete"
-    assert len(view["agents"]) == 11
+    assert len(view["agents"]) == 12
     assert all(a["status"] in ("passed", "warning") for a in view["agents"])
     assert view["notebook"]["status"] == "verified_running"
     assert view["costs"]["total_tool_calls"] >= 0
