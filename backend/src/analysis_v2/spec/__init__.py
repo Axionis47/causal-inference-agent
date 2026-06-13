@@ -37,7 +37,7 @@ from .dossier import (
     RoleLabel,
 )
 from .eda import EDACheck, EDACheckStatus, EDAPlan, EDASummary
-from .estimate import EffectEstimate, EstimateResult
+from .estimate import BACKDOOR_IDENTIFIED_ESTIMATORS, EffectEstimate, EstimateResult
 from .flow_audit import FlowAuditResult, FlowSignal, FlowSignalStatus
 from .profile import ColumnProfile, ProfileSummary
 from .readiness import ReadinessResult
@@ -79,6 +79,7 @@ __all__ = [
     "EDACheckStatus",
     "EDAPlan",
     "EDASummary",
+    "BACKDOOR_IDENTIFIED_ESTIMATORS",
     "EffectEstimate",
     "EstimateResult",
     "FlowAuditResult",

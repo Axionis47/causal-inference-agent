@@ -63,6 +63,29 @@ def _step(strength: ClaimStrength, delta: int) -> ClaimStrength:
     return _ORDER[index]
 
 
+def cap_for_latent_confounding(
+    strength: ClaimStrength, latents: list[str]
+) -> tuple[ClaimStrength, str | None, str]:
+    """Cap a backdoor-adjusted claim when a latent confounder leaves the effect
+    unidentified: the estimate is then an association, not the causal effect.
+    Returns (capped strength, a rationale note when it changed, a limitation)."""
+    ceiling = ClaimStrength.WEAK
+    if _ORDER.index(strength) <= _ORDER.index(ceiling):
+        capped, note = strength, None
+    else:
+        capped = ceiling
+        note = (
+            f"capped from {strength.value} to {ceiling.value}: the effect is not "
+            "point-identified (suspected unmeasured confounding)"
+        )
+    named = f" by {', '.join(latents)}" if latents else ""
+    limitation = (
+        f"not point-identified: suspected unmeasured confounding{named}; the "
+        "estimate is an association, not the causal effect"
+    )
+    return capped, note, limitation
+
+
 def claim_strength(
     question_type: QuestionType,
     result: EstimateResult,

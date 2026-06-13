@@ -3,13 +3,14 @@ from __future__ import annotations
 
 from src.analysis_v2.agents.claim_critic.rubric import (
     FORBIDDEN_LANGUAGE,
+    cap_for_latent_confounding,
     claim_strength,
     limitations,
 )
 from src.analysis_v2.spec import (
+    CheckStatus,
     ClaimStrength,
     DiagnosticCheck,
-    CheckStatus,
     EffectEstimate,
     EstimateResult,
     MethodLane,
@@ -85,6 +86,21 @@ def test_zero_spanning_ci_converts_to_a_no_clear_effect_note():
         QuestionType.NO_EFFECT, _result(ci=(-200.0, 300.0)), None
     )
     assert any("spans zero" in n for n in notes)
+
+
+def test_latent_confounding_caps_a_moderate_claim_to_weak():
+    capped, note, limitation = cap_for_latent_confounding(
+        ClaimStrength.MODERATE, ["market size"]
+    )
+    assert capped == ClaimStrength.WEAK
+    assert note is not None and "not point-identified" in note
+    assert "market size" in limitation
+
+
+def test_latent_confounding_cap_leaves_an_already_weak_claim_unchanged():
+    capped, note, _ = cap_for_latent_confounding(ClaimStrength.WEAK, [])
+    assert capped == ClaimStrength.WEAK
+    assert note is None
 
 
 def test_forbidden_language_never_leaks_into_allowed():

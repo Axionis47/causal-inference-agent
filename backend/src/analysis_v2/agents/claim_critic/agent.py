@@ -8,9 +8,15 @@ from __future__ import annotations
 
 from src.analysis_v2.agents.base import AgentCtx, AgentResult, AnalysisAgent
 from src.analysis_v2.core import AnalysisRunState, AnalysisStage, ArtifactKind, GateResult
-from src.analysis_v2.spec import ClaimCritique
+from src.analysis_v2.spec import BACKDOOR_IDENTIFIED_ESTIMATORS, ClaimCritique
 
-from .rubric import ALLOWED_LANGUAGE, FORBIDDEN_LANGUAGE, claim_strength, limitations
+from .rubric import (
+    ALLOWED_LANGUAGE,
+    FORBIDDEN_LANGUAGE,
+    cap_for_latent_confounding,
+    claim_strength,
+    limitations,
+)
 
 
 class ClaimCriticAgent(AnalysisAgent):
@@ -30,6 +36,25 @@ class ClaimCriticAgent(AnalysisAgent):
         limits = limitations(
             run.causal_spec.question_type, run.estimate_result, run.sensitivity_result
         )
+        # A latent confounder on an open backdoor path means a backdoor-adjusted
+        # estimate is an association, not the identified effect: cap the claim.
+        # Scoped to the backdoor-identified designs; IV/DiD/RDD identify despite
+        # such confounding and keep their strength.
+        dag = run.causal_dag
+        if (
+            dag is not None
+            and dag.has_latent_confounding()
+            and run.estimate_result.estimator in BACKDOOR_IDENTIFIED_ESTIMATORS
+        ):
+            latents = (
+                run.dataset_dossier.suspected_latent_confounders
+                if run.dataset_dossier is not None
+                else []
+            )
+            strength, cap_note, cap_limit = cap_for_latent_confounding(strength, latents)
+            if cap_note is not None:
+                notes.append(cap_note)
+            limits = [*limits, cap_limit]
         critique = ClaimCritique(
             strength=strength,
             allowed_language=list(ALLOWED_LANGUAGE),

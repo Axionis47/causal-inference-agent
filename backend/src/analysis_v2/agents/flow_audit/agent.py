@@ -17,6 +17,7 @@ from __future__ import annotations
 from src.analysis_v2.agents.base import AgentCtx, AgentResult, AnalysisAgent
 from src.analysis_v2.core import AnalysisRunState, AnalysisStage, ArtifactKind, GateResult
 from src.analysis_v2.spec import (
+    BACKDOOR_IDENTIFIED_ESTIMATORS,
     ClaimStrength,
     FlowAuditResult,
     FlowSignal,
@@ -33,12 +34,6 @@ ADJUSTMENT_ESTIMATORS = frozenset({
     "product_of_coefficients",
     "cox_proportional_hazards",
 })
-
-# Designs whose identification IS backdoor adjustment, so the DAG's verdict is
-# the right honesty criterion. DiD (parallel trends), RDD (continuity), IV
-# (exclusion), and survival/mediation carry their own identification
-# assumptions, so the backdoor verdict does not bound their claim strength.
-HONESTY_CHECK_ESTIMATORS = frozenset({"regression_adjustment", "propensity_matching"})
 
 
 class FlowAuditAgent(AnalysisAgent):
@@ -73,7 +68,7 @@ class FlowAuditAgent(AnalysisAgent):
         if (
             dag is not None
             and estimate is not None
-            and estimate.estimator in HONESTY_CHECK_ESTIMATORS
+            and estimate.estimator in BACKDOOR_IDENTIFIED_ESTIMATORS
             and run.claim_critique is not None
         ):
             identifiable, reason = dag.is_identifiable()

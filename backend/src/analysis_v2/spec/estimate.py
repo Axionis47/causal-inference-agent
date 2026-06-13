@@ -5,6 +5,16 @@ from pydantic import BaseModel, Field
 
 from .design import MethodLane
 
+# Estimators whose identification IS backdoor adjustment, so the DAG's
+# identifiability verdict is the right honesty criterion for them. DiD, RDD, IV,
+# survival, and mediation carry their own identifying assumptions and are not
+# bound by the backdoor verdict. Shared by claim_critic (caps the claim) and the
+# flow audit (checks the claim) so the two cannot disagree.
+BACKDOOR_IDENTIFIED_ESTIMATORS = frozenset({
+    "regression_adjustment",
+    "propensity_matching",
+})
+
 
 class EffectEstimate(BaseModel):
     """One estimand from the executed lane (a lane may emit a small set,
