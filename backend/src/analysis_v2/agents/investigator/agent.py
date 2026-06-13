@@ -7,6 +7,8 @@ agent degrades to a spec-and-profile dossier and says so; the spine never
 stalls on missing agency."""
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import structlog
 
 from src.analysis_v2.agents.base import AgentCtx, AgentResult, AnalysisAgent, react_loop
@@ -18,6 +20,7 @@ from src.analysis_v2.core import (
     TokenUsage,
 )
 from src.analysis_v2.spec import (
+    CausalDAG,
     ColumnRole,
     ContextLedgerItem,
     DatasetDossier,
@@ -26,6 +29,7 @@ from src.analysis_v2.spec import (
 )
 from src.llm import get_llm_client
 
+from .dag import dag_from_dossier
 from .prompt import DOSSIER_PROMPT, SYSTEM_PROMPT, build_mission, render_transcript
 from .tools import build_tools
 
@@ -33,6 +37,15 @@ logger = structlog.get_logger(__name__)
 
 MAX_TOOL_CALLS = 18
 MAX_TURNS = 8
+
+
+@dataclass
+class InvestigatorOutput:
+    """The two slots the investigator produces: the human-facing dossier and
+    the causal DAG identification reads from."""
+
+    dossier: DatasetDossier
+    dag: CausalDAG
 
 
 def fallback_dossier(ctx: AgentCtx, note: str) -> DatasetDossier:
@@ -164,11 +177,13 @@ class InvestigatorAgent(AnalysisAgent):
         self, ctx: AgentCtx, dossier: DatasetDossier, transcript: list[dict],
         tokens: TokenUsage, *, warnings: list[str], tool_calls: list | None = None,
     ) -> AgentResult:
-        artifact_ids = self._write_artifacts(ctx, dossier, transcript)
+        dag = dag_from_dossier(dossier, ctx.run.causal_spec)
+        output = InvestigatorOutput(dossier=dossier, dag=dag)
+        artifact_ids = self._write_artifacts(ctx, dossier, dag, transcript)
         open_notes = [f"needs user: {q}" for q in dossier.open_questions[:3]]
         return AgentResult(
             gate=GateResult.advance(soft_warnings=[*warnings, *open_notes]),
-            output=dossier,
+            output=output,
             public_summary=dossier.summary,
             warnings=[*warnings, *open_notes],
             artifact_ids=artifact_ids,
@@ -177,7 +192,8 @@ class InvestigatorAgent(AnalysisAgent):
         )
 
     def _write_artifacts(
-        self, ctx: AgentCtx, dossier: DatasetDossier, transcript: list[dict]
+        self, ctx: AgentCtx, dossier: DatasetDossier, dag: CausalDAG,
+        transcript: list[dict],
     ) -> list[str]:
         ids: list[str] = []
         ctx.add_artifact(
@@ -188,6 +204,14 @@ class InvestigatorAgent(AnalysisAgent):
             summary="Provenance, column roles, and the context ledger.",
         )
         ids.append("investigator/dossier")
+        ctx.add_artifact(
+            agent=self.name, stage=self.stage,
+            artifact_id="investigator/causal_dag", kind=ArtifactKind.JSON,
+            title="Causal DAG", relative_path="investigator/causal_dag.json",
+            payload=dag.model_dump(mode="json"),
+            summary="Nodes, edges, and the treatment/outcome under study.",
+        )
+        ids.append("investigator/causal_dag")
         ctx.add_artifact(
             agent=self.name, stage=self.stage,
             artifact_id="investigator/transcript", kind=ArtifactKind.JSON,
@@ -206,5 +230,6 @@ class InvestigatorAgent(AnalysisAgent):
         ids.append("investigator/summary")
         return ids
 
-    def commit(self, run: AnalysisRunState, output: DatasetDossier) -> None:
-        run.dataset_dossier = output
+    def commit(self, run: AnalysisRunState, output: InvestigatorOutput) -> None:
+        run.dataset_dossier = output.dossier
+        run.causal_dag = output.dag

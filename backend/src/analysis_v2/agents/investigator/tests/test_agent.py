@@ -122,16 +122,20 @@ async def test_scripted_investigation_builds_a_dossier_with_tool_evidence(ctx, m
     assert llm.structured_calls == 2
     assert result.tokens.total == 100 + 20 + 50 + 30 + 2 * (200 + 80)
     # the invented column was quarantined, the real roles kept
-    dossier = result.output
+    dossier = result.output.dossier
     assert dossier.role_of("ghost_column") is None
     assert dossier.role_of("row_id").role == RoleLabel.IDENTIFIER
     assert any("ghost_column" in w for w in result.warnings)
-    assert {"investigator/dossier", "investigator/transcript", "investigator/summary"} <= set(
-        result.artifact_ids
-    )
+    assert {
+        "investigator/dossier", "investigator/causal_dag",
+        "investigator/transcript", "investigator/summary",
+    } <= set(result.artifact_ids)
 
-    agent.commit(ctx.run, dossier)
+    agent.commit(ctx.run, result.output)
     assert ctx.run.dataset_dossier is dossier
+    assert ctx.run.causal_dag is not None
+    assert ctx.run.causal_dag.treatment == "treat"
+    assert ctx.run.causal_dag.outcome == "re78"
 
 
 async def test_an_llm_without_tools_degrades_to_a_spec_and_profile_dossier(ctx, monkeypatch):
@@ -141,7 +145,7 @@ async def test_an_llm_without_tools_degrades_to_a_spec_and_profile_dossier(ctx, 
     result = await InvestigatorAgent().execute(ctx)
 
     assert result.gate.status == GateStatus.ADVANCE
-    dossier = result.output
+    dossier = result.output.dossier
     assert dossier.investigated is False
     assert dossier.role_of("treat").role == RoleLabel.TREATMENT
     assert dossier.role_of("re78").role == RoleLabel.OUTCOME

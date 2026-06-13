@@ -14,6 +14,7 @@ from enum import StrEnum
 from pydantic import BaseModel, Field, ValidationError
 
 from src.analysis_v2.spec import (
+    CausalDAG,
     CausalSpec,
     ClaimCritique,
     DatasetDossier,
@@ -68,6 +69,7 @@ class AnalysisRunState(BaseModel):
     causal_spec: CausalSpec | None = None
     dataset_profile: ProfileSummary | None = None
     dataset_dossier: DatasetDossier | None = None
+    causal_dag: CausalDAG | None = None
     design_candidates: list[DesignCandidate] = Field(default_factory=list)
     selected_design: DesignCandidate | None = None
     tool_eligibility: ToolEligibility | None = None
