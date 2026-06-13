@@ -149,7 +149,7 @@ async def test_spine_runs_all_stages_and_completes_with_a_verified_notebook(
     assert [r.agent for r in run.agent_runs] == [
         "intake", "profiling", "investigator", "design_detection", "targeted_eda",
         "plan_critic", "readiness", "method_lane", "diagnostics_sensitivity",
-        "claim_critic", "report_notebook", "notebook_verification",
+        "claim_critic", "report_notebook", "notebook_verification", "flow_audit",
     ]
     assert all(r.status.value in ("passed", "warning") for r in run.agent_runs)
     assert run.causal_spec.outcome.column == "re78"
@@ -175,8 +175,8 @@ async def test_spine_runs_all_stages_and_completes_with_a_verified_notebook(
     assert run.notebook_verification is not None
     assert run.notebook_verification.notebook_status.value == "verified_running"
     assert run.notebook_verification.executed_all_cells is True
-    assert len(run.state_events) == 14  # S1..S2a..S5, S6, S6b, S7..S11, terminal S12
-    assert run.state_version == 14
+    assert len(run.state_events) == 15  # S1..S5, S6, S6b, S7..S11, S11a, terminal S12
+    assert run.state_version == 15
 
     # artifacts persisted on disk and registered
     for artifact in run.artifact_registry.artifacts:

@@ -26,6 +26,7 @@ class AnalysisStage(StrEnum):
     S9_CLAIM_CRITIQUED = "s9_claim_critiqued"
     S10_REPORT_NOTEBOOK_CREATED = "s10_report_notebook_created"
     S11_NOTEBOOK_VERIFIED = "s11_notebook_verified"
+    S11A_FLOW_AUDITED = "s11a_flow_audited"
     S12_JOB_COMPLETE = "s12_job_complete"
 
 
@@ -50,6 +51,7 @@ STAGE_AGENT: dict[AnalysisStage, str | None] = {
     AnalysisStage.S9_CLAIM_CRITIQUED: "claim_critic",
     AnalysisStage.S10_REPORT_NOTEBOOK_CREATED: "report_notebook",
     AnalysisStage.S11_NOTEBOOK_VERIFIED: "notebook_verification",
+    AnalysisStage.S11A_FLOW_AUDITED: "flow_audit",
     AnalysisStage.S12_JOB_COMPLETE: None,
 }
 

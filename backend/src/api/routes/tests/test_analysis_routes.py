@@ -75,7 +75,7 @@ async def test_analysis_view_reconstructs_tiles_costs_and_events(client):
     assert response.status_code == 200
     body = response.json()
     assert body["current_state"] == "s1_intake_parsed"
-    assert body["stage_index"] == 1 and body["total_stages"] == 15
+    assert body["stage_index"] == 1 and body["total_stages"] == 16
     agent = body["agents"][0]
     assert agent["agent"] == "intake"
     assert agent["status"] == "passed"

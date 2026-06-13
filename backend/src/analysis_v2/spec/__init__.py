@@ -38,6 +38,7 @@ from .dossier import (
 )
 from .eda import EDACheck, EDACheckStatus, EDAPlan, EDASummary
 from .estimate import EffectEstimate, EstimateResult
+from .flow_audit import FlowAuditResult, FlowSignal, FlowSignalStatus
 from .profile import ColumnProfile, ProfileSummary
 from .readiness import ReadinessResult
 from .report import NotebookBuildResult, NotebookStatus, NotebookVerificationResult
@@ -80,6 +81,9 @@ __all__ = [
     "EDASummary",
     "EffectEstimate",
     "EstimateResult",
+    "FlowAuditResult",
+    "FlowSignal",
+    "FlowSignalStatus",
     "ColumnProfile",
     "ProfileSummary",
     "ReadinessResult",

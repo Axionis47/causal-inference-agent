@@ -23,6 +23,7 @@ from src.analysis_v2.spec import (
     EDAPlan,
     EDASummary,
     EstimateResult,
+    FlowAuditResult,
     MethodPlan,
     NotebookBuildResult,
     NotebookVerificationResult,
@@ -84,6 +85,7 @@ class AnalysisRunState(BaseModel):
     claim_critique: ClaimCritique | None = None
     notebook_build: NotebookBuildResult | None = None
     notebook_verification: NotebookVerificationResult | None = None
+    flow_audit: FlowAuditResult | None = None
 
     # Bookkeeping.
     artifact_registry: ArtifactRegistry = Field(default_factory=ArtifactRegistry)
