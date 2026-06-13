@@ -18,7 +18,7 @@ from src.analysis_v2.spec import (
     PlanGateStatus,
 )
 
-from .plan_builder import build_method_plan
+from .plan_builder import build_method_plan, select_runnable
 from .rules import build_card, confirmation_items, hard_missing, needs_confirmation_reasons
 
 
@@ -59,34 +59,42 @@ class PlanCriticAgent(AnalysisAgent):
                 artifact_ids=ids,
             )
 
-        primary = candidates[0]
-        # The plan freezes a concrete outcome; with candidates still open it
-        # is derived at S6 from the user's answer instead.
-        plan = (
-            build_method_plan(spec, primary, run.dataset_dossier)
-            if spec.outcome.resolved
-            else None
-        )
         items = confirmation_items(spec, candidates, run.tool_eligibility)
         reasons = needs_confirmation_reasons(spec, candidates)
 
         if items or reasons:
+            # Confirmation pending: keep the top design and let the user resolve
+            # the open items first; runnability is settled after they confirm.
+            # The plan freezes a concrete outcome, so with the outcome still
+            # open it is derived at S6 from the user's answer instead.
+            chosen = candidates[0]
+            plan = (
+                build_method_plan(spec, chosen, run.dataset_dossier)
+                if spec.outcome.resolved
+                else None
+            )
+            repair_notes: list[str] = []
             critique = PlanCritique(
                 status=PlanGateStatus.NEEDS_USER_CONFIRMATION,
                 reasons=reasons,
                 confirmation_card=build_card(spec, candidates, items, reasons),
-                summary=f"The {primary.lane.value} plan is ready but needs your confirmation.",
+                summary=f"The {chosen.lane.value} plan is ready but needs your confirmation.",
             )
             gate = GateResult.needs_user(reasons or ["plan confirmation requested"])
         else:
+            # Auto-approve: pick the highest-ranked design that actually runs on
+            # the data, falling down the ranking when the primary is too thin.
+            chosen, plan, repair_notes = select_runnable(
+                spec, candidates, run.dataset_dossier, ctx.frame
+            )
             critique = PlanCritique(
                 status=PlanGateStatus.PASS_AUTO_APPROVED,
-                summary=f"The {primary.lane.value} plan is fully resolved; auto-approved.",
+                summary=f"The {chosen.lane.value} plan is fully resolved; auto-approved.",
             )
             gate = GateResult.advance()
 
         output = PlanCriticOutput(
-            critique=critique, selected_design=primary, method_plan=plan
+            critique=critique, selected_design=chosen, method_plan=plan
         )
         ids = self._write_artifacts(ctx, output)
         public = critique.summary + (
@@ -98,7 +106,7 @@ class PlanCriticAgent(AnalysisAgent):
             gate=gate,
             output=output,
             public_summary=public,
-            warnings=list(primary.warnings),
+            warnings=list(chosen.warnings) + repair_notes,
             artifact_ids=ids,
         )
 

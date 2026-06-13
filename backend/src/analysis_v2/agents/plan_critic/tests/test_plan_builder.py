@@ -2,7 +2,10 @@
 candidate_confounders, and re-asserts the banned-role veto defensively."""
 from __future__ import annotations
 
-from src.analysis_v2.agents.plan_critic.plan_builder import build_method_plan
+import numpy as np
+import pandas as pd
+
+from src.analysis_v2.agents.plan_critic.plan_builder import build_method_plan, select_runnable
 from src.analysis_v2.spec import (
     CausalSpec,
     ColumnRole,
@@ -102,3 +105,57 @@ def test_identifier_and_leakage_roles_never_enter_the_covariates():
     )
     plan = build_method_plan(spec, _candidate(), dossier)
     assert plan.covariates == ["a"]
+
+
+def _binary_spec() -> CausalSpec:
+    return CausalSpec(
+        question_type=QuestionType.BINARY_TREATMENT,
+        outcome=VariableRef(column="y"),
+        treatment=VariableRef(column="t"),
+        candidate_confounders=["x"],
+    )
+
+
+def test_select_runnable_falls_back_when_the_primary_is_too_thin():
+    """The fix-things step: matching needs >=10 per arm; with 5 treated it is
+    not runnable, so the auto-approve path drops to the observational design."""
+    rng = np.random.default_rng(0)
+    n = 60
+    frame = pd.DataFrame(
+        {
+            "y": rng.normal(size=n),
+            "t": np.array([1] * 5 + [0] * 55),  # 5 treated -> matching cannot run
+            "x": rng.normal(size=n),
+        }
+    )
+    candidates = [
+        DesignCandidate(
+            lane=MethodLane.MATCHING, design_label="matching",
+            confidence=Confidence.HIGH, rationale="r",
+        ),
+        DesignCandidate(
+            lane=MethodLane.OBSERVATIONAL, design_label="observational",
+            confidence=Confidence.MEDIUM, rationale="r",
+        ),
+    ]
+    chosen, plan, notes = select_runnable(_binary_spec(), candidates, None, frame)
+    assert chosen.lane == MethodLane.OBSERVATIONAL
+    assert plan.lane == MethodLane.OBSERVATIONAL
+    assert notes and "not runnable" in notes[0]
+
+
+def test_select_runnable_keeps_the_primary_when_it_runs():
+    rng = np.random.default_rng(0)
+    n = 60
+    frame = pd.DataFrame(
+        {"y": rng.normal(size=n), "t": rng.integers(0, 2, n), "x": rng.normal(size=n)}
+    )
+    candidates = [
+        DesignCandidate(
+            lane=MethodLane.OBSERVATIONAL, design_label="observational",
+            confidence=Confidence.HIGH, rationale="r",
+        )
+    ]
+    chosen, plan, notes = select_runnable(_binary_spec(), candidates, None, frame)
+    assert chosen.lane == MethodLane.OBSERVATIONAL
+    assert notes == []
