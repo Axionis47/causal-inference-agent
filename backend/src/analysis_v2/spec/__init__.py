@@ -12,6 +12,7 @@ from .critique import (
     PlanCritique,
     PlanGateStatus,
 )
+from .dag import CausalDAG, CausalEdge, CausalNode, EdgeProvenance
 from .design import (
     DesignCandidate,
     EligibilityState,
@@ -46,6 +47,10 @@ __all__ = [
     "Confidence",
     "QuestionType",
     "VariableRef",
+    "CausalDAG",
+    "CausalEdge",
+    "CausalNode",
+    "EdgeProvenance",
     "ClaimCritique",
     "ClaimStrength",
     "ConfirmationCard",
