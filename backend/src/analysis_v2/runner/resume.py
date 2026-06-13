@@ -13,6 +13,7 @@ from typing import Any
 import structlog
 
 from src.analysis_v2.agents.design_detection.candidates import build_candidates
+from src.analysis_v2.agents.design_detection.dag import apply_dag_adjustment
 from src.analysis_v2.agents.design_detection.resolve import resolve_spec
 from src.analysis_v2.agents.design_detection.rules import evaluate_all_lanes
 from src.analysis_v2.agents.plan_critic.plan_builder import build_method_plan
@@ -151,7 +152,8 @@ def _apply_edits(run, edits: dict[str, str]) -> dict[str, str]:
         else:
             raise InvalidPlanEdits(f"unknown edit field '{field}'")
 
-    refined, _notes = resolve_spec(spec, profile, run.dataset_dossier)
+    refined, _notes = resolve_spec(spec, profile)
+    dag = apply_dag_adjustment(refined, run.dataset_dossier)
     eligibility = evaluate_all_lanes(refined, profile)
     candidates = build_candidates(refined, eligibility)
     if lane_choice is not None:
@@ -172,6 +174,7 @@ def _apply_edits(run, edits: dict[str, str]) -> dict[str, str]:
         raise InvalidPlanEdits("no executable design remains after these edits")
 
     run.causal_spec = refined
+    run.causal_dag = dag
     run.tool_eligibility = eligibility
     run.design_candidates = candidates
     run.selected_design = chosen

@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from src.analysis_v2.agents.base import AgentCtx, AgentResult, AnalysisAgent
 from src.analysis_v2.core import AnalysisRunState, AnalysisStage, ArtifactKind, GateResult
 from src.analysis_v2.spec import (
+    CausalDAG,
     CausalSpec,
     DesignCandidate,
     EligibilityState,
@@ -18,6 +19,7 @@ from src.analysis_v2.spec import (
 )
 
 from .candidates import PRIMARY_LANE, build_candidates
+from .dag import apply_dag_adjustment
 from .resolve import resolve_spec
 from .rules import evaluate_all_lanes
 
@@ -27,6 +29,7 @@ class DesignDetectionOutput:
     spec: CausalSpec  # refined: sole-candidate promotions applied
     candidates: list[DesignCandidate]
     eligibility: ToolEligibility
+    dag: CausalDAG
 
 
 def _public_summary(
@@ -83,16 +86,20 @@ class DesignDetectionAgent(AnalysisAgent):
                 public_summary="Upstream slots are missing; the spine is out of order.",
             )
 
-        refined, notes = resolve_spec(spec, profile, ctx.run.dataset_dossier)
+        refined, notes = resolve_spec(spec, profile)
+        dag = apply_dag_adjustment(refined, ctx.run.dataset_dossier)
+        identifiable, id_reason = dag.is_identifiable()
         eligibility = evaluate_all_lanes(refined, profile)
         candidates = build_candidates(refined, eligibility)
         output = DesignDetectionOutput(
-            spec=refined, candidates=candidates, eligibility=eligibility
+            spec=refined, candidates=candidates, eligibility=eligibility, dag=dag
         )
 
         artifact_ids = self._write_artifacts(ctx, output)
         summary = _public_summary(refined, candidates, eligibility, notes)
         warnings = [w for c in candidates for w in c.warnings]
+        if not identifiable:
+            warnings.append(f"effect not point-identified: {id_reason}")
         if not candidates:
             warnings.append("no executable design candidates; plan gate must resolve")
         return AgentResult(
@@ -147,9 +154,14 @@ class DesignDetectionAgent(AnalysisAgent):
             "design/refined_spec", "Refined causal spec", "design/refined_causal_spec.json",
             output.spec.model_dump(mode="json"),
         )
+        _add(
+            "design/causal_dag", "Causal DAG", "design/causal_dag.json",
+            output.dag.model_dump(mode="json"),
+        )
         return ids
 
     def commit(self, run: AnalysisRunState, output: DesignDetectionOutput) -> None:
         run.causal_spec = output.spec
+        run.causal_dag = output.dag
         run.design_candidates = output.candidates
         run.tool_eligibility = output.eligibility

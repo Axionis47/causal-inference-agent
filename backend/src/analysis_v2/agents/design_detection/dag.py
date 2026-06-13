@@ -1,12 +1,14 @@
-"""Derive a CausalDAG from the dossier role table.
+"""Assemble the causal DAG at S3, after the spec is refined.
 
-The deterministic projection of what the investigator already established: the
-treatment effect, pre-treatment confounders as common causes, mediators on the
-treatment->outcome path, and an instrument feeding the treatment. Its backdoor
-adjustment set equals the reconciled confounder list (the fold design_detection
-performs today), so reading identification off the DAG is a clean swap rather
-than a behaviour change. This is also the fallback when no richer model is
-synthesised; a latent-confounder model, when one is built, supersedes it.
+The treatment and outcome are only resolved by design_detection's refinement
+(sole-candidate promotion, the survival duration->outcome rule), so the DAG is
+built here, not at the investigator: it needs the resolved roles. It is the
+deterministic projection of the dossier role table, the treatment effect plus
+pre-treatment confounders as common causes and mediators on the path, and its
+backdoor adjustment set equals the confounder fold design_detection used to do
+inline. Instruments are deliberately omitted: they belong to the IV lane, not
+the adjustment set (an instrument is an ancestor of the treatment and would
+otherwise be adjusted on). A richer latent-confounder model can supersede it.
 """
 from __future__ import annotations
 
@@ -22,20 +24,21 @@ from src.analysis_v2.spec import (
 )
 
 
-def dag_from_dossier(dossier: DatasetDossier, spec: CausalSpec | None) -> CausalDAG:
-    treatment = spec.treatment.column if spec and spec.treatment else None
-    outcome = spec.outcome.column if spec and spec.outcome else None
+def dag_from_dossier(spec: CausalSpec, dossier: DatasetDossier | None) -> CausalDAG:
+    treatment = spec.treatment.column if spec.treatment else None
+    outcome = spec.outcome.column if spec.outcome else None
     protected = {c for c in (treatment, outcome) if c}
-    banned = {r.column for r in dossier.roles if r.role in BANNED_ADJUSTMENT_ROLES}
+    roles = dossier.roles if dossier else []
+    banned = {r.column for r in roles if r.role in BANNED_ADJUSTMENT_ROLES}
 
-    # Confounders: intake's candidates and the dossier's pre-treatment columns,
-    # minus anything a banned role rules out, minus the treatment/outcome. This
-    # mirrors design_detection's fold so the backdoor set matches.
+    # Confounders mirror design_detection's fold: intake's candidates plus the
+    # dossier's pre-treatment columns, minus banned roles and the treatment and
+    # outcome themselves. So the backdoor set matches what the fold produced.
     confounders: list[str] = []
-    for column in (spec.candidate_confounders if spec else []):
+    for column in spec.candidate_confounders:
         if column not in banned and column not in protected and column not in confounders:
             confounders.append(column)
-    for role in dossier.roles:
+    for role in roles:
         if (
             role.role == RoleLabel.PRE_TREATMENT
             and role.column not in protected
@@ -72,7 +75,7 @@ def dag_from_dossier(dossier: DatasetDossier, spec: CausalSpec | None) -> Causal
                 mechanism="pre-treatment common cause of treatment and outcome",
                 provenance=EdgeProvenance.TEMPORAL,
             ))
-    for role in dossier.roles:
+    for role in roles:
         if role.role == RoleLabel.MEDIATOR and treatment and outcome and role.column not in protected:
             node(role.column)
             edges.append(CausalEdge(
@@ -86,19 +89,16 @@ def dag_from_dossier(dossier: DatasetDossier, spec: CausalSpec | None) -> Causal
                 provenance=EdgeProvenance.DOMAIN,
             ))
 
-    instrument = next(
-        (r.column for r in dossier.roles if r.role == RoleLabel.INSTRUMENT), None
-    )
-    if instrument is None and spec and spec.instrument and spec.instrument.column:
-        instrument = spec.instrument.column
-    if instrument and treatment and instrument not in protected:
-        node(instrument)
-        edges.append(CausalEdge(
-            source=instrument, target=treatment,
-            mechanism="instrument shifts the treatment, excluded from the outcome",
-            provenance=EdgeProvenance.DOMAIN,
-        ))
-
     return CausalDAG(
         nodes=list(nodes.values()), edges=edges, treatment=treatment, outcome=outcome
     )
+
+
+def apply_dag_adjustment(spec: CausalSpec, dossier: DatasetDossier | None) -> CausalDAG:
+    """Build the DAG from the refined spec and dossier, then set the spec's
+    candidate_confounders to its backdoor adjustment set. The single place the
+    adjustment set is decided; both design_detection and the resume re-derive
+    call it so they cannot diverge. Returns the DAG for the run-state slot."""
+    dag = dag_from_dossier(spec, dossier)
+    spec.candidate_confounders = sorted(dag.adjustment_set())
+    return dag
