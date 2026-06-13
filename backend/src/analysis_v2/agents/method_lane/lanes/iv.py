@@ -18,22 +18,37 @@ from .common import (
     ci_from,
     effects_table,
     numeric_frame,
-    require_variation,
+    numeric_frame_issues,
     safe_float,
     summary_markdown,
+    variation_issue,
 )
+
+
+def check_ready(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> list[str]:
+    """Preconditions for 2SLS, shared with the readiness checker."""
+    lane = "iv"
+    instrument = plan.settings.get("instrument")
+    if not instrument or plan.treatment is None:
+        return [f"{lane}: needs an instrument and a treatment in the plan"]
+    issues, data = numeric_frame_issues(
+        frame, [plan.outcome, plan.treatment, instrument, *plan.covariates], lane
+    )
+    if issues or data is None:
+        return issues
+    return variation_issue(
+        data[instrument], f"instrument '{instrument}'", lane
+    ) + variation_issue(data[plan.treatment], f"treatment '{plan.treatment}'", lane)
 
 
 def run(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> LaneOutcome:
     lane = "iv"
+    reasons = check_ready(frame, plan, spec)
+    if reasons:
+        raise LaneInputError(reasons[0])
     instrument = plan.settings.get("instrument")
-    if not instrument or plan.treatment is None:
-        raise LaneInputError(f"{lane}: needs an instrument and a treatment in the plan")
-
     columns = [plan.outcome, plan.treatment, instrument, *plan.covariates]
     data = numeric_frame(frame, columns, lane)
-    require_variation(data[instrument], f"instrument '{instrument}'", lane)
-    require_variation(data[plan.treatment], f"treatment '{plan.treatment}'", lane)
 
     covs = data[plan.covariates] if plan.covariates else None
     first_rhs = pd.concat([data[[instrument]], covs], axis=1) if covs is not None else data[[instrument]]

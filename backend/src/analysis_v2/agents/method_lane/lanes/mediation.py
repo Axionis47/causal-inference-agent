@@ -20,21 +20,35 @@ from .common import (
     ci_from,
     effects_table,
     numeric_frame,
-    require_variation,
+    numeric_frame_issues,
     safe_float,
     summary_markdown,
+    variation_issue,
 )
+
+
+def check_ready(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> list[str]:
+    """Preconditions for the mediation decomposition, shared with readiness."""
+    lane = "mediation"
+    mediator = plan.settings.get("mediator")
+    if not mediator or plan.treatment is None:
+        return [f"{lane}: needs a mediator and a treatment in the plan"]
+    issues, data = numeric_frame_issues(
+        frame, [plan.outcome, plan.treatment, mediator, *plan.covariates], lane
+    )
+    if issues or data is None:
+        return issues
+    return variation_issue(data[plan.treatment], "treatment", lane)
 
 
 def run(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> LaneOutcome:
     lane = "mediation"
+    reasons = check_ready(frame, plan, spec)
+    if reasons:
+        raise LaneInputError(reasons[0])
     mediator = plan.settings.get("mediator")
-    if not mediator or plan.treatment is None:
-        raise LaneInputError(f"{lane}: needs a mediator and a treatment in the plan")
-
     columns = [plan.outcome, plan.treatment, mediator, *plan.covariates]
     data = numeric_frame(frame, columns, lane)
-    require_variation(data[plan.treatment], "treatment", lane)
     covs = data[plan.covariates] if plan.covariates else None
 
     m_rhs = pd.concat([data[[plan.treatment]], covs], axis=1) if covs is not None else data[[plan.treatment]]

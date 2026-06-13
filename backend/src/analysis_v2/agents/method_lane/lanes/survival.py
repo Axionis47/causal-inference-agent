@@ -27,12 +27,12 @@ from .common import (  # noqa: E402
     LaneArtifact,
     LaneInputError,
     LaneOutcome,
-    ci_from,
     effects_table,
     numeric_frame,
-    require_variation,
+    numeric_frame_issues,
     safe_float,
     summary_markdown,
+    variation_issue,
 )
 
 
@@ -58,22 +58,39 @@ def _km_png(data: pd.DataFrame, duration: str, event: str, treat: str | None) ->
     return buf.getvalue()
 
 
-def run(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> LaneOutcome:
+def check_ready(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> list[str]:
+    """Preconditions for the Cox fit, shared with the readiness checker."""
     lane = "survival"
     duration = plan.settings.get("duration_column")
     event = plan.settings.get("event_column")
     if not duration or not event:
-        raise LaneInputError(f"{lane}: needs duration and event columns in the plan")
+        return [f"{lane}: needs duration and event columns in the plan"]
     if plan.treatment is None:
-        raise LaneInputError(f"{lane}: needs a treatment column for the hazard ratio")
+        return [f"{lane}: needs a treatment column for the hazard ratio"]
+    issues, data = numeric_frame_issues(
+        frame, [duration, event, plan.treatment, *plan.covariates], lane
+    )
+    if issues or data is None:
+        return issues
+    varies = variation_issue(data[plan.treatment], "treatment", lane)
+    if varies:
+        return varies
+    if not set(data[event].unique()).issubset({0, 1}):
+        return [f"{lane}: event column '{event}' must be 0/1"]
+    if data[event].sum() < 10:
+        return [f"{lane}: fewer than 10 events observed"]
+    return []
 
+
+def run(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> LaneOutcome:
+    lane = "survival"
+    reasons = check_ready(frame, plan, spec)
+    if reasons:
+        raise LaneInputError(reasons[0])
+    duration = plan.settings.get("duration_column")
+    event = plan.settings.get("event_column")
     columns = [duration, event, plan.treatment, *plan.covariates]
     data = numeric_frame(frame, columns, lane)
-    require_variation(data[plan.treatment], "treatment", lane)
-    if not set(data[event].unique()).issubset({0, 1}):
-        raise LaneInputError(f"{lane}: event column '{event}' must be 0/1")
-    if data[event].sum() < 10:
-        raise LaneInputError(f"{lane}: fewer than 10 events observed")
 
     from statsmodels.duration.hazard_regression import PHReg
 

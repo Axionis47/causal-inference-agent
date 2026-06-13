@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
 
-from src.analysis_v2.spec import CausalSpec, EstimateResult, MethodPlan
+from src.analysis_v2.spec import EstimateResult
 
 
 class LaneInputError(ValueError):
@@ -35,30 +35,61 @@ class LaneOutcome:
     warnings: list[str] = field(default_factory=list)
 
 
-def numeric_frame(frame: pd.DataFrame, columns: list[str], lane: str) -> pd.DataFrame:
-    """Complete-case numeric view of the named columns, validated."""
+MIN_COMPLETE_ROWS = 20
+
+# Each check below has a non-raising "issue" form (returns a list of blocking
+# reasons, empty when ready) and a raising form. The lane's run() raises; the
+# readiness checker collects. Both call the same issue function, so the gate
+# and the lane can never disagree about what makes the data runnable.
+
+
+def numeric_frame_issues(
+    frame: pd.DataFrame, columns: list[str], lane: str
+) -> tuple[list[str], pd.DataFrame | None]:
+    """Non-raising form of numeric_frame: (blocking reasons, complete-case view).
+    The frame is returned even when the row count is short so callers can run
+    further checks; it is None only when columns are missing outright."""
     missing = [c for c in columns if c not in frame.columns]
     if missing:
-        raise LaneInputError(f"{lane}: columns missing from the dataset: {missing}")
-    out = frame[columns].apply(lambda s: pd.to_numeric(s, errors="coerce"))
-    out = out.dropna()
-    if len(out) < 20:
-        raise LaneInputError(
-            f"{lane}: only {len(out)} complete numeric rows across {columns}"
-        )
+        return [f"{lane}: columns missing from the dataset: {missing}"], None
+    out = frame[columns].apply(lambda s: pd.to_numeric(s, errors="coerce")).dropna()
+    if len(out) < MIN_COMPLETE_ROWS:
+        return [f"{lane}: only {len(out)} complete numeric rows across {columns}"], out
+    return [], out
+
+
+def numeric_frame(frame: pd.DataFrame, columns: list[str], lane: str) -> pd.DataFrame:
+    """Complete-case numeric view of the named columns, validated."""
+    issues, out = numeric_frame_issues(frame, columns, lane)
+    if issues:
+        raise LaneInputError(issues[0])
+    assert out is not None  # no issues implies a frame
     return out
 
 
+def variation_issue(series: pd.Series, label: str, lane: str) -> list[str]:
+    return [] if series.nunique(dropna=True) >= 2 else [f"{lane}: {label} has no variation"]
+
+
 def require_variation(series: pd.Series, label: str, lane: str) -> None:
-    if series.nunique(dropna=True) < 2:
-        raise LaneInputError(f"{lane}: {label} has no variation")
+    issues = variation_issue(series, label, lane)
+    if issues:
+        raise LaneInputError(issues[0])
+
+
+def binary_issue(series: pd.Series, label: str, lane: str) -> list[str]:
+    values = sorted(series.dropna().unique(), key=str)
+    if len(values) != 2:
+        return [f"{lane}: {label} is not binary ({len(values)} levels)"]
+    return []
 
 
 def binary_01(series: pd.Series, label: str, lane: str) -> pd.Series:
     """Map a two-valued series onto {0,1}, higher/True value = 1."""
+    issues = binary_issue(series, label, lane)
+    if issues:
+        raise LaneInputError(issues[0])
     values = sorted(series.dropna().unique(), key=str)
-    if len(values) != 2:
-        raise LaneInputError(f"{lane}: {label} is not binary ({len(values)} levels)")
     return (series == values[1]).astype(int) if not pd.api.types.is_numeric_dtype(
         series
     ) else (series == max(values)).astype(int)

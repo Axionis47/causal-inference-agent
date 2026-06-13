@@ -21,9 +21,10 @@ from .common import (
     ci_from,
     effects_table,
     numeric_frame,
-    require_variation,
+    numeric_frame_issues,
     safe_float,
     summary_markdown,
+    variation_issue,
 )
 
 _BOOTSTRAP_DRAWS = 200
@@ -39,10 +40,32 @@ def _ipw_ate(y: pd.Series, t: pd.Series, x: pd.DataFrame) -> float:
     return float((w1 * y).sum() / w1.sum() - (w0 * y).sum() / w0.sum())
 
 
+def check_ready(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> list[str]:
+    """Preconditions for a clean observational fit, shared with the readiness
+    checker. Delegates to the interaction path when a moderator is present."""
+    lane = "observational"
+    if plan.treatment is not None and plan.settings.get("moderator"):
+        from .effect_modification import check_ready as interaction_ready
+
+        return interaction_ready(frame, plan, spec)
+    if plan.treatment is None and not plan.settings.get("factors"):
+        return [f"{lane}: no treatment and no factors to regress on"]
+    if plan.treatment is not None:
+        issues, data = numeric_frame_issues(
+            frame, [plan.outcome, plan.treatment, *plan.covariates], lane
+        )
+        if issues or data is None:
+            return issues
+        return variation_issue(data[plan.treatment], f"treatment '{plan.treatment}'", lane)
+    factors = [c for c in plan.settings.get("factors", []) if c in frame.columns]
+    return numeric_frame_issues(frame, [plan.outcome, *factors], lane)[0]
+
+
 def run(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> LaneOutcome:
     lane = "observational"
-    if plan.treatment is None and not plan.settings.get("factors"):
-        raise LaneInputError(f"{lane}: no treatment and no factors to regress on")
+    reasons = check_ready(frame, plan, spec)
+    if reasons:
+        raise LaneInputError(reasons[0])
 
     # effect-modification questions carry a moderator; the interaction
     # model owns that path end to end
@@ -55,7 +78,6 @@ def run(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> LaneOutcome:
     if plan.treatment is not None:
         columns = [plan.outcome, plan.treatment, *plan.covariates]
         data = numeric_frame(frame, columns, lane)
-        require_variation(data[plan.treatment], f"treatment '{plan.treatment}'", lane)
         y = data[plan.outcome]
         rhs = data[[plan.treatment, *plan.covariates]]
         model = sm.OLS(y, sm.add_constant(rhs)).fit(cov_type="HC1")

@@ -23,9 +23,10 @@ from .common import (
     ci_from,
     effects_table,
     numeric_frame,
-    require_variation,
+    numeric_frame_issues,
     safe_float,
     summary_markdown,
+    variation_issue,
 )
 
 
@@ -52,17 +53,32 @@ def _effect(estimand: str, est: float, se: float, interpretation: str) -> Effect
     )
 
 
-def run_interaction(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> LaneOutcome:
+def check_ready(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> list[str]:
+    """Preconditions for the interaction fit, shared with the readiness checker."""
     lane = "observational"
     moderator = plan.settings.get("moderator")
     if not moderator or plan.treatment is None:
-        raise LaneInputError(f"{lane}: interaction path needs treatment and moderator")
+        return [f"{lane}: interaction path needs treatment and moderator"]
+    covariates = [c for c in plan.covariates if c != moderator]
+    issues, data = numeric_frame_issues(
+        frame, [plan.outcome, plan.treatment, moderator, *covariates], lane
+    )
+    if issues or data is None:
+        return issues
+    return variation_issue(
+        data[plan.treatment], f"treatment '{plan.treatment}'", lane
+    ) + variation_issue(data[moderator], f"moderator '{moderator}'", lane)
 
+
+def run_interaction(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> LaneOutcome:
+    lane = "observational"
+    reasons = check_ready(frame, plan, spec)
+    if reasons:
+        raise LaneInputError(reasons[0])
+    moderator = plan.settings.get("moderator")
     covariates = [c for c in plan.covariates if c != moderator]
     columns = [plan.outcome, plan.treatment, moderator, *covariates]
     data = numeric_frame(frame, columns, lane)
-    require_variation(data[plan.treatment], f"treatment '{plan.treatment}'", lane)
-    require_variation(data[moderator], f"moderator '{moderator}'", lane)
 
     t, m = data[plan.treatment], data[moderator]
     i_name = f"{plan.treatment}_x_{moderator}"

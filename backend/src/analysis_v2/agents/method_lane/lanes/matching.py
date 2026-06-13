@@ -16,9 +16,11 @@ from .common import (
     LaneInputError,
     LaneOutcome,
     binary_01,
+    binary_issue,
     ci_from,
     effects_table,
     numeric_frame,
+    numeric_frame_issues,
     safe_float,
     summary_markdown,
 )
@@ -48,16 +50,34 @@ def _smd(a: np.ndarray, b: np.ndarray) -> float:
     return float((a.mean() - b.mean()) / pooled) if pooled > 0 else 0.0
 
 
-def run(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> LaneOutcome:
+def check_ready(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> list[str]:
+    """Preconditions for matching, shared with the readiness checker."""
     lane = "matching"
     if plan.treatment is None:
-        raise LaneInputError(f"{lane}: needs a binary treatment column")
+        return [f"{lane}: needs a binary treatment column"]
     if not plan.covariates:
-        raise LaneInputError(f"{lane}: needs covariates to match on")
-    data = numeric_frame(frame, [plan.outcome, plan.treatment, *plan.covariates], lane)
+        return [f"{lane}: needs covariates to match on"]
+    issues, data = numeric_frame_issues(
+        frame, [plan.outcome, plan.treatment, *plan.covariates], lane
+    )
+    if issues or data is None:
+        return issues
+    binary = binary_issue(data[plan.treatment], "treatment", lane)
+    if binary:
+        return binary
     t = binary_01(data[plan.treatment], "treatment", lane).to_numpy()
     if t.sum() < 10 or (1 - t).sum() < 10:
-        raise LaneInputError(f"{lane}: needs at least 10 units in each arm")
+        return [f"{lane}: needs at least 10 units in each arm"]
+    return []
+
+
+def run(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> LaneOutcome:
+    lane = "matching"
+    reasons = check_ready(frame, plan, spec)
+    if reasons:
+        raise LaneInputError(reasons[0])
+    data = numeric_frame(frame, [plan.outcome, plan.treatment, *plan.covariates], lane)
+    t = binary_01(data[plan.treatment], "treatment", lane).to_numpy()
     y = data[plan.outcome].to_numpy(dtype=float)
     x = data[plan.covariates].to_numpy(dtype=float)
 
