@@ -15,4 +15,17 @@ LANES = {
     MethodLane.SURVIVAL: survival.run,
 }
 
-__all__ = ["LANES", "LaneArtifact", "LaneInputError", "LaneOutcome"]
+# Parallel map of the non-raising precondition check for each lane. The
+# readiness checker (S6b) calls these; each lane's run() calls its own first.
+LANE_CHECKS = {
+    MethodLane.OBSERVATIONAL: observational.check_ready,
+    MethodLane.MATCHING: matching.check_ready,
+    MethodLane.DID: did.check_ready,
+    MethodLane.RDD: rdd.check_ready,
+    MethodLane.IV: iv.check_ready,
+    MethodLane.TIME_SERIES: time_series.check_ready,
+    MethodLane.MEDIATION: mediation.check_ready,
+    MethodLane.SURVIVAL: survival.check_ready,
+}
+
+__all__ = ["LANES", "LANE_CHECKS", "LaneArtifact", "LaneInputError", "LaneOutcome"]

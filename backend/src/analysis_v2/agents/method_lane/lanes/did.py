@@ -9,9 +9,8 @@ from __future__ import annotations
 import pandas as pd
 import statsmodels.formula.api as smf
 
-from src.analysis_v2.spec import CausalSpec, EffectEstimate, EstimateResult, MethodLane, MethodPlan
-
 from src.analysis_v2.agents.design_detection.rules import detect_wide_periods
+from src.analysis_v2.spec import CausalSpec, EffectEstimate, EstimateResult, MethodLane, MethodPlan
 
 from .common import (
     LaneArtifact,
@@ -43,7 +42,12 @@ def _reshape_wide(frame: pd.DataFrame, group_col: str, spec: CausalSpec) -> pd.D
     return long
 
 
-def run(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> LaneOutcome:
+def _prepare(
+    frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec
+) -> tuple[list[str], dict | None]:
+    """Build the long panel and resolve groups, periods, and the treated label.
+    Returns (blocking reasons, prepared pieces). run() raises the first reason;
+    check_ready returns them. One source so the gate and the lane cannot drift."""
     lane = "did"
     group_col = plan.settings.get("group_column")
     time_col = plan.settings.get("time_column")
@@ -52,13 +56,19 @@ def run(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> LaneOutcome:
 
     if plan.settings.get("needs_reshape"):
         if group_col is None:
-            raise LaneInputError(f"{lane}: wide reshape needs a group column")
-        long = _reshape_wide(frame, group_col, spec)
+            return [f"{lane}: wide reshape needs a group column"], None
+        try:
+            long = _reshape_wide(frame, group_col, spec)
+        except LaneInputError as exc:
+            return [str(exc)], None
         outcome, group, unit_col = "outcome_value", "group", "unit"
         warnings.append("wide pre/post columns reshaped to long format")
     else:
         if not group_col or not time_col:
-            raise LaneInputError(f"{lane}: needs group and time columns")
+            return [f"{lane}: needs group and time columns"], None
+        missing = [c for c in (plan.outcome, group_col, time_col) if c not in frame.columns]
+        if missing:
+            return [f"{lane}: columns missing from the dataset: {missing}"], None
         long = frame[[plan.outcome, group_col, time_col]
                      + ([post_col] if post_col in frame.columns else [])].copy()
         long = long.dropna()
@@ -69,7 +79,7 @@ def run(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> LaneOutcome:
         if post_col not in long.columns:
             periods = sorted(long[time_col].unique())
             if len(periods) < 2:
-                raise LaneInputError(f"{lane}: fewer than two periods")
+                return [f"{lane}: fewer than two periods"], None
             split = periods[len(periods) // 2]
             long[post_col] = (long[time_col] >= split).astype(int)
             warnings.append(
@@ -78,7 +88,7 @@ def run(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> LaneOutcome:
 
     groups = long[group].dropna().unique()
     if len(groups) != 2:
-        raise LaneInputError(f"{lane}: needs exactly two groups, found {len(groups)}")
+        return [f"{lane}: needs exactly two groups, found {len(groups)}"], None
     labels = sorted(map(str, groups))
 
     def _match(wanted: str) -> str | None:
@@ -98,10 +108,10 @@ def run(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> LaneOutcome:
     if "treated_group" in plan.settings:
         treated_label = _match(str(plan.settings["treated_group"]))
         if treated_label is None:
-            raise LaneInputError(
+            return [
                 f"{lane}: treated_group '{plan.settings['treated_group']}' "
                 f"is not one of {labels}"
-            )
+            ], None
     else:
         treated_label = labels[-1]
         clue = (spec.treatment.clue or "").lower()
@@ -109,9 +119,40 @@ def run(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> LaneOutcome:
         if len(named) == 1:
             treated_label = named[0]
     long["_treated"] = (long[group].astype(str) == treated_label).astype(int)
+    time_for_fe = time_col if not plan.settings.get("needs_reshape") else "period"
+    return [], {
+        "long": long,
+        "outcome": outcome,
+        "group": group,
+        "post_col": post_col,
+        "unit_col": unit_col,
+        "treated_label": treated_label,
+        "time_for_fe": time_for_fe,
+        "warnings": warnings,
+    }
+
+
+def check_ready(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> list[str]:
+    """Preconditions for the DID fit, shared with the readiness checker."""
+    return _prepare(frame, plan, spec)[0]
+
+
+def run(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> LaneOutcome:
+    lane = "did"
+    reasons, prepared = _prepare(frame, plan, spec)
+    if reasons or prepared is None:
+        raise LaneInputError(
+            reasons[0] if reasons else f"{lane}: could not prepare the panel"
+        )
+    long = prepared["long"]
+    outcome = prepared["outcome"]
+    post_col = prepared["post_col"]
+    unit_col = prepared["unit_col"]
+    treated_label = prepared["treated_label"]
+    time_for_fe = prepared["time_for_fe"]
+    warnings = prepared["warnings"]
 
     n_periods = long[post_col].nunique()
-    time_for_fe = time_col if not plan.settings.get("needs_reshape") else "period"
     formula = f"Q('{outcome}') ~ _treated * Q('{post_col}')"
     if time_for_fe in long.columns and long[time_for_fe].nunique() > 2:
         formula += f" + C(Q('{time_for_fe}'))"

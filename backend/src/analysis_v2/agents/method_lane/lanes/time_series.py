@@ -22,30 +22,55 @@ from .common import (
     summary_markdown,
 )
 
+MIN_TIME_POINTS = 30
+MIN_SIDE_POINTS = 10
 
-def run(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> LaneOutcome:
+
+def check_ready(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> list[str]:
+    """Preconditions for the segmented regression, shared with the readiness
+    checker. The point counts need the time-grouping, so it is rebuilt here
+    exactly as run() does."""
     lane = "time_series"
     time_col = plan.settings.get("time_column")
     date = plan.settings.get("intervention_date")
     if not time_col or not date:
-        raise LaneInputError(f"{lane}: needs time_column and intervention_date")
+        return [f"{lane}: needs time_column and intervention_date"]
+    missing = [c for c in (time_col, plan.outcome) if c not in frame.columns]
+    if missing:
+        return [f"{lane}: columns missing from the dataset: {missing}"]
+    data = frame[[time_col, plan.outcome]].copy()
+    data[time_col] = pd.to_datetime(data[time_col], errors="coerce")
+    data[plan.outcome] = pd.to_numeric(data[plan.outcome], errors="coerce")
+    data = data.dropna().sort_values(time_col)
+    series = data.groupby(time_col)[plan.outcome].mean().reset_index()
+    if len(series) < MIN_TIME_POINTS:
+        return [f"{lane}: only {len(series)} time points"]
+    post = (series[time_col] >= pd.to_datetime(date)).astype(int)
+    n_pre = int((post == 0).sum())
+    n_post = int((post == 1).sum())
+    if n_pre < MIN_SIDE_POINTS or n_post < MIN_SIDE_POINTS:
+        return [f"{lane}: needs at least 10 points on each side, has {n_pre}/{n_post}"]
+    return []
+
+
+def run(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> LaneOutcome:
+    lane = "time_series"
+    reasons = check_ready(frame, plan, spec)
+    if reasons:
+        raise LaneInputError(reasons[0])
+    time_col = plan.settings.get("time_column")
+    date = plan.settings.get("intervention_date")
 
     data = frame[[time_col, plan.outcome]].copy()
     data[time_col] = pd.to_datetime(data[time_col], errors="coerce")
     data[plan.outcome] = pd.to_numeric(data[plan.outcome], errors="coerce")
     data = data.dropna().sort_values(time_col)
     series = data.groupby(time_col)[plan.outcome].mean().reset_index()
-    if len(series) < 30:
-        raise LaneInputError(f"{lane}: only {len(series)} time points")
 
     cut = pd.to_datetime(date)
     series["post"] = (series[time_col] >= cut).astype(int)
     n_pre = int((series["post"] == 0).sum())
     n_post = int((series["post"] == 1).sum())
-    if n_pre < 10 or n_post < 10:
-        raise LaneInputError(
-            f"{lane}: needs at least 10 points on each side, has {n_pre}/{n_post}"
-        )
     series["trend"] = np.arange(len(series))
     # Re-center the post-trend at the intervention so the 'post' coefficient
     # is the level shift AT the cut, not extrapolated back to t=0.

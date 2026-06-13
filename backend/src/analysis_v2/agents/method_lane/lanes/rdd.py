@@ -7,7 +7,6 @@ mirroring the Wald estimate.
 """
 from __future__ import annotations
 
-import numpy as np
 import pandas as pd
 import statsmodels.api as sm
 
@@ -20,18 +19,42 @@ from .common import (
     ci_from,
     effects_table,
     numeric_frame,
+    numeric_frame_issues,
     safe_float,
     summary_markdown,
 )
 
+MIN_LOCAL_ROWS = 50
 
-def run(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> LaneOutcome:
+
+def check_ready(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> list[str]:
+    """Preconditions for the local-linear fit, shared with the readiness checker.
+    The bandwidth window is the precondition that needs the data, so it is
+    computed here exactly as run() does."""
     lane = "rdd"
     run_col = plan.settings.get("running_variable")
     cutoff = plan.settings.get("cutoff")
     if not run_col or cutoff is None:
-        raise LaneInputError(f"{lane}: needs running_variable and cutoff in the plan")
-    cutoff = float(cutoff)
+        return [f"{lane}: needs running_variable and cutoff in the plan"]
+    columns = [plan.outcome, run_col] + ([plan.treatment] if plan.treatment else [])
+    issues, data = numeric_frame_issues(frame, columns, lane)
+    if issues or data is None:
+        return issues
+    x = data[run_col] - float(cutoff)
+    bandwidth = plan.settings.get("bandwidth") or float(data[run_col].std())
+    local = data[x.abs() <= bandwidth]
+    if len(local) < MIN_LOCAL_ROWS:
+        return [f"{lane}: only {len(local)} rows within bandwidth {bandwidth:.4g}"]
+    return []
+
+
+def run(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> LaneOutcome:
+    lane = "rdd"
+    reasons = check_ready(frame, plan, spec)
+    if reasons:
+        raise LaneInputError(reasons[0])
+    run_col = plan.settings.get("running_variable")
+    cutoff = float(plan.settings.get("cutoff"))
 
     columns = [plan.outcome, run_col] + ([plan.treatment] if plan.treatment else [])
     data = numeric_frame(frame, columns, lane)
@@ -39,10 +62,6 @@ def run(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> LaneOutcome:
     bandwidth = plan.settings.get("bandwidth") or float(data[run_col].std())
     near = x.abs() <= bandwidth
     local = data[near].copy()
-    if len(local) < 50:
-        raise LaneInputError(
-            f"{lane}: only {len(local)} rows within bandwidth {bandwidth:.4g}"
-        )
     xc = x[near]
     above = (xc >= 0).astype(int)
     design = pd.DataFrame(

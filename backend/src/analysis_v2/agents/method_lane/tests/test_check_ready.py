@@ -12,11 +12,15 @@ import pandas as pd
 import pytest
 
 from src.analysis_v2.agents.method_lane.lanes import (
+    LANE_CHECKS,
     LANES,
     LaneInputError,
+    did,
     matching,
     observational,
+    rdd,
     survival,
+    time_series,
 )
 from src.analysis_v2.spec import CausalSpec, MethodLane, MethodPlan, QuestionType
 
@@ -104,3 +108,49 @@ def test_survival_flags_too_few_events_and_the_lane_raises_the_same():
     with pytest.raises(LaneInputError) as exc:
         LANES[MethodLane.SURVIVAL](frame, plan, _spec())
     assert str(exc.value) == reasons[0]
+
+
+def test_did_flags_a_single_group_and_the_lane_raises_the_same():
+    frame = pd.DataFrame(
+        {"y": np.arange(40, dtype=float), "state": ["NJ"] * 40, "period": [0, 1] * 20}
+    )
+    plan = MethodPlan(
+        lane=MethodLane.DID, estimator="difference_in_differences",
+        estimand="att", outcome="y", treatment=None,
+        settings={"group_column": "state", "time_column": "period"},
+    )
+    reasons = did.check_ready(frame, plan, _spec())
+    assert reasons == ["did: needs exactly two groups, found 1"]
+    with pytest.raises(LaneInputError) as exc:  # the _prepare refactor preserved this
+        LANES[MethodLane.DID](frame, plan, _spec())
+    assert str(exc.value) == reasons[0]
+
+
+def test_rdd_flags_too_few_rows_in_the_bandwidth():
+    frame = pd.DataFrame(
+        {"y": np.arange(200, dtype=float), "run": np.arange(200, dtype=float)}
+    )
+    plan = MethodPlan(
+        lane=MethodLane.RDD, estimator="local_linear_rdd", estimand="late",
+        outcome="y", treatment=None,
+        settings={"running_variable": "run", "cutoff": 100, "bandwidth": 5},
+    )
+    reasons = rdd.check_ready(frame, plan, _spec())
+    assert reasons and "within bandwidth" in reasons[0]
+
+
+def test_time_series_flags_too_few_points():
+    dates = pd.date_range("2020-01-01", periods=20, freq="D")
+    frame = pd.DataFrame({"date": dates, "y": np.arange(20, dtype=float)})
+    plan = MethodPlan(
+        lane=MethodLane.TIME_SERIES, estimator="interrupted_time_series",
+        estimand="level_shift", outcome="y", treatment=None,
+        settings={"time_column": "date", "intervention_date": "2020-01-10"},
+    )
+    assert time_series.check_ready(frame, plan, _spec()) == [
+        "time_series: only 20 time points"
+    ]
+
+
+def test_lane_checks_covers_every_lane():
+    assert set(LANE_CHECKS) == set(LANES)
