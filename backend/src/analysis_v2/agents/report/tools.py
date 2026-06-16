@@ -7,7 +7,7 @@ recorded; the building actions (write_section / finish_report) record the
 prose and a ReportToolCall. The prose feeds BOTH the notebook and the report
 markdown at assembly, so they cannot drift. Tables and figures are NOT
 model-rendered: each emitted section's data cell is attached deterministically
-from sections.py, so the report never shows model-shaped JSON. Nothing here
+from study.py, so the report never shows model-shaped JSON. Nothing here
 mutates run state.
 """
 from __future__ import annotations
@@ -20,7 +20,7 @@ from src.analysis_v2.spec import ReportToolCall, ReportToolTrace
 
 from .guard import forbidden_hit
 from .prompt import dag_identification_lines
-from .sections import NARRATIVE_SECTIONS, SECTION_TITLES
+from .study import NARRATIVE_SECTIONS, SECTION_TITLES
 
 # Named run-state slots the model can read prose from.
 _SLOTS = ("eda", "diagnostics", "sensitivity", "claim", "design", "dossier", "flow_audit")

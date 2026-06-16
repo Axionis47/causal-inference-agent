@@ -1,7 +1,7 @@
 """Deterministic section builders for the analysis notebook.
 
 Each builder returns the notebook cells for one report section, including
-its own ``## N. Title`` header. ``ordered_narrative`` assembles them in the
+its own ``## N. Title`` header. ``ordered_study`` assembles them in the
 fixed spine order; ``build_notebook`` (in ``notebook.py``) flattens the
 result and frames it with the title cell. Holding the per-section bodies
 here keeps ``notebook.py`` under the file cap and gives a single ordered
@@ -305,7 +305,7 @@ def _artifact_index_section() -> Section:
     )
 
 
-def ordered_narrative(run: AnalysisRunState) -> list[Section]:
+def ordered_study(run: AnalysisRunState) -> list[Section]:
     """The fixed spine order of report sections, deterministic from run state."""
     have = set(run.artifact_registry.ids())
     spec_json = _literal(run.causal_spec.model_dump(mode="json"))

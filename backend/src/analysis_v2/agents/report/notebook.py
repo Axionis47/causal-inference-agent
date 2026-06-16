@@ -8,7 +8,7 @@ verification cell always works. That cell re-runs the exact lane on the
 saved data and asserts the recorded estimate, so a notebook that drifts
 from its artifacts fails execution instead of lying.
 
-The per-section cell bodies live in ``sections.py``; this module frames
+The per-section cell bodies live in ``study.py``; this module frames
 the ordered ``Section`` list with the title cell and emits the notebook.
 ``build_notebook`` accepts an explicit ``narrative`` so the agentic S10
 path can supply its own ordering; with ``None`` it falls back to the
@@ -21,7 +21,7 @@ from nbformat.v4 import new_markdown_cell, new_notebook
 
 from src.analysis_v2.core import AnalysisRunState
 
-from .sections import Section, ordered_narrative
+from .study import Section, ordered_study
 
 SECTIONS = [
     "Load dataset and config",
@@ -43,7 +43,7 @@ SECTIONS = [
 def build_notebook(
     run: AnalysisRunState, narrative: list[Section] | None = None
 ) -> nbformat.NotebookNode:
-    sections = narrative if narrative is not None else ordered_narrative(run)
+    sections = narrative if narrative is not None else ordered_study(run)
     cells: list[nbformat.NotebookNode] = [
         new_markdown_cell(
             f"# Causal analysis notebook\n\n**Question.** {run.causal_question}\n\n"

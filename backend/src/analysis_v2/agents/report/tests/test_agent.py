@@ -8,7 +8,7 @@ from src.analysis_v2.agents.base import AgentCtx
 from src.analysis_v2.agents.profiling.tools import build_profile_summary
 from src.analysis_v2.agents.report.agent import ReportNotebookAgent
 from src.analysis_v2.agents.report.notebook import SECTIONS, build_notebook
-from src.analysis_v2.agents.report.sections import SECTION_TITLES
+from src.analysis_v2.agents.report.study import SECTION_TITLES
 from src.analysis_v2.core import AnalysisRunState, GateStatus
 from src.analysis_v2.spec import (
     CausalDAG,

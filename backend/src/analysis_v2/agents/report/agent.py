@@ -33,7 +33,7 @@ from .guard import forbidden_hit
 from .notebook import SECTIONS, build_notebook
 from .prompt import MAX_NARRATIVE_TOOLS, MAX_TURNS, SYSTEM_PROMPT, build_mission
 from .report import build_dashboard_payload, build_report_markdown, headline_lines
-from .sections import Section, ordered_narrative
+from .study import Section, ordered_study
 from .tools import ReportLedger, build_report_tools, collect_trace
 
 logger = structlog.get_logger(__name__)
@@ -178,7 +178,7 @@ class ReportNotebookAgent(AnalysisAgent):
                 "summary", "Executive summary",
                 [new_markdown_cell(f"## Executive summary\n\n{exec_summary}")],
             ))
-        for s in ordered_narrative(run):
+        for s in ordered_study(run):
             if s.section_id in prose:
                 header = new_markdown_cell(f"## {s.title}\n\n{prose[s.section_id]}")
                 sections.append(Section(s.section_id, s.title, [header, *s.cells[1:]]))
@@ -197,7 +197,7 @@ class ReportNotebookAgent(AnalysisAgent):
         if exec_summary:
             lines += [exec_summary, ""]
         lines += [*headline_lines(run), ""]
-        for s in ordered_narrative(run):
+        for s in ordered_study(run):
             if s.section_id in prose:
                 lines += [f"## {s.title}", "", prose[s.section_id], ""]
         lines += ["## Limitations", ""]
