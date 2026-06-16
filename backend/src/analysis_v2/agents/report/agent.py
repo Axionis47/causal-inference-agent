@@ -32,7 +32,7 @@ from src.storage.job_data import job_normalized_dir, read_manifest
 from .guard import forbidden_hit
 from .notebook import SECTIONS, build_notebook
 from .prompt import MAX_NARRATIVE_TOOLS, MAX_TURNS, SYSTEM_PROMPT, build_mission
-from .report import build_dashboard_payload, build_report_markdown
+from .report import build_dashboard_payload, build_report_markdown, headline_lines
 from .sections import Section, ordered_narrative
 from .tools import ReportLedger, build_report_tools, collect_trace
 
@@ -196,6 +196,7 @@ class ReportNotebookAgent(AnalysisAgent):
         lines = ["# Causal analysis report", "", f"**Question.** {run.causal_question}", ""]
         if exec_summary:
             lines += [exec_summary, ""]
+        lines += [*headline_lines(run), ""]
         for s in ordered_narrative(run):
             if s.section_id in prose:
                 lines += [f"## {s.title}", "", prose[s.section_id], ""]

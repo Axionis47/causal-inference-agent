@@ -14,12 +14,45 @@ _STRENGTH_PHRASES = {
 }
 
 
+def headline_lines(run: AnalysisRunState) -> list[str]:
+    """The load-bearing numbers stated in prose: primary estimand, point
+    estimate, interval, p-value, the calibrated claim strength, and robustness.
+    Shared by the deterministic report and the agentic report so the human-facing
+    markdown always carries the number, not only the attached table or figure."""
+    primary = run.estimate_result.primary
+    critique = run.claim_critique
+    sens = run.sensitivity_result
+    interval = ""
+    if primary.ci_lower is not None and primary.ci_upper is not None:
+        interval = f" (95% interval {primary.ci_lower:.4g} to {primary.ci_upper:.4g})"
+    pval = f", p={primary.p_value:.3g}" if primary.p_value is not None else ""
+    no_clear = (
+        primary.ci_lower is not None
+        and primary.ci_upper is not None
+        and primary.ci_lower <= 0 <= primary.ci_upper
+    )
+    strength_line = _STRENGTH_PHRASES[critique.strength.value]
+    if no_clear:
+        strength_line = (
+            "the interval spans zero, so the data do not show a clear effect; "
+            + strength_line
+        )
+    lines = [
+        f"**Estimated effect.** {primary.estimand}: {primary.estimate:.4g}{interval}"
+        f"{pval}. {primary.interpretation}.",
+        "",
+        f"**Reading the result.** Claim strength is **{critique.strength.value}**: "
+        f"{strength_line}, under these assumptions.",
+    ]
+    if sens is not None:
+        lines += ["", f"**Robustness.** {sens.robustness.value}: {sens.confidence_reason}."]
+    return lines
+
+
 def build_report_markdown(run: AnalysisRunState) -> str:
     spec = run.causal_spec
     result = run.estimate_result
     critique = run.claim_critique
-    primary = result.primary
-    sens = run.sensitivity_result
 
     lines: list[str] = []
     lines.append("# Causal analysis report")
@@ -32,34 +65,7 @@ def build_report_markdown(run: AnalysisRunState) -> str:
         f" ({spec.question_type.value} question)."
     )
     lines.append("")
-    interval = ""
-    if primary.ci_lower is not None and primary.ci_upper is not None:
-        interval = f" (95% interval {primary.ci_lower:.4g} to {primary.ci_upper:.4g})"
-    lines.append(
-        f"**Estimated effect.** {primary.estimand}: {primary.estimate:.4g}{interval}. "
-        f"{primary.interpretation}."
-    )
-    lines.append("")
-    no_clear = (
-        primary.ci_lower is not None
-        and primary.ci_upper is not None
-        and primary.ci_lower <= 0 <= primary.ci_upper
-    )
-    strength_line = _STRENGTH_PHRASES[critique.strength.value]
-    if no_clear:
-        strength_line = (
-            "the interval spans zero, so the data do not show a clear effect; "
-            + strength_line
-        )
-    lines.append(
-        f"**Reading the result.** Claim strength is **{critique.strength.value}**: "
-        f"{strength_line}, under these assumptions."
-    )
-    if sens is not None:
-        lines.append("")
-        lines.append(
-            f"**Robustness.** {sens.robustness.value}: {sens.confidence_reason}."
-        )
+    lines += headline_lines(run)
     if run.diagnostics_result is not None and run.diagnostics_result.summary:
         lines.append("")
         lines.append(f"**Diagnostics.** {run.diagnostics_result.summary}.")

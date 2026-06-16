@@ -231,3 +231,20 @@ def test_render_report_weaves_prose_and_keeps_limitations():
     assert "unmeasured confounding" in md  # deterministic limitations preserved
     for forbidden in run.claim_critique.forbidden_language:
         assert forbidden not in md.lower()
+
+
+def test_render_report_states_the_headline_number_even_when_prose_omits_it():
+    """Regression: the report writer is told to keep raw numbers out of its prose
+    (the figure/table carry them), so the agentic final_report.md used to omit the
+    estimate entirely. The headline block is now injected deterministically, so the
+    human-facing report always states the estimate, interval, p-value, and strength."""
+    run, _ = _full_run()
+    md = ReportNotebookAgent()._render_report(
+        run, {"estimate": "The program is linked to higher earnings."}, "An adjusted read."
+    )
+    flat = md.replace(",", "")
+    assert "1548" in flat                       # point estimate
+    assert "78.2" in flat and "3018" in flat    # 95% interval
+    assert "p=0.04" in md                       # p-value
+    assert "weak" in md.lower()                 # calibrated claim strength
+    assert "fragile" in md.lower()              # robustness verdict
