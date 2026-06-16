@@ -40,6 +40,13 @@ export function deriveJobView(
   selectedAgent: string | null = null,
 ): JobView {
   const failed = job.status === 'failed';
+  // Freeze the elapsed clock once the job is terminal: tick off nowMs while it
+  // runs, but clamp to the completion time (updated_at) when done/failed/
+  // cancelled so the counter stops instead of climbing forever. Falls back to
+  // nowMs if updated_at is missing or unparseable.
+  const terminal =
+    job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled';
+  const endMs = terminal ? Date.parse(job.updated_at) || nowMs : nowMs;
   const completedAgents = new Set(
     agentEvents.filter(e => e.event_type === 'agent_completed').map(e => e.agent_name ?? ''),
   );
@@ -64,7 +71,7 @@ export function deriveJobView(
   const focusChallenge = focusAgent ? challengeByAgent.get(focusAgent) : undefined;
 
   return {
-    elapsed: formatElapsed(job.created_at, nowMs),
+    elapsed: formatElapsed(job.created_at, endMs),
     agentTones,
     latestByAgent,
     findingByAgent,

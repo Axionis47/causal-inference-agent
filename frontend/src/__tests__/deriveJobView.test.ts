@@ -67,3 +67,30 @@ describe('deriveJobView findings and challenges', () => {
     expect(view.challengedAgents.size).toBe(0);
   });
 });
+
+describe('deriveJobView elapsed clock', () => {
+  const startMs = Date.parse('2026-01-01T00:00:00Z');
+
+  it('ticks off nowMs while the job is running', () => {
+    const view = deriveJobView(job({ status: 'running' }), [], startMs + 5_000);
+    expect(view.elapsed).toBe('00:00:05');
+  });
+
+  it('freezes at updated_at once terminal, ignoring a far-later nowMs', () => {
+    const view = deriveJobView(
+      job({ status: 'completed', updated_at: '2026-01-01T00:02:05Z' }),
+      [],
+      startMs + 9_999_000, // wall clock has run long past completion
+    );
+    expect(view.elapsed).toBe('00:02:05');
+  });
+
+  it('falls back to nowMs for a terminal job with no updated_at', () => {
+    const view = deriveJobView(
+      job({ status: 'cancelled', updated_at: undefined as unknown as string }),
+      [],
+      startMs + 7_000,
+    );
+    expect(view.elapsed).toBe('00:00:07');
+  });
+});
