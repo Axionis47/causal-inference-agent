@@ -183,5 +183,35 @@ def test_mediation_tolerates_categorical_covariates_and_runs():
     assert {"indirect", "direct", "total"} <= {e.estimand for e in out.result.effects}
 
 
+def test_rdd_default_bandwidth_is_local_on_a_skewed_running_variable():
+    """Regression: the default RDD bandwidth was the raw std of the running
+    variable, so on a right-skewed variable the 'local' window swallowed most of
+    the sample and the jump became a global-trend extrapolation (bank-recovery
+    came out 71 instead of ~278). The rule-of-thumb now shrinks at the n**(-1/5)
+    rate, so the window stays genuinely local and the lane recovers the jump."""
+    from src.analysis_v2.agents.method_lane.lanes.rdd import _bandwidth
+
+    rng = np.random.default_rng(0)
+    n = 1800
+    run = rng.exponential(scale=900, size=n) + 200.0  # right-skewed, like $ amounts
+    y = 0.3 * run + 250.0 * (run >= 1000) + rng.normal(0, 40, n)
+    frame = pd.DataFrame({"y": y, "run": run})
+    plan = MethodPlan(
+        lane=MethodLane.RDD, estimator="local_linear_rdd", estimand="itt_jump",
+        outcome="y", treatment=None,
+        settings={"running_variable": "run", "cutoff": 1000.0},  # bandwidth: auto
+    )
+    raw_std = float(frame["run"].std())
+    bw = _bandwidth(frame, "run", plan)
+    within_rule = float((np.abs(frame["run"] - 1000.0) <= bw).mean())
+    within_std = float((np.abs(frame["run"] - 1000.0) <= raw_std).mean())
+    assert bw < raw_std        # shrunk below the raw std (the old default)
+    assert within_rule < 0.5   # the window is genuinely local now
+    assert within_std > 0.5    # whereas the raw-std window was not
+    # and the lane recovers the built-in jump, not a global extrapolation
+    out = LANES[MethodLane.RDD](frame, plan, _spec())
+    assert 150.0 < out.result.primary.estimate < 350.0
+
+
 def test_lane_checks_covers_every_lane():
     assert set(LANE_CHECKS) == set(LANES)

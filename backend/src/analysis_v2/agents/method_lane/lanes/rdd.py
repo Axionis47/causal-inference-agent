@@ -1,6 +1,6 @@
 """RDD lane: local linear regression at the cutoff, sharp or fuzzy.
 
-Within the bandwidth (default: one sd of the running variable), the
+Within the bandwidth (default: a sample-size-aware rule of thumb), the
 sharp jump comes from OLS with separate slopes and HC1 errors. When
 take-up is fuzzy, crossing the cutoff instruments the treatment (2SLS),
 mirroring the Wald estimate.
@@ -41,6 +41,25 @@ def _takeup(frame: pd.DataFrame, index, treatment: str | None) -> pd.Series | No
     return (raw.astype(str) == str(levels[1])).astype(float)
 
 
+def _bandwidth(data: pd.DataFrame, run_col: str, plan: MethodPlan) -> float:
+    """Local-linear bandwidth. An explicit plan setting wins; otherwise a
+    rule-of-thumb that shrinks with sample size at the n**(-1/5) nonparametric
+    rate on a tail-robust scale (the smaller of the standard deviation and the
+    IQR-based estimate). The old default was the raw standard deviation, which
+    ignores n and, on a skewed running variable, widens the 'local' window until
+    the fit is a global-trend extrapolation rather than a discontinuity at the
+    cutoff. Centering is irrelevant: both scales are shift-invariant."""
+    explicit = plan.settings.get("bandwidth")
+    if explicit:
+        return float(explicit)
+    col = data[run_col]
+    std = float(col.std())
+    iqr_scale = float(col.quantile(0.75) - col.quantile(0.25)) / 1.349
+    scale = min(std, iqr_scale) if iqr_scale > 0 else std
+    h = 1.06 * scale * len(col) ** (-0.2)
+    return h if h > 0 else std
+
+
 def check_ready(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> list[str]:
     """Preconditions for the local-linear fit, shared with the readiness checker.
     The bandwidth window is the precondition that needs the data, so it is
@@ -55,7 +74,7 @@ def check_ready(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> list
     if issues or data is None:
         return issues
     x = data[run_col] - float(cutoff)
-    bandwidth = plan.settings.get("bandwidth") or float(data[run_col].std())
+    bandwidth = _bandwidth(data, run_col, plan)
     local = data[x.abs() <= bandwidth]
     if len(local) < MIN_LOCAL_ROWS:
         return [f"{lane}: only {len(local)} rows within bandwidth {bandwidth:.4g}"]
@@ -73,7 +92,7 @@ def run(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> LaneOutcome:
     columns = [plan.outcome, run_col]
     data = numeric_frame(frame, columns, lane)
     x = data[run_col] - cutoff
-    bandwidth = plan.settings.get("bandwidth") or float(data[run_col].std())
+    bandwidth = _bandwidth(data, run_col, plan)
     near = x.abs() <= bandwidth
     local = data[near].copy()
     xc = x[near]
