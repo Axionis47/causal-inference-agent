@@ -143,11 +143,13 @@ def estimator_agreement(result: EstimateResult) -> DiagnosticCheck:
 def rdd_bandwidth_sensitivity(
     frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec, base: float, runner
 ) -> list[DiagnosticCheck]:
+    from src.analysis_v2.agents.method_lane.lanes import rdd
+
     checks = []
-    run_col = plan.settings.get("running_variable")
-    bandwidth = plan.settings.get("bandwidth") or float(
-        pd.to_numeric(frame[run_col], errors="coerce").std()
-    )
+    try:
+        bandwidth = rdd.selected_bandwidth(frame, plan, spec)
+    except Exception as exc:  # degenerate window: nothing to perturb around
+        return [_check("bandwidth_sensitivity", CheckStatus.NOT_APPLICABLE, str(exc)[:200])]
     for factor in (0.5, 2.0):
         alt_plan = plan.model_copy(deep=True)
         alt_plan.settings["bandwidth"] = bandwidth * factor
