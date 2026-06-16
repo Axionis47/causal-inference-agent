@@ -9,10 +9,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import pytest
 
-from src.analysis_v2.agents.method_lane.lanes import LANES, LaneInputError
+from src.analysis_v2.agents.method_lane.lanes import LANE_CHECKS, LANES, LaneInputError
 from src.analysis_v2.evals.fixtures import generators
 from src.analysis_v2.spec import CausalSpec, MethodLane, MethodPlan, QuestionType, VariableRef
 
@@ -20,7 +21,7 @@ DATA = Path(__file__).resolve().parents[3] / "evals" / "fixtures" / "data"
 
 
 def _spec(**kw) -> CausalSpec:
-    base = dict(question_type=QuestionType.BINARY_TREATMENT)
+    base = {"question_type": QuestionType.BINARY_TREATMENT}
     base.update(kw)
     return CausalSpec(**base)
 
@@ -155,6 +156,30 @@ def test_card_1995_2sls_exceeds_ols_as_published():
     )
     outcome = LANES[MethodLane.IV](frame, plan, _spec(question_type=QuestionType.IV))
     assert 0.05 < outcome.result.primary.estimate < 0.3  # textbook ~0.13
+
+
+def test_iv_fails_honestly_when_the_first_stage_collapses():
+    """Regression: an instrument with no significant first-stage relationship with
+    the treatment (here z is independent of educ; the same thing happens on real
+    data when a control collinear with the treatment, e.g. age = educ + exper + 6,
+    absorbs the instrument) yields a noise-driven, arbitrary-sign LATE. The lane
+    used to report that as a weak result; it now fails honestly as not-identified
+    and emits no estimate. check_ready still passes: the collapse is only visible
+    once the first stage is fit."""
+    rng = np.random.default_rng(1)
+    n = 600
+    z = rng.integers(0, 2, n).astype(float)   # candidate instrument
+    educ = 12 + rng.normal(0, 2, n)           # NOT moved by z -> no first stage
+    lwage = 0.1 * educ + rng.normal(0, 0.5, n)
+    frame = pd.DataFrame({"lwage": lwage, "educ": educ, "z": z})
+    plan = MethodPlan(
+        lane=MethodLane.IV, estimator="two_stage_least_squares", estimand="late",
+        outcome="lwage", treatment="educ", covariates=[], settings={"instrument": "z"},
+    )
+    spec = _spec(question_type=QuestionType.IV)
+    assert LANE_CHECKS[MethodLane.IV](frame, plan, spec) == []  # inputs valid
+    with pytest.raises(LaneInputError, match="not identified"):
+        LANES[MethodLane.IV](frame, plan, spec)
 
 
 def test_its_step_fixture_recovers_a_positive_level_shift():

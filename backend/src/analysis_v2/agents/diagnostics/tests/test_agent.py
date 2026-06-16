@@ -9,7 +9,7 @@ import pytest
 
 from src.analysis_v2.agents.base import AgentCtx
 from src.analysis_v2.agents.diagnostics import DiagnosticsSensitivityAgent
-from src.analysis_v2.agents.method_lane.lanes import LANES
+from src.analysis_v2.agents.method_lane.lanes import LANES, LaneInputError
 from src.analysis_v2.agents.profiling.tools import build_profile_summary
 from src.analysis_v2.core import AnalysisRunState, GateStatus
 from src.analysis_v2.evals.fixtures import generators
@@ -107,7 +107,7 @@ async def test_synthetic_rdd_is_robust_under_bandwidth_and_placebo_checks(data_d
     )
 
 
-async def test_strong_synthetic_iv_passes_first_stage_and_weak_iv_fails(data_dir):
+async def test_strong_iv_passes_first_stage_and_a_collapsed_instrument_is_rejected(data_dir):
     frame = generators.synthetic_iv()
     plan = MethodPlan(
         lane=MethodLane.IV, estimator="two_stage_least_squares", estimand="late",
@@ -119,14 +119,16 @@ async def test_strong_synthetic_iv_passes_first_stage_and_weak_iv_fails(data_dir
     assert first.status == CheckStatus.PASS
     assert first.metrics["f_stat"] > 10
 
+    # A noise instrument has no first-stage relationship, so 2SLS is not
+    # identified. The split first-stage rule now catches this at the lane as an
+    # honest no-estimate failure, ahead of the diagnostics graded check (which
+    # still grades significant-but-weak instruments that do produce an estimate).
     weak = frame.copy()
-    rng = __import__("numpy").random.default_rng(3)
-    weak["z"] = rng.binomial(1, 0.5, len(weak))  # noise instrument
-    plan_weak = plan.model_copy(deep=True)
-    result_weak, run_weak = await _run_stage(weak, plan_weak, QuestionType.IV)
-    first_weak = run_weak.diagnostics_result.check("first_stage_strength")
-    assert first_weak.status == CheckStatus.FAIL
-    assert run_weak.sensitivity_result.robustness == RobustnessStatus.NOT_SUPPORTED
+    weak["z"] = np.random.default_rng(3).binomial(1, 0.5, len(weak))  # noise instrument
+    with pytest.raises(LaneInputError, match="not identified"):
+        LANES[MethodLane.IV](
+            weak, plan.model_copy(deep=True), CausalSpec(question_type=QuestionType.IV)
+        )
 
 
 async def test_did_panel_pre_trends_pass_with_enough_pre_periods(data_dir):

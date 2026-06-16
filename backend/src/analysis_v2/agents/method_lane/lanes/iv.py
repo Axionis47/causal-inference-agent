@@ -1,8 +1,13 @@
 """IV lane: two-stage least squares with a first-stage strength report.
 
 The exclusion restriction is an assumption, never a test result; the
-summary says so explicitly. A first-stage F below 10 raises the weak-
-instrument warning.
+summary says so explicitly. The first-stage strength check is split: a
+first stage that is not even significant means the instrument has no
+residual relationship with the treatment once the controls are in (a
+control collinear with the treatment can absorb it), so 2SLS is not
+identified and the lane fails honestly rather than report a noise-driven,
+arbitrary-sign LATE; a significant but F-below-10 first stage is the
+ordinary weak-instrument warning.
 """
 from __future__ import annotations
 
@@ -73,6 +78,15 @@ def run(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> LaneOutcome:
     first_rhs = pd.concat([data[[instrument]], covs], axis=1) if covs is not None else data[[instrument]]
     first = sm.OLS(data[plan.treatment], sm.add_constant(first_rhs)).fit(cov_type="HC1")
     f_stat = float((first.params[instrument] / first.bse[instrument]) ** 2)
+    inst_p = float(first.pvalues[instrument])
+    if inst_p >= 0.05:
+        raise LaneInputError(
+            f"iv: instrument '{instrument}' has no significant first-stage "
+            f"relationship with '{plan.treatment}' after conditioning on the "
+            f"controls (first-stage F {f_stat:.2g}, p {inst_p:.2g}); the effect is "
+            "not identified in this specification, so no estimate is reported. A "
+            "control collinear with the treatment may be absorbing the instrument."
+        )
     if f_stat < 10:
         warnings.append(f"weak instrument: first-stage F {f_stat:.1f} (below 10)")
 
