@@ -98,18 +98,18 @@ def test_read_result_summary_returns_prose_and_rejects_unknown_slots():
 def test_write_section_records_prose_and_an_emitted_id():
     ledger, tools = build_report_tools(_run())
     write = next(t for t in tools if t.name == "write_section")
-    out = write.handler(section_id="estimate", prose="The adjusted gap suggests higher earnings.")
-    assert "Main estimate" in out
-    assert ledger.emitted_ids() == {"estimate"}
-    assert ledger.prose["estimate"].startswith("The adjusted gap")
-    assert ledger.order == ["estimate"]
+    out = write.handler(section_id="estimation", prose="The adjusted gap suggests higher earnings.")
+    assert "Estimation" in out
+    assert ledger.emitted_ids() == {"estimation"}
+    assert ledger.prose["estimation"].startswith("The adjusted gap")
+    assert ledger.order == ["estimation"]
     assert ledger.calls[0].kind == "write_section" and ledger.calls[0].status == "ok"
 
 
 def test_write_section_rejects_forbidden_language_without_recording_prose():
     ledger, tools = build_report_tools(_run())
     write = next(t for t in tools if t.name == "write_section")
-    out = write.handler(section_id="claim", prose="this proves the program works")
+    out = write.handler(section_id="conclusion", prose="this proves the program works")
     assert "rejected" in out and "proves" in out
     assert ledger.prose == {}  # nothing recorded
     assert ledger.calls[0].status == "rejected"
@@ -135,11 +135,11 @@ def test_finish_report_records_the_executive_summary():
 def test_collect_trace_preserves_call_order():
     ledger, tools = build_report_tools(_run())
     by = {t.name: t for t in tools}
-    by["write_section"].handler(section_id="estimate", prose="suggests higher earnings")
+    by["write_section"].handler(section_id="estimation", prose="suggests higher earnings")
     by["write_section"].handler(section_id="diagnostics", prose="overlap looks adequate")
     by["finish_report"].handler(executive_summary="a guarded read")
     trace = collect_trace(ledger)
-    assert [c.section_id for c in trace.calls] == ["estimate", "diagnostics", "summary"]
+    assert [c.section_id for c in trace.calls] == ["estimation", "diagnostics", "summary"]
 
 
 def test_list_available_results_marks_present_and_absent():

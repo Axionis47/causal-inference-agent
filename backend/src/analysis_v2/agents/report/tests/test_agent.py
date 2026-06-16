@@ -132,7 +132,7 @@ async def test_agentic_run_records_the_trace_and_marks_the_report_agentic(data_d
         {"tool_calls": [{"name": "describe_dag", "args": {}}]},
         {"tool_calls": [
             {"name": "write_section", "args": {
-                "section_id": "estimate",
+                "section_id": "estimation",
                 "prose": "The adjusted gap suggests higher earnings under this design."}},
             {"name": "finish_report", "args": {
                 "executive_summary": "A weak but suggestive association under adjustment."}},
@@ -145,7 +145,7 @@ async def test_agentic_run_records_the_trace_and_marks_the_report_agentic(data_d
     assert "agentic" in result.public_summary
     assert "Executive summary" in result.output.sections
     section_ids = [c.section_id for c in run.report_tool_trace.calls]
-    assert "estimate" in section_ids and "summary" in section_ids
+    assert "estimation" in section_ids and "summary" in section_ids
     assert result.tokens.output_tokens > 0  # the loop's usage is aggregated
 
 
@@ -185,10 +185,10 @@ async def test_a_loop_error_falls_back_to_the_deterministic_build(data_dir, monk
     assert "agentic" not in result.public_summary
 
 
-def test_assemble_weaves_prose_keeps_verification_and_covers_every_section():
+def test_assemble_weaves_prose_keeps_recompute_cells_and_covers_every_section():
     run, _ = _full_run()
     assembled = ReportNotebookAgent()._assemble(
-        run, {"estimate": "The adjusted gap points to higher earnings."},
+        run, {"estimation": "The adjusted gap points to higher earnings."},
         "A weak but suggestive read of the data.",
     )
     nb = build_notebook(run, assembled)
@@ -198,10 +198,10 @@ def test_assemble_weaves_prose_keeps_verification_and_covers_every_section():
     assert "## Executive summary" in md
     assert "A weak but suggestive read" in md
     assert "The adjusted gap points to higher earnings." in md  # model prose woven in
-    assert "LANES[MethodLane(plan['lane'])]" in code  # verification cell survives
-    assert "assert abs(fresh - stored)" in code
-    for title in SECTION_TITLES.values():  # coverage: nothing dropped
-        assert title in md
+    assert "LANES[MethodLane(PLAN['lane'])]" in code  # the estimate is recomputed
+    assert "assert abs(" not in code  # the self-check assert is gone
+    for title in SECTION_TITLES.values():  # coverage: every section present
+        assert f"## {title}" in md
     for cell in nb.cells:  # still no raw dict displayed
         if cell.cell_type == "code":
             last = [line for line in cell.source.splitlines() if line.strip()][-1]
@@ -214,7 +214,7 @@ def test_agentic_notebook_keeps_the_exact_deterministic_code_cells_in_order():
     # order as the deterministic notebook, the agentic notebook executes the same.
     run, _ = _full_run()
     assembled = ReportNotebookAgent()._assemble(
-        run, {"estimate": "a", "diagnostics": "b", "claim": "c"}, "exec summary"
+        run, {"estimation": "a", "diagnostics": "b", "conclusion": "c"}, "exec summary"
     )
     agentic_code = [c.source for c in build_notebook(run, assembled).cells if c.cell_type == "code"]
     det_code = [c.source for c in build_notebook(run).cells if c.cell_type == "code"]
@@ -224,7 +224,7 @@ def test_agentic_notebook_keeps_the_exact_deterministic_code_cells_in_order():
 def test_render_report_weaves_prose_and_keeps_limitations():
     run, _ = _full_run()
     md = ReportNotebookAgent()._render_report(
-        run, {"estimate": "The adjusted gap suggests a lift."}, "A guarded summary."
+        run, {"estimation": "The adjusted gap suggests a lift."}, "A guarded summary."
     )
     assert "A guarded summary." in md
     assert "The adjusted gap suggests a lift." in md
@@ -240,7 +240,7 @@ def test_render_report_states_the_headline_number_even_when_prose_omits_it():
     human-facing report always states the estimate, interval, p-value, and strength."""
     run, _ = _full_run()
     md = ReportNotebookAgent()._render_report(
-        run, {"estimate": "The program is linked to higher earnings."}, "An adjusted read."
+        run, {"estimation": "The program is linked to higher earnings."}, "An adjusted read."
     )
     flat = md.replace(",", "")
     assert "1548" in flat                       # point estimate

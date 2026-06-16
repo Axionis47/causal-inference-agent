@@ -17,13 +17,16 @@ from src.analysis_v2.core import (
     AnalysisStage,
 )
 from src.analysis_v2.spec import (
+    CausalDAG,
+    CausalEdge,
+    CausalNode,
+    CausalSpec,
     ClaimCritique,
     ClaimStrength,
     EffectEstimate,
     EstimateResult,
     MethodLane,
     MethodPlan,
-    CausalSpec,
     NotebookBuildResult,
     QuestionType,
     ReportToolCall,
@@ -66,6 +69,15 @@ def _run_state() -> AnalysisRunState:
         limitations=["unmeasured confounding can bias the estimate"],
         rationale="observational design, fragile sensitivity",
     )
+    run.causal_dag = CausalDAG(
+        nodes=[CausalNode(name="treat"), CausalNode(name="re78"), CausalNode(name="age")],
+        edges=[
+            CausalEdge(source="age", target="treat", mechanism="age shapes selection"),
+            CausalEdge(source="age", target="re78", mechanism="age shapes earnings"),
+            CausalEdge(source="treat", target="re78", mechanism="training effect"),
+        ],
+        treatment="treat", outcome="re78",
+    )
     record = AgentRun(agent="method_lane", stage=AnalysisStage.S7_METHOD_EXECUTED)
     record.start()
     record.finish(AgentRunStatus.PASSED)
@@ -91,19 +103,20 @@ def test_dashboard_payload_carries_headline_tiles_and_costs():
     assert "total_cost_usd" in payload["costs"]
 
 
-def test_notebook_has_all_sections_and_placeholders_for_missing_artifacts():
-    run = _run_state()  # registry is empty: profile/eda/diagnostics never ran
+def test_notebook_is_a_study_spine_that_recomputes_inline():
+    run = _run_state()
     notebook = build_notebook(run)
     nbformat.validate(notebook)
-    markdown = "\n".join(
-        c.source for c in notebook.cells if c.cell_type == "markdown"
-    )
-    for index, section in enumerate(SECTIONS, start=1):
-        assert f"## {index}. {section}" in markdown, section
-    assert markdown.count("skipped — artifact") >= 3  # honest placeholders
+    markdown = "\n".join(c.source for c in notebook.cells if c.cell_type == "markdown")
     code = "\n".join(c.source for c in notebook.cells if c.cell_type == "code")
-    assert "LANES[MethodLane(plan['lane'])]" in code  # the verification cell
-    assert "assert abs(fresh - stored)" in code
+
+    for section in SECTIONS:  # every study section has a header
+        assert f"## {section}" in markdown, section
+    assert "LANES[MethodLane(PLAN['lane'])]" in code  # the estimate is recomputed
+    assert "run_lane_checks" in code  # diagnostics recomputed via the shared dispatch
+    assert "CausalDAG.model_validate(DAG)" in code  # the DAG figure is drawn
+    assert "assert abs(" not in code  # no self-check assert
+    assert "artifacts_index" not in code  # no artifact-registry dump in the notebook
 
 
 def test_no_notebook_code_cell_displays_a_raw_dict():
@@ -165,8 +178,6 @@ def test_report_guard_allows_causal_prose_the_eda_guard_would_reject():
 
 
 def test_deterministic_report_assert_routes_through_the_report_guard():
-    import pytest
-
     run = _run_state()
     # Force a forbidden phrase into a slot the deterministic report renders.
     run.estimate_result.effects[0].interpretation = "this proves a causal effect"

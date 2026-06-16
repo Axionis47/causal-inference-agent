@@ -8,6 +8,18 @@ self-check assert: the estimate is recomputed, not compared to a frozen copy.
 """
 from __future__ import annotations
 
+# A per-column overview of the loaded frame: dtype, missing fraction, and
+# cardinality, recomputed from df rather than read from a stored profile.
+PROFILE = """\
+summary = pd.DataFrame({
+    'dtype': df.dtypes.astype(str),
+    'missing': df.isna().mean().round(3),
+    'n_unique': df.nunique(),
+})
+print(f'{len(df):,} rows x {len(df.columns)} columns')
+summary"""
+
+
 # Re-run the chosen lane on the loaded frame; bind RESULT and a tidy effects
 # frame for the estimate, conclusion, and forest-plot cells.
 ESTIMATE = """\

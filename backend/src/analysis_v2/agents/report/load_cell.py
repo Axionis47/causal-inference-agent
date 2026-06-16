@@ -14,7 +14,7 @@ backend used.
 from __future__ import annotations
 
 import nbformat
-from nbformat.v4 import new_code_cell, new_markdown_cell
+from nbformat.v4 import new_code_cell
 
 from src.analysis_v2.core import AnalysisRunState
 
@@ -68,8 +68,8 @@ _ASSEMBLED = (
 
 
 def build_load_cells(run: AnalysisRunState) -> list[nbformat.NotebookNode]:
-    """The load section's cells. Assembled when the plan is non-trivial; the
-    single-file template otherwise, unchanged from the original notebook."""
+    """The load code cell: assembled when the plan is non-trivial, the
+    single-file template otherwise. The study spine supplies the header."""
     plan = run.assembly_plan
     code = _ASSEMBLED if (plan is not None and not plan.is_trivial) else _SINGLE_FILE
-    return [new_markdown_cell("## 1. Load dataset and config"), new_code_cell(code)]
+    return [new_code_cell(code)]

@@ -1,18 +1,10 @@
-"""The 13-section notebook, built to rerun from clean state.
+"""Frame the study-shaped notebook: the title cell plus the ordered sections.
 
-The notebook's cwd at execution is the job's analysis dir. Display
-sections read the artifact files when they exist and render an explicit
-"this stage did not run" placeholder when they do not; the essentials
-(spec, plan, recorded estimates) are embedded as frozen literals so the
-verification cell always works. That cell re-runs the exact lane on the
-saved data and asserts the recorded estimate, so a notebook that drifts
-from its artifacts fails execution instead of lying.
-
-The per-section cell bodies live in ``study.py``; this module frames
-the ordered ``Section`` list with the title cell and emits the notebook.
-``build_notebook`` accepts an explicit ``narrative`` so the agentic S10
-path can supply its own ordering; with ``None`` it falls back to the
-deterministic spine order.
+The notebook's cwd at execution is the job's analysis dir. The per-section
+cell bodies live in ``study.py``; this module seeds the title cell and
+flattens the ordered ``Section`` list into one notebook. ``build_notebook``
+accepts an explicit ``narrative`` so the agentic S10 path can supply prose;
+with ``None`` it uses the deterministic study spine.
 """
 from __future__ import annotations
 
@@ -24,19 +16,15 @@ from src.analysis_v2.core import AnalysisRunState
 from .study import Section, ordered_study
 
 SECTIONS = [
-    "Load dataset and config",
-    "Dataset profile",
-    "User causal question",
-    "Structured causal spec",
-    "Detected design and plan",
-    "Base and targeted EDA",
-    "Method lane execution",
-    "Main estimate",
+    "Question and setup",
+    "Data",
+    "Identification strategy",
+    "Estimation",
+    "Covariate balance",
     "Diagnostics",
-    "Sensitivity checks",
-    "Claim critique and final interpretation",
+    "Robustness and sensitivity",
+    "Conclusion",
     "Limitations",
-    "Artifact index",
 ]
 
 
@@ -48,8 +36,8 @@ def build_notebook(
         new_markdown_cell(
             f"# Causal analysis notebook\n\n**Question.** {run.causal_question}\n\n"
             f"Claim strength: **{run.claim_critique.strength.value}**. "
-            "This notebook reruns from the saved dataset, config, and artifacts; "
-            "it has no hidden state from the web app."
+            "Every figure and number below is recomputed from the saved dataset "
+            "and analysis inputs; the notebook has no hidden state from the web app."
         ),
     ]
     for section in sections:
