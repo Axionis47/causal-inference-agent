@@ -116,7 +116,21 @@ def test_sharp_rdd_recovers_the_built_in_jump():
     outcome = LANES[MethodLane.RDD](frame, plan, _spec(question_type=QuestionType.RDD))
     jump = next(e for e in outcome.result.effects if e.estimand == "itt_jump")
     assert jump.estimate == pytest.approx(8.0, abs=1.6)
-    assert outcome.result.estimator == "local_linear_sharp"
+    assert outcome.result.estimator == "rdrobust_sharp"
+
+
+def test_sharp_rdd_recovers_the_jump_with_a_data_driven_bandwidth():
+    """No explicit bandwidth: rdrobust selects its own (CCT) window and still
+    recovers the built-in jump. This is the point of the lane, no hand tuning."""
+    frame = generators.scholarship_rdd()
+    plan = MethodPlan(
+        lane=MethodLane.RDD, estimator="local_linear_rdd", estimand="late",
+        outcome="outcome_sharp", treatment="scholarship_sharp",
+        settings={"running_variable": "score", "cutoff": 50.0},  # bandwidth: auto
+    )
+    outcome = LANES[MethodLane.RDD](frame, plan, _spec(question_type=QuestionType.RDD))
+    jump = next(e for e in outcome.result.effects if e.estimand == "itt_jump")
+    assert jump.estimate == pytest.approx(8.0, abs=1.6)
 
 
 def test_fuzzy_rdd_uses_the_cutoff_as_an_instrument():
@@ -130,7 +144,9 @@ def test_fuzzy_rdd_uses_the_cutoff_as_an_instrument():
     late = outcome.result.primary
     assert late.estimand == "late"
     assert late.estimate == pytest.approx(8.0, abs=2.0)
-    assert outcome.result.estimator == "local_linear_fuzzy_2sls"
+    assert outcome.result.estimator == "rdrobust_fuzzy"
+    itt = next(e for e in outcome.result.effects if e.estimand == "itt_jump")
+    assert itt.estimate == pytest.approx(6.0, abs=2.0)  # reduced-form jump
 
 
 def test_synthetic_iv_recovers_the_late_where_ols_is_biased():

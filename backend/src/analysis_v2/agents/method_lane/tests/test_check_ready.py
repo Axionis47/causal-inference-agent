@@ -126,17 +126,20 @@ def test_did_flags_a_single_group_and_the_lane_raises_the_same():
     assert str(exc.value) == reasons[0]
 
 
-def test_rdd_flags_too_few_rows_in_the_bandwidth():
+def test_rdd_flags_too_few_rows_on_a_side_of_the_cutoff():
     frame = pd.DataFrame(
         {"y": np.arange(200, dtype=float), "run": np.arange(200, dtype=float)}
     )
     plan = MethodPlan(
         lane=MethodLane.RDD, estimator="local_linear_rdd", estimand="late",
         outcome="y", treatment=None,
-        settings={"running_variable": "run", "cutoff": 100, "bandwidth": 5},
+        settings={"running_variable": "run", "cutoff": 195},  # only 4 rows above
     )
     reasons = rdd.check_ready(frame, plan, _spec())
-    assert reasons and "within bandwidth" in reasons[0]
+    assert reasons and "above the cutoff" in reasons[0]
+    with pytest.raises(LaneInputError) as exc:  # the gate and the lane agree
+        LANES[MethodLane.RDD](frame, plan, _spec())
+    assert str(exc.value) == reasons[0]
 
 
 def test_time_series_flags_too_few_points():
@@ -183,14 +186,12 @@ def test_mediation_tolerates_categorical_covariates_and_runs():
     assert {"indirect", "direct", "total"} <= {e.estimand for e in out.result.effects}
 
 
-def test_rdd_default_bandwidth_is_local_on_a_skewed_running_variable():
-    """Regression: the default RDD bandwidth was the raw std of the running
-    variable, so on a right-skewed variable the 'local' window swallowed most of
-    the sample and the jump became a global-trend extrapolation (bank-recovery
-    came out 71 instead of ~278). The rule-of-thumb now shrinks at the n**(-1/5)
-    rate, so the window stays genuinely local and the lane recovers the jump."""
-    from src.analysis_v2.agents.method_lane.lanes.rdd import _bandwidth
-
+def test_rdd_selected_bandwidth_is_local_on_a_skewed_running_variable():
+    """Regression: a global bandwidth (the old raw-std default) on a right-skewed
+    running variable swallowed most of the sample, so the jump became a
+    global-trend extrapolation (bank-recovery came out 71 instead of ~278).
+    rdrobust's data-driven bandwidth stays genuinely local, so the lane recovers
+    the jump. selected_bandwidth is what diagnostics perturbs around."""
     rng = np.random.default_rng(0)
     n = 1800
     run = rng.exponential(scale=900, size=n) + 200.0  # right-skewed, like $ amounts
@@ -202,11 +203,11 @@ def test_rdd_default_bandwidth_is_local_on_a_skewed_running_variable():
         settings={"running_variable": "run", "cutoff": 1000.0},  # bandwidth: auto
     )
     raw_std = float(frame["run"].std())
-    bw = _bandwidth(frame, "run", plan)
+    bw = rdd.selected_bandwidth(frame, plan, _spec())
     within_rule = float((np.abs(frame["run"] - 1000.0) <= bw).mean())
     within_std = float((np.abs(frame["run"] - 1000.0) <= raw_std).mean())
-    assert bw < raw_std        # shrunk below the raw std (the old default)
-    assert within_rule < 0.5   # the window is genuinely local now
+    assert bw < raw_std        # data-driven window is tighter than the raw std
+    assert within_rule < 0.5   # the window is genuinely local
     assert within_std > 0.5    # whereas the raw-std window was not
     # and the lane recovers the built-in jump, not a global extrapolation
     out = LANES[MethodLane.RDD](frame, plan, _spec())

@@ -41,6 +41,7 @@ dependencies = [
     "dowhy>=0.11.1",
     "econml>=0.15.0",
     "causalml>=0.15.0",
+    "rdrobust>=2.0.0",  # RDD lane: CCT data-driven bandwidth + robust bias-corrected inference
 
     # Data science
     "numpy>=1.26.0",
