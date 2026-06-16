@@ -16,6 +16,7 @@ import { getJob, getTraces, getGateSnapshot, cancelJob, getNotebookUrl, submitPl
 import { JOB_DETAIL_POLL_INTERVAL_MS, TRACES_POLL_INTERVAL_MS } from '../config/constants';
 import { useJob } from '../hooks/useJob';
 import { deriveJobView } from '../components/job/terminal/deriveJobView';
+import { deriveTokenTotal } from '../components/job/terminal/tokens';
 import { tracesToEvents } from '../components/job/terminal/traceEvents';
 import { ResultsView } from '../components/job/terminal/ResultsView';
 import { resolveGate } from '../components/job/terminal/resolveGate';
@@ -65,7 +66,8 @@ export default function JobPage() {
     },
   });
 
-  // Traces carry per-agent token_usage; we sum them for the TopBar counter.
+  // Legacy per-agent token_usage. Only a fallback for old jobs that predate the
+  // analysis slice; v2 runs derive the TopBar total from analysis.agents below.
   // Poll alongside the job until it reaches a terminal state, then freeze.
   const tracesQuery = useQuery({
     queryKey: ['job-traces', jobId],
@@ -77,14 +79,6 @@ export default function JobPage() {
       return terminal ? false : TRACES_POLL_INTERVAL_MS;
     },
   });
-  const tokens = useMemo<number | null>(() => {
-    const traces = tracesQuery.data;
-    if (!traces || traces.length === 0) return null;
-    return traces.reduce(
-      (sum, t) => sum + (t.token_usage?.input_tokens || 0) + (t.token_usage?.output_tokens || 0),
-      0,
-    );
-  }, [tracesQuery.data]);
 
   // The gate snapshot, rehydrated from REST so the gate panel survives a
   // refresh / SSE drop / event-buffer eviction. Only fetched while the job is
@@ -103,6 +97,13 @@ export default function JobPage() {
   const { analysis, isLoading: analysisLoading } = useAnalysis(
     isPreview ? null : (jobId ?? null),
     realJobQuery.data?.status,
+  );
+
+  // TopBar token total, rederived additively from the per-agent counts so it
+  // equals the sum of the per-agent panels (never a separately stored total).
+  const tokens = useMemo(
+    () => deriveTokenTotal(analysis?.agents, tracesQuery.data),
+    [analysis?.agents, tracesQuery.data],
   );
 
   // Dataset view (F1). The analyst lands here on arrival so the raw data and
