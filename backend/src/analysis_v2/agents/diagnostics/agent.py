@@ -17,12 +17,11 @@ from src.analysis_v2.spec import (
     CheckStatus,
     DiagnosticCheck,
     DiagnosticsResult,
-    MethodLane,
-    RobustnessStatus,
     SensitivityResult,
 )
 
 from . import checks as C
+from .compose import overall, rubric, run_lane_checks, summary_line
 
 logger = structlog.get_logger(__name__)
 
@@ -42,14 +41,10 @@ class DiagnosticsSensitivityAgent(AnalysisAgent):
                 public_summary="No estimate to stress-test; the method lane must run first.",
             )
         frame = ctx.frame
-        base = result.primary.estimate
         runner = LANES[plan.lane]
 
-        diag: list[DiagnosticCheck] = []
-        sens: list[DiagnosticCheck] = []
-
         leakage = C.detect_leakage(frame, plan)
-        diag.append(leakage)
+        diag: list[DiagnosticCheck] = [leakage]
         if leakage.status == CheckStatus.FAIL:
             self._write_artifacts(ctx, DiagnosticsResult(checks=diag, overall=CheckStatus.FAIL,
                                                          summary=leakage.detail), None)
@@ -64,47 +59,15 @@ class DiagnosticsSensitivityAgent(AnalysisAgent):
                 "contaminated; resubmit with the column ignored.",
             )
 
-        if plan.lane in (MethodLane.OBSERVATIONAL, MethodLane.MATCHING):
-            sens.append(C.evalue(result, frame))
-            sens.append(C.trimming_stability(frame, plan, spec, base, runner))
-            diag.append(C.estimator_agreement(result))
-        elif plan.lane == MethodLane.DID:
-            diag.append(C.did_pre_trend(frame, plan))
-            sens.append(C.trimming_stability(frame, plan, spec, base, runner))
-        elif plan.lane == MethodLane.RDD:
-            sens.extend(C.rdd_bandwidth_sensitivity(frame, plan, spec, base, runner))
-            sens.append(C.rdd_placebo_cutoff(frame, plan, spec, runner))
-        elif plan.lane == MethodLane.IV:
-            diag.append(C.iv_first_stage_strength(frame, plan))
-            diag.append(
-                DiagnosticCheck(
-                    name="exclusion_restriction",
-                    status=CheckStatus.NOT_APPLICABLE,
-                    detail="the exclusion restriction is an assumption; no data "
-                    "test exists for it",
-                )
-            )
-        elif plan.lane == MethodLane.TIME_SERIES:
-            sens.append(C.ts_window_sensitivity(frame, plan, spec, base, runner))
-        elif plan.lane == MethodLane.MEDIATION:
-            diag.append(
-                DiagnosticCheck(
-                    name="mediator_timing",
-                    status=CheckStatus.WARNING,
-                    detail="treatment -> mediator -> outcome ordering is assumed, "
-                    "not observed",
-                )
-            )
-            sens.append(C.trimming_stability(frame, plan, spec, base, runner))
-        elif plan.lane == MethodLane.SURVIVAL:
-            diag.append(C.survival_km_crossing(frame, plan))
+        lane_diag, sens = run_lane_checks(frame, plan, spec, result, runner)
+        diag.extend(lane_diag)
 
         diagnostics = DiagnosticsResult(
             checks=diag,
-            overall=self._overall(diag),
-            summary=self._summary_line(diag, "diagnostic"),
+            overall=overall(diag),
+            summary=summary_line(diag, "diagnostic"),
         )
-        robustness, reason = self._rubric(diag, sens)
+        robustness, reason = rubric(diag, sens)
         sensitivity = SensitivityResult(
             checks=sens, robustness=robustness, confidence_reason=reason
         )
@@ -125,45 +88,6 @@ class DiagnosticsSensitivityAgent(AnalysisAgent):
             public_summary=public,
             warnings=warnings,
             artifact_ids=["diagnostics/report", "diagnostics/sensitivity"],
-        )
-
-    @staticmethod
-    def _overall(checks: list[DiagnosticCheck]) -> CheckStatus:
-        statuses = {c.status for c in checks}
-        if CheckStatus.FAIL in statuses:
-            return CheckStatus.FAIL
-        if CheckStatus.WARNING in statuses:
-            return CheckStatus.WARNING
-        return CheckStatus.PASS
-
-    @staticmethod
-    def _summary_line(checks: list[DiagnosticCheck], kind: str) -> str:
-        worst = [c for c in checks if c.status in (CheckStatus.WARNING, CheckStatus.FAIL)]
-        if not worst:
-            return f"all {kind} checks passed"
-        return "; ".join(f"{c.name}: {c.detail}" for c in worst[:4])
-
-    @staticmethod
-    def _rubric(
-        diag: list[DiagnosticCheck], sens: list[DiagnosticCheck]
-    ) -> tuple[RobustnessStatus, str]:
-        hard_fails = [c for c in diag + sens if c.status == CheckStatus.FAIL]
-        warns = [c for c in diag + sens if c.status == CheckStatus.WARNING]
-        if hard_fails:
-            return (
-                RobustnessStatus.NOT_SUPPORTED,
-                "a design assumption failed its check: "
-                + "; ".join(c.name for c in hard_fails),
-            )
-        if warns:
-            return (
-                RobustnessStatus.FRAGILE,
-                "the estimate survives but with caveats: "
-                + "; ".join(c.name for c in warns[:4]),
-            )
-        return (
-            RobustnessStatus.ROBUST,
-            "the estimate is stable across the perturbations tried",
         )
 
     def _write_artifacts(self, ctx, diagnostics, sensitivity) -> None:
