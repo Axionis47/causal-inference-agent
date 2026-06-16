@@ -106,3 +106,32 @@ fig.savefig(buf, format='png', bbox_inches='tight')
 plt.close(fig)
 display(Image(data=buf.getvalue()))
 print('suspected latent confounding present:', dag.has_latent_confounding())"""
+
+
+# A love plot of |standardized mean difference| per covariate (from BALANCE),
+# with the 0.1 rule-of-thumb line; shows after-matching too when available.
+LOVE = """\
+import io
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+from IPython.display import Image, display
+
+if len(BALANCE):
+    fig, ax = plt.subplots(figsize=(6, 0.4 * len(BALANCE) + 1.2))
+    ax.scatter(BALANCE['smd_before'].abs(), BALANCE['covariate'],
+               color='#9ca3af', label='before', zorder=3)
+    if 'smd_after' in BALANCE.columns:
+        ax.scatter(BALANCE['smd_after'].abs(), BALANCE['covariate'],
+                   color='#4f46e5', label='after matching', zorder=3)
+        ax.legend(loc='lower right', fontsize=8)
+    ax.axvline(0.1, ls='--', lw=1, color='#f43f5e')
+    ax.set_xlabel('|standardized mean difference|')
+    ax.set_title('Covariate balance')
+    fig.tight_layout()
+    buf = io.BytesIO()
+    fig.savefig(buf, format='png', bbox_inches='tight')
+    plt.close(fig)
+    display(Image(data=buf.getvalue()))
+else:
+    print('no covariates to assess balance for this design')"""

@@ -10,8 +10,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from src.analysis_v2.agents.report.plot_cells import DAG_FIGURE, FOREST
-from src.analysis_v2.agents.report.recompute_cells import ESTIMATE
+from src.analysis_v2.agents.report.plot_cells import DAG_FIGURE, FOREST, LOVE
+from src.analysis_v2.agents.report.recompute_cells import BALANCE, ESTIMATE
 from src.analysis_v2.spec import (
     CausalDAG,
     CausalEdge,
@@ -82,3 +82,19 @@ def test_dag_figure_cell_renders_and_finds_the_adjustment_set():
     ns["DAG"] = _dag_dict()
     exec(DAG_FIGURE, ns)  # builds the figure; a broken source raises here
     assert "age" in ns["adj"]  # the confounder is on the backdoor adjustment set
+
+
+def test_balance_cell_computes_before_smds_for_observational():
+    ns = _namespace()
+    exec(ESTIMATE, ns)
+    exec(BALANCE, ns)
+    bal = ns["BALANCE"]
+    assert "smd_before" in bal.columns
+    assert "age" in list(bal["covariate"])
+
+
+def test_love_plot_cell_renders_without_error():
+    ns = _namespace()
+    exec(ESTIMATE, ns)
+    exec(BALANCE, ns)
+    exec(LOVE, ns)  # a broken source raises here
