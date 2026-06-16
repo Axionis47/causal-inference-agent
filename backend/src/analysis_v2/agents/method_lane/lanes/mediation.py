@@ -19,8 +19,8 @@ from .common import (
     LaneOutcome,
     ci_from,
     effects_table,
-    numeric_frame,
-    numeric_frame_issues,
+    encode_design,
+    encode_design_issues,
     safe_float,
     summary_markdown,
     variation_issue,
@@ -33,8 +33,8 @@ def check_ready(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> list
     mediator = plan.settings.get("mediator")
     if not mediator or plan.treatment is None:
         return [f"{lane}: needs a mediator and a treatment in the plan"]
-    issues, data = numeric_frame_issues(
-        frame, [plan.outcome, plan.treatment, mediator, *plan.covariates], lane
+    issues, data, _ = encode_design_issues(
+        frame, [plan.outcome, plan.treatment, mediator], plan.covariates, lane
     )
     if issues or data is None:
         return issues
@@ -47,9 +47,10 @@ def run(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> LaneOutcome:
     if reasons:
         raise LaneInputError(reasons[0])
     mediator = plan.settings.get("mediator")
-    columns = [plan.outcome, plan.treatment, mediator, *plan.covariates]
-    data = numeric_frame(frame, columns, lane)
-    covs = data[plan.covariates] if plan.covariates else None
+    data, cov_names = encode_design(
+        frame, [plan.outcome, plan.treatment, mediator], plan.covariates, lane
+    )
+    covs = data[cov_names] if cov_names else None
 
     m_rhs = pd.concat([data[[plan.treatment]], covs], axis=1) if covs is not None else data[[plan.treatment]]
     m_fit = sm.OLS(data[mediator], sm.add_constant(m_rhs)).fit(cov_type="HC1")

@@ -152,5 +152,36 @@ def test_time_series_flags_too_few_points():
     ]
 
 
+def test_mediation_tolerates_categorical_covariates_and_runs():
+    """Regression: categorical confounders must be one-hot encoded, not coerced
+    to NaN. Before the fix the whole adjustment set went through numeric
+    coercion, so any string covariate emptied the complete-case frame, check_ready
+    reported '0 complete rows', and select_runnable silently demoted mediation to
+    the observational lane (no indirect/direct decomposition ever produced)."""
+    rng = np.random.default_rng(3)
+    n = 120
+    t = rng.integers(1, 5, n).astype(float)         # ordinal, studytime-like
+    m = 0.5 * t + rng.normal(size=n)                # mediator, early-grade-like
+    y = 0.8 * m + 0.2 * t + rng.normal(size=n)      # outcome, final-grade-like
+    frame = pd.DataFrame(
+        {
+            "G3": y, "studytime": t, "G1": m,
+            "Mjob": rng.choice(["teacher", "services", "at_home"], n),  # categorical
+            "school": rng.choice(["GP", "MS"], n),                      # categorical
+        }
+    )
+    plan = MethodPlan(
+        lane=MethodLane.MEDIATION, estimator="product_of_coefficients",
+        estimand="indirect", outcome="G3", treatment="studytime",
+        covariates=["Mjob", "school"], settings={"mediator": "G1"},
+    )
+    # the gate no longer blocks on the string covariates
+    assert LANE_CHECKS[MethodLane.MEDIATION](frame, plan, _spec()) == []
+    # and the lane runs, producing the decomposition the user asked for
+    out = LANES[MethodLane.MEDIATION](frame, plan, _spec())
+    assert out.result.lane == MethodLane.MEDIATION
+    assert {"indirect", "direct", "total"} <= {e.estimand for e in out.result.effects}
+
+
 def test_lane_checks_covers_every_lane():
     assert set(LANE_CHECKS) == set(LANES)
