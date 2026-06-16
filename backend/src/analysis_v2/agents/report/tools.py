@@ -19,6 +19,7 @@ from src.analysis_v2.core import AnalysisRunState
 from src.analysis_v2.spec import ReportToolCall, ReportToolTrace
 
 from .guard import forbidden_hit
+from .prompt import dag_identification_lines
 from .sections import NARRATIVE_SECTIONS, SECTION_TITLES
 
 # Named run-state slots the model can read prose from.
@@ -110,20 +111,7 @@ def build_report_tools(run: AnalysisRunState) -> tuple[ReportLedger, list[LoopTo
         return _slot_summary(run, slot) or f"the {slot} result is not available in this run"
 
     def describe_dag() -> str:
-        dag = run.causal_dag
-        if dag is None:
-            return "no causal graph available."
-        identifiable, reason = dag.is_identifiable()
-        adjustment = sorted(dag.adjustment_set())
-        latents = [n.name for n in dag.nodes if not n.observed]
-        lines = [
-            f"adjustment set (backdoor): {adjustment or 'empty'}",
-            f"identified by adjustment: {identifiable} ({reason})",
-            f"latent confounding present: {dag.has_latent_confounding()}",
-        ]
-        if latents:
-            lines.append(f"suspected latent confounders: {latents}")
-        return "\n".join(lines)
+        return "\n".join(dag_identification_lines(run))
 
     def write_section(section_id: str, prose: str) -> str:
         title = SECTION_TITLES.get(section_id)

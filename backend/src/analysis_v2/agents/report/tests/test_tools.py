@@ -68,6 +68,25 @@ def test_describe_dag_unpacks_identifiability_not_a_raw_tuple():
     assert "(True," not in out and "(False," not in out  # tuple was unpacked
 
 
+def test_describe_dag_frames_did_by_its_design_assumption_not_backdoor():
+    """Regression: for design-based identification (DiD/RDD/IV) the report writer
+    was told 'identified by adjustment: False', which it rendered as 'not causally
+    identified / association only' prose that contradicted a 'strong' DiD claim.
+    The DAG framing now names the design assumption and explicitly refuses to call
+    an open backdoor path a mere association."""
+    run = _run()
+    run.selected_design = DesignCandidate(
+        lane=MethodLane.DID, design_label="difference-in-differences",
+        confidence=Confidence.HIGH, rationale="NJ vs PA, before vs after",
+    )
+    out = _by_name(run)["describe_dag"].handler()
+    assert "parallel trends" in out.lower()
+    assert "identified by adjustment" not in out  # backdoor test is not the route here
+    assert "not the identification route here" in out.lower()  # explicitly steered off it
+    _, tools = build_report_tools(run)
+    assert "parallel trends" in build_mission(run, tools).lower()
+
+
 def test_read_result_summary_returns_prose_and_rejects_unknown_slots():
     tool = _by_name(_run())["read_result_summary"]
     assert "fragile sensitivity" in tool.handler(slot="claim")
