@@ -45,3 +45,36 @@ if BALANCE is None and covs and treat_col in df.columns and df[treat_col].nuniqu
 if BALANCE is None:
     BALANCE = pd.DataFrame(columns=['covariate', 'smd_before'])
 BALANCE"""
+
+
+# Re-run the design's diagnostic and sensitivity checks through the same
+# dispatch the S8 agent uses (compose.run_lane_checks), so the notebook cannot
+# drift from the pipeline. Leakage is run explicitly, as the agent does. Binds
+# DIAG and SENS for the sensitivity verdict cell.
+DIAGNOSTICS = """\
+from src.analysis_v2.agents.diagnostics import checks as C
+from src.analysis_v2.agents.diagnostics.compose import run_lane_checks
+from src.analysis_v2.agents.method_lane.lanes import LANES
+from src.analysis_v2.spec import MethodLane
+
+runner = LANES[MethodLane(PLAN['lane'])]
+leakage = C.detect_leakage(df, plan_model)
+lane_diag, SENS = run_lane_checks(df, plan_model, spec_model, RESULT, runner)
+DIAG = [leakage, *lane_diag]
+diag_rows = [
+    {'check': c.name, 'status': c.status.value, 'detail': c.detail} for c in DIAG
+]
+pd.DataFrame(diag_rows)"""
+
+
+# The robustness verdict mapped from the worst check status by the same rubric
+# the agent applies, plus the sensitivity check table.
+SENSITIVITY = """\
+from src.analysis_v2.agents.diagnostics.compose import rubric
+
+robustness, reason = rubric(DIAG, SENS)
+print('robustness verdict:', robustness.value, '-', reason)
+sens_rows = [
+    {'check': c.name, 'status': c.status.value, 'detail': c.detail} for c in SENS
+]
+pd.DataFrame(sens_rows) if sens_rows else None"""

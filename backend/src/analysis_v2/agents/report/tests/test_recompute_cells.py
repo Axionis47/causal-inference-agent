@@ -11,7 +11,12 @@ import numpy as np
 import pandas as pd
 
 from src.analysis_v2.agents.report.plot_cells import DAG_FIGURE, FOREST, LOVE
-from src.analysis_v2.agents.report.recompute_cells import BALANCE, ESTIMATE
+from src.analysis_v2.agents.report.recompute_cells import (
+    BALANCE,
+    DIAGNOSTICS,
+    ESTIMATE,
+    SENSITIVITY,
+)
 from src.analysis_v2.spec import (
     CausalDAG,
     CausalEdge,
@@ -20,6 +25,7 @@ from src.analysis_v2.spec import (
     MethodLane,
     MethodPlan,
     QuestionType,
+    RobustnessStatus,
     VariableRef,
 )
 
@@ -98,3 +104,13 @@ def test_love_plot_cell_renders_without_error():
     exec(ESTIMATE, ns)
     exec(BALANCE, ns)
     exec(LOVE, ns)  # a broken source raises here
+
+
+def test_diagnostics_and_sensitivity_cells_recompute_the_checks():
+    ns = _namespace()
+    exec(ESTIMATE, ns)
+    exec(DIAGNOSTICS, ns)
+    exec(SENSITIVITY, ns)
+    assert "leakage_bad_control" in [c.name for c in ns["DIAG"]]
+    assert "outlier_trimming" in [c.name for c in ns["SENS"]]
+    assert isinstance(ns["robustness"], RobustnessStatus)
