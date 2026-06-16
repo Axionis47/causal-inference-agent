@@ -70,3 +70,13 @@ def test_undecided_lane_still_gets_the_base_recipe():
     )
     assert len(checks) == 5
     assert targeted == []
+
+
+def test_dag_consistency_runs_only_when_a_graph_exists():
+    spec = CausalSpec(question_type=QuestionType.SIMPLE_EFFECT)
+    without, _ = build_recipe(spec, MethodLane.OBSERVATIONAL)
+    assert "dag_consistency" not in [fn.__name__ for fn in without]
+    with_dag, targeted = build_recipe(spec, MethodLane.OBSERVATIONAL, has_dag=True)
+    assert "dag_consistency" in [fn.__name__ for fn in with_dag]
+    # it is design-agnostic, not a lane-targeted check
+    assert "dag_consistency" not in targeted

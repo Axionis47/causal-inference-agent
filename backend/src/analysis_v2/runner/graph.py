@@ -24,10 +24,22 @@ from src.analysis_v2.core import (
 from src.analysis_v2.persistence import save_run
 
 from .execute import run_stage
+from .loader import load_analysis_frame
 
 logger = structlog.get_logger(__name__)
 
 _DISPATCH = "dispatch"
+
+
+def _rebuild_frame(ctx: AgentCtx) -> None:
+    """The one sanctioned ctx.frame reassignment: after S0A commits an
+    assembly plan, rebuild the frame from it so every later stage sees the
+    assembled data. Owned by the runner, not an agent; a trivial plan (the
+    single-winner default) leaves the already-loaded frame in place."""
+    plan = ctx.run.assembly_plan
+    if plan is None or plan.is_trivial or ctx.input_state is None:
+        return
+    ctx.frame = load_analysis_frame(ctx.input_state, plan)
 
 
 class SpineState(TypedDict):
@@ -132,6 +144,8 @@ def _make_node(agent: AnalysisAgent):
             run.status = RunStatus.WAITING_FOR_USER
             await save_run(run)
             return {"outcome": "parked"}
+        if agent.stage == AnalysisStage.S0A_DATA_ASSEMBLED:
+            _rebuild_frame(state["ctx"])
         return {"outcome": "running"}
 
     return node

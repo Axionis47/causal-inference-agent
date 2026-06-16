@@ -24,6 +24,14 @@ from src.analysis_v2.spec import (
     FlowSignalStatus,
 )
 
+
+# A FlowSignal label is capped at 300 chars; investigator open questions are
+# free text and can exceed that. Clip at the source so a long question is
+# surfaced, never crashes the audit.
+def _signal(text: str) -> str:
+    return text if len(text) <= 300 else text[:297] + "..."
+
+
 # Estimators whose covariates ARE the DAG's backdoor adjustment set. Others
 # (joint_regression's factors, interaction_regression's moderator, DiD/RDD/ITS)
 # legitimately use non-adjustment columns, so the covariate check skips them.
@@ -85,7 +93,7 @@ class FlowAuditAgent(AnalysisAgent):
         if run.dataset_dossier is not None:
             for question in run.dataset_dossier.open_questions:
                 signals.append(FlowSignal(
-                    signal=f"open question: {question}",
+                    signal=_signal(f"open question: {question}"),
                     status=FlowSignalStatus.UNACCOUNTED,
                     note="raised by the investigator, not resolved in the final claim",
                 ))

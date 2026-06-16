@@ -14,9 +14,10 @@ from src.analysis_v2.core import (
 
 def test_spine_runs_s0_through_s12_in_order():
     assert SPINE[0] == AnalysisStage.S0_DATASET_SAVED
+    assert SPINE[1] == AnalysisStage.S0A_DATA_ASSEMBLED
     assert SPINE[-1] == AnalysisStage.S12_JOB_COMPLETE
-    assert len(SPINE) == 16
-    assert SPINE[3] == AnalysisStage.S2A_DATASET_INVESTIGATED
+    assert len(SPINE) == 17
+    assert SPINE[4] == AnalysisStage.S2A_DATASET_INVESTIGATED
     indices = [stage_index(s) for s in SPINE]
     assert indices == sorted(indices)
 
@@ -37,6 +38,7 @@ def test_is_earlier_orders_stages_strictly():
 
 def test_every_stage_has_an_agent_map_entry_and_bounds_have_none():
     assert set(STAGE_AGENT) == set(AnalysisStage)
+    assert STAGE_AGENT[AnalysisStage.S0A_DATA_ASSEMBLED] == "assembly_planner"
     assert STAGE_AGENT[AnalysisStage.S0_DATASET_SAVED] is None
     assert STAGE_AGENT[AnalysisStage.S6_USER_CONFIRMED_OR_AUTO_APPROVED] is None
     assert STAGE_AGENT[AnalysisStage.S12_JOB_COMPLETE] is None

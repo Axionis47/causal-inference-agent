@@ -10,40 +10,32 @@ lane gets a matrix estimators can consume.
 """
 from __future__ import annotations
 
-from pathlib import Path
-
 import pandas as pd
 
+from src.analysis_v2.spec import AssemblyPlan
 from src.analysis_v2.state import AnalysisState
-from src.storage.job_data import job_normalized_dir, job_raw_dir, read_manifest
+from src.storage.job_data import read_manifest
+
+from .assembly import DatasetUnavailable, assemble_frame
+
+__all__ = ["DatasetUnavailable", "coerce_bool_columns", "load_analysis_frame"]
 
 
-class DatasetUnavailable(RuntimeError):
-    """The confirmed job's dataset could not be located on disk."""
-
-
-def load_analysis_frame(state: AnalysisState) -> pd.DataFrame:
+def load_analysis_frame(
+    state: AnalysisState, plan: AssemblyPlan | None = None
+) -> pd.DataFrame:
+    """The one seam every agent reads the dataset through. With no plan, loads
+    the single manifest winner (today's behavior); with a plan, the executor
+    assembles the bundle. Human-confirmed ignored_columns and bool coercion
+    are applied here, once, so every lane sees the same frame."""
     job_id = state.job_id
     manifest = read_manifest(job_id)
     if manifest is None or manifest.winner is None:
         raise DatasetUnavailable(f"job {job_id} has no dataset manifest winner")
 
-    entry = next((f for f in manifest.files if f.name == manifest.winner), None)
-    if entry is None:
-        raise DatasetUnavailable(
-            f"manifest winner {manifest.winner!r} is not in the file list"
-        )
-
-    frame: pd.DataFrame | None = None
-    if entry.normalized_path:
-        parquet = job_normalized_dir(job_id) / Path(entry.normalized_path).name
-        if parquet.exists():
-            frame = pd.read_parquet(parquet)
-    if frame is None:
-        raw = job_raw_dir(job_id) / manifest.winner
-        if not raw.exists():
-            raise DatasetUnavailable(f"no normalized or raw file for {manifest.winner!r}")
-        frame = pd.read_csv(raw)
+    if plan is None:
+        plan = AssemblyPlan.single_file(manifest.winner)
+    frame = assemble_frame(job_id, manifest, plan)
 
     ignored = [c for c in state.ignored_columns if c in frame.columns]
     if ignored:

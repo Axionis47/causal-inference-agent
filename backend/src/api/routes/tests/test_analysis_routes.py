@@ -75,7 +75,7 @@ async def test_analysis_view_reconstructs_tiles_costs_and_events(client):
     assert response.status_code == 200
     body = response.json()
     assert body["current_state"] == "s1_intake_parsed"
-    assert body["stage_index"] == 1 and body["total_stages"] == 16
+    assert body["stage_index"] == 2 and body["total_stages"] == 17
     agent = body["agents"][0]
     assert agent["agent"] == "intake"
     assert agent["status"] == "passed"
@@ -97,3 +97,56 @@ async def test_missing_run_and_unknown_artifact_return_404(client):
     assert client.get("/jobs/nope/analysis").status_code == 404
     await _seed_run()
     assert client.get("/jobs/job-api/analysis/artifacts/nope/missing").status_code == 404
+
+
+async def _seed_run_with_dag(job_id: str = "job-dag") -> AnalysisRunState:
+    from src.analysis_v2.spec.dag import CausalDAG, CausalEdge, CausalNode
+
+    run = AnalysisRunState(
+        job_id=job_id,
+        causal_question="Does treatment raise the outcome?",
+        status=RunStatus.RUNNING,
+    )
+    # X is an observed confounder; U is a latent (unmeasured) common cause that
+    # leaves an open backdoor path, so the effect is not point-identified.
+    run.causal_dag = CausalDAG(
+        nodes=[
+            CausalNode(name="T"),
+            CausalNode(name="Y"),
+            CausalNode(name="X"),
+            CausalNode(name="U", observed=False),
+        ],
+        edges=[
+            CausalEdge(source="X", target="T", mechanism="confounder"),
+            CausalEdge(source="X", target="Y", mechanism="confounder"),
+            CausalEdge(source="U", target="T", mechanism="latent confounder"),
+            CausalEdge(source="U", target="Y", mechanism="latent confounder"),
+            CausalEdge(source="T", target="Y", mechanism="the effect"),
+        ],
+        treatment="T",
+        outcome="Y",
+        estimand="ate",
+    )
+    await save_run(run)
+    return run
+
+
+async def test_analysis_view_exposes_causal_dag_with_latent_and_backdoor_set(client):
+    await _seed_run_with_dag()
+    dag = client.get("/jobs/job-dag/analysis").json()["causal_dag"]
+    assert dag is not None
+    assert dag["treatment"] == "T" and dag["outcome"] == "Y"
+    assert dag["estimand"] == "ate"
+    # the unobserved latent node is flagged so the UI can mark it
+    observed = {n["name"]: n["observed"] for n in dag["nodes"]}
+    assert observed["U"] is False and observed["X"] is True
+    # adjustment set is the DAG-derived backdoor set: only the observed confounder
+    assert dag["adjustment_set"] == ["X"]
+    # a latent variable sits on an open backdoor path, so it is not identified
+    assert dag["latent_confounding"] is True
+    assert {"source": "T", "target": "Y", "edge_type": "directed"} in dag["edges"]
+
+
+async def test_analysis_view_causal_dag_null_when_no_dag(client):
+    await _seed_run()  # the intake-only seed never built a DAG
+    assert client.get("/jobs/job-api/analysis").json()["causal_dag"] is None

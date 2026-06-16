@@ -43,6 +43,16 @@ MIN_COMPLETE_ROWS = 20
 # and the lane can never disagree about what makes the data runnable.
 
 
+def to_numeric(series: pd.Series) -> pd.Series:
+    """Coerce to numeric, tolerating thousands separators that survive CSV
+    import ('1,234' -> 1234). Already-numeric columns pass through unchanged;
+    anything still unparseable becomes NaN."""
+    if pd.api.types.is_numeric_dtype(series):
+        return series
+    cleaned = series.astype("string").str.replace(",", "", regex=False).str.strip()
+    return pd.to_numeric(cleaned, errors="coerce")
+
+
 def numeric_frame_issues(
     frame: pd.DataFrame, columns: list[str], lane: str
 ) -> tuple[list[str], pd.DataFrame | None]:
@@ -52,10 +62,101 @@ def numeric_frame_issues(
     missing = [c for c in columns if c not in frame.columns]
     if missing:
         return [f"{lane}: columns missing from the dataset: {missing}"], None
-    out = frame[columns].apply(lambda s: pd.to_numeric(s, errors="coerce")).dropna()
+    out = frame[columns].apply(to_numeric).dropna()
     if len(out) < MIN_COMPLETE_ROWS:
         return [f"{lane}: only {len(out)} complete numeric rows across {columns}"], out
     return [], out
+
+
+def encode_design_issues(
+    frame: pd.DataFrame, core: list[str], covariates: list[str], lane: str
+) -> tuple[list[str], pd.DataFrame | None, list[str]]:
+    """Non-raising design-matrix builder. `core` columns must be numeric;
+    categorical `covariates` are one-hot encoded (kept as confounders, never
+    silently dropped). Returns (issues, complete-case data, encoded covariate
+    names). The conceptual covariate names stay with the caller; only the
+    design matrix uses the expanded columns."""
+    missing = [c for c in [*core, *covariates] if c not in frame.columns]
+    if missing:
+        return [f"{lane}: columns missing from the dataset: {missing}"], None, []
+    parts: list[pd.DataFrame | pd.Series] = [frame[core].apply(to_numeric)]
+    names: list[str] = []
+    for c in covariates:
+        s = frame[c]
+        if pd.api.types.is_numeric_dtype(s) or to_numeric(s).notna().mean() > 0.5:
+            parts.append(to_numeric(s).rename(c))
+            names.append(c)
+        else:
+            dummies = pd.get_dummies(
+                s.astype("object"), prefix=c, drop_first=True, dtype=float
+            )
+            parts.append(dummies)
+            names.extend(dummies.columns.tolist())
+    data = pd.concat(parts, axis=1).dropna()
+    if len(data) < MIN_COMPLETE_ROWS:
+        return [f"{lane}: only {len(data)} complete rows across the design"], data, names
+    return [], data, names
+
+
+def encode_design(
+    frame: pd.DataFrame, core: list[str], covariates: list[str], lane: str
+) -> tuple[pd.DataFrame, list[str]]:
+    """Raising form of encode_design_issues."""
+    issues, data, names = encode_design_issues(frame, core, covariates, lane)
+    if issues:
+        raise LaneInputError(issues[0])
+    assert data is not None  # no issues implies a frame
+    return data, names
+
+
+def usable_covariates(
+    frame: pd.DataFrame, covariates: list[str], threshold: float = 0.3
+) -> tuple[list[str], list[str]]:
+    """Covariates present and not mostly-missing. A column missing in more than
+    `threshold` of rows would shrink the complete-case sample far more than it
+    helps adjustment, so it is dropped here. Returns (kept, dropped)."""
+    kept = [
+        c for c in covariates
+        if c in frame.columns and float(frame[c].isna().mean()) <= threshold
+    ]
+    dropped = [c for c in covariates if c not in kept]
+    return kept, dropped
+
+
+def drop_collinear(
+    df: pd.DataFrame, protected: pd.DataFrame | None = None, rtol: float = 1e-8
+) -> tuple[pd.DataFrame, list[str]]:
+    """Drop covariate columns that are (near-)linear combinations of an intercept,
+    the `protected` columns (the treatment and instrument, which must stay), and
+    earlier-kept covariates, so the design is well conditioned. Two offenders:
+    a complete dummy set or a sum-of-others column (south = southern regions),
+    and a covariate collinear with the treatment itself (age = educ + exper + 6
+    in the schooling data). Left in, either makes the fit singular and standard
+    errors blow up. Rank uses singular values relative to the largest, so
+    near-dependence is caught, not only exact. Returns (kept, dropped names)."""
+    if df.shape[1] == 0:
+        return df, []
+
+    def _rank(mat: np.ndarray) -> int:
+        s = np.linalg.svd(mat, compute_uv=False)
+        return int((s > rtol * s[0]).sum()) if s.size else 0
+
+    base = np.ones((len(df), 1))
+    if protected is not None and protected.shape[1] > 0:
+        base = np.column_stack([base, protected.to_numpy(dtype=float)])
+    keep: list[str] = []
+    dropped: list[str] = []
+    rank = _rank(base)
+    for col in df.columns:
+        trial = np.column_stack([base, df[col].to_numpy(dtype=float)])
+        trial_rank = _rank(trial)
+        if trial_rank > rank:
+            keep.append(col)
+            base = trial
+            rank = trial_rank
+        else:
+            dropped.append(col)
+    return df[keep], dropped
 
 
 def numeric_frame(frame: pd.DataFrame, columns: list[str], lane: str) -> pd.DataFrame:

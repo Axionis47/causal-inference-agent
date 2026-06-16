@@ -155,7 +155,12 @@ class NotebookVerificationAgent(AnalysisAgent):
                 config_path.write_text(json.dumps(config, indent=2))
                 return f"backend_dir corrected to {fixed}"
             return None
-        if "FileNotFoundError" in error or "No such file" in error:
+        if ("FileNotFoundError" in error or "No such file" in error) and (
+            "assembly_paths" not in config
+        ):
+            # Single-file plans only: an assembled load reads relative
+            # assembly_paths, not dataset_path, so this rewrite cannot fix it
+            # and must not fake a repair. Let the assembled case fail visibly.
             normalized = job_normalized_dir(ctx.job_id)
             parquets = sorted(normalized.glob("*.parquet"))
             if parquets:

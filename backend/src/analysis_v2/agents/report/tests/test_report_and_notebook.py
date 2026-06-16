@@ -4,6 +4,7 @@ from __future__ import annotations
 import nbformat
 import pytest
 
+from src.analysis_v2.agents.report.agent import ReportNotebookAgent
 from src.analysis_v2.agents.report.notebook import SECTIONS, build_notebook
 from src.analysis_v2.agents.report.report import (
     build_dashboard_payload,
@@ -23,7 +24,10 @@ from src.analysis_v2.spec import (
     MethodLane,
     MethodPlan,
     CausalSpec,
+    NotebookBuildResult,
     QuestionType,
+    ReportToolCall,
+    ReportToolTrace,
     RobustnessStatus,
     SensitivityResult,
     VariableRef,
@@ -100,6 +104,74 @@ def test_notebook_has_all_sections_and_placeholders_for_missing_artifacts():
     code = "\n".join(c.source for c in notebook.cells if c.cell_type == "code")
     assert "LANES[MethodLane(plan['lane'])]" in code  # the verification cell
     assert "assert abs(fresh - stored)" in code
+
+
+def test_no_notebook_code_cell_displays_a_raw_dict():
+    # A report shows prose, clean frames, and figures, never a raw dict dump.
+    notebook = build_notebook(_run_state())
+    for cell in notebook.cells:
+        if cell.cell_type != "code":
+            continue
+        last = [line for line in cell.source.splitlines() if line.strip()][-1]
+        assert not last.lstrip().startswith("{"), cell.source
+
+
+def test_report_tool_trace_round_trips_and_old_records_still_load():
+    run = _run_state()
+    run.report_tool_trace = ReportToolTrace(
+        calls=[ReportToolCall(name="Main estimate", section_id="estimate",
+                              kind="section", status="ok")]
+    )
+    payload = run.model_dump(mode="json")
+
+    reloaded = AnalysisRunState.load(payload)
+    assert reloaded.report_tool_trace.calls[0].section_id == "estimate"
+
+    # a record persisted before this slot existed must still load (no bump)
+    payload.pop("report_tool_trace")
+    old = AnalysisRunState.load(payload)
+    assert old.report_tool_trace is None
+    assert old.schema_version == 1
+
+
+def test_commit_homes_a_synthesized_trace_from_the_rendered_sections():
+    run = _run_state()
+    output = NotebookBuildResult(
+        notebook_artifact_id="notebook/causal_analysis",
+        report_artifact_id="report/final_report",
+        sections=["Main estimate", "Diagnostics"],
+    )
+    ReportNotebookAgent().commit(run, output)
+    assert run.notebook_build is output
+    assert [c.section_id for c in run.report_tool_trace.calls] == [
+        "Main estimate", "Diagnostics"
+    ]
+
+
+def test_report_guard_allows_causal_prose_the_eda_guard_would_reject():
+    from src.analysis_v2.agents.report.guard import forbidden_hit, passes_report_guard
+    from src.analysis_v2.agents.targeted_eda.agent import _no_causal_language
+
+    critique = _run_state().claim_critique  # forbids "proves", "definitely causes"
+    # A report at the permitted strength may name the causal effect; EDA may not.
+    at_strength = "the program causes higher earnings under this design"
+    assert passes_report_guard(at_strength, critique) is True
+    assert _no_causal_language(at_strength) is False  # the EDA ban would gut it
+
+    # The critic's forbidden phrasing is still caught.
+    overclaim = "this proves the program lifts earnings"
+    assert forbidden_hit(overclaim, critique) == "proves"
+    assert passes_report_guard(overclaim, critique) is False
+
+
+def test_deterministic_report_assert_routes_through_the_report_guard():
+    import pytest
+
+    run = _run_state()
+    # Force a forbidden phrase into a slot the deterministic report renders.
+    run.estimate_result.effects[0].interpretation = "this proves a causal effect"
+    with pytest.raises(AssertionError, match="forbidden phrase in report: proves"):
+        build_report_markdown(run)
 
 
 def test_notebook_load_cell_coerces_bool_columns_like_the_pipeline_loader(

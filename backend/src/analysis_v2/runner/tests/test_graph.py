@@ -51,14 +51,15 @@ def _ctx(events: list | None = None) -> AgentCtx:
 
 
 async def test_advancing_agents_walk_stages_in_order_and_stop_at_the_frontier(storage_dir):
+    s0a = FakeAgent(AnalysisStage.S0A_DATA_ASSEMBLED, GateResult.advance())
     s1 = FakeAgent(AnalysisStage.S1_INTAKE_PARSED, GateResult.advance())
     s2 = FakeAgent(AnalysisStage.S2_PROFILE_CREATED, GateResult.advance())
     events: list = []
     ctx = _ctx(events)
 
-    outcome = await run_spine(ctx, {a.stage: a for a in (s1, s2)})
+    outcome = await run_spine(ctx, {a.stage: a for a in (s0a, s1, s2)})
 
-    assert outcome == "frontier"  # S3 has no agent in this registry
+    assert outcome == "frontier"  # S2A has no agent in this registry
     assert s1.ran and s2.ran
     assert ctx.run.current_state == AnalysisStage.S2_PROFILE_CREATED
     assert ctx.run.status == RunStatus.FAILED
@@ -70,6 +71,7 @@ async def test_advancing_agents_walk_stages_in_order_and_stop_at_the_frontier(st
 
 
 async def test_a_hard_failure_stops_the_spine_and_marks_the_run(storage_dir):
+    s0a = FakeAgent(AnalysisStage.S0A_DATA_ASSEMBLED, GateResult.advance())
     s1 = FakeAgent(
         AnalysisStage.S1_INTAKE_PARSED,
         GateResult.fail(["question is empty"]),
@@ -77,23 +79,25 @@ async def test_a_hard_failure_stops_the_spine_and_marks_the_run(storage_dir):
     s2 = FakeAgent(AnalysisStage.S2_PROFILE_CREATED, GateResult.advance())
     ctx = _ctx()
 
-    outcome = await run_spine(ctx, {a.stage: a for a in (s1, s2)})
+    outcome = await run_spine(ctx, {a.stage: a for a in (s0a, s1, s2)})
 
     assert outcome == "failed"
     assert not s2.ran
     assert ctx.run.status == RunStatus.FAILED
     assert ctx.run.error_message == "question is empty"
-    assert ctx.run.current_state == AnalysisStage.S0_DATASET_SAVED  # no transition
+    # S0A advanced; S1 failed without recording its own transition
+    assert ctx.run.current_state == AnalysisStage.S0A_DATA_ASSEMBLED
 
 
 async def test_needs_user_parks_the_run(storage_dir):
+    s0a = FakeAgent(AnalysisStage.S0A_DATA_ASSEMBLED, GateResult.advance())
     s1 = FakeAgent(
         AnalysisStage.S1_INTAKE_PARSED,
         GateResult.needs_user(["confirm the cutoff"]),
     )
     ctx = _ctx()
 
-    outcome = await run_spine(ctx, {s1.stage: s1})
+    outcome = await run_spine(ctx, {a.stage: a for a in (s0a, s1)})
 
     assert outcome == "parked"
     assert ctx.run.status == RunStatus.WAITING_FOR_USER
@@ -104,11 +108,10 @@ async def test_a_crashing_agent_fails_the_run_with_its_error(storage_dir):
         async def execute(self, ctx):
             raise RuntimeError("kaput")
 
+    s0a = FakeAgent(AnalysisStage.S0A_DATA_ASSEMBLED, GateResult.advance())
+    crasher = Crasher(AnalysisStage.S1_INTAKE_PARSED, GateResult.advance())
     ctx = _ctx()
-    outcome = await run_spine(
-        ctx, {AnalysisStage.S1_INTAKE_PARSED: Crasher(
-            AnalysisStage.S1_INTAKE_PARSED, GateResult.advance())}
-    )
+    outcome = await run_spine(ctx, {s0a.stage: s0a, crasher.stage: crasher})
 
     assert outcome == "failed"
     assert "kaput" in ctx.run.error_message

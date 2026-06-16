@@ -126,3 +126,14 @@ BASE_CHECKS = [
     exposure_distribution,
     usable_sample_size,
 ]
+
+# The data-health floor: cheap checks that gate whether any analysis is valid
+# (shape and missingness, duplicate rows, usable complete-case sample). These
+# always run; the agentic EDA curates the rest. The distribution checks are
+# deliberately NOT here, so the model decides whether they earn a place in the
+# story.
+DATA_HEALTH_CHECKS = [
+    shape_and_missingness,
+    duplicates,
+    usable_sample_size,
+]

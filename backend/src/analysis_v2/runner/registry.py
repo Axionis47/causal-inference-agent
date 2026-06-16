@@ -7,6 +7,7 @@ owned approval transition, S12 is terminal.
 """
 from __future__ import annotations
 
+from src.analysis_v2.agents.assembly_planner import AssemblyPlannerAgent
 from src.analysis_v2.agents.base import AnalysisAgent
 from src.analysis_v2.agents.claim_critic import ClaimCriticAgent
 from src.analysis_v2.agents.design_detection import DesignDetectionAgent
@@ -27,6 +28,7 @@ from src.analysis_v2.core import AnalysisStage
 def build_agents() -> dict[AnalysisStage, AnalysisAgent]:
     """Fresh agent instances per run; no cross-job shared state."""
     agents: list[AnalysisAgent] = [
+        AssemblyPlannerAgent(),
         IntakeAgent(),
         ProfilingAgent(),
         InvestigatorAgent(),

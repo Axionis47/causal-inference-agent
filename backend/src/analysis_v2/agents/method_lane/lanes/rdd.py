@@ -27,6 +27,20 @@ from .common import (
 MIN_LOCAL_ROWS = 50
 
 
+def _takeup(frame: pd.DataFrame, index, treatment: str | None) -> pd.Series | None:
+    """Binary take-up indicator (higher level = 1) within the local window, or
+    None when the treatment is not a clean two-level column there. A sharp
+    design needs no numeric treatment column: assignment is the cutoff itself,
+    so the raw label (e.g. 'Level 1 Recovery') need never be numeric."""
+    if treatment is None or treatment not in frame.columns:
+        return None
+    raw = frame.loc[index, treatment]
+    levels = sorted(raw.dropna().unique(), key=str)
+    if len(levels) != 2:
+        return None
+    return (raw.astype(str) == str(levels[1])).astype(float)
+
+
 def check_ready(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> list[str]:
     """Preconditions for the local-linear fit, shared with the readiness checker.
     The bandwidth window is the precondition that needs the data, so it is
@@ -36,7 +50,7 @@ def check_ready(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> list
     cutoff = plan.settings.get("cutoff")
     if not run_col or cutoff is None:
         return [f"{lane}: needs running_variable and cutoff in the plan"]
-    columns = [plan.outcome, run_col] + ([plan.treatment] if plan.treatment else [])
+    columns = [plan.outcome, run_col]
     issues, data = numeric_frame_issues(frame, columns, lane)
     if issues or data is None:
         return issues
@@ -56,7 +70,7 @@ def run(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> LaneOutcome:
     run_col = plan.settings.get("running_variable")
     cutoff = float(plan.settings.get("cutoff"))
 
-    columns = [plan.outcome, run_col] + ([plan.treatment] if plan.treatment else [])
+    columns = [plan.outcome, run_col]
     data = numeric_frame(frame, columns, lane)
     x = data[run_col] - cutoff
     bandwidth = plan.settings.get("bandwidth") or float(data[run_col].std())
@@ -90,8 +104,8 @@ def run(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> LaneOutcome:
     ]
     estimator = "local_linear_sharp"
 
-    if plan.treatment is not None:
-        d = local[plan.treatment]
+    d = _takeup(frame, local.index, plan.treatment)
+    if d is not None:
         take_below = float(d[above == 0].mean())
         take_above = float(d[above == 1].mean())
         first_stage = take_above - take_below

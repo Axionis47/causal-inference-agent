@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 
 from src.analysis_v2.core import SPINE, AnalysisRunState, stage_index
 from src.analysis_v2.persistence import load_run, read_artifact_bytes
+from src.analysis_v2.spec.dag import CausalDAG
 from src.api.rate_limit import limiter
 
 router = APIRouter(prefix="/jobs", tags=["analysis"])
@@ -24,6 +25,25 @@ class PlanDecisionRequest(BaseModel):
     decision: Literal["confirm", "reject"]
     edits: dict[str, str] | None = None
     reason: str | None = Field(default=None, max_length=500)
+
+
+def _dag_view(dag: CausalDAG) -> dict:
+    """The causal model for the analysis UI. Nodes carry observed-ness so the
+    frontend can mark suspected latent confounders; the adjustment set and the
+    latent-confounding verdict are DERIVED from the graph (backdoor criterion),
+    never hand-authored, so the UI shows the same source identification reads."""
+    return {
+        "nodes": [{"name": n.name, "observed": n.observed} for n in dag.nodes],
+        "edges": [
+            {"source": e.source, "target": e.target, "edge_type": "directed"}
+            for e in dag.edges
+        ],
+        "treatment": dag.treatment,
+        "outcome": dag.outcome,
+        "estimand": dag.estimand,
+        "adjustment_set": sorted(dag.adjustment_set()),
+        "latent_confounding": dag.has_latent_confounding(),
+    }
 
 
 def _view(run: AnalysisRunState) -> dict:
@@ -55,6 +75,7 @@ def _view(run: AnalysisRunState) -> dict:
         "causal_question": run.causal_question,
         "error_message": run.error_message,
         "spec_summary": spec_summary,
+        "causal_dag": _dag_view(run.causal_dag) if run.causal_dag else None,
         "plan_gate": plan_gate,
         "method_plan": (
             run.method_plan.model_dump(mode="json") if run.method_plan else None

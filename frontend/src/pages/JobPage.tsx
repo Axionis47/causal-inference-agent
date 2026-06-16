@@ -12,7 +12,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getJob, getTraces, getGateSnapshot, cancelJob, getNotebookUrl, submitPlanDecision, AgentEvent, AgentTrace, JobDetail, DagGatePayload, PlanDecisionRequest, ResultsGatePayload, RelationalProfilePayload } from '../services/api';
+import { getJob, getTraces, getGateSnapshot, cancelJob, getNotebookUrl, submitPlanDecision, AgentEvent, AgentTrace, JobDetail, PlanDecisionRequest, ResultsGatePayload, RelationalProfilePayload } from '../services/api';
 import { JOB_DETAIL_POLL_INTERVAL_MS, TRACES_POLL_INTERVAL_MS } from '../config/constants';
 import { useJob } from '../hooks/useJob';
 import { deriveJobView } from '../components/job/terminal/deriveJobView';
@@ -27,7 +27,6 @@ import { FKeyBar } from '../components/job/terminal/FKeyBar';
 import { RunAnalysisBar } from '../components/job/terminal/RunAnalysisBar';
 import { DatasetView } from '../components/job/terminal/DatasetView';
 import { ApprovalBar } from '../components/job/terminal/ApprovalBar';
-import { DagGate } from '../components/job/terminal/DagGate';
 import { ResultsGate } from '../components/job/terminal/ResultsGate';
 import { buildPreviewState } from '../components/job/terminal/preview';
 import { AnalysisView } from '../components/job/analysis/AnalysisView';
@@ -147,22 +146,19 @@ export default function JobPage() {
     },
   });
 
-  // At AWAITING_APPROVAL the latest gate event tells which of the three gates we
-  // are at: the data gate (ApprovalBar over the dataset view), the DAG gate, or
-  // the results gate (each with its own panel and payload).
+  // At AWAITING_APPROVAL the latest gate event tells which gate we are at: the
+  // data gate (ApprovalBar over the dataset view) or the results gate (its own
+  // panel and payload).
   const activeGate = useMemo<
     | { kind: 'data' }
-    | { kind: 'dag'; payload: DagGatePayload }
     | { kind: 'results'; payload: ResultsGatePayload }
     | null
   >(() => {
     if (job?.status !== 'awaiting_approval') return null;
-    const gateTypes = ['approval_required', 'dag_approval_required', 'results_approval_required'];
+    const gateTypes = ['approval_required', 'results_approval_required'];
     const gateEvents = agentEvents.filter((e) => gateTypes.includes(e.event_type));
     if (gateEvents.length === 0) return null;
     const latest = gateEvents.reduce((a, b) => (a.timestamp >= b.timestamp ? a : b));
-    if (latest.event_type === 'dag_approval_required')
-      return { kind: 'dag', payload: latest.data as unknown as DagGatePayload };
     if (latest.event_type === 'results_approval_required')
       return { kind: 'results', payload: latest.data as unknown as ResultsGatePayload };
     return { kind: 'data' };
@@ -386,9 +382,7 @@ export default function JobPage() {
       )}
 
       {!isPreview && job.status === 'awaiting_approval' && (
-        gate?.kind === 'dag' ? (
-          <DagGate jobId={job.id} payload={gate.payload} />
-        ) : gate?.kind === 'results' ? (
+        gate?.kind === 'results' ? (
           <ResultsGate jobId={job.id} payload={gate.payload} />
         ) : (
           <ApprovalBar

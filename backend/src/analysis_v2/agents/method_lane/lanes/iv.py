@@ -16,11 +16,13 @@ from .common import (
     LaneInputError,
     LaneOutcome,
     ci_from,
+    drop_collinear,
     effects_table,
     numeric_frame,
     numeric_frame_issues,
     safe_float,
     summary_markdown,
+    usable_covariates,
     variation_issue,
 )
 
@@ -31,8 +33,9 @@ def check_ready(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> list
     instrument = plan.settings.get("instrument")
     if not instrument or plan.treatment is None:
         return [f"{lane}: needs an instrument and a treatment in the plan"]
+    covariates, _ = usable_covariates(frame, plan.covariates)
     issues, data = numeric_frame_issues(
-        frame, [plan.outcome, plan.treatment, instrument, *plan.covariates], lane
+        frame, [plan.outcome, plan.treatment, instrument, *covariates], lane
     )
     if issues or data is None:
         return issues
@@ -47,14 +50,29 @@ def run(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> LaneOutcome:
     if reasons:
         raise LaneInputError(reasons[0])
     instrument = plan.settings.get("instrument")
-    columns = [plan.outcome, plan.treatment, instrument, *plan.covariates]
+    warnings: list[str] = []
+    covariates, dropped_missing = usable_covariates(frame, plan.covariates)
+    if dropped_missing:
+        warnings.append(
+            f"dropped {len(dropped_missing)} high-missingness covariate(s) "
+            f"that would shrink the sample: {dropped_missing[:6]}"
+        )
+    columns = [plan.outcome, plan.treatment, instrument, *covariates]
     data = numeric_frame(frame, columns, lane)
 
-    covs = data[plan.covariates] if plan.covariates else None
+    covs = data[covariates] if covariates else None
+    if covs is not None and covs.shape[1] > 0:
+        covs, dropped = drop_collinear(covs, protected=data[[plan.treatment, instrument]])
+        if dropped:
+            warnings.append(
+                f"dropped {len(dropped)} collinear covariate(s) to keep 2SLS "
+                f"identified: {dropped[:6]}"
+            )
+        if covs.shape[1] == 0:
+            covs = None
     first_rhs = pd.concat([data[[instrument]], covs], axis=1) if covs is not None else data[[instrument]]
     first = sm.OLS(data[plan.treatment], sm.add_constant(first_rhs)).fit(cov_type="HC1")
     f_stat = float((first.params[instrument] / first.bse[instrument]) ** 2)
-    warnings: list[str] = []
     if f_stat < 10:
         warnings.append(f"weak instrument: first-stage F {f_stat:.1f} (below 10)")
 

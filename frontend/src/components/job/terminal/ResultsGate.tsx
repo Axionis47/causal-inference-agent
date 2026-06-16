@@ -1,7 +1,7 @@
 // Results-review gate (checkpoint B). Shown when a job parks at the results gate:
 // the analyst reviews the effect estimates (forest plot), robustness, and
 // covariate balance (Love plot), then approves (finalize), revises (re-estimate
-// with a note), or rejects. Posts to POST /jobs/:id/approval, same as DagGate.
+// with a note), or rejects. Posts to POST /jobs/:id/approval.
 
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';

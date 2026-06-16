@@ -24,6 +24,7 @@ const fixture: AnalysisViewResponse = {
     outcome: 're78',
     treatment: 'treat',
   },
+  causal_dag: null,
   agents: [
     {
       agent: 'intake',
@@ -353,6 +354,47 @@ describe('AnalysisView', () => {
     );
     expect(screen.getByText('verification failed')).toBeTruthy();
     expect(screen.queryByRole('link', { name: /download notebook/i })).toBeNull();
+  });
+
+  it('omits the causal model card when no DAG has been built yet', () => {
+    render(<AnalysisView analysis={fixture} />);
+    expect(screen.queryByText('[ causal model ]')).toBeNull();
+  });
+
+  it('renders the causal model DAG with the latent-confounder note once built', () => {
+    render(
+      <AnalysisView
+        analysis={{
+          ...fixture,
+          causal_dag: {
+            nodes: [
+              { name: 'treat', observed: true },
+              { name: 're78', observed: true },
+              { name: 'age', observed: true },
+              { name: 'ability', observed: false },
+            ],
+            edges: [
+              { source: 'age', target: 'treat', edge_type: 'directed' },
+              { source: 'age', target: 're78', edge_type: 'directed' },
+              { source: 'ability', target: 'treat', edge_type: 'directed' },
+              { source: 'ability', target: 're78', edge_type: 'directed' },
+              { source: 'treat', target: 're78', edge_type: 'directed' },
+            ],
+            treatment: 'treat',
+            outcome: 're78',
+            estimand: 'ate',
+            adjustment_set: ['age'],
+            latent_confounding: true,
+          },
+        }}
+      />,
+    );
+    expect(screen.getByText('[ causal model ]')).toBeTruthy();
+    expect(screen.getByRole('img', { name: 'causal dag' })).toBeTruthy();
+    // the unobserved node is drawn and named in the graph
+    expect(screen.getByText('ability')).toBeTruthy();
+    // the not-identified note appears when a latent confounder breaks the backdoor
+    expect(screen.getByText(/not point-identified/i)).toBeTruthy();
   });
 
   it('renders the error message text when the run failed', () => {

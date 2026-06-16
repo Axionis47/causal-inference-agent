@@ -77,13 +77,18 @@ def stage(job_id: str, frame: pd.DataFrame) -> None:
     )
 
 
-async def drive(job_id: str, frame, question: str) -> tuple:
+async def drive(job_id: str, frame, question: str, user_context: str | None = None) -> tuple:
     """Run the spine; when the plan gate parks, confirm with card defaults
-    (the human-in-loop round trip) and let it resume."""
+    (the human-in-loop round trip) and let it resume. user_context is the
+    analyst's prose about the columns, placed where the input slice would
+    park it (dataset_info.user_provided_context); intake reads it live."""
     stage(job_id, frame)
     state = AnalysisState(
         job_id=job_id,
-        dataset_info=DatasetInfo(url="https://www.kaggle.com/datasets/eval/case"),
+        dataset_info=DatasetInfo(
+            url="https://www.kaggle.com/datasets/eval/case",
+            user_provided_context=user_context,
+        ),
         causal_question=question,
         status=JobStatus.CONFIRMED,
     )

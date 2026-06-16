@@ -99,6 +99,8 @@ async def test_synthetic_rdd_is_robust_under_bandwidth_and_placebo_checks(data_d
     names = {c.name for c in run.sensitivity_result.checks}
     assert {"bandwidth_x0.5", "bandwidth_x2", "placebo_cutoff"} <= names
     placebo = next(c for c in run.sensitivity_result.checks if c.name == "placebo_cutoff")
+    # A sharp design has no treated units below the cutoff, so a within-side
+    # placebo cannot separate assignment from a trend: it is NOT_APPLICABLE.
     assert placebo.status in (CheckStatus.PASS, CheckStatus.NOT_APPLICABLE)
     assert run.sensitivity_result.robustness in (
         RobustnessStatus.ROBUST, RobustnessStatus.FRAGILE,

@@ -10,6 +10,7 @@ import type {
 } from '../../../services/api';
 import { Caption } from '../terminal/atoms';
 import { ArtifactLine } from './artifacts/ArtifactLine';
+import { CausalModelCard } from './CausalModelCard';
 import { CostLine } from './CostLine';
 import { NotebookDownloadCard } from './NotebookDownloadCard';
 import { AgentPanel } from './panels/AgentPanel';
@@ -162,6 +163,9 @@ export function AnalysisView({
             <p className="text-xs font-mono text-rose">{analysis.error_message}</p>
           )}
         </div>
+
+        {/* the causal model, shown persistently once design detection built it */}
+        {analysis.causal_dag && <CausalModelCard dag={analysis.causal_dag} />}
 
         {/* the deliverable: notebook download once verification recorded a result */}
         {analysis.notebook && (

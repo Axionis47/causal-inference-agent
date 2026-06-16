@@ -19,7 +19,7 @@ import pandas as pd  # noqa: E402
 
 from src.analysis_v2.agents.base import AgentCtx  # noqa: E402
 from src.analysis_v2.core import AnalysisStage, ArtifactKind  # noqa: E402
-from src.analysis_v2.spec import CausalSpec, EDACheck, ProfileSummary  # noqa: E402
+from src.analysis_v2.spec import CausalDAG, CausalSpec, EDACheck, ProfileSummary  # noqa: E402
 
 
 @dataclass
@@ -27,6 +27,7 @@ class EDAInputs:
     frame: pd.DataFrame
     spec: CausalSpec
     profile: ProfileSummary
+    dag: CausalDAG | None = None
 
 
 @dataclass

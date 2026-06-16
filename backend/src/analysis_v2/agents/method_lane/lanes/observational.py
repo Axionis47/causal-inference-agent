@@ -20,6 +20,8 @@ from .common import (
     binary_01,
     ci_from,
     effects_table,
+    encode_design,
+    encode_design_issues,
     numeric_frame,
     numeric_frame_issues,
     safe_float,
@@ -51,8 +53,8 @@ def check_ready(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> list
     if plan.treatment is None and not plan.settings.get("factors"):
         return [f"{lane}: no treatment and no factors to regress on"]
     if plan.treatment is not None:
-        issues, data = numeric_frame_issues(
-            frame, [plan.outcome, plan.treatment, *plan.covariates], lane
+        issues, data, _ = encode_design_issues(
+            frame, [plan.outcome, plan.treatment], plan.covariates, lane
         )
         if issues or data is None:
             return issues
@@ -76,10 +78,11 @@ def run(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> LaneOutcome:
 
     warnings: list[str] = []
     if plan.treatment is not None:
-        columns = [plan.outcome, plan.treatment, *plan.covariates]
-        data = numeric_frame(frame, columns, lane)
+        data, cov_names = encode_design(
+            frame, [plan.outcome, plan.treatment], plan.covariates, lane
+        )
         y = data[plan.outcome]
-        rhs = data[[plan.treatment, *plan.covariates]]
+        rhs = data[[plan.treatment, *cov_names]]
         model = sm.OLS(y, sm.add_constant(rhs)).fit(cov_type="HC1")
         coef = safe_float(model.params[plan.treatment])
         se = safe_float(model.bse[plan.treatment])
@@ -101,9 +104,15 @@ def run(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> LaneOutcome:
         if not plan.covariates:
             warnings.append("no covariates adjusted; this is a raw comparison")
 
-        if plan.settings.get("include_ipw") and plan.covariates:
+        treatment_binary = int(data[plan.treatment].nunique(dropna=True)) == 2
+        if plan.settings.get("include_ipw") and cov_names and not treatment_binary:
+            warnings.append(
+                "ipw cross-check skipped: treatment is not binary, so propensity "
+                "weighting does not apply; reporting the regression estimate only"
+            )
+        if plan.settings.get("include_ipw") and cov_names and treatment_binary:
             t01 = binary_01(data[plan.treatment], "treatment", lane)
-            x = data[plan.covariates]
+            x = data[cov_names]
             point = _ipw_ate(y, t01, x)
             rng = np.random.default_rng(7)
             draws = []

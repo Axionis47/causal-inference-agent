@@ -56,7 +56,10 @@ async def _run_job(state: AnalysisState, manager: Any) -> None:
 
     try:
         run = await _load_or_create_run(state)
-        frame = load_analysis_frame(state)
+        # Fresh runs have no plan yet (None -> the single-winner frame S0A then
+        # reads); a resumed run carries the committed plan, so the assembled
+        # frame is rebuilt up front.
+        frame = load_analysis_frame(state, run.assembly_plan)
         ctx = AgentCtx(
             job_id=job_id, run=run, frame=frame, input_state=state, emit=emit
         )

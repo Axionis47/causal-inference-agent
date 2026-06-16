@@ -20,6 +20,7 @@ from .common import (
     effects_table,
     safe_float,
     summary_markdown,
+    to_numeric,
 )
 
 MIN_TIME_POINTS = 30
@@ -40,7 +41,7 @@ def check_ready(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> list
         return [f"{lane}: columns missing from the dataset: {missing}"]
     data = frame[[time_col, plan.outcome]].copy()
     data[time_col] = pd.to_datetime(data[time_col], errors="coerce")
-    data[plan.outcome] = pd.to_numeric(data[plan.outcome], errors="coerce")
+    data[plan.outcome] = to_numeric(data[plan.outcome])
     data = data.dropna().sort_values(time_col)
     series = data.groupby(time_col)[plan.outcome].mean().reset_index()
     if len(series) < MIN_TIME_POINTS:
@@ -63,7 +64,7 @@ def run(frame: pd.DataFrame, plan: MethodPlan, spec: CausalSpec) -> LaneOutcome:
 
     data = frame[[time_col, plan.outcome]].copy()
     data[time_col] = pd.to_datetime(data[time_col], errors="coerce")
-    data[plan.outcome] = pd.to_numeric(data[plan.outcome], errors="coerce")
+    data[plan.outcome] = to_numeric(data[plan.outcome])
     data = data.dropna().sort_values(time_col)
     series = data.groupby(time_col)[plan.outcome].mean().reset_index()
 

@@ -3,6 +3,12 @@
 Agents communicate only through these models, committed to the run state
 by the orchestrator. No agent reads another agent's internals.
 """
+from .assembly import (
+    AssemblyJoin,
+    AssemblyPlan,
+    AssemblyToolCall,
+    AssemblyToolTrace,
+)
 from .causal_spec import CausalSpec, Confidence, QuestionType, VariableRef
 from .critique import (
     ClaimCritique,
@@ -36,14 +42,31 @@ from .dossier import (
     LedgerStatus,
     RoleLabel,
 )
-from .eda import EDACheck, EDACheckStatus, EDAPlan, EDASummary
+from .eda import (
+    EDACheck,
+    EDACheckStatus,
+    EDAPlan,
+    EDASummary,
+    EDAToolCall,
+    EDAToolTrace,
+)
 from .estimate import BACKDOOR_IDENTIFIED_ESTIMATORS, EffectEstimate, EstimateResult
 from .flow_audit import FlowAuditResult, FlowSignal, FlowSignalStatus
 from .profile import ColumnProfile, ProfileSummary
 from .readiness import ReadinessResult
-from .report import NotebookBuildResult, NotebookStatus, NotebookVerificationResult
+from .report import (
+    NotebookBuildResult,
+    NotebookStatus,
+    NotebookVerificationResult,
+    ReportToolCall,
+    ReportToolTrace,
+)
 
 __all__ = [
+    "AssemblyJoin",
+    "AssemblyPlan",
+    "AssemblyToolCall",
+    "AssemblyToolTrace",
     "CausalSpec",
     "Confidence",
     "QuestionType",
@@ -79,6 +102,8 @@ __all__ = [
     "EDACheckStatus",
     "EDAPlan",
     "EDASummary",
+    "EDAToolCall",
+    "EDAToolTrace",
     "BACKDOOR_IDENTIFIED_ESTIMATORS",
     "EffectEstimate",
     "EstimateResult",
@@ -91,4 +116,6 @@ __all__ = [
     "NotebookBuildResult",
     "NotebookStatus",
     "NotebookVerificationResult",
+    "ReportToolCall",
+    "ReportToolTrace",
 ]

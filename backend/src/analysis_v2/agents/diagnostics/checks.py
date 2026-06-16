@@ -179,6 +179,13 @@ def rdd_placebo_cutoff(
     alt_plan = plan.model_copy(deep=True)
     alt_plan.settings["cutoff"] = placebo
     side = frame[x < cutoff]  # placebo estimated within one side only
+    treatment = plan.treatment
+    if treatment and treatment in side.columns and side[treatment].nunique(dropna=True) < 2:
+        return _check(
+            "placebo_cutoff", CheckStatus.NOT_APPLICABLE,
+            "no treatment variation on the tested side (sharp design); a "
+            "within-side placebo cannot separate assignment from a trend",
+        )
     try:
         alt = runner(side, alt_plan, spec).result
         jump = next(e for e in alt.effects if e.estimand == "itt_jump")

@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from src.analysis_v2.core import AnalysisRunState
 
+from .guard import forbidden_hit
+
 _STRENGTH_PHRASES = {
     "strong": "the evidence is consistent with a causal effect",
     "moderate": "the evidence suggests an effect under the design's assumptions",
@@ -89,8 +91,10 @@ def build_report_markdown(run: AnalysisRunState) -> str:
             f"{f' (se {effect.std_error:.3g})' if effect.std_error else ''}{eff_interval}"
         )
     text = "\n".join(lines)
-    for forbidden in critique.forbidden_language:
-        assert forbidden not in text.lower(), f"forbidden phrase in report: {forbidden}"
+    # Deterministic inputs: this assert can never fire here. The agentic path
+    # (S10) reuses forbidden_hit to sanitize-or-fall-back per section instead.
+    hit = forbidden_hit(text, critique)
+    assert hit is None, f"forbidden phrase in report: {hit}"
     return text
 
 

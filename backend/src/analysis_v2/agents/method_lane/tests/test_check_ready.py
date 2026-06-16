@@ -53,7 +53,7 @@ def test_observational_is_ready_on_a_clean_frame():
 def test_observational_flags_too_few_rows_and_the_lane_raises_the_same():
     frame = _obs_frame(10)
     reasons = observational.check_ready(frame, _obs_plan(), _spec())
-    assert reasons and "complete numeric rows" in reasons[0]
+    assert reasons and "complete rows across the design" in reasons[0]
     with pytest.raises(LaneInputError) as exc:
         LANES[MethodLane.OBSERVATIONAL](frame, _obs_plan(), _spec())
     assert str(exc.value) == reasons[0]  # gate and lane agree exactly

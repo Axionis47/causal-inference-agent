@@ -14,6 +14,8 @@ from enum import StrEnum
 from pydantic import BaseModel, Field, ValidationError
 
 from src.analysis_v2.spec import (
+    AssemblyPlan,
+    AssemblyToolTrace,
     CausalDAG,
     CausalSpec,
     ClaimCritique,
@@ -22,6 +24,7 @@ from src.analysis_v2.spec import (
     DiagnosticsResult,
     EDAPlan,
     EDASummary,
+    EDAToolTrace,
     EstimateResult,
     FlowAuditResult,
     MethodPlan,
@@ -30,6 +33,7 @@ from src.analysis_v2.spec import (
     PlanCritique,
     ProfileSummary,
     ReadinessResult,
+    ReportToolTrace,
     SensitivityResult,
     ToolEligibility,
 )
@@ -67,6 +71,8 @@ class AnalysisRunState(BaseModel):
     ignored_columns: list[str] = Field(default_factory=list)
 
     # Typed slots, one producer each, filled as the spine advances.
+    assembly_plan: AssemblyPlan | None = None
+    assembly_tool_trace: AssemblyToolTrace | None = None
     causal_spec: CausalSpec | None = None
     dataset_profile: ProfileSummary | None = None
     dataset_dossier: DatasetDossier | None = None
@@ -76,6 +82,7 @@ class AnalysisRunState(BaseModel):
     tool_eligibility: ToolEligibility | None = None
     eda_plan: EDAPlan | None = None
     eda_summary: EDASummary | None = None
+    eda_tool_trace: EDAToolTrace | None = None
     plan_critique: PlanCritique | None = None
     method_plan: MethodPlan | None = None
     readiness: ReadinessResult | None = None
@@ -85,6 +92,7 @@ class AnalysisRunState(BaseModel):
     claim_critique: ClaimCritique | None = None
     notebook_build: NotebookBuildResult | None = None
     notebook_verification: NotebookVerificationResult | None = None
+    report_tool_trace: ReportToolTrace | None = None
     flow_audit: FlowAuditResult | None = None
 
     # Bookkeeping.

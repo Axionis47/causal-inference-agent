@@ -18,11 +18,12 @@ from pathlib import Path
 
 
 def load_cases() -> dict:
+    from .live_inputs import EXTRA_CASES
     from .workflow_evals import test_representative_types as types_mod
     from .workflow_evals import test_representative_workflows as base_mod
 
     cases = {}
-    for entry in [*base_mod.CASES, *types_mod.CASES]:
+    for entry in [*base_mod.CASES, *types_mod.CASES, *EXTRA_CASES]:
         case = entry.values[0] if hasattr(entry, "values") else entry
         cases[case.case_id] = case
     return cases
@@ -44,13 +45,19 @@ def _effects(run) -> list[dict]:
 
 
 async def run_case(case, out_dir: Path) -> dict:
+    from .live_inputs import CASE_CONTEXTS
     from .workflow_evals.harness import drive
 
     started = time.monotonic()
+    user_context = CASE_CONTEXTS.get(case.case_id)
     record: dict = {"case_id": case.case_id, "expected_lane": case.expected_lane.value,
-                    "estimand": case.estimand, "truth_band": case.truth_band}
+                    "estimand": case.estimand, "truth_band": case.truth_band,
+                    "user_context": user_context}
     try:
-        run, state = await drive(f"live-{case.case_id[:24]}", case.frame_fn(), case.question)
+        run, state = await drive(
+            f"live-{case.case_id[:24]}", case.frame_fn(), case.question,
+            user_context=user_context,
+        )
         record["status"] = run.status.value
         record["error"] = run.error_message
         if run.estimate_result is not None:

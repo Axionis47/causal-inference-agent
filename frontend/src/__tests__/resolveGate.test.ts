@@ -13,16 +13,6 @@ describe('resolveGate', () => {
     expect(resolveGate(snap)).toEqual({ kind: 'data' });
   });
 
-  it('maps a dag snapshot to a dag gate carrying its payload', () => {
-    const snap: GateSnapshot = {
-      kind: 'dag',
-      payload: { dag: { adjustment_set: ['x1'] }, justification: {} },
-    };
-    const gate = resolveGate(snap);
-    expect(gate?.kind).toBe('dag');
-    expect(gate).toMatchObject({ payload: { dag: { adjustment_set: ['x1'] } } });
-  });
-
   it('maps a results snapshot to a results gate carrying its payload', () => {
     const snap: GateSnapshot = {
       kind: 'results',

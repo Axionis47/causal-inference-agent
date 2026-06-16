@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from src.analysis_v2.spec import CausalSpec, MethodLane, QuestionType
 
-from . import checks_base, checks_design, checks_groups
+from . import checks_base, checks_dag, checks_design, checks_groups
 from .common import CheckFn
 
 BASE: list[CheckFn] = list(checks_base.BASE_CHECKS)
@@ -69,15 +69,20 @@ def _question_extras(spec: CausalSpec) -> list[CheckFn]:
     return extras
 
 
-def build_recipe(spec: CausalSpec, lane: MethodLane | None) -> tuple[list[CheckFn], list[str]]:
-    """(checks to run, targeted check names) for the plan artifact."""
+def build_recipe(
+    spec: CausalSpec, lane: MethodLane | None, has_dag: bool = False
+) -> tuple[list[CheckFn], list[str]]:
+    """(checks to run, targeted check names) for the plan artifact. The
+    DAG-consistency check rides along, after the lane recipe, whenever S3 built
+    a causal graph; it is design-agnostic and self-skips without one."""
     targeted = list(TARGETED.get(lane, [])) if lane is not None else []
     for extra in _question_extras(spec):
         if extra not in targeted:
             targeted.append(extra)
+    tail: list[CheckFn] = [checks_dag.dag_consistency] if has_dag else []
     seen: set[str] = set()
     ordered: list[CheckFn] = []
-    for fn in BASE + targeted:
+    for fn in BASE + targeted + tail:
         if fn.__name__ not in seen:
             seen.add(fn.__name__)
             ordered.append(fn)

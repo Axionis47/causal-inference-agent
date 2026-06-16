@@ -73,7 +73,7 @@ async def test_an_unrunnable_plan_fails_here_with_the_lane_reason(data_dir):
     result, _ = await _run(_obs_plan(), _spec(), _frame(8))  # < 20 complete rows
     assert result.gate.status == GateStatus.FAIL
     assert "cannot run on this data" in result.gate.hard_failures[0]
-    assert "complete numeric rows" in result.gate.hard_failures[0]
+    assert "complete rows across the design" in result.gate.hard_failures[0]
 
 
 async def test_a_missing_plan_fails_the_gate(data_dir):

@@ -13,6 +13,7 @@ from enum import StrEnum
 
 class AnalysisStage(StrEnum):
     S0_DATASET_SAVED = "s0_dataset_saved"
+    S0A_DATA_ASSEMBLED = "s0a_data_assembled"
     S1_INTAKE_PARSED = "s1_intake_parsed"
     S2_PROFILE_CREATED = "s2_profile_created"
     S2A_DATASET_INVESTIGATED = "s2a_dataset_investigated"
@@ -38,6 +39,7 @@ SPINE: tuple[AnalysisStage, ...] = tuple(AnalysisStage)
 # orchestrator itself; S12 is terminal.
 STAGE_AGENT: dict[AnalysisStage, str | None] = {
     AnalysisStage.S0_DATASET_SAVED: None,
+    AnalysisStage.S0A_DATA_ASSEMBLED: "assembly_planner",
     AnalysisStage.S1_INTAKE_PARSED: "intake",
     AnalysisStage.S2_PROFILE_CREATED: "profiling",
     AnalysisStage.S2A_DATASET_INVESTIGATED: "investigator",
