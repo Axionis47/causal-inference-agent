@@ -37,3 +37,72 @@ buf = io.BytesIO()
 fig.savefig(buf, format='png', bbox_inches='tight')
 plt.close(fig)
 display(Image(data=buf.getvalue()))"""
+
+
+# The causal DAG laid out like the app: confounders left (latent on top),
+# treatment centre, outcome right; the adjustment set is ringed indigo, latent
+# nodes are hollow with a rose edge, and the treatment->outcome edge is bold.
+DAG_FIGURE = """\
+import io
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+from matplotlib.patches import FancyArrowPatch
+from IPython.display import Image, display
+from src.analysis_v2.spec import CausalDAG
+
+dag = CausalDAG.model_validate(DAG)
+adj = dag.adjustment_set()
+latent = {n.name for n in dag.nodes if not n.observed}
+treat, out = dag.treatment, dag.outcome
+confs = [n.name for n in dag.nodes if n.name not in (treat, out)]
+ordered = [c for c in confs if c in latent] + [c for c in confs if c not in latent]
+pos = {}
+if treat is not None:
+    pos[treat] = (1.0, 0.5)
+if out is not None:
+    pos[out] = (2.0, 0.5)
+for i, name in enumerate(ordered):
+    pos[name] = (0.0, 1.0 - (i + 1) / (len(ordered) + 1))
+
+fig, ax = plt.subplots(figsize=(7, 4.5))
+ax.axis('off')
+ax.set_xlim(-0.7, 2.7)
+ax.set_ylim(-0.05, 1.05)
+for e in dag.edges:
+    a, b = pos.get(e.source), pos.get(e.target)
+    if a is None or b is None:
+        continue
+    spine = (e.source == treat and e.target == out)
+    ax.add_patch(FancyArrowPatch(
+        a, b, arrowstyle='-|>', mutation_scale=12,
+        lw=1.6 if spine else 1.0, alpha=1.0 if spine else 0.3,
+        color='#6b7280', shrinkA=13, shrinkB=13, zorder=1,
+    ))
+for name, (x, yy) in pos.items():
+    is_lat = name in latent
+    if name == treat:
+        face = '#f59e0b'
+    elif name == out:
+        face = '#10b981'
+    else:
+        face = 'none' if is_lat else '#e5e7eb'
+    edge = '#f43f5e' if is_lat else '#374151'
+    if name in adj:
+        ax.scatter([x], [yy], s=1000, facecolors='none',
+                   edgecolors='#4f46e5', linewidths=1.3, zorder=2)
+    ax.scatter([x], [yy], s=600, facecolors=face, edgecolors=edge,
+               linewidths=1.3, zorder=3)
+    ax.annotate(name, (x, yy), xytext=(0, -18), textcoords='offset points',
+                ha='center', fontsize=8)
+ident, _reason = dag.is_identifiable()
+ax.set_title(
+    f"Causal model | adjustment set: {sorted(adj) or 'empty'} | "
+    f"identified by adjustment: {ident}",
+    fontsize=9,
+)
+buf = io.BytesIO()
+fig.savefig(buf, format='png', bbox_inches='tight')
+plt.close(fig)
+display(Image(data=buf.getvalue()))
+print('suspected latent confounding present:', dag.has_latent_confounding())"""

@@ -10,9 +10,12 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from src.analysis_v2.agents.report.plot_cells import FOREST
+from src.analysis_v2.agents.report.plot_cells import DAG_FIGURE, FOREST
 from src.analysis_v2.agents.report.recompute_cells import ESTIMATE
 from src.analysis_v2.spec import (
+    CausalDAG,
+    CausalEdge,
+    CausalNode,
     CausalSpec,
     MethodLane,
     MethodPlan,
@@ -58,3 +61,24 @@ def test_forest_cell_plots_without_error():
     ns = _namespace()
     exec(ESTIMATE, ns)
     exec(FOREST, ns)  # matplotlib Agg; a broken source raises here
+
+
+def _dag_dict() -> dict:
+    """A small confounded DAG: age -> treat, age -> re78, treat -> re78."""
+    dag = CausalDAG(
+        nodes=[CausalNode(name="treat"), CausalNode(name="re78"), CausalNode(name="age")],
+        edges=[
+            CausalEdge(source="age", target="treat", mechanism="age shapes selection"),
+            CausalEdge(source="age", target="re78", mechanism="age shapes earnings"),
+            CausalEdge(source="treat", target="re78", mechanism="training effect"),
+        ],
+        treatment="treat", outcome="re78",
+    )
+    return dag.model_dump(mode="json")
+
+
+def test_dag_figure_cell_renders_and_finds_the_adjustment_set():
+    ns = _namespace()
+    ns["DAG"] = _dag_dict()
+    exec(DAG_FIGURE, ns)  # builds the figure; a broken source raises here
+    assert "age" in ns["adj"]  # the confounder is on the backdoor adjustment set
