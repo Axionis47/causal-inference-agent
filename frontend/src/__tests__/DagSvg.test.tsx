@@ -17,10 +17,34 @@ const props = {
 const widthOf = (svg: Element) => Number((svg.getAttribute('viewBox') ?? '').split(' ')[2]);
 
 describe('DagSvg', () => {
-  it('draws the nodes and edges of the graph', () => {
+  it('renders the graph and groups confounders into latent and measured', () => {
     render(<DagSvg {...props} />);
     expect(screen.getByRole('img', { name: 'causal dag' })).toBeTruthy();
-    expect(screen.getByText('U')).toBeTruthy();
+    // The left column carries a header per group: U is latent, X is measured.
+    expect(screen.getByText('unmeasured')).toBeTruthy();
+    expect(screen.getByText('measured')).toBeTruthy();
+  });
+
+  it('truncates a long label but keeps the full name on hover', () => {
+    const longName = 'Unmeasured Socioeconomic Status/Family Background';
+    render(
+      <DagSvg
+        nodes={['T', 'Y', longName]}
+        edges={[
+          { source: longName, target: 'T', edge_type: 'directed' },
+          { source: 'T', target: 'Y', edge_type: 'directed' },
+        ]}
+        treatment="T"
+        outcome="Y"
+        adjustmentSet={[]}
+        latent={[longName]}
+      />,
+    );
+    // Full name lives only in the <title> (hover); the visible label is cut with
+    // an ellipsis so it cannot overrun its neighbours.
+    expect(screen.getByText(longName, { selector: 'title' })).toBeTruthy();
+    expect(screen.queryByText(longName, { selector: 'text' })).toBeNull();
+    expect(screen.getByText(/…$/)).toBeTruthy();
   });
 
   it('zooms in by shrinking the viewBox and reset restores it', () => {

@@ -391,8 +391,9 @@ describe('AnalysisView', () => {
     );
     expect(screen.getByText('[ causal model ]')).toBeTruthy();
     expect(screen.getByRole('img', { name: 'causal dag' })).toBeTruthy();
-    // the unobserved node is drawn and named in the graph
-    expect(screen.getByText('ability')).toBeTruthy();
+    // the unobserved node is drawn and named in the graph (the visible label;
+    // the full name is also in a <title> for hover, so scope to the text node)
+    expect(screen.getByText('ability', { selector: 'text' })).toBeTruthy();
     // the not-identified note appears when a latent confounder breaks the backdoor
     expect(screen.getByText(/not point-identified/i)).toBeTruthy();
   });

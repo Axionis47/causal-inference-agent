@@ -1,8 +1,11 @@
-// A small, dependency-free SVG renderer for a causal DAG. Nodes are laid out on
-// a circle (readable for the handful of variables a causal DAG carries); the
-// treatment is amber, the outcome mint, and adjusted-for variables get an indigo
-// ring. Suspected latent (unobserved) confounders are drawn hollow with a dashed
-// rose outline. Directed edges are solid arrows, undirected/bidirected dashed.
+// A small, dependency-free SVG renderer for a causal DAG, laid out left to right
+// so the causal flow reads in one direction. Confounders sit in a left column,
+// grouped: suspected latent (unobserved) ones on top with a dashed rose outline,
+// then the measured/adjusted ones with an indigo ring. The treatment (amber) is
+// the middle column and the outcome (mint) the right, with the treatment->outcome
+// edge emphasized and the confounder fan faded back. Labels are anchored into the
+// left margin and truncated, with the full name on hover, so long latent names
+// no longer overrun their neighbours.
 //
 // Dense graphs (a wide adjustment set can run to dozens of nodes) stay legible
 // through zoom and pan: the wheel scales the viewBox anchored at the cursor, drag
@@ -14,15 +17,24 @@ import { DagEdgeView } from '../../../services/api';
 
 const W = 340;
 const H = 260;
-const NODE_R = 11;
+const NODE_R = 10;
+const CONF_X = 128; // x of the confounder column (dots)
+const TREAT_X = 240;
+const OUT_X = 312;
+const TOP = 14;
+const BOT = 12;
+const ROW_MAX = 20;
+const LABEL_MAX = 18; // chars before truncation; full name lives in a <title>
 const MIN_W = W / 8; // deepest zoom in
 const MAX_W = W * 1.5; // furthest zoom out
 const WHEEL_STEP = 1.12;
 const BUTTON_STEP = 0.7; // < 1 zooms in
 
 type Box = { x: number; y: number; w: number; h: number };
+type Row = { kind: 'header'; text: string; tone: string; y: number } | { kind: 'node'; id: string; y: number };
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi);
+const truncate = (s: string) => (s.length > LABEL_MAX ? `${s.slice(0, LABEL_MAX - 1)}…` : s);
 
 export function DagSvg({
   nodes,
@@ -39,19 +51,36 @@ export function DagSvg({
   adjustmentSet: string[];
   latent?: string[];
 }) {
-  const cx = W / 2;
-  const cy = H / 2;
-  const radius = Math.min(W, H) / 2 - 44;
-  const n = Math.max(nodes.length, 1);
-
-  const pos = new Map<string, { x: number; y: number }>();
-  nodes.forEach((id, i) => {
-    const angle = -Math.PI / 2 + (2 * Math.PI * i) / n;
-    pos.set(id, { x: cx + radius * Math.cos(angle), y: cy + radius * Math.sin(angle) });
-  });
-
   const adj = new Set(adjustmentSet);
   const latentSet = new Set(latent);
+
+  // Left column: confounders, latent grouped above measured, each behind a small
+  // header row. Headers take a layout slot of their own so they never overlap a
+  // node. The whole column is vertically centred; the treatment and outcome share
+  // its mid-line.
+  const confounders = nodes.filter((id) => id !== treatment && id !== outcome);
+  const latentConf = confounders.filter((id) => latentSet.has(id));
+  const measuredConf = confounders.filter((id) => !latentSet.has(id));
+
+  const rows: Row[] = [];
+  if (latentConf.length) rows.push({ kind: 'header', text: 'unmeasured', tone: 'fill-rose', y: 0 });
+  latentConf.forEach((id) => rows.push({ kind: 'node', id, y: 0 }));
+  if (measuredConf.length) rows.push({ kind: 'header', text: 'measured', tone: 'fill-indigo', y: 0 });
+  measuredConf.forEach((id) => rows.push({ kind: 'node', id, y: 0 }));
+
+  const slots = Math.max(rows.length, 1);
+  const rowH = Math.min(ROW_MAX, (H - TOP - BOT) / slots);
+  const colTop = (H - rowH * (slots - 1)) / 2;
+  rows.forEach((r, i) => {
+    r.y = colTop + i * rowH;
+  });
+
+  const pos = new Map<string, { x: number; y: number }>();
+  rows.forEach((r) => {
+    if (r.kind === 'node') pos.set(r.id, { x: CONF_X, y: r.y });
+  });
+  if (treatment) pos.set(treatment, { x: TREAT_X, y: H / 2 });
+  if (outcome) pos.set(outcome, { x: OUT_X, y: H / 2 });
 
   // viewBox-driven zoom/pan state. The full graph is {0, 0, W, H}.
   const [box, setBox] = useState<Box>({ x: 0, y: 0, w: W, h: H });
@@ -152,6 +181,9 @@ export function DagSvg({
           const x2 = b.x - ux * (NODE_R + 6);
           const y2 = b.y - uy * (NODE_R + 6);
           const directed = e.edge_type === 'directed';
+          // Emphasize the treatment -> outcome edge; fade the confounder fan so
+          // the structure reads instead of becoming a hairball.
+          const spine = directed && e.source === treatment && e.target === outcome;
           return (
             <line
               key={`${e.source}-${e.target}-${i}`}
@@ -160,28 +192,50 @@ export function DagSvg({
               x2={x2}
               y2={y2}
               className="stroke-edge-strong"
-              strokeWidth={1}
+              strokeWidth={spine ? 1.6 : 1}
+              strokeOpacity={spine ? 1 : 0.32}
               markerEnd={directed ? 'url(#dag-arrow)' : undefined}
               strokeDasharray={directed ? undefined : '4 3'}
             />
           );
         })}
 
+        {rows.map((r) =>
+          r.kind === 'header' ? (
+            <text
+              key={`h-${r.text}`}
+              x={2}
+              y={r.y + 3}
+              textAnchor="start"
+              className={`${r.tone} font-mono uppercase tracking-wide`}
+              style={{ fontSize: '7px', opacity: 0.85 }}
+            >
+              {r.text}
+            </text>
+          ) : null,
+        )}
+
         {nodes.map((id) => {
           const p = pos.get(id);
           if (!p) return null;
           const isLatent = latentSet.has(id);
+          const isTreat = id === treatment;
+          const isOutcome = id === outcome;
           const fill = isLatent
             ? 'fill-none'
-            : id === treatment
+            : isTreat
               ? 'fill-amber'
-              : id === outcome
+              : isOutcome
                 ? 'fill-mint'
                 : 'fill-canvas-inset';
           const stroke = isLatent ? 'stroke-rose' : 'stroke-edge-strong';
-          const labelAbove = p.y <= cy;
+          // Confounder labels sit in the left margin (anchored end); the treatment
+          // and outcome are labelled above their own dots.
+          const sideLabel = !isTreat && !isOutcome;
           return (
             <g key={id}>
+              {/* Full name on hover over the whole node (dot + label). */}
+              <title>{id}</title>
               {adj.has(id) && (
                 <circle
                   cx={p.x}
@@ -201,13 +255,13 @@ export function DagSvg({
                 strokeDasharray={isLatent ? '3 2' : undefined}
               />
               <text
-                x={p.x}
-                y={labelAbove ? p.y - NODE_R - 5 : p.y + NODE_R + 11}
-                textAnchor="middle"
+                x={sideLabel ? p.x - NODE_R - 6 : p.x}
+                y={sideLabel ? p.y + 3 : p.y - NODE_R - 6}
+                textAnchor={sideLabel ? 'end' : 'middle'}
                 className="fill-ink font-mono"
                 style={{ fontSize: '9px' }}
               >
-                {id}
+                {truncate(id)}
               </text>
             </g>
           );
