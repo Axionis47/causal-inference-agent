@@ -107,6 +107,8 @@ class ReportNotebookAgent(AnalysisAgent):
         config = self._notebook_config(run)
         _add("notebook/config", ArtifactKind.JSON, "Notebook config",
              "notebook/notebook_config.json", config)
+        _add("notebook/analysis_inputs", ArtifactKind.JSON, "Analysis inputs",
+             "notebook/analysis_inputs.json", self._analysis_inputs(run))
         assembled = self._assemble(run, prose, exec_summary) if agentic else None
         notebook = build_notebook(run, assembled)
         _add("notebook/causal_analysis", ArtifactKind.NOTEBOOK,
@@ -246,6 +248,18 @@ class ReportNotebookAgent(AnalysisAgent):
         elif manifest.winner is not None:
             config["dataset_path"] = _parquet_rel(manifest.winner)
         return config
+
+    @staticmethod
+    def _analysis_inputs(run: AnalysisRunState) -> dict:
+        """The frozen plan/spec/dag the notebook deserializes to recompute the
+        estimate, diagnostics, and figures inline. Kept out of notebook_config
+        so notebook_verify's repair, which only touches the config keys, never
+        sees these blobs."""
+        return {
+            "plan": run.method_plan.model_dump(mode="json"),
+            "spec": run.causal_spec.model_dump(mode="json"),
+            "dag": run.causal_dag.model_dump(mode="json") if run.causal_dag else None,
+        }
 
     def commit(self, run: AnalysisRunState, output: NotebookBuildResult) -> None:
         run.notebook_build = output

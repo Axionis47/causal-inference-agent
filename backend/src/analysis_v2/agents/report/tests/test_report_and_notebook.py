@@ -197,8 +197,12 @@ def test_notebook_load_cell_coerces_bool_columns_like_the_pipeline_loader(
             }
         )
     )
+    run = _run_state()
+    (tmp_path / "notebook" / "analysis_inputs.json").write_text(
+        json.dumps(ReportNotebookAgent._analysis_inputs(run))
+    )
 
-    notebook = build_notebook(_run_state())
+    notebook = build_notebook(run)
     load_cell = next(
         c.source
         for c in notebook.cells
@@ -211,3 +215,5 @@ def test_notebook_load_cell_coerces_bool_columns_like_the_pipeline_loader(
     df = namespace["df"]
     assert df["treatment"].dtype.kind in "iu"
     assert np.asarray(df).dtype != object
+    assert namespace["PLAN"]["lane"] == "observational"  # frozen inputs bound
+    assert namespace["SPEC"]["outcome"]["column"] == "re78"

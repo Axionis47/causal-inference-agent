@@ -248,3 +248,11 @@ def test_render_report_states_the_headline_number_even_when_prose_omits_it():
     assert "p=0.04" in md                       # p-value
     assert "weak" in md.lower()                 # calibrated claim strength
     assert "fragile" in md.lower()              # robustness verdict
+
+
+def test_analysis_inputs_carries_plan_spec_and_dag():
+    run, _ = _full_run()
+    inputs = ReportNotebookAgent._analysis_inputs(run)
+    assert inputs["plan"]["lane"] == "observational"
+    assert inputs["spec"]["treatment"]["column"] == "treat"
+    assert inputs["dag"]["treatment"] == "treat"  # carried for the DAG figure
