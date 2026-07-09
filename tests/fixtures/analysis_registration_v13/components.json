@@ -1,0 +1,157 @@
+{
+  "description": "Compact exact components of preserved v13 proposals. These regress bookkeeping, not scientific source entailment.",
+  "opaque": {
+    "edge": {
+      "source": "c673009170c951ad9e75ab1c8dd794e3",
+      "target": "ccf65d9759575fcd912f150c22d97e90",
+      "basis": "assumption",
+      "references": [
+        "columns.c673009170c951ad9e75ab1c8dd794e3.definition.7464417a31b85824a784d2eef845108b",
+        "columns.c673009170c951ad9e75ab1c8dd794e3.collection_time.adc1a80ecd2f5105ab81fdb6f183bddc"
+      ],
+      "prerequisites": [],
+      "explanation": "A customer's historical spending category (v04) is likely to influence their future expenditure (k02)."
+    },
+    "context": {
+      "columns": {
+        "c673009170c951ad9e75ab1c8dd794e3": {
+          "identity": {
+            "column_id": "c673009170c951ad9e75ab1c8dd794e3",
+            "position": 3,
+            "name": "v04"
+          },
+          "definition": {
+            "7464417a31b85824a784d2eef845108b": {
+              "value": "A spending category constructed from the customer's preceding-year dollar total.",
+              "basis": "source_statement",
+              "citations": [
+                {
+                  "source_id": "d2499b12-e86f-519c-afab-57114ab4f8c6",
+                  "source_line": 9,
+                  "start": 1491,
+                  "end": 1587,
+                  "quote": "v04.definition: A spending category constructed from the customer's preceding-year dollar total."
+                }
+              ],
+              "qualifications": "",
+              "status": "reviewed",
+              "source": {
+                "kind": "review",
+                "id": "b92c8853-5e14-47d5-b8b7-0c8094279982",
+                "author_id": "3396c394-b2a5-4aaa-9918-3b012dbf4c9e",
+                "text": "Curator mapped documented semantics for a controlled invariance test."
+              },
+              "review_source": null,
+              "replaces": null,
+              "reason": "Curator mapped documented semantics for a controlled invariance test."
+            }
+          },
+          "collection_time": {
+            "adc1a80ecd2f5105ab81fdb6f183bddc": {
+              "value": "Historical customer attribute measured before campaign assignment.",
+              "basis": "source_statement",
+              "citations": [
+                {
+                  "source_id": "d2499b12-e86f-519c-afab-57114ab4f8c6",
+                  "source_line": 25,
+                  "start": 3156,
+                  "end": 3243,
+                  "quote": "v04.collection_time: Historical customer attribute measured before campaign assignment."
+                }
+              ],
+              "qualifications": "",
+              "status": "reviewed",
+              "source": {
+                "kind": "review",
+                "id": "b92c8853-5e14-47d5-b8b7-0c8094279982",
+                "author_id": "3396c394-b2a5-4aaa-9918-3b012dbf4c9e",
+                "text": "Curator mapped documented semantics for a controlled invariance test."
+              },
+              "review_source": null,
+              "replaces": null,
+              "reason": "Curator mapped documented semantics for a controlled invariance test."
+            }
+          }
+        },
+        "ccf65d9759575fcd912f150c22d97e90": {
+          "identity": {
+            "column_id": "ccf65d9759575fcd912f150c22d97e90",
+            "position": 0,
+            "name": "k02"
+          }
+        }
+      }
+    }
+  },
+  "wide": {
+    "account": {
+      "statement": "The task explicitly specifies 'No adjustment variables, weighting, subgroup search, transformations, trimming or alternative estimators' for the estimation of intention-to-treat effects. Given the documented randomized assignment of treatment, this pre-treatment variable has no applicable scientific role in the specified unadjusted causal analysis.",
+      "basis": "supplied",
+      "references": [
+        "question",
+        "decision:treatments"
+      ],
+      "prerequisites": []
+    }
+  },
+  "factorial": {
+    "edge": {
+      "source": "358f13462e5150ca83a787cfa49e931c",
+      "target": "e7e680670b595d0b8a5e37b6873b15da",
+      "basis": "supplied",
+      "references": [
+        "decision:treatments",
+        "dataset.question.d0b80adf1a6f5d86918e02886582c035"
+      ],
+      "prerequisites": [],
+      "explanation": "Factor A is an intervention designed to affect the outcome, as implied by the request to estimate its effect."
+    },
+    "context": {
+      "columns": {
+        "e7e680670b595d0b8a5e37b6873b15da": {
+          "identity": {
+            "column_id": "e7e680670b595d0b8a5e37b6873b15da",
+            "position": 3,
+            "name": "outcome"
+          }
+        },
+        "358f13462e5150ca83a787cfa49e931c": {
+          "identity": {
+            "column_id": "358f13462e5150ca83a787cfa49e931c",
+            "position": 1,
+            "name": "factor_a"
+          }
+        }
+      },
+      "dataset": {
+        "question": {
+          "d0b80adf1a6f5d86918e02886582c035": {
+            "value": "This is an explicitly synthetic application verification case, not a real-world empirical study. Two independently randomized binary factors, each with levels 0 and 1. Use unadjusted arithmetic means of the four cells. Primary a_marginal is the effect of A, averaging its two within-B contrasts with equal weights. Secondary b_marginal analogously averages the within-A contrasts. interaction is (mu11-mu01)-(mu10-mu00). joint is mu11-mu00. Include every row. This fixture prespecifies point estimates only. Extend the point protocol only by this prespecified uncertainty calculation. For each contrast, use its linear coefficients on the four disjoint cell means. If a cell has sample variance s_j^2, count n_j and contrast coefficient c_j, variance is V=sum(c_j^2*s_j^2/n_j), with sample variances using ddof=1. Use Welch-Satterthwaite df=V^2/sum((c_j^2*s_j^2/n_j)^2/(n_j-1)). Return estimate +/- t.ppf(1-0.05/(2*4),df)*sqrt(V). This gives four two-sided 98.75% intervals using Bonferroni for a 95% family level. Use result_kind=estimate for all four effects. These are conditional numerical inference calculations for the synthetic design, not demonstrated confidence coverage. Use these exact effect identities: a_marginal, b_marginal, interaction, joint. Exactly a_marginal is primary; the other listed effects are prespecified secondary effects. Preserve one treatment factor per intervention variable; arms are not additional factors. Do not search for a favorable design, alter the point functional, omit requested effects, or use outcome values before the allowed phase. Include every source row except the exact subsets explicitly defining the fixed contrasts. Stop on missing/nonfinite required values or unexpected codes. No imputation, outcome-based exclusions, alternate bandwidths or unrequested analyses. Record necessary causal assumptions separately from supplied fixture facts.",
+            "basis": "source_statement",
+            "citations": [
+              {
+                "source_id": "e9bb79d0-3d4d-585b-9645-3f3f3cb5e207",
+                "source_line": 7,
+                "start": 1291,
+                "end": 3205,
+                "quote": "dataset.question: This is an explicitly synthetic application verification case, not a real-world empirical study. Two independently randomized binary factors, each with levels 0 and 1. Use unadjusted arithmetic means of the four cells. Primary a_marginal is the effect of A, averaging its two within-B contrasts with equal weights. Secondary b_marginal analogously averages the within-A contrasts. interaction is (mu11-mu01)-(mu10-mu00). joint is mu11-mu00. Include every row. This fixture prespecifies point estimates only. Extend the point protocol only by this prespecified uncertainty calculation. For each contrast, use its linear coefficients on the four disjoint cell means. If a cell has sample variance s_j^2, count n_j and contrast coefficient c_j, variance is V=sum(c_j^2*s_j^2/n_j), with sample variances using ddof=1. Use Welch-Satterthwaite df=V^2/sum((c_j^2*s_j^2/n_j)^2/(n_j-1)). Return estimate +/- t.ppf(1-0.05/(2*4),df)*sqrt(V). This gives four two-sided 98.75% intervals using Bonferroni for a 95% family level. Use result_kind=estimate for all four effects. These are conditional numerical inference calculations for the synthetic design, not demonstrated confidence coverage. Use these exact effect identities: a_marginal, b_marginal, interaction, joint. Exactly a_marginal is primary; the other listed effects are prespecified secondary effects. Preserve one treatment factor per intervention variable; arms are not additional factors. Do not search for a favorable design, alter the point functional, omit requested effects, or use outcome values before the allowed phase. Include every source row except the exact subsets explicitly defining the fixed contrasts. Stop on missing/nonfinite required values or unexpected codes. No imputation, outcome-based exclusions, alternate bandwidths or unrequested analyses. Record necessary causal assumptions separately from supplied fixture facts."
+              }
+            ],
+            "qualifications": "",
+            "status": "reviewed",
+            "source": {
+              "kind": "review",
+              "id": "47f8bb51-388b-5a80-8015-cf78d0cde84a",
+              "author_id": "3396c394-b2a5-4aaa-9918-3b012dbf4c9e",
+              "text": "Curator supplies an exact synthetic-generator/protocol binding, not a model-extracted factual claim."
+            },
+            "review_source": null,
+            "replaces": null,
+            "reason": "Curator supplies an exact synthetic-generator/protocol binding, not a model-extracted factual claim.",
+            "column_ids": []
+          }
+        }
+      }
+    }
+  }
+}

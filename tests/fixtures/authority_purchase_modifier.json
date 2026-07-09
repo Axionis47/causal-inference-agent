@@ -1,0 +1,49 @@
+{
+  "analysis_id": "f1bb8835-338e-5b8c-8f22-2f515ddcb6d3",
+  "task_id": "fbfe2005-b291-507c-bb70-c09a8663ee75",
+  "receipt_id": "1646f92c6d41c9ed50b4d261d984345aad166836e59658dab6789511a655bc8d",
+  "original_account": {
+    "basis": "supplied",
+    "statement": "The variable 'mens' indicates a mens-merchandise purchase in the preceding year. It is plausible that the effect of email campaigns (mens or womens) on customer spend could differ based on this prior purchase behavior, making it a potential effect modifier.",
+    "references": [
+      "columns.583fff53b7cc5a738a121737459cbf7c.definition.d4017b04c00358709d4c3be6e77b4b11"
+    ],
+    "prerequisites": []
+  },
+  "proposed_roles": [
+    "effect_modifier"
+  ],
+  "effect_ids": [
+    "mens_email_vs_no_email_spend",
+    "womens_email_vs_no_email_spend"
+  ],
+  "treatment_ids": [
+    "a35efdd1e0305031b5e14083a00d2aff"
+  ],
+  "variable_id": "583fff53b7cc5a738a121737459cbf7c",
+  "source_key": "columns.583fff53b7cc5a738a121737459cbf7c.definition.d4017b04c00358709d4c3be6e77b4b11",
+  "source": {
+    "basis": "source_statement",
+    "value": "Indicator of a mens-merchandise purchase in the preceding year: one denotes a purchase, zero its absence.",
+    "reason": "Curator mapped documented semantics for a controlled invariance test.",
+    "source": {
+      "id": "0cfc4563-fe9e-4784-965e-0968f45505a3",
+      "kind": "review",
+      "text": "Curator mapped documented semantics for a controlled invariance test.",
+      "author_id": "3396c394-b2a5-4aaa-9918-3b012dbf4c9e"
+    },
+    "status": "reviewed",
+    "replaces": null,
+    "citations": [
+      {
+        "end": 1825,
+        "quote": "mens.definition: Indicator of a mens-merchandise purchase in the preceding year: one denotes a purchase, zero its absence.",
+        "start": 1703,
+        "source_id": "c5a83a5e-260f-52ed-ab5d-1e189376eaa8",
+        "source_line": 11
+      }
+    ],
+    "review_source": null,
+    "qualifications": ""
+  }
+}
