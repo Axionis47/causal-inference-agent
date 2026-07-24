@@ -1,0 +1,2114 @@
+[
+  {
+    "module": "backend.analysis.contracts",
+    "name": "ClaimScope",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "68adb57b8a5c6c8e2b7ed6ab1c092907f00960e7acf53fd08ab34c56883c08d6"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "ClaimScope",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "ad4db8f56a27f168a00cf43c7fbe39ffe9af4b5cabcff93ddc18ece3ab431cf4"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "SourceExcerpt",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "ece1142f60bdaa214b1d65d8913537b06bbe4d1f251195ec3fa7d47276513203"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "SourceExcerpt",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "ece1142f60bdaa214b1d65d8913537b06bbe4d1f251195ec3fa7d47276513203"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "ClaimAdmission",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "fc4aa1fe8bab55a9b7f172296bbc4559c36accd199ec9e131efe9ee92cdb0ac0"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "ClaimAdmission",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "4da7b604df3ea6038d09d1a27f9e84cd570f4782cc6d81876ef29c8dbcd85311"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "Assumption",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "69d3d115ea53b73b00dde6f20f334023013b60c8886bf3de32f42ddf529a6110"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "Assumption",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "4e350bdd4bd474feabe9155e16d6310883db2562a30b0cb41422e138ab44995e"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "Claim",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "d31dfcd61cb2f6f51659019259a06a8241dd909e56306ae572a9ee5ce8224bfc"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "Claim",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "3e80e4dad0b92e8da09971e1039d9cfa376318078eae3d3ab6d891c5dd6acf03"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "Decision",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "164f106bade7e41df72e209746baa7155a653a379e762ce14764014bd5e8fb0f"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "Decision",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "d975cfa16a23fc7d3356e6e0e72d78084701deabab541b5e549372cca7b39773"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "Variable",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "5a99cb4b2640b39ecebf29a6e68c6e204922beec20ab864fbd551c149bc82a1b"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "Variable",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "154ed54e012262c85c02e7c0c88db8c3d3d1faf7b6c84697704fd46a78994874"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "RequestedEffect",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "fbe874a579ff25fa3b87396f5fac5519371574aab34f9ae15ac2371074f78c7f"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "RequestedEffect",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "d7b2b965e4546313de69110f2ee66718f2bf30da6fbdee1a190a42d07928dbfe"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "Target",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "cc650a3789264cc32162147bfd67860e604d2bfc61556b24e9d6484382ed450e"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "Target",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "89f4986cc30ed460cdce4d07d8e14deaf4c53408e15a7eea57d9d116eb206fd4"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "Treatment",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "c9423ef772d4f982a8ec2f64cda4a2ba714d8d6e86d79895e10f503f596d387b"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "Treatment",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "18d1c47ba864888f5cca5861ccbb699fa9a776a47df67f558fa89f8756dc34fe"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "TypedValue",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "2d2048a06cf2aa12808adfcec15ba42fda22eb7520cb619e7beaad00b9879e20"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "TypedValue",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "2d2048a06cf2aa12808adfcec15ba42fda22eb7520cb619e7beaad00b9879e20"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "TreatmentValue",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "a241e52d9c6b94ad7284a86b58a190b9ae04144a3fb31ac2f19f895dda9c4231"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "TreatmentValue",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "1bd5533527904806fe30c5a53f1a374c3cba395df643d89bbb3f806d54cec055"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "ContrastTerm",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "b975393772e2bd37487fef62637aa4d3d4ee3808830312e2d314782428623340"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "ContrastTerm",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "b975393772e2bd37487fef62637aa4d3d4ee3808830312e2d314782428623340"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "StaticContrast",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "046e624e742c13848501fc63cba4a836c1b8310e75d455639923f327e9bfb3d0"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "StaticContrast",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "046e624e742c13848501fc63cba4a836c1b8310e75d455639923f327e9bfb3d0"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "GroupTimeContrast",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "35d9b527de8bd0288b0b258eeb727fa2367bd2f707bcd5a1a69d9a452c9826f3"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "GroupTimeContrast",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "35d9b527de8bd0288b0b258eeb727fa2367bd2f707bcd5a1a69d9a452c9826f3"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "DiscontinuityContrast",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "08cebff7566e09ab2310b1c83645f9409d2875a18a7e00cd69a51701b524a882"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "DiscontinuityContrast",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "08cebff7566e09ab2310b1c83645f9409d2875a18a7e00cd69a51701b524a882"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "EffectWeight",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "9f588e7dccb90343b28a97dbfda445ebf5daa0a76374b41a73b3db2ad87273fc"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "EffectWeight",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "9f588e7dccb90343b28a97dbfda445ebf5daa0a76374b41a73b3db2ad87273fc"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "AggregateContrast",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "6e83c5a546f46b87af4f45bead0678b5f2e5c252da30e1d010ac0f8e01571ddc"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "AggregateContrast",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "6e83c5a546f46b87af4f45bead0678b5f2e5c252da30e1d010ac0f8e01571ddc"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "ContrastBinding",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "42d5fcedc402bfd0206d678c0169c9b2a5912b214184efe7b03adfcc16cab673"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "ContrastBinding",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "94faef1f27da2e2c8ec43cd1ef1c74ccf6217e0310dc3b931558ed7b031e03bf"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "EffectRequest",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "bf83b82187dd66269535ab3813a099b331d352b42a6e374a933647654e84dbce"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "EffectRequest",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "775214f55e135ac8a8afdc959f1155cc7d3a78ea93c321b8e7f2e69e66e435ee"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "DiagnosticWindow",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "045bbf562626125a7c402e4ac14bea5f64075b13508008b4459bade2ad26fda7"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "DiagnosticWindow",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "ecd4c7ca378daaf6b2ad8c5db18e029625d06df1e4aa2e3916c0c62c293872a0"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "AssignmentProcess",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "a25f22d2a88b19a96fdea903aa74bc3ae182f9e8b8a7f8c695cbf6ada063f40b"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "AssignmentProcess",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "0ae6d6710daff6760afb8636f93c3b33902332a947e8fcee2e39108570ba5a74"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "Treatments",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "919d40da443119e36e54cdec8fe16ef27766870c63056ac48d4927fdb25fb824"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "Treatments",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "60e2b403fb662a9ced0912be2b77b6a96eef5f768d0b6c83c84ba5be79548651"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "Treatments",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ],
+      "_effect_refs": [
+        "effect1"
+      ],
+      "_explicit_fields": [
+        "treatments"
+      ],
+      "_json_schema": [
+        "treatments"
+      ]
+    },
+    "format": "response_json_schema",
+    "sha256": "60786246c0b7a6a1245a84ba86906494ceaa96ab243f5190389e5458446390c8"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "RoleAssignment",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "6e115ea81edaf90c7eab04665234e75f968fea8a87cf8a1a331ce94526b296a3"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "RoleAssignment",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "c361b5056d44c608594a83952418efcdb62dccebd6615d7739c7efba3efee2c9"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "Roles",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "0b273ef2e5a260b81c559808ec55e142e1a832eae64d42081728a5f310c34594"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "Roles",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "8f4b858d53449bfbebedc20ba64abde94a694514958048af4b6150cb4774bd92"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "Roles",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ],
+      "_variable_refs": [
+        "variable1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "50f71d94abcc5e4544a170d1ab38ebd242c4246833da5a050d9a4fdb6e2b73eb"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "CausalNode",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "d2aff6cdab350d698bd08391f667ac33c4f8f25b65c4d57a288847df47058f95"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "CausalNode",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "d2aff6cdab350d698bd08391f667ac33c4f8f25b65c4d57a288847df47058f95"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "CausalEdge",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "a715119514c8f787bece2976b0f997edb877d6db7e06b88e74b6ba8d00611699"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "CausalEdge",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "d5bc1b3cd94bf2d27eb3199b79205a78a46fc76f042eab2dae28afb241ff2602"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "IdentificationObligation",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "0c3dbc4558695f6fdf060e8c6b1b4d3252887bc9cd99908498d64d0f911f2821"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "IdentificationObligation",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "f7e855adc1532b0af149a31320557eeac60e51682cb2b3b0be0cf6d4aa0496f0"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "IdentificationClaim",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "db4ff0e88eb7be275c9dec7af37b0d96343e9eec4add41392a13ec92080c518d"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "IdentificationClaim",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "00774ca08d44de682b4119bdff61d9c95f7400d1445fda5e6dc7963a4b5375d9"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "RelationshipDisposition",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "c6c987b63681084a9508e672df4c5e672883072e745b2b1f4ff41ebfd33fde78"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "RelationshipDisposition",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "e3c7d5ae40d146a51b2727533c0a1093f8692d35755b66b8d16d6a189087bd40"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "CausalAccount",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "40a96970ac093549f42b86260d6fe71c0fee7db2c66bd9f53f7b359857703f5b"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "CausalAccount",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "8094b73b3c5fef8c8fab631d135c6f5b7f92545c8a0c4acb862dc1d84ae0b573"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "Frame",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "a478b0fab8f7615759d6545a8c18905444a64b823d0e73b75781c2254d097e3b"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "Frame",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "754318e1ca1dc0f5e8deec41ddb35e4283d1d1faa858b3d1644f977fa734fd11"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "DiagnosticAction",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "de8ea8287f49aa543b373f4cb60e15f518b953ee8d264a2e1b760791dc4974ac"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "DiagnosticAction",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "de8ea8287f49aa543b373f4cb60e15f518b953ee8d264a2e1b760791dc4974ac"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "EffectPlan",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "319fce9b289aed76cfe0079b3558cb709b9d78190c3a79530f4a0f7d2b10362c"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "EffectPlan",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "319fce9b289aed76cfe0079b3558cb709b9d78190c3a79530f4a0f7d2b10362c"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "Plan",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "47fccfe0381160cb69e7cdb637fcafea0c353973250257b1fd2aa3a85d8298ce"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "Plan",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "ffb69cfc26011b39a5b3fa96a82a3356f39e406d63584fad2659f13368142437"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "Program",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "dd057bfd671ea15222d9502a5f36da0abb8d4b39364561a09e380cd35931cfdf"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "Program",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "dd057bfd671ea15222d9502a5f36da0abb8d4b39364561a09e380cd35931cfdf"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "ProgramVerification",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "d99949477926e017a87754a2496eb0eb86361d68d2821189284f77d26ca02a24"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "ProgramVerification",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "d99949477926e017a87754a2496eb0eb86361d68d2821189284f77d26ca02a24"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "CodeReview",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "5a4b7eeaaa410db48b9d4e42ac34be1dd29692430fa361c51a0c7acfc74b1af0"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "CodeReview",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "5a4b7eeaaa410db48b9d4e42ac34be1dd29692430fa361c51a0c7acfc74b1af0"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "AnalysisReport",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "7304a5d8b02b887b7822cfa0488571a89dc5da1de5b60beeb914e173a070034b"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "AnalysisReport",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "7304a5d8b02b887b7822cfa0488571a89dc5da1de5b60beeb914e173a070034b"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "Conclusion",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "fa405381d9600b34b1880902cb2f6299996b3ae71eb651a24c3e31687be43240"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "Conclusion",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "c53ae45b0582286e8d26544a139194eaa19df2f0646fc9b232d3b06332de4c1b"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "InputProjection",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "e48360f72685d6ab50e4ee7552859bbacbe5beb606f1c97886802ca3097b02e0"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "InputProjection",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "e48360f72685d6ab50e4ee7552859bbacbe5beb606f1c97886802ca3097b02e0"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "Snapshot",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "2e2aecb8b2d9e90819c1e92628b6b4ef304ee941e770615d5515d2d2a97bba41"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "Snapshot",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "cde742b545fdc088c168a8bf0b1c41a7ee8e42c063407e9fe0d6e88d4f33e3a9"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "GateCheck",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "fe02fb0edf693c70e03986765eb36d83c9bad6065e23a838f53e70659f759248"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "GateCheck",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "fe02fb0edf693c70e03986765eb36d83c9bad6065e23a838f53e70659f759248"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "CheckpointDefinition",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "5cd3b90fb185c81d5dac28022c0a95bcf201341dd2039a9126d505b9b347f6f0"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "CheckpointDefinition",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "5cd3b90fb185c81d5dac28022c0a95bcf201341dd2039a9126d505b9b347f6f0"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "CheckpointReceipt",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "7a792eff201d12cde3b8f33c26f00ea2142becaf5f38f9acfb9a8b4e5cdf7809"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "CheckpointReceipt",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "87825c073f8ebb71c1df41849f328ecfaeead183407626bce91725d53212521a"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "CheckpointView",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "e11a3beee06d03299ff6cff0c8dad2df0128402de26a7ffaaa30c6fdd62a4b3d"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "CheckpointView",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "d08b44f985a2d204963a763ed6a77dd87c42391ef8d246f673f1ec16b83cf78e"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "AnalysisTaskView",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "d974b6aa5d327e16f6b6f8d7070f88f0cf6ae87f36d10c6aef4289737b9a1402"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "AnalysisTaskView",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "d404c2fa41b33901d202ac85e88497c39ed97b520b42cb117e09779af55a6685"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "SharedAttemptView",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "ea89abc3d0d362e39a40c38de21540e769fda8025c1546ab7b4664924abd0ddb"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "SharedAttemptView",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "ea89abc3d0d362e39a40c38de21540e769fda8025c1546ab7b4664924abd0ddb"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "SharedAttemptDetail",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "ffe2c7393dca68e01db5af31c4eb8ad6b4dbca79c82906fcd2f35f7ff796e1a8"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "SharedAttemptDetail",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "ffe2c7393dca68e01db5af31c4eb8ad6b4dbca79c82906fcd2f35f7ff796e1a8"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "ProgramView",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "0c7e109bd25ae2a1e187a6ad0172c45846fb67f3628b07adf2217b47de7dee08"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "ProgramView",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "0c7e109bd25ae2a1e187a6ad0172c45846fb67f3628b07adf2217b47de7dee08"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "PrepareAnalysis",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "56cb9e190793e8e7b9b9dc2beca5681cf436b6c37167c35734d64a1c78e1b20c"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "PrepareAnalysis",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "56cb9e190793e8e7b9b9dc2beca5681cf436b6c37167c35734d64a1c78e1b20c"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "FrozenContextView",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "007fe6df18fd4d753b09bd803801c204c6815b2596b042980c28bb7ba0a436b7"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "FrozenContextView",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "007fe6df18fd4d753b09bd803801c204c6815b2596b042980c28bb7ba0a436b7"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "AdmissionView",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "8d7e3eb362e8c8f710bb5340ad36f2bef3bf1b825cda37aefeb095621c53a085"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "AdmissionView",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "817f27113f7a567268c26ff3ac45b3fa36ba6121308602227de1383de6bfc6ee"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "AssumptionView",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "a3aae00ef8b5f75e5903b780a8ed7f8a2a95269626fb56d8645ba99885207dc6"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "AssumptionView",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "01a89d5ddbc1d5309df333570b2ba7b15a1fe38d4126aaf9e7131ff9b48774b4"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "AuthorityView",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "ff752414167fd6319df393c9ccbfff8ecf542d845c7888251631ee1869d9aec7"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "AuthorityView",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "e6997161bb4e8df08ceabd3bd97715bb9e7aa1e76a90649cb2696f5fa8ddf9e9"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "ApproveAnalysis",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "b979f2d0cd3b41da254143ec6e87d973d002d0b2caf86a121eb8c22ff961351c"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "ApproveAnalysis",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "b979f2d0cd3b41da254143ec6e87d973d002d0b2caf86a121eb8c22ff961351c"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "RejectAnalysis",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "8ec9c49ea55f3a3fa1898c399b703213bffff1f7b7354860d242e6f77f8e619e"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "RejectAnalysis",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "8ec9c49ea55f3a3fa1898c399b703213bffff1f7b7354860d242e6f77f8e619e"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "EventView",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "7d7af777a38924974f2e3c7342fecc1e9a99a0f847d3bff10a7fe095e4f05d5e"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "EventView",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "7d7af777a38924974f2e3c7342fecc1e9a99a0f847d3bff10a7fe095e4f05d5e"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "Result",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "d93ad99fd914698df9f63095ac8f1d7a46f517f26e04a17efc40d6f950ab2ee7"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "Result",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "d93ad99fd914698df9f63095ac8f1d7a46f517f26e04a17efc40d6f950ab2ee7"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "AnalysisView",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "f159a091680d8765d2ca6be1a5f3ac52c1454caf50a3654dbaa09a8564775461"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "AnalysisView",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "b1015d105ef691f4da4371265e651de49d2fc906ebd963ceb6fd7048f26bc44d"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "AnalysisSummary",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "ef60903aebe6f228b4597dee099836b27f4d65a57615150fc0ab630d47469cfa"
+  },
+  {
+    "module": "backend.analysis.contracts",
+    "name": "AnalysisSummary",
+    "choices": {
+      "_authority_policy": [
+        "claim-authority-19"
+      ],
+      "_claim_refs": [
+        "question",
+        "e123"
+      ],
+      "_assumption_namespace": [
+        "scope_"
+      ],
+      "effect_ids": [
+        "effect1"
+      ],
+      "treatment_ids": [
+        "treatment1"
+      ]
+    },
+    "format": "response_schema",
+    "sha256": "ef60903aebe6f228b4597dee099836b27f4d65a57615150fc0ab630d47469cfa"
+  },
+  {
+    "module": "backend.chat.contracts",
+    "name": "Contract",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "9e2fcd061b033258d31fc0f42563ff024009ee9307c7cb2bb3f9911422010efb"
+  },
+  {
+    "module": "backend.chat.contracts",
+    "name": "CreateConversation",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "24fb8786442e8cc37cfb330fa8c077ce7bffaf79a1f4aaa69c4f09130cf3580d"
+  },
+  {
+    "module": "backend.chat.contracts",
+    "name": "SendTurn",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "ae5a8cf00c75eb48a3f9868a2d1c71e9b15ff477aca3fb1da444fd130f548239"
+  },
+  {
+    "module": "backend.chat.contracts",
+    "name": "ConversationView",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "1ec3c25d4f8478cc0d2b10562c91e58262212cc512b2605fd558481ffeb1cf7b"
+  },
+  {
+    "module": "backend.chat.contracts",
+    "name": "ReplyNumber",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "597fe9dca89f4766c9f4385447710efbd97b7d1d711c133d9d539c46eb6aa502"
+  },
+  {
+    "module": "backend.chat.contracts",
+    "name": "Reply",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "5a3216292c8009314a0ff9e4d5cd0f9ae821c225b92eca9ca33f493d425889c1"
+  },
+  {
+    "module": "backend.chat.contracts",
+    "name": "AnalysisFile",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "380ddda175d95c2505375754538057510fe207ed93a7d39e43bbf0de0a2a4f84"
+  },
+  {
+    "module": "backend.chat.contracts",
+    "name": "Interpretation",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "db5f48e1637fffb7ff343b4173ff2c1a59bd9d4b34e594a72d781be4ad39da97"
+  },
+  {
+    "module": "backend.chat.contracts",
+    "name": "ExploreAction",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "4e63510bf498e497aa84204bc7cb4b7b22aff627f59ad49fcbeac6f8d732a6e2"
+  },
+  {
+    "module": "backend.chat.contracts",
+    "name": "Exploration",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "712262425e71e391d955ebfeba775ca171db427a630b16994253c21cbad66c2b"
+  },
+  {
+    "module": "backend.chat.contracts",
+    "name": "ArtifactView",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "659fc41a1019819ce627fd14967b2dca507ea82c8a4161322f25761510f91a52"
+  },
+  {
+    "module": "backend.chat.contracts",
+    "name": "ScriptAttempt",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "e0b82db0d850ed21a1925acdb87e02094d95f15243973cc763d0b4ca2b170b55"
+  },
+  {
+    "module": "backend.chat.contracts",
+    "name": "TurnView",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "b49576ef5269135cd52b33620cfcd8b3bbcf918822df676880d7fc61e5533eff"
+  },
+  {
+    "module": "backend.chat.contracts",
+    "name": "ConversationDetail",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "c32a50981fa0f3d59cc30addba7a61b8f671457c519ac35921d66b24ff0fc7fa"
+  },
+  {
+    "module": "backend.context.extraction",
+    "name": "LineReference",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "c303c7c8a2c9c0ae0e8494c50449c5cfca2e8f36fa1773a88316fd2e70d94525"
+  },
+  {
+    "module": "backend.context.extraction",
+    "name": "Proposal",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "49fc30261b18e5358a46795c7278f7427df7167acddc729d630054d25ef2ac45"
+  },
+  {
+    "module": "backend.context.extraction",
+    "name": "DatasetProposal",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "62b4c313d32c71da1a39f421fce3235a95cc70f8b2f4f767dfa854cc8fa9fa26"
+  },
+  {
+    "module": "backend.context.extraction",
+    "name": "ColumnProposal",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "c51f003cd686dae5e4fecdedf364903ea62ae3b61b0a1b617f2661e9f3b95048"
+  },
+  {
+    "module": "backend.context.extraction",
+    "name": "ConceptProposal",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "2de475f454a0ec2709e766c8deda4e8cae36f3875305df07c7b8d03dc6341956"
+  },
+  {
+    "module": "backend.context.extraction",
+    "name": "RelationshipProposal",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "613972a861d989fb3ee69491bb8f45f2c729015be5fc0aa13f8305cb1be9de7a"
+  },
+  {
+    "module": "backend.context.extraction",
+    "name": "Extraction",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "062c9fbe12c3326ba32ce45e376d3a86b936ed851dc32568c59f730508e4a7ee"
+  },
+  {
+    "module": "backend.context.extraction",
+    "name": "Correction",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "333314526947eb217ac8672446b1a6dc6ee3cccb0d20e87a98f920de22c921d8"
+  },
+  {
+    "module": "backend.context.extraction",
+    "name": "Assessment",
+    "choices": null,
+    "format": "response_schema",
+    "sha256": "7d627f87be0acefe52e408fdfff54554b15f3ab2cc60e5f2ce29a1271cf6ea90"
+  }
+]
