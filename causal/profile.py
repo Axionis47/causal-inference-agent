@@ -76,7 +76,7 @@ def _as_numeric(series: pd.Series) -> pd.Series | None:
     cleaned = series.astype(str).str.replace(",", "", regex=False)
     parsed = pd.to_numeric(cleaned, errors="coerce")
     notna = series.notna()
-    if notna.sum() and parsed[notna].notna().mean() > 0.9:
+    if notna.sum() and bool(parsed[notna].notna().mean() > 0.9):
         return parsed
     return None
 
@@ -94,7 +94,9 @@ def _is_datelike(series: pd.Series, numeric: bool) -> bool:
     if sample.empty:
         return False
     parsed = pd.to_datetime(sample, errors="coerce", format="mixed")
-    return parsed.notna().mean() > 0.9
+    # bool(), not numpy.bool_: the graph checkpointer serialises this state
+    # with msgpack, which refuses numpy scalars.
+    return bool(parsed.notna().mean() > 0.9)
 
 
 def profile(df: pd.DataFrame) -> Profile:
@@ -115,8 +117,8 @@ def profile(df: pd.DataFrame) -> Profile:
                 dtype=str(s.dtype),
                 missing=float(s.isna().mean()),
                 n_unique=int(values.nunique()),
-                numeric=numeric,
-                binary=values.nunique() == 2,
+                numeric=bool(numeric),
+                binary=bool(values.nunique() == 2),
                 datelike=_is_datelike(s, numeric),
                 low=low,
                 high=high,

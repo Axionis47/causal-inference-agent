@@ -145,6 +145,19 @@ def read_question(question: str, context: str, p: Profile) -> Intake:
     )
     read: Reading = response.parsed
 
+    # Structured output is not consistent about emptiness: the same prompt has
+    # returned "" and the literal string "null" for the same absent field.
+    # Normalise before validating, or "null" is reported as a missing column.
+    EMPTY = {"", "null", "none", "n/a", "na", "nan", "-"}
+    blanks = {
+        role: ""
+        for role in ("outcome", "treatment", "group", "period", "time_column",
+                     "running_variable", "problem")
+        if str(getattr(read, role)).strip().lower() in EMPTY
+    }
+    if blanks:
+        read = read.model_copy(update=blanks)
+
     names = set(p.names())
     problems = []
     for role in ("outcome", "treatment", "group", "period", "time_column",
