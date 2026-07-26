@@ -120,16 +120,33 @@ def instrument_candidates(p: Profile, names: list[str], spoken: set[str]) -> lis
     return out[:6]
 
 
-def for_lane(lane: str, p: Profile, intake: dict, df=None) -> dict:
-    """A complete, editable argument set for `lane` on this dataset."""
+def for_lane(lane: str, p: Profile, intake: dict, df=None, roles=None) -> dict:
+    """A complete, editable argument set for `lane` on this dataset.
+
+    With `roles` (from roles.read_roles) the covariates are the columns reasoned
+    to be confounders, and mediators, colliders and outcome proxies are left
+    out. Without it, the deterministic rules below apply: every numeric column
+    that is not an identifier and does not correlate with the outcome. That
+    fallback is worse in a specific way, and it is worth naming: it cannot tell
+    a confounder from a mediator, so it will adjust away part of the effect it
+    is measuring.
+    """
     treatment = intake.get("treatment") or ""
     outcome = intake.get("outcome") or ""
     names = p.names()
     spoken = {treatment, outcome} - {""}
 
+    reasoned = bool(roles and roles.by_column)
+
+    def controls(extra_exclude: set[str] = frozenset(), for_outcome: str = "") -> list[str]:
+        """Confounders when we have reasoning; the greedy rule when we do not."""
+        if reasoned:
+            return [c for c in roles.confounders() if c not in extra_exclude][:12]
+        return covariates(p, spoken | set(extra_exclude), df, for_outcome or outcome)
+
     if lane in ("observational", "matching"):
         return {"outcome": outcome, "treatment": treatment,
-                "covariates": covariates(p, spoken, df, outcome)}
+                "covariates": controls()}
 
     if lane == "iv":
         # Instrument blank on purpose (see instrument_candidates), and
@@ -145,19 +162,22 @@ def for_lane(lane: str, p: Profile, intake: dict, df=None) -> dict:
         #
         # So IV starts bare. Adding a control is a decision, and it belongs to
         # someone who knows why the instrument is valid.
-        candidates = instrument_candidates(p, names, spoken)
+        candidates = (roles.named("instrument") if reasoned
+                      else instrument_candidates(p, names, spoken))
         return {"outcome": outcome, "treatment": treatment, "instrument": "",
                 "covariates": [],
                 "_candidates": {
                     "instrument": candidates,
-                    "covariates": covariates(p, spoken | set(candidates), df, outcome),
+                    "covariates": controls(set(candidates)),
                 }}
 
     if lane == "mediation":
-        guess = _first([n for n in names if n not in spoken],
-                       r"mediat", r"channel", r"pathway")
+        found = roles.named("mediator") if reasoned else []
+        guess = found[0] if found else _first(
+            [n for n in names if n not in spoken], r"mediat", r"channel", r"pathway")
         return {"outcome": outcome, "treatment": treatment, "mediator": guess,
-                "covariates": covariates(p, spoken | {guess}, df, outcome)}
+                "covariates": controls({guess}),
+                "_candidates": {"mediator": found}}
 
     if lane == "survival":
         event = _first(
@@ -175,7 +195,7 @@ def for_lane(lane: str, p: Profile, intake: dict, df=None) -> dict:
             r"time|dur|days|months|tenure|followup|follow_up")
         # the event must never become a covariate: it is the model's outcome
         return {"treatment": treatment, "duration": duration, "event": event,
-                "covariates": covariates(p, {treatment, event, duration}, df, duration)}
+                "covariates": controls({event, duration}, duration)}
 
     if lane == "did":
         return {"outcome": outcome,
@@ -201,10 +221,10 @@ def for_lane(lane: str, p: Profile, intake: dict, df=None) -> dict:
     return {}
 
 
-def all_lanes(p: Profile, intake: dict, df=None) -> dict[str, dict]:
+def all_lanes(p: Profile, intake: dict, df=None, roles=None) -> dict[str, dict]:
     """Suggestions for every lane, so the form is filled the moment one is picked."""
     return {
-        lane: for_lane(lane, p, intake, df)
+        lane: for_lane(lane, p, intake, df, roles)
         for lane in ("observational", "matching", "iv", "did", "rdd",
                      "survival", "mediation", "time_series")
     }
