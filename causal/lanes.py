@@ -213,6 +213,72 @@ def survival(
     )
 
 
+def did(
+    df: pd.DataFrame,
+    *,
+    outcome: str,
+    group: str,
+    period: str,
+    treated_group: str,
+    unit: str | None = None,
+) -> Estimate:
+    """Difference in differences on a two-group, two-period panel.
+
+    The estimate is the interaction: how much more the treated group moved
+    than the control group did. `treated_group` is required rather than
+    guessed, because guessing it silently flips the sign.
+
+    Rests on parallel trends: absent the intervention, both groups would have
+    moved together. With two periods there is no pre-trend to inspect, so this
+    is an assumption you bring, not one the data can support.
+    """
+    lane = "did"
+    for col in (outcome, group, period):
+        if col not in df.columns:
+            raise LaneError(f"{lane}: dataset has no column '{col}'")
+
+    data = df[[outcome, group, period] + ([unit] if unit else [])].copy()
+    data[outcome] = pd.to_numeric(data[outcome], errors="coerce")
+    data = data.dropna()
+
+    groups = sorted(map(str, data[group].unique()))
+    if len(groups) != 2:
+        raise LaneError(f"{lane}: needs exactly 2 groups, found {len(groups)}: {groups}")
+    if str(treated_group) not in groups:
+        raise LaneError(f"{lane}: treated_group '{treated_group}' is not one of {groups}")
+    periods = sorted(data[period].unique())
+    if len(periods) != 2:
+        raise LaneError(f"{lane}: needs exactly 2 periods, found {len(periods)}")
+
+    treated = (data[group].astype(str) == str(treated_group)).astype(float)
+    post = (data[period] == periods[1]).astype(float)
+    design = pd.DataFrame(
+        {"const": 1.0, "treated": treated, "post": post, "did": treated * post}
+    )
+    model = sm.OLS(data[outcome].to_numpy(float), design)
+    if unit:
+        fit = model.fit(cov_type="cluster", cov_kwds={"groups": data[unit]})
+        se_note = f"SEs clustered on {unit}"
+    else:
+        fit = model.fit(cov_type="HC1")
+        se_note = "heteroskedasticity-robust SEs, not clustered"
+
+    value = float(fit.params["did"])
+    se = float(fit.bse["did"])
+    lo, hi = ci95(value, se)
+    return Estimate(
+        estimand="att",
+        value=value,
+        se=se,
+        ci_low=lo,
+        ci_high=hi,
+        p_value=float(fit.pvalues["did"]),
+        n=len(data),
+        estimator="difference_in_differences",
+        notes=[f"{treated_group} vs {[g for g in groups if g != str(treated_group)][0]}", se_note],
+    )
+
+
 def rdd(
     df: pd.DataFrame,
     *,
