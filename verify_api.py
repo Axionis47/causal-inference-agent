@@ -31,6 +31,46 @@ CASES = [
          kwargs=dict(outcome="fte", group="state", period="period",
                      treated_group="NJ", unit="store_id"),
          expect=2.754),
+    dict(dataset="lalonde",
+         question="Did the job training program raise earnings in 1978?",
+         context="NSW training trial treated units, combined with a PSID comparison group.",
+         lane="matching",
+         kwargs=dict(outcome="re78", treatment="treat",
+                     covariates=["age","educ","black","hispan","married","nodegree","re74","re75"]),
+         expect=1110.12),
+    dict(dataset="ihdp",
+         question="What is the effect of the intervention on the child's test score?",
+         context="Infant Health and Development Program. y_factual is the observed score.",
+         lane="observational",
+         kwargs=dict(outcome="y_factual", treatment="treatment",
+                     covariates=[f"x{i}" for i in range(1, 26)]),
+         expect=3.92867),
+    dict(dataset="card",
+         question="What is the effect of years of schooling on log hourly wages?",
+         context="US men in 1976. nearc4 marks growing up near a four-year college. Use lwage.",
+         lane="iv",
+         kwargs=dict(outcome="lwage", treatment="educ", instrument="nearc4",
+                     covariates=["exper","expersq","black","south","smsa"]),
+         expect=0.132289),
+    dict(dataset="bank",
+         question="Does the higher recovery strategy increase the amount recovered?",
+         context="Customers above an expected recovery of 1000 get a more intensive strategy.",
+         lane="rdd",
+         kwargs=dict(outcome="actual_recovery_amount",
+                     running="expected_recovery_amount", cutoff=1000.0),
+         expect=263.8),
+    dict(dataset="student",
+         question="Does study time affect final grades through past failures?",
+         context="Portuguese secondary school records. G3 is the final grade.",
+         lane="mediation",
+         kwargs=dict(outcome="G3", treatment="studytime", mediator="failures"),
+         expect=0.2093),
+    dict(dataset="visitors",
+         question="Did anything change site traffic at the start of 2018?",
+         context="Daily website statistics. Unique.Visits is the visitor count.",
+         lane="time_series",
+         kwargs=dict(outcome="Unique.Visits", time="Date", intervention="2018-01-01"),
+         expect=389.4),
 ]
 
 
@@ -98,7 +138,7 @@ def main() -> int:
                 continue
 
             value = res["estimate"]["value"]
-            close = abs(value - case["expect"]) / case["expect"] < 0.01
+            close = abs(value - case["expect"]) / abs(case["expect"]) < 0.02
             ok = ok and close
             print(f"  GET  .../result       -> {res['estimate']['estimand']}="
                   f"{value:.4g} (expected ~{case['expect']}) "

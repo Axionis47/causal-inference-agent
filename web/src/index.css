@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Numbers must align across rows or the instrument feel breaks. */
+.tabular { font-variant-numeric: tabular-nums; }
+
+html, body, #root { height: 100%; }
+body { @apply bg-canvas text-ink font-sans text-sm antialiased; }
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #08080C; }
+::-webkit-scrollbar-thumb { background: #2A2A3A; }
