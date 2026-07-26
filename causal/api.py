@@ -26,6 +26,7 @@ from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
 from .graph import build
+from .kaggle import KaggleError, fetch
 
 DATA = Path(__file__).parent.parent / "data"
 
@@ -41,8 +42,11 @@ graph = build()
 
 
 class NewJob(BaseModel):
-    dataset: str
+    """One of `dataset` (a bundled name) or `kaggle` (a URL or owner/name)."""
+
     question: str
+    dataset: str = ""
+    kaggle: str = ""
     context: str = ""
 
 
@@ -95,19 +99,35 @@ def datasets() -> list[dict]:
 
 @app.post("/jobs", status_code=201)
 async def create_job(body: NewJob, background: BackgroundTasks) -> dict:
-    path = DATA / f"{body.dataset}.csv"
-    if not path.exists():
-        raise HTTPException(400, f"no dataset '{body.dataset}'")
+    note = ""
+    source = ""
+    if body.kaggle:
+        # the download is the slow part, so do it before the job exists rather
+        # than inside the graph: a bad URL should be a 400, not a failed run
+        try:
+            got = await asyncio.to_thread(fetch, body.kaggle)
+        except KaggleError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        path, note, source = got.csv, got.note, got.slug
+    elif body.dataset:
+        path = DATA / f"{body.dataset}.csv"
+        source = body.dataset
+        if not path.exists():
+            raise HTTPException(400, f"no dataset '{body.dataset}'")
+    else:
+        raise HTTPException(400, "give either a bundled dataset or a kaggle url")
+
     job_id = uuid.uuid4().hex[:8]
 
     def run() -> None:
         graph.invoke(
-            {"csv_path": str(path), "question": body.question, "context": body.context},
+            {"csv_path": str(path), "question": body.question,
+             "context": body.context, "source": source, "source_note": note},
             _config(job_id),
         )
 
     background.add_task(asyncio.to_thread, run)
-    return {"id": job_id, "status": "running"}
+    return {"id": job_id, "status": "running", "source": source, "note": note}
 
 
 @app.get("/jobs/{job_id}")
@@ -118,6 +138,8 @@ def get_job(job_id: str) -> dict:
         "id": job_id,
         "status": _status(snap),
         "question": v.get("question"),
+        "source": v.get("source"),
+        "source_note": v.get("source_note"),
         "n_rows": v.get("n_rows"),
         "columns": v.get("columns", []),
         "intake": v.get("intake"),

@@ -129,6 +129,9 @@ def iv(
     restriction is not testable and is an assumption you bring.
     """
     lane = "iv"
+    # The instrument is not a control. Suggested covariate lists can include it,
+    # and joining it twice raises deep inside pandas rather than saying so here.
+    covariates = tuple(c for c in covariates if c not in (instrument, treatment, outcome))
     data = numeric_frame(df, [outcome, treatment, instrument, *covariates], lane)
     require_variation(data[instrument], "instrument", lane)
     require_variation(data[treatment], "treatment", lane)

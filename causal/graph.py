@@ -48,6 +48,8 @@ class State(TypedDict, total=False):
     csv_path: str
     question: str
     context: str
+    source: str
+    source_note: str
     # produced as it goes
     columns: list[dict]
     n_rows: int
