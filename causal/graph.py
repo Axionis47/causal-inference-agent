@@ -7,7 +7,7 @@ paused state to disk, rebuilding it on resume, and re-arming the rest of the
 pipeline. `interrupt()` plus a SqliteSaver does it in a few lines and survives
 a server restart.
 
-    read ──▶ menu ──▶ reason ──▶ ⟨interrupt: you choose⟩ ──▶ estimate ──▶ narrate
+    read ─▶ menu ─▶ reason ─▶ ⟨interrupt⟩ ─▶ estimate ─▶ diagnose ─▶ narrate
 
 Everywhere else a node would only wrap a function call so the graph could call
 the function, which is cost without benefit. Those steps stay plain Python.
@@ -58,6 +58,8 @@ class State(TypedDict, total=False):
     roles: dict
     recommendation: dict
     suggestions: dict
+    diagnostics: list
+    diagnosis: str
     choice: dict  # {"lane": str, "kwargs": {...}} — supplied on resume
     estimate: dict
     strength: str
@@ -198,6 +200,31 @@ def node_estimate(state: State) -> dict:
     }
 
 
+def node_diagnose(state: State) -> dict:
+    """Check whether the estimate holds up. It can lower confidence, never raise it."""
+    if state.get("error") or not state.get("estimate"):
+        return {}
+    from .diagnose import investigate
+    from .estimate import Estimate
+
+    events = _event(state, "stage_started", stage="diagnose")
+    lane = state["choice"]["lane"]
+    dg = investigate(_frame(state), lane, state["choice"].get("kwargs", {}),
+                     state["estimate"])
+    est = Estimate(**state["estimate"])
+    strength = claim_strength(lane, est, diagnostics_failed=dg.downgrades())
+    counts = ", ".join(f"{n} {v}" for v, n in sorted(dg.verdicts.items()))
+    return {
+        "diagnostics": [f.__dict__ for f in dg.findings],
+        "diagnosis": dg.summary,
+        "strength": strength,
+        "headline": headline(lane, est, state["intake"].get("exposure", ""),
+                             state["intake"]["outcome"], strength),
+        "events": [*events, {"event": "stage_done", "stage": "diagnose",
+                             "detail": counts or "no checks applied"}],
+    }
+
+
 def node_narrate(state: State) -> dict:
     if state.get("error") or not state.get("estimate"):
         return {"events": _event(state, "failed", reason=state.get("error", "no estimate"))}
@@ -206,7 +233,8 @@ def node_narrate(state: State) -> dict:
     est = Estimate(**state["estimate"])
     intake = state["intake"]
     text = narrate(state["choice"]["lane"], est,
-                   intake.get("exposure", ""), intake["outcome"])
+                   intake.get("exposure", ""), intake["outcome"],
+                   state.get("strength", ""), state.get("diagnostics", []))
     return {"narrative": text,
             "events": _event(state, "completed", detail=state["headline"])}
 
@@ -219,13 +247,15 @@ def build():
     g.add_node("reason", node_reason)
     g.add_node("gate", node_gate)
     g.add_node("estimate", node_estimate)
+    g.add_node("diagnose", node_diagnose)
     g.add_node("narrate", node_narrate)
     g.add_edge(START, "read")
     g.add_edge("read", "menu")
     g.add_edge("menu", "reason")
     g.add_edge("reason", "gate")
     g.add_edge("gate", "estimate")
-    g.add_edge("estimate", "narrate")
+    g.add_edge("estimate", "diagnose")
+    g.add_edge("diagnose", "narrate")
     g.add_edge("narrate", END)
 
     conn = sqlite3.connect(CHECKPOINTS, check_same_thread=False)

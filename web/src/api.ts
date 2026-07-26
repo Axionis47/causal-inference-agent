@@ -77,6 +77,13 @@ export type Estimate = {
   notes: string[];
 };
 
+export type Finding = {
+  check: string;
+  verdict: "pass" | "warn" | "fail" | "untestable";
+  detail: string;
+  value: number | null;
+};
+
 export type Result = {
   id: string;
   status: string;
@@ -85,6 +92,8 @@ export type Result = {
   strength: string | null;
   headline: string | null;
   narrative: string | null;
+  diagnostics: Finding[];
+  diagnosis: string;
   error: string | null;
 };
 

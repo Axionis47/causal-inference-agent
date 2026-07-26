@@ -42,22 +42,37 @@ PHRASE = {
 FORBIDDEN = ["proves", "proven", "definitively", "conclusively", "causes outright"]
 
 
-def claim_strength(lane: str, est: Estimate) -> str:
-    """The design sets the ceiling; an interval spanning zero overrides it."""
+def claim_strength(lane: str, est: Estimate, diagnostics_failed: bool = False) -> str:
+    """The design sets the ceiling; evidence can only lower it.
+
+    Three things bear on this and all three point downwards: the design's own
+    ceiling, an interval covering the null, and a diagnostic that failed. There
+    is deliberately no route upward. A run whose checks come back clean is not
+    thereby stronger; it is merely not weaker.
+    """
     if est.ci_low is not None and est.ci_low <= 0 <= est.ci_high:
         return "none"
     if est.estimand == "hazard_ratio" and est.ci_low is not None:
         if est.ci_low <= 1 <= est.ci_high:
             return "none"
-    return CEILING.get(lane, "weak")
+    ceiling = CEILING.get(lane, "weak")
+    if diagnostics_failed and ceiling == "moderate":
+        return "weak"
+    return ceiling
 
 
-def headline(lane: str, est: Estimate, treatment: str, outcome: str) -> str:
-    """The load-bearing sentence, built from numbers, not written by a model."""
+def headline(lane: str, est: Estimate, treatment: str, outcome: str,
+             strength: str = "") -> str:
+    """The load-bearing sentence, built from numbers, not written by a model.
+
+    `strength` is passed in rather than recomputed. Recomputing it here would
+    quietly ignore the diagnostics, so the prose could say moderate while the
+    interface says weak about the same run.
+    """
     interval = ""
     if est.ci_low is not None:
         interval = f" (95% interval {est.ci_low:.4g} to {est.ci_high:.4g})"
-    strength = claim_strength(lane, est)
+    strength = strength or claim_strength(lane, est)
     return (
         f"Estimated {est.estimand} of {treatment} on {outcome}: "
         f"{est.value:.4g}{interval}, from {est.n:,} rows via {est.estimator}. "
@@ -65,8 +80,9 @@ def headline(lane: str, est: Estimate, treatment: str, outcome: str) -> str:
     )
 
 
-def facts(lane: str, est: Estimate, treatment: str, outcome: str) -> str:
-    strength = claim_strength(lane, est)
+def facts(lane: str, est: Estimate, treatment: str, outcome: str,
+          strength: str = "", findings: list | None = None) -> str:
+    strength = strength or claim_strength(lane, est)
     lines = [
         f"design: {lane}",
         f"assumption it rests on: {ASSUMPTION.get(lane, 'unstated')}",
@@ -82,6 +98,8 @@ def facts(lane: str, est: Estimate, treatment: str, outcome: str) -> str:
     if est.p_value is not None:
         lines.append(f"p-value: {est.p_value:.4g}")
     lines += [f"note: {n}" for n in est.notes]
+    for f in findings or []:
+        lines.append(f"check {f.get('check')}: {f.get('verdict')} — {f.get('detail')}")
     return "\n".join(lines)
 
 
@@ -96,19 +114,23 @@ Rules:
 - The claim strength above is fixed. Do not upgrade it, and do not hedge a
   moderate finding into nothing.
 - Name the assumption in your own words and say what would break it.
+- Any check listed above that failed is the most important thing on this page.
+  Say so plainly in the second paragraph rather than burying it.
 - Three short paragraphs: what was found, how much to trust it, what would
   change the answer.
 - No headings, no bullet points, no preamble."""
 
 
-def narrate(lane: str, est: Estimate, treatment: str, outcome: str) -> str:
+def narrate(lane: str, est: Estimate, treatment: str, outcome: str,
+            strength: str = "", findings: list | None = None) -> str:
     """The model's only job: prose around numbers it cannot alter."""
     from google import genai
 
     client = genai.Client(vertexai=True, project=PROJECT, location=LOCATION)
     text = client.models.generate_content(
         model=MODEL,
-        contents=PROMPT.format(facts=facts(lane, est, treatment, outcome)),
+        contents=PROMPT.format(
+            facts=facts(lane, est, treatment, outcome, strength, findings)),
     ).text.strip()
 
     hit = next((w for w in FORBIDDEN if w in text.lower()), None)
@@ -116,6 +138,6 @@ def narrate(lane: str, est: Estimate, treatment: str, outcome: str) -> str:
         return (
             f"[narration withheld: it used the word '{hit}', which overstates "
             f"what this design can support]\n\n"
-            + headline(lane, est, treatment, outcome)
+            + headline(lane, est, treatment, outcome, strength)
         )
     return text

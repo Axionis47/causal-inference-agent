@@ -4,7 +4,7 @@
  *    - the interval is always shown as an interval, never a bare point estimate
  *    - claim strength comes from the server's lookup, so the UI cannot overclaim
  */
-import { api, type Result as R } from "../api";
+import { api, type Finding, type Result as R } from "../api";
 import { Dot, Label, Pane, Row, type Status } from "../ui";
 
 const STRENGTH: Record<string, { tone: string; dot: Status; says: string }> = {
@@ -107,6 +107,55 @@ export function Result({ result }: { result: R }) {
               />
             )}
           </div>
+        </Pane>
+
+        <Pane
+          caption="does it hold up"
+          right={
+            <span className="text-2xs font-mono text-ink-tertiary tabular">
+              {result.diagnostics?.length ?? 0} checks
+            </span>
+          }
+        >
+          {result.diagnostics?.length ? (
+            <ul className="space-y-2">
+              {result.diagnostics.map((f: Finding) => (
+                <li key={f.check} className="flex items-start gap-2">
+                  <span className="mt-1.5">
+                    <Dot
+                      status={
+                        f.verdict === "fail" ? "failed"
+                        : f.verdict === "warn" ? "live"
+                        : f.verdict === "pass" ? "ok"
+                        : "pending"
+                      }
+                    />
+                  </span>
+                  <span className="text-xs leading-relaxed">
+                    <span className="font-mono text-ink">{f.check}</span>{" "}
+                    <span
+                      className={
+                        f.verdict === "fail" ? "text-rose"
+                        : f.verdict === "warn" ? "text-amber"
+                        : f.verdict === "pass" ? "text-mint"
+                        : "text-ink-tertiary"
+                      }
+                    >
+                      {f.verdict}
+                    </span>
+                    <span className="text-ink-secondary"> — {f.detail}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-xs text-ink-tertiary">no checks were run</p>
+          )}
+          <p className="text-2xs text-ink-tertiary leading-relaxed pt-2 mt-2 border-t border-edge-subtle">
+            A failed check lowers claim strength and never raises it. An
+            untestable one is a real finding: an assumption nobody can check is
+            not the same as one that passed.
+          </p>
         </Pane>
 
         {!!e.notes.length && (

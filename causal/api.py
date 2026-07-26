@@ -215,6 +215,8 @@ def result(job_id: str) -> dict:
         "strength": v.get("strength"),
         "headline": v.get("headline"),
         "narrative": v.get("narrative"),
+        "diagnostics": v.get("diagnostics", []),
+        "diagnosis": v.get("diagnosis", ""),
         "error": v.get("error"),
     }
 
