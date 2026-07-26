@@ -27,13 +27,14 @@ def numeric_frame(df: pd.DataFrame, columns: list[str], lane: str) -> pd.DataFra
     That is why callers pass only columns they intend to be numeric.
     """
     require_columns(df, columns, lane)
-    out = pd.DataFrame(
-        {c: pd.to_numeric(df[c].astype(str).str.replace(",", ""), errors="coerce")
-         if df[c].dtype == object or str(df[c].dtype) == "str"
-         else pd.to_numeric(df[c], errors="coerce")
-         for c in columns}
-    )
-    out = out.dropna()
+
+    def to_float(s: pd.Series) -> pd.Series:
+        if not pd.api.types.is_numeric_dtype(s):
+            s = s.astype(str).str.replace(",", "", regex=False)
+        # float throughout: statsmodels cannot build a design matrix from bool
+        return pd.to_numeric(s, errors="coerce").astype(float)
+
+    out = pd.DataFrame({c: to_float(df[c]) for c in columns}).dropna()
     if len(out) < MIN_ROWS:
         raise LaneError(
             f"{lane}: only {len(out)} complete numeric rows across {columns} "
