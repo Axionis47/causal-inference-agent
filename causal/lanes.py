@@ -112,3 +112,102 @@ def matching(
             "SE ignores propensity-model uncertainty",
         ],
     )
+
+
+def iv(
+    df: pd.DataFrame,
+    *,
+    outcome: str,
+    treatment: str,
+    instrument: str,
+    covariates: tuple[str, ...] = (),
+) -> Estimate:
+    """Two-stage least squares. The LATE is the fitted treatment coefficient.
+
+    Valid only if the instrument moves treatment and affects the outcome by no
+    other route. The first stage is testable and is checked here; the exclusion
+    restriction is not testable and is an assumption you bring.
+    """
+    lane = "iv"
+    data = numeric_frame(df, [outcome, treatment, instrument, *covariates], lane)
+    require_variation(data[instrument], "instrument", lane)
+    require_variation(data[treatment], "treatment", lane)
+
+    controls = sm.add_constant(data[list(covariates)], has_constant="add")
+
+    first = sm.OLS(data[treatment], controls.join(data[[instrument]])).fit()
+    f_stat = float(first.tvalues[instrument] ** 2)
+    if float(first.pvalues[instrument]) >= 0.05:
+        raise LaneError(
+            f"{lane}: instrument '{instrument}' does not move treatment "
+            f"(first-stage p={first.pvalues[instrument]:.3g})"
+        )
+
+    from statsmodels.sandbox.regression.gmm import IV2SLS
+
+    fit = IV2SLS(
+        data[outcome],
+        controls.join(data[[treatment]]),
+        instrument=controls.join(data[[instrument]]),
+    ).fit()
+    value = float(fit.params[treatment])
+    se = float(fit.bse[treatment])
+    lo, hi = ci95(value, se)
+    notes = [f"first-stage F={f_stat:.1f}"]
+    if f_stat < 10:
+        notes.append("weak instrument: F below 10, treat the interval with suspicion")
+    return Estimate(
+        estimand="late",
+        value=value,
+        se=se,
+        ci_low=lo,
+        ci_high=hi,
+        p_value=float(fit.pvalues[treatment]),
+        n=len(data),
+        estimator="two_stage_least_squares",
+        notes=notes,
+    )
+
+
+def survival(
+    df: pd.DataFrame,
+    *,
+    treatment: str,
+    duration: str,
+    event: str,
+    covariates: tuple[str, ...] = (),
+) -> Estimate:
+    """Cox proportional hazards. Reports the hazard ratio for treatment.
+
+    A ratio above 1 means the treated group fails faster. Assumes the hazard
+    ratio is constant over time, which this does not check.
+    """
+    lane = "survival"
+    data = numeric_frame(df, [duration, event, treatment, *covariates], lane)
+    require_variation(data[treatment], "treatment", lane)
+
+    status = data[event]
+    if not set(status.unique()) <= {0.0, 1.0}:
+        raise LaneError(f"{lane}: event column '{event}' must be 0/1")
+    if status.sum() < 10:
+        raise LaneError(f"{lane}: only {int(status.sum())} events observed, need 10+")
+
+    from statsmodels.duration.hazard_regression import PHReg
+
+    fit = PHReg(
+        data[duration], data[[treatment, *covariates]], status=status
+    ).fit(disp=False)
+    log_hr = float(fit.params[0])
+    log_se = float(fit.bse[0])
+    lo, hi = ci95(log_hr, log_se)
+    return Estimate(
+        estimand="hazard_ratio",
+        value=float(np.exp(log_hr)),
+        se=log_se,  # on the log scale, where the interval was built
+        ci_low=float(np.exp(lo)) if lo is not None else None,
+        ci_high=float(np.exp(hi)) if hi is not None else None,
+        p_value=float(fit.pvalues[0]),
+        n=len(data),
+        estimator="cox_proportional_hazards",
+        notes=[f"{int(status.sum())} events", "SE is on the log-hazard scale"],
+    )
