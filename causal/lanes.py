@@ -211,3 +211,179 @@ def survival(
         estimator="cox_proportional_hazards",
         notes=[f"{int(status.sum())} events", "SE is on the log-hazard scale"],
     )
+
+
+def rdd(
+    df: pd.DataFrame,
+    *,
+    outcome: str,
+    running: str,
+    cutoff: float,
+) -> Estimate:
+    """Regression discontinuity. The effect is the jump in the outcome at the cutoff.
+
+    Local by construction: only units near the cutoff identify the effect, so a
+    bigger sample narrows the window rather than sharpening the estimate.
+    """
+    lane = "rdd"
+    data = numeric_frame(df, [outcome, running], lane)
+    lo_n = int((data[running] < cutoff).sum())
+    hi_n = int((data[running] >= cutoff).sum())
+    if not data[running].min() < cutoff < data[running].max():
+        raise LaneError(
+            f"{lane}: cutoff {cutoff} is outside the range of '{running}' "
+            f"[{data[running].min():.4g}, {data[running].max():.4g}]"
+        )
+    if lo_n < 10 or hi_n < 10:
+        raise LaneError(
+            f"{lane}: needs 10+ rows each side of the cutoff, has {lo_n} below and {hi_n} above"
+        )
+
+    import rdrobust
+
+    fit = rdrobust.rdrobust(y=data[outcome], x=data[running], c=cutoff)
+    value = float(fit.coef.iloc[0, 0])  # conventional local linear estimate
+    se = float(fit.se.iloc[0, 0])
+    lo, hi = ci95(value, se)
+    return Estimate(
+        estimand="jump",
+        value=value,
+        se=se,
+        ci_low=lo,
+        ci_high=hi,
+        p_value=float(fit.pv.iloc[0, 0]),
+        n=len(data),
+        estimator="local_linear_rdd",
+        notes=[
+            f"bandwidth {float(fit.bws.iloc[0, 0]):.4g}, chosen by rdrobust",
+            f"{lo_n} below / {hi_n} above the cutoff overall",
+        ],
+    )
+
+
+def mediation(
+    df: pd.DataFrame,
+    *,
+    outcome: str,
+    treatment: str,
+    mediator: str,
+    covariates: tuple[str, ...] = (),
+) -> Estimate:
+    """Product-of-coefficients mediation. Reports the indirect effect.
+
+    Splits the total effect into the part running through the mediator
+    (indirect) and the rest (direct). Assumes no unmeasured confounding of
+    either the treatment-mediator or mediator-outcome relationship, which is a
+    strong assumption and is not checked.
+    """
+    lane = "mediation"
+    data = numeric_frame(df, [outcome, treatment, mediator, *covariates], lane)
+    require_variation(data[treatment], "treatment", lane)
+
+    controls = list(covariates)
+    m_fit = sm.OLS(
+        data[mediator],
+        sm.add_constant(data[[treatment, *controls]], has_constant="add"),
+    ).fit()
+    y_fit = sm.OLS(
+        data[outcome],
+        sm.add_constant(data[[treatment, mediator, *controls]], has_constant="add"),
+    ).fit()
+
+    a, a_se = float(m_fit.params[treatment]), float(m_fit.bse[treatment])
+    b, b_se = float(y_fit.params[mediator]), float(y_fit.bse[mediator])
+    direct = float(y_fit.params[treatment])
+    indirect = a * b
+    # Sobel: the delta-method SE for a product of two independent coefficients
+    se = float(np.sqrt(b**2 * a_se**2 + a**2 * b_se**2))
+    lo, hi = ci95(indirect, se)
+    return Estimate(
+        estimand="indirect",
+        value=indirect,
+        se=se,
+        ci_low=lo,
+        ci_high=hi,
+        p_value=None,
+        n=len(data),
+        estimator="product_of_coefficients",
+        notes=[
+            f"direct {direct:.4g}, total {direct + indirect:.4g}",
+            "Sobel SE assumes a and b are independent",
+        ],
+    )
+
+
+def time_series(
+    df: pd.DataFrame,
+    *,
+    outcome: str,
+    time: str,
+    intervention: str,
+) -> Estimate:
+    """Interrupted time series. Reports the level shift at the intervention.
+
+    Averages to one observation per timestamp, then fits trend, step, and
+    change-in-slope. The step is measured at the intervention date, so it is a
+    contrast between two extrapolated segment intercepts and is noisier than it
+    looks. No control series, so anything else happening at the same moment is
+    indistinguishable from the intervention.
+    """
+    lane = "time_series"
+    for col in (outcome, time):
+        if col not in df.columns:
+            raise LaneError(f"{lane}: dataset has no column '{col}'")
+
+    stamps = pd.to_datetime(df[time], errors="coerce", format="mixed")
+    values = pd.to_numeric(
+        df[outcome].astype(str).str.replace(",", "", regex=False), errors="coerce"
+    )
+    series = (
+        pd.DataFrame({"t": stamps, "y": values})
+        .dropna()
+        .groupby("t", as_index=False)["y"]
+        .mean()
+        .sort_values("t")
+        .reset_index(drop=True)
+    )
+    cut = pd.to_datetime(intervention)
+    n_pre = int((series["t"] < cut).sum())
+    n_post = int((series["t"] >= cut).sum())
+    if len(series) < 30:
+        raise LaneError(f"{lane}: only {len(series)} time points, need 30+")
+    if n_pre < 10 or n_post < 10:
+        raise LaneError(
+            f"{lane}: needs 10+ points each side of {intervention}, "
+            f"has {n_pre} before and {n_post} after"
+        )
+
+    trend = np.arange(len(series), dtype=float)
+    post = (series["t"] >= cut).to_numpy(float)
+    design = pd.DataFrame(
+        {
+            "const": 1.0,
+            "trend": trend,
+            "post": post,
+            "post_trend": (trend - n_pre) * post,
+        }
+    )
+    fit = sm.OLS(series["y"], design).fit(
+        cov_type="HAC", cov_kwds={"maxlags": max(1, round(len(series) ** (1 / 3)))}
+    )
+    value = float(fit.params["post"])
+    se = float(fit.bse["post"])
+    lo, hi = ci95(value, se)
+    return Estimate(
+        estimand="level_shift",
+        value=value,
+        se=se,
+        ci_low=lo,
+        ci_high=hi,
+        p_value=float(fit.pvalues["post"]),
+        n=len(series),
+        estimator="interrupted_time_series",
+        notes=[
+            f"{n_pre} points before / {n_post} after {intervention}",
+            f"slope change {float(fit.params['post_trend']):.4g} per period",
+            "HAC standard errors; no control series",
+        ],
+    )
