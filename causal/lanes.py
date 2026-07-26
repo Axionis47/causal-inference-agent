@@ -19,6 +19,21 @@ from .estimate import Estimate, LaneError
 from .prep import as_binary, ci95, numeric_frame, require_variation
 
 
+def _clean_covariates(covariates, *reserved: str) -> tuple[str, ...]:
+    """Covariates minus anything already playing another part.
+
+    A suggested list can name the treatment, the outcome, or a survival
+    duration. Passing it through gives a perfectly collinear design and
+    statsmodels raises "Singular matrix", which tells the reader nothing.
+    """
+    taken = {r for r in reserved if r}
+    seen: list[str] = []
+    for c in covariates:
+        if c and c not in taken and c not in seen:
+            seen.append(c)
+    return tuple(seen)
+
+
 def observational(
     df: pd.DataFrame,
     *,
@@ -32,6 +47,7 @@ def observational(
     path. Nothing here can check that; it is an assumption you bring.
     """
     lane = "observational"
+    covariates = _clean_covariates(covariates, outcome, treatment)
     cols = [outcome, treatment, *covariates]
     data = numeric_frame(df, cols, lane)
     require_variation(data[treatment], "treatment", lane)
@@ -69,6 +85,7 @@ def matching(
     uncertainty in the propensity model itself and so runs slightly optimistic.
     """
     lane = "matching"
+    covariates = _clean_covariates(covariates, outcome, treatment)
     if not covariates:
         raise LaneError(f"{lane}: needs covariates to match on")
     data = numeric_frame(df, [outcome, treatment, *covariates], lane)
@@ -131,7 +148,7 @@ def iv(
     lane = "iv"
     # The instrument is not a control. Suggested covariate lists can include it,
     # and joining it twice raises deep inside pandas rather than saying so here.
-    covariates = tuple(c for c in covariates if c not in (instrument, treatment, outcome))
+    covariates = _clean_covariates(covariates, outcome, treatment, instrument)
     data = numeric_frame(df, [outcome, treatment, instrument, *covariates], lane)
     require_variation(data[instrument], "instrument", lane)
     require_variation(data[treatment], "treatment", lane)
@@ -186,6 +203,7 @@ def survival(
     ratio is constant over time, which this does not check.
     """
     lane = "survival"
+    covariates = _clean_covariates(covariates, duration, event, treatment)
     data = numeric_frame(df, [duration, event, treatment, *covariates], lane)
     require_variation(data[treatment], "treatment", lane)
 
@@ -197,9 +215,18 @@ def survival(
 
     from statsmodels.duration.hazard_regression import PHReg
 
-    fit = PHReg(
-        data[duration], data[[treatment, *covariates]], status=status
-    ).fit(disp=False)
+    try:
+        fit = PHReg(
+            data[duration], data[[treatment, *covariates]], status=status
+        ).fit(disp=False)
+    except Exception as exc:
+        if "singular" in str(exc).lower():
+            raise LaneError(
+                f"{lane}: the design is collinear across "
+                f"{[treatment, *covariates]}; two of these carry the same "
+                f"information, so drop one"
+            ) from exc
+        raise
     log_hr = float(fit.params[0])
     log_se = float(fit.bse[0])
     lo, hi = ci95(log_hr, log_se)
@@ -346,6 +373,7 @@ def mediation(
     strong assumption and is not checked.
     """
     lane = "mediation"
+    covariates = _clean_covariates(covariates, outcome, treatment, mediator)
     data = numeric_frame(df, [outcome, treatment, mediator, *covariates], lane)
     require_variation(data[treatment], "treatment", lane)
 

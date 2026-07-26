@@ -26,8 +26,15 @@ const PARAMS: Record<string, string[]> = {
 
 function prefill(lane: string, job: Job): Record<string, string> {
   const i = job.intake;
+  // the engine proposes a full argument set per lane; use it where it has one
+  const proposed = (job.suggestions ?? {})[lane] ?? {};
   const out: Record<string, string> = {};
   for (const p of PARAMS[lane] ?? []) {
+    const given = (proposed as Record<string, unknown>)[p];
+    if (given !== undefined && given !== null && given !== "") {
+      out[p] = Array.isArray(given) ? given.join(", ") : String(given);
+      continue;
+    }
     out[p] =
       p === "outcome" ? i?.outcome ?? "" :
       p === "treatment" ? i?.treatment ?? "" :
@@ -74,8 +81,42 @@ export function Design({
     (p) => p === "covariates" || p === "unit" || args[p]?.trim()
   );
 
+  const rec = job.recommendation;
+
   return (
     <div className="grid grid-cols-[1fr_380px] gap-4 h-full min-h-0">
+      <div className="min-h-0 flex flex-col gap-3">
+      {rec?.lane && (
+        <div className="border border-edge-subtle bg-canvas-raised px-3 py-2.5">
+          <div className="flex items-center gap-2">
+            <Dot status="info" />
+            <Label>recommended</Label>
+            <span className="text-xs font-mono text-amber">{rec.lane}</span>
+            <span className="text-2xs font-mono text-ink-tertiary">
+              step {rec.step} of the procedure · {rec.confidence} confidence
+            </span>
+            {lane !== rec.lane && (
+              <button
+                onClick={() => select(rec.lane)}
+                className="ml-auto text-2xs font-mono uppercase tracking-label text-ink-secondary hover:text-ink border border-edge px-2 py-0.5"
+              >
+                use it
+              </button>
+            )}
+          </div>
+          <p className="text-xs text-ink-secondary mt-1.5 ml-3.5 leading-relaxed">
+            {rec.reasoning}
+          </p>
+          {rec.missing && (
+            <p className="text-2xs text-amber mt-1 ml-3.5 leading-relaxed">
+              would be surer if you said: {rec.missing}
+            </p>
+          )}
+          <p className="text-2xs text-ink-tertiary mt-1 ml-3.5">
+            a recommendation, not a decision — override it below
+          </p>
+        </div>
+      )}
       <Pane
         caption="designs"
         className="min-h-0"
@@ -133,6 +174,7 @@ export function Design({
           })}
         </div>
       </Pane>
+      </div>
 
       <Pane caption={lane ? `configure ${lane}` : "configure"}>
         {!lane ? (
@@ -164,6 +206,21 @@ export function Design({
             <p className="text-2xs text-ink-tertiary leading-relaxed pt-2 border-t border-edge-subtle">
               {menu.find((m) => m.lane === lane)?.assumption}
             </p>
+            {!!Object.keys(job.roles ?? {}).length && (
+              <div className="pt-2 space-y-1">
+                <Label>columns kept out of the adjustment</Label>
+                {Object.values(job.roles)
+                  .filter((r) => r.role === "mediator" || r.role === "collider" ||
+                                 r.role === "proxy_for_outcome")
+                  .slice(0, 5)
+                  .map((r) => (
+                    <p key={r.column} className="text-2xs text-ink-tertiary leading-relaxed">
+                      <span className="font-mono text-ink-secondary">{r.column}</span>{" "}
+                      is a {r.role.replace(/_/g, " ")} — {r.why}
+                    </p>
+                  ))}
+              </div>
+            )}
           </div>
         )}
       </Pane>

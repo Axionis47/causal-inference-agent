@@ -30,11 +30,35 @@ def numeric_frame(df: pd.DataFrame, columns: list[str], lane: str) -> pd.DataFra
 
     def to_float(s: pd.Series) -> pd.Series:
         if not pd.api.types.is_numeric_dtype(s):
-            s = s.astype(str).str.replace(",", "", regex=False)
+            cleaned = s.astype(str).str.replace(",", "", regex=False)
+            numbers = pd.to_numeric(cleaned, errors="coerce")
+            # A two-valued text column is a number wearing a coat: Yes/No,
+            # Male/Female, Churned/Active. Coercing it blindly gives all-NaN
+            # and the row count collapses to zero, which reads as "no data"
+            # rather than "this column is words". Encode it instead.
+            if numbers.isna().all() or (numbers.isna().mean() > 0.5):
+                levels = sorted(s.dropna().astype(str).str.strip().unique())
+                if len(levels) == 2:
+                    return (s.astype(str).str.strip() == levels[1]).astype(float)
+            return numbers.astype(float)
         # float throughout: statsmodels cannot build a design matrix from bool
         return pd.to_numeric(s, errors="coerce").astype(float)
 
-    out = pd.DataFrame({c: to_float(df[c]) for c in columns}).dropna()
+    out = pd.DataFrame({c: to_float(df[c]) for c in columns})
+
+    # Say which column emptied the frame, rather than listing all of them.
+    if len(out.dropna()) < MIN_ROWS:
+        culprits = [
+            c for c in columns
+            if out[c].isna().mean() > 0.5 and not pd.api.types.is_numeric_dtype(df[c])
+        ]
+        if culprits:
+            levels = {c: int(df[c].nunique()) for c in culprits[:3]}
+            raise LaneError(
+                f"{lane}: {culprits[:3]} are text with more than two values "
+                f"({levels}); pick two levels to compare, or use a numeric column"
+            )
+    out = out.dropna()
     if len(out) < MIN_ROWS:
         raise LaneError(
             f"{lane}: only {len(out)} complete numeric rows across {columns} "

@@ -57,7 +57,7 @@ export function Running({ tape, done }: { tape: TapeEvent[]; done: boolean }) {
 
       <Pane caption="stages">
         <div className="space-y-1.5">
-          {["read", "menu", "gate", "estimate"].map((s) => {
+          {["read", "menu", "reason", "gate", "estimate"].map((s) => {
             const started = tape.some((e) => e.stage === s);
             const finished = tape.some((e) => e.stage === s && e.event === "stage_done");
             return (

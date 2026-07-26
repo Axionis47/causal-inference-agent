@@ -36,6 +36,19 @@ export type Intake = {
   exposure: string;
 };
 
+export type Role = { column: string; role: string; why: string };
+
+export type Recommendation = {
+  lane: string;
+  step: number;
+  reasoning: string;
+  assumption: string;
+  confidence: string;
+  missing: string;
+  runner_up: string;
+  failed: string;
+};
+
 export type Job = {
   id: string;
   status: "running" | "waiting_for_you" | "completed" | "failed";
@@ -44,6 +57,11 @@ export type Job = {
   columns: Column[];
   intake: Intake | null;
   menu: Option[];
+  roles: Record<string, Role>;
+  recommendation: Recommendation | null;
+  suggestions: Record<string, Record<string, unknown>>;
+  source: string | null;
+  source_note: string | null;
   error: string | null;
 };
 
@@ -90,8 +108,12 @@ async function post<T>(path: string, body: unknown): Promise<T> {
 
 export const api = {
   datasets: () => get<Dataset[]>("/datasets"),
-  createJob: (dataset: string, question: string, context: string) =>
-    post<{ id: string }>("/jobs", { dataset, question, context }),
+  createJob: (body: {
+    dataset?: string;
+    kaggle?: string;
+    question: string;
+    context: string;
+  }) => post<{ id: string; note: string }>("/jobs", body),
   job: (id: string) => get<Job>(`/jobs/${id}`),
   chooseDesign: (id: string, lane: string, kwargs: Record<string, unknown>) =>
     post<{ id: string }>(`/jobs/${id}/design`, { lane, kwargs }),

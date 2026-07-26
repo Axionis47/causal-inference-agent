@@ -38,9 +38,18 @@ const SUGGESTED: Record<string, { q: string; c: string }> = {
   },
 };
 
+const TEMPLATE = `One row is:
+Treatment arrived by (randomisation / a rule or threshold / a policy at a date / people choosing):
+Measured before treatment:
+Measured after treatment:
+Units seen more than once (and which column identifies them):
+The outcome is (a level / a count / a time until an event):
+Plausibly drives both treatment and outcome:`;
+
 export function Ask({ onStarted }: { onStarted: (id: string) => void }) {
   const [sets, setSets] = useState<Dataset[]>([]);
   const [picked, setPicked] = useState("");
+  const [kaggleUrl, setKaggleUrl] = useState("");
   const [question, setQuestion] = useState("");
   const [context, setContext] = useState("");
   const [busy, setBusy] = useState(false);
@@ -52,6 +61,7 @@ export function Ask({ onStarted }: { onStarted: (id: string) => void }) {
 
   function choose(name: string) {
     setPicked(name);
+    setKaggleUrl("");
     const s = SUGGESTED[name];
     if (s) {
       setQuestion(s.q);
@@ -63,7 +73,11 @@ export function Ask({ onStarted }: { onStarted: (id: string) => void }) {
     setBusy(true);
     setError("");
     try {
-      const { id } = await api.createJob(picked, question, context);
+      const { id } = await api.createJob(
+        kaggleUrl.trim()
+          ? { kaggle: kaggleUrl.trim(), question, context }
+          : { dataset: picked, question, context }
+      );
       onStarted(id);
     } catch (e) {
       setError(String(e));
@@ -96,6 +110,21 @@ export function Ask({ onStarted }: { onStarted: (id: string) => void }) {
             <p className="text-xs text-ink-tertiary py-4 text-center">loading…</p>
           )}
         </div>
+        <div className="pt-3 mt-3 border-t border-edge-subtle space-y-1.5">
+          <Label>or any kaggle dataset</Label>
+          <input
+            className="w-full bg-canvas-inset border border-edge-subtle px-2.5 py-1.5 text-xs font-mono text-ink placeholder:text-ink-tertiary focus:outline-none focus:border-edge-strong"
+            value={kaggleUrl}
+            placeholder="owner/name or a kaggle.com url"
+            onChange={(e) => {
+              setKaggleUrl(e.target.value);
+              if (e.target.value.trim()) setPicked("");
+            }}
+          />
+          <p className="text-2xs text-ink-tertiary">
+            the eight above are the test suite, not the limit
+          </p>
+        </div>
       </Pane>
 
       <Pane caption="question">
@@ -107,22 +136,37 @@ export function Ask({ onStarted }: { onStarted: (id: string) => void }) {
             rows={3}
             placeholder="Does X affect Y?"
           />
-          <Field
-            label="what should we know about this data"
-            value={context}
-            onChange={setContext}
-            rows={3}
-            placeholder="Anything that explains what the columns mean."
-          />
+          <div className="space-y-1.5">
+            <Field
+              label="what should we know about this data"
+              value={context}
+              onChange={setContext}
+              rows={5}
+              placeholder="See the template below. These facts are not in the columns."
+            />
+            <button
+              onClick={() => setContext(TEMPLATE)}
+              className="text-2xs font-mono uppercase tracking-label text-ink-tertiary hover:text-ink"
+            >
+              use the template
+            </button>
+            <p className="text-2xs text-ink-tertiary leading-relaxed">
+              Which design your data can support turns on a few facts no column shows:
+              what one row is, how treatment arrived, what was measured before versus
+              after, whether units repeat.
+            </p>
+          </div>
           <div className="flex items-center gap-3 pt-1">
-            <Button tone="primary" onClick={start} disabled={!picked || !question || busy}>
+            <Button
+              tone="primary"
+              onClick={start}
+              disabled={(!picked && !kaggleUrl.trim()) || !question || busy}
+            >
               {busy ? "starting…" : "run"}
             </Button>
-            {picked && (
-              <span className="text-2xs font-mono text-ink-tertiary">
-                against {picked}
-              </span>
-            )}
+            <span className="text-2xs font-mono text-ink-tertiary">
+              {kaggleUrl.trim() ? `against ${kaggleUrl.trim()}` : picked ? `against ${picked}` : ""}
+            </span>
           </div>
           {error && (
             <p className="text-xs font-mono text-rose flex items-center gap-2">
@@ -130,8 +174,9 @@ export function Ask({ onStarted }: { onStarted: (id: string) => void }) {
             </p>
           )}
           <p className="text-xs text-ink-tertiary pt-2 leading-relaxed">
-            The engine reads your question against the column list, then shows which
-            designs this data can support. It does not choose one. <Label>you do</Label>
+            The engine reads your question against the column list, recommends a design
+            with its reasoning, and shows what else was possible. It does not decide.{" "}
+            <Label>you do</Label>
           </p>
         </div>
       </Pane>

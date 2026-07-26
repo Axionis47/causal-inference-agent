@@ -144,6 +144,9 @@ def get_job(job_id: str) -> dict:
         "columns": v.get("columns", []),
         "intake": v.get("intake"),
         "menu": v.get("menu", []),
+        "roles": v.get("roles", {}),
+        "recommendation": v.get("recommendation", {}),
+        "suggestions": v.get("suggestions", {}),
         "error": v.get("error"),
     }
 

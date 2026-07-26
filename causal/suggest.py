@@ -110,8 +110,15 @@ def instrument_candidates(p: Profile, names: list[str], spoken: set[str]) -> lis
 
     So: offer names, select nothing.
     """
-    hints = (r"instrument", r"^near", r"^dist", r"assign", r"lottery", r"random",
-             r"eligib", r"draft", r"quarter")
+    # Only genuinely generic words. An earlier version had `^near`, `draft` and
+    # `quarter` in here, which are not rules: they are the answers to Card 1995,
+    # the Vietnam lottery and Angrist's quarter-of-birth, memorised from the
+    # eval set. They would fire on nothing else. The eight datasets are a test
+    # suite, and a test suite you tune against stops measuring anything.
+    #
+    # This list is now a weak fallback. Instrument candidates properly come
+    # from roles.py, which reasons about the data in front of it.
+    hints = (r"instrument", r"assign", r"lottery", r"random", r"eligib")
     out = []
     for pattern in hints:
         for name in names:

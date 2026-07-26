@@ -7,7 +7,7 @@ paused state to disk, rebuilding it on resume, and re-arming the rest of the
 pipeline. `interrupt()` plus a SqliteSaver does it in a few lines and survives
 a server restart.
 
-    read ──▶ menu ──▶ ⟨interrupt: you choose⟩ ──▶ estimate ──▶ narrate
+    read ──▶ menu ──▶ reason ──▶ ⟨interrupt: you choose⟩ ──▶ estimate ──▶ narrate
 
 Everywhere else a node would only wrap a function call so the graph could call
 the function, which is cost without benefit. Those steps stay plain Python.
@@ -55,6 +55,9 @@ class State(TypedDict, total=False):
     n_rows: int
     intake: dict
     menu: list[dict]
+    roles: dict
+    recommendation: dict
+    suggestions: dict
     choice: dict  # {"lane": str, "kwargs": {...}} — supplied on resume
     estimate: dict
     strength: str
@@ -113,6 +116,43 @@ def node_menu(state: State) -> dict:
     }
 
 
+def node_reason(state: State) -> dict:
+    """Work out what the columns are, which design fits, and how to call it.
+
+    Three products, all advisory: column roles, a recommended lane arrived at
+    through the fixed procedure in choose.py, and a filled argument set per
+    lane so the form is complete when the gate opens. Every one is overridable
+    at the gate, and a failed call degrades to the deterministic suggestion
+    rather than stopping the run.
+    """
+    if state.get("error"):
+        return {}
+    from .choose import recommend
+    from .roles import read_roles
+    from .suggest import all_lanes
+
+    df = _frame(state)
+    p = profile(df)
+    intake = state["intake"]
+    events = _event(state, "stage_started", stage="reason")
+
+    roles = read_roles(state["question"], state.get("context", ""), p,
+                       intake.get("treatment", ""), intake["outcome"])
+    open_lanes = [o["lane"] for o in state.get("menu", []) if o["available"]]
+    pick = recommend(state["question"], state.get("context", ""), p,
+                     intake.get("treatment", ""), intake["outcome"], open_lanes)
+
+    detail = (f"suggests {pick.lane} (step {pick.step})" if pick.lane
+              else f"no recommendation: {pick.failed[:60]}")
+    return {
+        "roles": {n: j.__dict__ for n, j in roles.by_column.items()},
+        "recommendation": pick.__dict__,
+        "suggestions": all_lanes(p, intake, df, roles),
+        "events": [*events, {"event": "stage_done", "stage": "reason",
+                             "detail": detail}],
+    }
+
+
 def node_gate(state: State) -> dict:
     """Park here. The person picks the design; nothing guesses it.
 
@@ -125,6 +165,8 @@ def node_gate(state: State) -> dict:
         "question": "Which design should this run use?",
         "menu": state["menu"],
         "intake": state["intake"],
+        "recommendation": state.get("recommendation", {}),
+        "suggestions": state.get("suggestions", {}),
     })
     return {
         "choice": choice,
@@ -174,12 +216,14 @@ def build():
     g = StateGraph(State)
     g.add_node("read", node_read)
     g.add_node("menu", node_menu)
+    g.add_node("reason", node_reason)
     g.add_node("gate", node_gate)
     g.add_node("estimate", node_estimate)
     g.add_node("narrate", node_narrate)
     g.add_edge(START, "read")
     g.add_edge("read", "menu")
-    g.add_edge("menu", "gate")
+    g.add_edge("menu", "reason")
+    g.add_edge("reason", "gate")
     g.add_edge("gate", "estimate")
     g.add_edge("estimate", "narrate")
     g.add_edge("narrate", END)
