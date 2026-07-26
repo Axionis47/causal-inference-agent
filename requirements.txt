@@ -12,3 +12,6 @@ sse-starlette==3.4.4
 langgraph==1.2.4
 langgraph-checkpoint-sqlite==3.1.0
 httpx==0.28.1
+nbformat==5.10.4
+nbclient==0.11.0
+ipykernel==7.3.0

@@ -7,6 +7,7 @@
     POST /jobs/{id}/design         choose a design; the run continues
     GET  /jobs/{id}/stream         SSE, replayed from the start on connect
     GET  /jobs/{id}/result         the estimate and the readout
+    GET  /jobs/{id}/notebook       a notebook that recomputes it
 
 There is no job database. LangGraph's checkpoint is the store: a job id is a
 thread id, and the state of a run is whatever the checkpointer holds. One
@@ -19,7 +20,7 @@ import json
 import uuid
 from pathlib import Path
 
-from fastapi import BackgroundTasks, FastAPI, HTTPException
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from langgraph.types import Command
 from pydantic import BaseModel
@@ -27,6 +28,7 @@ from sse_starlette.sse import EventSourceResponse
 
 from .graph import build
 from .kaggle import KaggleError, fetch
+from .notebook import build as build_notebook, to_json
 
 DATA = Path(__file__).parent.parent / "data"
 
@@ -215,3 +217,28 @@ def result(job_id: str) -> dict:
         "narrative": v.get("narrative"),
         "error": v.get("error"),
     }
+
+
+@app.get("/jobs/{job_id}/notebook")
+def notebook(job_id: str) -> Response:
+    """The analysis as a runnable notebook, recomputed rather than transcribed."""
+    snap = _snapshot(job_id)
+    if _status(snap) != "completed":
+        raise HTTPException(409, f"job {job_id} is {_status(snap)}, not completed")
+    v = snap.values
+    nb = build_notebook(
+        csv_path=v["csv_path"],
+        question=v.get("question", ""),
+        context=v.get("context", ""),
+        lane=(v.get("choice") or {}).get("lane", ""),
+        kwargs=(v.get("choice") or {}).get("kwargs", {}),
+        estimate=v.get("estimate") or {},
+        strength=v.get("strength", ""),
+        roles=v.get("roles") or {},
+        source=v.get("source", ""),
+    )
+    return Response(
+        content=to_json(nb),
+        media_type="application/x-ipynb+json",
+        headers={"content-disposition": f'attachment; filename="{job_id}.ipynb"'},
+    )

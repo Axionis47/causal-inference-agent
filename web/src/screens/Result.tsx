@@ -4,7 +4,7 @@
  *    - the interval is always shown as an interval, never a bare point estimate
  *    - claim strength comes from the server's lookup, so the UI cannot overclaim
  */
-import type { Result as R } from "../api";
+import { api, type Result as R } from "../api";
 import { Dot, Label, Pane, Row, type Status } from "../ui";
 
 const STRENGTH: Record<string, { tone: string; dot: Status; says: string }> = {
@@ -123,6 +123,21 @@ export function Result({ result }: { result: R }) {
             </ul>
           </Pane>
         )}
+
+        <Pane caption="reproduce">
+          <a
+            href={api.notebookUrl(result.id)}
+            download={`${result.id}.ipynb`}
+            className="inline-block px-3 py-1.5 text-2xs font-mono uppercase tracking-label border border-edge text-ink-secondary hover:text-ink hover:border-edge-strong"
+          >
+            download notebook
+          </a>
+          <p className="text-xs text-ink-tertiary leading-relaxed mt-2">
+            It recomputes this estimate by calling the same function against the
+            same file, then asserts the answer matches what you see here. Running
+            it checks the tool rather than restating it.
+          </p>
+        </Pane>
 
         <Pane caption="honesty">
           <p className="text-xs text-ink-tertiary leading-relaxed">

@@ -118,6 +118,7 @@ export const api = {
   chooseDesign: (id: string, lane: string, kwargs: Record<string, unknown>) =>
     post<{ id: string }>(`/jobs/${id}/design`, { lane, kwargs }),
   result: (id: string) => get<Result>(`/jobs/${id}/result`),
+  notebookUrl: (id: string) => `${BASE}/jobs/${id}/notebook`,
 };
 
 /** The five event names the tape depends on. Pinned server-side by
