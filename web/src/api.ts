@@ -127,6 +127,7 @@ export const api = {
   chooseDesign: (id: string, lane: string, kwargs: Record<string, unknown>) =>
     post<{ id: string }>(`/jobs/${id}/design`, { lane, kwargs }),
   result: (id: string) => get<Result>(`/jobs/${id}/result`),
+  reopen: (id: string) => post<{ id: string }>(`/jobs/${id}/reopen`, {}),
   notebookUrl: (id: string) => `${BASE}/jobs/${id}/notebook`,
 };
 

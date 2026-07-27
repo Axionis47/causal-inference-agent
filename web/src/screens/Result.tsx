@@ -5,7 +5,7 @@
  *    - claim strength comes from the server's lookup, so the UI cannot overclaim
  */
 import { api, type Finding, type Result as R } from "../api";
-import { Dot, Label, Pane, Row, type Status } from "../ui";
+import { Button, Dot, Label, Pane, Row, type Status } from "../ui";
 
 const STRENGTH: Record<string, { tone: string; dot: Status; says: string }> = {
   moderate: {
@@ -25,13 +25,13 @@ const STRENGTH: Record<string, { tone: string; dot: Status; says: string }> = {
   },
 };
 
-export function Result({ result }: { result: R }) {
+export function Result({ result, onReopen }: { result: R; onReopen: () => void }) {
   const e = result.estimate;
   const s = STRENGTH[result.strength ?? "none"] ?? STRENGTH.none;
 
   if (result.status === "failed" || !e) {
     return (
-      <Pane caption="failed">
+      <Pane caption="refused">
         <div className="flex items-start gap-2">
           <Dot status="failed" />
           <p className="text-xs font-mono text-rose leading-relaxed">
@@ -42,6 +42,15 @@ export function Result({ result }: { result: R }) {
           A design refusing is a result, not a crash. The message above names the
           condition the data did not meet.
         </p>
+        <div className="mt-4">
+          <Button tone="primary" onClick={onReopen}>
+            choose another design
+          </Button>
+          <p className="text-2xs text-ink-tertiary mt-2 leading-relaxed">
+            Goes back to the gate keeping the data, the reading and the
+            recommendation. Nothing is re-read and nothing is re-downloaded.
+          </p>
+        </div>
       </Pane>
     );
   }
@@ -172,6 +181,14 @@ export function Result({ result }: { result: R }) {
             </ul>
           </Pane>
         )}
+
+        <Pane caption="try another">
+          <Button onClick={onReopen}>choose another design</Button>
+          <p className="text-2xs text-ink-tertiary mt-2 leading-relaxed">
+            Comparing two designs on the same data is worth doing, and the gate
+            still holds everything from before this estimate.
+          </p>
+        </Pane>
 
         <Pane caption="reproduce">
           <a

@@ -56,6 +56,16 @@ class Choice(BaseModel):
     lane: str
     kwargs: dict = {}
 
+    def clean(self) -> dict:
+        """Arguments the lane will actually accept.
+
+        The suggestion payload carries internal fields such as `_candidates`,
+        which exist to populate the form and are not lane arguments. A client
+        that posts the suggestion back unchanged should get an analysis, not
+        `iv() got an unexpected keyword argument '_candidates'`.
+        """
+        return {k: v for k, v in self.kwargs.items() if not str(k).startswith("_")}
+
 
 def _config(job_id: str) -> dict:
     return {"configurable": {"thread_id": job_id}}
@@ -160,10 +170,42 @@ async def choose_design(job_id: str, body: Choice, background: BackgroundTasks) 
         raise HTTPException(409, f"job {job_id} is {_status(snap)}, not waiting")
 
     def resume() -> None:
-        graph.invoke(Command(resume=body.model_dump()), _config(job_id))
+        graph.invoke(Command(resume={"lane": body.lane, "kwargs": body.clean()}),
+                     _config(job_id))
 
     background.add_task(asyncio.to_thread, resume)
     return {"id": job_id, "status": "running", "lane": body.lane}
+
+
+@app.post("/jobs/{job_id}/reopen")
+def reopen(job_id: str) -> dict:
+    """Return a finished run to the design gate, keeping everything before it.
+
+    A lane refusing is normal: a dead instrument, a thin arm, a cutoff outside
+    the data. Without this the only way out of a refusal is to start again,
+    which re-downloads the file and re-runs the intake, the roles and the
+    recommendation. Four model calls to change one choice.
+
+    The gate checkpoint still holds all of that, so rewinding to it costs
+    nothing and repeats no reasoning. It is also the honest way to compare two
+    designs on the same data, which is a thing worth doing.
+    """
+    _snapshot(job_id)
+    cfg = _config(job_id)
+    gate = next((h for h in graph.get_state_history(cfg) if h.next == ("gate",)), None)
+    if gate is None:
+        raise HTTPException(409, f"job {job_id} never reached the design gate")
+
+    # rewind, then clear the previous attempt so nothing from it leaks forward
+    graph.update_state(
+        gate.config,
+        {"estimate": None, "strength": "", "headline": "", "narrative": "",
+         "diagnostics": [], "diagnosis": "", "error": "", "choice": {},
+         "events": [*gate.values.get("events", []),
+                    {"event": "stage_done", "stage": "gate",
+                     "detail": "reopened; choose another design"}]},
+    )
+    return {"id": job_id, "status": "waiting_for_you"}
 
 
 @app.get("/jobs/{job_id}/stream")

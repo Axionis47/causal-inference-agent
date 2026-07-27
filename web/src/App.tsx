@@ -75,6 +75,15 @@ export default function App() {
     setView("ask");
   }
 
+  async function reopen() {
+    if (!jobId) return;
+    await api.reopen(jobId);
+    setSeenData(true); // straight back to the gate; the data was already checked
+    setResult(null);
+    setView("design");
+    poll(jobId);
+  }
+
   async function chooseDesign(lane: string, kwargs: Record<string, unknown>) {
     if (!jobId) return;
     await api.chooseDesign(jobId, lane, kwargs);
@@ -137,7 +146,7 @@ export default function App() {
         )}
         {view === "design" && job && <Design job={job} onChosen={chooseDesign} />}
         {view === "running" && <Running tape={tape} done={!live} />}
-        {view === "result" && result && <Result result={result} />}
+        {view === "result" && result && <Result result={result} onReopen={reopen} />}
         {view === "result" && !result && (
           <p className="text-xs text-ink-tertiary">loading result…</p>
         )}
