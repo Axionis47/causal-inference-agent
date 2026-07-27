@@ -249,7 +249,106 @@ def pre_trend(df: pd.DataFrame, lane: str, kwargs: dict, estimate: dict) -> Find
                    "but is not implemented yet")
 
 
+def confounder_strength(df: pd.DataFrame, lane: str, kwargs: dict, estimate: dict) -> Finding:
+    """How strong would an unmeasured confounder have to be to erase this?
+
+    This is the question the other checks do not ask. They all perturb what we
+    can see: drop rows, drop a control, move a cutoff. None of them touch the
+    assumption almost every design here rests on, which is that nothing we
+    failed to measure drives both the treatment and the outcome. That
+    assumption is untestable, but it is quantifiable: we can say how large an
+    unmeasured thing would need to be before the finding goes away.
+
+    For a ratio this is the E-value (VanderWeele and Ding 2017): the smallest
+    association, on the risk-ratio scale, that a confounder would need with
+    both treatment and outcome to explain the result away. An E-value of 1.3 is
+    fragile, because plenty of ordinary variables are that predictive. One of 4
+    is not, because a confounder that strong would be hard to have missed.
+
+    For a difference we report the same idea in the units of the data: how far
+    the estimate would have to shift, expressed as a fraction of its own
+    interval, before it crossed the null.
+    """
+    point = estimate.get("value")
+    lo, hi = estimate.get("ci_low"), estimate.get("ci_high")
+    if point is None:
+        return Finding("confounder_strength", "untestable", "no point estimate")
+
+    if lane in ("iv", "rdd"):
+        return Finding(
+            "confounder_strength", "untestable",
+            f"{lane} does not identify by adjusting for confounders, so an "
+            "unmeasured one is not the threat here; the exclusion restriction "
+            "or the cutoff is")
+
+    if estimate.get("estimand") == "hazard_ratio":
+        rr = point if point >= 1 else 1 / point
+        evalue = rr + np.sqrt(rr * (rr - 1))
+        bound = None
+        if lo is not None and hi is not None:
+            near = lo if point >= 1 else 1 / hi
+            if near > 1:
+                bound = near + np.sqrt(near * (near - 1))
+        verdict = "pass" if evalue >= 2.5 else "warn" if evalue >= 1.5 else "fail"
+        detail = (f"an unmeasured confounder would need a risk ratio of "
+                  f"{evalue:.2f} with BOTH treatment and outcome to explain this away")
+        if bound:
+            detail += f"; {bound:.2f} to move the interval across the null"
+        return Finding("confounder_strength", verdict, detail, float(evalue))
+
+    if lo is None or hi is None:
+        return Finding("confounder_strength", "untestable", "no interval to work from")
+    if lo <= 0 <= hi:
+        return Finding("confounder_strength", "fail",
+                       "the interval already covers zero, so no unmeasured "
+                       "confounding is needed to explain this away", 0.0)
+    margin = float(min(abs(lo), abs(hi)) / abs(point))
+    verdict = "pass" if margin > 0.5 else "warn" if margin > 0.2 else "fail"
+    return Finding("confounder_strength", verdict,
+                   f"a bias of {margin:.0%} of the estimate would push the "
+                   f"interval onto zero; anything unmeasured that large ends this",
+                   margin)
+
+
+def specification_spread(df: pd.DataFrame, lane: str, kwargs: dict, estimate: dict) -> Finding:
+    """Refit across every reasonable control set and report the whole spread.
+
+    Deliberately reports the range and never the best. A search that returns its
+    most favourable specification is p-hacking with extra steps, and this tool
+    would launder it through a confidence interval. The honest output of trying
+    many specifications is how much they disagree.
+    """
+    covs = list(kwargs.get("covariates") or [])
+    point = estimate.get("value")
+    if len(covs) < 3 or point in (None, 0):
+        return Finding("specification_spread", "untestable",
+                       "needs three or more covariates to vary")
+    import itertools
+
+    got = []
+    for k in (len(covs), len(covs) - 1, max(1, len(covs) // 2)):
+        for combo in itertools.islice(itertools.combinations(covs, k), 6):
+            try:
+                got.append(_lane_call(lane, df, dict(kwargs, covariates=list(combo))).value)
+            except Exception:
+                continue
+    if len(got) < 4:
+        return Finding("specification_spread", "untestable",
+                       f"only {len(got)} specifications could be fitted")
+    lo, hi = float(min(got)), float(max(got))
+    flips = lo * hi < 0
+    width = float((hi - lo) / abs(point))
+    verdict = "fail" if flips else "pass" if width < 0.5 else "warn"
+    detail = (f"across {len(got)} control sets the estimate runs {lo:.4g} to "
+              f"{hi:.4g}")
+    if flips:
+        detail += "; it changes sign, so the control set decides the answer"
+    return Finding("specification_spread", verdict, detail, width)
+
+
 CHECKS = {
+    "confounder_strength": confounder_strength,
+    "specification_spread": specification_spread,
     "balance": balance,
     "overlap": overlap,
     "subsample_stability": subsample_stability,
@@ -261,6 +360,8 @@ CHECKS = {
 }
 
 DESCRIPTIONS = {
+    "confounder_strength": "how strong an unmeasured confounder would have to be to erase the result",
+    "specification_spread": "refit across many control sets and report the full spread, never the best",
     "balance": "standardised differences between treated and control on each covariate",
     "overlap": "whether both arms occupy the same propensity range",
     "subsample_stability": "refit on ten random 70% subsamples and report the spread",

@@ -119,9 +119,15 @@ def investigate(df, lane: str, kwargs: dict, estimate: dict) -> Diagnosis:
     # Left to itself it stops as soon as it finds a problem, which is reasonable
     # behaviour and produces an incomplete report: on LaLonde it found the
     # balance failure and never learned the estimate swings from -674 to +2112
-    # across subsamples. Stability is worth knowing on every design, so it is
-    # not left to a judgement call. The model then adds what the design needs.
-    for name in ("subsample_stability", "leave_one_out"):
+    # across subsamples.
+    #
+    # confounder_strength leads the list because it asks the question none of
+    # the others do. The rest perturb what we can see; that one asks how large
+    # something we never measured would have to be, which is the assumption
+    # nearly every design here actually rests on. It is far too important to
+    # depend on whether a model thought to call it.
+    for name in ("confounder_strength", "subsample_stability",
+                 "leave_one_out", "specification_spread"):
         ran.add(name)
         findings.append(run_check(name, df, lane, kwargs, estimate))
 
