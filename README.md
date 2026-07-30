@@ -1,21 +1,23 @@
-# causal-engine
+# Causal Analysis Copilot
 
-Eight causal estimation methods, each checked against a real dataset and, where
-one exists, a published number.
+A governed Streamlit application that helps users turn unfamiliar tabular data
+into a reviewable causal analysis without allowing an AI agent to control the
+statistics.
 
-## Causal Studio MVP
+## What it does
 
-The Streamlit studio accepts CSV, TSV, Excel, or Parquet uploads, profiles the
-data, inventories multi-file Kaggle bundles, runs a bounded preparation ReAct
-investigator, asks the uploader to confirm its context and repair plan, exposes
-interactive general and lane-specific EDA, exposes all eight analysis designs,
-runs lane-specific preflight, freezes a human-reviewed versioned design contract,
-runs deterministic sensitivity checks, pauses for human publication review when
-policy requires it, and emits an executable notebook audit bundle. Meaningful UI
-decisions are recorded as sanitized, chained server-side events; ordinary chart
-interaction does not call Vertex AI. Every approved repair/cohort combination
-creates a content-addressed prepared-data version; the design contract is bound
-to that exact version before an estimator can execute.
+- Uses a bounded Vertex AI preparation agent to inspect uploaded datasets,
+  propose safe repairs, identify missing context, and recommend an analysis.
+- Requires people to approve data changes, variable roles, causal assumptions,
+  and publication decisions.
+- Runs eight deterministic causal methods with method-specific preflight,
+  sensitivity checks, and claim-strength guardrails.
+- Versions prepared datasets and design contracts so post-result changes cannot
+  overwrite the original analysis or be presented as confirmatory.
+- Produces an executable notebook and an audit bundle containing the data
+  version, policy decision, diagnostics, and run history.
+
+## Run locally
 
 ```bash
 pip install -r requirements.txt
