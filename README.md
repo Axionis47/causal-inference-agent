@@ -3,6 +3,47 @@
 Eight causal estimation methods, each checked against a real dataset and, where
 one exists, a published number.
 
+## Causal Studio MVP
+
+The Streamlit studio accepts CSV, TSV, Excel, or Parquet uploads, profiles the
+data, inventories multi-file Kaggle bundles, runs a bounded preparation ReAct
+investigator, asks the uploader to confirm its context and repair plan, exposes
+interactive general and lane-specific EDA, exposes all eight analysis designs,
+runs lane-specific preflight, freezes a human-reviewed versioned design contract,
+runs deterministic sensitivity checks, pauses for human publication review when
+policy requires it, and emits an executable notebook audit bundle. Meaningful UI
+decisions are recorded as sanitized, chained server-side events; ordinary chart
+interaction does not call Vertex AI. Every approved repair/cohort combination
+creates a content-addressed prepared-data version; the design contract is bound
+to that exact version before an estimator can execute.
+
+```bash
+pip install -r requirements.txt
+python -m streamlit run streamlit_app.py
+```
+
+LangGraph is confined to checkpointed execution and the human publication
+interrupt. Set `LANGSMITH_TRACING=true`, `LANGSMITH_API_KEY`, and optionally
+`LANGSMITH_PROJECT=causal-studio` to send graph traces to LangSmith. The app
+works without LangSmith and without an LLM credential; without a configured
+Vertex AI identity, the preparation investigator follows a deterministic
+fallback over the same tool contracts and records that failure mode in the
+trace. The preparation agent never calls the Gemini Developer API.
+
+Configure Vertex AI with Application Default Credentials and the official GCP
+environment names:
+
+```bash
+gcloud auth application-default login
+export GOOGLE_CLOUD_PROJECT=your-project-id
+export GOOGLE_CLOUD_LOCATION=global
+export GOOGLE_GENAI_USE_VERTEXAI=true
+export PREPARATION_MODEL=gemini-2.5-flash
+```
+
+See [`docs/MVP_ARCHITECTURE.md`](docs/MVP_ARCHITECTURE.md) for the boundaries,
+policy rules, escalation points, and one-hour tradeoffs.
+
 ```bash
 pip install -r requirements.txt
 python verify_lanes.py
@@ -46,8 +87,8 @@ is six lines whenever CI wants one.
 
 No inverse-probability weighting, no bootstrap standard errors, no collinearity
 pruning, no one-hot encoding of categorical covariates (pass numeric columns),
-no plots, no artifact registry. Each is a real feature. Each gets added when a
-test needs it, not in advance.
+and no external artifact registry. Each is a real feature. Each gets added when
+a test needs it, not in advance.
 
 ## Known gaps
 
@@ -69,6 +110,17 @@ test needs it, not in advance.
 causal/estimate.py   the Estimate dataclass and LaneError
 causal/prep.py       the four checks every lane repeats
 causal/lanes.py      the eight methods, one file, top to bottom
+causal/studio_prep.py       upload profiling and approved repairs
+causal/studio_eda.py        cached EDA summaries, cohort filters, chart frames
+causal/studio_protocols.py  eight preflight/postflight protocols and contracts
+causal/preparation_agent.py bounded ReAct investigation and tool contracts
+causal/prompt_registry.py   immutable prompt versions and hashes
+causal/monitoring.py        run metrics, alerts, and server interaction events
+causal/studio_policy.py     executable allow/review/block rules
+causal/studio_workflow.py   LangGraph estimate/check/policy/approval spine
+causal/studio_export.py     executable notebook audit bundle
+streamlit_app.py            human control surface
+prompts/                    versioned, immutable agent prompts
 fixtures.py          each lane paired with its dataset and benchmark
 verify_lanes.py      the runner
 data/                eight real CSVs, committed

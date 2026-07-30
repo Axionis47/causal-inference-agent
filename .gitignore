@@ -1,6 +1,16 @@
 __pycache__/
 *.pyc
 .venv/
+.env
+.pytest_cache/
 jobs.sqlite
+*.sqlite-shm
+*.sqlite-wal
+studio_jobs.sqlite
+studio_events.sqlite
+.studio_runs/
+.studio_evals/
+data/kaggle/*/
 web/node_modules/
 web/dist/
+*.tsbuildinfo

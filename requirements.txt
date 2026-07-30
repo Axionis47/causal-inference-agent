@@ -9,9 +9,16 @@ pydantic==2.13.4
 fastapi==0.136.3
 uvicorn==0.49.0
 sse-starlette==3.4.4
-langgraph==1.2.4
+langgraph==1.2.9
 langgraph-checkpoint-sqlite==3.1.0
+langsmith==0.10.7
 httpx==0.28.1
 nbformat==5.10.4
 nbclient==0.11.0
 ipykernel==7.3.0
+streamlit==1.59.2
+plotly==6.9.0
+openpyxl>=3.1.5
+pyarrow>=20.0.0
+xlrd>=2.0.1
+kaggle>=1.7.4

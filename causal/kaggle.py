@@ -48,6 +48,7 @@ class Fetched:
     slug: str
     csv: Path
     all_csvs: list[str] = field(default_factory=list)
+    csv_paths: list[Path] = field(default_factory=list)
     note: str = ""
 
 
@@ -100,4 +101,10 @@ def fetch(url_or_slug: str) -> Fetched:
             f"{len(csvs)} CSVs in this dataset; using the largest "
             f"({csvs[0].name}). Others: {', '.join(p.name for p in csvs[1:6])}"
         )
-    return Fetched(slug=slug, csv=csvs[0], all_csvs=[p.name for p in csvs], note=note)
+    return Fetched(
+        slug=slug,
+        csv=csvs[0],
+        all_csvs=[p.name for p in csvs],
+        csv_paths=csvs,
+        note=note,
+    )
