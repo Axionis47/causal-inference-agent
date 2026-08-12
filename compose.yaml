@@ -1,0 +1,105 @@
+name: causal-copilot
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: causal
+      POSTGRES_USER: causal
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+    ports: ["127.0.0.1:55478:5432"]
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U causal -d causal"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+  api:
+    profiles: ["app"]
+    build: .
+    user: "${LOCAL_UID:-10001}:${LOCAL_GID:-10001}"
+    environment:
+      DATABASE_URL: postgresql+psycopg://causal:${DB_PASSWORD}@db:5432/causal
+      STORAGE_DIR: /storage
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      ALLOWED_ORIGINS: ${APP_ORIGIN:-http://127.0.0.1:8088}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+    volumes: ["./.runtime/files:/storage"]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+  worker:
+    profiles: ["app"]
+    build: .
+    user: "${LOCAL_UID:-10001}:${LOCAL_GID:-10001}"
+    command: [".venv/bin/python", "-m", "backend.worker", "run"]
+    environment:
+      DATABASE_URL: postgresql+psycopg://causal:${DB_PASSWORD}@db:5432/causal
+      STORAGE_DIR: /storage
+      VERTEX_PROJECT: ${VERTEX_PROJECT:-}
+      VERTEX_LOCATION: ${VERTEX_LOCATION:-us-central1}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      GOOGLE_APPLICATION_CREDENTIALS: /credentials/adc.json
+      # Local ARM Docker can misreport CPU capabilities to OpenSSL. Use its portable path.
+      OPENSSL_armcap: ${OPENSSL_ARM_CAP:-0}
+      PYTHONFAULTHANDLER: "1"
+      LANGSMITH_TRACING: ${LANGSMITH_TRACING:-false}
+      LANGSMITH_PROJECT: ${LANGSMITH_PROJECT:-causal-context}
+      LANGSMITH_API_KEY: ${LANGSMITH_API_KEY:-}
+      SANDBOX_QUEUE: /queue
+    volumes:
+      - "./.runtime/files:/storage"
+      - "./.runtime/sandbox:/queue"
+      - type: bind
+        source: ${VERTEX_ADC_FILE:-./.runtime/adc.json}
+        target: /credentials/adc.json
+        read_only: true
+        bind:
+          create_host_path: false
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+  web:
+    profiles: ["app"]
+    build: ./web
+    environment:
+      CADDY_ADDRESS: ${CADDY_ADDRESS:-:80}
+    ports: ["127.0.0.1:8088:80"]
+    depends_on: ["api"]
+    volumes: ["caddy_data:/data", "caddy_config:/config"]
+    restart: unless-stopped
+  sandbox:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: docker/explore.Dockerfile
+    command: ["python", "-I", "/opt/worker/explore_worker.py"]
+    user: "0:0"
+    environment:
+      REQUEST_UID: ${LOCAL_UID:-10001}
+      REQUEST_GID: ${LOCAL_GID:-10001}
+    init: true
+    restart: unless-stopped
+    network_mode: none
+    read_only: true
+    mem_limit: 1g
+    cpus: 1
+    pids_limit: 64
+    cap_drop: [ALL]
+    cap_add: [SETUID, SETGID, CHOWN, DAC_OVERRIDE, KILL, SYS_CHROOT]
+    security_opt: [no-new-privileges:true]
+    volumes: ["./.runtime/sandbox:/queue"]
+    tmpfs:
+      - /runtime/task:rw,nosuid,nodev,size=512m,mode=755
+      - /tmp:rw,nosuid,nodev,noexec,size=16m
+    healthcheck:
+      test: ["CMD", "python", "-c", "import json,time; h=json.load(open('/queue/health.json')); assert h['enforced'] and time.time()-h['at']<5"]
+      interval: 3s
+      timeout: 2s
+      retries: 10
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:
