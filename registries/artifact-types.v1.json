@@ -2,6 +2,78 @@
   "registry_version": "artifact-types.v1",
   "registrations": [
     {
+      "artifact_type": "QuestionRecord",
+      "schema_version": "question-record.v1",
+      "producer_component": "intake-coordinator",
+      "allowed_reader_components": ["design-harness"],
+      "required_parent_types": [],
+      "optional_parent_types": [],
+      "sensitivity_class": "internal",
+      "terminal_statuses": ["committed"],
+      "destinations": ["design"],
+      "validator_version": "question-record-validator.v1"
+    },
+    {
+      "artifact_type": "KaggleCapture",
+      "schema_version": "kaggle-capture.v1",
+      "producer_component": "intake-coordinator",
+      "allowed_reader_components": ["intake-coordinator"],
+      "required_parent_types": ["QuestionRecord"],
+      "optional_parent_types": [],
+      "sensitivity_class": "restricted",
+      "terminal_statuses": ["committed"],
+      "destinations": ["intake"],
+      "validator_version": "kaggle-capture-validator.v1"
+    },
+    {
+      "artifact_type": "SourceManifest",
+      "schema_version": "source-manifest.v1",
+      "producer_component": "intake-coordinator",
+      "allowed_reader_components": ["design-harness"],
+      "required_parent_types": ["KaggleCapture"],
+      "optional_parent_types": [],
+      "sensitivity_class": "internal",
+      "terminal_statuses": ["committed"],
+      "destinations": ["design"],
+      "validator_version": "source-manifest-validator.v1"
+    },
+    {
+      "artifact_type": "TableProfile",
+      "schema_version": "table-profile.v1",
+      "producer_component": "intake-coordinator",
+      "allowed_reader_components": ["design-harness"],
+      "required_parent_types": ["SourceManifest"],
+      "optional_parent_types": [],
+      "sensitivity_class": "internal",
+      "terminal_statuses": ["committed"],
+      "destinations": ["design"],
+      "validator_version": "table-profile-validator.v1"
+    },
+    {
+      "artifact_type": "EvidenceBundle",
+      "schema_version": "evidence-bundle.v1",
+      "producer_component": "intake-coordinator",
+      "allowed_reader_components": ["design-harness"],
+      "required_parent_types": ["KaggleCapture"],
+      "optional_parent_types": ["SourceManifest", "TableProfile"],
+      "sensitivity_class": "internal",
+      "terminal_statuses": ["committed"],
+      "destinations": ["design"],
+      "validator_version": "evidence-bundle-validator.v1"
+    },
+    {
+      "artifact_type": "SemanticMap",
+      "schema_version": "semantic-map.v1",
+      "producer_component": "intake-coordinator",
+      "allowed_reader_components": ["design-harness"],
+      "required_parent_types": ["EvidenceBundle"],
+      "optional_parent_types": [],
+      "sensitivity_class": "internal",
+      "terminal_statuses": ["committed"],
+      "destinations": ["design"],
+      "validator_version": "semantic-map-validator.v1"
+    },
+    {
       "artifact_type": "IntakeOutcome",
       "schema_version": "intake-outcome.v1",
       "producer_component": "intake-coordinator",

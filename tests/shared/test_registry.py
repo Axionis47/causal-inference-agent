@@ -70,13 +70,25 @@ class TestRegistry:
 class TestRealRegistryFile:
     def test_loads_and_looks_up_seeded_rows(self) -> None:
         registry = load_artifact_type_registry(REGISTRY_PATH)
-        assert len(registry) == 2
+        assert len(registry) == 8
         intake = registry.lookup("IntakeOutcome")
         assert intake.producer_component == "intake-coordinator"
         assert intake.terminal_statuses == ("usable", "partial", "refused")
         frame = registry.lookup("RunnableFrameContract")
         assert frame.required_parent_types == ("ExperimentDesign",)
         assert frame.destinations == ("preparation", "estimation")
+
+    def test_intake_lineage_chain(self) -> None:
+        registry = load_artifact_type_registry(REGISTRY_PATH)
+        assert registry.lookup("QuestionRecord").required_parent_types == ()
+        capture = registry.lookup("KaggleCapture")
+        assert capture.required_parent_types == ("QuestionRecord",)
+        assert capture.sensitivity_class.value == "restricted"
+        assert capture.allowed_reader_components == ("intake-coordinator",)
+        assert registry.lookup("SourceManifest").required_parent_types == ("KaggleCapture",)
+        assert registry.lookup("TableProfile").required_parent_types == ("SourceManifest",)
+        assert registry.lookup("EvidenceBundle").required_parent_types == ("KaggleCapture",)
+        assert registry.lookup("SemanticMap").required_parent_types == ("EvidenceBundle",)
 
     def test_malformed_json_is_invalid_registry_file(self, tmp_path: Path) -> None:
         bad = tmp_path / "broken.json"
