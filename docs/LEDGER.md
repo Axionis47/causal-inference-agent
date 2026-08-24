@@ -29,6 +29,7 @@ Recomputed and updated by Fable at every doc freeze
 | T-002 | Shared contract kernel (canonical, hashing, envelopes) | shared (SC §2, §3, §8.2) | T-001 | single-session (D-008) | ACCEPTED | yes | commit `bd6c985`; canonical.py adopted from causal-final-de draft with D-006 fix; 40 tests; maps to EV-SYS-001; budget `within_budget` (shared 158, tests 576) |
 | T-003 | OperationalEventV1 + NDJSON emitter | shared (SC §10.1) | T-002 | single-session (D-008) | ACCEPTED | yes | commit `7b96eeb`; 28 event names; 21 tests; maps to EV-SYS-005 |
 | T-004 | Artifact-type registry + seeded registrations | shared (SC §3.1) | T-002 | single-session (D-008) | ACCEPTED | yes | commit `99d0132`; registry fail-closed on unsupported_schema; 2 rows seeded (D-012); 11 tests; maps to EV-SYS-001/EV-SYS-006 |
+| T-005 | Persistence + §8.2 commit protocol | shared (SC §3, §4, §8) | T-002, T-003, T-004 | single-session (D-008) | ACCEPTED | yes | commit `c2fc732`; 14 dockerized integration tests (postgres:18.6 + MinIO); trace-flush gate deferred (D-020); maps to EV-SYS-001/EV-SYS-004 |
 
 ## Decision log
 
@@ -52,6 +53,10 @@ Append-only. One line per decision: date, decision, why.
 - 2026-08-24 — D-014: OperationalEventV1 `versions` keys are the closed set {model, prompt, tool, registry, schema, validator, compiler, renderer}.
 - 2026-08-24 — D-015: `token_usage` keys are the closed set {input, output, thinking, total}.
 - 2026-08-24 — D-016: The emitter (not the model) enforces name registration and requires non-empty `required_eval_ids` on task./agent./tool./handoff. events.
+- 2026-08-24 — D-017: Dev/test object store is MinIO via Docker; src/ depends only on an S3 client Protocol (no boto3 import in production code). Postgres runs as the pinned postgres:18.6 image.
+- 2026-08-24 — D-018: Legal run-state transition map fixed from the §4 diagram; completed/failed/failed_observability are terminal at the stage-run level.
+- 2026-08-24 — D-019: payload_locator format is `objects/{content_hash}`; the committer rejects disagreement.
+- 2026-08-24 — D-020: §8.2's LangSmith flush gate is deferred to the tracing task; commit currently ends at reopen-validation + artifact.committed event. Deliberate, recorded, must be revisited when LangSmith lands.
 
 ## Checkpoint log
 
