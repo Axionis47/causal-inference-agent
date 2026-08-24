@@ -13,6 +13,7 @@ __all__ = ["CanonicalizationError", "canonical_bytes", "content_hash"]
 
 NON_FINITE_NUMBER: Final = "non_finite_number"
 UNSUPPORTED_TYPE: Final = "unsupported_type"
+DUPLICATE_KEY_AFTER_NORMALIZATION: Final = "duplicate_key_after_normalization"
 
 
 class CanonicalizationError(ValueError):
@@ -62,7 +63,7 @@ def _normalize_mapping(value: Mapping[Any, Any]) -> dict[str, Any]:
             # depend on insertion order, defeating the point of canonicalization.
             raise CanonicalizationError(
                 f"duplicate key after NFC normalization: {canonical_key!r}",
-                UNSUPPORTED_TYPE,
+                DUPLICATE_KEY_AFTER_NORMALIZATION,
             )
         normalized[canonical_key] = _normalize(item)
     return normalized
