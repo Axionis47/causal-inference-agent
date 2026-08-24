@@ -41,6 +41,7 @@ Append-only. One line per decision: date, decision, why.
 - 2026-08-24 — D-006: Canonicalization raises stable code `duplicate_key_after_normalization` when two mapping keys collide under NFC; silent collapse would break key-order determinism. (Raised by Opus during T-002 drafting.)
 - 2026-08-24 — D-007: `payload_locator` is exempt from the 200-char identity cap; its own cap is 1024 chars. (Raised by Opus during T-002 drafting.)
 - 2026-08-24 — Enforcement finding: write-guard hooks verified live in fresh sessions (headless probe denied correctly) but inert in sessions that predate the settings file or have not approved project hooks; every interactive session must run /hooks once (or restart and accept the hook prompt) and then verify behaviorally.
+- 2026-08-24 — D-008: User dissolved the two-terminal Fable/Opus model. Single session architects and implements; hooks removed from settings (scripts kept inert in .claude/hooks/); ledger/checkpoint discipline retained. T-001/T-002 reassigned to the main session. Budget-checker path exclusions fixed as: docs/**, .claude/**, CLAUDE.md, .gitignore, .python-version, pyproject.toml, uv.lock, README.md.
 
 ## Checkpoint log
 
