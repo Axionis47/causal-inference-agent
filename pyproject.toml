@@ -1,0 +1,52 @@
+[project]
+name = "causal"
+version = "0.1.0"
+description = "Causal-analysis V1: five-stage causal analysis application (SYSTEM-CONTRACT)"
+requires-python = ">=3.12.8,<3.13"
+dependencies = [
+    "pydantic==2.13.4",
+    "kaggle==2.2.4",
+    "polars==1.43.2",
+    "psycopg[binary,pool]==3.3.4",
+    "boto3==1.43.65",
+    "langgraph==1.2.11",
+    "langgraph-checkpoint-postgres==3.1.1",
+    "langsmith==0.11.0",
+    "google-genai==2.19.0",
+    "graphviz==0.21",
+    "numpy==2.5.2",
+    "scipy==1.18.0",
+    "pandas==3.0.5",
+    "scikit-learn==1.9.0",
+    "pyfixest==0.60.0",
+    "rdrobust==2.0.0",
+    "rddensity==3.0",
+    "altair==6.2.2",
+    "vl-convert-python==1.9.0.post1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest==9.1.1",
+    "hypothesis==6.165.5",
+    "ruff==0.16.3",
+    "mypy==2.3.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/causal"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.mypy]
+strict = true
+python_version = "3.12"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
