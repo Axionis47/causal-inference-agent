@@ -25,8 +25,8 @@ Recomputed and updated by Fable at every doc freeze
 
 | Task ID | Title | Owning PRD | Depends on | Model | Status | Doc hashes verified | Notes |
 |---|---|---|---|---|---|---|---|
-| T-001 | Repo scaffolding, uv lock, budget checker | shared (SC §14, §14.1) | — | opus | READY_FOR_OPUS | pending | spec `docs/tasks/T-001-repo-scaffolding.md` hash `1767ff9d46eb9ce69d2d672ec6c1246bd9685b12796598536901de70dc12ab70`; terminal causal-final-6a |
-| T-002 | Shared contract kernel (canonical, hashing, envelopes) | shared (SC §2, §3, §8.2) | T-001 (env to run tests) | opus | READY_FOR_OPUS | pending | spec `docs/tasks/T-002-shared-contract-kernel.md` hash `8b553fbafd2e84520ed513018409f1d7de5936a646d2c867268a5739b04c9dec` (rev 3: D-006 test named in required list); terminal causal-final-de; maps to EV-SYS-001 |
+| T-001 | Repo scaffolding, uv lock, budget checker | shared (SC §14, §14.1) | — | single-session (D-008) | ACCEPTED | yes | commit `4f7cbaf`; 154 pkgs resolved; 36 tests; budget `within_budget` |
+| T-002 | Shared contract kernel (canonical, hashing, envelopes) | shared (SC §2, §3, §8.2) | T-001 | single-session (D-008) | ACCEPTED | yes | commit `bd6c985`; canonical.py adopted from causal-final-de draft with D-006 fix; 40 tests; maps to EV-SYS-001; budget `within_budget` (shared 158, tests 576) |
 
 ## Decision log
 
@@ -47,4 +47,6 @@ Append-only. One line per decision: date, decision, why.
 
 One line per checkpoint commit: date, commit subject, what state it freezes.
 
-- _none yet_
+- 2026-08-24 — `4f7cbaf` T-001: environment (exact §14 pins, uv.lock), package skeleton, budget checker + 36 tests.
+- 2026-08-24 — `bd6c985` T-002: canonical serialization + hashing + ArtifactEnvelopeV1/HandoffManifestV1 + 40 tests. Full suite 76 green.
+- 2026-08-24 — Environment note: repo lives under ~/Documents (likely iCloud-synced); macOS set UF_HIDDEN on venv files, which makes Python 3.12 silently skip .pth files. Cleared with `chflags nohidden`; if imports break again after re-sync, re-run: `find .venv -flags +hidden -exec chflags nohidden {} +`
