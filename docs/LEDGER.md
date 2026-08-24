@@ -30,6 +30,9 @@ Recomputed and updated by Fable at every doc freeze
 | T-003 | OperationalEventV1 + NDJSON emitter | shared (SC §10.1) | T-002 | single-session (D-008) | ACCEPTED | yes | commit `7b96eeb`; 28 event names; 21 tests; maps to EV-SYS-005 |
 | T-004 | Artifact-type registry + seeded registrations | shared (SC §3.1) | T-002 | single-session (D-008) | ACCEPTED | yes | commit `99d0132`; registry fail-closed on unsupported_schema; 2 rows seeded (D-012); 11 tests; maps to EV-SYS-001/EV-SYS-006 |
 | T-005 | Persistence + §8.2 commit protocol | shared (SC §3, §4, §8) | T-002, T-003, T-004 | single-session (D-008) | ACCEPTED | yes | commit `c2fc732`; 14 dockerized integration tests (postgres:18.6 + MinIO); trace-flush gate deferred (D-020); maps to EV-SYS-001/EV-SYS-004 |
+| T-006 | Handoff persistence + acceptance gate | shared (SC §3, §3.1, §8.1) | T-005 | single-session (D-008) | ACCEPTED | yes | commit `ec5db6d`; fail-closed, all codes collected; 11 dockerized tests; maps to EV-SYS-006 |
+| T-007 | Intake core: contracts, registrations, archive, profiler | PRD-001 (§5.5–§8) | T-004 | single-session (D-008) | ACCEPTED | yes | commit (see checkpoint log); 6 registry rows appended; 58 tests; maps to EV-P1-003/EV-P1-004 |
+| T-008 | Intake capture + catalog + coordinator + handoff | PRD-001 (§4, §9–§13) | T-005, T-006, T-007 | single-session (D-008) | DRAFT | — | Kaggle client behind a Protocol; catalog migration + views; IntakeOutcome; EV-P1-001/002/005 |
 
 ## Decision log
 
@@ -57,6 +60,12 @@ Append-only. One line per decision: date, decision, why.
 - 2026-08-24 — D-018: Legal run-state transition map fixed from the §4 diagram; completed/failed/failed_observability are terminal at the stage-run level.
 - 2026-08-24 — D-019: payload_locator format is `objects/{content_hash}`; the committer rejects disagreement.
 - 2026-08-24 — D-020: §8.2's LangSmith flush gate is deferred to the tracing task; commit currently ends at reopen-validation + artifact.committed event. Deliberate, recorded, must be revisited when LangSmith lands.
+- 2026-08-24 — D-021: The handoff receiver names its expected outcomes explicitly per seam; "wrong outcome" is seam knowledge, not manifest knowledge.
+- 2026-08-24 — D-022: Handoff gate events are caller-built via an event factory so the D-016 eval-ID rule stays satisfiable.
+- 2026-08-24 — D-023: Intake-internal registrations use terminal status `committed`; outcome statuses live only on IntakeOutcome. KaggleCapture is restricted, readable only by intake-coordinator.
+- 2026-08-24 — D-024: kaggle_ref normalizes to owner/slug; owner/slug or kaggle.com/datasets URL accepted.
+- 2026-08-24 — D-025: Profiler hypotheses limited to two bounded deterministic rules (identifier, ±9…±9999 sentinel at ≥1% and min/max), always labelled hypothesis.
+- 2026-08-24 — D-026: Archive safety limits are constructor parameters (10k entries, 512 MiB file, 2 GiB total, 200:1 ratio above 1 MiB).
 
 ## Checkpoint log
 
@@ -67,3 +76,6 @@ One line per checkpoint commit: date, commit subject, what state it freezes.
 - 2026-08-24 — Environment note: repo lives under ~/Documents (likely iCloud-synced); macOS set UF_HIDDEN on venv files, which makes Python 3.12 silently skip .pth files. Cleared with `chflags nohidden`; if imports break again after re-sync, re-run: `find .venv -flags +hidden -exec chflags nohidden {} +`
 - 2026-08-24 — `7b96eeb` T-003: OperationalEventV1 + emitter, 21 tests.
 - 2026-08-24 — `99d0132` T-004: artifact-type registry + seeded rows, 11 tests. Full suite 107 green; budget `within_budget` (shared 355, tests 769, declarative 35, 13 modules).
+- 2026-08-24 — `c2fc732` T-005: persistence + commit protocol, 14 dockerized tests. Suite 121.
+- 2026-08-24 — `ec5db6d` T-006: handoff store + gate, 11 dockerized tests. Suite 132.
+- 2026-08-24 — `87629ec` T-007: intake core (contracts/archive/profiler + 6 registry rows), 58 tests. Suite 181 green; budget `within_budget` (shared 745, intake 344, tests 1570, declarative 166; 18 modules).
