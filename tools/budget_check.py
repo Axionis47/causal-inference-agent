@@ -38,6 +38,7 @@ SCOPE_PREFIXES: tuple[tuple[str, str], ...] = (
     ("migrations/", "declarative"),
     ("evals/", "declarative"),
     ("prompts/", "declarative"),
+    ("registries/", "declarative"),
 )
 EXCLUDED_FILES = {"pyproject.toml", "uv.lock", ".python-version", ".gitignore", "CLAUDE.md", "README.md"}
 EXCLUDED_PREFIXES = ("docs/", ".claude/")

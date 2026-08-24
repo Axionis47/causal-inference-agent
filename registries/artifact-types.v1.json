@@ -1,0 +1,35 @@
+{
+  "registry_version": "artifact-types.v1",
+  "registrations": [
+    {
+      "artifact_type": "IntakeOutcome",
+      "schema_version": "intake-outcome.v1",
+      "producer_component": "intake-coordinator",
+      "allowed_reader_components": ["design-harness"],
+      "required_parent_types": [
+        "QuestionRecord",
+        "SourceManifest",
+        "TableProfile",
+        "EvidenceBundle",
+        "SemanticMap"
+      ],
+      "optional_parent_types": [],
+      "sensitivity_class": "internal",
+      "terminal_statuses": ["usable", "partial", "refused"],
+      "destinations": ["design"],
+      "validator_version": "intake-outcome-validator.v1"
+    },
+    {
+      "artifact_type": "RunnableFrameContract",
+      "schema_version": "runnable-frame-contract.v1",
+      "producer_component": "design-harness",
+      "allowed_reader_components": ["preparation-harness", "estimation-harness"],
+      "required_parent_types": ["ExperimentDesign"],
+      "optional_parent_types": [],
+      "sensitivity_class": "internal",
+      "terminal_statuses": ["approved", "superseded"],
+      "destinations": ["preparation", "estimation"],
+      "validator_version": "runnable-frame-contract-validator.v1"
+    }
+  ]
+}

@@ -66,6 +66,7 @@ class TestScopeAssignment:
             ("migrations/001_init.sql", "declarative"),
             ("evals/catalog.v1.yaml", "declarative"),
             ("prompts/intent.v1.txt", "declarative"),
+            ("registries/artifact-types.v1.json", "declarative"),
         ],
     )
     def test_known_paths(self, path: str, scope: str) -> None:
