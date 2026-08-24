@@ -26,7 +26,7 @@ Recomputed and updated by Fable at every doc freeze
 | Task ID | Title | Owning PRD | Depends on | Model | Status | Doc hashes verified | Notes |
 |---|---|---|---|---|---|---|---|
 | T-001 | Repo scaffolding, uv lock, budget checker | shared (SC §14, §14.1) | — | opus | READY_FOR_OPUS | pending | spec `docs/tasks/T-001-repo-scaffolding.md` hash `1767ff9d46eb9ce69d2d672ec6c1246bd9685b12796598536901de70dc12ab70`; terminal causal-final-6a |
-| T-002 | Shared contract kernel (canonical, hashing, envelopes) | shared (SC §2, §3, §8.2) | T-001 (env to run tests) | opus | READY_FOR_OPUS | pending | spec `docs/tasks/T-002-shared-contract-kernel.md` hash `3f9beb5f4077422d74bddd0c821a01c4c6d0ffce3286c86355eab59bb6d22ed3`; terminal causal-final-de; maps to EV-SYS-001 |
+| T-002 | Shared contract kernel (canonical, hashing, envelopes) | shared (SC §2, §3, §8.2) | T-001 (env to run tests) | opus | READY_FOR_OPUS | pending | spec `docs/tasks/T-002-shared-contract-kernel.md` hash `a9ebee207f6f5096791009fb7fdbf6e8cc44c952720d9816e491879f5ea4c68f` (rev 2: D-006/D-007); terminal causal-final-de; maps to EV-SYS-001 |
 
 ## Decision log
 
@@ -38,6 +38,9 @@ Append-only. One line per decision: date, decision, why.
 - 2026-08-24 — D-003: The §14.1.1 budget checker lives at `tools/budget_check.py`, standard library only, assigned to the tests scope for counting (verification tooling, not production behavior). Open to revision if Opus shows a contradiction.
 - 2026-08-24 — D-004: Canonical JSON = UTF-8, code-point-sorted keys, `(",", ":")` separators, NFC strings, no NaN/Inf, None preserved, RFC 3339 UTC timestamps with exactly 6 fractional digits and `Z`; hashes are bare 64-char lowercase hex.
 - 2026-08-24 — D-005: Identity fields are non-empty strings ≤200 chars at the envelope layer; stricter per-identity formats are enforced at creation sites, not in shared contracts.
+- 2026-08-24 — D-006: Canonicalization raises stable code `duplicate_key_after_normalization` when two mapping keys collide under NFC; silent collapse would break key-order determinism. (Raised by Opus during T-002 drafting.)
+- 2026-08-24 — D-007: `payload_locator` is exempt from the 200-char identity cap; its own cap is 1024 chars. (Raised by Opus during T-002 drafting.)
+- 2026-08-24 — Enforcement finding: write-guard hooks verified live in fresh sessions (headless probe denied correctly) but inert in sessions that predate the settings file or have not approved project hooks; every interactive session must run /hooks once (or restart and accept the hook prompt) and then verify behaviorally.
 
 ## Checkpoint log
 

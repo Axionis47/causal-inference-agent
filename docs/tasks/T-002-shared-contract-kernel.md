@@ -44,7 +44,10 @@ decision D-004):
 5. `content_hash(payload) -> str`: lowercase hex SHA-256 (64 chars) of
    `canonical_bytes(payload)`.
 6. `CanonicalizationError(ValueError)` with a stable `code` attribute:
-   `non_finite_number` | `unsupported_type`.
+   `non_finite_number` | `unsupported_type` | `duplicate_key_after_normalization`.
+7. Two distinct keys in one mapping that become equal after NFC normalization
+   raise `duplicate_key_after_normalization` (Fable decision D-006): silent
+   collapse would make output depend on insertion order, violating rule 1.
 
 ## Deliverable 2 — `contracts.py`
 
@@ -65,8 +68,9 @@ Pydantic v2 (`pydantic==2.13.4`), every model `frozen=True`,
      enforcement beyond that belongs to creation sites, Fable decision D-005).
    - `created_at_utc`: must be timezone-aware UTC; serializes to RFC 3339 with
      exactly 6 fractional digits and `Z` suffix (custom serializer).
-   - `payload_locator`: non-empty, must NOT contain `?`, `&`, or the substring
-     `X-Amz-` (never a signed URL, §3).
+   - `payload_locator`: exempt from the 200-char identity cap; its own rule is
+     non-empty, ≤1024 chars, and must NOT contain `?`, `&`, or the substring
+     `X-Amz-` (never a signed URL, §3). (Fable decision D-007.)
 4. `HandoffManifestV1` — per §3 bullet list: `handoff_id`, `schema_version`,
    `analysis_id`, `producing_stage_run_id`, `receiving_stage_run_id`,
    `entries: tuple[ArtifactRef, ...]` (ordered, min length 1),
