@@ -78,14 +78,13 @@
       "schema_version": "intake-outcome.v1",
       "producer_component": "intake-coordinator",
       "allowed_reader_components": ["design-harness"],
-      "required_parent_types": [
-        "QuestionRecord",
+      "required_parent_types": ["QuestionRecord"],
+      "optional_parent_types": [
         "SourceManifest",
         "TableProfile",
         "EvidenceBundle",
         "SemanticMap"
       ],
-      "optional_parent_types": [],
       "sensitivity_class": "internal",
       "terminal_statuses": ["usable", "partial", "refused"],
       "destinations": ["design"],

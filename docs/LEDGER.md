@@ -32,7 +32,7 @@ Recomputed and updated by Fable at every doc freeze
 | T-005 | Persistence + §8.2 commit protocol | shared (SC §3, §4, §8) | T-002, T-003, T-004 | single-session (D-008) | ACCEPTED | yes | commit `c2fc732`; 14 dockerized integration tests (postgres:18.6 + MinIO); trace-flush gate deferred (D-020); maps to EV-SYS-001/EV-SYS-004 |
 | T-006 | Handoff persistence + acceptance gate | shared (SC §3, §3.1, §8.1) | T-005 | single-session (D-008) | ACCEPTED | yes | commit `ec5db6d`; fail-closed, all codes collected; 11 dockerized tests; maps to EV-SYS-006 |
 | T-007 | Intake core: contracts, registrations, archive, profiler | PRD-001 (§5.5–§8) | T-004 | single-session (D-008) | ACCEPTED | yes | commit (see checkpoint log); 6 registry rows appended; 58 tests; maps to EV-P1-003/EV-P1-004 |
-| T-008 | Intake capture + catalog + coordinator + handoff | PRD-001 (§4, §9–§13) | T-005, T-006, T-007 | single-session (D-008) | DRAFT | — | Kaggle client behind a Protocol; catalog migration + views; IntakeOutcome; EV-P1-001/002/005 |
+| T-008 | Intake capture + catalog + coordinator + handoff | PRD-001 (§4, §9–§13) | T-005, T-006, T-007 | single-session (D-008) | IN_PROGRESS | yes | spec frozen at `docs/tasks/T-008-intake-capture-catalog-coordinator.md`; decisions D-027..D-036 |
 
 ## Decision log
 
@@ -66,6 +66,16 @@ Append-only. One line per decision: date, decision, why.
 - 2026-08-24 — D-024: kaggle_ref normalizes to owner/slug; owner/slug or kaggle.com/datasets URL accepted.
 - 2026-08-24 — D-025: Profiler hypotheses limited to two bounded deterministic rules (identifier, ±9…±9999 sentinel at ≥1% and min/max), always labelled hypothesis.
 - 2026-08-24 — D-026: Archive safety limits are constructor parameters (10k entries, 512 MiB file, 2 GiB total, 200:1 ratio above 1 MiB).
+- 2026-08-24 — D-027: IntakeOutcome required parents reduced to [QuestionRecord]; the full chain moves to optional and the coordinator enforces it for usable/partial. An early refusal has no chain to cite; the registry must stay committable fail-closed.
+- 2026-08-24 — D-028: Raw bytes (archive, extracted source files) are content-addressed objects without envelopes; catalog.resources rows point at them. Only canonical-JSON payloads get artifact envelopes.
+- 2026-08-24 — D-029: PRD-001's `artifacts` table is realized by shared `causal.artifacts`; the `catalog` schema owns runs, datasets, resources, source_field_index, and exactly five narrow views. Run operational state stays in `causal.stage_runs`.
+- 2026-08-24 — D-030: Provider field classification is the static registry `registries/kaggle-field-classes.v1.json`; unlisted fields default to `operational` (fail-closed away from model context).
+- 2026-08-24 — D-031: Deterministic identities: analysis_id = an-sha16(idempotency_key); dataset_id = kaggle:owner/slug@version; artifact_id = kind:analysis_id:hash16. Payloads carry no wall-clock; envelope timestamps come from an injected clock.
+- 2026-08-24 — D-032: v0 semantic-map rules are conservative: column meaning from provider description, missing_sentinel from profiler hypotheses, everything else not_offered. Free-text-to-slot interpretation belongs to PRD-002.
+- 2026-08-24 — D-033: Outcome rule — refused per PRD-001 §12; partial when any resource is unreadable/excluded/failed or no semantic field is evidenced; usable otherwise.
+- 2026-08-24 — D-034: The live kaggle==2.2.4 adapter is deferred to the CLI/runtime task; T-008 ships the client Protocol and capture layer; tests use frozen fixture clients. Credentials exist only at adapter construction from the runtime secret source.
+- 2026-08-24 — D-035: Re-running an incomplete analysis uses a new stage_run_id; deterministic artifact IDs make recommits §8.2 replay no-ops (PRD-001 §13 restart-from-boundary).
+- 2026-08-24 — D-036: resources.parse_status is PRD-001's five values (parsed, excluded, unreadable, unsafe, failed); withheld classifications map to excluded with a reason.
 
 ## Checkpoint log
 
