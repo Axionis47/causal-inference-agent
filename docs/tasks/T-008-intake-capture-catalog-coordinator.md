@@ -32,8 +32,10 @@ schema, and records the PRD-002 handoff. No model call anywhere.
    single-transaction finalization of `intake_status` +
    `intake_outcome_artifact_id`.
 6. `src/causal/intake/coordinator.py` — `IntakeCoordinator.run(submission)`
-   executing the §4 flow to a committed `IntakeOutcome`, then recording the
-   PRD-002 `HandoffManifestV1` for usable/partial outcomes only.
+   executing the §4 flow to a committed `IntakeOutcome`, plus
+   `open_handoff(analysis_id, intake_outcome_artifact_id, receiving_stage_run_id)`
+   building the PRD-002 `HandoffManifestV1` mechanically for usable/partial
+   outcomes only (Amendment 1, D-037).
 7. Tests covering EV-P1-001, EV-P1-002, and EV-P1-005 fixture focuses at the
    unit/integration layer (frozen fixture clients; dockerized Postgres+MinIO).
 
@@ -131,3 +133,19 @@ conflict. No event carries credentials, raw provider bodies, or table rows.
    artifact payload, event line, or catalog row containing it.
 9. ruff, mypy --strict, and the §14.1 budget gate pass; intake stays within
    its 1,200-line allocation.
+
+## Amendment 1 (pre-implementation; D-037)
+
+The producer does not persist the handoff manifest: T-006's `HandoffGate.accept`
+records it at receipt, and §11.1 opens the handoff from `analysis_id` +
+`intake_outcome_artifact_id` alone. The coordinator instead exposes
+`open_handoff(...)`, which rebuilds the manifest deterministically
+(`ho:{analysis_id}:{outcome-hash16}`) from the catalog and refuses
+(`handoff_unavailable`) for refused, missing, or mismatched outcomes. The
+measured-fact surface gains index rows: one `measured`-class row per profiled
+column, whose pointer names the `TableProfile` artifact and the column path.
+
+## Amendment 2 (pre-implementation; D-038)
+
+The shared docker fixtures move from `tests/shared/conftest.py` to
+`tests/conftest.py` so intake integration tests reuse them unchanged.

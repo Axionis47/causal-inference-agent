@@ -76,6 +76,8 @@ Append-only. One line per decision: date, decision, why.
 - 2026-08-24 — D-034: The live kaggle==2.2.4 adapter is deferred to the CLI/runtime task; T-008 ships the client Protocol and capture layer; tests use frozen fixture clients. Credentials exist only at adapter construction from the runtime secret source.
 - 2026-08-24 — D-035: Re-running an incomplete analysis uses a new stage_run_id; deterministic artifact IDs make recommits §8.2 replay no-ops (PRD-001 §13 restart-from-boundary).
 - 2026-08-24 — D-036: resources.parse_status is PRD-001's five values (parsed, excluded, unreadable, unsafe, failed); withheld classifications map to excluded with a reason.
+- 2026-08-24 — D-037: The producer never persists the handoff manifest (the T-006 gate records at receipt). The coordinator's open_handoff rebuilds it deterministically from analysis_id + intake_outcome_artifact_id and refuses for refused/missing/mismatched outcomes. Measured-fact index rows point at TableProfile artifacts. (T-008 Amendment 1.)
+- 2026-08-24 — D-038: Shared docker fixtures live in tests/conftest.py so all test packages reuse them. (T-008 Amendment 2.)
 
 ## Checkpoint log
 
