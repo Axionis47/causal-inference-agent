@@ -5,7 +5,6 @@ from __future__ import annotations
 import io
 import json
 import uuid
-from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -21,7 +20,6 @@ from causal.shared.persistence import (
     ObjectStore,
     PersistenceError,
     ProductStore,
-    apply_migrations,
 )
 from causal.shared.registry import ArtifactTypeRegistrationV1, ArtifactTypeRegistry, RegistryError
 from tests.shared.conftest import requires_docker
@@ -30,24 +28,6 @@ MIGRATIONS = Path(__file__).resolve().parents[2] / "migrations"
 NOW = datetime(2026, 8, 24, 15, 0, 0, 0, tzinfo=UTC)
 
 pytestmark = requires_docker
-
-
-@pytest.fixture()
-def conn(postgres_dsn: str) -> Iterator[psycopg.Connection[Any]]:
-    connection = psycopg.connect(postgres_dsn, autocommit=True)
-    schema = f"test_{uuid.uuid4().hex[:10]}"
-    connection.execute(f'CREATE DATABASE "{schema}"')  # type: ignore[arg-type]
-    connection.close()
-    dsn = postgres_dsn.rsplit("/", 1)[0] + f"/{schema}"
-    test_conn = psycopg.connect(dsn, autocommit=True)
-    apply_migrations(test_conn, MIGRATIONS)
-    yield test_conn
-    test_conn.close()
-
-
-@pytest.fixture()
-def object_store(minio_s3: dict[str, Any]) -> ObjectStore:
-    return ObjectStore(minio_s3["client"], minio_s3["bucket"])
 
 
 def registration(**overrides: object) -> ArtifactTypeRegistrationV1:

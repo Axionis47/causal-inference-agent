@@ -7,9 +7,12 @@ import subprocess
 import time
 import uuid
 from collections.abc import Iterator
+from pathlib import Path
 from typing import Any
 
 import pytest
+
+MIGRATIONS = Path(__file__).resolve().parents[2] / "migrations"
 
 
 def _docker_available() -> bool:
@@ -107,3 +110,27 @@ def minio_s3() -> Iterator[dict[str, Any]]:
         yield {"client": client, "bucket": bucket}
     finally:
         _stop(container)
+
+
+@pytest.fixture()
+def conn(postgres_dsn: str) -> Iterator[Any]:
+    import psycopg
+
+    from causal.shared.persistence import apply_migrations
+
+    admin = psycopg.connect(postgres_dsn, autocommit=True)
+    database = f"test_{uuid.uuid4().hex[:10]}"
+    admin.execute(f'CREATE DATABASE "{database}"')  # type: ignore[arg-type]
+    admin.close()
+    dsn = postgres_dsn.rsplit("/", 1)[0] + f"/{database}"
+    test_conn = psycopg.connect(dsn, autocommit=True)
+    apply_migrations(test_conn, MIGRATIONS)
+    yield test_conn
+    test_conn.close()
+
+
+@pytest.fixture()
+def object_store(minio_s3: dict[str, Any]) -> Any:
+    from causal.shared.persistence import ObjectStore
+
+    return ObjectStore(minio_s3["client"], minio_s3["bucket"])
