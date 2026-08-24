@@ -96,8 +96,9 @@ No persistence, S3, PostgreSQL, event, registry, or trace code in this task.
 ## Tests (required)
 
 - Canonical: key-order permutations of the same nested dict give identical
-  bytes and hash; NFC vs NFD strings normalize to the same bytes; NaN/Inf
-  raise `non_finite_number`; `datetime`/`bytes`/`set` raise
+  bytes and hash; NFC vs NFD strings normalize to the same bytes; two keys
+  that collide under NFC raise `duplicate_key_after_normalization` (D-006);
+  NaN/Inf raise `non_finite_number`; `datetime`/`bytes`/`set` raise
   `unsupported_type`; `None` values survive; repeated hashing is identical
   (replay). One bounded hypothesis property: hash invariance under dict key
   insertion order.
