@@ -27,6 +27,8 @@ Recomputed and updated by Fable at every doc freeze
 |---|---|---|---|---|---|---|---|
 | T-001 | Repo scaffolding, uv lock, budget checker | shared (SC §14, §14.1) | — | single-session (D-008) | ACCEPTED | yes | commit `4f7cbaf`; 154 pkgs resolved; 36 tests; budget `within_budget` |
 | T-002 | Shared contract kernel (canonical, hashing, envelopes) | shared (SC §2, §3, §8.2) | T-001 | single-session (D-008) | ACCEPTED | yes | commit `bd6c985`; canonical.py adopted from causal-final-de draft with D-006 fix; 40 tests; maps to EV-SYS-001; budget `within_budget` (shared 158, tests 576) |
+| T-003 | OperationalEventV1 + NDJSON emitter | shared (SC §10.1) | T-002 | single-session (D-008) | ACCEPTED | yes | commit `7b96eeb`; 28 event names; 21 tests; maps to EV-SYS-005 |
+| T-004 | Artifact-type registry + seeded registrations | shared (SC §3.1) | T-002 | single-session (D-008) | ACCEPTED | yes | commit `99d0132`; registry fail-closed on unsupported_schema; 2 rows seeded (D-012); 11 tests; maps to EV-SYS-001/EV-SYS-006 |
 
 ## Decision log
 
@@ -42,6 +44,14 @@ Append-only. One line per decision: date, decision, why.
 - 2026-08-24 — D-007: `payload_locator` is exempt from the 200-char identity cap; its own cap is 1024 chars. (Raised by Opus during T-002 drafting.)
 - 2026-08-24 — Enforcement finding: write-guard hooks verified live in fresh sessions (headless probe denied correctly) but inert in sessions that predate the settings file or have not approved project hooks; every interactive session must run /hooks once (or restart and accept the hook prompt) and then verify behaviorally.
 - 2026-08-24 — D-008: User dissolved the two-terminal Fable/Opus model. Single session architects and implements; hooks removed from settings (scripts kept inert in .claude/hooks/); ledger/checkpoint discipline retained. T-001/T-002 reassigned to the main session. Budget-checker path exclusions fixed as: docs/**, .claude/**, CLAUDE.md, .gitignore, .python-version, pyproject.toml, uv.lock, README.md.
+- 2026-08-24 — D-009: `registries/` is a top-level declarative-scope directory for static registries.
+- 2026-08-24 — D-010: Static registries are JSON, not YAML (stdlib-parseable; the pinned stack has no YAML parser and none is added).
+- 2026-08-24 — D-011: Canonical component IDs: intake-coordinator, design-harness, preparation-harness, estimation-harness, presentation-coordinator, cli, runtime.
+- 2026-08-24 — D-012: artifact-types registry file is append-only; each stage task appends its rows once the owning PRD is read, so no parent-type name is invented ahead of its PRD.
+- 2026-08-24 — D-013: `Stage` enum includes `system` for shared/CLI/runtime components acting outside one stage.
+- 2026-08-24 — D-014: OperationalEventV1 `versions` keys are the closed set {model, prompt, tool, registry, schema, validator, compiler, renderer}.
+- 2026-08-24 — D-015: `token_usage` keys are the closed set {input, output, thinking, total}.
+- 2026-08-24 — D-016: The emitter (not the model) enforces name registration and requires non-empty `required_eval_ids` on task./agent./tool./handoff. events.
 
 ## Checkpoint log
 
@@ -50,3 +60,5 @@ One line per checkpoint commit: date, commit subject, what state it freezes.
 - 2026-08-24 — `4f7cbaf` T-001: environment (exact §14 pins, uv.lock), package skeleton, budget checker + 36 tests.
 - 2026-08-24 — `bd6c985` T-002: canonical serialization + hashing + ArtifactEnvelopeV1/HandoffManifestV1 + 40 tests. Full suite 76 green.
 - 2026-08-24 — Environment note: repo lives under ~/Documents (likely iCloud-synced); macOS set UF_HIDDEN on venv files, which makes Python 3.12 silently skip .pth files. Cleared with `chflags nohidden`; if imports break again after re-sync, re-run: `find .venv -flags +hidden -exec chflags nohidden {} +`
+- 2026-08-24 — `7b96eeb` T-003: OperationalEventV1 + emitter, 21 tests.
+- 2026-08-24 — `99d0132` T-004: artifact-type registry + seeded rows, 11 tests. Full suite 107 green; budget `within_budget` (shared 355, tests 769, declarative 35, 13 modules).
