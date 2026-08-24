@@ -25,13 +25,19 @@ Recomputed and updated by Fable at every doc freeze
 
 | Task ID | Title | Owning PRD | Depends on | Model | Status | Doc hashes verified | Notes |
 |---|---|---|---|---|---|---|---|
-| _none yet_ | | | | | | | |
+| T-001 | Repo scaffolding, uv lock, budget checker | shared (SC §14, §14.1) | — | opus | READY_FOR_OPUS | pending | spec `docs/tasks/T-001-repo-scaffolding.md` hash `1767ff9d46eb9ce69d2d672ec6c1246bd9685b12796598536901de70dc12ab70`; terminal causal-final-6a |
+| T-002 | Shared contract kernel (canonical, hashing, envelopes) | shared (SC §2, §3, §8.2) | T-001 (env to run tests) | opus | READY_FOR_OPUS | pending | spec `docs/tasks/T-002-shared-contract-kernel.md` hash `3f9beb5f4077422d74bddd0c821a01c4c6d0ffce3286c86355eab59bb6d22ed3`; terminal causal-final-de; maps to EV-SYS-001 |
 
 ## Decision log
 
 Append-only. One line per decision: date, decision, why.
 
 - 2026-08-24 — Repository initialized with two-terminal Fable/Opus write-ownership enforcement (hooks in `.claude/`). Rationale: mechanical enforcement of the role contract instead of honor-system.
+- 2026-08-24 — D-001: Task specs live as one file per task under `docs/tasks/`, referenced from PRDs/contract by section; keeps frozen PRDs stable and hashes per-task.
+- 2026-08-24 — D-002: Wave 1 = T-001 (scaffolding) ∥ T-002 (contract kernel); disjoint write sets, T-002 depends on T-001 only for the runnable environment.
+- 2026-08-24 — D-003: The §14.1.1 budget checker lives at `tools/budget_check.py`, standard library only, assigned to the tests scope for counting (verification tooling, not production behavior). Open to revision if Opus shows a contradiction.
+- 2026-08-24 — D-004: Canonical JSON = UTF-8, code-point-sorted keys, `(",", ":")` separators, NFC strings, no NaN/Inf, None preserved, RFC 3339 UTC timestamps with exactly 6 fractional digits and `Z`; hashes are bare 64-char lowercase hex.
+- 2026-08-24 — D-005: Identity fields are non-empty strings ≤200 chars at the envelope layer; stricter per-identity formats are enforced at creation sites, not in shared contracts.
 
 ## Checkpoint log
 
