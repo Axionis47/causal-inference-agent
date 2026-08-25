@@ -168,3 +168,14 @@ already its semantics; no design change.
 Tests (≤ 25 lines): a profiles fixture with no provider metadata asserts one structural
 `presence` row per column and that the design manifest's structural inventory over
 those rows lists all columns.
+
+## Amendment 4 — the user's question as citable evidence (2026-08-25, pilot finding, D-065)
+
+Intent claims must cite evidence, but no allowlisted id represents the user's question,
+so live models fabricated one (`question-text-001`) and wall 2 failed every claim.
+Fix (intake, ≤ +3 logical lines): the coordinator appends one item
+`{"evidence_id": "ua:question/text", "scope_kind": "dataset", "table_name": null,
+"column_name": null, "source_field": "question_text", "value": <question text>}` to the
+EvidenceBundle payload before commit. The `ua:` prefix already resolves to
+`user_confirmation` (shared validation §10.2 table). Test asserts the item exists and
+carries the question text.

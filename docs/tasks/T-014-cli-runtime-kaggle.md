@@ -88,3 +88,14 @@ Fix (runtime scope only; cli and design untouched — design sits at 3,398/3,400
    `failed_observability`). No raw traceback may escape `cli.main` for either.
 
 Budgets: runtime ≤ 800 total; tests additions ≤ 60 lines.
+
+## Amendment 4 — flat live metadata shape (2026-08-25, pilot finding, D-065)
+
+The live SDK's `dataset-metadata.json` nests everything under `"info"`, while the
+capture contract and `build_evidence_bundle` read a flat mapping (the T-008 fixture
+shape). Live result: zero dataset-level evidence items despite present
+title/subtitle/description. Fix (runtime, ≤ +3 logical lines):
+`LiveKaggleClient.dataset_metadata` returns the flat dict — when the parsed file is
+`{"info": {...}}` (possibly with siblings), merge `info`'s entries over the top level
+and drop the `info` key. Unit test with the nested live shape asserts flatness and
+value survival.

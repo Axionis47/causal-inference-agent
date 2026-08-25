@@ -169,3 +169,30 @@ Fix (declarative + tests only; zero production lines):
 3. Test (≤ 20 lines, tests scope): every `design.`/`dataset.`/`column.` requirement id
    mentioned in any prompt template exists in `context-requirements.v1.json`, and every
    template that permits requirements names at least one registered id.
+
+## Amendment 4 — evidence allowlist hydration + authored-constants guidance (2026-08-25, pilot finding, D-065)
+
+Wall 2 admits only envelope-allowlisted evidence ids, but prompts never render the
+allowlist; models also author `registry_version` and `expected_answer_schema` blind.
+Three-part fix:
+
+1. **Pull the D-059 agenttask consolidation forward (T-019 prep):** move `_invoke` and
+   `_run_task` from `design/harness_base.py` into `shared/agenttask.py` with the
+   minimal parameterization the design harness needs (deps/gateway/emitter/clock stay
+   injected; design keeps thin delegating methods or direct calls; public design API
+   and all existing tests keep working). Shared stays ≤ 2,500; agenttask.py ≤ 350.
+2. **Hydrate the allowlist:** the moved runner appends an `## allowed_evidence` section
+   (the envelope's sorted `allowed_evidence_ids`, one per line; `(none)` when empty) to
+   every rendered prompt before the gateway call.
+3. **Prompts (declarative, in place, pre-baseline):** every design template's
+   requirement section adds: `registry_version` is exactly
+   `context-requirements.v1`; `expected_answer_schema` must be the registered
+   template's answer schema (list each permitted id's schema in the existing
+   vocabulary lines from `context-requirements.v1.json`); claims cite ONLY ids from
+   `## allowed_evidence` — a fact with no allowlisted support is a `hypothesis` claim
+   with empty citations, never an invented id.
+
+Tests (≤ 45 lines): moved-runner unit coverage via the existing scripted design e2e
+(no regression), one assertion that rendered prompts contain the `## allowed_evidence`
+section with an envelope-known id, and the prompt-vocabulary test extended to check
+each listed answer schema exists in the registry row it belongs to.
