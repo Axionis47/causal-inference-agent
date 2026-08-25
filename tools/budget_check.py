@@ -46,11 +46,11 @@ EXCLUDED_PREFIXES = ("docs/", ".claude/")
 PRODUCTION_SCOPES = ("shared", "cli", "runtime", "intake", "design", "preparation", "estimation", "presentation")
 CEILINGS = {
     "shared": 2500, "cli": 500, "runtime": 800, "intake": 1200, "design": 3400,
-    "preparation": 2000, "estimation": 4000, "presentation": 1500, "tests": 8000, "declarative": 3000,
+    "preparation": 3000, "estimation": 4000, "presentation": 1500, "tests": 9000, "declarative": 3500,
 }
 PRODUCTION_TOTAL_CEILING = 15_000
 GRAND_TOTAL_CEILING = 26_000
-MAX_PRODUCTION_MODULES = 50
+MAX_PRODUCTION_MODULES = 68
 MAX_MODULE_LINES = 350
 MAX_FUNCTION_LINES = 75
 WARNING_FRACTION = 0.8

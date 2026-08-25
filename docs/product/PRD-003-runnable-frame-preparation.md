@@ -1402,8 +1402,9 @@ The consolidated stack in `SYSTEM-CONTRACT.md` is authoritative.
     LangSmith span.
 37. The shared `causal run` command passes only typed identities into PRD-003, runs synchronously
     to a terminal preparation boundary, and never prompts the user or exposes graph state.
-38. PRD-003 implementation remains within the non-transferable 2,000-line `preparation`
-    allocation in `SYSTEM-CONTRACT.md`; every coding task passes the shared forecast,
+38. PRD-003 implementation remains within the non-transferable 3,000-line `preparation`
+    allocation in `SYSTEM-CONTRACT.md` (2,000 at initial freeze; revised by explicit user
+    approval (D-058) on 2026-08-25); every coding task passes the shared forecast,
     measurement, and bounded rethink gate without implementing estimator or presentation logic.
 
 ## 23. Deliberately deferred
@@ -1423,3 +1424,79 @@ The consolidated stack in `SYSTEM-CONTRACT.md` is authoritative.
 
 These require PRD-004, a later extension, or a new approved PRD-002 design revision. They are not
 hidden fallback behavior inside preparation.
+
+## 24. Amendment 1 — V1-lite (approved by the user, 2026-08-25)
+
+The user approved this amendment with the PRD-003 build plan on 2026-08-25 (ledger D-057). It
+narrows V1 implementation ceremony without weakening any causal-integrity guarantee. Where this
+section conflicts with earlier sections, this section governs V1. The unchanged core: immutable
+source CSV; rows removed only by approved deterministic rules with exactly one terminal
+disposition each; the row set frozen by `row_set_hash`; dimension-impact and method-structure
+validation before freeze; registered operations only, executed sequentially, each proven by an
+immutable `ExecutionReceipt` plus passing postcondition; protected roles never imputed; conflicts
+return to PRD-002 as typed `DesignConflict`; no user interrupt; a new graph thread; the Section
+18 observability contract.
+
+### 24.1 Agent I/O: hydrated single-shot tasks
+
+The `PreparationAgent` runs the same pattern the design stage runs under ledger D-053: the
+harness deterministically computes every inspection, profile, gap, impact, and registry fact (it
+must, for the validation walls), compiles the task-relevant subset into the
+`AgentTaskEnvelopeV1`, and one model call returns `PreparationTaskDraftV1` or
+`DesignConflictDraftV1` (one initial response plus at most two targeted corrections). There is no
+model-driven tool loop in V1. The Section 17 tool tables are re-scoped: the "agent-facing"
+inspection and preview tools name harness capabilities whose outputs are hydrated into
+envelopes; the action, freeze, materialization, and commit tools remain exactly as specified —
+harness-executed against committed plan items, with every Section 17 guard intact. The model
+never names rows, predicates, code, or replacement values. A bounded read-only pull loop may be
+added later only through a new user-approved amendment backed by pilot or eval evidence
+(extending the D-053 revisit clause).
+
+### 24.2 Artifact consolidation (Section 5.1's list → nine registered types)
+
+1. `PreparationContextManifest` — unchanged (Section 7.2).
+2. `StabilizationRecord` — folds `SourceRowIndex` (summary + object pointer),
+   `EligibilityEvaluation`, `RowDispositionLedger` (summary + object pointer),
+   `DimensionImpactReport`, `RowSetFreeze` (including `row_set_hash`), and the
+   pre/post-stabilization diagnostic results. Row-level payloads remain content-addressed
+   objects referenced by ID and hash.
+3. `StabilizedFrame` — unchanged.
+4. `PreparationPlan` — folds `RowStabilizationPlan`, `RepairPlan`, `ImputationPlan`,
+   estimator-scoped recipes, and the task-graph/grouping metadata of Section 7.4. Plan items
+   keep their per-item IDs, registered operation references, and fit scopes.
+5. `ExecutionReceiptBundle` — all per-item receipts plus operation-level lineage (per-column
+   change counts, missingness before/after, imputed-cell mask object pointer). Replaces the
+   per-cell `CellTransformationLedger`: because the source and stabilized frames are immutable
+   and every operation is registered and deterministic, any cell is recoverable by replaying the
+   receipted operation chain; this replay-recoverability replaces per-cell hash rows in V1.
+6. `PreparedFrame` — unchanged.
+7. `PreparedFrameBundle` — its Section 5.1 content list is satisfied through the consolidated
+   parents above; one `row_set_hash` shared by stabilized and prepared frames, unchanged.
+8. `PreparationOutcome` — unchanged (Section 5.2 statuses).
+9. `DesignConflict` — unchanged (Section 16).
+
+Task envelopes, task outputs, previews, and attempt state are operational rows in the
+`preparation` schema and trace payloads, not registered artifact types.
+
+### 24.3 Validation walls (Section 14's thirteen → six, same checks grouped)
+
+1. entry/handoff (walls 1); 2. rows: parse + eligibility + disposition (walls 2–4);
+3. impact + method structure + row freeze (walls 5–7); 4. plan (wall 8);
+5. execution: receipt + output hash + postcondition + row invariance + lineage (walls 9–11);
+6. final: diagnostics + runnable-frame contract (walls 12–13). Ordering and the
+no-later-wall-waiver rule are unchanged.
+
+### 24.4 Row identity
+
+`source_row_id` derives from the selected CSV artifact hash, the one-based parsed row number,
+and a canonical content hash of the parsed row values under the pinned parser profile —
+replacing the physical record-byte hash and raw-byte scanner of Section 8. Identical duplicate
+rows stay distinguishable via the row number. Records the pinned parser cannot represent
+resolve to `unusable_corrupt_record` through the parser's own typed errors; parser-drift
+byte-forensics is deferred with the scanner.
+
+### 24.5 Budget
+
+Acceptance criterion 38 now binds at the revised 3,000-line `preparation` allocation (D-058).
+Criteria 3, 22, 26–28, and 35 are read through this amendment's consolidations; every other
+criterion binds verbatim.

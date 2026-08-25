@@ -211,7 +211,7 @@ artifacts under the same rule.
 | `RunnableFrameContract` | PRD-002 design harness | PRD-003 and PRD-004 | exact approved `ExperimentDesign` | `approved`, `superseded` | PRD-003 then PRD-004 |
 | `DeliveryCapacityCheck[design_approval]` | PRD-002 design harness | PRD-003 and PRD-004 entry gates plus PRD-004 recheck gate | exact design, method/capacity registries, visualization catalog | `pass`, `fail` | explicit PRD-002→003 and PRD-003→004 handoff entry; then PRD-004 recheck input |
 | `DeliveryCapacityCheck[pre_estimation]` | PRD-004 capacity validator | PRD-004 estimator gate and PRD-005 entry gate | design-time check, exact estimation plan, prepared structure, method/capacity registries, visualization catalog | `pass`, `fail` | estimator access and presentation entry |
-| `PreparedFrameBundle` | PRD-003 preparation harness | PRD-004 entry gate | source CSV, design, frame contract, approved design-time capacity check, row-set freeze, prepared frame, receipts, diagnostics, lineage | `prepared` | PRD-004 only with a `prepared` stage outcome |
+| `PreparedFrameBundle` | PRD-003 preparation harness | PRD-004 entry gate | selected table, design, frame contract, approved design-time capacity check, stabilization record (row-set freeze, dispositions, impact, diagnostics), stabilized and prepared frames, execution-receipt bundle carrying operation-level lineage (consolidated per PRD-003 Amendment 1) | `prepared` | PRD-004 only with a `prepared` stage outcome |
 | `EstimationBundle` | PRD-004 estimation harness | PRD-005 entry gate | design, prepared bundle, pre-estimation capacity check, estimation plan, primary result, uncertainty, diagnostic, sensitivity, figure-data, and judgment artifacts | `complete` | PRD-005 only with a `complete` stage outcome |
 | `ClaimJudgment` | PRD-004 claim validator | PRD-005 entry gate and delivery validator | one claim-review draft or deterministic non-estimable disposition, judgment ceiling, primary result, diagnostics, sensitivities | `reportable`, `reportable_with_qualifications`, `not_reportable`, `not_estimable`, `failed` | PRD-005 only for reportable statuses |
 | `FigureDataBundle` | PRD-004 deterministic figure-data fan-in | PRD-005 coordinator/compiler | exact required visual-evidence declarations and frozen statistical parents | `complete`, `failed` | PRD-005 only when complete |
@@ -303,7 +303,7 @@ most two targeted schema corrections and returns to the named deterministic vali
 | PRD-002 `RoleEvidenceTaskContext` | `list_intake_inventory`, `get_semantic_evidence`, `get_provenance` | `RoleEvidenceDraftV1[]` or requirements | evidence validator → committed evidence artifacts → causal synthesis packet builder |
 | PRD-002 `CausalSynthesisTaskContext` | `list_intake_inventory`, `get_semantic_evidence`, `get_provenance`, `validate_causal_model` | `CausalSynthesisDraftV1` | causal validator → committed causal context/role-ledger artifacts → method packet builder |
 | PRD-002 `MethodDesignTaskContext` | `list_intake_inventory`, `get_semantic_evidence`, `get_measured_facts`, `get_provenance`, `get_method_contract`, `run_preflight_diagnostic`, `preview_eligibility_impact` | `MethodDesignDraftV1` | design validator → committed experiment-design/frame-contract drafts → approval harness |
-| PRD-003 `PreparationTaskContext` | exact `preparation.agent-tools.v1`: inspection, bounded profile, registered preview/action/diagnostic tools listed in PRD-003 Section 17; no generic read/write/code tool | `PreparationTaskDraftV1` or `DesignConflictDraftV1` | preparation-plan validator → committed proposals → preparation fan-in; every action then returns to postcondition validator |
+| PRD-003 `PreparationTaskContext` | none at runtime — the harness hydrates the frozen inspection, profile, gap, impact, and registry facts into the envelope (V1-lite, PRD-003 Amendment 1; the same single-shot pattern the design rows run under D-053); the registered preview/action/diagnostic operations of PRD-003 Section 17 execute harness-side against committed plan items; no generic read/write/code tool | `PreparationTaskDraftV1` or `DesignConflictDraftV1` | preparation-plan validator → committed proposals → preparation fan-in; every action then returns to postcondition validator |
 | PRD-004 `ClaimReviewContext` | none | `ClaimJudgmentDraftV1` with one claim item per primary result item | claim validator → committed `ClaimJudgment` → figure-data/bundle validation |
 | PRD-005 `PresentationCuratorContext` | `resolve_registered_layout_facts` only, maximum one call | `FigurePlanDraftV1` or typed inability | plan validator → committed `FigurePlan` → deterministic compiler |
 
@@ -860,13 +860,14 @@ Production Python lives only under `src/causal/` and has these non-transferable 
 | runtime composition | `src/causal/runtime/` | 800 | concrete startup, stage dispatch, dependency construction, and shutdown only; no domain logic |
 | PRD-001 | `src/causal/intake/` | 1,200 | intake responsibilities in PRD-001 |
 | PRD-002 | `src/causal/design/` | 3,400 | design responsibilities in PRD-002 (2,500 at initial freeze; revised by explicit user approval to 2,750 (D-051) and 3,400 (D-055) on 2026-08-25) |
-| PRD-003 | `src/causal/preparation/` | 2,000 | preparation responsibilities in PRD-003 |
+| PRD-003 | `src/causal/preparation/` | 3,000 | preparation responsibilities in PRD-003 (2,000 at initial freeze; revised by explicit user approval to 3,000 (D-058) on 2026-08-25) |
 | PRD-004 | `src/causal/estimation/` | 4,000 | all four method adapters, uncertainty, diagnostics, sensitivities, figure-data builders, and judgment |
 | PRD-005 | `src/causal/presentation/` | 1,500 | presentation responsibilities in PRD-005 |
 | **Production total** | `src/causal/` | **15,000** | hard ceiling across every package |
 
-Unused lines in one package cannot be consumed by another. Production is also limited to 50
-hand-authored Python modules, 350 logical lines in one production module, and 75 logical lines in
+Unused lines in one package cannot be consumed by another. Production is also limited to 68
+hand-authored Python modules (50 at initial freeze; revised by explicit user approval (D-058) on
+2026-08-25), 350 logical lines in one production module, and 75 logical lines in
 one function or method. A module or function limit has the same blocking force as a package or
 total limit; splitting code solely to satisfy a line limit fails review.
 
@@ -874,8 +875,8 @@ The remaining repository ceilings are:
 
 | Scope | Maximum logical lines | Rule |
 |---|---:|---|
-| tests | 8,000 | parameterized tests and shared fixtures are preferred; helpers cannot contain production behavior or alternate implementations |
-| migrations, static registries, and prompt templates | 3,000 | declarative values only; no executable application logic |
+| tests | 9,000 | parameterized tests and shared fixtures are preferred; helpers cannot contain production behavior or alternate implementations (8,000 at initial freeze; revised by explicit user approval (D-058) on 2026-08-25) |
+| migrations, static registries, prompt templates, and evaluation catalogs | 3,500 | declarative values only; no executable application logic (3,000 at initial freeze; revised by explicit user approval (D-058) on 2026-08-25) |
 | total human-authored implementation | 26,000 | production + tests + migrations/registries/prompts; documentation is reported separately |
 
 `uv.lock`, vendored third-party assets, raw test datasets, and generated render fixtures are
