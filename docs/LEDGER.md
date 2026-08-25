@@ -32,7 +32,7 @@ Recomputed and updated by Fable at every doc freeze
 | T-005 | Persistence + §8.2 commit protocol | shared (SC §3, §4, §8) | T-002, T-003, T-004 | single-session (D-008) | ACCEPTED | yes | commit `c2fc732`; 14 dockerized integration tests (postgres:18.6 + MinIO); trace-flush gate deferred (D-020); maps to EV-SYS-001/EV-SYS-004 |
 | T-006 | Handoff persistence + acceptance gate | shared (SC §3, §3.1, §8.1) | T-005 | single-session (D-008) | ACCEPTED | yes | commit `ec5db6d`; fail-closed, all codes collected; 11 dockerized tests; maps to EV-SYS-006 |
 | T-007 | Intake core: contracts, registrations, archive, profiler | PRD-001 (§5.5–§8) | T-004 | single-session (D-008) | ACCEPTED | yes | commit (see checkpoint log); 6 registry rows appended; 58 tests; maps to EV-P1-003/EV-P1-004 |
-| T-008 | Intake capture + catalog + coordinator + handoff | PRD-001 (§4, §9–§13) | T-005, T-006, T-007 | single-session (D-008) | IN_PROGRESS | yes | spec frozen at `docs/tasks/T-008-intake-capture-catalog-coordinator.md`; decisions D-027..D-036 |
+| T-008 | Intake capture + catalog + coordinator + handoff | PRD-001 (§4, §9–§13) | T-005, T-006, T-007 | single-session (D-008) | ACCEPTED | yes | commit `e613eed`; spec + amendments D-027..D-038; 34 tests; maps to EV-P1-001/002/005; budget `warning` (intake 1180/1200, coordinator 329/350 — both inside limits, near them) |
 
 ## Decision log
 
@@ -91,3 +91,6 @@ One line per checkpoint commit: date, commit subject, what state it freezes.
 - 2026-08-24 — `c2fc732` T-005: persistence + commit protocol, 14 dockerized tests. Suite 121.
 - 2026-08-24 — `ec5db6d` T-006: handoff store + gate, 11 dockerized tests. Suite 132.
 - 2026-08-24 — `87629ec` T-007: intake core (contracts/archive/profiler + 6 registry rows), 58 tests. Suite 181 green; budget `within_budget` (shared 745, intake 344, tests 1570, declarative 166; 18 modules).
+- 2026-08-24 — `faad0c8`/`a26c270` T-008 spec frozen + two pre-implementation amendments (D-027..D-038).
+- 2026-08-24 — `e613eed` T-008: Kaggle capture Protocol, field-class registry, evidence/semantic-map builders, catalog migration + 5 views, coordinator with idempotency/refusals/handoff opening, shared build_event/build_envelope. 34 tests; suite 215 green; budget `warning` (intake 1180/1200, shared 792/2500, tests 2050/8000, declarative 291/3000, largest module 329/350; 25 modules). Intake budget is nearly exhausted by design — PRD-001 is complete; nothing further lands in the intake scope except fixes.
+- 2026-08-24 — Environment note: the UF_HIDDEN/.pth issue recurred mid-session and was cleared again with `find .venv -flags +hidden -exec chflags nohidden {} +`. MinIO fixture now retries on XMinioServerNotInitialized, not just connection refusal.
