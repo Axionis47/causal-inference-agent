@@ -213,3 +213,24 @@ crashed instead of correcting. Fix (shared scope):
    `schema_invalid` correction path — never an uncaught exception.
 3. Tests (≤ 25 lines): the many schema shape; a scripted result without `items` on a
    many-task consumes a correction instead of crashing.
+
+## Amendment 6 — slot vocabulary in the semantic prompt; issue detail in corrections (2026-08-25, pilot finding, D-067)
+
+Live semantic cards failed wall 1 three times with IDENTICAL near-miss slot keys
+(`measures`, `missing_value_sentinels`, `timing_of_measurement`): the card validator
+requires exactly `COLUMN_CARD_SLOTS` (12 keys), the prompt never names them, and
+`ValidationIssueV1` carries no message — the correction body said only
+`shape_invalid` at `/payload/`, so a deterministic model repeated itself.
+
+Fix:
+1. **Declarative:** `prompts/design/semantic.v1.txt` lists the 12 required slot keys
+   verbatim from `causal.design.semantics.COLUMN_CARD_SLOTS`, each with a half-line
+   cue, and states the `slots` mapping must contain exactly these keys. The prompt
+   vocabulary test extends to assert the 12 listed keys equal `COLUMN_CARD_SLOTS`.
+2. **Shared validation (≤ +4 logical lines):** `ValidationIssueV1` gains
+   `detail: str = ""` (additive, default keeps every existing constructor working);
+   `shape_report` fills it with the pydantic error message truncated to 200 chars.
+   Correction bodies already serialize issues with `model_dump`, so the detail reaches
+   the model with no further change. Events are untouched (they carry codes only).
+3. Tests (≤ 15 lines): shape_report carries the message; the semantic-prompt key list
+   matches the constant.
