@@ -151,3 +151,21 @@ Fix:
    (payload properties present, not bare `{"type": "object"}`).
 
 Budgets: shared ≤ 2,500; design ≤ 3,400; tests additions ≤ 45 lines.
+
+## Amendment 3 — registered requirement vocabulary in prompts (2026-08-25, pilot finding, D-064)
+
+Live intent runs raised context requirements with invented ids (`req-treatment-cols-1`):
+wall 2 rejects `unknown_requirement_id`, and the correction report names the failed rule
+but not the allowed vocabulary, so corrections cannot converge. The registered ids live
+only in `registries/context-requirements.v1.json`.
+
+Fix (declarative + tests only; zero production lines):
+1. Each of the five `prompts/design/*.v1.txt` templates gains a short "Context
+   requirements" section: requirements MUST use one of the registered template ids,
+   followed by the closed id list with a half-line usage cue each (from the registry;
+   intent/semantic/role/synthesis/method may list only the ids meaningful to that task).
+2. Edited in place without a version bump: no eval baseline exists yet (T-020 pending),
+   recorded in the ledger as a pre-baseline prompt revision.
+3. Test (≤ 20 lines, tests scope): every `design.`/`dataset.`/`column.` requirement id
+   mentioned in any prompt template exists in `context-requirements.v1.json`, and every
+   template that permits requirements names at least one registered id.

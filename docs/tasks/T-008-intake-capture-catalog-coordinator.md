@@ -149,3 +149,22 @@ column, whose pointer names the `TableProfile` artifact and the column path.
 
 The shared docker fixtures move from `tests/shared/conftest.py` to
 `tests/conftest.py` so intake integration tests reuse them unchanged.
+
+## Amendment 3 — structural rows for profiled columns (2026-08-25, pilot finding, D-064)
+
+A zero-column-metadata Kaggle dataset (0/87 semantic slots offered) produced an empty
+`catalog.structural_manifest` for its table: per-column rows existed only in the
+`measured` class, so the design stage's `structural_inventory` — and therefore every
+model task's column list — was empty. A profiled column's existence is structural fact
+independent of provider metadata.
+
+Fix (intake scope, ≤ +3 logical lines): `semantic.measured_index_rows` additionally
+emits, per profiled column, one `FieldIndexRow("column", table, column, "presence",
+ContextClass.STRUCTURAL, SemanticStatus.EVIDENCED, 0, pointer)` alongside the measured
+row (same profile pointer). `entry._structural_inventory` then lists every profiled
+column with `dtype="undeclared"` unless a provider type slot is also evidenced —
+already its semantics; no design change.
+
+Tests (≤ 25 lines): a profiles fixture with no provider metadata asserts one structural
+`presence` row per column and that the design manifest's structural inventory over
+those rows lists all columns.
