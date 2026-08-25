@@ -121,3 +121,33 @@ Per SC §14.1.2 the revised projection still breaches, so T-013 is
 
 Smallest identified scope reduction if neither is approved: none exists inside the frozen
 PRD; the block stands.
+
+## Amendment 2 — real response schema for model tasks (2026-08-25, pilot finding, D-063)
+
+The first live design run failed `correction_exhausted`: `harness_base._invoke` passes
+`{"type": "object"}` as the gateway `response_schema`, so Vertex constrained decoding
+deterministically emits `{}` at temperature 0.0 (all three attempts identical). The
+registered draft schema never reached the model. Live probe (2026-08-25, gemini-2.5-flash,
+Vertex `v1`, google-genai 2.19.0) confirmed the API accepts a raw
+`model_json_schema()` dict **including `$defs`/`$ref`**, and the model then emits the
+full `AgentTaskResultV1` structure.
+
+Fix:
+
+1. New `src/causal/shared/agenttask.py` (shared scope, ≤ 25 logical lines):
+   `result_schema(draft: type[BaseModel]) -> dict[str, object]` — deep-copy
+   `AgentTaskResultV1.model_json_schema()`, replace `properties.payload` with the
+   draft's schema (draft `$defs` merged into the result schema's `$defs`; a key
+   collision with a non-identical definition raises), memoized per draft class
+   (schemas are static; determinism and no per-call rebuild). This module is the
+   planned seed of the T-019 `agenttask` consolidation (D-059).
+2. `design/harness_base._invoke` gains a `draft: type[BaseModel]` parameter;
+   `_run_task` passes its `model`; the gateway call passes
+   `agenttask.result_schema(draft)` instead of `{"type": "object"}`. Design scope is at
+   3,398/3,400 and harness_base at 340/350 — the edit must land within both; trim
+   within the touched lines if needed.
+3. Tests: shared — payload replaced, `$defs` union, collision raises, memoization;
+   design — a capturing FakeGateway asserts one task kind receives the merged schema
+   (payload properties present, not bare `{"type": "object"}`).
+
+Budgets: shared ≤ 2,500; design ≤ 3,400; tests additions ≤ 45 lines.
