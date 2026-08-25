@@ -38,7 +38,7 @@ Recomputed and updated by Fable at every doc freeze
 | T-011 | Method-pack manifests, triage, DesignContextManifest, tool surface, entry gate | PRD-002 (§4, §5, §9, §13, §15) | T-009 | single-session + opus subagents (D-041) | ACCEPTED | yes | commit (see checkpoint log); 67 new tests, suite 457 green; rethink consumed (make_retrieval_handlers 88→module-level handlers); maps to EV-P2-001/003, EV-SYS-002; design 1492/2500, declarative 1324/3000 |
 | T-012 | Validation walls, ask gate, diagnostics, delivery capacity | PRD-002 (§10, §11, §14, §16.3, §13.5) | T-011 | single-session + opus subagents (D-041) | ACCEPTED | yes | commit (see checkpoint log); 139 new tests, suite 596 green; rethink consumed (2517→2454 via D-048 move); maps to EV-P2-004/005/006/007, EV-SYS-002; design 2454/2500 — T-013 must budget via further consolidation |
 | T-013 | Agents, prompts, LangGraph graph, interrupts, renderer, coordinator, outcome + handoff | PRD-002 (§8, §9, §12.3, §19–§23) | T-010, T-012 | single-session + opus subagents (D-041) | ACCEPTED | yes | commit (see checkpoint log); 54 new tests, suite 650 green incl. e2e approved runs + durable resume; unblocked by D-055 (design 3,400); graph split into harness_base/harness_nodes/graph (340/277/~236); maps to EV-P2-001..008; design 3,398/3,400 |
-| T-014 | CLI seven commands, runtime composition, live Kaggle adapter | shared (SC §1.1) + PRD-002 §11.1 | T-013 | single-session + opus subagents (D-041) | DRAFT | — | closes D-034 |
+| T-014 | CLI seven commands, runtime composition, live Kaggle adapter | shared (SC §1.1) + PRD-002 §11.1 | T-013 | single-session + opus subagents (D-041) | IN_PROGRESS | yes | spec frozen `docs/tasks/T-014-cli-runtime-kaggle.md`; closes D-034 |
 
 ## Decision log
 
