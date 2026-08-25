@@ -13,7 +13,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Final, NamedTuple, Protocol, TextIO, cast
+from typing import Any, Final, Protocol, TextIO, cast
 
 import psycopg
 from psycopg import Connection
@@ -24,6 +24,7 @@ from causal.design import compile as compiler
 from causal.intake import catalog, coordinator, fields, outcome
 from causal.intake import contracts as intake
 from causal.intake.kaggle import KaggleClientProtocol
+from causal.runtime import failures
 from causal.runtime.kaggle_live import LiveKaggleClient
 from causal.shared import events, gateway, persistence, tracing
 from causal.shared.canonical import content_hash
@@ -33,7 +34,6 @@ from causal.shared.validation import parse_strict
 __all__ = ["CausalRuntime", "CompositionError", "RuntimeConfig", "StatusView",
            "apply_migrations", "build_runtime", "build_tracer", "startup_fingerprint"]
 
-COMPONENT, VERSION = "cli-runtime", "cli-runtime.v1"
 REPO_ROOT: Final = Path(__file__).resolve().parents[3]
 ANALYSIS_BUSY, CONFIGURATION_MISSING = "analysis_busy", "configuration_missing"
 DUPLICATE_KEY, FINGERPRINT_MISMATCH = "duplicate_idempotency_key", "fingerprint_mismatch"
@@ -53,9 +53,6 @@ _TABLES: Final = ("CREATE TABLE IF NOT EXISTS public.causal_migrations (filename
                   "CREATE TABLE IF NOT EXISTS public.causal_command_keys (idempotency_key text"
                   " PRIMARY KEY, command_name text NOT NULL, request_hash text NOT NULL,"
                   " analysis_id text)")
-_LATEST_RUN: Final = (
-    "SELECT stage_run_id, graph_thread_id, design_revision, state, outcome_artifact_id"
-    " FROM design.design_runs WHERE analysis_id = %s ORDER BY design_revision DESC LIMIT 1")
 
 
 class CompositionError(ValueError):
@@ -112,18 +109,6 @@ class _InterruptView(Protocol):
     def expected_interrupt_hash(self) -> str: ...
     @property
     def expected_revision(self) -> int: ...
-
-
-
-
-class _DesignRun(NamedTuple):
-    """One `design.design_runs` row: the committed boundary a command acts on."""
-
-    stage_run_id: str
-    thread_id: str
-    revision: int
-    state: str
-    outcome_artifact_id: str | None
 
 
 def apply_migrations(conn: Connection[Any], migrations_dir: Path) -> tuple[str, ...]:
@@ -260,9 +245,10 @@ class CausalRuntime:
                     interrupt_kind=opened.get("kind"), interrupt_hash=opened.get("interrupt_hash"),
                     interrupt_artifact_id=opened.get("interrupt_artifact_id"),
                     outcome_artifact_id=found.outcome_artifact_id)
-            return graph.run_design(
-                self.deps, analysis_id=analysis_id, thread_id=f"gt:{uuid.uuid4()}",
-                intake_outcome_artifact_id=row.intake_outcome_artifact_id)
+            started, thread_id = row.intake_outcome_artifact_id, f"gt:{uuid.uuid4()}"
+            return failures.guard(self.deps, "run", analysis_id, lambda: graph.run_design(
+                self.deps, analysis_id=analysis_id, thread_id=thread_id,
+                intake_outcome_artifact_id=started))
 
     def select_table(self, analysis_id: str,
                      decision: contracts.TableSelectionDecisionV1) -> graph.DesignRunResult:
@@ -312,14 +298,12 @@ class CausalRuntime:
             if code is not None:
                 raise self._blocked(command, analysis_id, code)
             self._claim(command, idempotency_key, analysis_id, interrupt.interrupt_id)
-            return graph.resume_design(self.deps, thread_id=found.thread_id,
-                                       resume_value=build(opened))
+            thread_id, payload = found.thread_id, build(opened)
+            return failures.guard(self.deps, command, analysis_id, lambda: graph.resume_design(
+                self.deps, thread_id=thread_id, resume_value=payload))
 
-    def _latest_design_run(self, analysis_id: str) -> _DesignRun | None:
-        row = self._conn.execute(_LATEST_RUN, (analysis_id,)).fetchone()
-        return None if row is None else _DesignRun(
-            str(row[0]), str(row[1]), int(row[2]), str(row[3]),
-            None if row[4] is None else str(row[4]))
+    def _latest_design_run(self, analysis_id: str) -> failures.DesignRun | None:
+        return failures.latest_design_run(self._conn, analysis_id)
 
     def _open_interrupt(self, thread_id: str) -> dict[str, Any] | None:
         """The checkpointed interrupt payload a CLI decision must answer exactly (§11.1)."""
@@ -327,7 +311,7 @@ class CausalRuntime:
             {"configurable": {"thread_id": thread_id}}).interrupts)
         return dict(pending[0].value) if pending else None
 
-    def _terminal(self, found: _DesignRun) -> str:
+    def _terminal(self, found: failures.DesignRun) -> str:
         """The committed `DesignOutcome`'s own status; a revision without one failed."""
         if found.outcome_artifact_id is None:
             return "failed"
@@ -359,12 +343,7 @@ class CausalRuntime:
 
     def _blocked(self, command: str, analysis_id: str, code: str) -> CompositionError:
         """Every refusal emits one `blocker.raised` and carries its stable code (SC §1.1)."""
-        self.deps.emitter.emit(events.build_event(
-            occurred_at_utc=self.deps.clock(), severity=events.Severity.ERROR,
-            event_name="blocker.raised", event_id=f"evt:cli:{uuid.uuid4().hex}",
-            analysis_id=analysis_id, stage=events.Stage.SYSTEM, error_code=code,
-            stage_run_id=f"sr:cli:{command}", component_id=COMPONENT, component_version=VERSION,
-            safe_dimensions={"blocked_operation": command}))
+        failures.emit_blocker(self.deps, command, analysis_id, code)
         return CompositionError(f"{command} is blocked: {code}", code)
 
 

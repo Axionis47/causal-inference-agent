@@ -5,25 +5,34 @@ from __future__ import annotations
 import inspect
 import uuid
 from collections.abc import Iterator
+from dataclasses import replace
+from io import StringIO
 from pathlib import Path
 from typing import Any, NamedTuple
 
 import psycopg
 import pytest
 
+from causal.cli.main import main
 from causal.design.contracts import ApprovalDecision, TableSelectionDecisionV1
 from causal.design.graph import DesignRunResult
 from causal.intake.contracts import IntakeSubmissionV1
 from causal.intake.outcome import IntakeResult
 from causal.runtime import composition
+from causal.shared.envelope import AgentTaskEnvelopeV1
+from causal.shared.gateway import GatewayError, GatewayResultV1
+from causal.shared.persistence import ArtifactCommitter
+from causal.shared.tracing import ObservabilityError
 from tests.conftest import MIGRATIONS, requires_docker
 from tests.design.test_graph import NOW, ScriptedGateway, stub_renderer
 from tests.intake.conftest import FrozenKaggleClient
+from tests.shared.test_tracing import FakeTracer
 
 pytestmark = requires_docker
 
 ROOT = Path(__file__).resolve().parents[2]
 QUESTION = "Does the programme raise earnings?"
+RUN_STATE = "SELECT state FROM design.design_runs WHERE analysis_id = %s"
 
 
 class Interrupt(NamedTuple):
@@ -147,8 +156,7 @@ class TestCommands:
         assert done.handoff_id is not None
         assert runtime.status(made.analysis_id) == composition.StatusView(
             analysis_id=made.analysis_id, stage="design", state="completed", next_command=None)
-        assert conn.execute("SELECT state FROM design.design_runs WHERE analysis_id = %s",
-                            (made.analysis_id,)).fetchone() == ("completed",)
+        assert conn.execute(RUN_STATE, (made.analysis_id,)).fetchone() == ("completed",)
 
     def test_status_before_design_points_at_run(
         self, runtime: composition.CausalRuntime
@@ -230,6 +238,46 @@ class TestInterruptValidation:
             runtime.run(made.analysis_id, expected_stage_run="sr:wrong:1",
                         idempotency_key="k-run")
         assert code_of(raised) == "stale_revision"
+
+
+class DeadGateway:
+    """A model call that dies terminally at the harness boundary (T-014 Amendment 3)."""
+
+    def invoke(self, envelope: AgentTaskEnvelopeV1, prompt: str,
+               response_schema: dict[str, object]) -> GatewayResultV1:
+        raise GatewayError("the project has no quota left", "quota_exhausted")
+
+
+class TestHarnessBoundaryFailures:
+    """D-062: `cli.main` prints a typed terminal result, never a traceback (SC §1.1, §7.1)."""
+
+    def failing_run(self, runtime: composition.CausalRuntime, **broken: Any) -> tuple[str, int]:
+        """Run intake, break one dependency, then drive `causal run` through the CLI."""
+        made = runtime.new(submission())
+        runtime.deps = replace(runtime.deps, **broken)
+        return made.analysis_id, main(
+            ["run", made.analysis_id, "--expected-stage-run", made.stage_run_id,
+             "--idempotency-key", "k-run"], lambda: runtime, out=StringIO())
+
+    def test_a_terminal_gateway_error_fails_the_run(
+        self, runtime: composition.CausalRuntime, conn: Any
+    ) -> None:
+        analysis_id, code = self.failing_run(runtime, gateway=DeadGateway())
+        assert code == 4
+        assert conn.execute(RUN_STATE, (analysis_id,)).fetchone() == ("failed",)
+        raised = [line for line in runtime.config.event_log.read_text(encoding="utf-8").
+                  splitlines() if '"event_name":"blocker.raised"' in line]
+        assert len(raised) == 1 and '"error_code":"quota_exhausted"' in raised[0]
+
+    def test_an_unacknowledged_flush_fails_observability(
+        self, runtime: composition.CausalRuntime, conn: Any
+    ) -> None:
+        deps, lost = runtime.deps, ObservabilityError("batch lost", "flush_unacknowledged")
+        analysis_id, code = self.failing_run(runtime, committer=ArtifactCommitter(
+            deps.objects, deps.products, deps.registry, deps.emitter,
+            tracer=FakeTracer(flush_error=lost)))
+        assert code == 5
+        assert conn.execute(RUN_STATE, (analysis_id,)).fetchone() == ("failed_observability",)
 
 
 def test_advisory_lock_contention_reports_analysis_busy(
