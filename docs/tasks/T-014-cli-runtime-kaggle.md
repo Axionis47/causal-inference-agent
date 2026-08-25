@@ -59,3 +59,32 @@ are unchanged):
    dataset so a future endpoint retirement is caught live.
 
 Budgets: runtime stays ≤ 800; tests additions ≤ 40 lines.
+
+## Amendment 3 — typed terminal results for harness-boundary errors (2026-08-25, pilot finding, D-062)
+
+The first live design run crashed `causal run` with a raw traceback: the intent node's
+live Vertex call raised `GatewayError`, which subclasses `Exception` (not `ValueError`),
+so `cli._execute`'s typed-refusal channel never saw it. `ObservabilityError` has the
+same gap. This violates SC §1.1 ("no failure escapes as an untyped traceback") and §7.1
+(blocker + terminal stage state).
+
+Fix (runtime scope only; cli and design untouched — design sits at 3,398/3,400):
+
+1. In `CausalRuntime`, every coordinator invocation (`run`, and the resume paths in
+   `select_table`, `answer_context`, `approve-design`) converts terminal
+   harness-boundary errors:
+   - `causal.shared.gateway.GatewayError` → record the stage run terminal state
+     `failed`, emit one `blocker.raised` with the error's stable code (do not
+     double-emit if the gateway already emitted for this failure — verify and follow
+     the T-010 event contract), and return the command's result with status `failed`
+     and the stable code (CLI exit 4 via the existing map).
+   - `causal.shared.tracing.ObservabilityError` → stage run `failed_observability`,
+     result status `failed_observability` (exit 5), committed artifacts preserved.
+2. Follow the existing failure semantics for idempotency keys and stage-run rows that
+   the design-outcome `failed` path already uses; introduce no new result shape.
+3. Tests: runtime composition tests with an injected gateway that raises a terminal
+   `GatewayError` (assert exit code 4, stage-run state, single blocker event) and a
+   tracer/committer path raising `ObservabilityError` (assert exit 5 and state
+   `failed_observability`). No raw traceback may escape `cli.main` for either.
+
+Budgets: runtime ≤ 800 total; tests additions ≤ 60 lines.
