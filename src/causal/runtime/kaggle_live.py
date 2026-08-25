@@ -18,7 +18,6 @@ from causal.intake.kaggle import FETCH_FAILED, KaggleError
 
 __all__ = ["LiveKaggleClient", "build_kaggle_api"]
 
-STATUS_FORMAT: Final = "json"
 METADATA_FILE: Final = "dataset-metadata.json"
 
 
@@ -44,12 +43,20 @@ class LiveKaggleClient:
         self._api = api_factory()
 
     def dataset_status(self, owner: str, slug: str) -> dict[str, object]:
-        """`status` plus the contract's `currentVersionNumber` key (SDK: snake_case)."""
-        raw = self._call("dataset_status", owner, slug,
-                         lambda ref: self._api.dataset_status(ref, format=STATUS_FORMAT))
-        body = json.loads(raw) if isinstance(raw, str) else _as_dict(raw)
-        return {"status": body.get("status"),
-                "currentVersionNumber": body.get("current_version_number")}
+        """The contract's `currentVersionNumber`, resolved through `dataset_list`.
+
+        Kaggle retired `GetDatasetStatus`, so 2.2.4's `api.dataset_status` answers 404 for
+        every dataset; a search row still carries `current_version_number`. The protocol
+        method name stays as it is because the capture contract is frozen.
+        """
+        def fetch(ref: str) -> dict[str, object]:
+            rows = [row for row in self._api.dataset_list(search=slug) if str(row.ref) == ref]
+            version = str(rows[0].current_version_number or "") if rows else ""
+            if not version.strip():
+                raise LookupError("no search row carries a version for this exact ref")
+            return {"currentVersionNumber": version}
+
+        return self._call("dataset_status", owner, slug, fetch)
 
     def dataset_metadata(self, owner: str, slug: str) -> dict[str, object]:
         """The SDK writes `dataset-metadata.json` to a directory; read it back and drop it."""

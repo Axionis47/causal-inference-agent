@@ -32,6 +32,14 @@ class _Files:
         return dict(FILES)
 
 
+class _Row:
+    """A `dataset_list` search row: the adapter matches `ref` exactly, then reads the version."""
+
+    def __init__(self, ref: str, version: object) -> None:
+        self.ref = ref
+        self.current_version_number = version
+
+
 class FakeApi:
     """`KaggleApi` with the 2.2.4 method names and return shapes, and no network."""
 
@@ -44,9 +52,9 @@ class FakeApi:
         if self.failing == operation:
             raise RuntimeError(f"401 Unauthorized: Authorization=Bearer {TOKEN}")
 
-    def dataset_status(self, dataset: str, format: str | None = None) -> str:
-        self._record("dataset_status", dataset)
-        return json.dumps({"status": "ready", "current_version_number": 3})
+    def dataset_list(self, search: str | None = None) -> list[_Row]:
+        self._record("dataset_list", str(search))
+        return [_Row("other/nsw", 9), _Row("lalonde/nsw", 3), _Row("lalonde/nsw-panel", 7)]
 
     def dataset_metadata(self, dataset: str, path: str) -> str:
         self._record("dataset_metadata", dataset)
@@ -73,8 +81,7 @@ def client(failing: str | None = None) -> tuple[LiveKaggleClient, FakeApi]:
 class TestProtocolShape:
     def test_every_response_is_a_plain_json_dict_in_contract_keys(self) -> None:
         live, _ = client()
-        assert live.dataset_status("lalonde", "nsw") == {
-            "status": "ready", "currentVersionNumber": 3}
+        assert live.dataset_status("lalonde", "nsw") == {"currentVersionNumber": "3"}
         assert live.dataset_metadata("lalonde", "nsw")["licenseName"] == "CC0-1.0"
         files = live.dataset_files("lalonde", "nsw")
         declared = files["files"]
@@ -87,23 +94,35 @@ class TestProtocolShape:
         assert zipfile.ZipFile(io.BytesIO(data)).namelist() == ["nsw.csv", "readme.md"]
         assert api.refs["dataset_download_files"] == "lalonde/nsw/3"  # the pinned version
 
+    def test_the_version_comes_from_the_exact_ref_not_a_search_neighbour(self) -> None:
+        live, api = client()
+        assert live.dataset_status("lalonde", "nsw") == {"currentVersionNumber": "3"}
+        assert api.refs["dataset_list"] == "nsw"  # searched by slug, matched on the full ref
+
+    def test_a_search_matching_no_ref_is_the_same_sanitized_failure(self) -> None:
+        live, _ = client()
+        with pytest.raises(KaggleError) as raised:
+            live.dataset_status("lalonde", "missing")
+        assert raised.value.code == "fetch_failed" and "lalonde/missing" in str(raised.value)
+        assert raised.value.__cause__ is None and raised.value.__context__ is None
+
     def test_the_capture_layer_resolves_the_version_through_the_adapter(self) -> None:
         live, _ = client()
         result = capture(live, "lalonde/nsw")
         dataset = result.payload["dataset"]
         assert isinstance(dataset, dict)
-        assert dataset["version"] == "3" and dataset["status"] == "ready"
+        assert dataset["version"] == "3"  # a search row carries no status of its own
         assert result.archive_bytes == ARCHIVE
 
 
 class TestSecrets:
     @pytest.mark.parametrize(
-        "operation", ["dataset_status", "dataset_metadata", "dataset_list_files",
+        "operation", ["dataset_list", "dataset_metadata", "dataset_list_files",
                       "dataset_download_files"])
     def test_a_provider_failure_loses_its_body(self, operation: str) -> None:
         live, _ = client(failing=operation)
         calls: dict[str, Callable[[], object]] = {
-            "dataset_status": lambda: live.dataset_status("lalonde", "nsw"),
+            "dataset_list": lambda: live.dataset_status("lalonde", "nsw"),
                  "dataset_metadata": lambda: live.dataset_metadata("lalonde", "nsw"),
                  "dataset_list_files": lambda: live.dataset_files("lalonde", "nsw"),
                  "dataset_download_files": lambda: live.download_archive("lalonde", "nsw", "3")}
@@ -130,5 +149,7 @@ def test_live_metadata_smoke() -> None:
     """Metadata only: authenticates from ~/.kaggle/kaggle.json and downloads no archive."""
     live = LiveKaggleClient()
     status = live.dataset_status("uciml", "iris")
+    # A live non-empty version proves the search resolution still answers; an endpoint
+    # retirement like the one that broke `dataset_status` fails here instead of in a pilot.
     assert str(status["currentVersionNumber"]).strip()
     assert isinstance(live.dataset_files("uciml", "iris")["files"], list)
