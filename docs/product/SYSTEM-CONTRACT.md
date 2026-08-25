@@ -859,7 +859,7 @@ Production Python lives only under `src/causal/` and has these non-transferable 
 | CLI | `src/causal/cli/` | 500 | the seven commands and human/JSON result rendering only |
 | runtime composition | `src/causal/runtime/` | 800 | concrete startup, stage dispatch, dependency construction, and shutdown only; no domain logic |
 | PRD-001 | `src/causal/intake/` | 1,200 | intake responsibilities in PRD-001 |
-| PRD-002 | `src/causal/design/` | 2,500 | design responsibilities in PRD-002 |
+| PRD-002 | `src/causal/design/` | 2,750 | design responsibilities in PRD-002 (2,500 at initial freeze; revised by explicit user approval on 2026-08-25, D-051) |
 | PRD-003 | `src/causal/preparation/` | 2,000 | preparation responsibilities in PRD-003 |
 | PRD-004 | `src/causal/estimation/` | 4,000 | all four method adapters, uncertainty, diagnostics, sensitivities, figure-data builders, and judgment |
 | PRD-005 | `src/causal/presentation/` | 1,500 | presentation responsibilities in PRD-005 |
