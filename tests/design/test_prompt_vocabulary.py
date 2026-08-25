@@ -6,6 +6,7 @@ import json
 import re
 from pathlib import Path
 
+from causal.design.askgate import TERMINAL_STATUSES
 from causal.design.semantics import COLUMN_CARD_SLOTS
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -17,6 +18,7 @@ SCHEMAS: dict[str, str] = {str(row["requirement_id"]): str(row["expected_answer_
 MENTIONED = re.compile(r"\b(?:design|dataset|column)\.[a-z_]+\b")
 LISTED = re.compile(r"`((?:design|dataset|column)\.[a-z_]+)` — [^`]*answer `([a-z-]+\.v1)`")
 SLOT_LINE = re.compile(r"^- `([a-z_]+)` — ", re.MULTILINE)
+STATUSES = re.compile(r"`evidence_id` and its\s+`availability_status` — one of (.*?);", re.DOTALL)
 
 
 def test_prompt_requirement_ids_are_registered() -> None:
@@ -43,6 +45,14 @@ def test_prompts_bind_parent_ids_to_the_rendered_section() -> None:
         text = template.read_text(encoding="utf-8")
         assert "`parent_artifact_ids` is exactly the artifact ids listed under "\
                "`## parent_artifacts`" in text, template.name
+
+
+def test_prompts_state_the_terminal_attempted_evidence_statuses() -> None:
+    """The closed availability vocabulary the ask gate demands (Amendment 8; D-070)."""
+    for template in sorted((ROOT / "prompts" / "design").glob("*.v1.txt")):
+        span = STATUSES.search(template.read_text(encoding="utf-8"))
+        assert span, f"{template.name} states no attempted_evidence contract"
+        assert set(re.findall(r"`([a-z_]+)`", span[1])) == set(TERMINAL_STATUSES), template.name
 
 
 def test_semantic_prompt_lists_every_card_slot() -> None:

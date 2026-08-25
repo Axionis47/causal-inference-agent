@@ -47,7 +47,13 @@ Context requirements (PRD-002 §10):
 - every requirement MUST carry one of the registered requirement ids below — an invented id is
   rejected as `unknown_requirement_id` and the whole draft is sent back;
 - if the fact you need has no registered id, leave the claim unsupported and say so rather than
-  coining one.
+  coining one;
+- every requirement MUST fill `attempted_evidence` with one entry per id under
+  `## allowed_evidence` that could bear on the fact — the `evidence_id` and its
+  `availability_status` — one of `empty`, `not_offered`, `unreadable`, `withheld` when that
+  source cannot answer, or `evidenced` when it answers only in part;
+- an empty `attempted_evidence` list reads as "I never looked": the ask gate then refuses to
+  put the question to the user (`sources_unexhausted`) and the run stops unanswered.
 
 Registered ids for this task:
 - `design.causal_question` — the causal question and the decision it informs;
