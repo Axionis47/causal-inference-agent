@@ -33,6 +33,12 @@ Recomputed and updated by Fable at every doc freeze
 | T-006 | Handoff persistence + acceptance gate | shared (SC §3, §3.1, §8.1) | T-005 | single-session (D-008) | ACCEPTED | yes | commit `ec5db6d`; fail-closed, all codes collected; 11 dockerized tests; maps to EV-SYS-006 |
 | T-007 | Intake core: contracts, registrations, archive, profiler | PRD-001 (§5.5–§8) | T-004 | single-session (D-008) | ACCEPTED | yes | commit (see checkpoint log); 6 registry rows appended; 58 tests; maps to EV-P1-003/EV-P1-004 |
 | T-008 | Intake capture + catalog + coordinator + handoff | PRD-001 (§4, §9–§13) | T-005, T-006, T-007 | single-session (D-008) | ACCEPTED | yes | commit `e613eed`; spec + amendments D-027..D-038; 34 tests; maps to EV-P1-001/002/005; budget `warning` (intake 1180/1200, coordinator 329/350 — both inside limits, near them) |
+| T-009 | Design substrate: shared task envelope, design contracts, registry rows, design schema | PRD-002 (SC §5.2, §6.1, §21; §6, §12, §16–§18) | T-002, T-004, T-005, T-008 | single-session + opus subagents (D-041) | IN_PROGRESS | yes | spec frozen `docs/tasks/T-009-design-substrate.md`; wave plan D-039 |
+| T-010 | Shared Vertex gateway + LangSmith tracing | shared (SC §10.2–§10.4) | T-009 | single-session + opus subagents (D-041) | DRAFT | — | closes the D-020 revisit |
+| T-011 | Method-pack manifests, triage, DesignContextManifest, tool surface, entry gate | PRD-002 (§4, §5, §9, §13, §15) | T-009 | single-session + opus subagents (D-041) | DRAFT | — | |
+| T-012 | Validation walls, ask gate, diagnostics, delivery capacity | PRD-002 (§10, §11, §14, §16.3, §13.5) | T-011 | single-session + opus subagents (D-041) | DRAFT | — | |
+| T-013 | Agents, prompts, LangGraph graph, interrupts, renderer, coordinator, outcome + handoff | PRD-002 (§8, §9, §12.3, §19–§23) | T-010, T-012 | single-session + opus subagents (D-041) | DRAFT | — | |
+| T-014 | CLI seven commands, runtime composition, live Kaggle adapter | shared (SC §1.1) + PRD-002 §11.1 | T-013 | single-session + opus subagents (D-041) | DRAFT | — | closes D-034 |
 
 ## Decision log
 
@@ -78,6 +84,11 @@ Append-only. One line per decision: date, decision, why.
 - 2026-08-24 — D-036: resources.parse_status is PRD-001's five values (parsed, excluded, unreadable, unsafe, failed); withheld classifications map to excluded with a reason.
 - 2026-08-24 — D-037: The producer never persists the handoff manifest (the T-006 gate records at receipt). The coordinator's open_handoff rebuilds it deterministically from analysis_id + intake_outcome_artifact_id and refuses for refused/missing/mismatched outcomes. Measured-fact index rows point at TableProfile artifacts. (T-008 Amendment 1.)
 - 2026-08-24 — D-038: Shared docker fixtures live in tests/conftest.py so all test packages reuse them. (T-008 Amendment 2.)
+- 2026-08-24 — D-039: PRD-002 wave plan = T-009 (substrate) → T-010 (gateway+tracing, shared) → T-011 (manifests/triage/manifest-compiler/tools/entry gate) → T-012 (validators/ask gate/diagnostics/capacity) → T-013 (agents/prompts/LangGraph/renderer/coordinator/outcome/handoff) → T-014 (CLI/runtime/live Kaggle). Specs freeze one task at a time, immediately before that task's implementation, so later specs absorb earlier findings. Declarative-first rule: method packs, requirement/tool/capacity registries, and prompt templates land in the declarative scope, keeping `design` code within its 2,500 lines.
+- 2026-08-24 — D-040: AgentTaskEnvelopeV1, AgentTaskResultV1, ContextRequirementV1, and ClaimV1 live in the shared scope (`src/causal/shared/envelope.py`): SC §5.2/§5.4/§6.1/§16.2 define them across PRD-002–005.
+- 2026-08-24 — D-041: Build mode for the PRD-002 wave (user-directed): Opus subagents implement the frozen specs; the main session architects, reviews, runs gates, and commits. The D-008 single-session discipline is retained at the spec/review/commit boundary.
+- 2026-08-24 — D-042: The dev machine has no Graphviz binary; the Graphviz 15.1.1 pin binds the future OCI image. The renderer must record the actual local Graphviz version in every output and its tests must skip (not fake) when `dot` is absent. No silent substitution.
+- 2026-08-24 — D-043: Session environment check: Kaggle credentials (`~/.kaggle/kaggle.json`) and Google ADC are present; no LangSmith key is visible. Tracing reads `LANGSMITH_API_KEY` from the environment at runtime and the preflight fails closed to `failed_observability` when it is missing, per SC §10.2.
 
 ## Checkpoint log
 
