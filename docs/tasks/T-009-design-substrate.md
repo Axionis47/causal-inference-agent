@@ -333,7 +333,23 @@ No views in this migration (design views, if any, come with the tasks that need 
 Budget targets: tests ≤ 550 new logical lines. Follow `tests/intake/` idiom; docker tests marked
 like the existing integration tests.
 
-## 7. Acceptance
+## 7. Amendments
+
+Amendment 1 (pre-acceptance errata, D-044):
+
+1. §3.3 header said "exactly 17" `RoleName` values; the binding list has 18 (17 roles plus
+   `unknown`). The list stands.
+2. §3.4 prose said an `approved` outcome requires "the four handoff refs"; the binding rule is
+   the five listed optional refs (`experiment_design`, `runnable_frame_contract`,
+   `causal_graph_view`, `capacity_check`, `approval`) non-None, as implemented.
+3. §4 gains an eighteenth row: `DesignApprovalDecision` / `design-approval-decision.v1`
+   (producer design-harness, readers design-harness, required parent ExperimentDesign, optional
+   RunnableFrameContract/CausalGraphView/DeliveryCapacityCheck, terminal `committed`,
+   destination design). SC §11.1 commits the typed CLI decision verbatim; without a row that
+   commit would fail closed at the registry. `DesignApproval` (the harness's hash-binding
+   approval record) adds `DesignApprovalDecision` to its optional parents.
+
+## 8. Acceptance
 
 1. `uv run pytest` green (full suite).
 2. `uv run ruff check .` and `uv run mypy --strict src tests` clean.

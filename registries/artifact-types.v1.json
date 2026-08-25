@@ -101,6 +101,265 @@
       "terminal_statuses": ["approved", "superseded"],
       "destinations": ["preparation", "estimation"],
       "validator_version": "runnable-frame-contract-validator.v1"
+    },
+    {
+      "artifact_type": "TableSelection",
+      "schema_version": "table-selection.v1",
+      "producer_component": "design-harness",
+      "allowed_reader_components": ["design-harness"],
+      "required_parent_types": ["IntakeOutcome", "QuestionRecord"],
+      "optional_parent_types": ["TableSelectionDecision"],
+      "sensitivity_class": "internal",
+      "terminal_statuses": ["committed"],
+      "destinations": ["design"],
+      "validator_version": "table-selection-validator.v1"
+    },
+    {
+      "artifact_type": "DesignContextManifest",
+      "schema_version": "design-context-manifest.v1",
+      "producer_component": "design-harness",
+      "allowed_reader_components": ["design-harness"],
+      "required_parent_types": ["TableSelection"],
+      "optional_parent_types": [],
+      "sensitivity_class": "internal",
+      "terminal_statuses": ["committed"],
+      "destinations": ["design"],
+      "validator_version": "design-context-manifest-validator.v1"
+    },
+    {
+      "artifact_type": "DesignIntent",
+      "schema_version": "design-intent.v1",
+      "producer_component": "design-harness",
+      "allowed_reader_components": ["design-harness"],
+      "required_parent_types": ["DesignContextManifest"],
+      "optional_parent_types": ["UserContextAnswer"],
+      "sensitivity_class": "internal",
+      "terminal_statuses": ["committed"],
+      "destinations": ["design"],
+      "validator_version": "design-intent-validator.v1"
+    },
+    {
+      "artifact_type": "ColumnSemanticCard",
+      "schema_version": "column-semantic-card.v1",
+      "producer_component": "design-harness",
+      "allowed_reader_components": ["design-harness"],
+      "required_parent_types": ["DesignIntent"],
+      "optional_parent_types": ["UserContextAnswer"],
+      "sensitivity_class": "internal",
+      "terminal_statuses": ["committed"],
+      "destinations": ["design"],
+      "validator_version": "column-semantic-card-validator.v1"
+    },
+    {
+      "artifact_type": "MeasurementMap",
+      "schema_version": "measurement-map.v1",
+      "producer_component": "design-harness",
+      "allowed_reader_components": ["design-harness"],
+      "required_parent_types": ["DesignIntent"],
+      "optional_parent_types": ["ColumnSemanticCard"],
+      "sensitivity_class": "internal",
+      "terminal_statuses": ["committed"],
+      "destinations": ["design"],
+      "validator_version": "measurement-map-validator.v1"
+    },
+    {
+      "artifact_type": "RoleEvidence",
+      "schema_version": "role-evidence.v1",
+      "producer_component": "design-harness",
+      "allowed_reader_components": ["design-harness"],
+      "required_parent_types": ["MeasurementMap"],
+      "optional_parent_types": [],
+      "sensitivity_class": "internal",
+      "terminal_statuses": ["committed"],
+      "destinations": ["design"],
+      "validator_version": "role-evidence-validator.v1"
+    },
+    {
+      "artifact_type": "CausalContext",
+      "schema_version": "causal-context.v1",
+      "producer_component": "design-harness",
+      "allowed_reader_components": ["design-harness"],
+      "required_parent_types": ["MeasurementMap"],
+      "optional_parent_types": ["RoleEvidence", "UserContextAnswer"],
+      "sensitivity_class": "internal",
+      "terminal_statuses": ["committed"],
+      "destinations": ["design"],
+      "validator_version": "causal-context-validator.v1"
+    },
+    {
+      "artifact_type": "RoleLedger",
+      "schema_version": "role-ledger.v1",
+      "producer_component": "design-harness",
+      "allowed_reader_components": ["design-harness"],
+      "required_parent_types": ["CausalContext"],
+      "optional_parent_types": [],
+      "sensitivity_class": "internal",
+      "terminal_statuses": ["committed"],
+      "destinations": ["design"],
+      "validator_version": "role-ledger-validator.v1"
+    },
+    {
+      "artifact_type": "PreRepairFeasibilityReport",
+      "schema_version": "pre-repair-feasibility-report.v1",
+      "producer_component": "design-harness",
+      "allowed_reader_components": ["design-harness"],
+      "required_parent_types": ["RoleLedger"],
+      "optional_parent_types": [],
+      "sensitivity_class": "internal",
+      "terminal_statuses": ["committed"],
+      "destinations": ["design"],
+      "validator_version": "pre-repair-feasibility-report-validator.v1"
+    },
+    {
+      "artifact_type": "ExperimentDesign",
+      "schema_version": "experiment-design.v1",
+      "producer_component": "design-harness",
+      "allowed_reader_components": [
+        "design-harness",
+        "preparation-harness",
+        "estimation-harness",
+        "presentation-coordinator"
+      ],
+      "required_parent_types": ["RoleLedger"],
+      "optional_parent_types": ["PreRepairFeasibilityReport", "UserContextAnswer"],
+      "sensitivity_class": "internal",
+      "terminal_statuses": ["committed"],
+      "destinations": ["design", "preparation", "estimation", "presentation"],
+      "validator_version": "experiment-design-validator.v1"
+    },
+    {
+      "artifact_type": "CausalGraphView",
+      "schema_version": "causal-graph-view.v1",
+      "producer_component": "design-harness",
+      "allowed_reader_components": [
+        "design-harness",
+        "preparation-harness",
+        "presentation-coordinator"
+      ],
+      "required_parent_types": ["RunnableFrameContract"],
+      "optional_parent_types": [
+        "CausalContext",
+        "MeasurementMap",
+        "RoleLedger",
+        "ExperimentDesign"
+      ],
+      "sensitivity_class": "internal",
+      "terminal_statuses": ["committed"],
+      "destinations": ["design", "preparation", "presentation"],
+      "validator_version": "causal-graph-view-validator.v1"
+    },
+    {
+      "artifact_type": "DeliveryCapacityCheck",
+      "schema_version": "delivery-capacity-check.v1",
+      "producer_component": "design-harness",
+      "allowed_reader_components": [
+        "design-harness",
+        "estimation-harness",
+        "presentation-coordinator"
+      ],
+      "required_parent_types": ["CausalGraphView"],
+      "optional_parent_types": ["ExperimentDesign", "RunnableFrameContract"],
+      "sensitivity_class": "internal",
+      "terminal_statuses": ["committed"],
+      "destinations": ["design", "estimation", "presentation"],
+      "validator_version": "delivery-capacity-check-validator.v1"
+    },
+    {
+      "artifact_type": "UserQuestionPacket",
+      "schema_version": "user-question-packet.v1",
+      "producer_component": "design-harness",
+      "allowed_reader_components": ["design-harness", "cli"],
+      "required_parent_types": ["DesignContextManifest"],
+      "optional_parent_types": [],
+      "sensitivity_class": "internal",
+      "terminal_statuses": ["committed"],
+      "destinations": ["design"],
+      "validator_version": "user-question-packet-validator.v1"
+    },
+    {
+      "artifact_type": "UserContextAnswer",
+      "schema_version": "user-context-answer.v1",
+      "producer_component": "design-harness",
+      "allowed_reader_components": ["design-harness"],
+      "required_parent_types": ["UserQuestionPacket"],
+      "optional_parent_types": [],
+      "sensitivity_class": "internal",
+      "terminal_statuses": ["committed"],
+      "destinations": ["design"],
+      "validator_version": "user-context-answer-validator.v1"
+    },
+    {
+      "artifact_type": "TableSelectionDecision",
+      "schema_version": "table-selection-decision.v1",
+      "producer_component": "design-harness",
+      "allowed_reader_components": ["design-harness"],
+      "required_parent_types": ["IntakeOutcome"],
+      "optional_parent_types": [],
+      "sensitivity_class": "internal",
+      "terminal_statuses": ["committed"],
+      "destinations": ["design"],
+      "validator_version": "table-selection-decision-validator.v1"
+    },
+    {
+      "artifact_type": "DesignApprovalDecision",
+      "schema_version": "design-approval-decision.v1",
+      "producer_component": "design-harness",
+      "allowed_reader_components": ["design-harness"],
+      "required_parent_types": ["ExperimentDesign"],
+      "optional_parent_types": [
+        "RunnableFrameContract",
+        "CausalGraphView",
+        "DeliveryCapacityCheck"
+      ],
+      "sensitivity_class": "internal",
+      "terminal_statuses": ["committed"],
+      "destinations": ["design"],
+      "validator_version": "design-approval-decision-validator.v1"
+    },
+    {
+      "artifact_type": "DesignApproval",
+      "schema_version": "design-approval.v1",
+      "producer_component": "design-harness",
+      "allowed_reader_components": ["design-harness", "preparation-harness"],
+      "required_parent_types": ["ExperimentDesign"],
+      "optional_parent_types": [
+        "RunnableFrameContract",
+        "CausalGraphView",
+        "DeliveryCapacityCheck",
+        "DesignApprovalDecision"
+      ],
+      "sensitivity_class": "internal",
+      "terminal_statuses": ["approved", "changes_requested", "declined"],
+      "destinations": ["design", "preparation"],
+      "validator_version": "design-approval-validator.v1"
+    },
+    {
+      "artifact_type": "DesignOutcome",
+      "schema_version": "design-outcome.v1",
+      "producer_component": "design-harness",
+      "allowed_reader_components": ["design-harness", "preparation-harness"],
+      "required_parent_types": ["IntakeOutcome"],
+      "optional_parent_types": [
+        "TableSelection",
+        "DesignIntent",
+        "ExperimentDesign",
+        "RunnableFrameContract",
+        "CausalGraphView",
+        "DeliveryCapacityCheck",
+        "DesignApproval"
+      ],
+      "sensitivity_class": "internal",
+      "terminal_statuses": [
+        "approved",
+        "needs_context",
+        "changes_requested",
+        "declined",
+        "refused",
+        "failed_observability",
+        "failed"
+      ],
+      "destinations": ["design", "preparation"],
+      "validator_version": "design-outcome-validator.v1"
     }
   ]
 }
