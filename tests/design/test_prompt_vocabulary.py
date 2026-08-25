@@ -6,6 +6,8 @@ import json
 import re
 from pathlib import Path
 
+from causal.design.semantics import COLUMN_CARD_SLOTS
+
 ROOT = Path(__file__).resolve().parents[2]
 _REGISTRY = json.loads(
     (ROOT / "registries" / "context-requirements.v1.json").read_text(encoding="utf-8"))
@@ -14,6 +16,7 @@ SCHEMAS: dict[str, str] = {str(row["requirement_id"]): str(row["expected_answer_
                            for row in _REGISTRY["requirements"]}
 MENTIONED = re.compile(r"\b(?:design|dataset|column)\.[a-z_]+\b")
 LISTED = re.compile(r"`((?:design|dataset|column)\.[a-z_]+)` — [^`]*answer `([a-z-]+\.v1)`")
+SLOT_LINE = re.compile(r"^- `([a-z_]+)` — ", re.MULTILINE)
 
 
 def test_prompt_requirement_ids_are_registered() -> None:
@@ -32,3 +35,9 @@ def test_prompt_answer_schemas_match_the_registry() -> None:
         assert listed, f"{template.name} lists no answer schema"
         for requirement_id, schema in listed:
             assert schema == SCHEMAS[requirement_id], f"{template.name}: {requirement_id}"
+
+
+def test_semantic_prompt_lists_every_card_slot() -> None:
+    """The closed slot vocabulary a model must spell exactly right (Amendment 6; D-067)."""
+    text = (ROOT / "prompts" / "design" / "semantic.v1.txt").read_text(encoding="utf-8")
+    assert tuple(SLOT_LINE.findall(text)) == COLUMN_CARD_SLOTS

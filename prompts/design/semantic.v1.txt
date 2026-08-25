@@ -36,6 +36,20 @@ Output contract (PRD-002 §16.1):
   citations, never an invented id; and
 - a claim can never cite itself as its own supporting evidence.
 
+Card slots — the `slots` mapping holds exactly these 12 keys, in this spelling, no others:
+- `meaning` — what the column measures in the world;
+- `concept` — the concept this column stands for;
+- `entity` — the entity one row describes;
+- `kind` — binary, categorical, count, continuous, date, or identifier;
+- `units` — the unit of measurement, or none for a unitless value;
+- `scale` — nominal, ordinal, interval, or ratio;
+- `levels` — the observed categories or codes;
+- `encoding` — how values are coded, sentinels included;
+- `timing` — when the value was measured relative to treatment;
+- `measurement_window` — the period the value covers;
+- `missing_interpretation` — what a missing value means here;
+- `source_process` — the system or process that produced the column.
+
 Never invent a column, a concept id, an evidence id, or a role. Record conflicts and live
 alternatives rather than silently choosing between them.
 

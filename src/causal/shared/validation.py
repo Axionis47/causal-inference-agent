@@ -46,6 +46,8 @@ class ValidationIssueV1(BaseModel):
     artifact_ids: tuple[Identity, ...]
     allowed_actions: tuple[Identity, ...]
     user_resolvable: bool
+    # Human-readable near-miss text; a code alone leaves a deterministic model repeating itself.
+    detail: str = ""
 
 
 class ValidationReport(BaseModel):
@@ -80,9 +82,10 @@ class ValidationRuleV1(BaseModel):
 
 
 def make_issue(code: str, path: str, rule: str, actions: tuple[str, ...],
-               resolvable: bool = False, ids: tuple[str, ...] = ()) -> ValidationIssueV1:
+               resolvable: bool = False, ids: tuple[str, ...] = (),
+               detail: str = "") -> ValidationIssueV1:
     return ValidationIssueV1(code=code, json_path=path, rule_id=rule, artifact_ids=ids,
-                             allowed_actions=actions, user_resolvable=resolvable)
+                             allowed_actions=actions, user_resolvable=resolvable, detail=detail)
 
 
 def load_rules(path: Path, *, registry_version: str, kinds: tuple[str, ...],
@@ -156,7 +159,8 @@ def shape_report(model_cls: type[BaseModel], result: AgentTaskResultV1,
     except ValidationError as error:
         return ValidationReport(wall=1, issues=tuple(
             make_issue("shape_invalid", "/payload/" + "/".join(str(p) for p in item["loc"]),
-                       "wall1.shape", actions) for item in error.errors()))
+                       "wall1.shape", actions, detail=item["msg"][:200])
+            for item in error.errors()))
     return ValidationReport(wall=1, issues=())
 
 

@@ -226,6 +226,12 @@ def test_wall_shape_maps_error_locations_to_json_paths() -> None:
     assert "/payload/frame" in {issue.json_path for issue in report.issues}
 
 
+def test_wall_shape_carries_the_pydantic_message() -> None:
+    report = wall_shape(CausalContextV1, result({"schema_version": "causal-context.v1"}))
+    assert all(issue.detail for issue in report.issues)
+    assert "Field required" in {issue.detail for issue in report.issues}
+
+
 # --- wall 2: references ---
 def test_wall_references_accepts_resolving_ids() -> None:
     payload = ledger(role(RoleName.GROUP, "c-g", columns=("age",), evidence=("ua:answer-1",)))
