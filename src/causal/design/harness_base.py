@@ -18,8 +18,8 @@ from causal.design import askgate, contracts, validators
 from causal.design import compile as compiler
 from causal.design.capacity import CapacityRegistryV1
 from causal.design.packs import MethodPackRegistry, RequirementTemplateV1, ToolRegistry
+from causal.shared import agenttask, events, persistence
 from causal.shared import envelope as agent
-from causal.shared import events, persistence
 from causal.shared.canonical import content_hash
 from causal.shared.contracts import ArtifactEnvelopeV1, ArtifactRef, HandoffManifestV1
 from causal.shared.gateway import GatewayResultV1
@@ -277,7 +277,7 @@ class HarnessBase:
 
     def _invoke(self, state: DesignState, spec: compiler.TaskSpecV1, task_id: str, attempt: int,
                 scope: tuple[str, Sequence[str]], refs: tuple[ArtifactRef, ...],
-                payload: Mapping[str, object],
+                payload: Mapping[str, object], draft: type[BaseModel],
                 ) -> tuple[agent.AgentTaskEnvelopeV1, agent.AgentTaskResultV1 | None]:
         """One physical attempt: envelope, prompt, gateway, strict `AgentTaskResultV1` parse."""
         built = compiler.build_task_envelope(
@@ -290,7 +290,7 @@ class HarnessBase:
         self._emit(state, "agent.started", EVAL_TASK[spec.task_kind], task_id=task_id,
                    attempt_id=built.attempt_id, attempt_number=attempt)
         answer = self.deps.gateway.invoke(built, compiler.render_prompt(
-            spec, self.deps.prompts_root, dict(payload)), {"type": "object"})
+            spec, self.deps.prompts_root, dict(payload)), agenttask.result_schema(draft))
         try:
             return built, parse_strict(agent.AgentTaskResultV1, answer.parsed or {})
         except ValidationError:
@@ -311,7 +311,7 @@ class HarnessBase:
         body, issues = dict(payload), cast(tuple[validators.ValidationIssueV1, ...], ())
         for attempt in range(1, spec.correction_budget + 2):
             built, result = self._invoke(
-                state, spec, task_id, attempt, (scope_kind, scope_ids), refs, body)
+                state, spec, task_id, attempt, (scope_kind, scope_ids), refs, body, model)
             digest = content_hash(built.canonical_payload())
             if result is None:
                 for name in ("agent.schema_failed", "agent.correction_requested"):

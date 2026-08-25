@@ -17,7 +17,7 @@ import pytest
 from causal.design import graph
 from causal.design.capacity import load_capacity_registry
 from causal.design.compile import load_task_table
-from causal.design.contracts import REGISTRY_VERSION_KEYS
+from causal.design.contracts import REGISTRY_VERSION_KEYS, DesignIntentV1
 from causal.design.entry import PsycopgCatalogReader
 from causal.design.packs import (
     METHOD_IDS,
@@ -211,11 +211,13 @@ class ScriptedGateway:
         self.overrides: dict[str, list[Any]] = {
             key: list(value) for key, value in (overrides or {}).items()}
         self.calls: list[AgentTaskEnvelopeV1] = []
+        self.schemas: dict[str, Any] = {}
 
     def invoke(self, envelope: AgentTaskEnvelopeV1, prompt: str,
                response_schema: dict[str, object]) -> GatewayResultV1:
         self.calls.append(envelope)
         key = script_key(envelope)
+        self.schemas[key] = response_schema
         queue = self.overrides.get(key)
         body = queue.pop(0) if queue else self.default(key, envelope)
         text = json.dumps(body)
@@ -508,6 +510,18 @@ class TestCorrectionLoop:
         outcome = payload_of(conn, object_store, str(done.outcome_artifact_id))
         assert outcome["error_code"] == "correction_exhausted"
         assert outcome["experiment_design"] is None
+
+
+def test_the_gateway_gets_the_draft_result_schema(conn: Any, object_store: ObjectStore) -> None:
+    """D-063: constrained decoding sees the real result, not a bare `{"type": "object"}`."""
+    gateway = ScriptedGateway({"semantic_batch": [{"not": "a result"}] * 3})
+    start(conn, object_store, gateway=gateway)
+    schema = gateway.schemas["intent"]
+    assert schema["properties"]["status"] == {"$ref": "#/$defs/TaskStatus"}
+    payload = schema["properties"]["payload"]
+    assert payload != {"type": "object"}
+    assert set(payload["properties"]) == set(DesignIntentV1.model_fields)
+    assert {"ClaimV1", "ConceptProposalV1"} <= set(schema["$defs"])
 
 
 class TestRefusal:
