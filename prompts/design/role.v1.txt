@@ -38,6 +38,20 @@ Output contract (PRD-002 §16.1):
 
 Never invent a concept id, a column, an evidence id, or a role name outside the role vocabulary.
 
+Context requirements (PRD-002 §10):
+- raise a requirement only for a fact the evidence you were given cannot settle;
+- every requirement MUST carry one of the registered requirement ids below — an invented id is
+  rejected as `unknown_requirement_id` and the whole draft is sent back;
+- scope each requirement to a concept or column already assigned to you.
+
+Registered ids for this task:
+- `column.meaning` — what the column measures, for which entity, in which units and levels;
+- `column.measurement_timing` — when the variable was measured relative to treatment;
+- `design.concept_mapping` — which column, if any, measures a named concept;
+- `design.treatment_descendants` — which variables are consequences of the treatment;
+- `design.selection_variables` — which variables decide whether a unit is in the analysis set;
+- `dataset.sampling_mechanism` — how rows entered this dataset and who was left out.
+
 Stopping conditions:
 - `complete` when every assigned relationship has a cited hypothesis or an explicit unknown;
 - `needs_context` when a blocking fact is missing;

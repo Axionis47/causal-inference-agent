@@ -37,6 +37,20 @@ Output contract (PRD-002 §16.1):
 Never invent a column, a concept id, an evidence id, or a role. Record conflicts and live
 alternatives rather than silently choosing between them.
 
+Context requirements (PRD-002 §10):
+- raise a requirement only for a blocking slot the evidence you were given cannot settle;
+- every requirement MUST carry one of the registered requirement ids below — an invented id is
+  rejected as `unknown_requirement_id` and the whole card set is sent back;
+- scope each requirement to the assigned column it blocks.
+
+Registered ids for this task:
+- `column.meaning` — what the column measures, for which entity, in which units and levels;
+- `column.encoding` — how the values are coded, including codes, categories, and sentinels;
+- `column.missing_meaning` — what a missing value in this column means;
+- `column.measurement_timing` — when the variable was measured relative to treatment;
+- `column.source_process` — which source system or measurement process produced the column;
+- `design.concept_mapping` — which column, if any, measures a named concept.
+
 Stopping conditions:
 - `complete` when every assigned column has a whole card;
 - `needs_context` when a blocking slot needs a fact you were not given.

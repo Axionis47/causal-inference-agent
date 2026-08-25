@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
 import pytest
 
-from causal.intake.contracts import AVAILABLE_STATUSES, SemanticStatus
+from causal.design.entry import _structural_inventory
+from causal.intake.contracts import AVAILABLE_STATUSES, ContextClass, SemanticStatus
 from causal.intake.fields import load_field_classes
 from causal.intake.kaggle import capture
 from causal.intake.profiler import profile_table
@@ -111,6 +113,21 @@ class TestIndexRows:
         self, profiles: dict[str, dict[str, object]]
     ) -> None:
         rows = measured_index_rows(profiles, {"nsw.csv": "tableprofile:an-x:abc"})
-        assert len(rows) == 3
+        measured = [row for row in rows if row.context_class is ContextClass.MEASURED]
+        assert len(measured) == 3
         assert all(row.status is SemanticStatus.EVIDENCED for row in rows)
         assert rows[0].json_pointer.startswith("tableprofile:an-x:abc#/columns/")
+
+    def test_structural_presence_rows_carry_the_design_inventory(
+        self, profiles: dict[str, dict[str, object]]
+    ) -> None:
+        # A zero-column-metadata dataset offers no provider type slots, so these presence
+        # rows are the whole structural_manifest view for the table (D-064).
+        rows = measured_index_rows(profiles, {"nsw.csv": "tableprofile:an-x:abc"})
+        presence = [row for row in rows if row.context_class is ContextClass.STRUCTURAL]
+        assert len(presence) == 3
+        assert {row.field_or_slot_name for row in presence} == {"presence"}
+        inventory = _structural_inventory(tuple(asdict(row) for row in presence), "nsw.csv")
+        assert [field.column_name for field in inventory] == sorted(
+            str(row.column_name) for row in presence)
+        assert {field.dtype for field in inventory} == {"undeclared"}

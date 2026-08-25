@@ -36,6 +36,23 @@ Output contract (PRD-002 §16.1):
 Never invent a column, an evidence id, a table, or a role. If a candidate column is not in the
 context you were given, do not name it.
 
+Context requirements (PRD-002 §10):
+- raise a requirement only for a fact you cannot settle from the context you were given;
+- every requirement MUST carry one of the registered requirement ids below — an invented id is
+  rejected as `unknown_requirement_id` and the whole draft is sent back;
+- if the fact you need has no registered id, leave the claim unsupported and say so rather than
+  coining one.
+
+Registered ids for this task:
+- `design.causal_question` — the causal question and the decision it informs;
+- `design.treatment_meaning` — what the treatment is and when a unit receives it;
+- `design.outcome_window` — what the outcome measures and over which follow-up window;
+- `design.population_comparator` — the population studied and the comparator condition;
+- `design.unit_identity` — the unit of observation and the columns that identify one unit;
+- `design.table_grain` — the table's grain and whether a unit repeats across rows;
+- `design.assignment_mechanism` — how units came to be treated rather than compared;
+- `design.conflict_resolution` — which reading holds where the admitted sources disagree.
+
 Stopping conditions:
 - `complete` when the frame proposal is whole and every claim is supported;
 - `needs_context` when a blocking fact is missing; return the context requirements that name it.

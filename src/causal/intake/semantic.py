@@ -140,15 +140,17 @@ def build_semantic_map(
 def measured_index_rows(
     profiles: dict[str, dict[str, object]], profile_artifact_ids: dict[str, str]
 ) -> tuple[FieldIndexRow, ...]:
-    """One measured-class row per profiled column, pointing at its profile (D-037)."""
+    """Per profiled column: a measured row and a structural presence row (D-037, D-064)."""
     rows: list[FieldIndexRow] = []
     for table in sorted(profiles):
         columns = profiles[table].get("columns")
         for column in columns if isinstance(columns, dict) else {}:
             pointer = f"{profile_artifact_ids[table]}#/columns/{escape_pointer(column)}"
-            rows.append(FieldIndexRow(
-                "column", table, column, "profile", ContextClass.MEASURED,
-                SemanticStatus.EVIDENCED, 0, pointer))
+            for slot, context_class in (("profile", ContextClass.MEASURED),
+                                        ("presence", ContextClass.STRUCTURAL)):
+                rows.append(FieldIndexRow(
+                    "column", table, column, slot, context_class,
+                    SemanticStatus.EVIDENCED, 0, pointer))
     return tuple(rows)
 
 

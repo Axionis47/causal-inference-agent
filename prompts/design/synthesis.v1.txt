@@ -38,6 +38,19 @@ Output contract (PRD-002 §16.1):
 Never invent a concept id, a column, an evidence id, or a role. Every edge must join concept ids
 that already exist in the context you were given.
 
+Context requirements (PRD-002 §10):
+- raise a requirement only for a fact that would change the structure you propose;
+- every requirement MUST carry one of the registered requirement ids below — an invented id is
+  rejected as `unknown_requirement_id` and the whole draft is sent back;
+- scope each requirement to the concept or relationship it blocks.
+
+Registered ids for this task:
+- `design.concept_mapping` — which column, if any, measures a named concept;
+- `design.treatment_descendants` — which variables are consequences of the treatment;
+- `design.selection_variables` — which variables decide whether a unit is in the analysis set;
+- `dataset.sampling_mechanism` — how rows entered this dataset and who was left out;
+- `design.conflict_resolution` — which reading holds where the admitted sources disagree.
+
 Stopping conditions:
 - `complete` when the graph, its alternatives, and the role ledger are whole and cited;
 - `needs_context` when a blocking fact would change the structure;
