@@ -12,7 +12,7 @@ from typing import Any
 
 import pytest
 
-MIGRATIONS = Path(__file__).resolve().parents[2] / "migrations"
+MIGRATIONS = Path(__file__).resolve().parents[1] / "migrations"
 
 
 def _docker_available() -> bool:
@@ -84,9 +84,12 @@ def minio_s3() -> Iterator[dict[str, Any]]:
         command=("server", "/data"),
     )
     try:
-        import boto3
-        from botocore.config import Config
-        from botocore.exceptions import EndpointConnectionError
+        import boto3  # type: ignore[import-untyped]
+        from botocore.config import Config  # type: ignore[import-untyped]
+        from botocore.exceptions import (  # type: ignore[import-untyped]
+            ClientError,
+            EndpointConnectionError,
+        )
 
         port = _host_port(container, 9000)
         client = boto3.client(
@@ -103,8 +106,13 @@ def minio_s3() -> Iterator[dict[str, Any]]:
             try:
                 client.create_bucket(Bucket=bucket)
                 break
-            except EndpointConnectionError:
+            except (EndpointConnectionError, ClientError) as error:
+                # MinIO answers HTTP before it is ready (XMinioServerNotInitialized).
                 if time.monotonic() > deadline:
+                    raise
+                if isinstance(error, ClientError) and error.response.get("Error", {}).get(
+                    "Code"
+                ) not in ("XMinioServerNotInitialized", "ServiceUnavailable", "SlowDown"):
                     raise
                 time.sleep(0.5)
         yield {"client": client, "bucket": bucket}
@@ -120,7 +128,7 @@ def conn(postgres_dsn: str) -> Iterator[Any]:
 
     admin = psycopg.connect(postgres_dsn, autocommit=True)
     database = f"test_{uuid.uuid4().hex[:10]}"
-    admin.execute(f'CREATE DATABASE "{database}"')  # type: ignore[arg-type]
+    admin.execute(f'CREATE DATABASE "{database}"')
     admin.close()
     dsn = postgres_dsn.rsplit("/", 1)[0] + f"/{database}"
     test_conn = psycopg.connect(dsn, autocommit=True)

@@ -82,7 +82,7 @@ class TestArtifactEnvelope:
     def test_frozen(self) -> None:
         envelope = ArtifactEnvelopeV1(**envelope_kwargs())  # type: ignore[arg-type]
         with pytest.raises(ValidationError):
-            envelope.artifact_id = "other"  # type: ignore[misc]
+            envelope.artifact_id = "other"  # type: ignore[misc,unused-ignore]
 
     def test_canonical_payload_hash_stable(self) -> None:
         data = ArtifactEnvelopeV1(**envelope_kwargs()).model_dump()  # type: ignore[arg-type]

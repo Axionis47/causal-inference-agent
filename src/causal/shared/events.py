@@ -17,6 +17,7 @@ __all__ = [
     "OperationalEventV1",
     "Severity",
     "Stage",
+    "build_event",
 ]
 
 UNREGISTERED_EVENT_NAME: Final = "unregistered_event_name"
@@ -119,6 +120,24 @@ class OperationalEventV1(BaseModel):
         if unknown:
             raise ValueError(f"unregistered token_usage keys: {sorted(unknown)}")
         return value
+
+
+_EVENT_DEFAULTS: Final[dict[str, object]] = {
+    "schema_version": "operational-event.v1", "severity": Severity.INFO,
+    "parent_event_id": None, "graph_thread_id": None, "task_id": None,
+    "attempt_id": None, "attempt_number": None, "versions": {}, "status": None,
+    "error_code": None, "retryable": None, "duration_ms": None, "token_usage": {},
+    "cost": None, "artifact_refs": (), "required_eval_ids": (),
+    "evaluation_run_id": None, "evaluation_case_id": None,
+    "evaluation_fixture_hash": None, "evaluator_version": None,
+    "evaluation_gate_status": None, "exception_class": None,
+    "exception_fingerprint": None, "safe_dimensions": {},
+}
+
+
+def build_event(**fields: object) -> OperationalEventV1:
+    """An event with every optional field defaulted; callers override as needed."""
+    return OperationalEventV1(**{**_EVENT_DEFAULTS, **fields})  # type: ignore[arg-type]
 
 
 class EventEmitterError(ValueError):

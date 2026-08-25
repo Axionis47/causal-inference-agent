@@ -17,7 +17,7 @@ from causal.shared.events import EventEmitter, OperationalEventV1
 from causal.shared.handoff import HandoffGate, HandoffStore
 from causal.shared.persistence import ArtifactCommitter, ObjectStore, PersistenceError, ProductStore
 from causal.shared.registry import ArtifactTypeRegistry
-from tests.shared.conftest import requires_docker
+from tests.conftest import requires_docker
 from tests.shared.test_persistence import (
     committed_event,
     envelope_for,

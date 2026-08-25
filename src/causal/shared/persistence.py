@@ -20,6 +20,7 @@ __all__ = [
     "ProductStore",
     "S3ClientProtocol",
     "apply_migrations",
+    "build_envelope",
 ]
 
 INTEGRITY_CONFLICT: Final = "integrity_conflict"
@@ -87,6 +88,39 @@ class ObjectStore:
     def get(self, locator: str) -> bytes:
         response = self._client.get_object(Bucket=self._bucket, Key=locator)
         return bytes(response["Body"].read())
+
+
+def build_envelope(
+    registry: ArtifactTypeRegistry,
+    artifact_type: str,
+    payload: dict[str, object],
+    *,
+    analysis_id: str,
+    stage_run_id: str,
+    producer_version: str,
+    parents: tuple[ArtifactEnvelopeV1, ...],
+    created_at_utc: Any,
+) -> ArtifactEnvelopeV1:
+    """Deterministic envelope from a registration and payload (D-031 identities)."""
+    registration = registry.lookup(artifact_type)
+    digest = content_hash(payload)
+    return ArtifactEnvelopeV1(
+        artifact_id=f"{artifact_type.lower()}:{analysis_id}:{digest[:16]}",
+        artifact_type=artifact_type,
+        schema_version=registration.schema_version,
+        content_hash=digest,
+        analysis_id=analysis_id,
+        stage_run_id=stage_run_id,
+        producer_component=registration.producer_component,
+        producer_version=producer_version,
+        parent_artifacts=tuple(
+            ArtifactRef(artifact_id=p.artifact_id, content_hash=p.content_hash)
+            for p in parents
+        ),
+        sensitivity_class=registration.sensitivity_class,
+        created_at_utc=created_at_utc,
+        payload_locator=ObjectStore.locator_for(digest),
+    )
 
 
 def apply_migrations(conn: Connection[Any], migrations_dir: Path) -> None:
