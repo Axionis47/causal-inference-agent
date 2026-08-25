@@ -234,3 +234,19 @@ Fix:
    the model with no further change. Events are untouched (they carry codes only).
 3. Tests (≤ 15 lines): shape_report carries the message; the semantic-prompt key list
    matches the constant.
+
+## Amendment 7 — parent-artifact hydration (2026-08-25, pilot finding, D-068)
+
+Live causal_synthesis exhausted corrections on `uncommitted_parent`: the result's
+`parent_artifact_ids` must equal committed parent ids the model was never shown, so it
+fabricated plausible ones. Same family as D-065/D-067 (harness-known closed values).
+
+Fix:
+1. **Shared (≤ +3 logical lines):** `TaskRunner.invoke` appends a
+   `## parent_artifacts` section after `## allowed_evidence` — one line per envelope
+   `parent_artifacts` ref: `<artifact_id> <content_hash>`; `(none)` when empty.
+2. **Declarative:** every design template's output contract states:
+   `parent_artifact_ids` is exactly the artifact ids listed under
+   `## parent_artifacts`, verbatim, no additions or inventions.
+3. Tests (≤ 10 lines): the rendered prompt carries the section with a known ref id;
+   prompt test asserts each template names the rule.
