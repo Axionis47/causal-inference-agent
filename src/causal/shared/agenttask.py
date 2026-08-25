@@ -91,8 +91,7 @@ class TaskRunner:
         # committed refs, so the prompt must carry both closed sets (D-065, D-068).
         rendered = self.prompt(spec, self.prompts_root, dict(payload)) + EVIDENCE_HEADING + (
             "\n".join(sorted(built.allowed_evidence_ids)) or NONE_LINE) + PARENT_HEADING + (
-            "\n".join(f"{ref.artifact_id} {ref.content_hash}"
-                      for ref in built.parent_artifacts) or NONE_LINE)
+            "\n".join(ref.artifact_id for ref in built.parent_artifacts) or NONE_LINE)
         answer = self.gateway.invoke(built, rendered, result_schema(draft, many=many))
         try:
             parsed = parse_strict(AgentTaskResultV1, answer.parsed or {})

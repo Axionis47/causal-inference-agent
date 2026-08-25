@@ -557,7 +557,7 @@ def test_the_prompt_carries_the_evidence_allowlist(conn: Any, object_store: Obje
     assert "ua:question/text" in allowed
     assert section.split() == sorted(allowed)
     ref = gateway.calls[0].parent_artifacts[0]
-    assert parents.split() == [ref.artifact_id, ref.content_hash]
+    assert parents.split() == [ref.artifact_id]
 
 
 class TestRefusal:
