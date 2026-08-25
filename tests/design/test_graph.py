@@ -487,6 +487,16 @@ def asking_gateway() -> ScriptedGateway:
     return gateway
 
 
+class UnwrappedFirstBatch(ScriptedGateway):
+    """D-066: the first `many` reply is one card, not `{"items": [...]}`."""
+
+    def default(self, key: str, envelope: AgentTaskEnvelopeV1, **over: Any) -> dict[str, Any]:
+        body = super().default(key, envelope, **over)
+        if key == "semantic_batch" and envelope.attempt_id.endswith(":1"):
+            return body | {"payload": card(str(envelope.scope_ids[0]))}
+        return body
+
+
 class TestCorrectionLoop:
     def test_schema_failure_corrects_and_the_second_reply_is_committed(
         self, conn: Any, object_store: ObjectStore, monkeypatch: pytest.MonkeyPatch
@@ -500,6 +510,17 @@ class TestCorrectionLoop:
         outcome = payload_of(conn, object_store, str(done.outcome_artifact_id))
         assert outcome["status"] == "approved" and outcome["counts"]["corrections"] == 1
         assert [call.task_kind for call in gateway.calls].count("semantic_batch") == 2
+
+    def test_a_many_reply_without_items_corrects_instead_of_crashing(
+        self, conn: Any, object_store: ObjectStore, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        stub_renderer(monkeypatch)
+        gateway = UnwrappedFirstBatch()
+        deps, opened, sink = start(conn, object_store, gateway=gateway)
+        assert '"error_code":"schema_invalid"' in sink.getvalue()
+        done = graph.resume_design(deps, thread_id=opened.thread_id, resume_value=approval(opened))
+        outcome = payload_of(conn, object_store, str(done.outcome_artifact_id))
+        assert outcome["status"] == "approved" and outcome["counts"]["corrections"] == 1
 
     def test_exhausted_corrections_end_the_revision(
         self, conn: Any, object_store: ObjectStore

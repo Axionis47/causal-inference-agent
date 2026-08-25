@@ -32,15 +32,17 @@ class GatewayProtocol(Protocol):
 
 
 @cache
-def result_schema(draft: type[BaseModel]) -> dict[str, object]:
-    """`AgentTaskResultV1`'s JSON schema with `payload` replaced by the draft's (memoized)."""
+def result_schema(draft: type[BaseModel], *, many: bool = False) -> dict[str, object]:
+    """`AgentTaskResultV1`'s schema with `payload` replaced by the draft's, or a list of them."""
     result: dict[str, Any] = deepcopy(AgentTaskResultV1.model_json_schema())
     payload: dict[str, Any] = deepcopy(draft.model_json_schema())
     defs: dict[str, Any] = result.setdefault("$defs", {})
     for name, definition in payload.pop("$defs", {}).items():
         if defs.setdefault(name, definition) != definition:
             raise ValueError(f"{draft.__name__} redefines $defs entry {name!r}")
-    result["properties"]["payload"] = payload
+    result["properties"]["payload"] = {
+        "type": "object", "properties": {"items": {"type": "array", "items": payload}},
+        "required": ["items"]} if many else payload
     return result
 
 
@@ -68,9 +70,13 @@ class TaskRunner:
 
     def invoke(self, state: Any, spec: Any, task_id: str, attempt: int,
                scope: tuple[str, Sequence[str]], refs: tuple[ArtifactRef, ...],
-               payload: Mapping[str, object], draft: type[BaseModel],
+               payload: Mapping[str, object], draft: type[BaseModel], *, many: bool = False,
                ) -> tuple[AgentTaskEnvelopeV1, AgentTaskResultV1 | None]:
-        """One physical attempt: envelope, prompt, gateway, strict `AgentTaskResultV1` parse."""
+        """One physical attempt: envelope, prompt, gateway, strict `AgentTaskResultV1` parse.
+
+        A `many` task whose payload carries no `items` list parses as `None`, so the
+        caller's `schema_invalid` correction fires instead of a `KeyError` (D-066).
+        """
         built = self.envelope(
             spec, analysis_id=state["analysis_id"], stage_run_id=state["stage_run_id"],
             task_id=task_id, attempt_id=f"{task_id}:{attempt}", scope_kind=scope[0],
@@ -83,11 +89,12 @@ class TaskRunner:
         # Wall 2 admits only these ids, so the prompt must carry them (D-065).
         rendered = self.prompt(spec, self.prompts_root, dict(payload)) + EVIDENCE_HEADING + (
             "\n".join(sorted(built.allowed_evidence_ids)) or NO_EVIDENCE)
-        answer = self.gateway.invoke(built, rendered, result_schema(draft))
+        answer = self.gateway.invoke(built, rendered, result_schema(draft, many=many))
         try:
-            return built, parse_strict(AgentTaskResultV1, answer.parsed or {})
+            parsed = parse_strict(AgentTaskResultV1, answer.parsed or {})
         except ValidationError:
             return built, None
+        return built, None if many and not isinstance(parsed.payload.get("items"), list) else parsed
 
     def run(self, state: Any, kind: str, model: type[BaseModel], *, scope_kind: str,
             scope_ids: Sequence[str], parent_kinds: tuple[str, ...],
@@ -103,7 +110,8 @@ class TaskRunner:
         body, issues = dict(payload), cast(tuple[ValidationIssueV1, ...], ())
         for attempt in range(1, spec.correction_budget + 2):
             built, result = self.invoke(
-                state, spec, task_id, attempt, (scope_kind, scope_ids), refs, body, model)
+                state, spec, task_id, attempt, (scope_kind, scope_ids), refs, body, model,
+                many=many)
             digest = content_hash(built.canonical_payload())
             if result is None:
                 for name in ("agent.schema_failed", "agent.correction_requested"):

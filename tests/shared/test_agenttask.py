@@ -47,3 +47,12 @@ class TestResultSchema:
         assert result_schema(Draft) is result_schema(Draft)
         assert result_schema(Draft) is not result_schema(Anchor)
         assert AgentTaskResultV1.model_json_schema() == BARE
+
+    def test_a_many_payload_is_an_items_array_of_the_draft(self) -> None:  # D-066
+        single: Any = result_schema(Draft)
+        merged: Any = result_schema(Draft, many=True)
+        assert merged["properties"]["payload"] == {
+            "type": "object", "required": ["items"], "properties": {"items": {
+                "type": "array", "items": single["properties"]["payload"]}}}
+        assert merged["$defs"] == single["$defs"]
+        assert merged is result_schema(Draft, many=True) is not single
