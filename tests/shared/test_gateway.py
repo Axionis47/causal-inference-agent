@@ -111,8 +111,18 @@ class TestSeed:
         assert len({derive_seed(f"task-{n}") for n in range(64)}) == 64
 
     @pytest.mark.parametrize("task_id", ["task-1", "", "an-1:column:promo_flag", "é"])
-    def test_within_unsigned_32_bit_range(self, task_id: str) -> None:
-        assert 0 <= derive_seed(task_id) < 2**32
+    def test_within_non_negative_31_bit_range(self, task_id: str) -> None:
+        assert 0 <= derive_seed(task_id) < 2**31
+
+    def test_value_above_signed_int32_is_masked(self) -> None:
+        # sha256("an-1:column:promo_flag")[:8] is 0x8a001a3a, past the signed INT32 ceiling.
+        assert derive_seed("an-1:column:promo_flag") == 0x0A001A3A
+        settings = GenerationSettingsV1(
+            temperature=0.0, candidate_count=1, seed=derive_seed("an-1:column:promo_flag"),
+            thinking_budget_tokens=8192, max_output_tokens=16384,
+            response_mime_type="application/json", response_schema=SCHEMA,
+            automatic_function_calling=False)
+        assert settings.seed == 0x0A001A3A
 
     def test_result_carries_the_task_seed(self) -> None:
         gateway, transport, _ = build([ok()])

@@ -89,8 +89,12 @@ VERTEX_PROFILE_V1: Final = VertexModelProfileV1()
 
 
 def derive_seed(task_id: str) -> int:
-    """Deterministic unsigned 32-bit seed for a task: first 8 hex chars of sha256(task_id)."""
-    return int(hashlib.sha256(task_id.encode("utf-8")).hexdigest()[:8], 16)
+    """Deterministic non-negative 31-bit seed: first 8 hex chars of sha256(task_id), masked.
+
+    Vertex `generation_config.seed` is a signed INT32, so the mask keeps the value inside
+    the range the provider accepts (D-061).
+    """
+    return int(hashlib.sha256(task_id.encode("utf-8")).hexdigest()[:8], 16) & 0x7FFF_FFFF
 
 
 class GenerationSettingsV1(BaseModel):
@@ -100,7 +104,7 @@ class GenerationSettingsV1(BaseModel):
 
     temperature: float
     candidate_count: Annotated[int, Field(ge=1)]
-    seed: Annotated[int, Field(ge=0, lt=2**32)]
+    seed: Annotated[int, Field(ge=0, lt=2**31)]
     thinking_budget_tokens: Annotated[int, Field(ge=0)]
     max_output_tokens: Annotated[int, Field(gt=0)]
     response_mime_type: str
@@ -152,7 +156,7 @@ class GatewayResultV1(BaseModel):
     parsed: dict[str, object] | None
     token_usage: dict[str, Annotated[int, Field(ge=0)]]
     attempts: Annotated[int, Field(ge=1)]
-    seed: Annotated[int, Field(ge=0)]
+    seed: Annotated[int, Field(ge=0, lt=2**31)]
 
 
 def _parse_json(text: str) -> dict[str, object] | None:
