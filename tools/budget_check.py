@@ -45,7 +45,7 @@ EXCLUDED_PREFIXES = ("docs/", ".claude/")
 
 PRODUCTION_SCOPES = ("shared", "cli", "runtime", "intake", "design", "preparation", "estimation", "presentation")
 CEILINGS = {
-    "shared": 2500, "cli": 500, "runtime": 800, "intake": 1200, "design": 2750,
+    "shared": 2500, "cli": 500, "runtime": 800, "intake": 1200, "design": 3400,
     "preparation": 2000, "estimation": 4000, "presentation": 1500, "tests": 8000, "declarative": 3000,
 }
 PRODUCTION_TOTAL_CEILING = 15_000

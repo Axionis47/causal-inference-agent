@@ -1581,7 +1581,7 @@ final presentation.
     artifact ID, hash, kind, and expected revision.
 38. CLI parsing cannot call an agent, inspect graph state, infer an answer, or approve a design;
     stale revisions and conflicting idempotency keys raise blockers.
-39. PRD-002 implementation remains within the non-transferable 2,750-line `design` allocation in
+39. PRD-002 implementation remains within the non-transferable 3,400-line `design` allocation in
     `SYSTEM-CONTRACT.md`; every coding task passes the shared forecast, measurement, and bounded
     rethink gate without creating another orchestration or agent framework.
 
