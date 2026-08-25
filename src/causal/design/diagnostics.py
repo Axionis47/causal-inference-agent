@@ -3,20 +3,18 @@
 from __future__ import annotations
 
 import hashlib
-import io
 import math
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
 from functools import partial
-from typing import Any, Final, NamedTuple, Protocol
+from typing import Any, Final, NamedTuple
 
 import polars as pl
 
 from causal.design.frame import DiagnosticResultV1, DiagnosticStatus
 from causal.design.packs import PREREPAIR_DIAGNOSTIC_IDS, MethodPackRegistry
 from causal.design.tools import ToolHandler
-from causal.shared.contracts import ArtifactRef
 from causal.shared.envelope import AgentTaskEnvelopeV1
+from causal.shared.readers import BytesFrameSource, CsvObjectFrameSource, FrameSource, ObjectReader
 
 __all__ = [
     "DIAGNOSTIC_SPECS", "IMPLEMENTATION_VERSION", "RULE_OPS", "BytesFrameSource",
@@ -46,50 +44,6 @@ class DiagnosticError(ValueError):
     def __init__(self, message: str, code: str) -> None:
         super().__init__(message)
         self.code = code
-
-
-class FrameSource(Protocol):
-    """The committed CSV a diagnostic reads; nothing here may write a table (PRD-002 §4.2)."""
-
-    def csv_ref(self) -> ArtifactRef: ...
-
-    def frame(self) -> pl.DataFrame: ...
-
-
-class ObjectReader(Protocol):
-    """The one `ObjectStore` method a frame source needs."""
-
-    def get(self, locator: str) -> bytes: ...
-
-
-@dataclass(frozen=True)
-class BytesFrameSource:
-    """A frame source over already-held CSV bytes."""
-
-    name: str
-    data: bytes
-    ref: ArtifactRef
-
-    def csv_ref(self) -> ArtifactRef:
-        return self.ref
-
-    def frame(self) -> pl.DataFrame:
-        return pl.read_csv(io.BytesIO(self.data))
-
-
-@dataclass(frozen=True)
-class CsvObjectFrameSource:
-    """A frame source over the committed CSV object (D-019 locator)."""
-
-    objects: ObjectReader
-    locator: str
-    ref: ArtifactRef
-
-    def csv_ref(self) -> ArtifactRef:
-        return self.ref
-
-    def frame(self) -> pl.DataFrame:
-        return pl.read_csv(io.BytesIO(self.objects.get(self.locator)))
 
 
 class DiagnosticSpec(NamedTuple):

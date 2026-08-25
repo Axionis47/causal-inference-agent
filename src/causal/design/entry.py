@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Final, Protocol
+from typing import Any, Final
 
 from psycopg import Connection
 
@@ -17,6 +17,7 @@ from causal.design.contracts import (
     TableSelectionV1,
 )
 from causal.shared.contracts import ArtifactEnvelopeV1, ArtifactRef, HandoffManifestV1
+from causal.shared.readers import CatalogReader, ProductsReader, SqlCatalogReader
 
 __all__ = [
     "CSV_MEDIA_TYPES", "ENTRY_ERROR_CODES", "RETRIEVAL_SURFACES", "CatalogReader",
@@ -58,47 +59,10 @@ class EntryError(ValueError):
         self.detail_codes = detail_codes
 
 
-class CatalogReader(Protocol):
-    """The narrow intake-catalogue read surface the design entry gate needs."""
-
-    def resources(self, dataset_id: str) -> tuple[dict[str, Any], ...]: ...
-
-    def view_rows(self, view_name: str, dataset_id: str) -> tuple[dict[str, Any], ...]: ...
-
-
-class ProductsReader(Protocol):
-    """Committed-artifact envelope lookup; `ProductStore` satisfies it structurally."""
-
-    def load_envelope(self, artifact_id: str) -> ArtifactEnvelopeV1: ...
-
-
-class PsycopgCatalogReader:
-    """`CatalogReader` over the intake `catalog` schema: resources plus the five views."""
-
-    def __init__(self, conn: Connection[Any]) -> None:
-        self._conn = conn
-
-    def _rows(self, sql: str, dataset_id: str) -> tuple[dict[str, Any], ...]:
-        cursor = self._conn.execute(sql, (dataset_id,))
-        names = [column.name for column in cursor.description or ()]
-        return tuple(dict(zip(names, row, strict=True)) for row in cursor.fetchall())
-
-    def resources(self, dataset_id: str) -> tuple[dict[str, Any], ...]:
-        return self._rows(
-            "SELECT logical_name, kind, object_key, object_sha256, media_type, parse_status"
-            " FROM catalog.resources WHERE dataset_id = %s ORDER BY logical_name", dataset_id)
-
-    def view_rows(self, view_name: str, dataset_id: str) -> tuple[dict[str, Any], ...]:
-        if view_name not in RETRIEVAL_SURFACES:
-            raise EntryError(
-                f"unsupported retrieval surface {view_name!r}", ENTRY_VALIDATION_FAILED
-            )
-        # view_name is interpolated only from the closed RETRIEVAL_SURFACES vocabulary.
-        return self._rows(
-            f"SELECT * FROM catalog.{view_name} WHERE dataset_id = %s"
-            " ORDER BY table_name NULLS FIRST, column_name NULLS FIRST, field_or_slot_name",
-            dataset_id,
-        )
+def PsycopgCatalogReader(conn: Connection[Any]) -> SqlCatalogReader:
+    """The design-stage catalog reader: the five PRD-001 views, failing closed (D-049)."""
+    return SqlCatalogReader(conn, views=RETRIEVAL_SURFACES, error=lambda view: EntryError(
+        f"unsupported retrieval surface {view!r}", ENTRY_VALIDATION_FAILED))
 
 
 @dataclass(frozen=True)
