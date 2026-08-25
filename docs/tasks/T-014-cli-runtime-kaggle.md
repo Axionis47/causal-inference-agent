@@ -35,3 +35,27 @@ Depends on: T-013
 - `causal new` runs intake to its boundary; `causal run` drives the design stage to the next
   interrupt or terminal state and prints the exact permitted next command.
 - Budgets: cli ≤ 480 of 500; runtime ≤ 520 of 800; tests ≤ 700 new lines.
+
+## Amendment 2 — live-provider fix: version resolution (2026-08-25, pilot finding)
+
+The first live pilot run showed Kaggle retired the `GetDatasetStatus` endpoint:
+`kaggle==2.2.4`'s `api.dataset_status()` now returns HTTP 404 for every dataset, so
+`capture()` fails with `fetch_failed` before download. `api.dataset_list(search=slug)`
+still works and its rows carry `current_version_number`.
+
+Fix (runtime scope only; the pin, the `KaggleClientProtocol`, and `intake/kaggle.py`
+are unchanged):
+
+1. `LiveKaggleClient.dataset_status(owner, slug)` stops calling `api.dataset_status`.
+   It calls `api.dataset_list(search=slug)`, selects the row whose `ref` equals
+   `f"{owner}/{slug}"` exactly, and returns
+   `{"currentVersionNumber": str(row.current_version_number)}`. No match, an empty
+   version, or any provider failure keeps the existing sanitized `KaggleError` path
+   (class name only; message never includes provider bodies).
+2. Docstring records the endpoint retirement and that the protocol method name is kept
+   for the frozen capture contract.
+3. Tests: unit test with a fake api (exact-ref match among decoys; no-match failure);
+   the `RUN_LIVE_KAGGLE=1` smoke asserts a non-empty resolved version for a public
+   dataset so a future endpoint retirement is caught live.
+
+Budgets: runtime stays ≤ 800; tests additions ≤ 40 lines.
