@@ -223,12 +223,12 @@ class TestToolRegistry:
             assert row.registered is False
         assert registry.lookup("run_arbitrary_code") is None
 
-    def test_t012_compute_tools_are_listed_but_unregistered(self) -> None:
+    def test_model_facing_tools_are_all_registered(self) -> None:
         registry = load_tool_registry(TOOLS_PATH)
         for tool_id in ("validate_causal_model", "run_preflight_diagnostic",
                         "preview_eligibility_impact"):
             row = registry.lookup(tool_id)
-            assert row is not None and row.registered is False
+            assert row is not None and row.registered is True
         for tool_id in ("list_intake_inventory", "get_semantic_evidence", "get_measured_facts",
                         "get_provenance", "get_method_contract"):
             row = registry.lookup(tool_id)

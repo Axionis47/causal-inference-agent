@@ -1,0 +1,98 @@
+{
+  "visualization_catalog_version": "visualization-catalog.v1",
+  "capacity_registry_version": "delivery-capacity.v1",
+  "accessible_table_max_rows": 200,
+  "max_concurrency": 8,
+  "templates": [
+    {
+      "template_id": "assignment_flow.v1",
+      "visual_evidence_ids": ["assignment_attrition_flow"],
+      "max_panels": 4,
+      "max_series": 12,
+      "max_labels": 24,
+      "max_annotations": 12
+    },
+    {
+      "template_id": "estimate_forest.v1",
+      "visual_evidence_ids": [
+        "primary_contrast_estimates",
+        "primary_estimate",
+        "primary_aggregate",
+        "primary_local_estimate"
+      ],
+      "max_panels": 8,
+      "max_series": 12,
+      "max_labels": 24,
+      "max_annotations": 12
+    },
+    {
+      "template_id": "balance_overview.v1",
+      "visual_evidence_ids": ["balance_overview"],
+      "max_panels": 8,
+      "max_series": 12,
+      "max_labels": 24,
+      "max_annotations": 12
+    },
+    {
+      "template_id": "sensitivity_panel.v1",
+      "visual_evidence_ids": ["required_sensitivities", "qualifications"],
+      "max_panels": 8,
+      "max_series": 12,
+      "max_labels": 24,
+      "max_annotations": 12
+    },
+    {
+      "template_id": "overlap_density.v1",
+      "visual_evidence_ids": ["overlap", "weights_support", "density_continuity"],
+      "max_panels": 4,
+      "max_series": 12,
+      "max_labels": 16,
+      "max_annotations": 8
+    },
+    {
+      "template_id": "trend_lines.v1",
+      "visual_evidence_ids": ["trends", "event_time_evidence"],
+      "max_panels": 4,
+      "max_series": 12,
+      "max_labels": 24,
+      "max_annotations": 12
+    },
+    {
+      "template_id": "composition_stack.v1",
+      "visual_evidence_ids": ["support_composition"],
+      "max_panels": 8,
+      "max_series": 12,
+      "max_labels": 24,
+      "max_annotations": 12
+    },
+    {
+      "template_id": "binned_scatter.v1",
+      "visual_evidence_ids": ["binned_outcome_fit", "cutoff_bandwidth"],
+      "max_panels": 2,
+      "max_series": 8,
+      "max_labels": 16,
+      "max_annotations": 8
+    },
+    {
+      "template_id": "small_multiples.v1",
+      "visual_evidence_ids": [
+        "balance_overview",
+        "support_composition",
+        "trends",
+        "event_time_evidence"
+      ],
+      "max_panels": 8,
+      "max_series": 8,
+      "max_labels": 24,
+      "max_annotations": 12
+    },
+    {
+      "template_id": "single_contrast.v1",
+      "visual_evidence_ids": ["primary_contrast_estimates", "primary_estimate"],
+      "max_panels": 1,
+      "max_series": 2,
+      "max_labels": 4,
+      "max_annotations": 2
+    }
+  ]
+}

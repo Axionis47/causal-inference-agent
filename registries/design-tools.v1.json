@@ -29,17 +29,17 @@
     {
       "tool_id": "validate_causal_model",
       "allowed_task_kinds": ["causal_synthesis"],
-      "registered": false
+      "registered": true
     },
     {
       "tool_id": "run_preflight_diagnostic",
       "allowed_task_kinds": ["method_design"],
-      "registered": false
+      "registered": true
     },
     {
       "tool_id": "preview_eligibility_impact",
       "allowed_task_kinds": ["method_design"],
-      "registered": false
+      "registered": true
     },
     {
       "tool_id": "validate_experiment_design",
