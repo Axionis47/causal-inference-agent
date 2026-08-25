@@ -112,3 +112,19 @@ Depends on: T-009
 Targets: gateway ≤ 260, tracing ≤ 240, persistence delta ≤ +15 (shared scope stays ≤ 2,500);
 tests ≤ 500 new logical lines. Acceptance identical to T-009 §7 (suite green, ruff, mypy
 --strict, budget gate, ledger + checkpoint commit).
+
+## Amendment 1 — seed range fix (2026-08-25, pilot finding, D-061)
+
+The first live Vertex call rejected the request: `generation_config.seed` is a signed
+INT32, and the frozen derivation (first 8 hex chars of sha256(task_id), up to 2^32-1)
+can exceed it (observed 3,755,233,513 → 400 INVALID_ARGUMENT). SC §10.4's seed row is
+revised to a non-negative 31-bit value.
+
+Fix (shared scope):
+1. `gateway.derive_seed` masks the existing derivation to 31 bits:
+   `int(sha256(task_id).hexdigest()[:8], 16) & 0x7FFF_FFFF`. Docstring updated.
+2. The two pydantic seed bounds move from `lt=2**32` to `lt=2**31`.
+3. Tests: update any asserted seed constants; add one case whose unmasked value
+   exceeds 2**31-1 and assert the masked result and bound acceptance.
+
+Budgets: shared unchanged ±2 lines; tests additions ≤ 10 lines.

@@ -589,7 +589,7 @@ change generation settings independently.
 | authentication | Application Default Credentials; API-key and express modes are forbidden |
 | project | resolved from the authenticated Google Cloud configuration at startup; required but never logged |
 | sampling | temperature `0.0`, one candidate, no independently supplied top-p or top-k |
-| seed | unsigned 32-bit value derived from the canonical `task_id` hash and reused for the same task |
+| seed | non-negative 31-bit value derived from the canonical `task_id` hash (first 8 hex chars of sha256, masked to 31 bits) and reused for the same task; Vertex `generation_config.seed` is a signed INT32 and rejects larger values (D-061, live-pilot finding, 2026-08-25) |
 | thinking budget | `8192` tokens |
 | maximum output | `16384` tokens |
 | output contract | `application/json` with the registered response JSON schema |
