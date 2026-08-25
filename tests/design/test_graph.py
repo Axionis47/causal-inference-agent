@@ -548,13 +548,16 @@ def test_the_gateway_gets_the_draft_result_schema(conn: Any, object_store: Objec
 
 
 def test_the_prompt_carries_the_evidence_allowlist(conn: Any, object_store: ObjectStore) -> None:
-    """D-065: wall 2 admits only allowlisted ids, so the rendered prompt must name them."""
+    """D-065/D-068: the closed sets a model may cite and must parent to are rendered."""
     gateway = ScriptedGateway({"semantic_batch": [{"not": "a result"}] * 3})
     start(conn, object_store, gateway=gateway)
-    section = gateway.prompts["intent"].split("## allowed_evidence\n")[-1]
+    evidence, parents = gateway.prompts["intent"].split("## parent_artifacts\n")
+    section = evidence.split("## allowed_evidence\n")[-1]
     allowed = set(gateway.calls[0].allowed_evidence_ids)
     assert "ua:question/text" in allowed
-    assert section.splitlines() == sorted(allowed)
+    assert section.split() == sorted(allowed)
+    ref = gateway.calls[0].parent_artifacts[0]
+    assert parents.split() == [ref.artifact_id, ref.content_hash]
 
 
 class TestRefusal:

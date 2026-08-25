@@ -18,10 +18,11 @@ from causal.shared.events import Severity
 from causal.shared.gateway import GatewayResultV1
 from causal.shared.validation import ValidationIssueV1, ValidationReport, parse_strict
 
-__all__ = ["EVIDENCE_HEADING", "GatewayProtocol", "TaskRunner", "result_schema"]
+__all__ = ["EVIDENCE_HEADING", "PARENT_HEADING", "GatewayProtocol", "TaskRunner", "result_schema"]
 
 EVIDENCE_HEADING: Final = "\n\n## allowed_evidence\n"
-NO_EVIDENCE: Final = "(none)"
+PARENT_HEADING: Final = "\n\n## parent_artifacts\n"
+NONE_LINE: Final = "(none)"
 
 
 class GatewayProtocol(Protocol):
@@ -86,9 +87,12 @@ class TaskRunner:
             payload_type=f"{spec.task_kind}-context", payload=payload)
         self.emit(state, "agent.started", self.evals[spec.task_kind], task_id=task_id,
                   attempt_id=built.attempt_id, attempt_number=attempt)
-        # Wall 2 admits only these ids, so the prompt must carry them (D-065).
+        # Wall 2 admits only these ids, and a result's parents must be exactly these
+        # committed refs, so the prompt must carry both closed sets (D-065, D-068).
         rendered = self.prompt(spec, self.prompts_root, dict(payload)) + EVIDENCE_HEADING + (
-            "\n".join(sorted(built.allowed_evidence_ids)) or NO_EVIDENCE)
+            "\n".join(sorted(built.allowed_evidence_ids)) or NONE_LINE) + PARENT_HEADING + (
+            "\n".join(f"{ref.artifact_id} {ref.content_hash}"
+                      for ref in built.parent_artifacts) or NONE_LINE)
         answer = self.gateway.invoke(built, rendered, result_schema(draft, many=many))
         try:
             parsed = parse_strict(AgentTaskResultV1, answer.parsed or {})

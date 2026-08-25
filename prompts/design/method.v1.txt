@@ -36,7 +36,9 @@ Output contract (PRD-002 §16.1):
   confidence number is forbidden;
 - claims may cite only the evidence ids listed under `## allowed_evidence` below; a fact
   with no allowlisted support is a `hypothesis` claim with empty citations, never an
-  invented id; and
+  invented id;
+- `parent_artifact_ids` is exactly the artifact ids listed under `## parent_artifacts`,
+  verbatim — no additions and nothing invented; and
 - a claim can never cite itself as its own supporting evidence.
 
 Never invent a column, a concept id, an evidence id, a role, a diagnostic id, or a method that

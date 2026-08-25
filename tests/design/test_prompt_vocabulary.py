@@ -37,6 +37,14 @@ def test_prompt_answer_schemas_match_the_registry() -> None:
             assert schema == SCHEMAS[requirement_id], f"{template.name}: {requirement_id}"
 
 
+def test_prompts_bind_parent_ids_to_the_rendered_section() -> None:
+    """The committed parent refs a model must not invent (Amendment 7; D-068)."""
+    for template in sorted((ROOT / "prompts" / "design").glob("*.v1.txt")):
+        text = template.read_text(encoding="utf-8")
+        assert "`parent_artifact_ids` is exactly the artifact ids listed under "\
+               "`## parent_artifacts`" in text, template.name
+
+
 def test_semantic_prompt_lists_every_card_slot() -> None:
     """The closed slot vocabulary a model must spell exactly right (Amendment 6; D-067)."""
     text = (ROOT / "prompts" / "design" / "semantic.v1.txt").read_text(encoding="utf-8")
