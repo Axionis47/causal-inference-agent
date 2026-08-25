@@ -250,3 +250,11 @@ Fix:
    `## parent_artifacts`, verbatim, no additions or inventions.
 3. Tests (≤ 10 lines): the rendered prompt carries the section with a known ref id;
    prompt test asserts each template names the rule.
+
+### Amendment 7 correction (2026-08-25)
+
+Live round 7: the model echoed the full rendered line (id + space + hash) as the
+parent id — the section's `<artifact_id> <content_hash>` format collided with the
+templates' "verbatim" instruction. The `## parent_artifacts` section renders the BARE
+`artifact_id` only, one per line (the hash serves no model-facing purpose). Adjust the
+Amendment 4/7 prompt test accordingly. Architect's spec error, not implementer error.
