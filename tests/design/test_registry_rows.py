@@ -1,4 +1,4 @@
-"""The eighteen design artifact-type registry rows (T-009 §4, §6; PRD-002 §6)."""
+"""The nineteen design artifact-type registry rows (T-009 §4, §6; T-011 §2; PRD-002 §6)."""
 
 from __future__ import annotations
 
@@ -12,7 +12,8 @@ REGISTRY_PATH = Path(__file__).resolve().parents[2] / "registries" / "artifact-t
 REGISTRY = load_artifact_type_registry(REGISTRY_PATH)
 
 DESIGN_TYPES = (
-    "TableSelection", "DesignContextManifest", "DesignIntent", "ColumnSemanticCard",
+    "TableSelection", "DesignContextManifest", "DesignIntent", "ColumnTriageRecord",
+    "ColumnSemanticCard",
     "MeasurementMap", "RoleEvidence", "CausalContext", "RoleLedger",
     "PreRepairFeasibilityReport", "ExperimentDesign", "CausalGraphView", "DeliveryCapacityCheck",
     "UserQuestionPacket", "UserContextAnswer", "TableSelectionDecision",
@@ -26,8 +27,8 @@ OUTCOME_STATUSES = (
 
 
 def test_registry_loads_with_the_design_rows_appended() -> None:
-    assert len(DESIGN_TYPES) == 18
-    assert len(REGISTRY) == 26
+    assert len(DESIGN_TYPES) == 19
+    assert len(REGISTRY) == 27
 
 
 @pytest.mark.parametrize("artifact_type", DESIGN_TYPES)

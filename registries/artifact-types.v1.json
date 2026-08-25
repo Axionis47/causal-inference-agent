@@ -139,6 +139,18 @@
       "validator_version": "design-intent-validator.v1"
     },
     {
+      "artifact_type": "ColumnTriageRecord",
+      "schema_version": "column-triage.v1",
+      "producer_component": "design-harness",
+      "allowed_reader_components": ["design-harness"],
+      "required_parent_types": ["DesignIntent"],
+      "optional_parent_types": [],
+      "sensitivity_class": "internal",
+      "terminal_statuses": ["committed"],
+      "destinations": ["design"],
+      "validator_version": "column-triage-validator.v1"
+    },
+    {
       "artifact_type": "ColumnSemanticCard",
       "schema_version": "column-semantic-card.v1",
       "producer_component": "design-harness",

@@ -70,7 +70,7 @@ class TestRegistry:
 class TestRealRegistryFile:
     def test_loads_and_looks_up_seeded_rows(self) -> None:
         registry = load_artifact_type_registry(REGISTRY_PATH)
-        assert len(registry) == 26
+        assert len(registry) == 27
         intake = registry.lookup("IntakeOutcome")
         assert intake.producer_component == "intake-coordinator"
         assert intake.terminal_statuses == ("usable", "partial", "refused")

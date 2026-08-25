@@ -1,0 +1,385 @@
+{
+  "registry_version": "method-packs.v1",
+  "packs": [
+    {
+      "method_id": "randomized_experiment",
+      "pack_version": "randomized-experiment-pack.v1",
+      "display_name": "Randomized experiment",
+      "compatible_assignment_mechanisms": ["randomized"],
+      "required_roles": ["treatment", "outcome", "unit_identifier"],
+      "optional_roles": [
+        "assignment_variable",
+        "stratum",
+        "cluster",
+        "time",
+        "precision_covariate",
+        "effect_modifier",
+        "selection_variable"
+      ],
+      "forbidden_adjustment_roles": ["mediator", "collider"],
+      "supported_estimands": ["itt", "per_protocol"],
+      "required_context_requirement_ids": [
+        "design.causal_question",
+        "design.treatment_meaning",
+        "design.outcome_window",
+        "design.population_comparator",
+        "design.unit_identity",
+        "design.table_grain",
+        "dataset.sampling_mechanism",
+        "design.assignment_mechanism",
+        "column.meaning",
+        "column.encoding",
+        "column.missing_meaning",
+        "column.measurement_timing",
+        "column.source_process",
+        "design.concept_mapping",
+        "design.treatment_descendants",
+        "design.selection_variables",
+        "design.conflict_resolution"
+      ],
+      "structural_requirements": [
+        "one_row_per_randomization_unit",
+        "arms_ge_2",
+        "defined_comparator"
+      ],
+      "allowed_prerepair_diagnostic_ids": [
+        "arm_counts",
+        "assignment_unit_uniqueness",
+        "cluster_sizes",
+        "baseline_availability",
+        "outcome_missingness",
+        "compliance_availability",
+        "power_precision_feasibility"
+      ],
+      "eligibility_rule_vocabulary": [
+        "pre_randomization_eligibility",
+        "randomization_window",
+        "arm_membership",
+        "followup_window"
+      ],
+      "imputation_forbidden_roles": [
+        "treatment",
+        "outcome",
+        "assignment_variable",
+        "stratum",
+        "cluster"
+      ],
+      "imputation_eligible_roles": [
+        "precision_covariate",
+        "confounder_candidate",
+        "effect_modifier"
+      ],
+      "deletion_impact_dimensions": [
+        "overall",
+        "arm",
+        "cluster",
+        "stratum",
+        "subgroup",
+        "effective_sample_size",
+        "target_population"
+      ],
+      "invalidation_rules": [
+        "Excluding a randomized unit after assignment breaks the randomized comparison and requires design revision.",
+        "A missing outcome is attrition to be reported, never an ordinary silent deletion.",
+        "Using a post-treatment variable as a baseline adjuster invalidates the design.",
+        "More than one confirmatory contrast without a registered multiplicity policy blocks approval."
+      ],
+      "required_postrepair_diagnostic_ids": [
+        "arm_counts",
+        "assignment_unit_uniqueness",
+        "baseline_availability",
+        "outcome_missingness"
+      ],
+      "required_visual_evidence_ids": [
+        "assignment_attrition_flow",
+        "primary_contrast_estimates",
+        "balance_overview",
+        "required_sensitivities"
+      ],
+      "reserved_estimator_id": "randomized-experiment-estimator.v1",
+      "runnable_frame_schema": "runnable-frame-contract.v1"
+    },
+    {
+      "method_id": "aipw",
+      "pack_version": "aipw-pack.v1",
+      "display_name": "Observational AIPW",
+      "compatible_assignment_mechanisms": ["self_selected"],
+      "required_roles": ["treatment", "outcome", "unit_identifier", "confounder_candidate"],
+      "optional_roles": [
+        "effect_modifier",
+        "precision_covariate",
+        "instrument_candidate",
+        "selection_variable",
+        "stratum",
+        "cluster",
+        "time"
+      ],
+      "forbidden_adjustment_roles": ["mediator", "collider"],
+      "supported_estimands": ["ate", "att"],
+      "required_context_requirement_ids": [
+        "design.causal_question",
+        "design.treatment_meaning",
+        "design.outcome_window",
+        "design.population_comparator",
+        "design.unit_identity",
+        "design.table_grain",
+        "dataset.sampling_mechanism",
+        "design.assignment_mechanism",
+        "column.meaning",
+        "column.encoding",
+        "column.missing_meaning",
+        "column.measurement_timing",
+        "column.source_process",
+        "design.concept_mapping",
+        "design.treatment_descendants",
+        "design.selection_variables",
+        "design.conflict_resolution"
+      ],
+      "structural_requirements": [
+        "one_row_per_unit",
+        "treatment_binary",
+        "defined_comparator",
+        "treatment_and_outcome_observed"
+      ],
+      "allowed_prerepair_diagnostic_ids": [
+        "treatment_prevalence",
+        "covariate_availability",
+        "missingness",
+        "rough_overlap",
+        "level_sparsity",
+        "effective_sample_feasibility",
+        "cross_fitting_feasibility"
+      ],
+      "eligibility_rule_vocabulary": [
+        "pre_treatment_eligibility",
+        "target_population_filter",
+        "propensity_trimming",
+        "observation_window"
+      ],
+      "imputation_forbidden_roles": ["treatment", "outcome"],
+      "imputation_eligible_roles": [
+        "confounder_candidate",
+        "precision_covariate",
+        "effect_modifier"
+      ],
+      "deletion_impact_dimensions": [
+        "overall",
+        "treatment_group",
+        "subgroup",
+        "overlap_region",
+        "effective_sample_size",
+        "target_population"
+      ],
+      "invalidation_rules": [
+        "Propensity trimming changes the target population and belongs to the design, never to repair.",
+        "Imputing treatment or the primary outcome invalidates the estimand.",
+        "Adjusting on a mediator, a collider, or any treatment descendant invalidates identification.",
+        "Losing overlap support after repair requires design revision, not silent trimming."
+      ],
+      "required_postrepair_diagnostic_ids": [
+        "treatment_prevalence",
+        "covariate_availability",
+        "missingness",
+        "rough_overlap"
+      ],
+      "required_visual_evidence_ids": [
+        "overlap",
+        "weights_support",
+        "balance_overview",
+        "primary_estimate",
+        "qualifications",
+        "required_sensitivities"
+      ],
+      "reserved_estimator_id": "aipw-estimator.v1",
+      "runnable_frame_schema": "runnable-frame-contract.v1"
+    },
+    {
+      "method_id": "did",
+      "pack_version": "did-pack.v1",
+      "display_name": "Difference-in-differences",
+      "compatible_assignment_mechanisms": ["time_of_adoption"],
+      "required_roles": ["treatment", "outcome", "group", "time", "cluster"],
+      "optional_roles": [
+        "unit_identifier",
+        "confounder_candidate",
+        "precision_covariate",
+        "effect_modifier",
+        "selection_variable",
+        "stratum"
+      ],
+      "forbidden_adjustment_roles": ["mediator", "collider"],
+      "supported_estimands": ["att_group_time_aggregate"],
+      "required_context_requirement_ids": [
+        "design.causal_question",
+        "design.treatment_meaning",
+        "design.outcome_window",
+        "design.population_comparator",
+        "design.unit_identity",
+        "design.table_grain",
+        "dataset.sampling_mechanism",
+        "design.assignment_mechanism",
+        "column.meaning",
+        "column.encoding",
+        "column.missing_meaning",
+        "column.measurement_timing",
+        "column.source_process",
+        "design.concept_mapping",
+        "design.treatment_descendants",
+        "design.selection_variables",
+        "design.conflict_resolution"
+      ],
+      "structural_requirements": [
+        "unit_time_or_group_time_rows",
+        "treated_and_comparison_groups",
+        "adoption_time_defined",
+        "pre_and_post_periods"
+      ],
+      "allowed_prerepair_diagnostic_ids": [
+        "unit_period_uniqueness",
+        "group_time_counts",
+        "panel_completeness",
+        "adoption_cohorts",
+        "missingness_by_group_time",
+        "pre_period_availability",
+        "composition",
+        "clustering_feasibility"
+      ],
+      "eligibility_rule_vocabulary": [
+        "unit_eligibility",
+        "group_membership",
+        "period_window",
+        "cohort_inclusion"
+      ],
+      "imputation_forbidden_roles": ["treatment", "outcome", "group", "time"],
+      "imputation_eligible_roles": [
+        "confounder_candidate",
+        "precision_covariate",
+        "effect_modifier"
+      ],
+      "deletion_impact_dimensions": [
+        "overall",
+        "group",
+        "time",
+        "cohort",
+        "cluster",
+        "effective_sample_size",
+        "target_population"
+      ],
+      "invalidation_rules": [
+        "Removing an inconvenient period, group, or adoption cohort without design revision invalidates the design.",
+        "Parallel trends is an assumption stated in the design, never a fact inferred from one pre-trend test.",
+        "Synthetic panel rows or interpolated outcomes destroy the required group-time support.",
+        "An unclassified simultaneous versus staggered adoption profile blocks approval."
+      ],
+      "required_postrepair_diagnostic_ids": [
+        "unit_period_uniqueness",
+        "group_time_counts",
+        "panel_completeness",
+        "missingness_by_group_time"
+      ],
+      "required_visual_evidence_ids": [
+        "trends",
+        "event_time_evidence",
+        "support_composition",
+        "primary_aggregate",
+        "qualifications"
+      ],
+      "reserved_estimator_id": "did-estimator.v1",
+      "runnable_frame_schema": "runnable-frame-contract.v1"
+    },
+    {
+      "method_id": "sharp_rdd",
+      "pack_version": "sharp-rdd-pack.v1",
+      "display_name": "Sharp regression discontinuity",
+      "compatible_assignment_mechanisms": ["policy_cutoff"],
+      "required_roles": ["treatment", "outcome", "running_variable", "unit_identifier"],
+      "optional_roles": [
+        "assignment_variable",
+        "confounder_candidate",
+        "precision_covariate",
+        "effect_modifier",
+        "selection_variable",
+        "cluster",
+        "time"
+      ],
+      "forbidden_adjustment_roles": ["mediator", "collider"],
+      "supported_estimands": ["late_at_cutoff"],
+      "required_context_requirement_ids": [
+        "design.causal_question",
+        "design.treatment_meaning",
+        "design.outcome_window",
+        "design.population_comparator",
+        "design.unit_identity",
+        "design.table_grain",
+        "dataset.sampling_mechanism",
+        "design.assignment_mechanism",
+        "column.meaning",
+        "column.encoding",
+        "column.missing_meaning",
+        "column.measurement_timing",
+        "column.source_process",
+        "design.concept_mapping",
+        "design.treatment_descendants",
+        "design.selection_variables",
+        "design.conflict_resolution"
+      ],
+      "structural_requirements": [
+        "one_row_per_unit",
+        "running_variable_with_cutoff",
+        "fixed_cutoff",
+        "sharp_assignment_at_cutoff",
+        "support_on_both_sides_of_cutoff"
+      ],
+      "allowed_prerepair_diagnostic_ids": [
+        "cutoff_side_counts",
+        "distance_to_cutoff_support",
+        "missingness_by_side_and_distance",
+        "mass_points",
+        "duplicates",
+        "density_manipulation_warnings",
+        "covariate_availability",
+        "bandwidth_feasibility"
+      ],
+      "eligibility_rule_vocabulary": [
+        "pre_assignment_eligibility",
+        "running_variable_support",
+        "cutoff_side_membership",
+        "bandwidth_window"
+      ],
+      "imputation_forbidden_roles": ["treatment", "outcome", "running_variable"],
+      "imputation_eligible_roles": [
+        "confounder_candidate",
+        "precision_covariate",
+        "effect_modifier"
+      ],
+      "deletion_impact_dimensions": [
+        "overall",
+        "cutoff_side",
+        "distance_band",
+        "mass_point",
+        "effective_sample_size",
+        "target_population"
+      ],
+      "invalidation_rules": [
+        "Suspected manipulation or bunching at the cutoff is reported, never repaired away.",
+        "Outcome-based or asymmetric deletion around the cutoff invalidates the discontinuity.",
+        "Bandwidth restriction belongs to the approved design and the later estimator, never to ad hoc repair.",
+        "Losing support on either side of the cutoff requires design revision."
+      ],
+      "required_postrepair_diagnostic_ids": [
+        "cutoff_side_counts",
+        "distance_to_cutoff_support",
+        "mass_points",
+        "density_manipulation_warnings"
+      ],
+      "required_visual_evidence_ids": [
+        "binned_outcome_fit",
+        "cutoff_bandwidth",
+        "density_continuity",
+        "primary_local_estimate"
+      ],
+      "reserved_estimator_id": "sharp-rdd-estimator.v1",
+      "runnable_frame_schema": "runnable-frame-contract.v1"
+    }
+  ]
+}
