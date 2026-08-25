@@ -74,7 +74,38 @@ move: 2,310 / 2,500.
 5. **Smaller revised plan:** floor ≈ 455 additions (compile 75, renderer 110, graph 270)
    with compression −80 → projected ≈ 2,685. **Still breaches.**
 
-## 5. Terminal state and the user decision
+## 5. Amendment 1 — implementation record (2026-08-25)
+
+Implementation landed at commit (see ledger): compile.py 105, renderer.py 133, graph.py 790;
+suite 650 green including two end-to-end design runs (real `dot` 15.1.1 — the D-042 premise is
+stale, the binary is present at exactly the pinned version), durable interrupt/resume across
+coordinator instances, correction-loop and refusal paths. Recorded deviations, all
+harness-agent decisions reviewed and accepted:
+
+1. Entry/selection split into two nodes (gate acceptance must never sit in an interrupting
+   node — duplicate_handoff on replay).
+2. Ask gate asks one round per node execution and self-loops (round-1 replay over a mutated
+   requirement store would break answer validation).
+3. V1 model tasks receive fully harness-hydrated context sections; `VertexGateway` has no
+   tool-calling loop (AFC disabled per SC §10.4), so `ToolRouter` and the retrieval handlers
+   are not driven at runtime in V1 (D-053). Pre-repair diagnostics run harness-side over
+   `CsvObjectFrameSource`.
+4. Synthesis and method each run two bounded model tasks (context→ledger; design→contract),
+   matching the one-strict-model-per-payload validator shape.
+5. `handoff_open` builds but never records the manifest (D-037 pattern);
+   `open_design_handoff` exposes it.
+6. Interrupt anchors: IntakeOutcome (selection), UserQuestionPacket (clarification),
+   ExperimentDesign (approval) — aligned with registry parent rules for T-014 validation.
+7. Capacity cardinalities derived deterministically from the design (arms = contrasts+1,
+   series = arms, evidence_items = visuals + post-repair diagnostics).
+8. Registry fix (D-052): `TableSelection` and `DeliveryCapacityCheck` gained
+   `preparation-harness` readers and `preparation` destinations — without them the §23
+   handoff gate would refuse `reader_not_allowed`.
+
+Budget outcome: design actual 3,338 / 2,750 and graph.py 790 / 350 — the task's rethink was
+consumed pre-code, so this breach is terminal per SC §14.1.2 until the user rules (D-054).
+
+## 6. Terminal state and the user decision
 
 Per SC §14.1.2 the revised projection still breaches, so T-013 is
 `blocked_complexity_budget` before feature code. The user may:

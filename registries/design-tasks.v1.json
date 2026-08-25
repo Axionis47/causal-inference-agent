@@ -1,0 +1,65 @@
+{
+  "registry_version": "design-tasks.v1",
+  "tasks": [
+    {
+      "task_kind": "intent",
+      "prompt_path": "prompts/design/intent.v1.txt",
+      "prompt_version": "design-intent-prompt.v1",
+      "output_artifact_type": "DesignIntent",
+      "output_schema_version": "design-intent.v1",
+      "wall": 3,
+      "allowed_stopping_states": ["complete", "needs_context"],
+      "token_budget": 24576,
+      "tool_call_budget": 8,
+      "correction_budget": 2
+    },
+    {
+      "task_kind": "semantic_batch",
+      "prompt_path": "prompts/design/semantic.v1.txt",
+      "prompt_version": "design-semantic-prompt.v1",
+      "output_artifact_type": "ColumnSemanticCard",
+      "output_schema_version": "column-semantic-card.v1",
+      "wall": 4,
+      "allowed_stopping_states": ["complete", "needs_context"],
+      "token_budget": 24576,
+      "tool_call_budget": 8,
+      "correction_budget": 2
+    },
+    {
+      "task_kind": "role_evidence",
+      "prompt_path": "prompts/design/role.v1.txt",
+      "prompt_version": "design-role-prompt.v1",
+      "output_artifact_type": "RoleEvidence",
+      "output_schema_version": "role-evidence.v1",
+      "wall": 4,
+      "allowed_stopping_states": ["complete", "needs_context", "conflict"],
+      "token_budget": 24576,
+      "tool_call_budget": 8,
+      "correction_budget": 2
+    },
+    {
+      "task_kind": "causal_synthesis",
+      "prompt_path": "prompts/design/synthesis.v1.txt",
+      "prompt_version": "design-synthesis-prompt.v1",
+      "output_artifact_type": "CausalContext",
+      "output_schema_version": "causal-context.v1",
+      "wall": 5,
+      "allowed_stopping_states": ["complete", "needs_context", "conflict"],
+      "token_budget": 24576,
+      "tool_call_budget": 8,
+      "correction_budget": 2
+    },
+    {
+      "task_kind": "method_design",
+      "prompt_path": "prompts/design/method.v1.txt",
+      "prompt_version": "design-method-prompt.v1",
+      "output_artifact_type": "ExperimentDesign",
+      "output_schema_version": "experiment-design.v1",
+      "wall": 7,
+      "allowed_stopping_states": ["complete", "needs_context", "refused"],
+      "token_budget": 24576,
+      "tool_call_budget": 8,
+      "correction_budget": 2
+    }
+  ]
+}
