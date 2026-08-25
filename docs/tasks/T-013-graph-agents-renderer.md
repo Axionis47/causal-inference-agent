@@ -258,3 +258,23 @@ parent id — the section's `<artifact_id> <content_hash>` format collided with 
 templates' "verbatim" instruction. The `## parent_artifacts` section renders the BARE
 `artifact_id` only, one per line (the hash serves no model-facing purpose). Adjust the
 Amendment 4/7 prompt test accordingly. Architect's spec error, not implementer error.
+
+## Amendment 8 — attempted-evidence discipline in prompts (2026-08-25, pilot finding, D-070)
+
+Round 9 reached terminal `needs_context` WITHOUT asking the user: the ask gate refused
+every blocking requirement as `sources_unexhausted` because SC §6.2 condition 2 demands
+each requirement's `attempted_evidence` list terminal statuses over the consulted
+sources, and the model left it empty — the field's contract was never in a prompt.
+
+Fix (declarative + test only):
+1. Every design template's requirement section adds: each raised requirement MUST fill
+   `attempted_evidence` with one entry per relevant id from `## allowed_evidence`
+   (evidence_id + availability_status), using a terminal status —
+   `not_offered` / `unparseable` / `withheld` / `exhausted_no_answer` when the source
+   cannot answer, `evidenced` when it partially answers; an empty list means "I have
+   not looked", and the harness will then refuse to ask the user (askgate
+   `sources_unexhausted`). [Use the EXACT status vocabulary found at
+   `askgate.EXHAUSTED_STATUSES` — the implementer verifies and lists it verbatim.]
+2. The prompt-vocabulary test extends: the listed statuses equal
+   `askgate.TERMINAL_STATUSES`.
+Tests ≤ 8 lines; prompt additions ≤ 6 lines per template.
