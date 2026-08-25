@@ -12,6 +12,7 @@ from causal.shared.canonical import canonical_bytes, content_hash
 from causal.shared.contracts import ArtifactEnvelopeV1, ArtifactRef, SensitivityClass
 from causal.shared.events import EventEmitter, OperationalEventV1
 from causal.shared.registry import ArtifactTypeRegistry
+from causal.shared.tracing import TracerProtocol
 
 __all__ = [
     "ArtifactCommitter",
@@ -232,7 +233,7 @@ class ProductStore:
 
 
 class ArtifactCommitter:
-    """The §8.2 commit protocol. Trace-flush gate deferred per D-020."""
+    """The §8.2 commit protocol; an attached tracer must acknowledge a flush (T-010)."""
 
     def __init__(
         self,
@@ -240,11 +241,14 @@ class ArtifactCommitter:
         product_store: ProductStore,
         registry: ArtifactTypeRegistry,
         emitter: EventEmitter,
+        *,
+        tracer: TracerProtocol | None = None,
     ) -> None:
         self._objects = object_store
         self._products = product_store
         self._registry = registry
         self._emitter = emitter
+        self._tracer = tracer
 
     def _validate(self, envelope: ArtifactEnvelopeV1, payload: dict[str, object]) -> bytes:
         digest = content_hash(payload)
@@ -307,4 +311,9 @@ class ArtifactCommitter:
                 REOPEN_VALIDATION_FAILED,
             )
         self._emitter.emit(event)
+        if self._tracer is not None:
+            # SC §8.2: the commit completes only after an acknowledged flush. The row and the
+            # object are already durable here, so ObservabilityError propagates to the caller
+            # (which maps it to failed_observability) over a preserved artifact.
+            self._tracer.flush()
         return envelope
