@@ -196,3 +196,20 @@ Tests (≤ 45 lines): moved-runner unit coverage via the existing scripted desig
 (no regression), one assertion that rendered prompts contain the `## allowed_evidence`
 section with an envelope-known id, and the prompt-vocabulary test extended to check
 each listed answer schema exists in the registry row it belongs to.
+
+## Amendment 5 — many-item response schema and hardened fan-out parse (2026-08-25, pilot finding, D-066)
+
+Live semantic batches crashed `KeyError: 'items'`: for `many=True` tasks the runner
+expects `payload == {"items": [<draft>, ...]}` but `result_schema(draft)` sends the
+single-draft payload schema, so the model correctly returned one card; the runner then
+crashed instead of correcting. Fix (shared scope):
+
+1. `result_schema(draft, *, many=False)`: when `many` is true the payload schema is
+   `{"type": "object", "properties": {"items": {"type": "array", "items": <draft
+   schema>}}, "required": ["items"]}` with the same `$defs` merge; memoization keys on
+   `(draft, many)`.
+2. `TaskRunner` threads `many` to the schema call, and the `payload["items"]` access
+   hardens: a missing or non-list `items` routes through the existing
+   `schema_invalid` correction path — never an uncaught exception.
+3. Tests (≤ 25 lines): the many schema shape; a scripted result without `items` on a
+   many-task consumes a correction instead of crashing.
