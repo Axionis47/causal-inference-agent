@@ -65,7 +65,11 @@ class LiveKaggleClient:
                 written = self._api.dataset_metadata(ref, directory)
                 path = Path(str(written)) if written else Path(directory) / METADATA_FILE
                 loaded: object = json.loads(path.read_text(encoding="utf-8"))
-            return loaded if isinstance(loaded, dict) else {"metadata": loaded}
+            if not isinstance(loaded, dict):
+                return {"metadata": loaded}
+            # The live file nests title/subtitle/description under `info`; capture is flat (D-065).
+            info = loaded.pop("info", None)
+            return loaded | info if isinstance(info, dict) else loaded
 
         return self._call("dataset_metadata", owner, slug, fetch)
 

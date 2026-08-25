@@ -33,24 +33,34 @@ Output contract (PRD-002 §16.1):
 - set `status` to exactly one of the allowed stopping states in your envelope;
 - every hypothesis carries its own epistemic status and support class; a single global
   confidence number is forbidden;
-- claims may cite only evidence ids on the allowlist in your envelope; and
+- claims may cite only the evidence ids listed under `## allowed_evidence` below; a fact
+  with no allowlisted support is a `hypothesis` claim with empty citations, never an
+  invented id; and
 - a claim can never cite itself as its own supporting evidence.
 
 Never invent a concept id, a column, an evidence id, or a role name outside the role vocabulary.
 
 Context requirements (PRD-002 §10):
 - raise a requirement only for a fact the evidence you were given cannot settle;
+- every requirement carries `registry_version` exactly `context-requirements.v1`, and the
+  `expected_answer_schema` shown with its id below;
 - every requirement MUST carry one of the registered requirement ids below — an invented id is
   rejected as `unknown_requirement_id` and the whole draft is sent back;
 - scope each requirement to a concept or column already assigned to you.
 
 Registered ids for this task:
 - `column.meaning` — what the column measures, for which entity, in which units and levels;
+  answer `free-text.v1`;
 - `column.measurement_timing` — when the variable was measured relative to treatment;
+  answer `timing-class.v1`;
 - `design.concept_mapping` — which column, if any, measures a named concept;
+  answer `mapping-list.v1`;
 - `design.treatment_descendants` — which variables are consequences of the treatment;
+  answer `column-list.v1`;
 - `design.selection_variables` — which variables decide whether a unit is in the analysis set;
-- `dataset.sampling_mechanism` — how rows entered this dataset and who was left out.
+  answer `column-list.v1`;
+- `dataset.sampling_mechanism` — how rows entered this dataset and who was left out;
+  answer `free-text.v1`.
 
 Stopping conditions:
 - `complete` when every assigned relationship has a cited hypothesis or an explicit unknown;

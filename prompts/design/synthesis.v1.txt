@@ -32,7 +32,9 @@ Output contract (PRD-002 §16.1):
 - set `status` to exactly one of the allowed stopping states in your envelope;
 - every edge and role claim carries its own epistemic status and support class; a single global
   confidence number is forbidden;
-- claims may cite only evidence ids on the allowlist in your envelope; and
+- claims may cite only the evidence ids listed under `## allowed_evidence` below; a fact
+  with no allowlisted support is a `hypothesis` claim with empty citations, never an
+  invented id; and
 - a claim can never cite itself as its own supporting evidence.
 
 Never invent a concept id, a column, an evidence id, or a role. Every edge must join concept ids
@@ -40,16 +42,23 @@ that already exist in the context you were given.
 
 Context requirements (PRD-002 §10):
 - raise a requirement only for a fact that would change the structure you propose;
+- every requirement carries `registry_version` exactly `context-requirements.v1`, and the
+  `expected_answer_schema` shown with its id below;
 - every requirement MUST carry one of the registered requirement ids below — an invented id is
   rejected as `unknown_requirement_id` and the whole draft is sent back;
 - scope each requirement to the concept or relationship it blocks.
 
 Registered ids for this task:
 - `design.concept_mapping` — which column, if any, measures a named concept;
+  answer `mapping-list.v1`;
 - `design.treatment_descendants` — which variables are consequences of the treatment;
+  answer `column-list.v1`;
 - `design.selection_variables` — which variables decide whether a unit is in the analysis set;
+  answer `column-list.v1`;
 - `dataset.sampling_mechanism` — how rows entered this dataset and who was left out;
-- `design.conflict_resolution` — which reading holds where the admitted sources disagree.
+  answer `free-text.v1`;
+- `design.conflict_resolution` — which reading holds where the admitted sources disagree;
+  answer `free-text.v1`.
 
 Stopping conditions:
 - `complete` when the graph, its alternatives, and the role ledger are whole and cited;

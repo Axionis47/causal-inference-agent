@@ -212,12 +212,14 @@ class ScriptedGateway:
             key: list(value) for key, value in (overrides or {}).items()}
         self.calls: list[AgentTaskEnvelopeV1] = []
         self.schemas: dict[str, Any] = {}
+        self.prompts: dict[str, str] = {}
 
     def invoke(self, envelope: AgentTaskEnvelopeV1, prompt: str,
                response_schema: dict[str, object]) -> GatewayResultV1:
         self.calls.append(envelope)
         key = script_key(envelope)
         self.schemas[key] = response_schema
+        self.prompts[key] = prompt
         queue = self.overrides.get(key)
         body = queue.pop(0) if queue else self.default(key, envelope)
         text = json.dumps(body)
@@ -522,6 +524,16 @@ def test_the_gateway_gets_the_draft_result_schema(conn: Any, object_store: Objec
     assert payload != {"type": "object"}
     assert set(payload["properties"]) == set(DesignIntentV1.model_fields)
     assert {"ClaimV1", "ConceptProposalV1"} <= set(schema["$defs"])
+
+
+def test_the_prompt_carries_the_evidence_allowlist(conn: Any, object_store: ObjectStore) -> None:
+    """D-065: wall 2 admits only allowlisted ids, so the rendered prompt must name them."""
+    gateway = ScriptedGateway({"semantic_batch": [{"not": "a result"}] * 3})
+    start(conn, object_store, gateway=gateway)
+    section = gateway.prompts["intent"].split("## allowed_evidence\n")[-1]
+    allowed = set(gateway.calls[0].allowed_evidence_ids)
+    assert "ua:question/text" in allowed
+    assert section.splitlines() == sorted(allowed)
 
 
 class TestRefusal:

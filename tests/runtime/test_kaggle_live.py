@@ -46,6 +46,7 @@ class FakeApi:
     def __init__(self, failing: str | None = None) -> None:
         self.failing = failing
         self.refs: dict[str, str] = {}
+        self.metadata: dict[str, Any] = {"title": "NSW earnings", "licenseName": "CC0-1.0"}
 
     def _record(self, operation: str, dataset: str) -> None:
         self.refs[operation] = dataset
@@ -59,7 +60,7 @@ class FakeApi:
     def dataset_metadata(self, dataset: str, path: str) -> str:
         self._record("dataset_metadata", dataset)
         target = Path(path) / "dataset-metadata.json"
-        target.write_text(json.dumps({"title": "NSW earnings", "licenseName": "CC0-1.0"}))
+        target.write_text(json.dumps(self.metadata))
         return str(target)
 
     def dataset_list_files(self, dataset: str) -> _Files:
@@ -87,6 +88,15 @@ class TestProtocolShape:
         declared = files["files"]
         assert isinstance(declared, list)
         assert declared[0]["name"] == "nsw.csv" and declared[0]["totalBytes"] == 90
+
+    def test_the_live_nested_metadata_shape_is_flattened(self) -> None:
+        """The live SDK nests under `info`; the capture contract reads a flat mapping (D-065)."""
+        live, api = client()
+        api.metadata = {"id": "lalonde/nsw", "info": {"title": "NSW earnings",
+                                                      "subtitle": "1976 trial"}}
+        body = live.dataset_metadata("lalonde", "nsw")
+        assert "info" not in body
+        assert body == {"id": "lalonde/nsw", "title": "NSW earnings", "subtitle": "1976 trial"}
 
     def test_the_archive_round_trips_as_readable_zip_bytes(self) -> None:
         live, api = client()

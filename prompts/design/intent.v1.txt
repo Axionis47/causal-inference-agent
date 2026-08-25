@@ -30,7 +30,9 @@ Output contract (PRD-002 §16.1):
 - set `status` to exactly one of the allowed stopping states in your envelope;
 - every claim carries its own epistemic status and support class; a single global confidence
   number is forbidden;
-- claims may cite only evidence ids on the allowlist in your envelope; and
+- claims may cite only the evidence ids listed under `## allowed_evidence` below; a fact
+  with no allowlisted support is a `hypothesis` claim with empty citations, never an
+  invented id; and
 - a claim can never cite itself as its own supporting evidence.
 
 Never invent a column, an evidence id, a table, or a role. If a candidate column is not in the
@@ -38,6 +40,8 @@ context you were given, do not name it.
 
 Context requirements (PRD-002 §10):
 - raise a requirement only for a fact you cannot settle from the context you were given;
+- every requirement carries `registry_version` exactly `context-requirements.v1`, and the
+  `expected_answer_schema` shown with its id below;
 - every requirement MUST carry one of the registered requirement ids below — an invented id is
   rejected as `unknown_requirement_id` and the whole draft is sent back;
 - if the fact you need has no registered id, leave the claim unsupported and say so rather than
@@ -45,13 +49,21 @@ Context requirements (PRD-002 §10):
 
 Registered ids for this task:
 - `design.causal_question` — the causal question and the decision it informs;
+  answer `free-text.v1`;
 - `design.treatment_meaning` — what the treatment is and when a unit receives it;
+  answer `free-text.v1`;
 - `design.outcome_window` — what the outcome measures and over which follow-up window;
+  answer `duration-window.v1`;
 - `design.population_comparator` — the population studied and the comparator condition;
+  answer `free-text.v1`;
 - `design.unit_identity` — the unit of observation and the columns that identify one unit;
+  answer `column-list.v1`;
 - `design.table_grain` — the table's grain and whether a unit repeats across rows;
+  answer `enum-choice.v1`;
 - `design.assignment_mechanism` — how units came to be treated rather than compared;
-- `design.conflict_resolution` — which reading holds where the admitted sources disagree.
+  answer `enum-choice.v1`;
+- `design.conflict_resolution` — which reading holds where the admitted sources disagree;
+  answer `free-text.v1`.
 
 Stopping conditions:
 - `complete` when the frame proposal is whole and every claim is supported;

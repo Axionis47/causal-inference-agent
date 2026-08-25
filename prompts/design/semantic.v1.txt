@@ -31,7 +31,9 @@ Output contract (PRD-002 §16.1):
   whose value is unknown says so with the `unknown` epistemic status;
 - set `status` to exactly one of the allowed stopping states in your envelope;
 - support belongs to individual claims and slots; a single global confidence number is forbidden;
-- claims and slots may cite only evidence ids on the allowlist in your envelope; and
+- claims and slots may cite only the evidence ids listed under `## allowed_evidence`
+  below; a fact with no allowlisted support is a `hypothesis` claim with empty
+  citations, never an invented id; and
 - a claim can never cite itself as its own supporting evidence.
 
 Never invent a column, a concept id, an evidence id, or a role. Record conflicts and live
@@ -39,17 +41,24 @@ alternatives rather than silently choosing between them.
 
 Context requirements (PRD-002 §10):
 - raise a requirement only for a blocking slot the evidence you were given cannot settle;
+- every requirement carries `registry_version` exactly `context-requirements.v1`, and the
+  `expected_answer_schema` shown with its id below;
 - every requirement MUST carry one of the registered requirement ids below — an invented id is
   rejected as `unknown_requirement_id` and the whole card set is sent back;
 - scope each requirement to the assigned column it blocks.
 
 Registered ids for this task:
 - `column.meaning` — what the column measures, for which entity, in which units and levels;
+  answer `free-text.v1`;
 - `column.encoding` — how the values are coded, including codes, categories, and sentinels;
-- `column.missing_meaning` — what a missing value in this column means;
+  answer `level-map.v1`;
+- `column.missing_meaning` — what a missing value in this column means; answer `enum-choice.v1`;
 - `column.measurement_timing` — when the variable was measured relative to treatment;
+  answer `timing-class.v1`;
 - `column.source_process` — which source system or measurement process produced the column;
-- `design.concept_mapping` — which column, if any, measures a named concept.
+  answer `free-text.v1`;
+- `design.concept_mapping` — which column, if any, measures a named concept;
+  answer `mapping-list.v1`.
 
 Stopping conditions:
 - `complete` when every assigned column has a whole card;

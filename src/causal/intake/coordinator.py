@@ -8,7 +8,7 @@ import posixpath
 import zipfile
 from collections.abc import Callable
 from datetime import datetime
-from typing import Final
+from typing import Final, cast
 
 from causal.intake.archive import ArchiveAdmission, ArchiveSafety
 from causal.intake.catalog import CatalogStore
@@ -166,12 +166,12 @@ class IntakeCoordinator:
         self._resource(dataset_id, "archive", "source_archive", archive_sha, archive_key,
                        "zip", len(captured.archive_bytes), "parsed", None)
         return self._process(question, cap, captured.payload, captured.archive_bytes,
-                             dataset_id, admission)
+                             dataset_id, admission, submission.question_text)
 
     def _process(
         self, question: ArtifactEnvelopeV1, cap: ArtifactEnvelopeV1,
         capture_payload: dict[str, object], archive_bytes: bytes, dataset_id: str,
-        admission: ArchiveAdmission,
+        admission: ArchiveAdmission, question_text: str,
     ) -> IntakeResult:
         sizes = {
             info.filename: info.file_size
@@ -218,7 +218,7 @@ class IntakeCoordinator:
             for name in sorted(profiles)
         )
         return self._finish(question, cap, manifest, profile_envs, profiles, documents,
-                            capture_payload, dataset_id, counts)
+                            question_text, capture_payload, dataset_id, counts)
 
     def _process_entry(
         self, name: str, classification: str, decision_reason: str | None,
@@ -256,11 +256,17 @@ class IntakeCoordinator:
     def _finish(
         self, question: ArtifactEnvelopeV1, cap: ArtifactEnvelopeV1,
         manifest: ArtifactEnvelopeV1, profile_envs: tuple[ArtifactEnvelopeV1, ...],
-        profiles: dict[str, dict[str, object]], documents: dict[str, str],
+        profiles: dict[str, dict[str, object]], documents: dict[str, str], question_text: str,
         capture_payload: dict[str, object], dataset_id: str, counts: dict[str, int],
     ) -> IntakeResult:
         evidence_payload = build_evidence_bundle(
             capture_payload, documents, self._field_classes)
+        # Read before the question item joins the bundle: the user's own text is not semantics.
+        degraded = any(counts[key] for key in ("excluded", "unreadable", "failed"))
+        status = "usable" if evidence_payload["items"] and not degraded else "partial"
+        cast(list[dict[str, object]], evidence_payload["items"]).append({
+            "evidence_id": "ua:question/text", "scope_kind": "dataset", "table_name": None,
+            "column_name": None, "source_field": "question_text", "value": question_text})
         evidence = self._commit(
             "EvidenceBundle", evidence_payload, (cap, manifest, *profile_envs))
         semantic_map = build_semantic_map(capture_payload, profiles)
@@ -276,8 +282,6 @@ class IntakeCoordinator:
         if not profiles:
             return self._refuse(question, dataset_id, "no supported table profiled",
                                 extra_parents=(manifest, evidence, map_env))
-        degraded = any(counts[key] for key in ("excluded", "unreadable", "failed"))
-        status = "usable" if evidence_payload["items"] and not degraded else "partial"
         payload = outcome_payload(
             status=status, analysis_id=self._analysis_id,
             stage_run_id=self._stage_run_id, dataset_id=dataset_id, question=question,

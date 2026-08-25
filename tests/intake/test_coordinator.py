@@ -80,6 +80,21 @@ class TestUsableRun:
         assert payload["candidate_tables"] == ["nsw.csv"]
         assert payload["available_slot_count"] == 3
 
+    def test_the_question_is_citable_evidence(self, conn: Any, object_store: ObjectStore) -> None:
+        """Intent claims about the question need an allowlisted id to cite (D-065)."""
+        coordinator, _ = make_coordinator(conn, object_store, FrozenKaggleClient())
+        result = coordinator.run(submission(question="Does training raise earnings?"))
+        payload = outcome_payload(conn, object_store, str(result.outcome_artifact_id))
+        bundle = outcome_payload(
+            conn, object_store, str(payload["evidence_bundle_artifact_id"]))
+        items = bundle["items"]
+        assert isinstance(items, list)
+        found = [row for row in items if row["evidence_id"] == "ua:question/text"]
+        assert found == [{"evidence_id": "ua:question/text", "scope_kind": "dataset",
+                          "table_name": None, "column_name": None,
+                          "source_field": "question_text",
+                          "value": "Does training raise earnings?"}]
+
     def test_every_resource_has_a_terminal_row(
         self, conn: Any, object_store: ObjectStore
     ) -> None:

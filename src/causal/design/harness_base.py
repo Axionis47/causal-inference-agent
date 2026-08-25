@@ -7,12 +7,12 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Final, Protocol, TypedDict, cast
+from typing import Any, Final, TypedDict, cast
 
 from langgraph.checkpoint.postgres import PostgresSaver
 from psycopg import Connection
 from psycopg.types.json import Json
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
 
 from causal.design import askgate, contracts, validators
 from causal.design import compile as compiler
@@ -20,9 +20,8 @@ from causal.design.capacity import CapacityRegistryV1
 from causal.design.packs import MethodPackRegistry, RequirementTemplateV1, ToolRegistry
 from causal.shared import agenttask, events, persistence
 from causal.shared import envelope as agent
-from causal.shared.canonical import content_hash
+from causal.shared.agenttask import GatewayProtocol
 from causal.shared.contracts import ArtifactEnvelopeV1, ArtifactRef, HandoffManifestV1
-from causal.shared.gateway import GatewayResultV1
 from causal.shared.readers import CatalogReader
 from causal.shared.registry import ArtifactTypeRegistry
 from causal.shared.validation import parse_strict
@@ -84,13 +83,6 @@ class DesignError(ValueError):
     def __init__(self, message: str, code: str) -> None:
         super().__init__(message)
         self.code = code
-
-
-class GatewayProtocol(Protocol):
-    """The one model call the harness makes (T-010 `VertexGateway.invoke`)."""
-
-    def invoke(self, envelope: agent.AgentTaskEnvelopeV1, prompt: str,
-               response_schema: dict[str, object]) -> GatewayResultV1: ...
 
 
 class DesignState(TypedDict, total=False):
@@ -173,6 +165,15 @@ class HarnessBase:
         self.requirements = askgate.PsycopgRequirementStore(deps.conn)
         self._count = 0
         self._cache: dict[str, Any] = {}
+        self._runner = agenttask.TaskRunner(
+            gateway=deps.gateway, tasks=deps.task_table, evals=EVAL_TASK,
+            tools=deps.tool_registry.recipient_map(), prompts_root=deps.prompts_root,
+            envelope=compiler.build_task_envelope, prompt=compiler.render_prompt,
+            validate=validators.validate_result, context=self._ctx, evidence=self._evidence,
+            manifest=lambda state: self._ref(state, "DesignContextManifest"),
+            parents=self._parents, commit=self._commit, emit=self._emit,
+            record=self._task_row, exhausted=self._exhausted,
+            upsert=self.requirements.upsert)
 
     # -- events, artifacts, and committed payloads ------------------------
 
@@ -275,81 +276,15 @@ class HarnessBase:
 
     # -- the model-task loop (PRD-002 §16.1, §16.4) -----------------------
 
-    def _invoke(self, state: DesignState, spec: compiler.TaskSpecV1, task_id: str, attempt: int,
-                scope: tuple[str, Sequence[str]], refs: tuple[ArtifactRef, ...],
-                payload: Mapping[str, object], draft: type[BaseModel],
-                ) -> tuple[agent.AgentTaskEnvelopeV1, agent.AgentTaskResultV1 | None]:
-        """One physical attempt: envelope, prompt, gateway, strict `AgentTaskResultV1` parse."""
-        built = compiler.build_task_envelope(
-            spec, analysis_id=state["analysis_id"], stage_run_id=state["stage_run_id"],
-            task_id=task_id, attempt_id=f"{task_id}:{attempt}", scope_kind=scope[0],
-            manifest_ref=self._ref(state, "DesignContextManifest"), scope_ids=scope[1],
-            parent_artifacts=refs, allowed_evidence_ids=sorted(self._evidence(state)),
-            allowed_tool_ids=self.deps.tool_registry.recipient_map()[spec.task_kind],
-            payload_type=f"{spec.task_kind}-context", payload=payload)
-        self._emit(state, "agent.started", EVAL_TASK[spec.task_kind], task_id=task_id,
-                   attempt_id=built.attempt_id, attempt_number=attempt)
-        answer = self.deps.gateway.invoke(built, compiler.render_prompt(
-            spec, self.deps.prompts_root, dict(payload)), agenttask.result_schema(draft))
-        try:
-            return built, parse_strict(agent.AgentTaskResultV1, answer.parsed or {})
-        except ValidationError:
-            return built, None
-
     def _run_task(self, state: DesignState, kind: str, model: type[BaseModel], *,
                   scope_kind: str, scope_ids: Sequence[str], parent_kinds: tuple[str, ...],
                   payload: Mapping[str, object], many: bool = False, commits: str | None = None,
                   ctx: validators.ValidationContext | None = None,
                   ) -> tuple[tuple[Any, ArtifactEnvelopeV1], ...] | None:
-        """One model task with the §16.4 correction loop; commits every validated payload."""
-        spec, evals = self.deps.task_table[kind], EVAL_TASK[kind]
-        artifact_type = commits or spec.output_artifact_type
-        task_id = f"dt:{state['stage_run_id']}:{kind}:{content_hash(dict(payload))[:12]}"
-        parents = self._parents(state, *parent_kinds)
-        refs = tuple(ArtifactRef(artifact_id=p.artifact_id, content_hash=p.content_hash)
-                     for p in parents)
-        body, issues = dict(payload), cast(tuple[validators.ValidationIssueV1, ...], ())
-        for attempt in range(1, spec.correction_budget + 2):
-            built, result = self._invoke(
-                state, spec, task_id, attempt, (scope_kind, scope_ids), refs, body, model)
-            digest = content_hash(built.canonical_payload())
-            if result is None:
-                for name in ("agent.schema_failed", "agent.correction_requested"):
-                    self._emit(state, name, evals, severity=events.Severity.ERROR,
-                               task_id=task_id, attempt_number=attempt,
-                               error_code="schema_invalid")
-                state["corrections"][f"{artifact_type}:schema_invalid"] = attempt
-                body = dict(payload) | {"correction": {"issues": [{"code": "schema_invalid"}]}}
-                continue
-            items = ([dict(row) for row in cast(list[Any], result.payload["items"])] if many
-                     else [dict(result.payload)])
-            issues = tuple(
-                issue for row in items
-                for issue in validators.validate_result(
-                    spec.wall, kind, model, result.model_copy(update={"payload": row}),
-                    ctx or self._ctx(state)).issues)
-            self.requirements.upsert(
-                result.missing_requirements, state["analysis_id"], state["design_revision"])
-            state["open_requirement_ids"] = sorted({*state["open_requirement_ids"], *(
-                row.requirement_id for row in result.missing_requirements)})
-            if not issues:
-                done = tuple((parse_strict(model, row), self._commit(
-                    state, artifact_type, row, parents)) for row in items)
-                self._task_row(state, task_id, kind, scope_ids, digest, built,
-                               result.status.value, attempt, done[-1][1].artifact_id)
-                self._emit(state, "task.completed", evals, task_id=task_id,
-                           status=result.status.value)
-                return done
-            for issue in issues:
-                state["corrections"][f"{artifact_type}:{issue.code}"] = attempt
-            self._emit(state, "artifact.validation_failed", evals, task_id=task_id,
-                       severity=events.Severity.WARNING, error_code=issues[0].code)
-            self._emit(state, "agent.correction_requested", evals, task_id=task_id,
-                       attempt_number=attempt, error_code=issues[0].code)
-            body = dict(payload) | {"correction": {"failing_payload": items[0], "issues": [
-                issue.model_dump(mode="json") for issue in issues]}}
-        self._exhausted(state, task_id, kind, issues)
-        return None
+        """One model task with the §16.4 correction loop; the loop itself is shared (D-065)."""
+        return self._runner.run(
+            state, kind, model, scope_kind=scope_kind, scope_ids=scope_ids,
+            parent_kinds=parent_kinds, payload=payload, many=many, commits=commits, ctx=ctx)
 
     def _task_row(self, state: DesignState, task_id: str, kind: str, scope_ids: Sequence[str],
                   digest: str, built: agent.AgentTaskEnvelopeV1, status: str, attempts: int,
