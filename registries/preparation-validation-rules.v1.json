@@ -1,0 +1,108 @@
+{
+  "registry_version": "preparation-validators.v1",
+  "rules": [
+    {"rule_id": "prep.entry.handoff_accepted", "wall": 1, "kind": "entry",
+     "code": "handoff_not_accepted", "user_resolvable": false,
+     "allowed_actions": ["revise_field"],
+     "params": {"check": "handoff_accepted", "path": "/handoff"}},
+
+    {"rule_id": "prep.entry.checks_clear", "wall": 1, "kind": "entry",
+     "code": "entry_validation_failed", "user_resolvable": false,
+     "allowed_actions": ["revise_field"],
+     "params": {"check": "entry_codes_clear", "path": "/handoff/entries"}},
+
+    {"rule_id": "prep.rows.terminal_disposition", "wall": 2, "kind": "rows",
+     "code": "row_disposition_incomplete", "user_resolvable": false,
+     "allowed_actions": ["revise_field"],
+     "params": {"check": "rows_dispositioned", "path": "/stabilization_record/dispositions"}},
+
+    {"rule_id": "prep.rows.approved_rules_only", "wall": 2, "kind": "rows",
+     "code": "unapproved_rule_evaluated", "user_resolvable": false,
+     "allowed_actions": ["revise_field"],
+     "params": {"check": "approved_rules_only", "path": "/stabilization_record/eligibility"}},
+
+    {"rule_id": "prep.freeze.counts_reconcile", "wall": 3, "kind": "freeze",
+     "code": "impact_counts_unreconciled", "user_resolvable": false,
+     "allowed_actions": ["revise_field"],
+     "params": {"check": "counts_reconcile", "path": "/stabilization_record/impact"}},
+
+    {"rule_id": "prep.freeze.support_gates", "wall": 3, "kind": "freeze",
+     "code": "method_support_lost", "user_resolvable": false,
+     "allowed_actions": ["revise_field"],
+     "params": {"check": "support_gates",
+                "path": "/stabilization_record/method_structure_status"}},
+
+    {"rule_id": "prep.freeze.row_set_hash", "wall": 3, "kind": "freeze",
+     "code": "row_set_hash_unstable", "user_resolvable": false,
+     "allowed_actions": ["revise_field"],
+     "params": {"check": "row_set_hash_stable",
+                "path": "/stabilization_record/freeze/row_set_hash"}},
+
+    {"rule_id": "prep.plan.operations_registered", "wall": 4, "kind": "plan",
+     "code": "unregistered_operation", "user_resolvable": false,
+     "allowed_actions": ["revise_field"],
+     "params": {"check": "operations_registered", "path": "/plan/items"}},
+
+    {"rule_id": "prep.plan.operations_permitted", "wall": 4, "kind": "plan",
+     "code": "operation_not_permitted", "user_resolvable": false,
+     "allowed_actions": ["revise_field"],
+     "params": {"check": "operations_permitted", "path": "/plan/items"}},
+
+    {"rule_id": "prep.plan.items_ordered", "wall": 4, "kind": "plan",
+     "code": "plan_not_ordered", "user_resolvable": false,
+     "allowed_actions": ["revise_field"],
+     "params": {"check": "items_ordered", "path": "/plan/items"}},
+
+    {"rule_id": "prep.plan.gaps_covered", "wall": 4, "kind": "plan",
+     "code": "gap_not_covered", "user_resolvable": false,
+     "allowed_actions": ["revise_field"],
+     "params": {"check": "gaps_covered", "path": "/plan/coverage"}},
+
+    {"rule_id": "prep.plan.protected_untouched", "wall": 4, "kind": "plan",
+     "code": "protected_role_target", "user_resolvable": false,
+     "allowed_actions": ["revise_field"],
+     "params": {"check": "protected_untouched", "path": "/plan/items"}},
+
+    {"rule_id": "prep.plan.fit_scopes", "wall": 4, "kind": "plan",
+     "code": "illegal_fit_scope", "user_resolvable": false,
+     "allowed_actions": ["revise_field"],
+     "params": {"check": "fit_scopes_permitted", "path": "/plan/items"}},
+
+    {"rule_id": "prep.execution.tri_agreement", "wall": 5, "kind": "execution",
+     "code": "tri_agreement_failed", "user_resolvable": false,
+     "allowed_actions": ["revise_field"],
+     "params": {"check": "tri_agreement_clean", "path": "/execution_receipt_bundle/receipts"}},
+
+    {"rule_id": "prep.execution.hash_chain", "wall": 5, "kind": "execution",
+     "code": "lineage_chain_broken", "user_resolvable": false,
+     "allowed_actions": ["revise_field"],
+     "params": {"check": "hash_chain_unbroken", "path": "/execution_receipt_bundle/receipts"}},
+
+    {"rule_id": "prep.execution.row_invariance", "wall": 5, "kind": "execution",
+     "code": "row_set_not_invariant", "user_resolvable": false,
+     "allowed_actions": ["revise_field"],
+     "params": {"check": "row_invariance", "path": "/execution_receipt_bundle/row_set_hash"}},
+
+    {"rule_id": "prep.final.diagnostics", "wall": 6, "kind": "final",
+     "code": "required_diagnostic_unhandled", "user_resolvable": false,
+     "allowed_actions": ["revise_field"],
+     "params": {"check": "diagnostics_terminal", "path": "/diagnostics"}},
+
+    {"rule_id": "prep.final.contract", "wall": 6, "kind": "final",
+     "code": "runnable_frame_contract_unmet", "user_resolvable": false,
+     "allowed_actions": ["revise_field"],
+     "params": {"check": "contract_satisfied", "path": "/prepared_frame/columns"}},
+
+    {"rule_id": "prep.final.handoff_readable", "wall": 6, "kind": "final",
+     "code": "handoff_not_readable", "user_resolvable": false,
+     "allowed_actions": ["revise_field"],
+     "params": {"check": "handoff_readable", "path": "/handoff",
+                "conditions": ["outcome_prepared", "artifacts_and_parents_match",
+                               "bundle_binds_design", "row_set_hash_shared",
+                               "dispositions_terminal", "lineage_recoverable",
+                               "receipts_complete", "postrepair_diagnostics_handled",
+                               "prepared_schema_matches_pack", "recipes_permitted",
+                               "no_estimate_content", "capacity_still_pass",
+                               "spans_acknowledged"]}}
+  ]
+}
