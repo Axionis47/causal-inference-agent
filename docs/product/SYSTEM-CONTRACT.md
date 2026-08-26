@@ -21,15 +21,15 @@ V1 is one modular Python application with five stage modules:
 
 The modules share PostgreSQL, one content-addressed S3-compatible object layer, contract models,
 an event emitter, and a single dependency lock. They are not five network services. LangGraph is
-used only inside PRD-002 and PRD-004. PRD-001, PRD-003 (V1, its Amendment 2), and PRD-005 use
-small deterministic coordinators.
+used only inside PRD-002. PRD-001, PRD-003 (V1, its Amendment 2), PRD-004 (V1, its Amendment 1),
+and PRD-005 use small deterministic coordinators.
 
 ```mermaid
 flowchart LR
     U["User question + Kaggle reference"] --> P1["PRD-001 deterministic intake"]
     P1 -->|"Intake handoff"| P2["PRD-002 design LangGraph"]
     P2 -->|"Approved design handoff"| P3["PRD-003 deterministic preparation"]
-    P3 -->|"Prepared-frame handoff"| P4["PRD-004 estimation LangGraph"]
+    P3 -->|"Prepared-frame handoff"| P4["PRD-004 deterministic estimation"]
     P4 -->|"Frozen evidence handoff"| P5["PRD-005 deterministic presentation"]
     P5 -->|"PresentationBundle ID"| D["CLI presentation command"]
     P3 -. "DesignConflict" .-> P2
@@ -425,7 +425,7 @@ missing item raises a blocker immediately.
 |---|---|---|
 | content-addressed object storage | immutable source, context, plan, data, result, figure, and bundle payloads | mutable workflow state or secrets |
 | PostgreSQL product schemas | identities, pointers, lineage edges, state transitions, approvals, indexes, and handoff visibility | large payload duplication |
-| PostgreSQL LangGraph checkpoint schema | resumable PRD-002–004 operational state | product artifacts, cross-stage memory, or scientific authority |
+| PostgreSQL LangGraph checkpoint schema | resumable PRD-002 operational state (PRD-003/004 V1 amendments restart by artifact replay instead) | product artifacts, cross-stage memory, or scientific authority |
 | LangSmith | required execution traces, model text after sanitization, evaluation, and debugging | approval, lineage, artifact storage, or result authority |
 | JSON application logs | local machine-readable operational events and trace-delivery failure evidence | source data or authoritative product state |
 
@@ -461,15 +461,15 @@ with the same ID and hash is a no-op. The same ID with another hash is a termina
 
 ## 9. LangGraph contract
 
-PRD-002 and PRD-004 each compile a separate graph and use a new `graph_thread_id`. Resuming a
-user interrupt or recoverable node failure reuses only that stage's thread. A later stage never
-resumes an earlier graph.
+PRD-002 compiles a graph and uses a new `graph_thread_id`. Resuming a user interrupt or
+recoverable node failure reuses only that stage's thread. A later stage never resumes an
+earlier graph.
 
-PRD-003 V1 (its Amendment 2, D-076) runs a plain sequential coordinator instead: the stage has
-no interrupt, so restart is artifact replay per D-035 — a rerun uses a new `stage_run_id` and
-deterministic artifact identities make recommits no-ops. It still records a `graph_thread_id`
-for trace threading and honors the state-content allowlist below as its in-memory state
-contract.
+PRD-003 V1 (its Amendment 2, D-076) and PRD-004 V1 (its Amendment 1, D-083) run plain
+sequential coordinators instead: neither stage has an interrupt, so restart is artifact replay
+per D-035 — a rerun uses a new `stage_run_id` and deterministic artifact identities make
+recommits no-ops. Both still record a `graph_thread_id` for trace threading and honor the
+state-content allowlist below as their in-memory state contract.
 
 Production uses the PostgreSQL checkpointer with strict msgpack allowlisting and no pickle
 fallback. One shared checkpoint schema is namespaced by stage and thread. Graph state may contain
@@ -1044,7 +1044,7 @@ This record validates the implementation contract, not an application that does 
 | evaluation audit | pass: one registry-driven fixture catalog, deterministic hard gates, five method reference cases plus ask/revision and failure/restart journeys, immutable report, and change-trigger rules cover intake through presentation |
 | evaluation-surface audit | pass: 50 unique registrations cover seven shared boundaries, seven end-to-end journeys, and 36 stage boundaries; every row declares an owner, fixtures, trigger, and hard pass condition |
 | bounded-test/eval audit | pass: eight cases maximum per non-end-to-end registration, seven single-case journeys, 32 live-Vertex cases maximum, impact-based pull-request selection, no cross-product or coverage quota, and an 8,000-line test ceiling |
-| checkpoint audit | pass: only PRD-002–004 use LangGraph; checkpoint schemas contain IDs/hashes/status only and never payloads, transcripts, or cross-stage memory |
+| checkpoint audit | pass: only PRD-002 uses LangGraph (PRD-003 Amendment 2 and PRD-004 Amendment 1 run deterministic coordinators with artifact-replay restart); checkpoint schemas contain IDs/hashes/status only and never payloads, transcripts, or cross-stage memory |
 | CLI boundary | pass: the seven fixed commands have one typed destination each; no Streamlit, browser, API server, authentication service, background worker, or alternate execution path exists |
 | runtime inputs | pass: the canonical OCI platform digest, development-platform digest, Graphviz source identity, font bytes, and font-license bytes have exact recorded identities; implementation must verify them before work |
 | complexity budget | pass: one token-based counting rule, eight non-transferable production allocations totaling 15,000 lines, repository/file/function ceilings, one bounded rethink, and a terminal blocker are defined in Section 14.1 |

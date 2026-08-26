@@ -1383,3 +1383,65 @@ Reference basis for selected maintained capabilities:
 
 These require a new method pack, a new approved design revision, PRD-005, or a later extension.
 They are not hidden fallback behavior inside estimation.
+
+## 26. Amendment 1 — V1-mech estimation (user-approved 2026-08-26, D-083)
+
+This amendment removes two mechanisms from V1 and consolidates the output artifact
+set. No statistical guarantee, wall, lineage rule, or acceptance criterion above
+changes except as restated here. Where earlier sections conflict with this amendment,
+this amendment governs V1.
+
+### 26.1 Deterministic coordinator; no LangGraph in this stage
+
+V1 estimation has no user interrupt (Section 19 already forbids one) and exactly one
+model call (claim review, Section 16.2). Checkpoint-based resumption therefore
+protects nothing that artifact replay does not already protect:
+
+- The stage runs as a plain sequential coordinator in the shape proven by PRD-003
+  Amendment 2: entry → plan/capacity → estimate → evidence (diagnostics,
+  sensitivities) → judgment → close, each phase a function over a typed in-memory
+  state that honors the Section 19 state-content allowlist.
+- Restart is artifact replay per the shared D-035 rule: a rerun uses a new
+  `stage_run_id`; deterministic artifact identities make recommits no-ops; there is
+  no checkpointer, `StateGraph`, or interrupt in the estimation scope.
+- `graph_thread_id` remains a recorded identity for trace threading only.
+- Diagnostic and sensitivity tasks execute sequentially in registered order. The
+  Section 7/19 "at most eight concurrent tasks" clause is an upper bound; V1 runs
+  them at concurrency one with the same deterministic ordering and the same
+  requirement that every branch reaches a visible terminal result.
+- Section 19's receiver map, context isolation, allowlists, and event obligations
+  are unchanged; the LangGraph-specific readings of Sections 19–21 (graph state,
+  checkpoint namespace, `EV-P4-010`'s restart leg) re-scope to the coordinator:
+  `EV-P4-010`'s restart fixture becomes rerun replay — run twice, no duplicate
+  artifacts, same terminal outcome.
+- `langgraph` and `langgraph-checkpoint-postgres` remain pinned for PRD-002 only;
+  this stage imports neither.
+
+### 26.2 Artifact consolidation (mirrors PRD-003 Amendment 1's 25→9 rule)
+
+- `DiagnosticBundle`, `SensitivityBundle`, `FigureDataBundle`, and
+  `UncertaintyBundle` consolidate into one generic `EvidenceBundleV1`: a bundle kind
+  from the closed set {`diagnostic`, `sensitivity`, `figure_data`}, the ordered
+  result artifact references, terminal-status counts, and full parent hashes. Every
+  identity, ordering, completeness, and lineage requirement Sections 5.1, 14, 15,
+  and 17 place on the four named bundles binds on the corresponding
+  `EvidenceBundleV1` unchanged.
+- Required per-item uncertainty (standard error, confidence level, interval bounds,
+  approved p-value, uncertainty method, finite-sample correction) is carried inline
+  on each `PrimaryContrastResult`, as Section 6.3 already lists; no separate
+  uncertainty artifact exists. Wall 8 checks these fields on every primary item.
+- All other Section 5.1 artifacts (`EstimationContextManifest`, `EstimationPlan`,
+  `AnalysisContributionMask`, `CrossFitAssignment`, `PrimaryAnalysisResult`,
+  `MultiplicityResult`, `JudgmentCeiling`, `ClaimJudgment`,
+  `NumericalEnvironmentManifest`, `EstimationBundle`) are unchanged.
+- The shared validation report's wall bound widens from 10 to 15 (one shared-scope
+  line) so the Section 18 walls number natively.
+
+### 26.3 What does not change
+
+The fifteen walls and their order; the twelve entry conditions; plan-before-outcome;
+the exact capacity recheck; contribution masks; fold-scoped preprocessing and
+leakage rules; every method-pack requirement in Sections 9–12; the judgment ceiling;
+the single bounded claim-review call with at most two targeted corrections;
+figure-data lineage; the Section 20 observability contract (every boundary still
+emits and flushes); and the PRD-005 handoff conditions.
