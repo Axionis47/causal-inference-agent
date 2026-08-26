@@ -10,26 +10,17 @@ from typing import Final, Literal
 import polars as pl
 from pydantic import ValidationError
 
-from causal.preparation.contracts import (
-    RETAINING_DISPOSITIONS,
-    DiagnosticStatus,
-    FrameStage,
-    PreparationDiagnosticV1,
-    _Row,
-)
+from causal.preparation import contracts as pc
+from causal.preparation.contracts import DiagnosticStatus, FrameStage, PreparationDiagnosticV1, _Row
 from causal.preparation.plans import PlanItemPreviewV1, PlanPreviewV1, PreparationPlanV1
 from causal.shared.contracts import ArtifactRef, Identity
 from causal.shared.registry import INVALID_REGISTRY_FILE, RegistryError
-
-__all__ = [
-    "COMMON_DIAGNOSTICS", "IMPLEMENTATION_VERSION", "DiagnosticFn", "DiagnosticRequest",
-    "PreparationDiagnosticRowV1", "load_preparation_diagnostics", "preview", "run_diagnostic"]
 
 IMPLEMENTATION_VERSION: Final = "preparation-diagnostics.v1"
 DIAGNOSTIC_VERSION: Final = "v1"
 DIAGNOSTIC_NOT_IMPLEMENTED, STAGE_NOT_ALLOWED = "diagnostic_not_implemented", "stage_not_allowed"
 UNKNOWN_DIAGNOSTIC: Final = "unknown_diagnostic"
-_RETAINING: Final = tuple(disposition.value for disposition in RETAINING_DISPOSITIONS)
+_RETAINING: Final = tuple(found.value for found in pc.RETAINING_DISPOSITIONS)
 _Values = Mapping[str, float | int | str | bool | None]
 
 
@@ -50,8 +41,8 @@ class _RegistryFileV1(_Row):
 DiagnosticRegistry = Mapping[str, PreparationDiagnosticRowV1]
 
 
+# Load the frozen diagnostic registry; a duplicate or unreadable row fails closed.
 def load_preparation_diagnostics(path: Path) -> DiagnosticRegistry:
-    """Load the frozen diagnostic registry; a duplicate or unreadable row fails closed."""
     try:
         parsed = _RegistryFileV1.model_validate_json(path.read_text(encoding="utf-8"))
     except (OSError, ValidationError) as error:
@@ -86,7 +77,8 @@ _NO_REASONS: Final[Mapping[str, int]] = {}
 _NO_EXTRA: Final[Mapping[str, DiagnosticFn]] = {}
 
 
-def _nulls(frame: pl.DataFrame) -> dict[str, int]:
+# Null count per column, in frame column order; the one missingness reading (§15, §24.2).
+def nulls(frame: pl.DataFrame) -> dict[str, int]:
     counts = frame.null_count().row(0)
     return {name: int(count) for name, count in zip(frame.columns, counts, strict=True)}
 
@@ -109,8 +101,8 @@ def _report(request: DiagnosticRequest, diagnostic_id: str, values: _Values,
         implementation_version=IMPLEMENTATION_VERSION)
 
 
+# Every source row carries one disposition and the retained rows are the frame (§6.2).
 def row_disposition_reconciliation(request: DiagnosticRequest) -> PreparationDiagnosticV1:
-    """Every source row carries one disposition and the retained rows are the frame (§6.2)."""
     counts = request.disposition_counts
     retained, total = sum(counts.get(name, 0) for name in _RETAINING), sum(counts.values())
     values = {"source_rows": request.source_row_count, "dispositioned_rows": total,
@@ -119,8 +111,8 @@ def row_disposition_reconciliation(request: DiagnosticRequest) -> PreparationDia
         total == request.source_row_count and retained == request.frame.height))
 
 
+# The approved key selects one row; a repeated key is a grain violation (§9.4).
 def key_uniqueness_grain(request: DiagnosticRequest) -> PreparationDiagnosticV1:
-    """The approved key selects one row; a repeated key is a grain violation (§9.4)."""
     keys = [column for column in request.key_columns if column in request.frame.columns]
     used = request.frame.drop_nulls(subset=keys) if keys else request.frame
     duplicated = used.height - used.select(keys).unique().height if keys else 0
@@ -130,8 +122,8 @@ def key_uniqueness_grain(request: DiagnosticRequest) -> PreparationDiagnosticV1:
                    status=_status(len(keys) == len(request.key_columns) and not duplicated))
 
 
+# The frame's columns and dtypes are exactly the approved contract's (§14 wall 13).
 def schema_type_validation(request: DiagnosticRequest) -> PreparationDiagnosticV1:
-    """The frame's columns and dtypes are exactly the approved contract's (§14 wall 13)."""
     observed = {name: str(dtype) for name, dtype in request.frame.schema.items()}
     expected = request.expected_dtypes
     missing = sorted(set(expected) - set(observed))
@@ -143,10 +135,10 @@ def schema_type_validation(request: DiagnosticRequest) -> PreparationDiagnosticV
                    status=_status(not missing and not wrong))
 
 
+# Null counts per column before and after repair, over one frozen denominator (§15).
 def missingness_before_after(request: DiagnosticRequest) -> PreparationDiagnosticV1:
-    """Null counts per column before and after repair, over one frozen denominator (§15)."""
-    after, baseline = _nulls(request.frame), request.baseline
-    before = _nulls(baseline) if baseline is not None else {}
+    after, baseline = nulls(request.frame), request.baseline
+    before = nulls(baseline) if baseline is not None else {}
     grew = any(count > before.get(name, count) for name, count in after.items())
     values: dict[str, float | int | str | bool | None] = {
         f"{name}.before": count for name, count in before.items()}
@@ -155,8 +147,8 @@ def missingness_before_after(request: DiagnosticRequest) -> PreparationDiagnosti
                    warnings=("missingness_increased",) if grew else ())
 
 
+# The frozen row set survived the operation: same rows, same order (§14 wall 11).
 def row_set_invariance(request: DiagnosticRequest) -> PreparationDiagnosticV1:
-    """The frozen row set survived the operation: same rows, same order (§14 wall 11)."""
     baseline, column = request.baseline, request.row_id_column
     identical = baseline is None or column not in baseline.columns or (
         column in request.frame.columns and request.frame[column].equals(baseline[column]))
@@ -167,8 +159,8 @@ def row_set_invariance(request: DiagnosticRequest) -> PreparationDiagnosticV1:
                    status=_status(identical and rows == request.frame.height))
 
 
+# Changed cells by operation and by column, from the receipt bundle's lineage (§24.2).
 def changed_cells_by_operation_column(request: DiagnosticRequest) -> PreparationDiagnosticV1:
-    """Changed cells by operation and by column, from the receipt bundle's lineage (§24.2)."""
     values: dict[str, float | int | str | bool | None] = {
         **{f"column.{name}": count for name, count in request.changed_by_column.items()},
         **{f"operation.{name}": count for name, count in request.changed_by_operation.items()},
@@ -177,11 +169,11 @@ def changed_cells_by_operation_column(request: DiagnosticRequest) -> Preparation
                    tuple(request.changed_by_column))
 
 
+# Every required column exists and holds no null the contract forbids (§14 wall 13).
 def contract_completeness(request: DiagnosticRequest) -> PreparationDiagnosticV1:
-    """Every required column exists and holds no null the contract forbids (§14 wall 13)."""
-    nulls = _nulls(request.frame)
+    missingness = nulls(request.frame)
     missing = sorted(set(request.required_columns) - set(request.frame.columns))
-    incomplete = sorted(name for name in request.required_columns if nulls.get(name, 0))
+    incomplete = sorted(name for name in request.required_columns if missingness.get(name, 0))
     values = {"required_columns": len(request.required_columns), "missing_columns": len(missing),
               "incomplete_columns": len(incomplete)}
     return _report(request, "contract_completeness", values, request.required_columns,
@@ -196,9 +188,9 @@ COMMON_DIAGNOSTICS: Final[dict[str, DiagnosticFn]] = {
         contract_completeness)}
 
 
+# Run one registered diagnostic; an unknown id or stage fails closed (§15).
 def run_diagnostic(diagnostic_id: str, request: DiagnosticRequest, registry: DiagnosticRegistry,
                    extra: Mapping[str, DiagnosticFn] = _NO_EXTRA) -> PreparationDiagnosticV1:
-    """Run one registered diagnostic; an unknown id or stage fails closed (§15)."""
     row = registry.get(diagnostic_id)
     computed = {**COMMON_DIAGNOSTICS, **extra}.get(diagnostic_id)
     if row is None:
@@ -212,8 +204,8 @@ def run_diagnostic(diagnostic_id: str, request: DiagnosticRequest, registry: Dia
     return computed(request)
 
 
+# The ordered per-item preview a plan needs before any mutation unlocks; no write (§17.2).
 def preview(plan: PreparationPlanV1, plan_ref: ArtifactRef, frame: pl.DataFrame) -> PlanPreviewV1:
-    """The ordered per-item preview a plan needs before any mutation unlocks; no write (§17.2)."""
     columns, items = list(frame.columns), []
     for item in plan.items:
         delta = item.predicted_missingness_change

@@ -53,17 +53,17 @@ EXIT_CODES: Final[dict[str, int]] = {
 DESIGN_STATUS: Final[dict[str, CliStatus]] = {
     "needs_user_input": "needs_user_input", "approved": "completed", "needs_context": "completed",
     "changes_requested": "completed", "declined": "completed", "refused": "blocked",
-    "failed": "failed", "failed_observability": "failed_observability"}
+    "failed": "failed", "failed_observability": "failed_observability",
+    # PRD-003 §5.2: a conflict or an unrunnable frame still completes the preparation stage.
+    "prepared": "completed", "design_conflict": "completed", "not_runnable": "completed"}
 MESSAGE_BY_STATUS: Final[dict[str, MessageKey]] = {
     "accepted": "command.accepted", "completed": "stage.finished",
     "needs_user_input": "interrupt.open", "blocked": "command.blocked",
     "failed": "command.failed", "failed_observability": "command.failed"}
 
-NEEDS_USER_INPUT: Final = "needs_user_input"
-INVALID_COMMAND: Final = "invalid_command"
-INVALID_PAYLOAD_FILE: Final = "invalid_payload_file"
+NEEDS_USER_INPUT, INVALID_COMMAND = "needs_user_input", "invalid_command"
+INVALID_PAYLOAD_FILE, INTAKE_REFUSED = "invalid_payload_file", "intake_refused"
 PRESENTATION_UNAVAILABLE: Final = "presentation_unavailable"
-INTAKE_REFUSED: Final = "intake_refused"
 
 _MODEL_CONFIG = ConfigDict(frozen=True, extra="forbid", strict=True)
 _Revision = Annotated[int, Field(ge=1)]
@@ -387,9 +387,10 @@ def _from_intake(envelope: CliCommandEnvelopeV1, outcome: IntakeOutcomeView) -> 
 
 
 def _message_args(outcome: OutcomeView, base: MessageArgs) -> MessageArgs:
-    """The summary arguments plus the committed outcome identity, when there is one."""
-    held = outcome.outcome_artifact_id
-    return base if held is None else base | {"outcome_artifact_id": held}
+    """The summary arguments plus the committed identities this outcome carries."""
+    held = {"outcome_artifact_id": outcome.outcome_artifact_id,
+            "handoff_id": getattr(outcome, "handoff_id", None)}
+    return base | {name: value for name, value in held.items() if value is not None}
 
 
 def _from_status(envelope: CliCommandEnvelopeV1, view: StatusView) -> CliResultV1:

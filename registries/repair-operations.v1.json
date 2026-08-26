@@ -48,7 +48,7 @@
      "phase": "imputation", "permission": "imputation", "target_arity": 1,
      "writes_output_column": true,
      "required_parameters": ["missing_level"], "optional_parameters": [],
-     "allowed_fit_scopes": ["none"],
+     "allowed_fit_scopes": ["none", "frozen_frame_blinded", "pre_treatment_only"],
      "forbidden_target_roles": ["treatment", "assignment_variable", "outcome", "unit_identifier",
                                 "group", "time", "adoption_time", "running_variable", "cutoff",
                                 "cluster", "stratum"],

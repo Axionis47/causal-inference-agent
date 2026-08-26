@@ -9,8 +9,7 @@ from typing import Any
 
 import pytest
 
-from causal.preparation.packs import PreparationPackV1, load_preparation_packs
-from causal.preparation.plans import FitScope
+from causal.preparation.plans import FitScope, PreparationPackV1, load_preparation_packs
 from causal.shared.registry import RegistryError
 
 REGISTRIES = Path(__file__).resolve().parents[2] / "registries"

@@ -4,17 +4,20 @@ from __future__ import annotations
 
 import hashlib
 import io
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from typing import Annotated, Final, Protocol
 
 import polars as pl
 from pydantic import BaseModel, ConfigDict, Field
 
+from causal.shared.canonical import canonical_bytes, content_hash
 from causal.shared.contracts import Identity, PayloadLocator, Sha256Hex
 
 __all__ = [
     "FRAME_DTYPES", "FRAME_HASH_MISMATCH", "FRAME_SCHEMA_MISMATCH", "UNSUPPORTED_FRAME_DTYPE",
-    "FrameArtifactV1", "FrameColumnV1", "FrameError", "FrameObjectStore", "dtype_name",
-    "frame_bytes", "frame_columns", "read_frame", "write_frame",
+    "FrameArtifactV1", "FrameColumnV1", "FrameError", "FrameObjectStore", "FrameStore",
+    "dtype_name", "frame_bytes", "frame_columns", "read_frame", "write_frame",
 ]
 
 FRAME_HASH_MISMATCH: Final = "frame_hash_mismatch"
@@ -103,6 +106,43 @@ def write_frame(objects: FrameObjectStore, frame: pl.DataFrame) -> FrameArtifact
         columns=frame_columns(frame), row_count=frame.height,
         content_hash=digest, object_locator=locator,
     )
+
+
+class SchemaFieldLike(Protocol):
+    """Any recorded column schema: a `FrameColumnV1` or a stage's own field model."""
+
+    @property
+    def column_name(self) -> str: ...
+
+    @property
+    def dtype(self) -> str: ...
+
+
+@dataclass(frozen=True)
+class FrameStore:
+    """Content-addressed frame I/O behind the writer, reader, and object-writer seams.
+
+    A stage executor holds this: it writes one immutable intermediate frame per mutation,
+    reopens it under its recorded dtypes, and stores canonical-JSON side objects.
+    """
+
+    objects: FrameObjectStore
+
+    def write_frame(self, frame: pl.DataFrame,
+                    schema: Sequence[SchemaFieldLike]) -> tuple[str, str]:
+        written = write_frame(self.objects, frame)
+        return written.object_locator, written.content_hash
+
+    def read_frame(self, locator: str, schema: Sequence[SchemaFieldLike]) -> pl.DataFrame:
+        # A CSV carries no dtypes; the recorded schema re-applies them, nothing is inferred.
+        return pl.read_csv(
+            io.BytesIO(self.objects.get(locator)), has_header=True, infer_schema_length=0,
+            schema_overrides={row.column_name: FRAME_DTYPES[row.dtype.split("(")[0]]
+                              for row in schema})
+
+    def put_object(self, payload: Mapping[str, object]) -> str:
+        return self.objects.put_if_absent(content_hash(dict(payload)),
+                                          canonical_bytes(dict(payload)))
 
 
 def read_frame(objects: FrameObjectStore, artifact: FrameArtifactV1) -> pl.DataFrame:

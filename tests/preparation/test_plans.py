@@ -20,14 +20,12 @@ from causal.preparation.plans import (
     PlanPhase,
     PlanPreviewV1,
     PreparationPlanV1,
-    PreparationTaskContextV1,
     PreparationTaskDraftV1,
     TaskGroupV1,
     TaskStopState,
     has_cycle,
 )
 from causal.shared.contracts import ArtifactRef
-from causal.shared.envelope import TaskBudgets
 from causal.shared.receipts import ExecutionReceiptV1, FrameShapeV1, ReceiptStatus
 
 HASH = "a" * 64
@@ -169,24 +167,6 @@ def test_a_recipe_is_recorded_never_fitted() -> None:
 
 
 class TestTaskPayloads:
-    def context(self) -> PreparationTaskContextV1:
-        return PreparationTaskContextV1(
-            task_id="task-1", phase=PlanPhase.PREPARATION, scope_kind=GroupKind.COUPLED_COLUMNS,
-            scope_ids=("age", "age_raw"), context_manifest=REF, frame=REF,
-            gap_codes=("dtype_mismatch",), column_roles={"age": "confounder_candidate"},
-            column_concepts={"age": "c-age"}, measurement_timing={"age": "pre_treatment"},
-            protected_columns=("treat",), evidence_refs=(REF,),
-            permitted_operation_ids=("type_conversion",), dependency_task_ids=(),
-            dependency_plan_item_ids=(), output_schema_version="preparation-task-draft.v1",
-            postcondition_ids=("schema_matches",),
-            budgets=TaskBudgets(token_budget=8000, tool_call_budget=0),
-            allowed_stopping_states=(TaskStopState.PROPOSED, TaskStopState.DESIGN_CONFLICT),
-        )
-
-    def test_context_roundtrips(self) -> None:
-        built = self.context()
-        assert PreparationTaskContextV1.model_validate(built.model_dump()) == built
-
     def test_a_proposing_draft_must_carry_plan_items(self) -> None:
         with pytest.raises(ValidationError, match="plan_items is non-empty"):
             PreparationTaskDraftV1(task_id="task-1", stop_state=TaskStopState.PROPOSED,

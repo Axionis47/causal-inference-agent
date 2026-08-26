@@ -154,8 +154,9 @@ class TestCommands:
                                       ApprovalDecision.APPROVED, "k-approve")
         assert done.status == "approved" and done.outcome_artifact_id is not None
         assert done.handoff_id is not None
+        # D-069b: an approved design's one permitted next command is the PRD-003 run.
         assert runtime.status(made.analysis_id) == composition.StatusView(
-            analysis_id=made.analysis_id, stage="design", state="completed", next_command=None)
+            analysis_id=made.analysis_id, stage="design", state="completed", next_command="run")
         assert conn.execute(RUN_STATE, (made.analysis_id,)).fetchone() == ("completed",)
 
     def test_status_before_design_points_at_run(
@@ -175,9 +176,13 @@ class TestCommands:
         assert again.interrupt_artifact_id == opened.interrupt_artifact_id
         runtime.approve_design(made.analysis_id, binding(opened), ApprovalDecision.APPROVED,
                                "k-approve")
+        # T-019 §1.4: an approved design is not re-run; the same command starts PRD-003.
         settled = runtime.run(made.analysis_id, expected_stage_run=opened.stage_run_id,
                               idempotency_key="k-run-3")
-        assert settled.status == "approved"  # read back from the committed DesignOutcome
+        assert settled.stage_run_id == f"pr:{made.analysis_id}:1"
+        reported = runtime.run(made.analysis_id, expected_stage_run=opened.stage_run_id,
+                               idempotency_key="k-run-4")
+        assert (reported.stage_run_id, reported.status) == (settled.stage_run_id, settled.status)
 
     def test_an_unknown_analysis_is_blocked(self, runtime: composition.CausalRuntime) -> None:
         for call in (lambda: runtime.status("an-nope"),

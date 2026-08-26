@@ -35,7 +35,7 @@
       ],
       "permitted_repair_operation_ids": [
         "missing_sentinel_normalization", "type_conversion", "category_normalization",
-        "registered_derivation", "outcome_observed_flag"
+        "registered_derivation"
       ],
       "permitted_imputation_targets": [
         {
@@ -164,7 +164,7 @@
       ],
       "permitted_repair_operation_ids": [
         "missing_sentinel_normalization", "type_conversion", "category_normalization",
-        "registered_derivation", "post_period_flag"
+        "registered_derivation"
       ],
       "permitted_imputation_targets": [
         {
@@ -226,7 +226,7 @@
       ],
       "permitted_repair_operation_ids": [
         "missing_sentinel_normalization", "type_conversion", "category_normalization",
-        "registered_derivation", "cutoff_side_flag"
+        "registered_derivation"
       ],
       "permitted_imputation_targets": [
         {

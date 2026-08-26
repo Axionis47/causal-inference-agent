@@ -26,6 +26,8 @@ SUMMARIES: Final[dict[str, str]] = {
     "command.failed": "The command failed.",
 }
 _ANSWER_COMMANDS: Final = ("select-table", "answer-context", "approve-design")
+# The PRD-003 §5.2 terminals; the CLI reads them from the stage status the result carries.
+_PREPARATION: Final = ("prepared", "design_conflict", "not_runnable")
 
 
 def render(result: CliResultV1, output_format: str) -> str:
@@ -55,9 +57,24 @@ def render_human(result: CliResultV1) -> str:
         lines.append(f"Error: {result.error_code}")
     if result.blocker_event_id is not None:
         lines.append(f"Blocker event: {result.blocker_event_id}")
+    lines.extend(_preparation(result))
     if result.next_command_name is not None:
         lines.append(f"Next command: {_next_command(result)}")
     return "\n".join(lines)
+
+
+def _preparation(result: CliResultV1) -> list[str]:
+    """The PRD-003 terminal, when this result is one; §16 sends a conflict back to design."""
+    status = str(result.message_args.get("design_status", ""))
+    if status not in _PREPARATION:
+        return []
+    lines = [f"Preparation: {status}"]
+    if status == "design_conflict":
+        # No V1 command resolves a conflict inside preparation: the design is what changes.
+        revision = int(result.message_args.get("design_revision", 1)) + 1
+        lines.append(f"Conflict: {result.error_code}")
+        lines.append(f"Next command: re-run design as revision {revision}")
+    return lines
 
 
 def _next_command(result: CliResultV1) -> str:

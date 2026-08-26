@@ -17,7 +17,7 @@ from causal.preparation.contracts import (
     StabilizationRecordV1,
 )
 from causal.preparation.impact import DimensionKind, DimensionSpecV1, dimension_impact
-from causal.preparation.packs import (
+from causal.preparation.plans import (
     PreparationPackV1,
     eligibility_vocabulary,
     load_preparation_packs,

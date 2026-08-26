@@ -13,7 +13,7 @@ import pytest
 
 from causal.preparation import entry
 from causal.preparation.contracts import PREPARATION_REGISTRY_KEYS
-from causal.preparation.packs import eligibility_vocabulary, load_preparation_packs
+from causal.preparation.plans import eligibility_vocabulary, load_preparation_packs
 from causal.shared import contracts as sc
 from causal.shared import handoff as sh
 from causal.shared.persistence import PersistenceError
@@ -240,5 +240,7 @@ def test_the_manifest_hydrates_from_the_entries_and_the_design_side() -> None:
     assert (found.eligibility_rule_ids, found.unusable_row_rule_ids,
             found.prepared_frame_schema_id, len(found.manifest_hash)) == (
         ("target_population_filter",), ("corrupt_record",), "aipw-prepared-frame.v1", 64)
-    assert "numeric_median_with_indicator" in found.permitted_operation_ids
+    # §7.2 names OPERATION ids: aipw's targets are fold-scoped, so they register the recipe.
+    assert "numeric_median_with_indicator" not in found.permitted_operation_ids
+    assert "estimator_scoped_recipe" in found.permitted_operation_ids
     assert "rough_overlap" in found.permitted_diagnostic_ids

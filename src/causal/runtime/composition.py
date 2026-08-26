@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import os
 import platform
 import shutil
@@ -24,6 +23,7 @@ from causal.design import compile as compiler
 from causal.intake import catalog, coordinator, fields, outcome
 from causal.intake import contracts as intake
 from causal.intake.kaggle import KaggleClientProtocol
+from causal.preparation.harness import PreparationDeps
 from causal.runtime import failures
 from causal.runtime.kaggle_live import LiveKaggleClient
 from causal.shared import events, gateway, persistence, tracing
@@ -42,6 +42,7 @@ STAGE_UNAVAILABLE, STALE_REVISION = "stage_unavailable", "stale_revision"
 TRACING_UNCONFIGURED, UNKNOWN_ANALYSIS = "tracing_unconfigured", "unknown_analysis"
 WRONG_INTERRUPT = "wrong_interrupt"
 USABLE_INTAKE: Final = frozenset({"usable", "partial"})
+APPROVED, RUN = "approved", "run"
 NEXT_COMMAND: Final[dict[str, str]] = {
     "table_selection": "select-table", "clarification": "answer-context",
     "approval": "approve-design"}
@@ -169,14 +170,14 @@ def build_tracer(config: RuntimeConfig, *, strict: bool) -> tracing.TracerProtoc
 
 
 def _validate(opened: Mapping[str, Any], kind: contracts.InterruptKind,
-              interrupt: _InterruptView) -> str | None:
-    """§1.1: kind, artifact id, artifact hash, and revision must match the open interrupt."""
+              interrupt: _InterruptView) -> tuple[str, str] | None:
+    """§1.1: kind, id, hash, and revision must match; a mismatch names what was expected."""
     seen = (str(opened.get("kind")), str(opened.get("interrupt_artifact_id")),
             str(opened.get("interrupt_hash")), int(opened.get("design_revision", 0)))
     wanted = (kind.value, interrupt.interrupt_id, interrupt.expected_interrupt_hash,
               interrupt.expected_revision)
     codes = (WRONG_INTERRUPT, WRONG_INTERRUPT, INTERRUPT_HASH_MISMATCH, STALE_REVISION)
-    return next((code for code, found, want in zip(codes, seen, wanted, strict=True)
+    return next(((code, str(want)) for code, found, want in zip(codes, seen, wanted, strict=True)
                  if found != want), None)
 
 
@@ -184,11 +185,12 @@ class CausalRuntime:
     """The coordinator calls the CLI commands make; the CLI itself holds nothing else."""
 
     def __init__(self, config: RuntimeConfig, deps: graph.DesignDeps,
+                 prep: PreparationDeps,
                  registry: ArtifactTypeRegistry, field_classes: fields.FieldClasses,
                  fingerprint: Mapping[str, str],
                  client_factory: Callable[[], KaggleClientProtocol] = LiveKaggleClient,
                  closing: Sequence[Any] = ()) -> None:
-        self.config, self.deps, self.registry = config, deps, registry
+        self.config, self.deps, self.prep, self.registry = config, deps, prep, registry
         self.field_classes, self.fingerprint = field_classes, dict(fingerprint)
         self._client_factory, self._conn, self._closing = (
             client_factory, deps.conn, tuple(closing))
@@ -218,10 +220,18 @@ class CausalRuntime:
             return StatusView(
                 analysis_id=analysis_id, stage="intake",
                 state=str(row.intake_status or "running"),
-                next_command="run" if row.intake_status in USABLE_INTAKE else None)
+                next_command=RUN if row.intake_status in USABLE_INTAKE else None)
+        started = failures.latest_preparation_run(self._conn, analysis_id)
+        if started is not None:  # the later stage owns the analysis once its row exists
+            return StatusView(analysis_id=analysis_id, stage="preparation", state=started.state,
+                              next_command=RUN if started.state in failures.LIVE else None)
         opened = self._open_interrupt(found.thread_id) or {}
+        # D-069b: an open interrupt names its answer command; a crashed revision and an
+        # approved design (preparation is next) share the one command `causal run`.
+        following = NEXT_COMMAND.get(str(opened.get("kind", ""))) or (
+            RUN if found.state in failures.LIVE or self._terminal(found) == APPROVED else None)
         return StatusView(analysis_id=analysis_id, stage="design", state=found.state,
-                          next_command=NEXT_COMMAND.get(str(opened.get("kind", ""))))
+                          next_command=following)
 
     def run(self, analysis_id: str, *, expected_stage_run: str,
             idempotency_key: str) -> graph.DesignRunResult:
@@ -233,11 +243,14 @@ class CausalRuntime:
             if row.intake_status not in USABLE_INTAKE:
                 raise self._blocked("run", analysis_id, STAGE_UNAVAILABLE)
             found = self._latest_design_run(analysis_id)
-            if expected_stage_run != (found.stage_run_id if found else row.stage_run_id):
-                raise self._blocked("run", analysis_id, STALE_REVISION)
+            current = found.stage_run_id if found else row.stage_run_id
+            if expected_stage_run != current:
+                raise self._blocked("run", analysis_id, STALE_REVISION, current)
             self._claim("run", idempotency_key, analysis_id, expected_stage_run)
             if found is not None:  # an open boundary is reported, never restarted
                 opened = self._open_interrupt(found.thread_id) or {}
+                if not opened and self._terminal(found) == APPROVED:  # PRD-003 is next (§1.4)
+                    return failures.prepare(self.deps, self.prep, analysis_id, found)
                 return graph.DesignRunResult(
                     status=graph.NEEDS_USER_INPUT if opened else self._terminal(found),
                     analysis_id=analysis_id, stage_run_id=found.stage_run_id,
@@ -294,9 +307,9 @@ class CausalRuntime:
             if found is None or opened is None:
                 raise self._blocked(command, analysis_id,
                                     UNKNOWN_ANALYSIS if found is None else NO_OPEN_INTERRUPT)
-            code = _validate(opened, _KINDS[command], interrupt)
-            if code is not None:
-                raise self._blocked(command, analysis_id, code)
+            refused = _validate(opened, _KINDS[command], interrupt)
+            if refused is not None:
+                raise self._blocked(command, analysis_id, *refused)
             self._claim(command, idempotency_key, analysis_id, interrupt.interrupt_id)
             thread_id, payload = found.thread_id, build(opened)
             return failures.guard(self.deps, command, analysis_id, lambda: graph.resume_design(
@@ -315,8 +328,7 @@ class CausalRuntime:
         """The committed `DesignOutcome`'s own status; a revision without one failed."""
         if found.outcome_artifact_id is None:
             return "failed"
-        env = self.deps.products.load_envelope(found.outcome_artifact_id)
-        return str(json.loads(self.deps.objects.get(env.payload_locator))["status"])
+        return str(failures.payload(self.deps, found.outcome_artifact_id)["status"])
 
     @contextmanager
     def _lock(self, key: str, command: str) -> Iterator[None]:
@@ -341,9 +353,10 @@ class CausalRuntime:
         elif str(row[0]) != digest:
             raise self._blocked(command, analysis_id, DUPLICATE_KEY)
 
-    def _blocked(self, command: str, analysis_id: str, code: str) -> CompositionError:
+    def _blocked(self, command: str, analysis_id: str, code: str,
+                 expected: str = "") -> CompositionError:
         """Every refusal emits one `blocker.raised` and carries its stable code (SC §1.1)."""
-        failures.emit_blocker(self.deps, command, analysis_id, code)
+        failures.emit_blocker(self.deps, command, analysis_id, code, expected)
         return CompositionError(f"{command} is blocked: {code}", code)
 
 
@@ -382,6 +395,6 @@ def build_runtime(
         capacity_registry=capacity.load_capacity_registry(root / "delivery-capacity.v1.json"),
         prompts_root=config.prompts_root, repo_root=config.repo_root)
     return CausalRuntime(
-        config, deps, registry,
+        config, deps, failures.preparation_deps(deps, root, config.repo_root), registry,
         fields.load_field_classes(root / "kaggle-field-classes.v1.json"), fingerprint,
         client_factory, closing=(sink, saver_conn, conn))

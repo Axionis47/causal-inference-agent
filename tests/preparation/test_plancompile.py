@@ -12,7 +12,7 @@ from causal.preparation import contracts as ct
 from causal.preparation import plancompile as pc
 from causal.preparation import plans as pl
 from causal.preparation.operations import load_operation_registry
-from causal.preparation.packs import load_preparation_packs
+from causal.preparation.plans import load_preparation_packs
 from tests.preparation.test_contracts import MANIFEST, REF
 
 REGISTRIES = Path(__file__).resolve().parents[2] / "registries"

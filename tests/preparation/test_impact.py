@@ -8,7 +8,7 @@ import polars as pl
 import pytest
 
 from causal.preparation import impact as im
-from causal.preparation.packs import PreparationPackV1, load_preparation_packs
+from causal.preparation.plans import PreparationPackV1, load_preparation_packs
 from causal.preparation.stabilize import StabilizationError
 
 REGISTRIES = Path(__file__).resolve().parents[2] / "registries"

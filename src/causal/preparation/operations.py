@@ -11,15 +11,10 @@ from typing import Any, Final, Literal
 import polars as pl
 from pydantic import ValidationError
 
-from causal.preparation.contracts import _Row
+from causal.preparation.contracts import PreparationError, _Row
 from causal.preparation.plans import FitScope, ItemPhase, ParameterValue, PlanItemV1
 from causal.shared.contracts import Identity
 from causal.shared.registry import INVALID_REGISTRY_FILE, RegistryError
-
-__all__ = [
-    "IMPLEMENTATION_VERSION", "OPERATIONS", "Operation", "OperationContext", "OperationError",
-    "OperationRegistry", "OperationResult", "RepairOperationV1", "load_operation_registry",
-    "run_operation", "validate_item"]
 
 IMPLEMENTATION_VERSION: Final = "preparation-operations.v1"
 COLUMN_NOT_PERMITTED, FIT_SCOPE_NOT_ALLOWED = "column_not_permitted", "fit_scope_not_allowed"
@@ -41,12 +36,8 @@ DTYPES: Final[dict[str, pl.DataType]] = {
     "boolean": pl.Boolean(), "date": pl.Date(), "datetime": pl.Datetime("us")}
 
 
-class OperationError(ValueError):
+class OperationError(PreparationError):
     """A registered operation refused to run; `code` is a stable contract value."""
-
-    def __init__(self, message: str, code: str) -> None:
-        super().__init__(message)
-        self.code = code
 
 
 # Every guard below reads as one line: refuse when the condition holds.
@@ -112,8 +103,8 @@ class OperationRegistry:
         return row
 
 
+# Load the frozen registry; rows and implementations must cover each other exactly.
 def load_operation_registry(path: Path) -> OperationRegistry:
-    """Load the frozen registry; rows and implementations must cover each other exactly."""
     try:
         parsed = _RegistryFileV1.model_validate_json(path.read_text(encoding="utf-8"))
     except (OSError, ValidationError) as error:
@@ -126,8 +117,8 @@ def load_operation_registry(path: Path) -> OperationRegistry:
     return OperationRegistry(rows)
 
 
+# Every registry guard one plan item clears before its operation may run (§10.1).
 def validate_item(item: PlanItemV1, row: RepairOperationV1, context: OperationContext) -> None:
-    """Every registry guard one plan item clears before its operation may run (§10.1)."""
     name, declared = row.operation_id, set(item.parameters)
     missing = sorted(set(row.required_parameters) - declared)
     unknown = sorted(declared - set(row.required_parameters) - set(row.optional_parameters))
@@ -149,9 +140,9 @@ def validate_item(item: PlanItemV1, row: RepairOperationV1, context: OperationCo
                 f"{column} is not a permitted {row.permission} column", COLUMN_NOT_PERMITTED)
 
 
+# Validate one plan item against its registry row, then run its registered family.
 def run_operation(frame: pl.DataFrame, item: PlanItemV1, row: RepairOperationV1,
                   context: OperationContext) -> OperationResult:
-    """Validate one plan item against its registry row, then run its registered family."""
     validate_item(item, row, context)
     return OPERATIONS[row.operation_id](frame, item, context)
 
@@ -220,9 +211,9 @@ def _assert_blinded(columns: Sequence[str], context: OperationContext) -> None:
                 f"a fit population may not read {column}", LEAKAGE_GUARD)
 
 
+# Approved sentinel encodings become null in a new column; no other cell moves (§10.2).
 def missing_sentinel_normalization(frame: pl.DataFrame, item: PlanItemV1,
                                    context: OperationContext) -> OperationResult:
-    """Approved sentinel encodings become null in a new column; no other cell moves (§10.2)."""
     target, output = _columns(frame, item)
     sentinels = _json_parameter(item, "sentinels", list)
     sentinel = pl.col(target).cast(pl.String, strict=False).is_in(sentinels)
@@ -230,9 +221,9 @@ def missing_sentinel_normalization(frame: pl.DataFrame, item: PlanItemV1,
     return _apply(frame, target, output, keep)
 
 
+# A strict cast into a new typed column; a lossy conversion is refused, never rounded.
 def type_conversion(frame: pl.DataFrame, item: PlanItemV1,
                     context: OperationContext) -> OperationResult:
-    """A strict cast into a new typed column; a lossy conversion is refused, never rounded."""
     target, output = _columns(frame, item)
     name = _text(item, "target_dtype")
     if (dtype := DTYPES.get(name)) is None:
@@ -256,9 +247,9 @@ def type_conversion(frame: pl.DataFrame, item: PlanItemV1,
                            change_counts={output: int(source.is_not_null().sum())})
 
 
+# An explicit one-to-one label map; an unmapped level stops the plan (§10.3).
 def category_normalization(frame: pl.DataFrame, item: PlanItemV1,
                            context: OperationContext) -> OperationResult:
-    """An explicit one-to-one label map; an unmapped level stops the plan (§10.3)."""
     target, output = _columns(frame, item)
     mapping = _json_parameter(item, "mapping", dict)
     source = frame[target].cast(pl.String, strict=False)
@@ -270,9 +261,9 @@ def category_normalization(frame: pl.DataFrame, item: PlanItemV1,
                   .replace_strict(mapping, default=None, return_dtype=pl.String))
 
 
+# The closed derivation set: observed flags, period and cutoff sides, and date parts.
 def registered_derivation(frame: pl.DataFrame, item: PlanItemV1,
                           context: OperationContext) -> OperationResult:
-    """The closed derivation set: observed flags, period and cutoff sides, and date parts."""
     target, output = _columns(frame, item)
     name, column = _text(item, "derivation_id"), pl.col(target)
     parts: dict[str, Callable[[], pl.Expr]] = {
@@ -353,10 +344,30 @@ def estimator_scoped_recipe(frame: pl.DataFrame, item: PlanItemV1,
     return OperationResult(frame=frame, examined=frame.height)
 
 
-OPERATIONS: Final[dict[str, Operation]] = {
-    "missing_sentinel_normalization": missing_sentinel_normalization,
-    "type_conversion": type_conversion, "category_normalization": category_normalization,
-    "registered_derivation": registered_derivation,
-    "numeric_median_imputation": numeric_median_imputation,
-    "categorical_missing_encoding": categorical_missing_encoding,
-    "estimator_scoped_recipe": estimator_scoped_recipe}
+# Each family is named for the operation id it runs; the registry rows must cover this set.
+OPERATIONS: Final[dict[str, Operation]] = {registered.__name__: registered for registered in (
+    missing_sentinel_normalization, type_conversion, category_normalization,
+    registered_derivation, numeric_median_imputation, categorical_missing_encoding,
+    estimator_scoped_recipe)}
+
+
+# One §9.5/§11.1 role view of the manifest, and the context an operation may consult.
+POST_TREATMENT_ROLES: Final = ("outcome", "mediator")
+
+
+def by_role(column_roles: Mapping[str, str]) -> dict[str, str]:
+    """The first column carrying each approved role, in stable column order."""
+    held: dict[str, str] = {}
+    for column, role in sorted(column_roles.items()):
+        held.setdefault(role, column)
+    return held
+
+
+def operation_context(book: Any) -> OperationContext:
+    """The manifest facts an operation may consult; §11.1 timing is derived from roles."""
+    return OperationContext(
+        column_roles=dict(book.column_roles),
+        measurement_timing={column: "post_treatment" for column, role
+                            in book.column_roles.items() if role in POST_TREATMENT_ROLES},
+        permitted_repair_columns=tuple(book.permitted_repair_columns),
+        permitted_imputation_columns=tuple(book.permitted_imputation_columns))

@@ -8,20 +8,15 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Final, Protocol
 
-from causal.preparation.contracts import PREPARATION_REGISTRY_KEYS, PreparationContextManifestV1
-from causal.preparation.packs import PreparationPackV1
+from causal.preparation import contracts as pc
+from causal.preparation.contracts import PREPARATION_REGISTRY_KEYS, PreparationError
+from causal.preparation.plans import PreparationPackV1, strategy_operation
 from causal.shared.canonical import content_hash
 from causal.shared.contracts import ArtifactEnvelopeV1, ArtifactRef, HandoffManifestV1
 from causal.shared.events import OperationalEventV1
 from causal.shared.handoff import UNKNOWN_HANDOFF, EventFactory, HandoffGate, HandoffStore
 from causal.shared.persistence import PersistenceError
 from causal.shared.readers import ObjectReader, ProductsReader
-
-__all__ = [
-    "COMPONENT", "ENTRY_TYPES", "EntryInputs", "EntryPolicy", "HandoffAcceptance",
-    "ManifestCommitter", "PreparationEntryError", "accept_handoff", "commit_manifest",
-    "compile_context_manifest", "handoff_id", "read_entries", "validate_entry",
-]
 
 COMPONENT, APPROVED, COMPUTED = "preparation-harness", "approved", "computed"
 ENTRY_VALIDATION_FAILED, ENTRY_UNREADABLE = "entry_validation_failed", "entry_unreadable"
@@ -42,12 +37,8 @@ ENTRY_TYPES: Final = ("TableSelection", "ExperimentDesign", "RunnableFrameContra
 MUTATION_MARKERS: Final = ("source_table_mutated", "source_mutated", "table_mutated")
 
 
-class PreparationEntryError(ValueError):
+class PreparationEntryError(PreparationError):
     """A preparation entry step failed. `code` is stable; `detail_codes` carries every family."""
-
-    def __init__(self, message: str, code: str, detail_codes: tuple[str, ...] = ()) -> None:
-        super().__init__(message)
-        self.code, self.detail_codes = code, detail_codes
 
 
 # The one `ArtifactCommitter` method the entry gate needs (SC §8.2 flush-gated commit).
@@ -129,6 +120,7 @@ def _body(objects: ObjectReader, envelope: ArtifactEnvelopeV1 | None) -> Mapping
     return parsed if isinstance(parsed, Mapping) else {}
 
 
+# The artifact id one payload reference names, or None when the reference is absent.
 def _ref_id(payload: Mapping[str, Any], key: str) -> str | None:
     held = payload.get(key)
     return str(held["artifact_id"]) if isinstance(held, Mapping) else None
@@ -255,18 +247,21 @@ def compile_context_manifest(
     role_ledger: Mapping[str, Any], measurement_map: Mapping[str, Any],
     causal_context: ArtifactRef, question_id: str, parser_profile_id: str,
     registry_versions: Mapping[str, str], recipient_map: Mapping[str, Sequence[str]],
-) -> PreparationContextManifestV1:
+) -> pc.PreparationContextManifestV1:
     """Hydrate the §7.2 manifest from the four entries and the design-side semantic artifacts."""
     design, contract = inputs.design, inputs.contract
     frame = design.get("frame") or {}
     concepts, roles, protected = _columns(role_ledger, measurement_map, pack)
     forbidden = set(contract.get("imputation_forbidden") or ()) | set(protected)
-    strategies = {target.strategy_id for target in pack.permitted_imputation_targets}
+    # §7.2 carries OPERATION ids: a permitted strategy is named here by the operation that runs it.
+    strategies = {found for target in pack.permitted_imputation_targets
+                  for found in (strategy_operation(target.strategy_id, target.fit_scope),)
+                  if found is not None}
     upstream = {"entries": [ref.model_dump(mode="json") for ref in entries],
                 "measurement_map": design.get("measurement_map"),
                 "role_ledger": design.get("role_ledger"),
                 "causal_context": causal_context.model_dump(mode="json")}
-    return PreparationContextManifestV1(
+    return pc.PreparationContextManifestV1(
         selected_csv=entries[0], parser_profile_id=parser_profile_id, question_id=question_id,
         source_object_locator=str(inputs.selection["resource_object_locator"]),
         population_id=str(frame["population"]), timeframe_id=str(frame["timeframe"]),
@@ -301,7 +296,7 @@ def compile_context_manifest(
 
 
 def commit_manifest(committer: ManifestCommitter, envelope: ArtifactEnvelopeV1,
-                    manifest: PreparationContextManifestV1,
+                    manifest: pc.PreparationContextManifestV1,
                     event: OperationalEventV1) -> ArtifactEnvelopeV1:
     """Commit the frozen manifest through the caller's flush-gated committer (SC §8.2)."""
     return committer.commit(envelope, manifest.canonical_payload(), event)

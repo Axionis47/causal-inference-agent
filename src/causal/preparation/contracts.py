@@ -2,24 +2,12 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from enum import StrEnum
 from typing import Annotated, Any, Final, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from causal.shared.contracts import ArtifactRef, Identity, PayloadLocator, Sha256Hex
-
-__all__ = [
-    "PREPARATION_REGISTRY_KEYS", "RETAINING_DISPOSITIONS", "ColumnSchemaFieldV1",
-    "ConflictAction", "DesignConflictDraftV1", "DesignConflictV1", "DiagnosticStatus",
-    "DimensionImpactV1", "DispositionCountV1", "DispositionLedgerSummaryV1",
-    "EligibilityEvaluationSummaryV1", "FrameStage", "ObjectRefV1",
-    "PreparationContextManifestV1", "PreparationDiagnosticV1", "PreparationOutcomeStatus",
-    "PreparationOutcomeV1", "PreparedFrameBundleV1", "PreparedFrameV1", "RowDisposition",
-    "RowSetFreezeV1", "SourceRowIndexSummaryV1", "StabilizationRecordV1", "StabilizedFrameV1",
-    "require_exact_keys",
-]
 
 # The closed version keys every preparation payload pins (§7.2 last bullet).
 PREPARATION_REGISTRY_KEYS: Final = (
@@ -33,33 +21,28 @@ _PositiveInt = Annotated[int, Field(ge=1)]
 _Ids = Annotated[tuple[Identity, ...], Field(min_length=1)]
 
 
-def require_exact_keys(
-    mapping: Mapping[str, object], expected: tuple[str, ...], label: str
-) -> None:
-    """Reject a mapping whose key set differs from a closed vocabulary."""
-    if set(mapping) != set(expected):
-        missing = sorted(set(expected) - set(mapping))
-        extra = sorted(set(mapping) - set(expected))
-        raise ValueError(f"{label} key mismatch: missing={missing} extra={extra}")
+class PreparationError(ValueError):
+    """A preparation step refused. `code` is stable; `detail_codes` carries every family."""
+
+    def __init__(self, message: str, code: str, detail_codes: tuple[str, ...] = ()) -> None:
+        super().__init__(message)
+        self.code, self.detail_codes = code, detail_codes
 
 
+# Frozen, strict base for preparation row and fragment models.
 class _Row(BaseModel):
-    """Frozen, strict base for preparation row and fragment models."""
-
     model_config = _MODEL_CONFIG
 
 
+# Base for committed preparation payloads.
 class _Payload(_Row):
-    """Base for committed preparation payloads."""
-
     def canonical_payload(self) -> dict[str, Any]:
         """Canonical-ready dict; `content_hash(self.canonical_payload())` is replay-stable."""
         return self.model_dump(mode="json")
 
 
+# One content-addressed object: where it lives and what it hashes to.
 class ObjectRefV1(_Row):
-    """One content-addressed object: where it lives and what it hashes to."""
-
     object_locator: PayloadLocator
     content_hash: Sha256Hex
 
@@ -97,9 +80,8 @@ class DiagnosticStatus(StrEnum):
     NOT_COMPUTABLE = "not_computable"
 
 
+# The closed approved-context surface every preparation task reads from (§7.2).
 class PreparationContextManifestV1(_Payload):
-    """The closed approved-context surface every preparation task reads from (§7.2)."""
-
     schema_version: Literal["preparation-context-manifest.v1"] = "preparation-context-manifest.v1"
     selected_csv: ArtifactRef
     source_object_locator: PayloadLocator
@@ -137,47 +119,45 @@ class PreparationContextManifestV1(_Payload):
 
     @model_validator(mode="after")
     def _closed_versions_and_protected_columns(self) -> Self:
-        require_exact_keys(self.registry_versions, PREPARATION_REGISTRY_KEYS, "registry_versions")
+        held, keys = set(self.registry_versions), set(PREPARATION_REGISTRY_KEYS)
+        if held != keys:
+            raise ValueError(f"registry_versions key mismatch: missing={sorted(keys - held)} "
+                             f"extra={sorted(held - keys)}")
         overlap = sorted(set(self.protected_columns) & set(self.permitted_imputation_columns))
         if overlap:
             raise ValueError(f"protected columns cannot be imputation targets: {overlap}")
         return self
 
 
+# How many source rows landed on one terminal disposition.
 class DispositionCountV1(_Row):
-    """How many source rows landed on one terminal disposition."""
-
     disposition: RowDisposition
     row_count: _NonNegInt
 
 
+# Retained and excluded counts per level of one deletion-impact dimension (§9.5).
 class DimensionImpactV1(_Row):
-    """Retained and excluded counts per level of one deletion-impact dimension (§9.5)."""
-
     dimension_id: Identity
     retained_by_level: dict[str, int]
     excluded_by_level: dict[str, int]
     warning_codes: tuple[Identity, ...]
 
 
+# The `SourceRowIndex` folded to counts plus its object pointer (§8, §24.2).
 class SourceRowIndexSummaryV1(_Row):
-    """The `SourceRowIndex` folded to counts plus its object pointer (§8, §24.2)."""
-
     row_count: _NonNegInt
     parse_warning_counts: dict[str, int]
     index_object: ObjectRefV1
 
 
+# Approved eligibility rules evaluated, as rule id to affected-row count (§9.2).
 class EligibilityEvaluationSummaryV1(_Row):
-    """Approved eligibility rules evaluated, as rule id to affected-row count (§9.2)."""
-
     evaluated_row_count: _NonNegInt
     rule_counts: dict[str, int]
 
 
+# The `RowDispositionLedger` folded to counts plus its object pointer (§24.2).
 class DispositionLedgerSummaryV1(_Row):
-    """The `RowDispositionLedger` folded to counts plus its object pointer (§24.2)."""
-
     counts: Annotated[tuple[DispositionCountV1, ...], Field(min_length=1)]
     ledger_object: ObjectRefV1
 
@@ -193,9 +173,8 @@ class DispositionLedgerSummaryV1(_Row):
         return sum(row.row_count for row in self.counts if row.disposition in dispositions)
 
 
+# The frozen retained row set and its `row_set_hash` (§9.6).
 class RowSetFreezeV1(_Row):
-    """The frozen retained row set and its `row_set_hash` (§9.6)."""
-
     retained_row_object: ObjectRefV1
     retained_row_count: _NonNegInt
     unique_unit_count: _NonNegInt
@@ -208,9 +187,8 @@ class RowSetFreezeV1(_Row):
         return self
 
 
+# One diagnostic computed over a declared frame stage (§15).
 class PreparationDiagnosticV1(_Row):
-    """One diagnostic computed over a declared frame stage (§15)."""
-
     diagnostic_id: Identity
     diagnostic_version: Identity
     frame_stage: FrameStage
@@ -232,9 +210,8 @@ class PreparationDiagnosticV1(_Row):
         return self
 
 
+# Row index, eligibility, dispositions, impact, and freeze in one record (§24.2).
 class StabilizationRecordV1(_Payload):
-    """Row index, eligibility, dispositions, impact, and freeze in one record (§24.2)."""
-
     schema_version: Literal["stabilization-record.v1"] = "stabilization-record.v1"
     context_manifest: ArtifactRef
     source_row_index: SourceRowIndexSummaryV1
@@ -261,17 +238,15 @@ class StabilizationRecordV1(_Payload):
         return self
 
 
+# One column of a frame: its name, dtype, and the columns it was prepared from.
 class ColumnSchemaFieldV1(_Row):
-    """One column of a frame: its name, dtype, and the columns it was prepared from."""
-
     column_name: Identity
     dtype: Identity
     prepared_from: tuple[Identity, ...]
 
 
+# Metadata for one immutable frame; the rows live in a content-addressed object.
 class _FrameV1(_Payload):
-    """Metadata for one immutable frame; the rows live in a content-addressed object."""
-
     columns: Annotated[tuple[ColumnSchemaFieldV1, ...], Field(min_length=1)]
     row_count: _NonNegInt
     row_set_hash: Sha256Hex
@@ -279,26 +254,23 @@ class _FrameV1(_Payload):
     writer_version: Identity
 
 
+# The frozen post-stabilization frame (§9.6).
 class StabilizedFrameV1(_FrameV1):
-    """The frozen post-stabilization frame (§9.6)."""
-
     schema_version: Literal["stabilized-frame.v1"] = "stabilized-frame.v1"
     stabilization_record: ArtifactRef
     source_csv: ArtifactRef
 
 
+# The final frame PRD-004 estimates on (§5.1).
 class PreparedFrameV1(_FrameV1):
-    """The final frame PRD-004 estimates on (§5.1)."""
-
     schema_version: Literal["prepared-frame.v1"] = "prepared-frame.v1"
     stabilized_frame: ArtifactRef
     execution_receipt_bundle: ArtifactRef
     prepared_frame_schema_id: Identity
 
 
+# The PRD-004 handoff; §5.1's list is satisfied through consolidated parents (§24.2).
 class PreparedFrameBundleV1(_Payload):
-    """The PRD-004 handoff; §5.1's list is satisfied through consolidated parents (§24.2)."""
-
     schema_version: Literal["prepared-frame-bundle.v1"] = "prepared-frame-bundle.v1"
     selected_table: ArtifactRef
     experiment_design: ArtifactRef
@@ -329,9 +301,8 @@ class PreparationOutcomeStatus(StrEnum):
     FAILED = "failed"
 
 
+# The preparation stage's single terminal record (§5.2).
 class PreparationOutcomeV1(_Payload):
-    """The preparation stage's single terminal record (§5.2)."""
-
     schema_version: Literal["preparation-outcome.v1"] = "preparation-outcome.v1"
     status: PreparationOutcomeStatus
     context_manifest: ArtifactRef
@@ -360,9 +331,8 @@ class ConflictAction(StrEnum):
     REFUSE = "refuse"
 
 
+# The agent's proposed conflict: no ids or hashes, those are stamped by the harness.
 class DesignConflictDraftV1(_Row):
-    """The agent's proposed conflict: no ids or hashes, those are stamped by the harness."""
-
     conflict_code: Identity
     failed_rule_id: Identity
     affected_row_count: _NonNegInt
@@ -374,9 +344,8 @@ class DesignConflictDraftV1(_Row):
     recommended_action: ConflictAction
 
 
+# The committed conflict PRD-003 returns to PRD-002 (§16).
 class DesignConflictV1(DesignConflictDraftV1, _Payload):
-    """The committed conflict PRD-003 returns to PRD-002 (§16)."""
-
     schema_version: Literal["design-conflict.v1"] = "design-conflict.v1"
     conflict_id: Identity
     context_manifest: ArtifactRef
@@ -389,3 +358,14 @@ class DesignConflictV1(DesignConflictDraftV1, _Payload):
         if stamped != self.evidence_artifact_ids:
             raise ValueError("evidence refs must stamp exactly the drafted evidence ids, in order")
         return self
+
+
+def conflict_draft(code: str, rows: int,
+                   design_field: str = "eligibility_rules") -> DesignConflictDraftV1:
+    """The harness's own §16 conflict when no permitted operation resolves the mismatch."""
+    return DesignConflictDraftV1(
+        conflict_code=code, failed_rule_id=code, affected_row_count=rows, affected_unit_count=0,
+        affected_dimension_counts={}, evidence_artifact_ids=(),
+        why_no_permitted_operation="no registered V1 preparation operation resolves this",
+        material_design_fields=(design_field,),
+        recommended_action=ConflictAction.REVISE_DESIGN)

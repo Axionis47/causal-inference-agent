@@ -13,7 +13,7 @@ import pytest
 
 from causal.preparation.contracts import ColumnSchemaFieldV1, DiagnosticStatus, FrameStage
 from causal.preparation.diagnostics import DiagnosticRequest, row_set_invariance
-from causal.preparation.executor import ExecutionError, FrameArtifact, PlanExecutor, PriorRun
+from causal.preparation.executor import ExecutionError, FrameArtifact, PlanExecutor
 from causal.preparation.operations import OPERATIONS, OperationResult
 from causal.preparation.plans import PlanPhase, PreparationPlanV1
 from causal.shared.contracts import ArtifactRef
@@ -67,8 +67,8 @@ def plan(*items: Any) -> PreparationPlanV1:
 
 
 def executor(store: FakeStore, postcondition_fn: Any = postcondition) -> PlanExecutor:
-    return PlanExecutor(registry=REGISTRY, context=CHAINED, writer=store, reader=store,
-                        objects=store, postcondition=postcondition_fn, stage_run_id="run-1",
+    return PlanExecutor(registry=REGISTRY, context=CHAINED, store=store,
+                        postcondition=postcondition_fn, stage_run_id="run-1",
                         clock=lambda: CLOCK)
 
 
@@ -124,21 +124,6 @@ def test_an_unexpected_input_frame_stops_the_item_without_a_retry() -> None:
         run_plan(store, expected_inputs={"pi-2": SOURCE.ref})
     assert refused.value.code == "input_hash_mismatch"
     assert store.writes == 1
-
-
-def test_a_recorded_item_is_replayed_from_its_existing_receipt() -> None:
-    store = FakeStore()
-    first = run_plan(store)
-    writes = store.writes
-    recorded = first.bundle.receipts[0]
-    priors = {"pi-1": PriorRun(recorded, FrameArtifact(
-        recorded.output_ref, f"objects/{recorded.output_ref.content_hash}", first.output.schema))}
-    second = run_plan(store, priors=priors)
-    assert second.replayed_item_ids == ("pi-1",)
-    assert store.writes == writes + 1
-    assert second.bundle.receipts[0] == first.bundle.receipts[0]
-    assert (second.bundle.imputed_cell_mask.content_hash
-            == first.bundle.imputed_cell_mask.content_hash)
 
 
 def test_a_failing_postcondition_stops_the_chain_at_its_item() -> None:

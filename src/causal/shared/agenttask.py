@@ -97,6 +97,10 @@ class TaskRunner:
             parsed = parse_strict(AgentTaskResultV1, answer.parsed or {})
         except ValidationError:
             return built, None
+        # D-071: the harness owns these three facts, so a model echo never decides them.
+        parsed = parsed.model_copy(update={
+            "envelope_id": built.envelope_id, "task_id": built.task_id,
+            "validation_target": built.validator_version})
         return built, None if many and not isinstance(parsed.payload.get("items"), list) else parsed
 
     def run(self, state: Any, kind: str, model: type[BaseModel], *, scope_kind: str,

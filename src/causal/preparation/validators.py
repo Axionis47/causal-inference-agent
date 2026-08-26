@@ -7,40 +7,23 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Final
 
-from causal.preparation.contracts import (
-    RETAINING_DISPOSITIONS,
-    DiagnosticStatus,
-    PreparationContextManifestV1,
-    PreparationDiagnosticV1,
-    RowDisposition,
-    StabilizationRecordV1,
-)
+from causal.preparation import contracts as pc
+from causal.preparation import plans as pp
 from causal.preparation.diagnostics import PreparationDiagnosticRowV1
 from causal.preparation.impact import MethodStructureResultV1, StructureVerdict
 from causal.preparation.operations import OperationRegistry
-from causal.preparation.packs import PreparationPackV1
 from causal.preparation.plancompile import TABLE_WIDE_SCOPE, FrameGapV1
-from causal.preparation.plans import ItemPhase, PlanItemV1, PreparationPlanV1, has_cycle
+from causal.preparation.plans import ItemPhase
+from causal.shared import receipts as rc
+from causal.shared import validation
 from causal.shared.contracts import ArtifactRef
-from causal.shared.receipts import (
-    ExecutionReceiptV1,
-    OutputArtifactLike,
-    PostconditionLike,
-    tri_agreement,
-)
 from causal.shared.registry import RegistryError
-from causal.shared.validation import (
-    ValidationIssueV1,
-    ValidationReport,
-    ValidationRuleV1,
-    load_rules,
-)
+from causal.shared.validation import ValidationIssueV1, ValidationReport, ValidationRuleV1
 
 __all__ = [
     "MAX_WALL", "REGISTRY_VERSION", "RULE_KINDS", "ReceiptCheck", "ValidationIssueV1",
     "ValidationReport", "ValidationRuleV1", "WallContext", "load_validation_rules", "validate",
-    "wall",
-]
+    "wall"]
 
 REGISTRY_VERSION: Final = "preparation-validators.v1"
 # One rule kind per §24.3 wall; a row's `check` names the predicate inside its wall.
@@ -54,9 +37,9 @@ _COMMON, _FILLING = "preparation_common", (ItemPhase.REPAIR, ItemPhase.IMPUTATIO
 # One executed plan item as the §17.6 gate sees it: receipt, output, postcondition.
 @dataclass(frozen=True)
 class ReceiptCheck:
-    receipt: ExecutionReceiptV1
-    output: OutputArtifactLike
-    postcondition: PostconditionLike
+    receipt: rc.ExecutionReceiptV1
+    output: rc.OutputArtifactLike
+    postcondition: rc.PostconditionLike
 
 
 # Everything the walls may read; a wall never loads or recomputes anything itself.
@@ -65,18 +48,18 @@ class WallContext:
     rules: tuple[ValidationRuleV1, ...] = ()
     handoff_accepted: bool = False
     entry_codes: tuple[str, ...] = ()
-    manifest: PreparationContextManifestV1 | None = None
-    record: StabilizationRecordV1 | None = None
+    manifest: pc.PreparationContextManifestV1 | None = None
+    record: pc.StabilizationRecordV1 | None = None
     evaluated_rule_ids: tuple[str, ...] = ()
     structure: MethodStructureResultV1 | None = None
     row_set_hash: str | None = None
-    plan: PreparationPlanV1 | None = None
+    plan: pp.PreparationPlanV1 | None = None
     operations: OperationRegistry | None = None
-    pack: PreparationPackV1 | None = None
+    pack: pp.PreparationPackV1 | None = None
     gaps: tuple[FrameGapV1, ...] = ()
     receipts: tuple[ReceiptCheck, ...] = ()
     source_ref: ArtifactRef | None = None
-    diagnostics: tuple[PreparationDiagnosticV1, ...] = ()
+    diagnostics: tuple[pc.PreparationDiagnosticV1, ...] = ()
     required_diagnostic_ids: tuple[str, ...] = ()
     diagnostic_registry: Mapping[str, PreparationDiagnosticRowV1] = field(default_factory=dict)
     implemented_diagnostic_ids: frozenset[str] = frozenset()
@@ -88,7 +71,7 @@ class WallContext:
     def rules_of(self, kind: str) -> tuple[ValidationRuleV1, ...]:
         return tuple(rule for rule in self.rules if rule.kind == kind)
 
-    def items(self) -> tuple[PlanItemV1, ...]:
+    def items(self) -> tuple[pp.PlanItemV1, ...]:
         return self.plan.items if self.plan is not None else ()
 
 
@@ -97,7 +80,8 @@ Check = Callable[[WallContext, ValidationRuleV1], tuple[str, ...]]
 
 def load_validation_rules(path: Path) -> tuple[ValidationRuleV1, ...]:
     """The six-wall preparation rows; an unknown kind or wall fails closed (T-002 machinery)."""
-    return load_rules(path, registry_version=REGISTRY_VERSION, kinds=RULE_KINDS, max_wall=MAX_WALL)
+    return validation.load_rules(path, registry_version=REGISTRY_VERSION, kinds=RULE_KINDS,
+                                 max_wall=MAX_WALL)
 
 
 def _handoff_accepted(ctx: WallContext, rule: ValidationRuleV1) -> tuple[str, ...]:
@@ -116,7 +100,7 @@ def _rows_dispositioned(ctx: WallContext, rule: ValidationRuleV1) -> tuple[str, 
     total, indexed = (sum(row.row_count for row in record.dispositions.counts),
                       record.source_row_index.row_count)
     codes = [] if total == indexed else [f"dispositioned_{total}_of_{indexed}"]
-    unresolved = record.dispositions.total(RowDisposition.UNRESOLVED_CONFLICT)
+    unresolved = record.dispositions.total(pc.RowDisposition.UNRESOLVED_CONFLICT)
     return tuple(codes + (["unresolved_conflict_remains"] if unresolved else []))
 
 
@@ -133,7 +117,7 @@ def _counts_reconcile(ctx: WallContext, rule: ValidationRuleV1) -> tuple[str, ..
     record, manifest = ctx.record, ctx.manifest
     if record is None:
         return ()
-    retained = record.dispositions.total(*RETAINING_DISPOSITIONS)
+    retained = record.dispositions.total(*pc.RETAINING_DISPOSITIONS)
     codes = [] if retained == record.freeze.retained_row_count else ["retained_count_mismatch"]
     required = set(manifest.deletion_impact_dimensions) if manifest is not None else set()
     return tuple(codes + sorted(required - {row.dimension_id for row in record.impact}))
@@ -164,7 +148,7 @@ def _operations_permitted(ctx: WallContext, rule: ValidationRuleV1) -> tuple[str
 
 
 def _items_ordered(ctx: WallContext, rule: ValidationRuleV1) -> tuple[str, ...]:
-    return ("plan_not_a_dag",) if has_cycle(ctx.items()) else ()
+    return ("plan_not_a_dag",) if pp.has_cycle(ctx.items()) else ()
 
 
 def _gaps_covered(ctx: WallContext, rule: ValidationRuleV1) -> tuple[str, ...]:
@@ -194,7 +178,7 @@ def _fit_scopes_permitted(ctx: WallContext, rule: ValidationRuleV1) -> tuple[str
 
 def _tri_agreement_clean(ctx: WallContext, rule: ValidationRuleV1) -> tuple[str, ...]:
     return tuple(f"{check.receipt.plan_item_id}:{code}" for check in ctx.receipts
-                 for code in tri_agreement(check.receipt, check.output, check.postcondition))
+                 for code in rc.tri_agreement(check.receipt, check.output, check.postcondition))
 
 
 # Every receipt opens on the previous receipt's output; the first opens on the source.
@@ -217,10 +201,11 @@ def _row_invariance(ctx: WallContext, rule: ValidationRuleV1) -> tuple[str, ...]
 
 # A required diagnostic passed, or its terminal status carries approved handling. An
 # unimplemented method-pack diagnostic must be `not_computable`, never a silent pass (§15).
-def _handled(found: PreparationDiagnosticV1, dispatchable: bool, approved: frozenset[str]) -> bool:
+def _handled(found: pc.PreparationDiagnosticV1, dispatchable: bool,
+             approved: frozenset[str]) -> bool:
     if not dispatchable:
-        return found.status is DiagnosticStatus.NOT_COMPUTABLE and found.status.value in approved
-    return found.status is DiagnosticStatus.PASS or found.status.value in approved
+        return found.status is pc.DiagnosticStatus.NOT_COMPUTABLE and found.status.value in approved
+    return found.status is pc.DiagnosticStatus.PASS or found.status.value in approved
 
 
 # Every required diagnostic is terminal with approved handling (§15, wall 12).
