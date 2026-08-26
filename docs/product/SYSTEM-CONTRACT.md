@@ -871,9 +871,10 @@ Production Python lives only under `src/causal/` and has these non-transferable 
 | PRD-005 | `src/causal/presentation/` | 1,500 | presentation responsibilities in PRD-005 |
 | **Production total** | `src/causal/` | **15,000** | hard ceiling across every package |
 
-Unused lines in one package cannot be consumed by another. Production is also limited to 68
-hand-authored Python modules (50 at initial freeze; revised by explicit user approval (D-058) on
-2026-08-25), 350 logical lines in one production module, and 75 logical lines in
+Unused lines in one package cannot be consumed by another. Production is also limited to 86
+hand-authored Python modules (50 at initial freeze; revised by explicit user approval to 68
+(D-058) on 2026-08-25 and 86 (D-082) on 2026-08-26), 350 logical lines in one production
+module, and 75 logical lines in
 one function or method. A module or function limit has the same blocking force as a package or
 total limit; splitting code solely to satisfy a line limit fails review.
 
@@ -881,9 +882,9 @@ The remaining repository ceilings are:
 
 | Scope | Maximum logical lines | Rule |
 |---|---:|---|
-| tests | 9,000 | parameterized tests and shared fixtures are preferred; helpers cannot contain production behavior or alternate implementations (8,000 at initial freeze; revised by explicit user approval (D-058) on 2026-08-25) |
-| migrations, static registries, prompt templates, and evaluation catalogs | 3,500 | declarative values only; no executable application logic (3,000 at initial freeze; revised by explicit user approval (D-058) on 2026-08-25) |
-| total human-authored implementation | 26,000 | production + tests + migrations/registries/prompts; documentation is reported separately |
+| tests | 13,000 | parameterized tests and shared fixtures are preferred; helpers cannot contain production behavior or alternate implementations (8,000 at initial freeze; revised by explicit user approval to 9,000 (D-058) on 2026-08-25 and 13,000 (D-082) on 2026-08-26) |
+| migrations, static registries, prompt templates, and evaluation catalogs | 4,600 | declarative values only; no executable application logic (3,000 at initial freeze; revised by explicit user approval to 3,500 (D-058) on 2026-08-25 and 4,600 (D-082) on 2026-08-26) |
+| total human-authored implementation | 32,600 | production + tests + migrations/registries/prompts; documentation is reported separately (26,000 at initial freeze; revised by explicit user approval (D-082) on 2026-08-26 as the sum of the revised caps) |
 
 `uv.lock`, vendored third-party assets, raw test datasets, and generated render fixtures are
 reported by file count and bytes but excluded from logical-line totals. They cannot contain
