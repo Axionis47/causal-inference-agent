@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Any, cast
+from collections.abc import Mapping
+from typing import Any, Final, cast
 
 from langgraph.types import interrupt
 
 from causal.design import askgate, contracts, entry, frame, semantics
 from causal.design import compile as compiler
+from causal.design.capacity import check_capacity
 from causal.design.diagnostics import DIAGNOSTIC_SPECS, run_diagnostic
 from causal.design.harness_base import (
     ALLOWED_INTAKE,
@@ -21,10 +23,14 @@ from causal.design.harness_base import (
 from causal.design.triage import ColumnTriageRecordV1, triage
 from causal.shared import envelope as agent
 from causal.shared import handoff
+from causal.shared.canonical import content_hash
+from causal.shared.contracts import ArtifactEnvelopeV1
 from causal.shared.readers import CsvObjectFrameSource
 from causal.shared.validation import parse_strict
 
 __all__ = ["PipelineNodes"]
+
+CAPACITY_KIND: Final = "DeliveryCapacityCheck"
 
 
 class PipelineNodes(HarnessBase):
@@ -262,7 +268,6 @@ class PipelineNodes(HarnessBase):
         if done is None:
             return self._out(state, candidate_method_ids=eligible)
         design = cast(frame.ExperimentDesignV1, done[0][0])
-        self._prerepair(state, design, ledger)
         contract = self._run_task(
             state, "method_design", frame.RunnableFrameContractV1, scope_kind="design",
             scope_ids=("runnable_frame_contract",), parent_kinds=("ExperimentDesign",),
@@ -275,10 +280,42 @@ class PipelineNodes(HarnessBase):
         return self._out(state, stage="method", method_id=design.method_id,
                          candidate_method_ids=eligible)
 
-    def _prerepair(self, state: DesignState, design: frame.ExperimentDesignV1,
-                   ledger: semantics.RoleLedgerV1) -> None:
+    # PRD-003 §4 reads two facts off the committed design that no worker can know: the identity
+    # of its delivery-capacity check, and the pre-repair report in its lineage. Both are bound
+    # here, before the design is written, because a D-031 identity is a function of the payload
+    # alone — so the check can be named before `capacity_node` commits it (D-077).
+    def _commit(self, state: DesignState, kind: str, payload: Mapping[str, object],
+                parents: tuple[ArtifactEnvelopeV1, ...]) -> ArtifactEnvelopeV1:
+        """Commit one artifact; an ExperimentDesign first gains its two harness-owned facts."""
+        if kind != "ExperimentDesign":
+            return super()._commit(state, kind, payload, parents)
+        draft = parse_strict(frame.ExperimentDesignV1, dict(payload))
+        bound = dict(payload) | {"capacity_check": self._capacity_ref(state, draft)}
+        return super()._commit(state, kind, bound, parents + self._prerepair(state, draft))
+
+    def _capacity(self, design: frame.ExperimentDesignV1) -> frame.DeliveryCapacityCheckV1:
+        """The exact-cardinality delivery preflight over one design; a pure function (§13.5)."""
+        contrasts = max(1, len(design.primary_contrasts))
+        counts = dict.fromkeys(frame.CAPACITY_DIMENSIONS, 0) | {
+            "arms": contrasts + 1, "contrasts": contrasts, "series": contrasts + 1,
+            "evidence_items": len(design.required_visual_evidence) + len(
+                design.required_postrepair_diagnostics)}
+        return check_capacity(self.deps.packs.get(design.method_id), counts,
+                              design.required_visual_evidence,
+                              registry=self.deps.capacity_registry)
+
+    def _capacity_ref(self, state: DesignState,
+                      design: frame.ExperimentDesignV1) -> dict[str, str]:
+        """The capacity check's D-031 identity, computed from its payload before it is written."""
+        digest = content_hash(self._capacity(design).canonical_payload())
+        return {"artifact_id": f"{CAPACITY_KIND.lower()}:{state['analysis_id']}:{digest[:16]}",
+                "content_hash": digest}
+
+    def _prerepair(self, state: DesignState,
+                   design: frame.ExperimentDesignV1) -> tuple[ArtifactEnvelopeV1, ...]:
         """The design's required read-only diagnostics over the selected CSV (PRD-002 §14)."""
         selection = self._model(state, "TableSelection", contracts.TableSelectionV1)
+        ledger = self._model(state, "RoleLedger", semantics.RoleLedgerV1)
         source = CsvObjectFrameSource(self.deps.objects, selection.resource_object_locator,
                                       self._ref(state, "TableSelection"))
         columns = {row.role.value: list(row.column_refs) for row in ledger.claims}
@@ -291,8 +328,10 @@ class PipelineNodes(HarnessBase):
         results = tuple(run_diagnostic(name, source, params)
                         for name in design.required_prerepair_diagnostics
                         if name in DIAGNOSTIC_SPECS)
-        if results:
-            self._commit(state, "PreRepairFeasibilityReport", frame.PreRepairFeasibilityReportV1(
+        if not results:
+            return ()
+        return (self._commit(
+            state, "PreRepairFeasibilityReport", frame.PreRepairFeasibilityReportV1(
                 method_id=design.method_id, results=results).canonical_payload(),
-                self._parents(state, "RoleLedger"))
+            self._parents(state, "RoleLedger")),)
 

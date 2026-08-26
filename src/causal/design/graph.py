@@ -15,7 +15,6 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command, interrupt
 
 from causal.design import contracts, frame, semantics
-from causal.design.capacity import check_capacity
 from causal.design.harness_base import (
     APPROVED_KINDS,
     COMPONENT,
@@ -115,16 +114,8 @@ class _Harness(PipelineNodes):
         return self._out(state, stage="render", graph_view_status=view.validation_status)
 
     def capacity_node(self, state: DesignState) -> dict[str, Any]:
-        """The exact-cardinality delivery preflight; a failure refuses the revision (§13.5)."""
-        design = self._model(state, "ExperimentDesign", frame.ExperimentDesignV1)
-        contrasts = max(1, len(design.primary_contrasts))
-        counts = dict.fromkeys(frame.CAPACITY_DIMENSIONS, 0) | {
-            "arms": contrasts + 1, "contrasts": contrasts, "series": contrasts + 1,
-            "evidence_items": len(design.required_visual_evidence) + len(
-                design.required_postrepair_diagnostics)}
-        check = check_capacity(
-            self.deps.packs.get(design.method_id), counts, design.required_visual_evidence,
-            registry=self.deps.capacity_registry)
+        """Recompute the §13.5 preflight the design already named; a failure refuses (D-077)."""
+        check = self._capacity(self._model(state, "ExperimentDesign", frame.ExperimentDesignV1))
         self._commit(state, "DeliveryCapacityCheck", check.canonical_payload(),
                      self._parents(state, "CausalGraphView"))
         self._emit(state, "task.completed", EVAL_METHOD, status=check.status.value)

@@ -169,7 +169,7 @@ def contract_payload(envelope: AgentTaskEnvelopeV1) -> dict[str, Any]:
             "outcome_missingness_rule": "drop the row",
             "method_structure": {"design": "randomized_experiment"}, "imputation_permitted": [],
             "imputation_forbidden": ["group", "earnings", "unit_id"],
-            "required_missingness_indicators": [],
+            "required_missingness_indicators": ["outcome_observed"],
             "deletion_impact_dimensions": list(PACK.deletion_impact_dimensions),
             "revision_required_conditions": ["randomisation is broken"],
             "feasibility_gates": ["arm_counts >= 2"],

@@ -39,12 +39,12 @@ def test_run_after_approval_dispatches_preparation_and_status_follows(
     started = failures.latest_preparation_run(conn, analysis_id)
     assert started is not None and started.stage_run_id == f"pr:{analysis_id}:1"
     assert done.stage_run_id == started.stage_run_id
-    # PRD-002 commits DeliveryCapacityCheck and PreRepairFeasibilityReport after the design,
-    # so a live design cannot yet bind them: the §4 gate refuses, and the dispatch is what
-    # this test pins. The refusal is the entry gate's, not the runtime's.
-    assert (done.status, done.error_code) == ("failed", "entry_validation_failed")
+    # T-013 Amendment 9 (D-077): a live design now binds its capacity check and parents its
+    # pre-repair report, so the §4 gate admits the handoff and PRD-003 reaches its own terminal.
+    assert done.error_code != "entry_validation_failed"
+    assert (done.status, done.error_code) == ("prepared", None)
     assert runtime.status(analysis_id) == composition.StatusView(
-        analysis_id=analysis_id, stage="preparation", state="failed", next_command=None)
+        analysis_id=analysis_id, stage="preparation", state="completed", next_command=None)
 
 
 def poisoned(self: Any, state: Any) -> dict[str, Any]:
