@@ -141,6 +141,8 @@ Append-only. One line per decision: date, decision, why.
 
 One line per checkpoint commit: date, commit subject, what state it freezes.
 
+- 2026-08-26 — `ea1c4da` D-082 §14.1 ceilings; `ccd47b7` PRD-004 Amendment 1 (D-083); T-022..T-029 specs frozen as a batch (this commit) — the PRD-004 wave is fully specced: 12 estimation modules ≈3,130 projected, slices contracts→spine→substrate→judge→RCT e2e→AIPW→DiD/RDD→runtime+evals; per-slice budgets sum estimation 3,130/4,000, tests +2,600, declarative +720; the wave shares ONE §14.1.2 rethink.
+
 - 2026-08-24 — `4f7cbaf` T-001: environment (exact §14 pins, uv.lock), package skeleton, budget checker + 36 tests.
 - 2026-08-24 — `bd6c985` T-002: canonical serialization + hashing + ArtifactEnvelopeV1/HandoffManifestV1 + 40 tests. Full suite 76 green.
 - 2026-08-24 — Environment note: repo lives under ~/Documents (likely iCloud-synced); macOS set UF_HIDDEN on venv files, which makes Python 3.12 silently skip .pth files. Cleared with `chflags nohidden`; if imports break again after re-sync, re-run: `find .venv -flags +hidden -exec chflags nohidden {} +`
