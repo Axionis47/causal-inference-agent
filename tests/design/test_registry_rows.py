@@ -28,7 +28,8 @@ OUTCOME_STATUSES = (
 
 def test_registry_loads_with_the_design_rows_appended() -> None:
     assert len(DESIGN_TYPES) == 19
-    assert len(REGISTRY) == 27
+    # Append-only (D-012): the preparation wave added nine more rows (T-015).
+    assert len(REGISTRY) == 36
 
 
 @pytest.mark.parametrize("artifact_type", DESIGN_TYPES)

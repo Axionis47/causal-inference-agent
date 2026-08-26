@@ -1,0 +1,259 @@
+{
+  "registry_version": "method-pack-preparation.v1",
+  "packs": [
+    {
+      "method_id": "randomized_experiment",
+      "pack_version": "randomized-experiment-pack.v1",
+      "permitted_disposition_rule_ids": [
+        "pre_randomization_eligibility", "randomization_window", "arm_membership",
+        "followup_window", "corrupt_record", "missing_randomization_unit",
+        "missing_treatment_assignment", "randomization_unit_collision"
+      ],
+      "protected_roles": [
+        "treatment", "assignment_variable", "outcome", "unit_identifier", "stratum", "cluster"
+      ],
+      "required_observed_role_rules": [
+        "treatment_observed", "randomization_unit_observed"
+      ],
+      "minimum_rows": 4,
+      "minimum_unique_units": 4,
+      "required_structure_gates": [
+        "one_row_per_randomization_unit", "arms_ge_2", "defined_comparator",
+        "arm_support_after_stabilization"
+      ],
+      "cell_support_gates": [
+        "arm_min_units", "cluster_min_units", "stratum_min_units"
+      ],
+      "dimension_impact_dimensions": [
+        "overall", "arm", "cluster", "stratum", "subgroup", "effective_sample_size",
+        "target_population"
+      ],
+      "invalidation_rule_ids": [
+        "arm_destroyed_by_exclusion", "post_randomization_exclusion_detected",
+        "randomization_unit_unresolved", "cluster_mapping_unresolved",
+        "attrition_exclusion_detected"
+      ],
+      "permitted_repair_operation_ids": [
+        "missing_sentinel_normalization", "type_conversion", "category_normalization",
+        "registered_derivation", "outcome_observed_flag"
+      ],
+      "permitted_imputation_targets": [
+        {
+          "role": "precision_covariate",
+          "fit_scope": "frozen_frame_blinded",
+          "strategy_id": "numeric_median_with_indicator",
+          "requires_missingness_indicator": true
+        },
+        {
+          "role": "precision_covariate",
+          "fit_scope": "frozen_frame_blinded",
+          "strategy_id": "categorical_explicit_missing_level",
+          "requires_missingness_indicator": false
+        }
+      ],
+      "required_missingness_indicators": [
+        "outcome_observed", "baseline_covariate_missing"
+      ],
+      "required_poststabilization_diagnostic_ids": [
+        "arm_counts", "assignment_unit_uniqueness", "cluster_sizes", "outcome_missingness"
+      ],
+      "required_postrepair_diagnostic_ids": [
+        "arm_counts", "assignment_unit_uniqueness", "baseline_availability", "outcome_missingness"
+      ],
+      "prepared_frame_schema_id": "randomized-experiment-prepared-frame.v1",
+      "estimator_input_contract_id": "randomized-experiment-estimator-input.v1"
+    },
+    {
+      "method_id": "aipw",
+      "pack_version": "aipw-pack.v1",
+      "permitted_disposition_rule_ids": [
+        "pre_treatment_eligibility", "target_population_filter", "propensity_trimming",
+        "observation_window", "corrupt_record", "missing_unit_identifier",
+        "missing_observed_treatment", "missing_observed_outcome", "unit_grain_collision"
+      ],
+      "protected_roles": [
+        "treatment", "outcome", "unit_identifier"
+      ],
+      "required_observed_role_rules": [
+        "treatment_observed", "outcome_observed", "unit_identifier_observed"
+      ],
+      "minimum_rows": 20,
+      "minimum_unique_units": 20,
+      "required_structure_gates": [
+        "one_row_per_unit", "treatment_binary", "defined_comparator",
+        "treatment_and_outcome_observed"
+      ],
+      "cell_support_gates": [
+        "treatment_group_min_units", "cross_fit_fold_min_units"
+      ],
+      "dimension_impact_dimensions": [
+        "overall", "treatment_group", "subgroup", "overlap_region", "effective_sample_size",
+        "target_population"
+      ],
+      "invalidation_rule_ids": [
+        "target_population_changed", "unit_grain_violated", "propensity_trimming_as_repair",
+        "overlap_region_emptied"
+      ],
+      "permitted_repair_operation_ids": [
+        "missing_sentinel_normalization", "type_conversion", "category_normalization",
+        "registered_derivation"
+      ],
+      "permitted_imputation_targets": [
+        {
+          "role": "confounder_candidate",
+          "fit_scope": "cross_fit_training_fold",
+          "strategy_id": "numeric_median_with_indicator",
+          "requires_missingness_indicator": true
+        },
+        {
+          "role": "confounder_candidate",
+          "fit_scope": "cross_fit_training_fold",
+          "strategy_id": "categorical_explicit_missing_level",
+          "requires_missingness_indicator": false
+        },
+        {
+          "role": "precision_covariate",
+          "fit_scope": "cross_fit_training_fold",
+          "strategy_id": "numeric_median_with_indicator",
+          "requires_missingness_indicator": true
+        }
+      ],
+      "required_missingness_indicators": [
+        "confounder_missing"
+      ],
+      "required_poststabilization_diagnostic_ids": [
+        "treatment_prevalence", "covariate_availability", "missingness"
+      ],
+      "required_postrepair_diagnostic_ids": [
+        "treatment_prevalence", "covariate_availability", "missingness", "rough_overlap"
+      ],
+      "prepared_frame_schema_id": "aipw-prepared-frame.v1",
+      "estimator_input_contract_id": "aipw-estimator-input.v1"
+    },
+    {
+      "method_id": "did",
+      "pack_version": "did-pack.v1",
+      "permitted_disposition_rule_ids": [
+        "unit_eligibility", "group_membership", "period_window", "cohort_inclusion",
+        "corrupt_record", "missing_unit_or_time_key", "missing_group_membership",
+        "unit_period_collision"
+      ],
+      "protected_roles": [
+        "treatment", "outcome", "group", "time", "cluster", "unit_identifier"
+      ],
+      "required_observed_role_rules": [
+        "group_observed", "time_observed", "unit_or_group_key_observed"
+      ],
+      "minimum_rows": 8,
+      "minimum_unique_units": 4,
+      "required_structure_gates": [
+        "unit_time_or_group_time_rows", "treated_and_comparison_groups", "adoption_time_defined",
+        "pre_and_post_periods", "group_time_cell_support"
+      ],
+      "cell_support_gates": [
+        "group_time_cell_min_rows", "pre_period_min_count", "post_period_min_count",
+        "cohort_min_units"
+      ],
+      "dimension_impact_dimensions": [
+        "overall", "group", "time", "cohort", "cluster", "effective_sample_size",
+        "target_population"
+      ],
+      "invalidation_rule_ids": [
+        "period_removed", "cohort_removed", "group_removed", "group_time_cell_emptied",
+        "unit_period_synthesized"
+      ],
+      "permitted_repair_operation_ids": [
+        "missing_sentinel_normalization", "type_conversion", "category_normalization",
+        "registered_derivation", "post_period_flag"
+      ],
+      "permitted_imputation_targets": [
+        {
+          "role": "confounder_candidate",
+          "fit_scope": "pre_treatment_only",
+          "strategy_id": "numeric_median_with_indicator",
+          "requires_missingness_indicator": true
+        },
+        {
+          "role": "precision_covariate",
+          "fit_scope": "pre_treatment_only",
+          "strategy_id": "categorical_explicit_missing_level",
+          "requires_missingness_indicator": false
+        }
+      ],
+      "required_missingness_indicators": [
+        "outcome_missing", "covariate_missing"
+      ],
+      "required_poststabilization_diagnostic_ids": [
+        "unit_period_uniqueness", "group_time_counts", "panel_completeness"
+      ],
+      "required_postrepair_diagnostic_ids": [
+        "unit_period_uniqueness", "group_time_counts", "panel_completeness",
+        "missingness_by_group_time"
+      ],
+      "prepared_frame_schema_id": "did-prepared-frame.v1",
+      "estimator_input_contract_id": "did-estimator-input.v1"
+    },
+    {
+      "method_id": "sharp_rdd",
+      "pack_version": "sharp-rdd-pack.v1",
+      "permitted_disposition_rule_ids": [
+        "pre_assignment_eligibility", "running_variable_support", "cutoff_side_membership",
+        "bandwidth_window", "corrupt_record", "missing_unit_identifier",
+        "missing_running_variable", "missing_observed_outcome", "unit_grain_collision"
+      ],
+      "protected_roles": [
+        "running_variable", "treatment", "assignment_variable", "outcome", "unit_identifier"
+      ],
+      "required_observed_role_rules": [
+        "running_variable_observed", "outcome_observed", "unit_identifier_observed"
+      ],
+      "minimum_rows": 20,
+      "minimum_unique_units": 20,
+      "required_structure_gates": [
+        "one_row_per_unit", "running_variable_with_cutoff", "fixed_cutoff",
+        "sharp_assignment_at_cutoff", "support_on_both_sides_of_cutoff"
+      ],
+      "cell_support_gates": [
+        "cutoff_side_min_rows", "distance_band_min_rows"
+      ],
+      "dimension_impact_dimensions": [
+        "overall", "cutoff_side", "distance_band", "mass_point", "effective_sample_size",
+        "target_population"
+      ],
+      "invalidation_rule_ids": [
+        "cutoff_side_emptied", "mass_point_removed", "manipulation_evidence_repaired",
+        "sharp_assignment_contradiction", "running_variable_smoothed"
+      ],
+      "permitted_repair_operation_ids": [
+        "missing_sentinel_normalization", "type_conversion", "category_normalization",
+        "registered_derivation", "cutoff_side_flag"
+      ],
+      "permitted_imputation_targets": [
+        {
+          "role": "precision_covariate",
+          "fit_scope": "frozen_frame_blinded",
+          "strategy_id": "numeric_median_with_indicator",
+          "requires_missingness_indicator": true
+        },
+        {
+          "role": "confounder_candidate",
+          "fit_scope": "frozen_frame_blinded",
+          "strategy_id": "categorical_explicit_missing_level",
+          "requires_missingness_indicator": false
+        }
+      ],
+      "required_missingness_indicators": [
+        "covariate_missing"
+      ],
+      "required_poststabilization_diagnostic_ids": [
+        "cutoff_side_counts", "distance_to_cutoff_support", "mass_points"
+      ],
+      "required_postrepair_diagnostic_ids": [
+        "cutoff_side_counts", "distance_to_cutoff_support", "mass_points",
+        "density_manipulation_warnings"
+      ],
+      "prepared_frame_schema_id": "sharp-rdd-prepared-frame.v1",
+      "estimator_input_contract_id": "sharp-rdd-estimator-input.v1"
+    }
+  ]
+}

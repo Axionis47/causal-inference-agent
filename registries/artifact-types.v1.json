@@ -622,6 +622,223 @@
         "preparation"
       ],
       "validator_version": "design-outcome-validator.v1"
+    },
+    {
+      "artifact_type": "PreparationContextManifest",
+      "schema_version": "preparation-context-manifest.v1",
+      "producer_component": "preparation-harness",
+      "allowed_reader_components": [
+        "preparation-harness"
+      ],
+      "required_parent_types": [
+        "TableSelection",
+        "ExperimentDesign",
+        "RunnableFrameContract",
+        "DeliveryCapacityCheck"
+      ],
+      "optional_parent_types": [],
+      "sensitivity_class": "internal",
+      "terminal_statuses": [
+        "committed"
+      ],
+      "destinations": [
+        "preparation"
+      ],
+      "validator_version": "preparation-context-manifest-validator.v1"
+    },
+    {
+      "artifact_type": "StabilizationRecord",
+      "schema_version": "stabilization-record.v1",
+      "producer_component": "preparation-harness",
+      "allowed_reader_components": [
+        "preparation-harness",
+        "estimation-harness"
+      ],
+      "required_parent_types": [
+        "PreparationContextManifest"
+      ],
+      "optional_parent_types": [],
+      "sensitivity_class": "internal",
+      "terminal_statuses": [
+        "committed"
+      ],
+      "destinations": [
+        "preparation",
+        "estimation"
+      ],
+      "validator_version": "stabilization-record-validator.v1"
+    },
+    {
+      "artifact_type": "StabilizedFrame",
+      "schema_version": "stabilized-frame.v1",
+      "producer_component": "preparation-harness",
+      "allowed_reader_components": [
+        "preparation-harness",
+        "estimation-harness"
+      ],
+      "required_parent_types": [
+        "StabilizationRecord"
+      ],
+      "optional_parent_types": [],
+      "sensitivity_class": "restricted",
+      "terminal_statuses": [
+        "committed"
+      ],
+      "destinations": [
+        "preparation",
+        "estimation"
+      ],
+      "validator_version": "stabilized-frame-validator.v1"
+    },
+    {
+      "artifact_type": "PreparationPlan",
+      "schema_version": "preparation-plan.v1",
+      "producer_component": "preparation-harness",
+      "allowed_reader_components": [
+        "preparation-harness"
+      ],
+      "required_parent_types": [
+        "PreparationContextManifest"
+      ],
+      "optional_parent_types": [
+        "StabilizationRecord"
+      ],
+      "sensitivity_class": "internal",
+      "terminal_statuses": [
+        "committed"
+      ],
+      "destinations": [
+        "preparation"
+      ],
+      "validator_version": "preparation-plan-validator.v1"
+    },
+    {
+      "artifact_type": "ExecutionReceiptBundle",
+      "schema_version": "execution-receipt-bundle.v1",
+      "producer_component": "preparation-harness",
+      "allowed_reader_components": [
+        "preparation-harness",
+        "estimation-harness"
+      ],
+      "required_parent_types": [
+        "PreparationPlan"
+      ],
+      "optional_parent_types": [],
+      "sensitivity_class": "internal",
+      "terminal_statuses": [
+        "committed"
+      ],
+      "destinations": [
+        "preparation",
+        "estimation"
+      ],
+      "validator_version": "execution-receipt-bundle-validator.v1"
+    },
+    {
+      "artifact_type": "PreparedFrame",
+      "schema_version": "prepared-frame.v1",
+      "producer_component": "preparation-harness",
+      "allowed_reader_components": [
+        "preparation-harness",
+        "estimation-harness"
+      ],
+      "required_parent_types": [
+        "StabilizedFrame",
+        "ExecutionReceiptBundle"
+      ],
+      "optional_parent_types": [],
+      "sensitivity_class": "restricted",
+      "terminal_statuses": [
+        "committed"
+      ],
+      "destinations": [
+        "preparation",
+        "estimation"
+      ],
+      "validator_version": "prepared-frame-validator.v1"
+    },
+    {
+      "artifact_type": "PreparedFrameBundle",
+      "schema_version": "prepared-frame-bundle.v1",
+      "producer_component": "preparation-harness",
+      "allowed_reader_components": [
+        "preparation-harness",
+        "estimation-harness"
+      ],
+      "required_parent_types": [
+        "TableSelection",
+        "ExperimentDesign",
+        "RunnableFrameContract",
+        "DeliveryCapacityCheck",
+        "StabilizationRecord",
+        "StabilizedFrame",
+        "PreparedFrame",
+        "ExecutionReceiptBundle"
+      ],
+      "optional_parent_types": [],
+      "sensitivity_class": "internal",
+      "terminal_statuses": [
+        "prepared"
+      ],
+      "destinations": [
+        "estimation"
+      ],
+      "validator_version": "prepared-frame-bundle-validator.v1"
+    },
+    {
+      "artifact_type": "PreparationOutcome",
+      "schema_version": "preparation-outcome.v1",
+      "producer_component": "preparation-harness",
+      "allowed_reader_components": [
+        "preparation-harness",
+        "estimation-harness",
+        "design-harness"
+      ],
+      "required_parent_types": [
+        "PreparationContextManifest"
+      ],
+      "optional_parent_types": [
+        "PreparedFrameBundle",
+        "DesignConflict"
+      ],
+      "sensitivity_class": "internal",
+      "terminal_statuses": [
+        "prepared",
+        "design_conflict",
+        "not_runnable",
+        "failed_observability",
+        "failed"
+      ],
+      "destinations": [
+        "preparation",
+        "estimation",
+        "design"
+      ],
+      "validator_version": "preparation-outcome-validator.v1"
+    },
+    {
+      "artifact_type": "DesignConflict",
+      "schema_version": "design-conflict.v1",
+      "producer_component": "preparation-harness",
+      "allowed_reader_components": [
+        "preparation-harness",
+        "design-harness"
+      ],
+      "required_parent_types": [
+        "PreparationContextManifest"
+      ],
+      "optional_parent_types": [],
+      "sensitivity_class": "internal",
+      "terminal_statuses": [
+        "open",
+        "resolved",
+        "refused"
+      ],
+      "destinations": [
+        "preparation",
+        "design"
+      ],
+      "validator_version": "design-conflict-validator.v1"
     }
   ]
 }
