@@ -201,7 +201,8 @@ class PreparationTaskDraftV1(_Row):
 class ExecutionReceiptBundleV1(_Payload):
     schema_version: Literal["execution-receipt-bundle.v1"] = "execution-receipt-bundle.v1"
     plan: ArtifactRef
-    receipts: Annotated[tuple[ExecutionReceiptV1, ...], Field(min_length=1)]
+    # §25: a satisfied contract compiles no plan item, so an honest bundle may be empty.
+    receipts: tuple[ExecutionReceiptV1, ...]
     changed_counts_by_column: dict[str, int]
     missingness_before: dict[str, int]
     missingness_after: dict[str, int]

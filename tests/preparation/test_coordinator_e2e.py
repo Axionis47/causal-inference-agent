@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import io
+import json
 import uuid
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import fields
@@ -116,7 +117,8 @@ def commit(deps: PreparationDeps, analysis_id: str, kind: str, payload: dict[str
 
 
 def approved_design(deps: PreparationDeps, analysis_id: str, method: str, data: bytes, *,
-                    impute: Sequence[str] = (), drop_rules: Sequence[str] = ()) -> str:
+                    impute: Sequence[str] = (), drop_rules: Sequence[str] = (),
+                    indicators: Sequence[str] = ("outcome_observed",)) -> str:
     """Commit the approved PRD-002 chain the §4 gate reads, and return its DesignOutcome id."""
     pack = deps.packs.get(method, VERSIONS[method])
     deps.products.create_stage_run(f"dr:{analysis_id}:1", analysis_id, "design")
@@ -154,7 +156,7 @@ def approved_design(deps: PreparationDeps, analysis_id: str, method: str, data: 
         "exclusion_reason_vocabulary": [rule for rule in pack.permitted_disposition_rule_ids
                                         if rule not in drop_rules],
         "imputation_permitted": list(impute), "imputation_forbidden": [],
-        "required_missingness_indicators": ["outcome_observed"], "type_constraints": {},
+        "required_missingness_indicators": list(indicators), "type_constraints": {},
         "required_final_diagnostics": list(pack.required_postrepair_diagnostic_ids),
         "deletion_impact_dimensions": list(pack.dimension_impact_dimensions),
         "method_structure": STRUCTURE.get(method, {})}, (design,))
@@ -241,6 +243,20 @@ def test_a_permitted_imputation_gap_compiles_and_executes(stack: Stack) -> None:
         (run.stage_run_id,)).fetchall()}
     assert items == {"pi:required_derivation_missing:outcome_observed",
                      "pi:imputation_target_missing:age"}
+
+
+def test_a_satisfied_contract_prepares_with_no_plan_item(stack: Stack) -> None:
+    """EV-P3-001, §25: no gap compiles no item, and the run still reaches `prepared`."""
+    conn, deps, _, _ = stack
+    outcome = approved_design(deps, "an-clean", "randomized_experiment",
+                              csv_for("randomized_experiment"), indicators=())
+    run = run_one(deps, "an-clean", outcome)
+    assert (run.status, run.handoff_id is not None) == ("prepared", True), run.error_code
+    assert not conn.execute("SELECT plan_item_id FROM preparation.plan_items"
+                            " WHERE stage_run_id = %s", (run.stage_run_id,)).fetchall()
+    held = deps.products.load_envelope(next(iter(
+        artifact_ids(conn, "an-clean", "ExecutionReceiptBundle"))))
+    assert json.loads(deps.objects.get(held.payload_locator))["receipts"] == []
 
 
 def test_a_rerun_replays_the_artifacts_and_lands_the_same_terminal(stack: Stack) -> None:

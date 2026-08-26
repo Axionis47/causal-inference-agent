@@ -52,8 +52,8 @@ class PreparationNodes(HarnessBase):
 
     # -- entry ------------------------------------------------------------
 
+    # Open the design handoff, run the nine §4 checks, freeze the §7.2 manifest.
     def entry_node(self, state: PreparationState) -> dict[str, Any]:
-        """Open the design handoff, run the nine §4 checks, freeze the §7.2 manifest."""
         deps = self.deps
         self.emit(state, "stage.started", hb.EVAL_STAGE)
         self.emit(state, "task.started", hb.EVAL_STAGE, status="entry")
@@ -107,8 +107,8 @@ class PreparationNodes(HarnessBase):
 
     # -- rows, impact, structure, and the row-set freeze --------------------
 
+    # Parse, identify rows, run the §9.1 engine, and freeze the row set (§9.6).
     def stabilize_node(self, state: PreparationState) -> dict[str, Any]:
-        """Parse, identify rows, run the §9.1 engine, and freeze the row set (§9.6)."""
         book, contract = self.book(state), self.entry_body(state, "RunnableFrameContract")
         pack, data = self.pack(book), self.deps.objects.get(book.source_object_locator)
         self.emit(state, "task.started", hb.EVAL_ROWS, status="stabilize")
@@ -126,11 +126,11 @@ class PreparationNodes(HarnessBase):
             return self.conflict(state, pc.conflict_draft(hb.UNRESOLVED, unresolved))
         return self._freeze(state, book, pack, contract, parsed, result)
 
+    # Impact, method structure, walls 2 and 3, then the frozen `StabilizedFrame`.
     def _freeze(self, state: PreparationState, book: pc.PreparationContextManifestV1,
                 pack: pp.PreparationPackV1, contract: Mapping[str, Any],
                 parsed: stabilize.ParsedSource,
                 result: stabilize.StabilizationResult) -> dict[str, Any]:
-        """Impact, method structure, walls 2 and 3, then the frozen `StabilizedFrame`."""
         spec, keep = self.structure(book, contract), result.retained_mask()
         retained = parsed.frame.filter(pl.Series(values=keep, dtype=pl.Boolean))
         units = (retained.select(spec.unit_columns).unique().height if spec.unit_columns
@@ -184,8 +184,8 @@ class PreparationNodes(HarnessBase):
 
     # -- the post-freeze task graph and the one reconciled plan -------------
 
+    # The §25.1 deterministic gap compilation over the §7.4 task graph, then the fan-in.
     def plan_node(self, state: PreparationState) -> dict[str, Any]:
-        """The §25.1 deterministic gap compilation over the §7.4 task graph, then the fan-in."""
         book, frame = self.book(state), self.frame(state, "StabilizedFrame")
         pack, schema = self.pack(book), self.dtypes(frame)
         surface = plancompile.contract_surface(
@@ -228,8 +228,8 @@ class PreparationNodes(HarnessBase):
 
     # -- sequential mutation under the §17.6 gate ---------------------------
 
+    # Preview, execute in dependency order, then wall 5 over the receipt bundle.
     def execute_node(self, state: PreparationState) -> dict[str, Any]:
-        """Preview, execute in dependency order, then wall 5 over the receipt bundle."""
         book, frame = self.book(state), self.frame(state, "StabilizedFrame")
         plan_ref = self.ref(state, "PreparationPlan")
         plan = parse_strict(pp.PreparationPlanV1, self.payload(plan_ref.artifact_id))
@@ -238,23 +238,32 @@ class PreparationNodes(HarnessBase):
             artifact_id=state["artifacts"]["StabilizedFrame"],
             content_hash=str(stored["content_hash"])), str(stored["object_locator"]),
             self.schema_of(frame))
-        diag.preview(plan, plan_ref, frame)  # §17.2: no mutation unlocks without a preview
-        first = next((item for item in plan.items if not item.depends_on), None)
-        self.emit(state, "tool.started", hb.EVAL_EXEC, status="execute")
-        try:
-            outcome = executor.PlanExecutor(
-                registry=self.deps.operations, context=operations.operation_context(book),
-                store=self.deps.frames,
-                postcondition=lambda item, before, after: self.postcondition(
-                    state, item, before, after),
-                stage_run_id=state["stage_run_id"], clock=self.deps.clock).run(
-                plan, plan_ref, frame, source, row_set_hash=state["row_set_hash"],
-                parents=(plan_ref,),
-                expected_inputs={} if first is None else {first.plan_item_id: source.ref})
-        except executor.ExecutionError as error:
-            self.emit(state, "tool.failed", hb.EVAL_EXEC, severity=ERROR, error_code=error.code)
-            return self.fail(state, error.code, error.codes)
-        self.emit(state, "tool.completed", hb.EVAL_EXEC, status="executed")
+        if plan.items:
+            diag.preview(plan, plan_ref, frame)  # §17.2: no mutation unlocks without a preview
+            first = next((item for item in plan.items if not item.depends_on), None)
+            self.emit(state, "tool.started", hb.EVAL_EXEC, status="execute")
+            try:
+                outcome = executor.PlanExecutor(
+                    registry=self.deps.operations, context=operations.operation_context(book),
+                    store=self.deps.frames,
+                    postcondition=lambda item, before, after: self.postcondition(
+                        state, item, before, after),
+                    stage_run_id=state["stage_run_id"], clock=self.deps.clock).run(
+                    plan, plan_ref, frame, source, row_set_hash=state["row_set_hash"],
+                    parents=(plan_ref,),
+                    expected_inputs={} if first is None else {first.plan_item_id: source.ref})
+            except executor.ExecutionError as error:
+                self.emit(state, "tool.failed", hb.EVAL_EXEC, severity=ERROR,
+                          error_code=error.code)
+                return self.fail(state, error.code, error.codes)
+            self.emit(state, "tool.completed", hb.EVAL_EXEC, status="executed")
+        # §25: the contract is already satisfied, so nothing is previewed or mutated and the
+        # prepared frame is the stabilized frame under an honestly empty receipt bundle.
+        else:
+            outcome = executor.ExecutionOutcome(pp.ExecutionReceiptBundleV1(
+                plan=plan_ref, receipts=(), changed_counts_by_column={}, imputed_cell_mask=None,
+                missingness_before=diag.nulls(frame), missingness_after=diag.nulls(frame),
+                parents=(plan_ref,), row_set_hash=state["row_set_hash"]), frame, source, {})
         report = self.wall(state, hb.EXEC_WALL, walls.WallContext(
             rules=self.deps.rules, source_ref=source.ref, row_set_hash=state["row_set_hash"],
             receipts=tuple(walls.ReceiptCheck(
@@ -276,8 +285,8 @@ class PreparationNodes(HarnessBase):
 
     # -- diagnostics, the §20 bundle, and the terminal outcome --------------
 
+    # The §15 prepared-stage diagnostics, wall 6, and the §20 bundle commit.
     def _finalise(self, state: PreparationState) -> tuple[str, str | None]:
-        """The §15 prepared-stage diagnostics, wall 6, and the §20 bundle commit."""
         book, prepared = self.book(state), self.frame(state, "PreparedFrame")
         pack, baseline = self.pack(book), self.frame(state, "StabilizedFrame")
         surface = plancompile.contract_surface(
@@ -324,8 +333,8 @@ class PreparationNodes(HarnessBase):
                            "ExecutionReceiptBundle"))
         return PREPARED, None
 
+    # The one terminal `PreparationOutcome`, its stage-run close, and the §20 handoff.
     def outcome_node(self, state: PreparationState) -> dict[str, Any]:
-        """The one terminal `PreparationOutcome`, its stage-run close, and the §20 handoff."""
         status, code = state.get("status") or PREPARED, state.get("error_code")
         if "PreparationContextManifest" not in state["artifacts"]:
             self.deps.products.transition_stage_run(state["stage_run_id"], "failed")
