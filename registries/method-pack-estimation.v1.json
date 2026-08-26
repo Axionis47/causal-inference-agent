@@ -76,7 +76,8 @@
       "estimator_version": "aipw-score-estimator.v1",
       "parameter_defaults": {
         "estimand": "ate", "propensity_bound": 0.01, "aggregation": "cross_fit_influence_mean",
-        "nuisance_profile_id": "regularized_glm", "mask_rule_id": "cross_fit_predicted"
+        "nuisance_profile_id": "regularized_glm", "mask_rule_id": "cross_fit_predicted",
+        "fold_assignment_rule_id": "stratified_by_treatment_and_cluster"
       },
       "estimator_input_schema": {
         "treatment": ["binary"], "outcome": ["numeric", "binary"],

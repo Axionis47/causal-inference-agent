@@ -55,7 +55,7 @@ class ValidationReport(BaseModel):
 
     model_config = _MODEL_CONFIG
 
-    wall: Annotated[int, Field(ge=1, le=10)]
+    wall: Annotated[int, Field(ge=1, le=15)]
     issues: tuple[ValidationIssueV1, ...]
 
     @property
