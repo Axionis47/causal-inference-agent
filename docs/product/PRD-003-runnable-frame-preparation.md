@@ -1500,3 +1500,60 @@ byte-forensics is deferred with the scanner.
 Acceptance criterion 38 now binds at the revised 3,000-line `preparation` allocation (D-058).
 Criteria 3, 22, 26–28, and 35 are read through this amendment's consolidations; every other
 criterion binds verbatim.
+
+## 25. Amendment 2 — V1-mech (approved by the user, 2026-08-26)
+
+The user approved this amendment on 2026-08-26 (ledger D-076). It removes two mechanisms that
+V1 does not need; it changes no causal-integrity guarantee. The unchanged core is the same list
+Amendment 1 states, and all six Section 24.3 walls, all nine Section 24.2 artifact types,
+receipts, postconditions, the row-set freeze, protected roles, diagnostics, and the Section 18
+observability contract bind verbatim. Where this section conflicts with earlier sections, this
+section governs V1.
+
+### 25.1 Deterministic preparation — no model calls in this stage
+
+V1 removes the `PreparationAgent`. Product decisions 20–23 and Section 24.1 are deferred: a
+bounded agent may return only through a future user-approved amendment backed by pilot or eval
+evidence (the same clause structure as Amendment 1's deferred tool loop).
+
+The ground: every V1 contract gap already carries its full resolution from the approved
+runnable-frame contract, so the plan compiler maps gaps to plan items directly:
+
+| Gap | Resolution | Registered operation |
+|---|---|---|
+| required derivation absent | the contract names the derivation and source | `registered_derivation` |
+| permitted imputation target has missing values | the method pack names the strategy and fit scope | `numeric_median_with_indicator` → `numeric_median_imputation`; `categorical_explicit_missing_level` → `categorical_missing_encoding`; a `cross_fit_training_fold` scope compiles to the estimator-scoped recipe registration |
+| confirmed sentinel evidence on a column | PRD-002's evidenced mapping | `missing_sentinel_normalization` |
+| anything else | no unique contract-pinned resolution exists | typed `DesignConflict` to PRD-002 (Section 2.29 routing) |
+
+An absent required column with no named derivation, an unconfirmed sentinel hypothesis, rows
+with `unresolved_conflict` dispositions, and every table-wide mismatch all produce
+`DesignConflict`. PRD-002's ask gate — the system's only user surface — resolves the ambiguity
+and returns a completed contract; preparation then runs deterministically. Choosing between two
+defensible operations is a semantic judgment, and Section 2.16 places semantic judgment outside
+this stage.
+
+Consequences: the Section 7.3 task-context layer, Section 7.4's model fan-out, and Section
+7.5's model fan-in describe the deterministic compiler's grouping and reconciliation, which
+remain and are wall-checked; no task envelope, prompt, model profile, or correction loop exists
+in this stage. Sections 18.1–18.4's agent-trace requirements are vacuous (there are no agent
+spans); the rest of Section 18 binds. `EV-P3-003` and `EV-P3-004` re-scope to the deterministic
+compiler: grouping, coupling, coverage, and fan-in rejection are evaluated as fixtures with no
+live model leg. Acceptance criteria 14, 27, and 35 are read through this amendment; criterion
+34's fan-out bound applies to compiler group waves.
+
+### 25.2 Plain coordinator — no LangGraph in this stage
+
+V1 preparation has no interrupt (Section 2.29), so a durable graph checkpoint protects nothing
+the artifact ledger does not already protect. The stage runs as a plain sequential coordinator
+(the PRD-001 pattern): entry → stabilize and freeze → compile plan → execute → outcome. Restart
+is artifact replay per ledger D-035 — a rerun uses a new `stage_run_id`, deterministic artifact
+identities make recommits no-ops, and the coordinator reaches the same terminal state. A run
+row abandoned by a crash is re-entered by rerunning; no checkpoint is consulted.
+
+`graph_thread_id` remains as a recorded identity for Section 18.2 trace threading. Section
+17.7's state allowlist becomes the coordinator's in-memory state contract (unchanged in
+content); Section 19's checkpoint-schema paragraph is vacated for this stage; Section 21's
+`langgraph` and checkpointer pins remain for the stages that use them. `EV-P3-007`'s
+"checkpoint restart" leg becomes rerun-replay: restart at committed boundaries must produce no
+duplicate artifacts and the same terminal outcome.

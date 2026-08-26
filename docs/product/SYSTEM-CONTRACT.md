@@ -21,14 +21,14 @@ V1 is one modular Python application with five stage modules:
 
 The modules share PostgreSQL, one content-addressed S3-compatible object layer, contract models,
 an event emitter, and a single dependency lock. They are not five network services. LangGraph is
-used only inside PRD-002, PRD-003, and PRD-004. PRD-001 and PRD-005 use small deterministic
-coordinators.
+used only inside PRD-002 and PRD-004. PRD-001, PRD-003 (V1, its Amendment 2), and PRD-005 use
+small deterministic coordinators.
 
 ```mermaid
 flowchart LR
     U["User question + Kaggle reference"] --> P1["PRD-001 deterministic intake"]
     P1 -->|"Intake handoff"| P2["PRD-002 design LangGraph"]
-    P2 -->|"Approved design handoff"| P3["PRD-003 preparation LangGraph"]
+    P2 -->|"Approved design handoff"| P3["PRD-003 deterministic preparation"]
     P3 -->|"Prepared-frame handoff"| P4["PRD-004 estimation LangGraph"]
     P4 -->|"Frozen evidence handoff"| P5["PRD-005 deterministic presentation"]
     P5 -->|"PresentationBundle ID"| D["CLI presentation command"]
@@ -303,7 +303,7 @@ most two targeted schema corrections and returns to the named deterministic vali
 | PRD-002 `RoleEvidenceTaskContext` | `list_intake_inventory`, `get_semantic_evidence`, `get_provenance` | `RoleEvidenceDraftV1[]` or requirements | evidence validator → committed evidence artifacts → causal synthesis packet builder |
 | PRD-002 `CausalSynthesisTaskContext` | `list_intake_inventory`, `get_semantic_evidence`, `get_provenance`, `validate_causal_model` | `CausalSynthesisDraftV1` | causal validator → committed causal context/role-ledger artifacts → method packet builder |
 | PRD-002 `MethodDesignTaskContext` | `list_intake_inventory`, `get_semantic_evidence`, `get_measured_facts`, `get_provenance`, `get_method_contract`, `run_preflight_diagnostic`, `preview_eligibility_impact` | `MethodDesignDraftV1` | design validator → committed experiment-design/frame-contract drafts → approval harness |
-| PRD-003 `PreparationTaskContext` | none at runtime — the harness hydrates the frozen inspection, profile, gap, impact, and registry facts into the envelope (V1-lite, PRD-003 Amendment 1; the same single-shot pattern the design rows run under D-053); the registered preview/action/diagnostic operations of PRD-003 Section 17 execute harness-side against committed plan items; no generic read/write/code tool | `PreparationTaskDraftV1` or `DesignConflictDraftV1` | preparation-plan validator → committed proposals → preparation fan-in; every action then returns to postcondition validator |
+| PRD-003 `PreparationTaskContext` | deferred in V1 (PRD-003 Amendment 2, D-076): V1 preparation compiles plans deterministically and makes no model call; this row returns only with a future user-approved amendment backed by pilot or eval evidence | — | deterministic plan compiler → committed plan → wall 4; every action then returns to postcondition validator |
 | PRD-004 `ClaimReviewContext` | none | `ClaimJudgmentDraftV1` with one claim item per primary result item | claim validator → committed `ClaimJudgment` → figure-data/bundle validation |
 | PRD-005 `PresentationCuratorContext` | `resolve_registered_layout_facts` only, maximum one call | `FigurePlanDraftV1` or typed inability | plan validator → committed `FigurePlan` → deterministic compiler |
 
@@ -461,9 +461,15 @@ with the same ID and hash is a no-op. The same ID with another hash is a termina
 
 ## 9. LangGraph contract
 
-PRD-002, PRD-003, and PRD-004 each compile a separate graph and use a new `graph_thread_id`.
-Resuming a user interrupt or recoverable node failure reuses only that stage's thread. A later
-stage never resumes an earlier graph.
+PRD-002 and PRD-004 each compile a separate graph and use a new `graph_thread_id`. Resuming a
+user interrupt or recoverable node failure reuses only that stage's thread. A later stage never
+resumes an earlier graph.
+
+PRD-003 V1 (its Amendment 2, D-076) runs a plain sequential coordinator instead: the stage has
+no interrupt, so restart is artifact replay per D-035 — a rerun uses a new `stage_run_id` and
+deterministic artifact identities make recommits no-ops. It still records a `graph_thread_id`
+for trace threading and honors the state-content allowlist below as its in-memory state
+contract.
 
 Production uses the PostgreSQL checkpointer with strict msgpack allowlisting and no pickle
 fallback. One shared checkpoint schema is namespaced by stage and thread. Graph state may contain

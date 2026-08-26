@@ -1,102 +1,115 @@
-# T-019 — Preparation LangGraph harness, runtime dispatch, PRD-004 handoff
+# T-019 — Deterministic preparation coordinator, runtime dispatch, PRD-004 handoff (v2)
 
-Status: frozen for implementation
-Owning PRD: PRD-003 §7, §17.7, §18, §20, §22 (as §24); SC §4 (no interrupts), §7 rows,
-§9; closes D-069 (resume + status gaps) and the D-071 echo-field cleanup
+Status: frozen for implementation (v2 under PRD-003 Amendment 2 / D-076; supersedes v1 at
+`f3072df`)
+Owning PRD: PRD-003 §7, §17.7, §18, §20, §25 (V1-mech); SC §9 (coordinator note);
+closes D-069 (resume + status gaps) and the D-071 echo-field cleanup
 Depends on: T-015..T-018
+
+## 0. Starting state
+
+The working tree holds staged v1 work. It is the RAW MATERIAL for this task, not the
+deliverable: the deterministic node bodies are kept; the model plumbing and LangGraph
+shell are deleted. Nothing in the staged tree is committed; the implementer edits in
+place.
 
 ## 1. Deliverables
 
-### 1.1 `src/causal/preparation/graph.py` (≤ 290 logical)
-- `PreparationDeps` frozen dataclass: conn, products, objects, committer, registry,
-  emitter, clock, gateway, method packs + preparation overlay, task table, wall rules,
-  prompts_root, frame writer/reader (shared/frames), repo_root.
-- `StateGraph` over the §17.7 allowlist ONLY (ids, hashes, statuses, gap codes, counts,
-  phase; never frames/payloads); `PostgresSaver` on its own connection, strict msgpack,
-  no pickle (mirror `design/graph.build_checkpointer`); thread id
-  `pt:{analysis_id}:{preparation_revision}`; **no interrupt nodes anywhere** (SC §4).
+### 1.1 Delete (Amendment 2 consequences)
+
+- `prompts/preparation/plan.v1.txt` and `registries/preparation-tasks.v1.json` (drop
+  from the index too).
+- All `TaskRunner`/model-task plumbing: `HarnessBase._runner`, `run_task`,
+  `task_context`, `_validate_draft`, `_exhausted`, `_task_row`, `_envelope`, the
+  `TASK_ROW` SQL, `TASK_KIND`/`TASK_SCHEMA` constants, and `nodes._phase_a`.
+- `src/causal/shared/agenttask.py` returns to its HEAD state PLUS at most +8 logical
+  lines: after the strict parse, the runner overwrites model-echoed `envelope_id`,
+  `task_id`, and `validation_target` with harness-known values (D-071). Nothing else
+  from the staged +178 survives.
+- LangGraph assembly: no `StateGraph`, `PostgresSaver`, or checkpointer in the
+  preparation scope. `PreparationDeps` drops `gateway`, `checkpointer`, `task_table`,
+  `prompts_root`; keeps the rest as staged.
+
+### 1.2 `src/causal/preparation/plancompile.py` (+ ≤45 logical)
+
+Deterministic gap→item compilation per PRD-003 §25.1: extend `auto_draft` (or a sibling
+`compile_drafts`) so EVERY group compiles without a model —
+
+- `required_derivation_missing` → `registered_derivation` (as committed);
+- `imputation_target_missing` → operation by the registered strategy id
+  (`numeric_median_with_indicator` → `numeric_median_imputation`;
+  `categorical_explicit_missing_level` → `categorical_missing_encoding`), `fit_scope`
+  copied from the pack target; a `cross_fit_training_fold` target compiles to the
+  estimator-scoped recipe registration path already modeled in `reconcile`;
+- `sentinel_evidence_present` → `missing_sentinel_normalization` with the evidenced
+  mapping from the surface (the committed surface emits none today; the branch is
+  written and fixture-tested);
+- any other gap code → return a `ConflictRoute`-compatible `DesignConflictDraftV1`
+  (stable code `no_registered_resolution`, the gap code and column in detail).
+
+`DETERMINISTIC_GAPS` disappears as a concept: all gaps are deterministic or conflicts.
+The fan-in `reconcile` and every wall check stay exactly as committed.
+
+### 1.3 Coordinator + nodes (≤2 preparation modules, each ≤350 logical)
+
+Target shape: `harness.py` (state dataclass/TypedDict, deps, `HarnessBase` minus model
+plumbing) and `nodes.py` (node bodies + `run_preparation` + `open_preparation_handoff`);
+`graph.py` is deleted or reduced into one of the two. Modules end ≤67 total (staged 66
+minus deletions must not exceed 68).
+
 - `run_preparation(deps, *, analysis_id, design_outcome_artifact_id, stage_run_id)
-  -> PreparationRunResult` (status, outcome ref, conflict ref, row_set_hash, handoff id);
-  `preparation.preparation_runs` row upkeep (states per SC §4, terminal on every exit).
-- `open_preparation_handoff(...)` — D-037 build-don't-record: PRD-004 manifest with the
-  §20 four entries (PreparedFrameBundle, ExperimentDesign, RunnableFrameContract,
-  DeliveryCapacityCheck), `receiving_stage_run_id = f"sr:{analysis_id}:estimation"`,
-  readable only on outcome `prepared`.
+  -> PreparationRunResult`: plain sequential calls — entry → stabilize/freeze → plan →
+  execute → outcome — each node returning the updated plain-dict state; a terminal
+  `status` short-circuits to `outcome_node`. No interrupts. `preparation.
+  preparation_runs` row upkeep per SC §4 (terminal on every exit path).
+- Restart is artifact replay (D-035, PRD-003 §25.2): a rerun uses a NEW `stage_run_id`;
+  deterministic artifact IDs make recommits no-ops; no committed-artifact skip logic.
+- Keep the staged node bodies (entry/manifest, stabilize/freeze with walls 2–3, plan
+  compile with wall 4, execute with wall 5, outcome with `_readiness` + wall 6 +
+  handoff-open) with two dedups: ONE handoff-manifold builder shared by
+  `open_preparation_handoff` and `_design_handoff`; ONE entry-parent reader replacing
+  `entry_body`/`_entry_ref`/`_entry_hash`.
+- `stabilize_node`: `unresolved_conflict` rows go straight to
+  `self.conflict(state, pc.conflict_draft(UNRESOLVED, rows))` (no Phase A).
+- `plan_node`: every group goes through the §1.2 deterministic compilation; a conflict
+  draft routes through `self.conflict`.
+- Every boundary emits its §18.6 events (agent rows vacated); commits go through the
+  flush-gated committer.
 
-### 1.2 `src/causal/preparation/nodes.py` (≤ 340 logical; split into two ≤350 modules only if forced)
-Node sequence (§7 flow, lite): entry (T-018 `entry.py`, replay-safe) → manifest commit →
-parse + row identity (T-016) → stabilization plan compile (T-018) → conditional Phase A
-model task (ONLY on unresolved registered mismatch codes; **zero model calls on the
-no-gap happy path**) → execute stabilization (T-016 engine) → impact + method structure →
-freeze: commit `StabilizationRecord` + `StabilizedFrame` → post-freeze gap triage
-(T-018) → conditional Phase B model tasks (shared `TaskRunner`, sequential within the
-≤8 cap per D-050; hydrated context per §7.3 from the manifest — column roles, gap codes,
-permitted operations, registered vocabularies in the prompt) → fan-in → `PreparationPlan`
-commit → sequential mutation via T-017 executor (expected_inputs + OperationContext from
-the manifest; method-pack diagnostics via the extra-impl hook) → per-step wall 5 →
-diagnostics → wall 6 → `PreparedFrame` + `ExecutionReceiptBundle` + `PreparedFrameBundle`
-commits → `PreparationOutcome` → handoff-open. `design_conflict` / `not_runnable` /
-`failed` short-circuit to a terminal outcome with the conflict artifact committed.
-Every boundary emits §18.6 events through the emitter; commits go through the
-flush-gated committer.
+### 1.4 Runtime + CLI integration (runtime ≤ +120; cli ≤ +30)
 
-### 1.3 Runtime + CLI integration (runtime ≤ +120; cli ≤ +30)
 - `runtime/composition.py`: stage dispatch in `run()` — latest design run terminal
-  `approved` with its recorded preparation handoff → run preparation against
-  `--expected-stage-run pr-run id`; `status()` gains the preparation stage row AND
-  (D-069b) prints the exact permitted next command for every non-terminal state.
-- `runtime/failures.py` hardening (D-069/D-071): `guard` additionally catches broad
-  `Exception` → stage run terminal `failed`, one `blocker.raised` with code
-  `internal_error` (class name only, no message body), typed result exit 4 — no raw
-  traceback can escape any command; `stale_revision` blockers name the expected id.
-  Crashed-run resume (D-069a): a `running` row whose advisory lock is free is
-  re-enterable — `run()` re-invokes the graph on the SAME thread id so the checkpoint
-  resumes; a fresh attempt row is recorded.
+  `approved` with its recorded preparation handoff → run preparation; `status()` gains
+  the preparation stage row AND (D-069b) prints the exact permitted next command for
+  every non-terminal state.
+- `runtime/failures.py` (D-069/D-071): `guard` additionally catches broad `Exception` →
+  stage run terminal `failed`, one `blocker.raised` with code `internal_error` (class
+  name only), typed result exit 4; `stale_revision` blockers name the expected id.
+  Crashed-run handling (D-069a): a `running` preparation row whose advisory lock is
+  free is re-enterable — `run()` starts a fresh attempt via artifact replay (new
+  `stage_run_id`; no checkpoint).
 - `cli/render.py`: render `PreparationOutcomeView` incl. conflict code + next command
-  (re-run design as revision N+1). **No new CLI commands.**
-- `shared/agenttask.py` (≤ +8): after the strict parse, the runner overwrites the
-  model-echoed `envelope_id`, `task_id`, and `validation_target` with the harness-known
-  values (D-071 — never depend on the model for facts the harness owns).
+  (re-run design as revision N+1). No new CLI commands.
 
-### 1.4 Declarative
-`registries/preparation-tasks.v1.json` (~25): ONE task kind (`preparation_plan`) per
-SC §5.4 — used by both phases with a `phase` context field; prompt path + version,
-output schema, wall, budgets. `prompts/preparation/plan.v1.txt` (~85): mirrors the
-design templates' discipline — JSON-only against the registered result schema, the
-registered operation/diagnostic id vocabularies with usage cues, fit-scope rules,
-`## allowed_evidence`/`## parent_artifacts` citation and echo rules, attempted-evidence
-statuses, stopping states (`proposed`, `needs_dependency`, `design_conflict`, `failed`).
+## 2. Tests (≤ 320 logical, FIRM — D-075 rebalance)
 
-### 1.5 Tests (≤ 320 logical, FIRM — D-075 rebalance)
-Parametrized scripted-gateway e2e over the four method packs: happy path (zero model
-calls, `prepared` outcome, handoff manifest passes the T-006 gate) + one agent-gap path
-(scripted Phase B proposal → plan → execution); restart at TWO boundaries (post-freeze,
-post-plan-commit) across coordinator instances; `design_conflict` and `not_runnable`
-terminals; broad-exception guard (a poisoned node → exit 4, run `failed`, one blocker);
-crashed-run resume (kill mid-run simulation → re-run resumes from checkpoint); runtime
-dispatch + status next-command + CLI render. Reuse the design e2e helpers to produce an
-approved design fixture once per session (shared fixture), not per test.
+Parametrized scripted e2e over the four method packs: happy path (ZERO model calls —
+assert no gateway construction — `prepared` outcome, handoff manifest passes the T-006
+gate) + one deterministic-gap path (imputation gap → compiled plan → execution →
+`prepared`); rerun idempotency (run twice; second run commits no duplicate artifacts and
+reaches the same terminal state — this replaces v1's checkpoint-restart legs);
+`design_conflict` (unresolved rows AND an uncompilable gap) and `not_runnable`
+terminals; broad-exception guard (poisoned node → exit 4, run `failed`, one blocker);
+runtime dispatch + status next-command + CLI render. Reuse the design e2e helpers to
+produce an approved design fixture once per session (shared fixture), not per test.
 
-## 2. Constraints
-Budgets: preparation +≤640 (→ ≈2,700/3,000 incl. T-018); runtime ≤ 800 total; cli ≤ 500
-total; shared ≤ 2,500; declarative +≤115; tests ≤320 (D-075); modules +≤3 (→ ≤68/68 — if a
-nodes split is forced, something must consolidate first: flag instead of breaching).
-No new CLI commands; no interrupts; PRD-003 never asks the user. Pre-code projection;
-ONE rethink (this task is the wave's expected consumer). Where specs conflict with
-committed models/APIs, the committed code wins — record deviations.
+## 3. Constraints
 
-## 3. T-018 absorption notes (committed code wins over §1 wording)
-- Entry gate APIs as committed at `ed1abcf`: `EntryPolicy` needs caller-supplied
-  `imputation_strategy_ids`, `question_id`, `parser_profile_id` — the runtime composition
-  supplies them (strategy ids from the preparation overlay; question id from the intake
-  chain; parser profile is the pinned polars profile id constant).
-- Wall 6 `handoff_readable` consumes a caller-supplied readiness map of PRD-003 §20's
-  thirteen conditions — the outcome node builds it from real state before the bundle commit.
-- Manifest commit goes through T-018's `ManifestCommitter` Protocol; pass the shared
-  flush-gated `ArtifactCommitter`.
-- Plan fan-in/table-wide/`__table__` semantics and scalar-only `PlanItemV1.parameters`
-  as committed; wall 4 builds `OperationContext`/`expected_inputs` from the manifest.
-- Tests 8,600/9,000: the ≤320 cap is FIRM; if the mandated coverage cannot fit, STOP and
-  report the shortfall (blocked per §14.1.2) rather than breaching — the user decides.
-- Modules 65/68: graph.py + nodes.py + (at most one more) = 68/68 exactly; a forced split
-  beyond that must be flagged, not committed.
+Budgets: preparation ends ≤3,000 total (projection ≈2,550–2,700); runtime ≤800 total;
+cli ≤500 total; shared ≤2,500 (agenttask reverts per §1.1); declarative delta ≤0
+(deletions only); tests ≤320 FIRM — a genuine shortfall BLOCKS per SC §14.1.2 and goes
+to the user; modules ≤68 with every module ≤350. The wave's ONE rethink was consumed by
+this v2 revision (D-076); a further breach is terminal and goes to the user. Where this
+spec conflicts with committed models/APIs, the committed code wins — record deviations.
+No new CLI commands; no interrupts; PRD-003 never asks the user; no model calls
+anywhere in the preparation scope.
