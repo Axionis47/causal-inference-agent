@@ -839,6 +839,363 @@
         "design"
       ],
       "validator_version": "design-conflict-validator.v1"
+    },
+    {
+      "artifact_type": "EstimationContextManifest",
+      "schema_version": "estimation-context-manifest.v1",
+      "producer_component": "estimation-harness",
+      "allowed_reader_components": [
+        "estimation-harness"
+      ],
+      "required_parent_types": [
+        "ExperimentDesign",
+        "RunnableFrameContract",
+        "PreparedFrameBundle",
+        "DeliveryCapacityCheck"
+      ],
+      "optional_parent_types": [],
+      "sensitivity_class": "internal",
+      "terminal_statuses": [
+        "committed"
+      ],
+      "destinations": [
+        "estimation"
+      ],
+      "validator_version": "estimation-context-manifest-validator.v1"
+    },
+    {
+      "artifact_type": "EstimationPlan",
+      "schema_version": "estimation-plan.v1",
+      "producer_component": "estimation-harness",
+      "allowed_reader_components": [
+        "estimation-harness"
+      ],
+      "required_parent_types": [
+        "EstimationContextManifest"
+      ],
+      "optional_parent_types": [
+        "DeliveryCapacityCheck"
+      ],
+      "sensitivity_class": "internal",
+      "terminal_statuses": [
+        "committed"
+      ],
+      "destinations": [
+        "estimation"
+      ],
+      "validator_version": "estimation-plan-validator.v1"
+    },
+    {
+      "artifact_type": "AnalysisContributionMask",
+      "schema_version": "analysis-contribution-mask.v1",
+      "producer_component": "estimation-harness",
+      "allowed_reader_components": [
+        "estimation-harness"
+      ],
+      "required_parent_types": [
+        "EstimationPlan"
+      ],
+      "optional_parent_types": [
+        "PreparedFrame"
+      ],
+      "sensitivity_class": "restricted",
+      "terminal_statuses": [
+        "committed"
+      ],
+      "destinations": [
+        "estimation"
+      ],
+      "validator_version": "analysis-contribution-mask-validator.v1"
+    },
+    {
+      "artifact_type": "CrossFitAssignment",
+      "schema_version": "cross-fit-assignment.v1",
+      "producer_component": "estimation-harness",
+      "allowed_reader_components": [
+        "estimation-harness"
+      ],
+      "required_parent_types": [
+        "EstimationPlan"
+      ],
+      "optional_parent_types": [
+        "AnalysisContributionMask"
+      ],
+      "sensitivity_class": "restricted",
+      "terminal_statuses": [
+        "committed"
+      ],
+      "destinations": [
+        "estimation"
+      ],
+      "validator_version": "cross-fit-assignment-validator.v1"
+    },
+    {
+      "artifact_type": "PrimaryAnalysisResult",
+      "schema_version": "primary-analysis-result.v1",
+      "producer_component": "estimation-harness",
+      "allowed_reader_components": [
+        "estimation-harness",
+        "presentation-coordinator"
+      ],
+      "required_parent_types": [
+        "EstimationPlan",
+        "AnalysisContributionMask"
+      ],
+      "optional_parent_types": [
+        "CrossFitAssignment",
+        "MultiplicityResult"
+      ],
+      "sensitivity_class": "internal",
+      "terminal_statuses": [
+        "committed"
+      ],
+      "destinations": [
+        "estimation",
+        "presentation"
+      ],
+      "validator_version": "primary-analysis-result-validator.v1"
+    },
+    {
+      "artifact_type": "MultiplicityResult",
+      "schema_version": "multiplicity-result.v1",
+      "producer_component": "estimation-harness",
+      "allowed_reader_components": [
+        "estimation-harness",
+        "presentation-coordinator"
+      ],
+      "required_parent_types": [
+        "EstimationPlan"
+      ],
+      "optional_parent_types": [],
+      "sensitivity_class": "internal",
+      "terminal_statuses": [
+        "committed"
+      ],
+      "destinations": [
+        "estimation",
+        "presentation"
+      ],
+      "validator_version": "multiplicity-result-validator.v1"
+    },
+    {
+      "artifact_type": "DiagnosticResult",
+      "schema_version": "diagnostic-result.v1",
+      "producer_component": "estimation-harness",
+      "allowed_reader_components": [
+        "estimation-harness",
+        "presentation-coordinator"
+      ],
+      "required_parent_types": [
+        "EstimationPlan",
+        "PrimaryAnalysisResult"
+      ],
+      "optional_parent_types": [
+        "AnalysisContributionMask",
+        "CrossFitAssignment"
+      ],
+      "sensitivity_class": "internal",
+      "terminal_statuses": [
+        "committed"
+      ],
+      "destinations": [
+        "estimation",
+        "presentation"
+      ],
+      "validator_version": "diagnostic-result-validator.v1"
+    },
+    {
+      "artifact_type": "SensitivityResult",
+      "schema_version": "sensitivity-result.v1",
+      "producer_component": "estimation-harness",
+      "allowed_reader_components": [
+        "estimation-harness",
+        "presentation-coordinator"
+      ],
+      "required_parent_types": [
+        "EstimationPlan",
+        "PrimaryAnalysisResult"
+      ],
+      "optional_parent_types": [
+        "AnalysisContributionMask"
+      ],
+      "sensitivity_class": "internal",
+      "terminal_statuses": [
+        "committed"
+      ],
+      "destinations": [
+        "estimation",
+        "presentation"
+      ],
+      "validator_version": "sensitivity-result-validator.v1"
+    },
+    {
+      "artifact_type": "FigureDataArtifact",
+      "schema_version": "figure-data-artifact.v1",
+      "producer_component": "estimation-harness",
+      "allowed_reader_components": [
+        "estimation-harness",
+        "presentation-coordinator"
+      ],
+      "required_parent_types": [
+        "EstimationPlan",
+        "PrimaryAnalysisResult"
+      ],
+      "optional_parent_types": [
+        "DiagnosticResult",
+        "SensitivityResult",
+        "AnalysisContributionMask"
+      ],
+      "sensitivity_class": "internal",
+      "terminal_statuses": [
+        "committed"
+      ],
+      "destinations": [
+        "estimation",
+        "presentation"
+      ],
+      "validator_version": "figure-data-artifact-validator.v1"
+    },
+    {
+      "artifact_type": "EstimationEvidenceBundle",
+      "schema_version": "estimation-evidence-bundle.v1",
+      "producer_component": "estimation-harness",
+      "allowed_reader_components": [
+        "estimation-harness",
+        "presentation-coordinator"
+      ],
+      "required_parent_types": [
+        "EstimationPlan"
+      ],
+      "optional_parent_types": [
+        "DiagnosticResult",
+        "SensitivityResult",
+        "FigureDataArtifact"
+      ],
+      "sensitivity_class": "internal",
+      "terminal_statuses": [
+        "complete",
+        "failed"
+      ],
+      "destinations": [
+        "estimation",
+        "presentation"
+      ],
+      "validator_version": "estimation-evidence-bundle-validator.v1"
+    },
+    {
+      "artifact_type": "JudgmentCeiling",
+      "schema_version": "judgment-ceiling.v1",
+      "producer_component": "estimation-harness",
+      "allowed_reader_components": [
+        "estimation-harness",
+        "presentation-coordinator"
+      ],
+      "required_parent_types": [
+        "EstimationPlan"
+      ],
+      "optional_parent_types": [
+        "PrimaryAnalysisResult",
+        "DiagnosticResult",
+        "SensitivityResult"
+      ],
+      "sensitivity_class": "internal",
+      "terminal_statuses": [
+        "committed"
+      ],
+      "destinations": [
+        "estimation",
+        "presentation"
+      ],
+      "validator_version": "judgment-ceiling-validator.v1"
+    },
+    {
+      "artifact_type": "NumericalEnvironmentManifest",
+      "schema_version": "numerical-environment.v1",
+      "producer_component": "estimation-harness",
+      "allowed_reader_components": [
+        "estimation-harness",
+        "presentation-coordinator"
+      ],
+      "required_parent_types": [
+        "EstimationPlan"
+      ],
+      "optional_parent_types": [],
+      "sensitivity_class": "internal",
+      "terminal_statuses": [
+        "committed"
+      ],
+      "destinations": [
+        "estimation",
+        "presentation"
+      ],
+      "validator_version": "numerical-environment-validator.v1"
+    },
+    {
+      "artifact_type": "EstimationBundle",
+      "schema_version": "estimation-bundle.v1",
+      "producer_component": "estimation-harness",
+      "allowed_reader_components": [
+        "estimation-harness",
+        "presentation-coordinator"
+      ],
+      "required_parent_types": [
+        "ExperimentDesign",
+        "RunnableFrameContract",
+        "PreparedFrameBundle",
+        "DeliveryCapacityCheck",
+        "EstimationContextManifest",
+        "EstimationPlan",
+        "PrimaryAnalysisResult",
+        "EstimationEvidenceBundle",
+        "JudgmentCeiling",
+        "ClaimJudgment",
+        "NumericalEnvironmentManifest"
+      ],
+      "optional_parent_types": [
+        "MultiplicityResult",
+        "CrossFitAssignment",
+        "AnalysisContributionMask"
+      ],
+      "sensitivity_class": "internal",
+      "terminal_statuses": [
+        "complete"
+      ],
+      "destinations": [
+        "presentation"
+      ],
+      "validator_version": "estimation-bundle-validator.v1"
+    },
+    {
+      "artifact_type": "EstimationOutcome",
+      "schema_version": "estimation-outcome.v1",
+      "producer_component": "estimation-harness",
+      "allowed_reader_components": [
+        "estimation-harness",
+        "presentation-coordinator",
+        "design-harness"
+      ],
+      "required_parent_types": [
+        "EstimationContextManifest"
+      ],
+      "optional_parent_types": [
+        "EstimationBundle",
+        "DesignConflict"
+      ],
+      "sensitivity_class": "internal",
+      "terminal_statuses": [
+        "complete",
+        "not_estimable",
+        "invalidated",
+        "design_conflict",
+        "failed_observability",
+        "failed"
+      ],
+      "destinations": [
+        "estimation",
+        "presentation",
+        "design"
+      ],
+      "validator_version": "estimation-outcome-validator.v1"
     }
   ]
 }
