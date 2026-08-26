@@ -15,7 +15,7 @@ from causal.shared.registry import INVALID_REGISTRY_FILE, RegistryError
 
 __all__ = [
     "UNKNOWN_METHOD_PACK", "ImputationTargetV1", "PreparationPackRegistry", "PreparationPackV1",
-    "load_preparation_packs",
+    "eligibility_vocabulary", "load_preparation_packs",
 ]
 
 UNKNOWN_METHOD_PACK: Final = "unknown_method_pack"
@@ -109,6 +109,19 @@ class PreparationPackRegistry:
 
     def __len__(self) -> int:
         return len(self._by_key)
+
+
+def eligibility_vocabulary(method_packs_path: Path, method_id: str) -> tuple[str, ...]:
+    """The T-011 `eligibility_rule_vocabulary` of one design pack, read as raw registry data."""
+    try:
+        document = json.loads(method_packs_path.read_text(encoding="utf-8"))
+        for pack in document["packs"]:
+            if pack["method_id"] == method_id:
+                return tuple(pack["eligibility_rule_vocabulary"])
+    except (OSError, KeyError, TypeError, ValueError) as error:
+        raise RegistryError(f"invalid registry file {method_packs_path}: {error}",
+                            INVALID_REGISTRY_FILE) from error
+    raise RegistryError(f"no method pack for {method_id}", UNKNOWN_METHOD_PACK)
 
 
 def load_preparation_packs(path: Path, method_packs_path: Path) -> PreparationPackRegistry:

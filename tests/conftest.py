@@ -88,6 +88,7 @@ def minio_s3() -> Iterator[dict[str, Any]]:
         from botocore.config import Config  # type: ignore[import-untyped]
         from botocore.exceptions import (  # type: ignore[import-untyped]
             ClientError,
+            ConnectionClosedError,
             EndpointConnectionError,
         )
 
@@ -106,7 +107,7 @@ def minio_s3() -> Iterator[dict[str, Any]]:
             try:
                 client.create_bucket(Bucket=bucket)
                 break
-            except (EndpointConnectionError, ClientError) as error:
+            except (ConnectionClosedError, EndpointConnectionError, ClientError) as error:
                 # MinIO answers HTTP before it is ready (XMinioServerNotInitialized).
                 if time.monotonic() > deadline:
                     raise
@@ -135,6 +136,20 @@ def conn(postgres_dsn: str) -> Iterator[Any]:
     apply_migrations(test_conn, MIGRATIONS)
     yield test_conn
     test_conn.close()
+
+
+class MemoryObjects:
+    """An in-process `ObjectStore` stand-in for tests that need no docker."""
+
+    def __init__(self) -> None:
+        self.data: dict[str, bytes] = {}
+
+    def put_if_absent(self, digest: str, data: bytes) -> str:
+        self.data.setdefault(f"objects/{digest}", data)
+        return f"objects/{digest}"
+
+    def get(self, locator: str) -> bytes:
+        return self.data[locator]
 
 
 @pytest.fixture()
