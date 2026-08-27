@@ -48,8 +48,8 @@ CEILINGS = {
     "shared": 2500, "cli": 500, "runtime": 800, "intake": 1200, "design": 3400,
     "preparation": 3000, "estimation": 4000, "presentation": 1500, "tests": 13000, "declarative": 4600,
 }
-PRODUCTION_TOTAL_CEILING = 15_000
-GRAND_TOTAL_CEILING = 32_600
+PRODUCTION_TOTAL_CEILING = 15_500
+GRAND_TOTAL_CEILING = 33_100
 MAX_PRODUCTION_MODULES = 86
 MAX_MODULE_LINES = 350
 MAX_FUNCTION_LINES = 75

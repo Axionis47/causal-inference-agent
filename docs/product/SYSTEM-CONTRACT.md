@@ -869,7 +869,7 @@ Production Python lives only under `src/causal/` and has these non-transferable 
 | PRD-003 | `src/causal/preparation/` | 3,000 | preparation responsibilities in PRD-003 (2,000 at initial freeze; revised by explicit user approval to 3,000 (D-058) on 2026-08-25) |
 | PRD-004 | `src/causal/estimation/` | 4,000 | all four method adapters, uncertainty, diagnostics, sensitivities, figure-data builders, and judgment |
 | PRD-005 | `src/causal/presentation/` | 1,500 | presentation responsibilities in PRD-005 |
-| **Production total** | `src/causal/` | **15,000** | hard ceiling across every package |
+| **Production total** | `src/causal/` | **15,500** | hard ceiling across every package (15,000 at initial freeze; revised by explicit user approval (D-094) on 2026-08-27) |
 
 Unused lines in one package cannot be consumed by another. Production is also limited to 86
 hand-authored Python modules (50 at initial freeze; revised by explicit user approval to 68
@@ -884,7 +884,7 @@ The remaining repository ceilings are:
 |---|---:|---|
 | tests | 13,000 | parameterized tests and shared fixtures are preferred; helpers cannot contain production behavior or alternate implementations (8,000 at initial freeze; revised by explicit user approval to 9,000 (D-058) on 2026-08-25 and 13,000 (D-082) on 2026-08-26) |
 | migrations, static registries, prompt templates, and evaluation catalogs | 4,600 | declarative values only; no executable application logic (3,000 at initial freeze; revised by explicit user approval to 3,500 (D-058) on 2026-08-25 and 4,600 (D-082) on 2026-08-26) |
-| total human-authored implementation | 32,600 | production + tests + migrations/registries/prompts; documentation is reported separately (26,000 at initial freeze; revised by explicit user approval (D-082) on 2026-08-26 as the sum of the revised caps) |
+| total human-authored implementation | 33,100 | production + tests + migrations/registries/prompts; documentation is reported separately (26,000 at initial freeze; revised by explicit user approval to 32,600 (D-082) on 2026-08-26 and 33,100 (D-094) on 2026-08-27 as the sum of the revised caps) |
 
 `uv.lock`, vendored third-party assets, raw test datasets, and generated render fixtures are
 reported by file count and bytes but excluded from logical-line totals. They cannot contain
