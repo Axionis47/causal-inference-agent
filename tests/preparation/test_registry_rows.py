@@ -34,7 +34,7 @@ ESTIMATION_READABLE = (
 def test_registry_loads_with_the_preparation_rows_appended() -> None:
     assert len(PREPARATION_TYPES) == 9
     assert REGISTRY.registry_version == "artifact-types.v1"
-    assert len(REGISTRY) == 50
+    assert len(REGISTRY) == 51
 
 
 @pytest.mark.parametrize("artifact_type", PREPARATION_TYPES)

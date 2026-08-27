@@ -1110,6 +1110,37 @@
       "validator_version": "judgment-ceiling-validator.v1"
     },
     {
+      "artifact_type": "ClaimJudgment",
+      "schema_version": "claim-judgment.v1",
+      "producer_component": "estimation-harness",
+      "allowed_reader_components": [
+        "estimation-harness",
+        "presentation-coordinator"
+      ],
+      "required_parent_types": [
+        "EstimationPlan",
+        "JudgmentCeiling"
+      ],
+      "optional_parent_types": [
+        "PrimaryAnalysisResult",
+        "DiagnosticResult",
+        "SensitivityResult"
+      ],
+      "sensitivity_class": "internal",
+      "terminal_statuses": [
+        "reportable",
+        "reportable_with_qualifications",
+        "not_reportable",
+        "not_estimable",
+        "failed"
+      ],
+      "destinations": [
+        "estimation",
+        "presentation"
+      ],
+      "validator_version": "estimation-validators.v1"
+    },
+    {
       "artifact_type": "NumericalEnvironmentManifest",
       "schema_version": "numerical-environment.v1",
       "producer_component": "estimation-harness",
