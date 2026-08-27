@@ -89,6 +89,11 @@ def test_a_design_conflict_goes_back_to_the_design_harness() -> None:
     assert row.allowed_reader_components == ("preparation-harness", "design-harness")
     assert row.terminal_statuses == ("open", "resolved", "refused")
     assert row.destinations == ("preparation", "design")
+    # D-084/D-085: PRD-004 produces the same conflict type off its own context manifest, so
+    # neither manifest can be required and both are registered as the permitted parent.
+    assert row.required_parent_types == ()
+    assert row.optional_parent_types == (
+        "PreparationContextManifest", "EstimationContextManifest")
 
 
 def test_the_two_frames_carry_row_data_and_are_restricted() -> None:

@@ -824,10 +824,11 @@
         "preparation-harness",
         "design-harness"
       ],
-      "required_parent_types": [
-        "PreparationContextManifest"
+      "required_parent_types": [],
+      "optional_parent_types": [
+        "PreparationContextManifest",
+        "EstimationContextManifest"
       ],
-      "optional_parent_types": [],
       "sensitivity_class": "internal",
       "terminal_statuses": [
         "open",
