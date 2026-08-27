@@ -41,7 +41,7 @@ SCOPE_PREFIXES: tuple[tuple[str, str], ...] = (
     ("registries/", "declarative"),
 )
 EXCLUDED_FILES = {"pyproject.toml", "uv.lock", ".python-version", ".gitignore", "CLAUDE.md", "README.md"}
-EXCLUDED_PREFIXES = ("docs/", ".claude/")
+EXCLUDED_PREFIXES = ("docs/", ".claude/", "assets/")
 
 PRODUCTION_SCOPES = ("shared", "cli", "runtime", "intake", "design", "preparation", "estimation", "presentation")
 CEILINGS = {
