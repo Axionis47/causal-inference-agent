@@ -375,12 +375,18 @@ def figure_data(plan: ec.EstimationPlanV1, builder_id: str, builder: FigureBuild
                 ) -> ec.FigureDataArtifactV1:
     # §17: the builder wraps frozen approved values. It estimates nothing, chooses no binning
     # after seeing a result, and never discloses above the claim judgment's ceiling.
+    # PRD-005 §5 condition 8: a frozen payload names the unit and label of both axis roles, so
+    # the presentation compiler draws an approved quantity and never invents one (D-094). A
+    # payload that carries an interval is on the approved outcome scale; the rest are counts.
+    points = builder(result)
+    named = dict.fromkeys(("x", "y"), plan.outcome_scale if any(
+        row.interval_lower is not None for row in points) else "count") | dict(units)
     return ec.FigureDataArtifactV1(
         parents=parents, versions=dict(plan.versions), visual_evidence_id=visual_evidence_id,
-        builder_id=builder_id, builder_version=BUILDER_VERSION, points=builder(result),
-        units=dict(units), labels=dict(labels), rule_ids=tuple(rule_ids),
-        contributing_counts=dict(counts), contribution_mask_hash=mask_hash,
-        disclosure_status=disclosure)
+        builder_id=builder_id, builder_version=BUILDER_VERSION, points=points, units=named,
+        labels={role: f"{plan.outcome_id} ({unit})" for role, unit in named.items()} | dict(labels),
+        rule_ids=tuple(rule_ids), contributing_counts=dict(counts),
+        contribution_mask_hash=mask_hash, disclosure_status=disclosure)
 
 
 def evidence_bundle(plan: ec.EstimationPlanV1, kind: ec.EvidenceKind,

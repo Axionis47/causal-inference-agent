@@ -25,6 +25,7 @@ from causal.intake import contracts as intake
 from causal.intake.kaggle import KaggleClientProtocol
 from causal.preparation.harness import PreparationDeps
 from causal.runtime import failures
+from causal.runtime import presentation as pr
 from causal.runtime.kaggle_live import LiveKaggleClient
 from causal.shared import events, gateway, persistence, tracing
 from causal.shared.canonical import content_hash
@@ -192,6 +193,7 @@ class CausalRuntime:
                  closing: Sequence[Any] = ()) -> None:
         self.config, self.deps, self.prep, self.registry = config, deps, prep, registry
         self.est = failures.estimation_deps(deps, config.registries_root, config.repo_root)
+        self.pres = pr.presentation_deps(deps, config.registries_root, config.repo_root)
         self.field_classes, self.fingerprint = field_classes, dict(fingerprint)
         self._client_factory, self._conn, self._closing = (
             client_factory, deps.conn, tuple(closing))
@@ -222,11 +224,11 @@ class CausalRuntime:
                 analysis_id=analysis_id, stage="intake",
                 state=str(row.intake_status or "running"),
                 next_command=RUN if row.intake_status in USABLE_INTAKE else None)
-        for stage in ("estimation", "preparation"):  # the latest stage owns the analysis
-            started = failures.latest_stage_run(self._conn, stage, analysis_id)
+        for stage in ("presentation", "estimation", "preparation"):  # the latest stage owns it
+            started = pr.latest_stage_run(self._conn, stage, analysis_id)
             if started is not None:  # D-069b: a live stage row names `run` and nothing else
                 return StatusView(analysis_id=analysis_id, stage=stage, state=started.state,
-                                  next_command=RUN if started.state in failures.LIVE else None)
+                                  next_command=pr.after(started.state, stage))
         opened = self._open_interrupt(found.thread_id) or {}
         # D-069b: an open interrupt names its answer command; a crashed revision and an
         # approved design (preparation is next) share the one command `causal run`.
@@ -253,8 +255,8 @@ class CausalRuntime:
                 opened = self._open_interrupt(found.thread_id) or {}
                 if not opened and self._terminal(found) == APPROVED:  # PRD-003 is next (§1.4)
                     ready = failures.prepare(self.deps, self.prep, analysis_id, found)
-                    return ready if ready.status != failures.PREPARED else failures.estimate(
-                        self.deps, self.est, analysis_id, found.revision)
+                    return ready if ready.status != failures.PREPARED else pr.estimate_and_present(
+                        self.deps, self.est, self.pres, analysis_id, found.revision)
                 return graph.DesignRunResult(
                     status=graph.NEEDS_USER_INPUT if opened else self._terminal(found),
                     analysis_id=analysis_id, stage_run_id=found.stage_run_id,
@@ -266,6 +268,10 @@ class CausalRuntime:
             return failures.guard(self.deps, "run", analysis_id, lambda: graph.run_design(
                 self.deps, analysis_id=analysis_id, thread_id=thread_id,
                 intake_outcome_artifact_id=started))
+
+    def deliver(self, bundle_id: str, expected_hash: str) -> dict[str, Any]:
+        # §20: the one completed PresentationBundle, opened by exact id and hash (SC §1.1).
+        return pr.bundle_view(self.deps, bundle_id, expected_hash)
 
     def select_table(self, analysis_id: str,
                      decision: contracts.TableSelectionDecisionV1) -> graph.DesignRunResult:

@@ -6,14 +6,17 @@ document. Operational NDJSON goes to the log sink and never to stdout.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Final
+import hashlib
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Final
 
 from causal.shared.canonical import canonical_bytes
+from causal.shared.contracts import ArtifactRef
 
 if TYPE_CHECKING:  # the result model lives in `main`; importing it here would cycle.
     from causal.cli.main import CliResultV1
 
-__all__ = ["SUMMARIES", "render", "render_human", "render_json"]
+__all__ = ["SUMMARIES", "DeliveryError", "deliver", "render", "render_human", "render_json"]
 
 # The allowlisted human summaries, one per permitted message key.
 SUMMARIES: Final[dict[str, str]] = {
@@ -108,3 +111,49 @@ def _next_command(result: CliResultV1) -> str:
         parts.append(f"--expected-stage-run {result.stage_run_id}")
     parts.append("--idempotency-key KEY")
     return " ".join(part for part in parts if part)
+
+
+# -- PRD-005 §20 final delivery -----------------------------------------
+
+OCCUPIED, EXPORT_MISMATCH = "output_dir_occupied", "export_hash_mismatch"
+
+
+class DeliveryError(ValueError):
+    # A §20 delivery refusal carrying the stable code the printed result reports.
+    def __init__(self, message: str, code: str) -> None:
+        super().__init__(message)
+        self.code = code
+
+
+def deliver(runtime: Any, analysis_id: str, args: Any, invocation_id: str) -> CliResultV1:
+    # Print one exact completed bundle's summary and asset manifest, and export its bytes.
+    # Delivery replans, recompiles, rerenders, and reruns nothing. The bundle is named by exact
+    # id and hash, never an implicit latest; `--output-dir` must be absent or empty; only already
+    # committed bytes are copied; every hash is verified after the copy; and any failure raises a
+    # blocker that leaves the authoritative bundle untouched.
+    from causal.cli.main import CliResultV1
+
+    body = runtime.deliver(args.bundle_id, args.expected_bundle_hash)
+    if args.output_dir is not None:
+        _export(body, Path(args.output_dir))
+    return CliResultV1(
+        cli_invocation_id=invocation_id, command_name="presentation", analysis_id=analysis_id,
+        status="completed", message_key="stage.finished",
+        artifacts=(ArtifactRef(artifact_id=str(args.bundle_id),
+                               content_hash=str(args.expected_bundle_hash)),),
+        message_args={"figures": len(body["figures"]), "summary": str(body["summary"])[:400],
+                      "exported": "" if args.output_dir is None else str(args.output_dir)})
+
+
+def _export(body: Any, target: Path) -> None:
+    # Copy the frozen summary, SVG, PNG, and table bytes, then verify every hash after.
+    if target.exists() and any(target.iterdir()):
+        raise DeliveryError(f"{target} is not empty", OCCUPIED)
+    target.mkdir(parents=True, exist_ok=True)
+    (target / "summary.txt").write_text(str(body["summary"]), encoding="utf-8")
+    for row in body["figures"]:
+        for name, source in sorted(row["objects"].items()):
+            copied = target / f"{row['figure_id']}.{name}"
+            copied.write_bytes(Path(str(source)).read_bytes())
+            if hashlib.sha256(copied.read_bytes()).hexdigest() != row["object_hashes"][name]:
+                raise DeliveryError(f"{copied} does not verify", EXPORT_MISMATCH)

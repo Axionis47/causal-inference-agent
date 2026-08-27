@@ -16,7 +16,7 @@ from typing import IO, Annotated, Any, Final, Literal, Protocol, Self, cast, get
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
-from causal.cli.render import render
+from causal.cli.render import deliver, render
 from causal.design.contracts import ApprovalDecision, TableSelectionDecisionV1, UserContextAnswerV1
 from causal.intake.contracts import IntakeSubmissionV1
 from causal.shared.canonical import content_hash
@@ -64,7 +64,6 @@ MESSAGE_BY_STATUS: Final[dict[str, MessageKey]] = {
 
 NEEDS_USER_INPUT, INVALID_COMMAND = "needs_user_input", "invalid_command"
 INVALID_PAYLOAD_FILE, INTAKE_REFUSED = "invalid_payload_file", "intake_refused"
-PRESENTATION_UNAVAILABLE: Final = "presentation_unavailable"
 
 _MODEL_CONFIG = ConfigDict(frozen=True, extra="forbid", strict=True)
 _Revision = Annotated[int, Field(ge=1)]
@@ -203,6 +202,8 @@ class Runtime(Protocol):
     def approve_design(self, analysis_id: str, interrupt: InterruptIdentity,
                        decision: ApprovalDecision, idempotency_key: str,
                        change_requests: tuple[str, ...] = ()) -> DesignOutcomeView: ...
+
+    def deliver(self, bundle_id: str, expected_hash: str) -> Any: ...
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -356,8 +357,8 @@ def _dispatch(runtime: Runtime, envelope: CliCommandEnvelopeV1, args: argparse.N
     if envelope.command_name == "status":
         return _from_status(envelope, runtime.status(analysis_id))
     if envelope.command_name == "presentation":
-        # PRD-005 does not exist yet; the boundary refuses an unavailable action (SC §1.1).
-        return _blocked(args, envelope.cli_invocation_id, PRESENTATION_UNAVAILABLE)
+        # §20: the delivery boundary opens one completed bundle and copies committed bytes only.
+        return deliver(runtime, analysis_id, args, envelope.cli_invocation_id)
     key = str(envelope.idempotency_key)
     if isinstance(payload, TableSelectionDecisionV1):
         outcome = runtime.select_table(analysis_id, payload)

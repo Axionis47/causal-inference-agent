@@ -14,7 +14,7 @@ CATALOG = json.loads((REPO / "evals" / "catalog.v1.yaml").read_text(encoding="ut
 ROWS: list[dict[str, object]] = CATALOG["registrations"]
 IDS = [str(row["eval_id"]) for row in ROWS]
 
-ID_PATTERN = re.compile(r"^EV-(SYS|E2E|P1|P2|P3|P4)-\d+$")
+ID_PATTERN = re.compile(r"^EV-(SYS|E2E|P1|P2|P3|P4|P5)-\d+$")
 SOURCE_ID_PATTERN = re.compile(r"EV-[A-Z0-9]+-\d+")
 KINDS = frozenset({"contract", "policy", "numerical", "render", "end_to_end"})
 FIELDS = frozenset({
@@ -42,6 +42,9 @@ EXPECTED: dict[str, tuple[str, ...]] = {
     "EV-P4": (
         "EV-P4-001", "EV-P4-002", "EV-P4-003", "EV-P4-004", "EV-P4-005",
         "EV-P4-006", "EV-P4-007", "EV-P4-008", "EV-P4-009", "EV-P4-010",
+    ),
+    "EV-P5": (
+        "EV-P5-001", "EV-P5-002", "EV-P5-003", "EV-P5-004", "EV-P5-005", "EV-P5-006",
     ),
 }
 
@@ -89,7 +92,8 @@ def test_required_eval_ids_emitted_by_source_are_registered() -> None:
     for path in sorted((REPO / "src" / "causal").rglob("*.py")):
         referenced.update(SOURCE_ID_PATTERN.findall(path.read_text(encoding="utf-8")))
     assert referenced, "no required_eval_ids found under src/causal"
-    # The catalog registers a surface with its implementation wave (`_header`). Every id any
-    # landed stage emits is registered here; EV-P5 is the one surface with no source yet.
+    # Every stage has landed, so every id any of them emits is registered here and the sweep
+    # covers the last surface too (`_header`: exactly 50 registrations, none pending).
     assert sorted(referenced - set(IDS)) == []
-    assert {_surface(eval_id) for eval_id in referenced} >= {"EV-P4"}
+    assert {_surface(eval_id) for eval_id in referenced} >= {"EV-P4", "EV-P5"}
+    assert {row for row in IDS if _surface(row) == "EV-P5"} <= referenced

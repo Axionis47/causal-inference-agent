@@ -350,6 +350,10 @@ def test_every_required_diagnostic_sensitivity_and_figure_family_is_committed(
     assert set(figures) == set(PACK.figure_builder_ids)
     assert {row["disclosure_status"] for row in figures.values()} == {"reportable"}
     assert figures["primary_contrast_intervals"]["points"][0]["interval_lower"] is not None
+    # PRD-005 §5 condition 8 (D-094): both axis roles carry an approved unit and label.
+    assert all(set(row["units"]) == set(row["labels"]) == {"x", "y"} for row in figures.values())
+    assert all(all(row["units"].values()) and all(row["labels"].values())
+               for row in figures.values())
 
 
 # -- pyfixest parity (EV-P4-002) ------------------------------------------

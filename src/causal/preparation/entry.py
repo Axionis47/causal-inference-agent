@@ -6,14 +6,13 @@ import hashlib
 import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Any, Final, Protocol
+from typing import Any, Final
 
 from causal.preparation import contracts as pc
 from causal.preparation.contracts import PREPARATION_REGISTRY_KEYS, PreparationError
 from causal.preparation.plans import PreparationPackV1, strategy_operation
 from causal.shared.canonical import content_hash
 from causal.shared.contracts import ArtifactEnvelopeV1, ArtifactRef, HandoffManifestV1
-from causal.shared.events import OperationalEventV1
 from causal.shared.handoff import UNKNOWN_HANDOFF, EventFactory, HandoffGate, HandoffStore
 from causal.shared.persistence import PersistenceError
 from causal.shared.readers import ObjectReader, ProductsReader
@@ -39,12 +38,6 @@ MUTATION_MARKERS: Final = ("source_table_mutated", "source_mutated", "table_muta
 
 class PreparationEntryError(PreparationError):
     """A preparation entry step failed. `code` is stable; `detail_codes` carries every family."""
-
-
-# The one `ArtifactCommitter` method the entry gate needs (SC §8.2 flush-gated commit).
-class ManifestCommitter(Protocol):
-    def commit(self, envelope: ArtifactEnvelopeV1, payload: dict[str, object],
-               event: OperationalEventV1) -> ArtifactEnvelopeV1: ...
 
 
 # The opened handoff plus whether this run replayed an already accepted one.
@@ -293,10 +286,3 @@ def compile_context_manifest(
         registry_versions=dict(registry_versions),
         recipient_map={key: tuple(value) for key, value in recipient_map.items()},
         manifest_hash=content_hash(upstream))
-
-
-def commit_manifest(committer: ManifestCommitter, envelope: ArtifactEnvelopeV1,
-                    manifest: pc.PreparationContextManifestV1,
-                    event: OperationalEventV1) -> ArtifactEnvelopeV1:
-    """Commit the frozen manifest through the caller's flush-gated committer (SC §8.2)."""
-    return committer.commit(envelope, manifest.canonical_payload(), event)

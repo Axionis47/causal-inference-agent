@@ -36,9 +36,9 @@ from causal.shared.contracts import ArtifactRef
 
 __all__ = ["ADAPTERS", "COMPONENT", "FAILED", "FAILED_OBSERVABILITY", "INTERNAL_ERROR", "LIVE",
            "NOT_PREPARED", "PREPARED", "VERSION", "DesignRun", "emit_blocker", "estimate",
-           "estimation_deps", "guard", "guard_estimation", "guard_preparation",
-           "latest_design_run", "latest_estimation_run", "latest_preparation_run",
-           "latest_stage_run", "payload", "preparation_deps", "prepare"]
+           "estimation_deps", "guard", "guarded", "latest_design_run", "latest_estimation_run",
+           "latest_preparation_run", "latest_stage_run", "payload", "preparation_deps",
+           "prepare", "view"]
 
 COMPONENT, VERSION = "cli-runtime", "cli-runtime.v1"
 FAILED, FAILED_OBSERVABILITY = "failed", "failed_observability"
@@ -57,20 +57,18 @@ LIVE: Final = frozenset({"created", "tracing_preflight", "running", "waiting_for
 _LATEST_RUN: Final = (
     "SELECT stage_run_id, graph_thread_id, design_revision, state, outcome_artifact_id"
     " FROM design.design_runs WHERE analysis_id = %s ORDER BY design_revision DESC LIMIT 1")
-_TERMINAL_ROW: Final = ("UPDATE design.design_runs SET state = %s, updated_at = %s"
-                        " WHERE stage_run_id = %s")
 _LATEST_PREPARATION: Final = (
     "SELECT stage_run_id, graph_thread_id, preparation_revision, state, outcome_artifact_id"
     " FROM preparation.preparation_runs WHERE analysis_id = %s"
     " ORDER BY preparation_revision DESC LIMIT 1")
-_PREPARATION_ROW: Final = ("UPDATE preparation.preparation_runs SET state = %s, updated_at = %s"
-                           " WHERE stage_run_id = %s")
 _LATEST_ESTIMATION: Final = (
     "SELECT stage_run_id, graph_thread_id, estimation_revision, state, outcome_artifact_id"
     " FROM estimation.estimation_runs WHERE analysis_id = %s"
     " ORDER BY estimation_revision DESC LIMIT 1")
-_ESTIMATION_ROW: Final = ("UPDATE estimation.estimation_runs SET state = %s, updated_at = %s"
-                          " WHERE stage_run_id = %s")
+# Every stage table closes a crashed revision the same way; only the table name differs.
+_STATE_ROW: Final = "UPDATE {} SET state = %s, updated_at = %s WHERE stage_run_id = %s"
+DESIGN_TABLE, PREPARATION_TABLE = "design.design_runs", "preparation.preparation_runs"
+ESTIMATION_TABLE: Final = "estimation.estimation_runs"
 # The two later stages `status` reads, newest revision first; the earlier one is design.
 _STAGE_SQL: Final = {"preparation": _LATEST_PREPARATION, "estimation": _LATEST_ESTIMATION}
 
@@ -164,42 +162,34 @@ def estimate(deps: graph.DesignDeps, est: EstimationDeps, analysis_id: str,
             thread_id="" if prepared is None else prepared.thread_id, refusal_code=NOT_PREPARED)
     started = latest_estimation_run(deps.conn, analysis_id)
     if started is not None and started.state not in LIVE:
-        return _estimated(deps, analysis_id, design_revision, started)
+        return _finished(deps, analysis_id, design_revision, started)
     # D-069a: `run` holds the analysis lock, so a live row is a crashed attempt. PRD-004 keeps no
     # checkpoint either, so the next attempt replays the committed artifacts from the top at the
     # next revision, and `estimation_runs` holds one row per revision (D-035, §26.1).
     revision = 1 if started is None else started.revision + 1
     stage_run_id = f"es:{analysis_id}:{revision}"
-    return _estimation_view(design_revision, guard_estimation(
-        deps, "run", analysis_id, stage_run_id, revision, lambda: run_estimation(
+    return guarded(
+        deps, ESTIMATION_TABLE, analysis_id, stage_run_id, design_revision,
+        f"et:{analysis_id}:{revision}", lambda: view(design_revision, run_estimation(
             est, analysis_id=analysis_id, stage_run_id=stage_run_id,
             preparation_outcome_artifact_id=str(prepared.outcome_artifact_id),
             estimation_revision=revision)))
 
 
-def _estimated(deps: graph.DesignDeps, analysis_id: str, design_revision: int,
-               found: DesignRun) -> graph.DesignRunResult:
+def _finished(deps: graph.DesignDeps, analysis_id: str, design_revision: int,
+              found: DesignRun) -> graph.DesignRunResult:
     """A finished revision is reported from its committed outcome, never re-run (D-035)."""
+    # PRD-003 §16 and PRD-004 §5.2 answer a `design_conflict` with a new design revision, so the
+    # conflict code travels as the refusal code and the revision named is the design one.
     body = {} if found.outcome_artifact_id is None else payload(deps, found.outcome_artifact_id)
     conflict = body.get("design_conflict") or {}
-    return _estimation_view(design_revision, EstimationRunResult(
+    return graph.DesignRunResult(
         status=str(body.get("status") or FAILED), analysis_id=analysis_id,
         stage_run_id=found.stage_run_id, thread_id=found.thread_id,
-        estimation_revision=found.revision, outcome_artifact_id=found.outcome_artifact_id,
-        conflict_code=None if not conflict else str(
+        design_revision=design_revision, outcome_artifact_id=found.outcome_artifact_id,
+        refusal_code=None if not conflict else str(
             payload(deps, str(conflict["artifact_id"]))["conflict_code"]),
-        error_code=body.get("error_code")))
-
-
-def _estimation_view(design_revision: int, run: EstimationRunResult) -> graph.DesignRunResult:
-    """One PRD-004 terminal in the single result shape the CLI renders (T-029 §1.2)."""
-    # §5.2 answers a `design_conflict` with a new design revision, so the conflict code travels
-    # as the refusal code and the revision named is the design one.
-    return graph.DesignRunResult(
-        status=run.status, analysis_id=run.analysis_id, stage_run_id=run.stage_run_id,
-        thread_id=run.thread_id, design_revision=design_revision,
-        outcome_artifact_id=run.outcome_artifact_id, handoff_id=run.handoff_id,
-        refusal_code=run.conflict_code, error_code=run.error_code)
+        error_code=body.get("error_code"))
 
 
 def prepare(deps: graph.DesignDeps, prep: PreparationDeps, analysis_id: str,
@@ -207,37 +197,23 @@ def prepare(deps: graph.DesignDeps, prep: PreparationDeps, analysis_id: str,
     """Run the PRD-003 revision the approved design's recorded handoff opens (T-019 §1.4)."""
     started = latest_preparation_run(deps.conn, analysis_id)
     if started is not None and started.state not in LIVE:
-        return _reported(deps, analysis_id, design.revision, started)
+        return _finished(deps, analysis_id, design.revision, started)
     # D-069a: `run` holds the analysis lock, so a live row is a crashed attempt. Preparation
     # keeps no checkpoint, so the next attempt replays the committed artifacts from the top;
     # `preparation_runs` holds one row per revision, so that attempt is the next revision.
     revision = 1 if started is None else started.revision + 1
     stage_run_id = f"pr:{analysis_id}:{revision}"
-    return _view(design.revision, guard_preparation(
-        deps, "run", analysis_id, stage_run_id, revision, lambda: run_preparation(
+    return guarded(
+        deps, PREPARATION_TABLE, analysis_id, stage_run_id, design.revision,
+        f"pt:{analysis_id}:{revision}", lambda: view(design.revision, run_preparation(
             prep, analysis_id=analysis_id, stage_run_id=stage_run_id,
             design_outcome_artifact_id=str(design.outcome_artifact_id),
             preparation_revision=revision)))
 
 
-def _reported(deps: graph.DesignDeps, analysis_id: str, design_revision: int,
-              found: DesignRun) -> graph.DesignRunResult:
-    """A finished revision is reported from its committed outcome, never re-run (D-035)."""
-    body = {} if found.outcome_artifact_id is None else payload(deps, found.outcome_artifact_id)
-    conflict = body.get("design_conflict") or {}
-    return _view(design_revision, PreparationRunResult(
-        status=str(body.get("status") or FAILED), analysis_id=analysis_id,
-        stage_run_id=found.stage_run_id, thread_id=found.thread_id,
-        preparation_revision=found.revision, outcome_artifact_id=found.outcome_artifact_id,
-        conflict_code=None if not conflict else str(
-            payload(deps, str(conflict["artifact_id"]))["conflict_code"]),
-        error_code=body.get("error_code")))
-
-
-def _view(design_revision: int, run: PreparationRunResult) -> graph.DesignRunResult:
-    """One PRD-003 terminal in the single result shape the CLI renders (T-019 §1.4)."""
-    # PRD-003 §16 answers a `design_conflict` with a new design revision, so the conflict
-    # code travels as the refusal code and the revision named is the design one.
+def view(design_revision: int,
+         run: PreparationRunResult | EstimationRunResult) -> graph.DesignRunResult:
+    """One later-stage terminal in the single result shape the CLI renders (T-019, T-029 §1.2)."""
     return graph.DesignRunResult(
         status=run.status, analysis_id=run.analysis_id, stage_run_id=run.stage_run_id,
         thread_id=run.thread_id, design_revision=design_revision,
@@ -278,59 +254,30 @@ def guard(deps: graph.DesignDeps, command: str, analysis_id: str,
         return _terminal(deps, analysis_id, FAILED, INTERNAL_ERROR)
 
 
-def guard_preparation(deps: graph.DesignDeps, command: str, analysis_id: str, stage_run_id: str,
-                      revision: int,
-                      call: Callable[[], PreparationRunResult]) -> PreparationRunResult:
-    """The same conversion for PRD-003, whose own nodes already type every other failure."""
+def guarded(deps: graph.DesignDeps, table: str, analysis_id: str, stage_run_id: str,
+            design_revision: int, thread_id: str,
+            call: Callable[[], graph.DesignRunResult]) -> graph.DesignRunResult:
+    """Run one later-stage revision, converting a boundary error to that stage's terminal."""
+    # Those stages' own nodes already type every other failure. SC §10.2 keeps its own terminal
+    # state and committed artifacts stay committed; SC §4 leaves no run row live after a crash.
     try:
         return call()
     except tracing.ObservabilityError as error:
-        return _preparation_terminal(deps, analysis_id, stage_run_id, revision,
-                                     FAILED_OBSERVABILITY, error.code)
+        state, code = FAILED_OBSERVABILITY, error.code
     except Exception as error:  # noqa: BLE001 -- D-069: no traceback ever escapes a command
-        emit_blocker(deps, command, analysis_id, INTERNAL_ERROR, type(error).__name__)
-        return _preparation_terminal(deps, analysis_id, stage_run_id, revision, FAILED,
-                                     INTERNAL_ERROR)
+        emit_blocker(deps, "run", analysis_id, INTERNAL_ERROR, type(error).__name__)
+        state, code = FAILED, INTERNAL_ERROR
+    _close_rows(deps, table, stage_run_id, state)
+    return graph.DesignRunResult(
+        status=state, analysis_id=analysis_id, stage_run_id=stage_run_id, thread_id=thread_id,
+        design_revision=design_revision, error_code=code)
 
 
-def guard_estimation(deps: graph.DesignDeps, command: str, analysis_id: str, stage_run_id: str,
-                     revision: int,
-                     call: Callable[[], EstimationRunResult]) -> EstimationRunResult:
-    """The same conversion for PRD-004, whose own nodes already type every other failure."""
-    try:
-        return call()
-    except tracing.ObservabilityError as error:
-        return _estimation_terminal(deps, analysis_id, stage_run_id, revision,
-                                    FAILED_OBSERVABILITY, error.code)
-    except Exception as error:  # noqa: BLE001 -- D-069: no traceback ever escapes a command
-        emit_blocker(deps, command, analysis_id, INTERNAL_ERROR, type(error).__name__)
-        return _estimation_terminal(deps, analysis_id, stage_run_id, revision, FAILED,
-                                    INTERNAL_ERROR)
-
-
-def _close_rows(deps: graph.DesignDeps, sql: str, stage_run_id: str, state: str) -> None:
+def _close_rows(deps: graph.DesignDeps, table: str, stage_run_id: str, state: str) -> None:
     """Close a crashed revision's two rows; SC §4 leaves no run row live after a failure."""
-    deps.conn.execute(sql, (state, deps.clock(), stage_run_id))
+    deps.conn.execute(_STATE_ROW.format(table), (state, deps.clock(), stage_run_id))
     with suppress(persistence.PersistenceError):  # a crash before the stage run was opened
         deps.products.transition_stage_run(stage_run_id, state)
-
-
-def _estimation_terminal(deps: graph.DesignDeps, analysis_id: str, stage_run_id: str,
-                         revision: int, state: str, code: str) -> EstimationRunResult:
-    """The crashed estimation revision as this stage's own typed terminal result."""
-    _close_rows(deps, _ESTIMATION_ROW, stage_run_id, state)
-    return EstimationRunResult(
-        status=state, analysis_id=analysis_id, stage_run_id=stage_run_id,
-        thread_id=f"et:{analysis_id}:{revision}", estimation_revision=revision, error_code=code)
-
-
-def _preparation_terminal(deps: graph.DesignDeps, analysis_id: str, stage_run_id: str,
-                          revision: int, state: str, code: str) -> PreparationRunResult:
-    """The crashed preparation revision as that stage's own typed terminal result."""
-    _close_rows(deps, _PREPARATION_ROW, stage_run_id, state)
-    return PreparationRunResult(
-        status=state, analysis_id=analysis_id, stage_run_id=stage_run_id,
-        thread_id=f"pt:{analysis_id}:{revision}", preparation_revision=revision, error_code=code)
 
 
 def _terminal(deps: graph.DesignDeps, analysis_id: str, state: str,
@@ -340,7 +287,7 @@ def _terminal(deps: graph.DesignDeps, analysis_id: str, state: str,
     # a revision that failed before `run_design` recorded it.
     found = latest_design_run(deps.conn, analysis_id) or DesignRun(
         f"dr:{analysis_id}:1", "", 1, state, None)
-    deps.conn.execute(_TERMINAL_ROW, (state, deps.clock(), found.stage_run_id))
+    deps.conn.execute(_STATE_ROW.format(DESIGN_TABLE), (state, deps.clock(), found.stage_run_id))
     deps.products.transition_stage_run(found.stage_run_id, state)
     return graph.DesignRunResult(
         status=state, analysis_id=analysis_id, stage_run_id=found.stage_run_id,

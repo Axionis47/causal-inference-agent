@@ -22,10 +22,6 @@ DISPLAY_PROFILE_ID: Final = "desktop-736-v1"
 FONT_ID: Final = "noto-sans-v2.015-variable-normal"
 FONT_SHA256: Final = "bfb7bb691513f12e734dc346c03a03f784912432d7e3fa8e56efcf906fe86b3d"
 MAX_FIGURES, MAX_PANELS, MAX_CONCURRENCY = 6, 3, 8
-# The version keys every committed presentation payload pins (§7.1, §10, §18).
-PRESENTATION_REGISTRY_KEYS: Final = (
-    "artifact_types", "visualization_catalog", "display_profile", "theme", "font", "prompt",
-    "model_profile", "schema", "compiler", "renderer", "validators")
 # The five §5 handoff entries, keyed by the manifest field each one fills.
 ENTRY_KEYS: Final = ("estimation_bundle", "claim_judgment", "figure_data_bundle",
                      "experiment_design", "capacity_check")

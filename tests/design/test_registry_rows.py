@@ -29,7 +29,7 @@ OUTCOME_STATUSES = (
 def test_registry_loads_with_the_design_rows_appended() -> None:
     assert len(DESIGN_TYPES) == 19
     # Append-only (D-012): the preparation, estimation, and presentation waves appended.
-    assert len(REGISTRY) == 56
+    assert len(REGISTRY) == 57
 
 
 @pytest.mark.parametrize("artifact_type", DESIGN_TYPES)

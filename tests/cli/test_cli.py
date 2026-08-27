@@ -75,6 +75,12 @@ class FakeRuntime:
         self.calls.append(("run", (analysis_id, expected_stage_run, idempotency_key)))
         return self.design
 
+    def deliver(self, bundle_id: str, expected_hash: str) -> dict[str, Any]:
+        self.calls.append(("deliver", (bundle_id, expected_hash)))
+        if expected_hash != HASH:
+            raise ValueError("no such bundle")
+        return {"summary": "one frozen sentence [a]", "figures": [], "renders": []}
+
     def select_table(self, analysis_id: str, decision: TableSelectionDecisionV1) -> FakeDesign:
         self.calls.append(("select_table", (analysis_id, decision)))
         return self.design
@@ -239,12 +245,21 @@ def test_run_reports_the_open_interrupt() -> None:
         "message_args": {"design_revision": 2, "design_status": "needs_user_input"}}
 
 
-def test_presentation_is_unavailable() -> None:
+def test_presentation_opens_one_exact_bundle_and_prints_its_manifest() -> None:
+    """§20: the delivery command names the bundle by exact id and hash, never a latest."""
     runtime = FakeRuntime()
     code, result = json_cli(runtime, "presentation", ANALYSIS, "--bundle-id", "pb-1",
                             "--expected-bundle-hash", HASH)
+    assert (code, result["status"]) == (0, "completed")
+    assert runtime.calls == [("deliver", ("pb-1", HASH))]
+    assert result["artifacts"] == [{"artifact_id": "pb-1", "content_hash": HASH}]
+
+
+def test_presentation_refuses_a_bundle_the_runtime_will_not_open() -> None:
+    """§20: a wrong id or hash is a blocker; the authoritative bundle is untouched."""
+    code, result = json_cli(FakeRuntime(), "presentation", ANALYSIS, "--bundle-id", "pb-1",
+                            "--expected-bundle-hash", "0" * 64)
     assert (code, result["status"]) == (3, "blocked")
-    assert (result["error_code"], runtime.calls) == ("presentation_unavailable", [])
 
 
 @pytest.mark.parametrize(("design_status", "exit_code", "status"), [
