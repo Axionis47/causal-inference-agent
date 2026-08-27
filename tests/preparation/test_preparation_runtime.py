@@ -46,17 +46,19 @@ def test_run_after_approval_dispatches_preparation_and_status_follows(
     assert done.stage_run_id == f"es:{analysis_id}:1"
     assert runtime.status(analysis_id).stage == "estimation"
     # D-090: PRD-003 now persists its prepared-stage post-repair reports, so PRD-004's §4
-    # condition 7 reads real statuses instead of nothing. The scripted design still names the
-    # four pack diagnostics PRD-003 has no V1 implementation for, so each is `not_computable`;
-    # preparation's own wall approves that handling and estimation's does not, and the honest
-    # terminal stays `entry_validation_failed`/`postrepair_diagnostic_unhandled` on that ground.
+    # condition 7 reads real statuses. The four pack diagnostics PRD-003 has no V1
+    # implementation for are `not_computable`, which D-091 admits at entry alone.
     bundle = failures.payload(runtime.deps, str(outcome["prepared_bundle"]["artifact_id"]))
     assert {row["status"] for row in bundle["postrepair_diagnostics"]} == {"pass",
                                                                           "not_computable"}
-    assert (done.status, done.error_code) == ("failed", "entry_validation_failed")
+    # D-091: entry is cleared, so the run reaches PRD-004's own wall 9. It stops there because
+    # this scripted design carries no baseline covariate, so estimation's `baseline_balance`
+    # harvests nothing and never reaches `computed` — a deeper, honest refusal, not an entry one.
+    assert done.error_code != "entry_validation_failed"
+    assert (done.status, done.error_code) == ("failed", "diagnostic_not_terminal")
     failed = [line for line in runtime.config.event_log.read_text(encoding="utf-8").splitlines()
               if '"event_name":"artifact.validation_failed"' in line]
-    assert '"detail_codes":"postrepair_diagnostic_unhandled"' in failed[-1]
+    assert '"detail_codes":"baseline_balance","wall":9' in failed[-1]
 
 
 def poisoned(self: Any, state: Any) -> dict[str, Any]:
