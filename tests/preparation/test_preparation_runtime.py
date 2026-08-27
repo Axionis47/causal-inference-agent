@@ -51,14 +51,16 @@ def test_run_after_approval_dispatches_preparation_and_status_follows(
     bundle = failures.payload(runtime.deps, str(outcome["prepared_bundle"]["artifact_id"]))
     assert {row["status"] for row in bundle["postrepair_diagnostics"]} == {"pass",
                                                                           "not_computable"}
-    # D-091: entry is cleared, so the run reaches PRD-004's own wall 9. It stops there because
-    # this scripted design carries no baseline covariate, so estimation's `baseline_balance`
-    # harvests nothing and never reaches `computed` — a deeper, honest refusal, not an entry one.
+    # D-091b: entry is cleared and wall 9 now passes — balance over zero approved covariates
+    # grades `computed`. The run reaches PRD-004's wall 10 and stops on the one prespecified
+    # branch this five-row intake fixture cannot support: `leave_one_cluster_out` refits without
+    # each unit in turn, and a four-row refit is rank deficient (`LinAlgError: SVD did not
+    # converge`), which §15 reports as a failed branch. A fixture-power limit, honestly refused.
     assert done.error_code != "entry_validation_failed"
-    assert (done.status, done.error_code) == ("failed", "diagnostic_not_terminal")
+    assert (done.status, done.error_code) == ("failed", "sensitivity_not_terminal")
     failed = [line for line in runtime.config.event_log.read_text(encoding="utf-8").splitlines()
               if '"event_name":"artifact.validation_failed"' in line]
-    assert '"detail_codes":"baseline_balance","wall":9' in failed[-1]
+    assert '"detail_codes":"leave_one_cluster_out","wall":10' in failed[-1]
 
 
 def poisoned(self: Any, state: Any) -> dict[str, Any]:

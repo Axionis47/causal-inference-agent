@@ -196,8 +196,11 @@ def harvest(frame: pl.DataFrame, roles: Mapping[str, str], plan: ec.EstimationPl
     counts: ec.ValueMap = {
         "arms": frame[arm].n_unique(), "clusters": clusters, "contributing_rows": contributing,
         "strata": frame[stratum].n_unique() if stratum is not None else 1}
-    measures: ec.ValueMap = {f"{name}:{key}": float(value) for name, row in balance.items()
-                             for key, value in row.items() if isinstance(value, int | float)}
+    # D-091b: §9.1 makes covariate adjustment optional, so an approved set of none is a fact to
+    # report, not a diagnostic that failed to run — balance over zero covariates is computed.
+    measures: ec.ValueMap = {"covariate_count": len(balance)} | {
+        f"{name}:{key}": float(value) for name, row in balance.items()
+        for key, value in row.items() if isinstance(value, int | float)}
     adequacy: ec.ValueMap = {"clusters": clusters, "contributing_rows": contributing}
     leverage: ec.ValueMap = {"single_cluster_leverage_share": largest / float(frame.height or 1)}
     convergence: ec.ValueMap = {"converged_contrasts": len(items),
