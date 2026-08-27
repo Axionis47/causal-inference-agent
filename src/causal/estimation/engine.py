@@ -137,6 +137,17 @@ class EstimatorAdapter(Protocol):
             overrides: ec.ValueMap | None = None) -> AdapterResult: ...
 
 
+class MethodAdapter(EstimatorAdapter, Protocol):
+    # The registered per-method seam a coordinator binds to one run's contribution mask: the one
+    # fit, the pack's registered multiplicity adjustment, and its §17 figure-data builders. No
+    # coordinator holds method-specific statistics of its own (§8, §19.1).
+
+    def multiplicity(self, items: Sequence[ec.PrimaryContrastResultV1],
+                     level: float) -> dict[str, ec.ValueMap]: ...
+    def figures(self, harvest: Mapping[str, ec.ValueMap]) -> Mapping[str, FigureBuilder]: ...
+    def visual_evidence(self, builder_id: str) -> str: ...
+
+
 def estimator_view(frame: pl.DataFrame, role_columns: Mapping[str, str]) -> pl.DataFrame:
     # The adapter never sees an undeclared column: the view is built from the plan's roles.
     if missing := sorted({name for name in role_columns.values() if name not in frame.columns}):

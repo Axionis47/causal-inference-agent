@@ -37,6 +37,9 @@ class ArtifactTypeRegistrationV1(BaseModel):
     artifact_type: Identity
     schema_version: Identity
     producer_component: Identity
+    # Other components a registration permits to produce this type; the envelope stamps
+    # whichever one actually produced the artifact, never the row's first name (D-086).
+    also_produced_by: tuple[Identity, ...] = ()
     allowed_reader_components: Annotated[tuple[Identity, ...], Field(min_length=1)]
     required_parent_types: tuple[Identity, ...]
     optional_parent_types: tuple[Identity, ...]

@@ -101,6 +101,7 @@ def build_envelope(
     producer_version: str,
     parents: tuple[ArtifactEnvelopeV1, ...],
     created_at_utc: Any,
+    producer_component: str | None = None,
 ) -> ArtifactEnvelopeV1:
     """Deterministic envelope from a registration and payload (D-031 identities)."""
     registration = registry.lookup(artifact_type)
@@ -112,7 +113,7 @@ def build_envelope(
         content_hash=digest,
         analysis_id=analysis_id,
         stage_run_id=stage_run_id,
-        producer_component=registration.producer_component,
+        producer_component=producer_component or registration.producer_component,
         producer_version=producer_version,
         parent_artifacts=tuple(
             ArtifactRef(artifact_id=p.artifact_id, content_hash=p.content_hash)
@@ -265,8 +266,9 @@ class ArtifactCommitter:
         mismatches = [
             name
             for name, actual, expected in (
-                ("producer_component", envelope.producer_component,
-                 registration.producer_component),
+                # D-086: any registered producer may stamp itself, and only itself.
+                ("producer_component", envelope.producer_component in {
+                    registration.producer_component, *registration.also_produced_by}, True),
                 ("schema_version", envelope.schema_version, registration.schema_version),
                 ("sensitivity_class", envelope.sensitivity_class,
                  registration.sensitivity_class),

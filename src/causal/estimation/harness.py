@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import datetime
 from pathlib import Path
@@ -16,12 +16,11 @@ import polars as pl
 from psycopg import Connection
 
 from causal.estimation import contracts as ec
-from causal.estimation import engine
+from causal.estimation import engine, plancompile
 from causal.estimation import walls as ew
 from causal.estimation.packs import EstimationPackRegistry, EstimationPackV1
-from causal.estimation.plancompile import DesignConflictDraftV1
-from causal.shared import events, frames, gateway, persistence
-from causal.shared.contracts import ArtifactEnvelopeV1, ArtifactRef
+from causal.shared import events, frames, gateway, handoff, persistence
+from causal.shared.contracts import ArtifactEnvelopeV1, ArtifactRef, HandoffManifestV1
 from causal.shared.registry import ArtifactTypeRegistry
 from causal.shared.validation import ValidationReport, ValidationRuleV1, parse_strict
 
@@ -35,6 +34,12 @@ EVAL_STAGE, EVAL_EVIDENCE = ("EV-P4-001",), ("EV-P4-007",)
 EVAL_FIGURE, EVAL_CLOSE = ("EV-P4-009",), ("EV-P4-010",)
 ERROR: Final = events.Severity.ERROR
 CONFLICT, FAILED = "design_conflict", "failed"
+PREPARED: Final = "prepared"
+# §14.2: this stage approves no non-computed terminal status for any severity.
+APPROVED_HANDLING: Final[frozenset[str]] = frozenset()
+# The estimator-input class of an approved role's prepared column (§4 condition 6).
+IDENTIFIER_ROLES: Final = ("unit_identifier", "cluster")
+CATEGORICAL_ROLES: Final = ("treatment", "stratum", "group", "assignment_variable")
 # `estimation.estimation_runs.state` is a closed vocabulary; the outcome artifact carries the
 # §5.2 status, so a conflict, an invalidation, and a not-estimable run are still completed.
 ROW_STATE: Final[dict[str, str]] = {
@@ -103,12 +108,44 @@ class EstimationDeps:
     frames: frames.FrameStore
     registries: Path
     repo_root: Path
-    # One registered adapter per method id; §19 forbids a generic estimator tool.
-    adapters: Mapping[str, engine.EstimatorAdapter] = field(default_factory=dict)
+    # One registered adapter factory per method id, called with the run's contribution mask;
+    # §19 forbids a generic estimator tool and any runtime adapter search.
+    adapters: Mapping[str, Callable[[ArtifactRef], engine.EstimatorAdapter]] = field(
+        default_factory=dict)
     # The §6.4 distributions whose exact versions the environment manifest records.
     packages: tuple[str, ...] = ("numpy", "polars", "scipy", "pyfixest", "scikit-learn")
     # §19: the ONE model receiver in this stage is the §16.2 claim-review call (T-025).
     gateway: gateway.VertexGateway | None = None
+
+
+def role_columns(ledger: Mapping[str, Any], columns: Sequence[str]) -> dict[str, str]:
+    # The approved role ledger read as data: one prepared column per approved role.
+    named = [(str(row["role"]), [str(name) for name in row.get("column_refs") or ()])
+             for row in ledger.get("claims") or ()]
+    return {role: found[0] for role, refs in named
+            if (found := [name for name in refs if name in columns])}
+
+
+def input_types(frame: pl.DataFrame, roles: Mapping[str, str]) -> dict[str, str]:
+    # What the estimator would receive for each approved role, in the pack's schema vocabulary.
+    return {role: "identifier" if role in IDENTIFIER_ROLES else "categorical"
+            if role in CATEGORICAL_ROLES or not frame.schema[column].is_numeric() else "numeric"
+            for role, column in roles.items() if column in frame.columns}
+
+
+def build_handoff(analysis_id: str, outcome: ArtifactEnvelopeV1, receiving_stage_run_id: str,
+                  entries: Sequence[Mapping[str, Any]], originating: str,
+                  now: datetime) -> HandoffManifestV1:
+    # One cross-stage manifest, rebuilt from committed payloads. The id is the shared
+    # `ho:{analysis_id}:{outcome_hash16}`, recomputed here and never imported (D-037).
+    return HandoffManifestV1(
+        handoff_id=f"ho:{analysis_id}:{outcome.content_hash[:16]}", schema_version="handoff.v1",
+        analysis_id=analysis_id, producing_stage_run_id=outcome.stage_run_id,
+        receiving_stage_run_id=receiving_stage_run_id,
+        entries=tuple(ArtifactRef.model_validate(dict(ref)) for ref in entries),
+        originating_outcome=originating, approval_ids=(), registry_version="artifact-types.v1",
+        compatibility_version="handoff.v1", receiver_validation_result=None,
+        receiver_error_codes=(), created_at_utc=now, accepted_at_utc=None)
 
 
 class HarnessBase:
@@ -119,6 +156,16 @@ class HarnessBase:
         self.deps = deps
         self._count = 0
         self._cache: dict[str, Any] = {}
+        # Everything this run has frozen so far, in the exact shape the fifteen walls read.
+        self.frozen: dict[str, Any] = {}
+        self.harvest: dict[str, ec.ValueMap] = {}
+        # Evidence id to its committed artifact id: the closed §16.2 citation allowlist.
+        self.evidence: dict[str, str] = {}
+        self.bundles: dict[str, ArtifactRef] = {}
+        self.denominators: dict[str, int] = {}
+        self.claim_status: ec.JudgmentStatus = "reportable"
+        self.adapter: engine.MethodAdapter | None = None
+        self.view_cache: pl.DataFrame | None = None
 
     # -- events, commits, and committed reads ------------------------------
 
@@ -146,7 +193,7 @@ class HarnessBase:
         built = persistence.build_envelope(
             self.deps.registry, kind, body, analysis_id=state["analysis_id"],
             stage_run_id=state["stage_run_id"], producer_version=VERSION, parents=parents,
-            created_at_utc=self.deps.clock())
+            created_at_utc=self.deps.clock(), producer_component=COMPONENT)
         committed = self.deps.committer.commit(built, body, self.event(
             state, "artifact.committed", EVAL_STAGE, status="committed", artifact_refs=(
                 ArtifactRef(artifact_id=built.artifact_id, content_hash=built.content_hash),)))
@@ -180,7 +227,33 @@ class HarnessBase:
                   safe_dimensions={"blocked_operation": state.get("phase", "")})
         return self.out(state, status=status, error_code=code)
 
+    def put(self, state: EstimationState, kind: str, payload: ec._Payload,
+            *parents: str) -> ArtifactRef:
+        # Commit one estimation payload under its registered parents and hold its reference.
+        self.commit(state, kind, payload.canonical_payload(), self.parents(state, *parents))
+        return self.ref(state, kind)
+
+    def refs_of(self, state: EstimationState) -> dict[str, ArtifactRef]:
+        return {name: ArtifactRef(artifact_id=found, content_hash=state["hashes"][found])
+                for name, found in self.evidence.items()}
+
     # -- walls, conflicts, and the frozen frame ----------------------------
+
+    def context(self, state: EstimationState, **over: Any) -> ew.WallContext:
+        # One frozen wall context per node; a wall never loads or recomputes anything itself.
+        book = self.manifest(state) if "EstimationContextManifest" in state["artifacts"] else None
+        found: dict[str, Any] = {
+            "rules": self.deps.rules, "handoff_accepted": True, "manifest": book,
+            "plan": self.plan(state) if "EstimationPlan" in state["artifacts"] else None,
+            "pack": None if book is None else self.pack(book),
+            "approved_handling": APPROVED_HANDLING}
+        return ew.WallContext(**(found | self.frozen | over))
+
+    def gate(self, state: EstimationState, highest: int, status: str = FAILED,
+             **over: Any) -> dict[str, Any] | None:
+        # Walls 1..`highest` over the frozen context; the first failure is that node's exit.
+        report = self.wall(state, highest, self.context(state, **over))
+        return None if report.passed else self.fail(state, report.issues[0].code, status)
 
     def wall(self, state: EstimationState, highest: int, ctx: ew.WallContext) -> ValidationReport:
         # Walls 1..`highest` in order (§18); the first failure stops the run and no later wall
@@ -195,7 +268,7 @@ class HarnessBase:
         return report
 
     def conflict(self, state: EstimationState,
-                 draft: DesignConflictDraftV1) -> dict[str, Any]:
+                 draft: plancompile.DesignConflictDraftV1) -> dict[str, Any]:
         # §19: a required semantic, contrast, or capacity change becomes a DesignConflict and
         # returns to PRD-002. PRD-004 never interrupts the user and resolves nothing itself.
         held = self.ref(state, "EstimationContextManifest")
@@ -207,6 +280,23 @@ class HarnessBase:
         self.commit(state, "DesignConflict", body,
                     self.parents(state, "EstimationContextManifest"))
         return self.out(state, status=CONFLICT, conflict_code=draft.conflict_code)
+
+    def accept_handoff(self, state: EstimationState, manifest: HandoffManifestV1,
+                       outcome: str) -> bool:
+        # T-006: load first, then check — a recorded handoff is never re-recorded, so a rerun
+        # replays the same acceptance instead of raising `duplicate_handoff` (D-037).
+        deps, store = self.deps, handoff.HandoffStore(self.deps.conn)
+        try:
+            recorded = store.load(manifest.handoff_id)
+        except persistence.PersistenceError:
+            gate = handoff.HandoffGate(deps.objects, deps.products, store, deps.registry,
+                                       deps.emitter)
+            return gate.accept(manifest, COMPONENT, frozenset({outcome}),
+                               lambda verdict, codes: self.event(
+                                   state, f"handoff.{verdict}", EVAL_STAGE, status=verdict,
+                                   error_code=codes[0] if codes else None)).accepted
+        return (recorded.receiver_validation_result == "accepted"
+                and recorded.entries == manifest.entries)
 
     def frame(self, artifact_id: str) -> pl.DataFrame:
         # The frozen prepared frame, reopened under its own recorded dtypes through the shared
@@ -224,7 +314,41 @@ class HarnessBase:
     def view(self, state: EstimationState,
              manifest: ec.EstimationContextManifestV1) -> pl.DataFrame:
         # §19.1: the adapter reads the declared estimator-input view, not the prepared frame.
-        return engine.estimator_view(self.prepared_frame(state), manifest.role_columns)
+        if self.view_cache is None:
+            self.view_cache = engine.estimator_view(self.prepared_frame(state),
+                                                    manifest.role_columns)
+        return self.view_cache
+
+    def entry_inputs(self, state: EstimationState, outcome: ArtifactEnvelopeV1
+                     ) -> tuple[plancompile.EntryInputs, tuple[ArtifactRef, ...], bool]:
+        # The PRD-003 handoff rebuilt and accepted, then its four §4 entry payloads, the PRD-003
+        # stabilization record, and the prepared frame's own roles and dtypes — all read as data.
+        body = self.payload(outcome.artifact_id)
+        bundle = self.payload(str(body["prepared_bundle"]["artifact_id"]))
+        held = (body["prepared_bundle"], bundle["experiment_design"],
+                bundle["runnable_frame_contract"], bundle["capacity_check"])
+        entries = tuple(ArtifactRef.model_validate(dict(ref)) for ref in held)
+        accepted = self.accept_handoff(state, build_handoff(
+            state["analysis_id"], outcome, state["stage_run_id"], held, str(body["status"]),
+            self.deps.clock()), PREPARED)
+        design, record = self.payload(entries[1].artifact_id), self.payload(
+            str(bundle["stabilization_record"]["artifact_id"]))
+        frame = self.frame(str(bundle["prepared_frame"]["artifact_id"]))
+        roles = role_columns(self.payload(str(design["role_ledger"]["artifact_id"])),
+                             frame.columns)
+        found = self.deps.products.find_artifact_hash
+        return plancompile.EntryInputs(
+            outcome=body, bundle=bundle, design=design, record=record,
+            contract=self.payload(entries[2].artifact_id),
+            capacity=self.payload(entries[3].artifact_id),
+            declared=dict(zip(plancompile.ENTRY_KEYS, entries, strict=True)),
+            committed={key: None if (digest := found(ref.artifact_id)) is None else ArtifactRef(
+                artifact_id=ref.artifact_id, content_hash=digest)
+                for key, ref in zip(plancompile.ENTRY_KEYS, entries, strict=True)},
+            estimator_input_types=input_types(frame, roles), role_columns=roles,
+            postrepair_statuses={str(row["diagnostic_id"]): str(row["status"]) for row
+                                 in record.get("post_stabilization_diagnostics") or ()}
+            ), entries, accepted
 
     # -- committed estimation payloads and the run row ---------------------
 

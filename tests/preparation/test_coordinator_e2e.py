@@ -55,6 +55,10 @@ ROLES: dict[str, dict[str, str]] = {
     "sharp_rdd": {"unit_id": "unit_identifier", "score": "running_variable",
                   "treat": "treatment", "earn": "outcome", "age": "precision_covariate"}}
 KEYS: dict[str, tuple[str, ...]] = {"did": ("unit_id", "period")}
+# The approved delivery-capacity cardinality vector every fixture design carries (SC §11).
+CARDINALITIES: dict[str, int] = {"arms": 2, "contrasts": 1, "subgroups": 0, "cohorts": 0,
+                                 "periods": 0, "event_times": 0, "cutoff_sides": 0, "series": 2,
+                                 "evidence_items": 20}
 STRUCTURE: dict[str, dict[str, str]] = {"did": {"adoption_time": "2"},
                                         "sharp_rdd": {"cutoff": "10"}}
 
@@ -118,12 +122,19 @@ def commit(deps: PreparationDeps, analysis_id: str, kind: str, payload: dict[str
 
 def approved_design(deps: PreparationDeps, analysis_id: str, method: str, data: bytes, *,
                     impute: Sequence[str] = (), drop_rules: Sequence[str] = (),
-                    indicators: Sequence[str] = ("outcome_observed",)) -> str:
-    """Commit the approved PRD-002 chain the §4 gate reads, and return its DesignOutcome id."""
+                    indicators: Sequence[str] = ("outcome_observed",),
+                    roles: Mapping[str, str] | None = None,
+                    contrasts: Sequence[str] = ("treated_vs_control",),
+                    cardinalities: Mapping[str, int] | None = None) -> str:
+    """Commit the approved PRD-002 chain the §4 gate reads, and return its DesignOutcome id.
+
+    The role map, the approved primary contrasts, and the delivery-capacity cardinalities are
+    overridable so PRD-004's own entry gate (T-026) can reuse this one honest chain.
+    """
     pack = deps.packs.get(method, VERSIONS[method])
     deps.products.create_stage_run(f"dr:{analysis_id}:1", analysis_id, "design")
     locator = deps.objects.put_if_absent(hashlib.sha256(data).hexdigest(), data)
-    roles, keys = ROLES[method], KEYS.get(method, ("unit_id",))
+    roles, keys = roles or ROLES[method], KEYS.get(method, ("unit_id",))
     made = commit(deps, analysis_id, "QuestionRecord", {"question_text": "does it work?"})
     intake = commit(deps, analysis_id, "IntakeOutcome", {"status": "usable"}, (made,))
     selection = commit(deps, analysis_id, "TableSelection", {
@@ -138,11 +149,13 @@ def approved_design(deps: PreparationDeps, analysis_id: str, method: str, data: 
         {"role": role, "column_refs": [name]} for name, role in sorted(roles.items())]}, (context,))
     probe = commit(deps, analysis_id, "PreRepairFeasibilityReport", {
         "method_id": method, "results": [{"diagnostic_id": PREREPAIR}]}, (ledger,))
-    capacity = {"status": "pass", "method_id": method,
-                "visualization_catalog_version": CATALOG, "capacity_registry_version": CAPACITY}
+    capacity = {"status": "pass", "method_id": method, "cardinalities": dict(
+        cardinalities or CARDINALITIES) | {"contrasts": len(contrasts)},
+        "visualization_catalog_version": CATALOG, "capacity_registry_version": CAPACITY}
     design = commit(deps, analysis_id, "ExperimentDesign", {
-        "selected_csv": ref(selection), "method_id": method,
+        "selected_csv": ref(selection), "method_id": method, "unit": "participant",
         "method_pack_version": VERSIONS[method], "comparator": "the untreated", "estimand": "ate",
+        "primary_contrasts": list(contrasts),
         "frame": {"treatment": "tr", "outcome": "out", "population": "pop", "timeframe": "tf"},
         "measurement_map": ref(mapped), "role_ledger": ref(ledger),
         "causal_context": ref(context), "capacity_check": ident(
@@ -152,6 +165,7 @@ def approved_design(deps: PreparationDeps, analysis_id: str, method: str, data: 
         "required_prerepair_diagnostics": [PREREPAIR]}, (ledger, probe))
     contract = commit(deps, analysis_id, "RunnableFrameContract", {
         "selected_csv": ref(selection), "experiment_design_hash": design.content_hash,
+        "estimator_input_schema": pack.prepared_frame_schema_id,
         "output_grain": "one row per unit", "key_columns": list(keys), "eligibility_rules": [],
         "exclusion_reason_vocabulary": [rule for rule in pack.permitted_disposition_rule_ids
                                         if rule not in drop_rules],

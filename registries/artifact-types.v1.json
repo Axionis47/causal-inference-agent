@@ -820,6 +820,9 @@
       "artifact_type": "DesignConflict",
       "schema_version": "design-conflict.v1",
       "producer_component": "preparation-harness",
+      "also_produced_by": [
+        "estimation-harness"
+      ],
       "allowed_reader_components": [
         "preparation-harness",
         "design-harness"

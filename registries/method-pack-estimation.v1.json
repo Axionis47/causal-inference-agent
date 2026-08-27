@@ -9,7 +9,8 @@
       "parameter_defaults": {
         "specification": "ancova_when_baseline_approved", "outcome_scale": "difference",
         "stratum_handling": "fixed_effects", "cluster_covariance": "cluster_robust_cr2",
-        "minimum_clusters": 8, "mask_rule_id": "outcome_observed"
+        "minimum_clusters": 8, "mask_rule_id": "outcome_observed",
+        "multiplicity_policy_id": "holm_step_down.v1"
       },
       "estimator_input_schema": {
         "treatment": ["categorical"], "outcome": ["numeric", "binary"],
