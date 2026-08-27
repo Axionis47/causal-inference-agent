@@ -45,6 +45,18 @@ def test_run_after_approval_dispatches_preparation_and_status_follows(
     # T-029: one `run` does not stop at `prepared` — the same command opens PRD-004's revision.
     assert done.stage_run_id == f"es:{analysis_id}:1"
     assert runtime.status(analysis_id).stage == "estimation"
+    # D-090: PRD-003 now persists its prepared-stage post-repair reports, so PRD-004's §4
+    # condition 7 reads real statuses instead of nothing. The scripted design still names the
+    # four pack diagnostics PRD-003 has no V1 implementation for, so each is `not_computable`;
+    # preparation's own wall approves that handling and estimation's does not, and the honest
+    # terminal stays `entry_validation_failed`/`postrepair_diagnostic_unhandled` on that ground.
+    bundle = failures.payload(runtime.deps, str(outcome["prepared_bundle"]["artifact_id"]))
+    assert {row["status"] for row in bundle["postrepair_diagnostics"]} == {"pass",
+                                                                          "not_computable"}
+    assert (done.status, done.error_code) == ("failed", "entry_validation_failed")
+    failed = [line for line in runtime.config.event_log.read_text(encoding="utf-8").splitlines()
+              if '"event_name":"artifact.validation_failed"' in line]
+    assert '"detail_codes":"postrepair_diagnostic_unhandled"' in failed[-1]
 
 
 def poisoned(self: Any, state: Any) -> dict[str, Any]:

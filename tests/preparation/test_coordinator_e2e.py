@@ -235,6 +235,14 @@ def test_a_scripted_run_reaches_prepared_and_opens_the_prd004_handoff(
     run = run_one(deps, f"an-{method}", designs[method])
     assert run.status == "prepared", run.error_code
     assert run.handoff_id is not None and run.row_set_hash is not None
+    # D-090: the §20 bundle carries the prepared-stage post-repair reports the final wall gated
+    # on, so PRD-004's §4 condition 7 can read their statuses instead of guessing.
+    held = deps.products.load_envelope(next(iter(
+        artifact_ids(conn, f"an-{method}", "PreparedFrameBundle"))))
+    carried = json.loads(deps.objects.get(held.payload_locator))["postrepair_diagnostics"]
+    pack = deps.packs.get(method, VERSIONS[method])
+    assert {(row["diagnostic_id"], row["status"]) for row in carried} >= {
+        (name, "not_computable") for name in pack.required_postrepair_diagnostic_ids}
     opened = nodes.open_preparation_handoff(
         deps, run.analysis_id, str(run.outcome_artifact_id), "sr:estimation")
     gate = handoff.HandoffGate(deps.objects, deps.products, handoff.HandoffStore(conn),

@@ -375,8 +375,12 @@ class HarnessBase:
                 artifact_id=ref.artifact_id, content_hash=digest)
                 for key, ref in zip(plancompile.ENTRY_KEYS, entries, strict=True)},
             estimator_input_types=input_types(frame, roles), role_columns=roles,
+            # The prepared-stage reports the PRD-003 bundle carries are the §4 truth; the
+            # stabilized-stage generics in the record stand only where the bundle is silent.
             postrepair_statuses={str(row["diagnostic_id"]): str(row["status"]) for row
                                  in record.get("post_stabilization_diagnostics") or ()}
+            | {str(row["diagnostic_id"]): str(row["status"]) for row
+               in bundle.get("postrepair_diagnostics") or ()}
             ), entries, accepted
 
     # -- committed estimation payloads and the run row ---------------------

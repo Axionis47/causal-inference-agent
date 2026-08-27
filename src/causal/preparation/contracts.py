@@ -283,6 +283,7 @@ class PreparedFrameBundleV1(_Payload):
     row_set_hash: Sha256Hex
     stabilized_frame_row_set_hash: Sha256Hex
     prepared_frame_row_set_hash: Sha256Hex
+    postrepair_diagnostics: tuple[PreparationDiagnosticV1, ...] = ()
     versions: dict[str, Identity]
 
     @model_validator(mode="after")
