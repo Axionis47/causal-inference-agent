@@ -181,6 +181,9 @@ class TestCommands:
         settled = runtime.run(made.analysis_id, expected_stage_run=opened.stage_run_id,
                               idempotency_key="k-run-3")
         assert settled.stage_run_id == f"es:{made.analysis_id}:1"
+        # D-091b: entry admits the `not_computable` PRD-003 pre-checks and wall 9 passes, so the
+        # chain settles on wall 10 — the five-row fixture cannot refit `leave_one_cluster_out`.
+        assert settled.error_code == "sensitivity_not_terminal"
         reported = runtime.run(made.analysis_id, expected_stage_run=opened.stage_run_id,
                                idempotency_key="k-run-4")
         assert (reported.stage_run_id, reported.status) == (settled.stage_run_id, settled.status)

@@ -37,6 +37,10 @@ CONFLICT, FAILED = "design_conflict", "failed"
 PREPARED: Final = "prepared"
 # §14.2: this stage approves no non-computed terminal status for any severity.
 APPROVED_HANDLING: Final[frozenset[str]] = frozenset()
+# D-091: §4 condition 7 alone admits an uncomputable PRD-003 pre-check. Every pack post-repair
+# diagnostic id has a rigorous counterpart this stage computes and gates itself, so a rough
+# prepared-stage pre-check that could not run costs nothing the diagnostic wall does not recover.
+PREPARED_APPROVED_HANDLING: Final[frozenset[str]] = frozenset({"not_computable"})
 # The estimator-input class of an approved role's prepared column (§4 condition 6).
 IDENTIFIER_ROLES: Final = ("unit_identifier", "cluster")
 CATEGORICAL_ROLES: Final = ("treatment", "stratum", "group", "assignment_variable")
@@ -375,8 +379,12 @@ class HarnessBase:
                 artifact_id=ref.artifact_id, content_hash=digest)
                 for key, ref in zip(plancompile.ENTRY_KEYS, entries, strict=True)},
             estimator_input_types=input_types(frame, roles), role_columns=roles,
+            # The prepared-stage reports the PRD-003 bundle carries are the §4 truth; the
+            # stabilized-stage generics in the record stand only where the bundle is silent.
             postrepair_statuses={str(row["diagnostic_id"]): str(row["status"]) for row
                                  in record.get("post_stabilization_diagnostics") or ()}
+            | {str(row["diagnostic_id"]): str(row["status"]) for row
+               in bundle.get("postrepair_diagnostics") or ()}
             ), entries, accepted
 
     # -- committed estimation payloads and the run row ---------------------

@@ -91,7 +91,7 @@ class EstimationNodes(eh.HarnessBase):
                 pack=self.deps.packs.get(str(inputs.design["method_id"]),
                                          str(inputs.design["method_pack_version"])),
                 registry_versions=REGISTRY_VERSIONS, numerical_tolerances=TOLERANCES,
-                approved_handling=eh.APPROVED_HANDLING,
+                approved_handling=eh.PREPARED_APPROVED_HANDLING,
                 recipient_map={ej.TASK_KIND: (ej.SCOPE_KIND,)})
             codes = plancompile.entry_codes(inputs, policy)
         except (persistence.PersistenceError, ec.EstimationError, KeyError, TypeError) as error:

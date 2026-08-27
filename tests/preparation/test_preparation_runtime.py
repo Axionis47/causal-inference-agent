@@ -45,6 +45,22 @@ def test_run_after_approval_dispatches_preparation_and_status_follows(
     # T-029: one `run` does not stop at `prepared` — the same command opens PRD-004's revision.
     assert done.stage_run_id == f"es:{analysis_id}:1"
     assert runtime.status(analysis_id).stage == "estimation"
+    # D-090: PRD-003 now persists its prepared-stage post-repair reports, so PRD-004's §4
+    # condition 7 reads real statuses. The four pack diagnostics PRD-003 has no V1
+    # implementation for are `not_computable`, which D-091 admits at entry alone.
+    bundle = failures.payload(runtime.deps, str(outcome["prepared_bundle"]["artifact_id"]))
+    assert {row["status"] for row in bundle["postrepair_diagnostics"]} == {"pass",
+                                                                          "not_computable"}
+    # D-091b: entry is cleared and wall 9 now passes — balance over zero approved covariates
+    # grades `computed`. The run reaches PRD-004's wall 10 and stops on the one prespecified
+    # branch this five-row intake fixture cannot support: `leave_one_cluster_out` refits without
+    # each unit in turn, and a four-row refit is rank deficient (`LinAlgError: SVD did not
+    # converge`), which §15 reports as a failed branch. A fixture-power limit, honestly refused.
+    assert done.error_code != "entry_validation_failed"
+    assert (done.status, done.error_code) == ("failed", "sensitivity_not_terminal")
+    failed = [line for line in runtime.config.event_log.read_text(encoding="utf-8").splitlines()
+              if '"event_name":"artifact.validation_failed"' in line]
+    assert '"detail_codes":"leave_one_cluster_out","wall":10' in failed[-1]
 
 
 def poisoned(self: Any, state: Any) -> dict[str, Any]:

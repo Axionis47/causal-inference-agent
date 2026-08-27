@@ -313,7 +313,8 @@ class PreparationNodes(HarnessBase):
             stabilized_frame=refs["StabilizedFrame"], prepared_frame=refs["PreparedFrame"],
             execution_receipt_bundle=refs["ExecutionReceiptBundle"], row_set_hash=state[
                 "row_set_hash"], stabilized_frame_row_set_hash=state["row_set_hash"],
-            prepared_frame_row_set_hash=state["row_set_hash"], versions=hb.REGISTRY_VERSIONS)
+            prepared_frame_row_set_hash=state["row_set_hash"],
+            postrepair_diagnostics=reports, versions=hb.REGISTRY_VERSIONS)
         healthy = all(report.status is pc.DiagnosticStatus.PASS
                       or report.status.value in hb.APPROVED_HANDLING for report in reports)
         report = self.wall(state, hb.FINAL_WALL, walls.WallContext(
