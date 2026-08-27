@@ -40,6 +40,9 @@ APPROVED_HANDLING: Final[frozenset[str]] = frozenset()
 # The estimator-input class of an approved role's prepared column (§4 condition 6).
 IDENTIFIER_ROLES: Final = ("unit_identifier", "cluster")
 CATEGORICAL_ROLES: Final = ("treatment", "stratum", "group", "assignment_variable")
+TIME_ROLES: Final = ("time", "adoption_time")
+# The roles a pack schema may read as binary; a two-valued numeric column is what it means.
+BINARY_ROLES: Final = ("treatment", "missingness_indicator")
 # `estimation.estimation_runs.state` is a closed vocabulary; the outcome artifact carries the
 # §5.2 status, so a conflict, an invalidation, and a not-estimable run are still completed.
 ROW_STATE: Final[dict[str, str]] = {
@@ -128,7 +131,9 @@ def role_columns(ledger: Mapping[str, Any], columns: Sequence[str]) -> dict[str,
 
 def input_types(frame: pl.DataFrame, roles: Mapping[str, str]) -> dict[str, str]:
     # What the estimator would receive for each approved role, in the pack's schema vocabulary.
-    return {role: "identifier" if role in IDENTIFIER_ROLES else "categorical"
+    return {role: "identifier" if role in IDENTIFIER_ROLES else "time" if role in TIME_ROLES
+            else "binary" if role in BINARY_ROLES and frame[column].n_unique() <= 2
+            else "categorical"
             if role in CATEGORICAL_ROLES or not frame.schema[column].is_numeric() else "numeric"
             for role, column in roles.items() if column in frame.columns}
 
@@ -162,6 +167,8 @@ class HarnessBase:
         # Evidence id to its committed artifact id: the closed §16.2 citation allowlist.
         self.evidence: dict[str, str] = {}
         self.bundles: dict[str, ArtifactRef] = {}
+        # The §10.2 fold assignments this run committed; empty for a method that cross-fits none.
+        self.dealt: tuple[ArtifactRef, ...] = ()
         self.denominators: dict[str, int] = {}
         self.claim_status: ec.JudgmentStatus = "reportable"
         self.adapter: engine.MethodAdapter | None = None
@@ -232,6 +239,28 @@ class HarnessBase:
         # Commit one estimation payload under its registered parents and hold its reference.
         self.commit(state, kind, payload.canonical_payload(), self.parents(state, *parents))
         return self.ref(state, kind)
+
+    def put_object(self, payload: Mapping[str, object]) -> ec.ObjectRefV1:
+        # One restricted object: it reaches the object store and no envelope, event, or payload.
+        locator = self.deps.frames.put_object(payload)
+        return ec.ObjectRefV1(object_locator=locator, content_hash=locator.split("/")[-1])
+
+    def record_fit(self, state: EstimationState, plan: ec.EstimationPlanV1,
+                   fitted: engine.AdapterResult) -> dict[str, ec.ValueMap]:
+        # Hold what one adapter call produced. A cross-fitted adapter hands its own run back, so
+        # the coordinator commits what was dealt — the §10.2 fold assignment beside its restricted
+        # mapping and prediction objects — and holds the receipts wall 6 measures. A fit that
+        # dealt no folds commits nothing here (§10.2, §19.1).
+        run = fitted.fit
+        if isinstance(run, engine.CrossFitFit):
+            held = self.ref(state, "EstimationPlan")
+            mapping = self.put_object(run.mapping_payload())
+            self.put_object(run.prediction_payload())
+            dealt = run.assignment(plan, mapping, plan_ref=held, parents=(held,))
+            self.dealt += (self.put(state, "CrossFitAssignment", dealt, "EstimationPlan"),)
+            state.setdefault("assignment_ids", []).append(self.dealt[-1].artifact_id)
+            self.frozen |= {"assignments": (dealt,), "fold_fit_counts": run.receipts}
+        return dict(fitted.harvest)
 
     def refs_of(self, state: EstimationState) -> dict[str, ArtifactRef]:
         return {name: ArtifactRef(artifact_id=found, content_hash=state["hashes"][found])

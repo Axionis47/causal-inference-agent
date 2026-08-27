@@ -191,6 +191,7 @@ class CausalRuntime:
                  client_factory: Callable[[], KaggleClientProtocol] = LiveKaggleClient,
                  closing: Sequence[Any] = ()) -> None:
         self.config, self.deps, self.prep, self.registry = config, deps, prep, registry
+        self.est = failures.estimation_deps(deps, config.registries_root, config.repo_root)
         self.field_classes, self.fingerprint = field_classes, dict(fingerprint)
         self._client_factory, self._conn, self._closing = (
             client_factory, deps.conn, tuple(closing))
@@ -221,10 +222,11 @@ class CausalRuntime:
                 analysis_id=analysis_id, stage="intake",
                 state=str(row.intake_status or "running"),
                 next_command=RUN if row.intake_status in USABLE_INTAKE else None)
-        started = failures.latest_preparation_run(self._conn, analysis_id)
-        if started is not None:  # the later stage owns the analysis once its row exists
-            return StatusView(analysis_id=analysis_id, stage="preparation", state=started.state,
-                              next_command=RUN if started.state in failures.LIVE else None)
+        for stage in ("estimation", "preparation"):  # the latest stage owns the analysis
+            started = failures.latest_stage_run(self._conn, stage, analysis_id)
+            if started is not None:  # D-069b: a live stage row names `run` and nothing else
+                return StatusView(analysis_id=analysis_id, stage=stage, state=started.state,
+                                  next_command=RUN if started.state in failures.LIVE else None)
         opened = self._open_interrupt(found.thread_id) or {}
         # D-069b: an open interrupt names its answer command; a crashed revision and an
         # approved design (preparation is next) share the one command `causal run`.
@@ -250,7 +252,9 @@ class CausalRuntime:
             if found is not None:  # an open boundary is reported, never restarted
                 opened = self._open_interrupt(found.thread_id) or {}
                 if not opened and self._terminal(found) == APPROVED:  # PRD-003 is next (§1.4)
-                    return failures.prepare(self.deps, self.prep, analysis_id, found)
+                    ready = failures.prepare(self.deps, self.prep, analysis_id, found)
+                    return ready if ready.status != failures.PREPARED else failures.estimate(
+                        self.deps, self.est, analysis_id, found.revision)
                 return graph.DesignRunResult(
                     status=graph.NEEDS_USER_INPUT if opened else self._terminal(found),
                     analysis_id=analysis_id, stage_run_id=found.stage_run_id,

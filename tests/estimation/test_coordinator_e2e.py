@@ -22,10 +22,11 @@ from scipy import stats
 from causal.estimation import contracts as ec
 from causal.estimation import harness as eh
 from causal.estimation import judge as ej
-from causal.estimation import nodes, rct
+from causal.estimation import nodes
 from causal.estimation import walls as ew
 from causal.estimation.packs import load_estimation_packs
 from causal.preparation import nodes as prep
+from causal.runtime.failures import ADAPTERS
 from causal.shared import events, frames, handoff, persistence
 from causal.shared.envelope import AgentTaskEnvelopeV1
 from causal.shared.gateway import GatewayResultV1
@@ -57,6 +58,29 @@ SPECS: dict[str, dict[str, Any]] = {
             "contrasts": ("treated_vs_control", "boosted_vs_control")},
     POISON: {"contrasts": ("treated_vs_control", "absent_vs_control")},
     ATTRITION: {"attrition": {"treated": 4}}, THIN: {"units": 6}}
+# D-089d: one honest fixture per registered pack, shaped like that adapter's own T-027/T-028
+# table and prepared through the same real PRD-003 coordinator. The RCT pack is BASE above.
+PACK_IDS: dict[str, str] = {"randomized_experiment": BASE, "aipw": "an-aipw", "did": "an-did",
+                            "sharp_rdd": "an-rdd"}
+PACK_COLUMNS: dict[str, tuple[str, ...]] = {
+    "aipw": ("unit_id", "arm", "y", "x1"), "did": ("unit_id", "period", "grp", "adopt", "d", "y"),
+    "sharp_rdd": ("unit_id", "score", "d", "y", "x")}
+PACK_ROLES: dict[str, dict[str, str]] = {
+    "aipw": {"unit_id": "unit_identifier", "arm": "treatment", "y": "outcome",
+             "x1": "confounder_candidate"},
+    "did": {"unit_id": "unit_identifier", "period": "time", "grp": "group",
+            "adopt": "adoption_time", "d": "treatment", "y": "outcome"},
+    "sharp_rdd": {"unit_id": "unit_identifier", "score": "running_variable", "d": "treatment",
+                  "y": "outcome", "x": "precision_covariate"}}
+PACK_CONTRASTS: dict[str, tuple[str, ...]] = {
+    "aipw": ONE_CONTRAST, "did": ("adopters_vs_never_treated",),
+    "sharp_rdd": ("above_vs_below_cutoff",)}
+# The approved design facts each estimator cannot run without; the cutoff is deliberately not
+# the adapter's own 0.0 fallback, so a plan that dropped it would estimate the wrong jump.
+PACK_STRUCTURE: dict[str, dict[str, str]] = {
+    "aipw": {}, "did": {"adoption_time": "4", "adoption_profile_id": "staggered"},
+    "sharp_rdd": {"cutoff": "5", "assignment_direction": "above"}}
+CUTOFF, JUMP = 5.0, 1.5
 
 
 def trial(units: int = 40, arms: Sequence[str] = ARMS, *, cluster_size: int = 0,
@@ -77,6 +101,36 @@ def trial(units: int = 40, arms: Sequence[str] = ARMS, *, cluster_size: int = 0,
         rows.append([f"u{index:03d}", arm, "" if dropped else f"{outcome:.3f}", f"{baseline:.1f}"]
                     + ([f"c{group}"] if cluster_size else []))
     return ("\n".join([",".join(header), *(",".join(row) for row in rows)]) + "\n").encode()
+
+
+def pack_table(method: str) -> bytes:
+    """One frozen table per pack: confounded AIPW, a staggered panel, a sharp cutoff at 5.0."""
+    rng = np.random.default_rng(20260826)
+    rows: list[list[str]] = []
+    if method == "aipw":
+        for unit in range(160):
+            covariate = float(rng.normal())
+            treated = bool(rng.random() < 1.0 / (1.0 + np.exp(-0.6 * covariate)))
+            outcome = 1.0 + 0.5 * covariate + 2.0 * treated + float(rng.normal(scale=0.5))
+            rows.append([f"u{unit:03d}", "treated" if treated else "control",
+                         f"{outcome:.6f}", f"{covariate:.6f}"])
+    elif method == "did":
+        for unit in range(72):
+            cohort, level = [4.0, 7.0, 0.0][unit % 3], float(rng.normal(0.0, 0.4))
+            for period in range(1, 11):
+                treated = bool(cohort) and period >= cohort
+                outcome = level + 0.1 * period + (2.0 if treated else 0.0) + float(
+                    rng.normal(0.0, 0.05))
+                rows.append([f"u{unit:03d}", str(period), f"{cohort:.0f}", f"{cohort:.0f}",
+                             str(int(treated)), f"{outcome:.6f}"])
+    else:
+        for unit in range(2000):
+            score = float(rng.uniform(0.0, 10.0))
+            outcome = 2.0 + 0.4 * score + JUMP * (score >= CUTOFF) + float(rng.normal(0.0, 0.4))
+            rows.append([f"u{unit:04d}", f"{score:.6f}", str(int(score >= CUTOFF)),
+                         f"{outcome:.6f}", f"{0.2 * score + float(rng.normal()):.6f}"])
+    return ("\n".join([",".join(PACK_COLUMNS[method]),
+                       *(",".join(row) for row in rows)]) + "\n").encode()
 
 
 class Gateway:
@@ -132,7 +186,7 @@ def estimation_deps(conn: Any, objects: Any, sink: io.StringIO,
         clock=lambda: NOW, packs=PACKS, frames=frames.FrameStore(objects=objects),
         rules=ew.load_validation_rules(REGISTRIES / "estimation-validation-rules.v1.json"),
         registries=REGISTRIES, repo_root=ROOT, gateway=gateway,  # type: ignore[arg-type]
-        adapters={METHOD: rct.RandomizedExperimentAdapter})
+        adapters=ADAPTERS)  # D-089a: the runtime's own four-adapter factory map
 
 
 def prepared_outcome(conn: Any, objects: Any, sink: io.StringIO, analysis_id: str,
@@ -149,6 +203,19 @@ def prepared_outcome(conn: Any, objects: Any, sink: io.StringIO, analysis_id: st
     return str(run.outcome_artifact_id)
 
 
+def pack_prepared(conn: Any, objects: Any, sink: io.StringIO, method: str) -> str:
+    """The same real PRD-003 run for one non-RCT pack, over that pack's own frozen table."""
+    deps = preparation_deps(conn, objects, sink)
+    analysis_id = PACK_IDS[method]
+    design = approved_design(deps, analysis_id, method, pack_table(method),
+                             roles=PACK_ROLES[method], contrasts=PACK_CONTRASTS[method],
+                             structure=PACK_STRUCTURE[method])
+    run = prep.run_preparation(deps, analysis_id=analysis_id, design_outcome_artifact_id=design,
+                               stage_run_id=f"pr:{analysis_id}:1")
+    assert run.status == "prepared", (method, run.error_code, run.conflict_code)
+    return str(run.outcome_artifact_id)
+
+
 class Stack:
     """One database, one object store, and every fixture prepared and estimated once."""
 
@@ -156,7 +223,9 @@ class Stack:
         self.conn, self.objects, self.sink = conn, objects, io.StringIO()
         self.prepared = {name: prepared_outcome(conn, objects, self.sink, name, spec)
                          for name, spec in SPECS.items()}
-        self.runs = {name: self.estimate(name) for name in SPECS}
+        self.prepared |= {PACK_IDS[method]: pack_prepared(conn, objects, self.sink, method)
+                          for method in PACK_IDS if method != METHOD}
+        self.runs = {name: self.estimate(name) for name in self.prepared}
 
     def estimate(self, analysis_id: str, revision: int = 1) -> tuple[Any, Gateway,
                                                                      eh.EstimationDeps]:
@@ -434,6 +503,59 @@ def test_a_rerun_replays_the_artifacts_and_lands_the_same_terminal(stack: Stack)
     assert stack.conn.execute(
         "SELECT count(*) FROM estimation.estimation_runs WHERE analysis_id = %s"
         " AND state = 'completed'", (BASE,)).fetchone() == (2,)
+
+
+@pytest.mark.parametrize("method", sorted(PACK_IDS))
+def test_every_registered_pack_completes_opens_prd005_and_replays(stack: Stack,
+                                                                  method: str) -> None:
+    """D-089d: all four packs run through the one coordinator over the real four-adapter map."""
+    analysis_id = PACK_IDS[method]
+    run, gateway, deps = stack.runs[analysis_id]
+    assert (run.status, len(gateway.calls)) == ("complete", 1), run.error_code
+    kinds = ("EstimationPlan", "PrimaryAnalysisResult", "EstimationBundle", "ClaimJudgment")
+    replayed = {kind: stack.committed(analysis_id, kind) for kind in kinds}
+    plan = stack.payload(deps, replayed["EstimationPlan"][0])
+    assert plan["method_id"] == method and plan["estimator_parameters"] | PACK_STRUCTURE.get(
+        method, {}) == plan["estimator_parameters"]
+    opened = nodes.open_presentation_handoff(deps, analysis_id, str(run.outcome_artifact_id),
+                                             "sr:presentation")
+    store = handoff.HandoffStore(stack.conn)
+    gate = handoff.HandoffGate(deps.objects, deps.products, store, deps.registry, deps.emitter)
+    try:  # D-037: the RCT handoff is already recorded by the §22 test above, never re-recorded
+        accepted = gate.accept(opened, "presentation-coordinator", frozenset({"complete"}),
+                               lambda verdict, codes: event(analysis_id, f"handoff.{verdict}"))
+        assert accepted.accepted, accepted.error_codes
+    except persistence.PersistenceError:
+        assert store.load(opened.handoff_id).receiver_validation_result == "accepted"
+    second, again, _ = stack.estimate(analysis_id, revision=4)  # BASE spends 1..3 above
+    assert (second.status, second.row_set_hash) == (run.status, run.row_set_hash)
+    assert len(again.calls) == 1 and second.stage_run_id != run.stage_run_id
+    assert {kind: stack.committed(analysis_id, kind) for kind in kinds} == replayed
+
+
+def test_the_approved_rdd_cutoff_reaches_the_plan_and_the_estimate(stack: Stack) -> None:
+    """D-089b: the design's cutoff — never the adapter's 0.0 fallback — decides the estimate."""
+    run, _, deps = stack.runs[PACK_IDS["sharp_rdd"]]
+    plan = stack.payload(deps, stack.committed(PACK_IDS["sharp_rdd"], "EstimationPlan")[0])
+    assert plan["estimator_parameters"]["cutoff"] == "5"
+    item = primary(stack, deps, PACK_IDS["sharp_rdd"])["primary_items"][0]
+    assert item["method_quantities"]["cutoff"] == pytest.approx(CUTOFF)
+    assert item["estimate"] == pytest.approx(JUMP, abs=0.5), run.error_code
+
+
+def test_the_aipw_run_commits_the_cross_fit_assignment_and_its_objects(stack: Stack) -> None:
+    """D-089c: §10.2 — the coordinator commits what the adapter dealt, restricted objects too."""
+    _, _, deps = stack.runs[PACK_IDS["aipw"]]
+    dealt = stack.committed(PACK_IDS["aipw"], "CrossFitAssignment")
+    assert len(dealt) == 1
+    body = stack.payload(deps, dealt[0])
+    assert body["fold_count"] == len(body["counts_by_fold"]) and body["nuisance_profile_id"]
+    # The row-to-fold mapping is a restricted object: it is stored, never carried in a payload.
+    mapping = json.loads(deps.objects.get(body["mapping_object"]["object_locator"]))
+    assert mapping["fold_count"] == body["fold_count"] and mapping["fold_by_row_hex"]
+    bundle = stack.payload(deps, stack.committed(PACK_IDS["aipw"], "EstimationBundle")[0])
+    assert [ref["artifact_id"] for ref in bundle["cross_fit_assignments"]] == dealt
+    assert not stack.committed(BASE, "CrossFitAssignment")
 
 
 def test_an_estimation_produced_design_conflict_is_stamped_estimation_harness(

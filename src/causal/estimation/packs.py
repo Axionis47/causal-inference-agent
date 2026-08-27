@@ -75,6 +75,10 @@ class EstimationPackV1(_Row):
     parameter_defaults: ValueMap
     # Estimator-input role to the dtypes its adapter accepts (§8 role-to-input mapping).
     estimator_input_schema: dict[str, _Ids]
+    # The approved design's own role vocabulary mapped onto this pack's estimator inputs: an
+    # AIPW adjustment set and an RDD predetermined covariate are named by PRD-002's roles, so
+    # the bridge is registered here and never guessed at run time (§4 condition 6, §8).
+    estimator_role_aliases: dict[str, Identity] = Field(default_factory=dict)
     allowed_mask_rule_ids: _Ids
     uncertainty_method: Identity
     finite_sample_correction: Identity

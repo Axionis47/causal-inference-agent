@@ -176,12 +176,11 @@ class TestCommands:
         assert again.interrupt_artifact_id == opened.interrupt_artifact_id
         runtime.approve_design(made.analysis_id, binding(opened), ApprovalDecision.APPROVED,
                                "k-approve")
-        # T-019 §1.4: an approved design is not re-run; the same command starts PRD-003.
-        # T-013 Amendment 9 (D-077): that run clears the §4 entry gate instead of refusing.
+        # T-019 §1.4: an approved design is not re-run; the same command starts PRD-003, and
+        # T-029 chains on into PRD-004 as soon as that frame reaches `prepared`.
         settled = runtime.run(made.analysis_id, expected_stage_run=opened.stage_run_id,
                               idempotency_key="k-run-3")
-        assert settled.stage_run_id == f"pr:{made.analysis_id}:1"
-        assert settled.error_code != "entry_validation_failed"
+        assert settled.stage_run_id == f"es:{made.analysis_id}:1"
         reported = runtime.run(made.analysis_id, expected_stage_run=opened.stage_run_id,
                                idempotency_key="k-run-4")
         assert (reported.stage_run_id, reported.status) == (settled.stage_run_id, settled.status)

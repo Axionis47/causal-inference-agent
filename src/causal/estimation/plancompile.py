@@ -51,6 +51,9 @@ _DIMENSION_FIT: Final[dict[str, tuple[str, ...]]] = {
     "evidence_items": ()}
 # The approved-selection surface the plan copies verbatim from the manifest (§6.1, §19.1).
 _APPROVED: Final = tuple(ec._ApprovedSelection.model_fields)
+# The approved design fact each role makes mandatory: a running variable is estimable only at
+# the cutoff the design approved, and no pack default may stand in for one (§12.2).
+REQUIRED_FACTS: Final[dict[str, str]] = {"running_variable": "cutoff"}
 
 
 # The four §4 handoff payloads plus the PRD-003 record, read as raw mappings.
@@ -145,8 +148,15 @@ def _frame_codes(inputs: EntryInputs) -> set[str]:
 
 
 # §4 conditions 6, 7, and 8: the estimator's schema, its diagnostics, its preprocessing.
+def aliased(roles: Mapping[str, Any], pack: EstimationPackV1) -> dict[str, Any]:
+    # The approved design's roles under the names this pack's estimator inputs carry (§8).
+    return {str(pack.estimator_role_aliases.get(role, role)): value
+            for role, value in roles.items()}
+
+
 def _structure_codes(inputs: EntryInputs, policy: EntryPolicy) -> set[str]:
-    schema, found = policy.pack.estimator_input_schema, inputs.estimator_input_types
+    schema = policy.pack.estimator_input_schema
+    found = aliased(inputs.estimator_input_types, policy.pack)
     offending = (set(inputs.contract.get("required_roles") or ()) - set(found)) | (
         set(found) - set(schema)) | {
         role for role, dtype in found.items() if role in schema and dtype not in schema[role]}
@@ -157,6 +167,12 @@ def _structure_codes(inputs: EntryInputs, policy: EntryPolicy) -> set[str]:
             codes.add(POSTREPAIR_DIAGNOSTIC_UNHANDLED)
     if set(inputs.preprocessing_recipe_ids) - policy.registered_recipe_ids:
         codes.add(UNREGISTERED_PREPROCESSING)
+    # The approved design facts the estimator cannot be run without; a missing one is refused
+    # here rather than defaulted downstream (D-089b).
+    structure = inputs.contract.get("method_structure") or {}
+    if any(role in inputs.role_columns and key not in structure
+           for role, key in REQUIRED_FACTS.items()):
+        codes.add(MISSING_PLAN_FIELD)
     return codes
 
 
@@ -224,7 +240,7 @@ def compile_context_manifest(inputs: EntryInputs,
         estimand_id=str(design["estimand"]), population_id=str(frame["population"]),
         timeframe_id=str(frame["timeframe"]), comparator_id=str(design["comparator"]),
         outcome_id=str(frame["outcome"]), unit_id=str(design["unit"]),
-        role_columns=dict(inputs.role_columns), prepared_frame_schema_id=view_id,
+        role_columns=aliased(inputs.role_columns, pack), prepared_frame_schema_id=view_id,
         row_set_hash=str(inputs.bundle["row_set_hash"]),
         contrast_ids=tuple(str(item) for item in design["primary_contrasts"]),
         required_sensitivity_ids=tuple(row.branch_id for row in pack.sensitivity_branches),
@@ -233,6 +249,7 @@ def compile_context_manifest(inputs: EntryInputs,
         experiment_design=refs["experiment_design"],
         runnable_frame_contract=refs["runnable_frame_contract"],
         prepared_bundle=refs["prepared_bundle"], estimator_input_view_id=view_id,
+        method_structure=dict(contract.get("method_structure") or {}),
         contribution_mask_rule_ids=pack.allowed_mask_rule_ids,
         preprocessing_rule_ids=inputs.preprocessing_recipe_ids,
         uncertainty_rule_id=pack.uncertainty_method,
@@ -276,7 +293,9 @@ def compile_plan(manifest: ec.EstimationContextManifestV1, pack: EstimationPackV
         primary_mask_rule_id=_required(pack, "mask_rule_id"),
         confidence_level=pack.confidence_level, uncertainty_method=pack.uncertainty_method,
         finite_sample_correction=pack.finite_sample_correction,
-        estimator_parameters=dict(pack.parameter_defaults),
+        # The registered defaults, then the approved design facts — the cutoff and its
+        # direction are the design's to state and the pack's to know nothing about (§12.2).
+        estimator_parameters=dict(pack.parameter_defaults) | dict(manifest.method_structure),
         nuisance_profile_id=profile.profile_id if profile is not None else None,
         fold_count=pack.fold_count_default,
         fold_assignment_rule_id=_required(pack, "fold_assignment_rule_id") if folded else None,

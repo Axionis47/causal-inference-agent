@@ -106,8 +106,8 @@ def wall_six(assignment: ec.CrossFitAssignmentV1, run: aipw.CrossFitRun) -> Any:
 def assignment_of(plan: ec.EstimationPlanV1, run: aipw.CrossFitRun) -> ec.CrossFitAssignmentV1:
     payload = aipw.mapping_object_payload(run.folds, seed=run.seed, count=run.fold_count)
     found = content_hash(payload)
-    return aipw.cross_fit_assignment(
-        plan, run, ec.ObjectRefV1(object_locator=f"objects/{found}", content_hash=found),
+    return run.assignment(
+        plan, ec.ObjectRefV1(object_locator=f"objects/{found}", content_hash=found),
         plan_ref=te.ref("plan"), parents=(te.ref("plan"),))
 
 

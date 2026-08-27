@@ -9,7 +9,7 @@ import math
 import platform
 from collections.abc import Callable, Mapping, Sequence
 from importlib import metadata
-from typing import Any, Final, NamedTuple, Protocol
+from typing import Any, Final, NamedTuple, Protocol, runtime_checkable
 
 import numpy as np
 import polars as pl
@@ -127,6 +127,22 @@ class AdapterResult(NamedTuple):
     items: tuple[ec.PrimaryContrastResultV1, ...]
     harvest: dict[str, ec.ValueMap]
     fit: object | None = None
+
+
+@runtime_checkable
+class CrossFitFit(Protocol):
+    # §10.2: what a cross-fitted adapter hands back on `AdapterResult.fit` so the coordinator can
+    # commit what was dealt — the assignment, its restricted row-to-fold mapping, the out-of-fold
+    # prediction object, and the receipts wall 6 measures. No coordinator knows which pack
+    # cross-fits; it asks the fit it was handed and commits nothing when the answer is no.
+
+    receipts: Mapping[str, Mapping[str, int]]
+
+    def mapping_payload(self) -> dict[str, object]: ...
+    def prediction_payload(self) -> dict[str, object]: ...
+    def assignment(self, plan: ec.EstimationPlanV1, mapping_object: ec.ObjectRefV1, *,
+                   plan_ref: ArtifactRef,
+                   parents: tuple[ArtifactRef, ...]) -> ec.CrossFitAssignmentV1: ...
 
 
 class EstimatorAdapter(Protocol):

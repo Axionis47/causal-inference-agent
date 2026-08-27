@@ -114,6 +114,10 @@ class EstimationContextManifestV1(_ApprovedSelection):
     runnable_frame_contract: ArtifactRef
     prepared_bundle: ArtifactRef
     estimator_input_view_id: Identity
+    # The approved design facts the plan carries into `estimator_parameters` (§6.1): the RDD
+    # cutoff and its assignment direction, the DiD adoption time. A pack default never supplies
+    # one, and the §4 gate refuses a method whose approved role needs a fact the design omits.
+    method_structure: dict[str, Identity] = {}
     contribution_mask_rule_ids: _Ids
     preprocessing_rule_ids: tuple[Identity, ...]
     uncertainty_rule_id: Identity

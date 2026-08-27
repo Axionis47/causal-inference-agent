@@ -1,5 +1,5 @@
 {
-  "_header": "evals/catalog.v1.yaml -- the single declarative EvaluationRegistrationV1 catalog required by SYSTEM-CONTRACT SS10.5. FORMAT DECISION (T-020, ledger D-010): the contract names a .yaml path, but the pinned stack has no YAML parser and none is added; this file is authored as JSON-syntax content (a valid YAML subset) so json.loads reads it with the standard library alone. JSON has no comment syntax, so this _header string carries what SS10.5 would otherwise put in a header comment. SCOPE: this wave registers the 34 rows whose surfaces exist -- EV-SYS-001..007 and EV-E2E-001..007 (SC SS10.5.1), EV-P1-001..005 (PRD-001 SS15), EV-P2-001..008 (PRD-002 SS20.7), EV-P3-001..007 (PRD-003 SS18.7). EV-P4-001..010 (PRD-004) and EV-P5-001..006 (PRD-005) land with their implementation waves and complete the SS10.5.2 total of exactly 50 registrations. FIDELITY: boundary, owner, fixture_focus, trigger, and hard_pass_condition are copied verbatim from those tables. DERIVED FIELDS: the SC/PRD tables state no per-row evaluator kind and no per-row case count, so `kind` is assigned from the closed SS10.5 set {contract, policy, numerical, render, end_to_end} by the dominant evaluator of each row's hard pass condition, and `case_budget` records the SS10.5.2 ceiling (at most eight logical cases per non-end-to-end eval_id; exactly one frozen case for each EV-E2E row) rather than an authored case count. AMENDMENT 2: the PRD-003 rows are read through PRD-003 SS25 (ledger D-076) -- EV-P3-003 and EV-P3-004 re-scope to deterministic-compiler fixtures with no live model leg, and EV-P3-007's checkpoint-restart leg becomes rerun replay; each re-scoped row carries an `amendment_2` note. CASE NOTES: `case_notes` records pilot findings D-060..D-071 as named cases against the registration whose boundary they exercise; a note prefixed `future case` names coverage that does not exist yet. This file contains no prompts, executable evaluators, or alternate product logic.",
+  "_header": "evals/catalog.v1.yaml -- the single declarative EvaluationRegistrationV1 catalog required by SYSTEM-CONTRACT SS10.5. FORMAT DECISION (T-020, ledger D-010): the contract names a .yaml path, but the pinned stack has no YAML parser and none is added; this file is authored as JSON-syntax content (a valid YAML subset) so json.loads reads it with the standard library alone. JSON has no comment syntax, so this _header string carries what SS10.5 would otherwise put in a header comment. SCOPE: this file registers the 44 rows whose surfaces exist -- EV-SYS-001..007 and EV-E2E-001..007 (SC SS10.5.1), EV-P1-001..005 (PRD-001 SS15), EV-P2-001..008 (PRD-002 SS20.7), EV-P3-001..007 (PRD-003 SS18.7), and EV-P4-001..010 (PRD-004 SS20.6, added by T-029 with that stage). EV-P5-001..006 (PRD-005) is the one surface still pending; it lands with its own implementation wave and completes the SS10.5.2 total of exactly 50 registrations. FIDELITY: boundary, owner, fixture_focus, trigger, and hard_pass_condition are copied verbatim from those tables. DERIVED FIELDS: the SC/PRD tables state no per-row evaluator kind and no per-row case count, so `kind` is assigned from the closed SS10.5 set {contract, policy, numerical, render, end_to_end} by the dominant evaluator of each row's hard pass condition, and `case_budget` records the SS10.5.2 ceiling (at most eight logical cases per non-end-to-end eval_id; exactly one frozen case for each EV-E2E row) rather than an authored case count. AMENDMENT 1: the PRD-004 rows are read through PRD-004 SS26 (ledger D-083) -- EV-P4-010's restart leg becomes rerun replay (run twice, no duplicate artifacts, same terminal outcome), the SS7/SS19 \"at most eight concurrent tasks\" clauses are UPPER BOUNDS that V1 meets at concurrency one, and the four named evidence bundles consolidate into one EvidenceBundleV1 per kind with no separate uncertainty artifact; each re-scoped row carries an `amendment_1` note. AMENDMENT 2: the PRD-003 rows are read through PRD-003 SS25 (ledger D-076) -- EV-P3-003 and EV-P3-004 re-scope to deterministic-compiler fixtures with no live model leg, and EV-P3-007's checkpoint-restart leg becomes rerun replay; each re-scoped row carries an `amendment_2` note. CASE NOTES: `case_notes` records pilot findings D-060..D-071 as named cases against the registration whose boundary they exercise; a note prefixed `future case` names coverage that does not exist yet. This file contains no prompts, executable evaluators, or alternate product logic.",
   "catalog_version": "catalog.v1",
   "registration_schema": "EvaluationRegistrationV1",
   "registrations": [
@@ -364,6 +364,83 @@
       "case_budget": 8,
       "case_notes": [
         "amendment_2 (PRD-003 SS25.2, D-076): the \"checkpoint restart\" leg becomes rerun replay -- a rerun uses a new `stage_run_id`, deterministic artifact identities make recommits no-ops, and restart at committed boundaries must produce NO duplicate artifacts and the same terminal outcome. No checkpoint is consulted; the stage runs as a plain sequential coordinator."
+      ] },
+    { "eval_id": "EV-P4-001", "kind": "policy", "owner": "PRD-004 — estimation harness",
+      "boundary": "entry, frozen plan, capacity recheck, and result-exposure wall — estimation harness",
+      "fixture_focus": "stale/mismatched handoff, plan drift, capacity overflow, and premature outcome access",
+      "trigger": "entry/plan/capacity change + release", "case_budget": 8,
+      "hard_pass_condition": "estimator sees the outcome only after every frozen precondition passes",
+      "case_notes": [
+        "amendment_1 (PRD-004 SS26.2, D-083): the shared validation report's wall bound widens from 10 to 15, so the SS18 walls this row gates number natively and wall 8 checks per-item uncertainty inline on `PrimaryContrastResult`.",
+        "D-089b: the approved design facts an estimator cannot run without -- the RDD cutoff and its assignment direction -- must reach `estimator_parameters`; a plan compiled without one estimates at the adapter's own fallback. Keep a case where the design names a fact the artifacts do not carry (`missing_plan_field`)."
+      ] },
+    { "eval_id": "EV-P4-002", "kind": "numerical", "owner": "PRD-004 — RCT component",
+      "boundary": "randomized-experiment adapter — RCT component",
+      "fixture_focus": "two/multi-arm contrasts, comparator, clustering, attrition, noncompliance, multiplicity, and reference parity",
+      "trigger": "RCT adapter/profile change + release", "case_budget": 8,
+      "hard_pass_condition": "all approved contrasts and mandatory multiplicity match registered tolerances", "case_notes": [] },
+    { "eval_id": "EV-P4-003", "kind": "numerical", "owner": "PRD-004 — AIPW component",
+      "boundary": "AIPW adapter — AIPW component",
+      "fixture_focus": "ATE/ATT, folds, nuisance profiles, overlap, clipping rules, leakage traps, and reference parity",
+      "trigger": "AIPW adapter/profile change + release", "case_budget": 8,
+      "hard_pass_condition": "one approved profile, reproducible folds, no leakage, and estimate/uncertainty parity",
+      "case_notes": [
+        "D-089 (T-027, T-029): wall-6 receipts are measured, not asserted -- a fold fit reaches its rows only through the ledger that receipts what it handed over, so keep the leakage trap that swaps the registered fold fit; and the coordinator commits what the adapter dealt -- the `CrossFitAssignment` beside its restricted row-to-fold mapping and out-of-fold prediction objects, neither of which ever reaches an envelope, an event, or a diagnostic value."
+      ] },
+    { "eval_id": "EV-P4-004", "kind": "numerical", "owner": "PRD-004 — DiD component",
+      "boundary": "simultaneous-DiD adapter — DiD component",
+      "fixture_focus": "common adoption, clustering, support, trends, event time, and reference parity",
+      "trigger": "simultaneous-DiD change + release", "case_budget": 8,
+      "hard_pass_condition": "registered aggregate primary and supporting event-time results pass",
+      "case_notes": [
+        "D-089 (T-028): a repeated cross-section is refused under BOTH DiD profiles -- unit fixed-effect saturation aborts the pyfixest fit before it runs; keep that refusal as a visible case, not a silent fallback."
+      ] },
+    { "eval_id": "EV-P4-005", "kind": "numerical", "owner": "PRD-004 — DiD component",
+      "boundary": "staggered-DiD adapter — DiD component",
+      "fixture_focus": "cohorts, never/not-yet-treated comparisons, support/composition, and reference parity",
+      "trigger": "staggered-DiD change + release", "case_budget": 8,
+      "hard_pass_condition": "staggered profile remains distinct and registered aggregate/diagnostics pass",
+      "case_notes": [
+        "D-089 (T-028): pyfixest 0.60 ships no `sunab()`, so Sun-Abraham is the saturated event study plus a registered cohort-share delta-method aggregation over the library's own vcov; the not-yet-treated pool is never-treated union the last cohort. Pin both against reference values."
+      ] },
+    { "eval_id": "EV-P4-006", "kind": "numerical", "owner": "PRD-004 — RDD component",
+      "boundary": "sharp-RDD adapter — RDD component",
+      "fixture_focus": "one cutoff, direction, bandwidth, mass points, density, continuity, and reference parity",
+      "trigger": "RDD adapter/profile change + release", "case_budget": 8,
+      "hard_pass_condition": "no cutoff/model substitution and estimate/robust inference pass tolerance",
+      "case_notes": [
+        "D-089 (T-028): the placebo branch fails visibly on narrow support rather than widening the window; a failed branch is reported failed and never omitted.",
+        "D-089b: the cutoff under test must be the approved one and not 0.0, so a fixture whose approved cutoff is nonzero is required -- a dropped design fact would otherwise pass."
+      ] },
+    { "eval_id": "EV-P4-007", "kind": "contract", "owner": "PRD-004 — deterministic task fan-out/fan-in",
+      "boundary": "uncertainty, diagnostics, and sensitivities — deterministic task fan-out/fan-in",
+      "fixture_focus": "contribution counts, convergence, every registered severity, prespecified branches, missing/non-computable rules",
+      "trigger": "diagnostic/sensitivity change + release", "case_budget": 8,
+      "hard_pass_condition": "all required tasks terminate visibly and frozen results never change their plan",
+      "case_notes": [
+        "amendment_1 (PRD-004 SS26.1, D-083): the \"at most eight concurrent tasks\" clause of SS7/SS19 is an UPPER BOUND; V1 runs diagnostics and sensitivities sequentially in registered order at concurrency one, with the same deterministic ordering and the same requirement that every branch reach a visible terminal result.",
+        "amendment_1 (PRD-004 SS26.2, D-083): `DiagnosticBundle`, `SensitivityBundle`, `FigureDataBundle`, and `UncertaintyBundle` consolidate into one `EvidenceBundleV1` per kind; every identity, ordering, completeness, and lineage requirement binds unchanged on the generic bundle, and no separate uncertainty artifact exists."
+      ] },
+    { "eval_id": "EV-P4-008", "kind": "policy", "owner": "PRD-004 — claim worker and deterministic validator",
+      "boundary": "claim review and judgment ceiling — claim worker and deterministic validator",
+      "fixture_focus": "supported/unsupported claims, qualifications, contradictory evidence, ceiling levels, malformed output, and corrections",
+      "trigger": "claim prompt/context/schema/ceiling change + release", "case_budget": 8,
+      "hard_pass_condition": "one evidence-linked item per primary contrast and no claim exceeds its ceiling",
+      "case_notes": [
+        "amendment_1 (PRD-004 SS26.1, D-083): claim review is the ONE model call the stage makes; the four representative live Vertex cases of SS20.6 belong to this row alone."
+      ] },
+    { "eval_id": "EV-P4-009", "kind": "contract", "owner": "PRD-004 — deterministic builders",
+      "boundary": "figure-data builders and result freeze — deterministic builders",
+      "fixture_focus": "every visual-evidence family, lineage mismatch, hidden transform, changed parent, and replay",
+      "trigger": "builder/schema change + release", "case_budget": 8,
+      "hard_pass_condition": "figure data contains only frozen registered values with exact parent hashes", "case_notes": [] },
+    { "eval_id": "EV-P4-010", "kind": "contract", "owner": "PRD-004 — estimation coordinator",
+      "boundary": "graph restart, design-conflict return, observability, and PRD-005 handoff — estimation coordinator",
+      "fixture_focus": "committed-boundary restarts, trace outages, semantic conflicts, result cardinality, and manifest mismatch",
+      "trigger": "graph/handoff/observability change + release", "case_budget": 8,
+      "hard_pass_condition": "no duplicate estimate, only PRD-002 receives conflicts, and only exact frozen evidence advances",
+      "case_notes": [
+        "amendment_1 (PRD-004 SS26.1, D-083): the \"graph restart\" leg becomes rerun replay -- run twice, no duplicate artifacts, same terminal outcome; there is no checkpointer, `StateGraph`, or interrupt in this stage, and `graph_thread_id` remains a recorded identity for trace threading only. D-089d: that rerun leg is exercised once per registered pack (RCT, AIPW, DiD, sharp RDD) through the one coordinator over the four-adapter factory map the runtime constructs."
       ] }
   ]
 }

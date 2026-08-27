@@ -125,7 +125,8 @@ def approved_design(deps: PreparationDeps, analysis_id: str, method: str, data: 
                     indicators: Sequence[str] = ("outcome_observed",),
                     roles: Mapping[str, str] | None = None,
                     contrasts: Sequence[str] = ("treated_vs_control",),
-                    cardinalities: Mapping[str, int] | None = None) -> str:
+                    cardinalities: Mapping[str, int] | None = None,
+                    structure: Mapping[str, str] | None = None) -> str:
     """Commit the approved PRD-002 chain the §4 gate reads, and return its DesignOutcome id.
 
     The role map, the approved primary contrasts, and the delivery-capacity cardinalities are
@@ -173,7 +174,7 @@ def approved_design(deps: PreparationDeps, analysis_id: str, method: str, data: 
         "required_missingness_indicators": list(indicators), "type_constraints": {},
         "required_final_diagnostics": list(pack.required_postrepair_diagnostic_ids),
         "deletion_impact_dimensions": list(pack.dimension_impact_dimensions),
-        "method_structure": STRUCTURE.get(method, {})}, (design,))
+        "method_structure": dict(structure or STRUCTURE.get(method, {}))}, (design,))
     view = commit(deps, analysis_id, "CausalGraphView", {"nodes": sorted(roles)}, (contract,))
     checked = commit(deps, analysis_id, "DeliveryCapacityCheck", capacity, (view,))
     approval = commit(deps, analysis_id, "DesignApproval", {"decision": "approved"}, (design,))

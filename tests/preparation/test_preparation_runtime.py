@@ -38,13 +38,13 @@ def test_run_after_approval_dispatches_preparation_and_status_follows(
     done = runtime.run(analysis_id, expected_stage_run=stage_run, idempotency_key="k-prepare")
     started = failures.latest_preparation_run(conn, analysis_id)
     assert started is not None and started.stage_run_id == f"pr:{analysis_id}:1"
-    assert done.stage_run_id == started.stage_run_id
     # T-013 Amendment 9 (D-077): a live design now binds its capacity check and parents its
     # pre-repair report, so the §4 gate admits the handoff and PRD-003 reaches its own terminal.
-    assert done.error_code != "entry_validation_failed"
-    assert (done.status, done.error_code) == ("prepared", None)
-    assert runtime.status(analysis_id) == composition.StatusView(
-        analysis_id=analysis_id, stage="preparation", state="completed", next_command=None)
+    outcome = failures.payload(runtime.deps, str(started.outcome_artifact_id))
+    assert (started.state, outcome["status"]) == ("completed", "prepared")
+    # T-029: one `run` does not stop at `prepared` — the same command opens PRD-004's revision.
+    assert done.stage_run_id == f"es:{analysis_id}:1"
+    assert runtime.status(analysis_id).stage == "estimation"
 
 
 def poisoned(self: Any, state: Any) -> dict[str, Any]:

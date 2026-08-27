@@ -13,7 +13,7 @@
         "multiplicity_policy_id": "holm_step_down.v1"
       },
       "estimator_input_schema": {
-        "treatment": ["categorical"], "outcome": ["numeric", "binary"],
+        "treatment": ["categorical", "binary"], "outcome": ["numeric", "binary"],
         "unit_identifier": ["identifier"], "stratum": ["categorical"],
         "cluster": ["identifier"], "precision_covariate": ["numeric", "categorical"]
       },
@@ -85,6 +85,7 @@
         "unit_identifier": ["identifier"], "adjustment_covariate": ["numeric", "categorical"],
         "missingness_indicator": ["binary"], "cluster": ["identifier"]
       },
+      "estimator_role_aliases": {"confounder_candidate": "adjustment_covariate", "precision_covariate": "adjustment_covariate"},
       "allowed_mask_rule_ids": [
         "outcome_observed", "cross_fit_predicted", "approved_target_population"
       ],
@@ -253,6 +254,7 @@
         "unit_identifier": ["identifier"], "predetermined_covariate": ["numeric", "categorical"],
         "cluster": ["identifier"]
       },
+      "estimator_role_aliases": {"precision_covariate": "predetermined_covariate", "confounder_candidate": "predetermined_covariate"},
       "allowed_mask_rule_ids": ["selected_bandwidth", "donut_exclusion", "cutoff_side"],
       "uncertainty_method": "robust_bias_corrected_variance",
       "finite_sample_correction": "nearest_neighbour_variance",

@@ -164,7 +164,7 @@ class EstimationNodes(eh.HarnessBase):
             code = str(getattr(error, "code", PRIMARY_NOT_ESTIMABLE))
             self.emit(state, "tool.failed", eh.EVAL_STAGE, severity=eh.ERROR, error_code=code)
             return self.fail(state, code, NOT_ESTIMABLE)
-        self.harvest = dict(fitted.harvest)
+        self.harvest = self.record_fit(state, plan, fitted)
         if not fitted.items:
             return self.fail(state, PRIMARY_NOT_ESTIMABLE, NOT_ESTIMABLE)
         return self._freeze_result(state, plan, fitted.items)
@@ -381,7 +381,7 @@ class EstimationNodes(eh.HarnessBase):
             runnable_frame_contract=book.runnable_frame_contract, row_set_hash=book.row_set_hash,
             capacity_check=book.capacity_check, plan=self.ref(state, "EstimationPlan"),
             context_manifest=self.ref(state, "EstimationContextManifest"),
-            contribution_masks=self.frozen["mask_refs"], cross_fit_assignments=(),
+            contribution_masks=self.frozen["mask_refs"], cross_fit_assignments=self.dealt,
             primary_result=self.ref(state, "PrimaryAnalysisResult"),
             multiplicity_result=self.ref(state, "MultiplicityResult")
             if "MultiplicityResult" in state["artifacts"] else None,

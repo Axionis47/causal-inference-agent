@@ -336,19 +336,21 @@ class CrossFitRun:
             self.folds.size), "nuisance_profile_id": self.profile_id} | {
             f"{name}_hex": np.asarray(row, np.float64).tobytes().hex() for name, row in arrays}
 
+    def mapping_payload(self) -> dict[str, object]:
+        return mapping_object_payload(self.folds, seed=self.seed, count=self.fold_count)
 
-def cross_fit_assignment(plan: ec.EstimationPlanV1, run: CrossFitRun,
-                         mapping_object: ec.ObjectRefV1, *, plan_ref: ArtifactRef,
-                         parents: tuple[ArtifactRef, ...]) -> ec.CrossFitAssignmentV1:
-    # The §10.2 assignment artifact: what was dealt, by which algorithm, under which recipe and
-    # nuisance profile. It records the deal; it never re-deals one.
-    rule = plan.fold_assignment_rule_id
-    return ec.CrossFitAssignmentV1(
-        parents=parents, versions=dict(plan.versions), plan=plan_ref, fold_count=run.fold_count,
-        assignment_algorithm_id=ASSIGNMENT_ALGORITHM, mapping_object=mapping_object,
-        stratification_rule_ids=(rule,) if rule else (), counts_by_fold=dict(run.counts_by_fold),
-        nuisance_profile_id=run.profile_id,
-        preprocessing_recipe_version=",".join(plan.preprocessing_recipe_ids) or "identity")
+    def assignment(self, plan: ec.EstimationPlanV1, mapping_object: ec.ObjectRefV1, *,
+                   plan_ref: ArtifactRef,
+                   parents: tuple[ArtifactRef, ...]) -> ec.CrossFitAssignmentV1:
+        # The §10.2 assignment artifact: what was dealt, by which algorithm, under which recipe
+        # and nuisance profile. It records the deal; it never re-deals one.
+        rule = plan.fold_assignment_rule_id
+        return ec.CrossFitAssignmentV1(
+            parents=parents, versions=dict(plan.versions), plan=plan_ref,
+            fold_count=self.fold_count, assignment_algorithm_id=ASSIGNMENT_ALGORITHM,
+            mapping_object=mapping_object, counts_by_fold=dict(self.counts_by_fold),
+            stratification_rule_ids=(rule,) if rule else (), nuisance_profile_id=self.profile_id,
+            preprocessing_recipe_version=",".join(plan.preprocessing_recipe_ids) or "identity")
 
 
 def harvest(view: pl.DataFrame, roles: Mapping[str, str], plan: ec.EstimationPlanV1,

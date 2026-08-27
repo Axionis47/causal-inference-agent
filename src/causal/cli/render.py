@@ -28,6 +28,10 @@ SUMMARIES: Final[dict[str, str]] = {
 _ANSWER_COMMANDS: Final = ("select-table", "answer-context", "approve-design")
 # The PRD-003 §5.2 terminals; the CLI reads them from the stage status the result carries.
 _PREPARATION: Final = ("prepared", "design_conflict", "not_runnable")
+# The PRD-004 §5.2 terminals a `causal run` reports, beside the shared `design_conflict`.
+_ESTIMATION: Final = ("complete", "not_estimable", "invalidated")
+# Both later stages return a `design_conflict`; the stage run id says which one raised it.
+_STAGES: Final[dict[str, str]] = {"pr": "Preparation", "es": "Estimation"}
 
 
 def render(result: CliResultV1, output_format: str) -> str:
@@ -58,23 +62,37 @@ def render_human(result: CliResultV1) -> str:
     if result.blocker_event_id is not None:
         lines.append(f"Blocker event: {result.blocker_event_id}")
     lines.extend(_preparation(result))
+    lines.extend(_estimation(result))
     if result.next_command_name is not None:
         lines.append(f"Next command: {_next_command(result)}")
     return "\n".join(lines)
 
 
 def _preparation(result: CliResultV1) -> list[str]:
-    """The PRD-003 terminal, when this result is one; §16 sends a conflict back to design."""
+    """The later stage's terminal, when this result is one; §16 sends a conflict to design."""
     status = str(result.message_args.get("design_status", ""))
     if status not in _PREPARATION:
         return []
-    lines = [f"Preparation: {status}"]
+    lines = [f"{_STAGES.get(str(result.stage_run_id or '')[:2], 'Preparation')}: {status}"]
     if status == "design_conflict":
         # No V1 command resolves a conflict inside preparation: the design is what changes.
         revision = int(result.message_args.get("design_revision", 1)) + 1
         lines.append(f"Conflict: {result.error_code}")
         lines.append(f"Next command: re-run design as revision {revision}")
     return lines
+
+
+def _estimation(result: CliResultV1) -> list[str]:
+    """The PRD-004 terminal, when this result is one: the outcome and what follows it."""
+    status = str(result.message_args.get("design_status", ""))
+    if status not in _ESTIMATION:
+        return []
+    lines = [f"Estimation: {status}"]
+    if status == "complete":
+        # §22: the estimation bundle is what PRD-005 opens on; nothing else advances.
+        return [*lines, f"Next command: causal presentation {result.analysis_id or ''}".rstrip()]
+    # §5.2: a run that reached no reportable claim names its reason and stops there.
+    return [*lines, f"Reason: {result.error_code}", "Next command: none; the run is terminal"]
 
 
 def _next_command(result: CliResultV1) -> str:

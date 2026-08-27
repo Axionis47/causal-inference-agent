@@ -12,7 +12,7 @@ import sys
 import uuid
 from collections.abc import Callable
 from pathlib import Path
-from typing import IO, Annotated, Any, Final, Literal, Protocol, Self, get_args
+from typing import IO, Annotated, Any, Final, Literal, Protocol, Self, cast, get_args
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
@@ -49,13 +49,14 @@ INTERRUPT_COMMANDS: Final[dict[str, CommandName]] = {
 EXIT_CODES: Final[dict[str, int]] = {
     "accepted": 0, "completed": 0, "needs_user_input": 2, "blocked": 3, "failed": 4,
     "failed_observability": 5}
-# Terminal design statuses (PRD-002 §6) mapped onto the six CLI statuses.
-DESIGN_STATUS: Final[dict[str, CliStatus]] = {
-    "needs_user_input": "needs_user_input", "approved": "completed", "needs_context": "completed",
-    "changes_requested": "completed", "declined": "completed", "refused": "blocked",
-    "failed": "failed", "failed_observability": "failed_observability",
-    # PRD-003 §5.2: a conflict or an unrunnable frame still completes the preparation stage.
-    "prepared": "completed", "design_conflict": "completed", "not_runnable": "completed"}
+# Terminal stage statuses (PRD-002 §6, PRD-003 §5.2, PRD-004 §5.2) mapped onto the six CLI
+# statuses: a conflict, an unrunnable frame, and an unestimable result all still complete
+# their stage, so only a refusal or a crash leaves the completed set.
+DESIGN_STATUS: Final[dict[str, CliStatus]] = cast(Any, dict.fromkeys((
+    "approved", "needs_context", "changes_requested", "declined", "prepared", "design_conflict",
+    "not_runnable", "complete", "not_estimable", "invalidated"), "completed")) | {
+    "needs_user_input": "needs_user_input", "refused": "blocked", "failed": "failed",
+    "failed_observability": "failed_observability"}
 MESSAGE_BY_STATUS: Final[dict[str, MessageKey]] = {
     "accepted": "command.accepted", "completed": "stage.finished",
     "needs_user_input": "interrupt.open", "blocked": "command.blocked",
