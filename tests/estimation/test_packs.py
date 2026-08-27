@@ -183,7 +183,7 @@ class TestEstimationArtifactRow:
 
 
 def test_presentation_reads_the_handoff_types_only() -> None:
-    assert len(ARTIFACT_TYPES) == 51
+    assert len(ARTIFACT_TYPES) == 56
     for artifact_type in ("EstimationBundle", "EstimationEvidenceBundle", "FigureDataArtifact"):
         assert "presentation-coordinator" in ARTIFACT_TYPES.lookup(
             artifact_type).allowed_reader_components
