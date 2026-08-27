@@ -5,3 +5,7 @@ __pycache__/
 .venv/
 
 .claude/worktrees/
+
+# Runtime output roots (RuntimeConfig defaults under repo_root).
+logs/
+renders/
