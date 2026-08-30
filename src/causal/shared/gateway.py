@@ -6,10 +6,11 @@ import hashlib
 import json
 from collections.abc import Callable
 from datetime import datetime
-from typing import Annotated, Final, Literal, Protocol
+from typing import Annotated, Any, Final, Literal, Protocol
 
 from google import genai
 from google.genai import errors, types
+from langsmith import traceable
 from pydantic import BaseModel, ConfigDict, Field
 
 from causal.shared.envelope import AgentTaskEnvelopeV1
@@ -118,6 +119,7 @@ class TransportResponse(BaseModel):
     model_config = _MODEL_CONFIG
 
     text: str
+    reasoning: str = ""
     token_usage: dict[str, Annotated[int, Field(ge=0)]]
     finish_reason: str
 
@@ -153,6 +155,7 @@ class GatewayResultV1(BaseModel):
     model_config = _MODEL_CONFIG
 
     text: str
+    reasoning: str = ""
     parsed: dict[str, object] | None
     token_usage: dict[str, Annotated[int, Field(ge=0)]]
     attempts: Annotated[int, Field(ge=1)]
@@ -207,7 +210,8 @@ class VertexGateway:
                 self._emit(envelope, "retry.scheduled", attempt, error, Severity.WARNING)
                 continue
             return GatewayResultV1(
-                text=response.text, parsed=_parse_json(response.text),
+                text=response.text, reasoning=response.reasoning,
+                parsed=_parse_json(response.text),
                 token_usage=dict(response.token_usage), attempts=attempt, seed=seed)
 
     def _settings(self, seed: int, response_schema: dict[str, object]) -> GenerationSettingsV1:
@@ -256,6 +260,14 @@ def _token_usage(usage: types.GenerateContentResponseUsageMetadata | None) -> di
     }
 
 
+def _traced_inputs(inputs: dict[str, Any]) -> dict[str, Any]:
+    """Span inputs for one model call: drop the bound transport, keep prompt and settings."""
+    settings = inputs.get("settings")
+    return {
+        "model_id": inputs.get("model_id"), "prompt": inputs.get("prompt"),
+        "settings": settings.model_dump(mode="json") if settings is not None else None}
+
+
 class GenAiTransport:
     """Live google-genai 2.19.0 adapter; the project comes from ADC and is never logged."""
 
@@ -274,6 +286,7 @@ class GenAiTransport:
                     retry_options=types.HttpRetryOptions(attempts=1)))
         return self._client
 
+    @traceable(run_type="llm", name="vertex.generate", process_inputs=_traced_inputs)
     def generate(
         self, model_id: str, prompt: str, settings: GenerationSettingsV1
     ) -> TransportResponse:
@@ -284,7 +297,7 @@ class GenAiTransport:
             seed=settings.seed,
             max_output_tokens=settings.max_output_tokens,
             thinking_config=types.ThinkingConfig(
-                thinking_budget=settings.thinking_budget_tokens, include_thoughts=False),
+                thinking_budget=settings.thinking_budget_tokens, include_thoughts=True),
             response_mime_type=settings.response_mime_type,
             response_schema=dict(settings.response_schema),
             automatic_function_calling=types.AutomaticFunctionCallingConfig(
@@ -300,6 +313,18 @@ class GenAiTransport:
         return _to_transport_response(response)
 
 
+def _split_parts(response: types.GenerateContentResponse) -> tuple[str, str]:
+    """Answer text and reasoning text. `include_thoughts` puts both in `parts`, and
+    `response.text` concatenates them, so the thought parts must be separated here or they
+    reach the JSON parser (SC §10.4, D-097)."""
+    candidates = response.candidates or ()
+    content = candidates[0].content if candidates else None
+    parts = (content.parts if content is not None else None) or ()
+    answer = "".join(part.text for part in parts if part.text and not part.thought)
+    reasoning = "".join(part.text for part in parts if part.text and part.thought)
+    return (answer or (response.text or "")) if not reasoning else answer, reasoning
+
+
 def _to_transport_response(response: types.GenerateContentResponse) -> TransportResponse:
     """Reduce an SDK response, raising on a provider safety stop before any text is read."""
     candidates = response.candidates or ()
@@ -308,6 +333,7 @@ def _to_transport_response(response: types.GenerateContentResponse) -> Transport
     if reason in _SAFETY_FINISH_REASONS:
         raise TransportError(
             f"provider stopped generation: {reason}", PROVIDER_SAFETY_REJECTION, retryable=False)
+    answer, reasoning = _split_parts(response)
     return TransportResponse(
-        text=response.text or "", token_usage=_token_usage(response.usage_metadata),
+        text=answer, reasoning=reasoning, token_usage=_token_usage(response.usage_metadata),
         finish_reason=reason)

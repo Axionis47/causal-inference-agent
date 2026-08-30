@@ -328,9 +328,7 @@ class HarnessBase:
                                        for item in plan.items),
             "capacity_still_pass": self.entry_body(
                 state, "DeliveryCapacityCheck").get("status") == "pass",
-            # SC §8.2 completes a commit only after an acknowledged flush, so every artifact
-            # above is proof its own span was delivered (an outage raises before this node).
-            "spans_acknowledged": True}
+            "spans_acknowledged": self.deps.committer.spans_acknowledged}
 
     def postcondition(self, state: PreparationState, item: pp.PlanItemV1, before: pl.DataFrame,
                       after: pl.DataFrame) -> pc.PreparationDiagnosticV1:

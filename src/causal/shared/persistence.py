@@ -250,6 +250,18 @@ class ArtifactCommitter:
         self._registry = registry
         self._emitter = emitter
         self._tracer = tracer
+        self._flushes = 0
+
+    @property
+    def spans_acknowledged(self) -> bool:
+        """Whether this run's trace spans reached LangSmith.
+
+        LangGraph's node instrumentation fills the trace queue (PRD-002 §20.4, D-097) and each
+        commit flushes it, raising `ObservabilityError` on a failure. So an attached tracer plus
+        one completed flush means nothing was lost. No tracer means the run required none —
+        composition is fail-closed when tracing is required (SC §10.2).
+        """
+        return self._tracer is None or self._flushes > 0
 
     def _validate(self, envelope: ArtifactEnvelopeV1, payload: dict[str, object]) -> bytes:
         digest = content_hash(payload)
@@ -318,4 +330,5 @@ class ArtifactCommitter:
             # object are already durable here, so ObservabilityError propagates to the caller
             # (which maps it to failed_observability) over a preserved artifact.
             self._tracer.flush()
+            self._flushes += 1
         return envelope

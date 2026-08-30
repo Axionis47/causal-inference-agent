@@ -9,3 +9,6 @@ __pycache__/
 # Runtime output roots (RuntimeConfig defaults under repo_root).
 logs/
 renders/
+
+# Local credentials and run configuration; never committed.
+.env.local
