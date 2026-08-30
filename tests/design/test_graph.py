@@ -438,8 +438,8 @@ class TestAskGate:
         assert '"event_name":"user_interrupt.created"' in sink.getvalue()
         answered = graph.resume_design(deps, thread_id=opened.thread_id, resume_value={
             "schema_version": "user-context-answer.v1", "packet_id": "qp:1:1",
-            "answers": [{"question_id": "q:column.measurement_timing",
-                         "answer_kind": "value", "value": "post_treatment"}],
+            "answers": [{"question_id": "q:column.measurement_timing", "answer_kind": "value",
+                         "value": "earnings=post_treatment"}],
             "provenance": "user"})
         assert answered.interrupt_kind == "approval"
         done = graph.resume_design(
@@ -451,6 +451,20 @@ class TestAskGate:
             ("column.measurement_timing",)).fetchone()
         assert state == ("resolved",)
 
+
+    def test_invented_ids_are_dropped_and_a_prefixed_column_scope_is_folded(
+        self, conn: Any, object_store: ObjectStore, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Nothing in production mints these, so the model's inventions are filtered (D-100)."""
+        stub_renderer(monkeypatch)
+        start(conn, object_store, gateway=asking_gateway(
+            TIMING_REQUIREMENT,
+            TIMING_REQUIREMENT | {"scope_id": "nsw.csv::earnings"},
+            TIMING_REQUIREMENT | {"requirement_id": "req:invented_timing"}))
+        rows = conn.execute(
+            "SELECT requirement_id, scope_id FROM design.context_requirements"
+            " ORDER BY requirement_id, scope_id").fetchall()
+        assert rows == [("column.measurement_timing", "earnings")]
 
     def test_two_unknown_rounds_end_the_revision_as_needs_context(
         self, conn: Any, object_store: ObjectStore
@@ -474,13 +488,14 @@ def unknown_answer(packet_id: str) -> dict[str, Any]:
                          "answer_kind": "unknown", "value": None}], "provenance": "user"}
 
 
-def asking_gateway() -> ScriptedGateway:
+def asking_gateway(*raised: dict[str, Any]) -> ScriptedGateway:
     """An intent reply that raises one blocking, user-answerable requirement."""
     gateway = ScriptedGateway()
     original = gateway.default
 
     def default(key: str, envelope: AgentTaskEnvelopeV1, **over: Any) -> dict[str, Any]:
-        extra = {"missing_requirements": [TIMING_REQUIREMENT]} if key == "intent" else {}
+        rows = list(raised) or [TIMING_REQUIREMENT]
+        extra = {"missing_requirements": rows} if key == "intent" else {}
         return original(key, envelope, **extra | over)
 
     gateway.default = default  # type: ignore[method-assign]

@@ -221,8 +221,8 @@ class PipelineNodes(HarnessBase):
         """One clarification round: packet, durable interrupt, typed answers (PRD-002 §11.1)."""
         book = self._model(state, "DesignContextManifest", contracts.DesignContextManifestV1)
         columns = [row.column_name for row in book.structural_inventory]
-        packet = askgate.build_packet([row for row in frozen if row.requirement_id in asking],
-                                      state["design_revision"], round_number, columns)
+        rows = [row for row in frozen if row.requirement_id in asking]
+        packet = askgate.build_packet(rows, state["design_revision"], round_number, columns)
         opened = self._commit(state, "UserQuestionPacket", packet.canonical_payload(),
                               self._parents(state, "DesignContextManifest"))
         self._emit(state, "user_interrupt.created", EVAL_ASK, status="clarification",
@@ -233,11 +233,14 @@ class PipelineNodes(HarnessBase):
             "design_revision": state["design_revision"], "round_number": round_number,
             "packet": packet.canonical_payload()}))
         stored = self._commit(state, "UserContextAnswer", answer.canonical_payload(), (opened,))
-        index = {row.requirement_id: row for row in frozen}
-        for outcome in askgate.validate_answers(packet, answer, index, columns):
-            self.requirements.set_state(
-                state["analysis_id"], state["design_revision"], outcome.requirement_id,
-                index[outcome.requirement_id].scope_id, outcome.state, stored.artifact_id)
+        # Grouped, not keyed: `frozen` is unique by (requirement_id, scope_id), so a dict keyed by
+        # requirement id alone would settle the last-sorted scope and silently drop the rest (D-100).
+        grouped = askgate.group(rows, columns)
+        for outcome in askgate.validate_answers(packet, answer, grouped, columns):
+            for scope_id in outcome.scope_ids:
+                self.requirements.set_state(
+                    state["analysis_id"], state["design_revision"], outcome.requirement_id,
+                    scope_id, outcome.state, stored.artifact_id)
         self._emit(state, "user_interrupt.resumed", EVAL_ASK, status="clarification")
         return self._out(state, stage="gate_again", clarification_round=round_number,
                          answer_ids=[*state["answer_ids"], stored.artifact_id])
@@ -257,6 +260,9 @@ class PipelineNodes(HarnessBase):
                 kind: self._ref(state, kind).model_dump(mode="json") for kind in
                 ("TableSelection", "MeasurementMap", "CausalContext", "RoleLedger")},
             "role_ledger": self._payload(state["artifacts"]["RoleLedger"]),
+            # Without this an answer only unblocks the gate: no model ever reads what the
+            # analyst said, so the design is drawn without it (D-100).
+            "user_answers": [self._payload(found) for found in state["answer_ids"]],
             "method_contracts": [self.deps.packs.get(name).model_dump(mode="json")
                                  for name in eligible]}
         common = {"role_ledger": ledger, "causal_context": self._model(

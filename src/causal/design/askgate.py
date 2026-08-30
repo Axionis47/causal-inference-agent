@@ -33,7 +33,7 @@ __all__ = [
     "CHOICE_PREFIX", "CLOSED_ANSWER_SCHEMAS", "MAX_QUESTIONS", "MAX_ROUNDS", "AnswerOutcome",
     "AskGateError", "GateDecision", "GateRoute", "PsycopgRequirementStore", "RequirementState",
     "RequirementStore", "build_packet", "evidence_class_for", "freeze_requirements", "gate",
-    "schema_declared", "validate_answers",
+    "group", "schema_declared", "validate_answers",
 ]
 
 MAX_QUESTIONS: Final = 5
@@ -45,9 +45,11 @@ TERMINAL_STATUSES: Final = EXHAUSTED_STATUSES | {"evidenced"}
 CHOICE_PREFIX: Final = "choice:"
 CLOSED_ANSWER_SCHEMAS: Final = frozenset({
     "free_text", "iso_date", "boolean", "column_name", "free-text.v1", "column-list.v1",
-    "enum-choice.v1", "duration-window.v1", "level-map.v1", "timing-class.v1", "mapping-list.v1"})
+    "duration-window.v1", "level-map.v1", "timing-class.v1", "mapping-list.v1"})
 _DURATION: Final = re.compile(r"^\d+ (day|week|month|year)s?$")
 _PAIRS: Final = re.compile(r"^[^=,\s]+=[^=,]+(,[^=,\s]+=[^=,]+)*$")
+# A pair answer carries one value per scope, so it resolves only the scopes it names.
+_PAIR_SCHEMAS: Final = frozenset({"level-map.v1", "mapping-list.v1"})
 # Evidence class by id family (PRD-002 §10.2); measured facts are `artifact#/pointer` ids.
 EVIDENCE_CLASS_PREFIXES: Final[tuple[tuple[str, EvidenceClass], ...]] = (
     ("ua:", EvidenceClass.USER_CONFIRMATION), ("ev:kaggle/", EvidenceClass.DATA_DICTIONARY),
@@ -87,9 +89,10 @@ class GateDecision(_Row):
 
 
 class AnswerOutcome(_Row):
-    """One requirement's state after the user's typed answer."""
+    """One requirement's state after the user's typed answer, at every scope it settled."""
 
     requirement_id: Identity
+    scope_ids: tuple[Identity, ...]
     state: RequirementState
     value: str | None
 
@@ -137,7 +140,6 @@ def _valid_answer(schema_id: str, value: str, columns: Sequence[str]) -> bool:
         return bool(parts) and all(part in columns for part in parts)
     return {"free_text": bool(value.strip()), "free-text.v1": bool(value.strip()),
             "boolean": value in ("true", "false"), "column_name": value in columns,
-            "enum-choice.v1": bool(value) and " " not in value,
             "duration-window.v1": _DURATION.match(value) is not None,
             "level-map.v1": _PAIRS.match(value) is not None,
             "mapping-list.v1": _PAIRS.match(value) is not None,
@@ -206,25 +208,37 @@ def _priority(req: ContextRequirementV1, columns: Sequence[str]) -> tuple[int, i
     return (2, 0, req.requirement_id)
 
 
+def group(asks: Sequence[ContextRequirementV1], column_order: Sequence[str] = (),
+          ) -> dict[str, list[ContextRequirementV1]]:
+    """One entry per requirement id, holding every scope it is open at, in ask priority order."""
+    grouped: dict[str, list[ContextRequirementV1]] = {}
+    for req in sorted(asks, key=lambda item: _priority(item, column_order)):
+        grouped.setdefault(req.requirement_id, []).append(req)
+    return grouped
+
+
 def build_packet(asks: Sequence[ContextRequirementV1], design_revision: int, round_number: int,
                  column_order: Sequence[str] = ()) -> UserQuestionPacketV1:
-    """At most five consolidated questions for one round; overflow stays open for the next."""
+    """At most five consolidated questions for one round; overflow stays open for the next.
+
+    A question names every scope its requirement is open at, because the packet schema has no
+    scope field and an unnamed column is a question no analyst can answer (D-100).
+    """
     if not 1 <= round_number <= MAX_ROUNDS:
         raise AskGateError(f"round {round_number} exceeds the two-round bound", "round_cap")
-    unique: dict[str, ContextRequirementV1] = {}
-    for req in sorted(asks, key=lambda item: _priority(item, column_order)):
-        unique.setdefault(req.requirement_id, req)
-    if not unique:
+    grouped = group(asks, column_order)
+    if not grouped:
         raise AskGateError("no requirement routed to ask", "empty_packet")
     return UserQuestionPacketV1(
         packet_id=f"qp:{design_revision}:{round_number}", design_revision=design_revision,
         round_number=cast(Literal[1, 2], round_number),
         questions=tuple(QuestionItemV1(
-            question_id=f"q:{req.requirement_id}", requirement_ids=(req.requirement_id,),
-            question_text=req.fact_required, why_it_matters=req.why_required,
-            blocked_decisions=req.decisions_blocked,
-            expected_answer_schema=req.expected_answer_schema)
-            for req in list(unique.values())[:MAX_QUESTIONS]))
+            question_id=f"q:{rows[0].requirement_id}", requirement_ids=(rows[0].requirement_id,),
+            question_text=f"{rows[0].fact_required} \u2014 for: "
+                          f"{', '.join(row.scope_id for row in rows)}",
+            why_it_matters=rows[0].why_required, blocked_decisions=rows[0].decisions_blocked,
+            expected_answer_schema=rows[0].expected_answer_schema)
+            for rows in list(grouped.values())[:MAX_QUESTIONS]))
 
 
 # An `ask_user` unknown stays open: the coordinator terminates it after round two (SC §6.2).
@@ -235,25 +249,31 @@ _UNKNOWN_STATES: Final[dict[MissingAction, RequirementState]] = {
 
 
 def _outcome(question: QuestionItemV1, item: AnswerItemV1,
-             requirements: Mapping[str, ContextRequirementV1],
-             columns: Sequence[str]) -> AnswerOutcome:
-    """Resolve by value, or route an `unknown` by the requirement's registered missing action."""
+             rows: Sequence[ContextRequirementV1], columns: Sequence[str]) -> AnswerOutcome:
+    """Settle every scope the answer covers, or route an `unknown` by the missing action.
+
+    A pair answer carries one value per scope, so it settles only the scopes it names and the
+    rest stay open for the next round; any other schema settles them all (D-100).
+    """
     requirement_id = question.requirement_ids[0]
+    if not rows:
+        raise AskGateError(f"no requirement {requirement_id!r}", "unknown_requirement")
+    scopes = tuple(row.scope_id for row in rows)
     if item.answer_kind is AnswerKind.UNKNOWN:
-        requirement = requirements.get(requirement_id)
-        if requirement is None:
-            raise AskGateError(f"no requirement {requirement_id!r}", "unknown_requirement")
-        return AnswerOutcome(requirement_id=requirement_id, value=None,
-                             state=_UNKNOWN_STATES[requirement.missing_action])
-    if not _valid_answer(question.expected_answer_schema, item.value or "", columns):
-        raise AskGateError(f"{item.value!r} fails {question.expected_answer_schema!r}",
-                           "schema_invalid")
+        return AnswerOutcome(requirement_id=requirement_id, scope_ids=scopes, value=None,
+                             state=_UNKNOWN_STATES[rows[0].missing_action])
+    schema = question.expected_answer_schema
+    if not _valid_answer(schema, item.value or "", columns):
+        raise AskGateError(f"{item.value!r} fails {schema!r}", "schema_invalid")
+    if schema in _PAIR_SCHEMAS:
+        named = {pair.split("=", 1)[0] for pair in (item.value or "").split(",")}
+        scopes = tuple(scope for scope in scopes if scope in named)
     return AnswerOutcome(requirement_id=requirement_id, state=RequirementState.RESOLVED,
-                         value=item.value)
+                         scope_ids=scopes, value=item.value)
 
 
 def validate_answers(packet: UserQuestionPacketV1, answer: UserContextAnswerV1,
-                     requirements: Mapping[str, ContextRequirementV1],
+                     requirements: Mapping[str, Sequence[ContextRequirementV1]],
                      column_order: Sequence[str] = ()) -> tuple[AnswerOutcome, ...]:
     """Every packet question answered exactly once and typed; `unknown` is always allowed."""
     if answer.packet_id != packet.packet_id:
@@ -266,8 +286,10 @@ def validate_answers(packet: UserQuestionPacketV1, answer: UserContextAnswerV1,
         raise AskGateError(f"answers outside the packet: {extra}", "unknown_question")
     if absent := sorted(set(asked) - set(given)):
         raise AskGateError(f"unanswered packet questions: {absent}", "missing_answer")
-    return tuple(_outcome(question, given[question_id], requirements, column_order)
-                 for question_id, question in asked.items())
+    return tuple(
+        _outcome(question, given[question_id],
+                 requirements.get(question.requirement_ids[0], ()), column_order)
+        for question_id, question in asked.items())
 
 
 class RequirementStore(Protocol):

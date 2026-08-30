@@ -174,7 +174,7 @@ class HarnessBase:
             manifest=lambda state: self._ref(state, "DesignContextManifest"),
             parents=self._parents, commit=self._commit, emit=self._emit,
             record=self._task_row, exhausted=self._exhausted,
-            upsert=self.requirements.upsert)
+            upsert=self._upsert)
 
     # -- events, artifacts, and committed payloads ------------------------
 
@@ -243,6 +243,20 @@ class HarnessBase:
         bundle = outcome.get("evidence_bundle_artifact_id")
         items = self._payload(str(bundle))["items"] if bundle else []
         return frozenset(str(row["evidence_id"]) for row in items)
+
+    def _upsert(self, raised: Sequence[agent.ContextRequirementV1], analysis_id: str,
+                design_revision: int) -> None:
+        """Only registered ids reach the gate, at one scope convention per column (D-100).
+
+        Nothing in production mints a `requirement_id` or a `scope_id`: both arrive verbatim from
+        a result's `missing_requirements`, and a column is named as either `column` or
+        `table::column`, so one column opens twice. Fold that, and drop the invented ids.
+        """
+        self.requirements.upsert([
+            row if row.scope_kind is not agent.RequirementScopeKind.COLUMN
+            else row.model_copy(update={"scope_id": row.scope_id.rsplit("::", 1)[-1]})
+            for row in raised if row.requirement_id in self.deps.templates],
+            analysis_id, design_revision)
 
     def _requirement_states(self, state: DesignState) -> dict[str, str]:
         """A requirement no worker ever raised was never missing, so it reads as resolved."""

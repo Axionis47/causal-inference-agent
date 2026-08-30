@@ -202,10 +202,11 @@ def test_every_answer_schema_branch(answer_schema: str, value: str, valid: bool)
     packet = packet_for(req)
     submitted = UserContextAnswerV1(packet_id=packet.packet_id, answers=(AnswerItemV1(
         question_id="q:design.causal_question", answer_kind=AnswerKind.VALUE, value=value),))
-    requirements = {req.requirement_id: req}
+    requirements = {req.requirement_id: [req]}
     if valid:
         assert validate_answers(packet, submitted, requirements, COLUMNS) == (AnswerOutcome(
-            requirement_id=req.requirement_id, state=RequirementState.RESOLVED, value=value),)
+            requirement_id=req.requirement_id, scope_ids=(req.scope_id,),
+            state=RequirementState.RESOLVED, value=value),)
         return
     with pytest.raises(AskGateError) as raised:
         validate_answers(packet, submitted, requirements, COLUMNS)
@@ -224,7 +225,7 @@ def test_unknown_answers_route_by_registered_missing_action(
     packet = packet_for(req)
     submitted = UserContextAnswerV1(packet_id=packet.packet_id, answers=(AnswerItemV1(
         question_id="q:design.causal_question", answer_kind=AnswerKind.UNKNOWN, value=None),))
-    outcome = validate_answers(packet, submitted, {req.requirement_id: req}, COLUMNS)[0]
+    outcome = validate_answers(packet, submitted, {req.requirement_id: [req]}, COLUMNS)[0]
     assert (outcome.state, outcome.value) == (state, None)
 
 
@@ -233,7 +234,7 @@ def test_answer_set_must_cover_the_packet_exactly() -> None:
     packet = packet_for(req, other)
     known = AnswerItemV1(question_id="q:design.causal_question", answer_kind=AnswerKind.UNKNOWN,
                          value=None)
-    requirements = {req.requirement_id: req, other.requirement_id: other}
+    requirements = {req.requirement_id: [req], other.requirement_id: [other]}
     cases = {
         "missing_answer": (known,),
         "duplicate_answer": (known, known),
@@ -278,3 +279,39 @@ def test_requirement_store_round_trip(conn: psycopg.Connection[Any]) -> None:
     assert conn.execute(
         "SELECT state, resolving_answer_artifact_id FROM design.context_requirements"
         " WHERE requirement_id = 'design.causal_question'").fetchone() == ("resolved", None)
+
+
+def column_asks(requirement_id: str, schema: str) -> tuple[ContextRequirementV1, ...]:
+    """The same requirement open at three columns, as a live run raises it (D-100)."""
+    return tuple(requirement(requirement_id, scope_kind=RequirementScopeKind.COLUMN,
+                             scope_id=column, answer_schema=schema) for column in COLUMNS)
+
+
+def test_one_question_names_every_scope_its_requirement_is_open_at() -> None:
+    """The packet schema has no scope field, so an unnamed column is unanswerable (D-100)."""
+    questions = packet_for(*column_asks("column.meaning", "free-text.v1")).questions
+    assert len(questions) == 1
+    assert questions[0].question_text.endswith("re74, re75, treat")
+
+
+def test_one_answer_settles_every_scope_it_covers() -> None:
+    asks = column_asks("column.meaning", "free-text.v1")
+    packet = packet_for(*asks)
+    submitted = UserContextAnswerV1(packet_id=packet.packet_id, answers=(AnswerItemV1(
+        question_id="q:column.meaning", answer_kind=AnswerKind.VALUE,
+        value="all three are real earnings in US dollars"),))
+    outcome = validate_answers(packet, submitted, {"column.meaning": list(asks)}, COLUMNS)[0]
+    assert outcome.state is RequirementState.RESOLVED
+    assert outcome.scope_ids == ("re74", "re75", "treat")
+
+
+def test_a_pair_answer_settles_only_the_scopes_it_names() -> None:
+    """A timing differs per column, so the unnamed ones stay open for the next round (D-100)."""
+    asks = column_asks("column.measurement_timing", "mapping-list.v1")
+    packet = packet_for(*asks)
+    submitted = UserContextAnswerV1(packet_id=packet.packet_id, answers=(AnswerItemV1(
+        question_id="q:column.measurement_timing", answer_kind=AnswerKind.VALUE,
+        value="re74=pre_treatment,treat=concurrent"),))
+    outcome = validate_answers(
+        packet, submitted, {"column.measurement_timing": list(asks)}, COLUMNS)[0]
+    assert outcome.scope_ids == ("re74", "treat")

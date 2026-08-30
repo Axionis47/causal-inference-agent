@@ -73,10 +73,10 @@ Registered ids for this task:
 - `column.meaning` — what the column measures, for which entity, in which units and levels;
   answer `free-text.v1`;
 - `column.encoding` — how the values are coded, including codes, categories, and sentinels;
-  answer `level-map.v1`;
-- `column.missing_meaning` — what a missing value in this column means; answer `enum-choice.v1`;
+  answer `mapping-list.v1`;
+- `column.missing_meaning` — what a missing value in this column means; answer `choice:no_missing_values|not_applicable|not_recorded|zero_is_not_missing|censored|unknown_reason`;
 - `column.measurement_timing` — when the variable was measured relative to treatment;
-  answer `timing-class.v1`;
+  answer `mapping-list.v1`;
 - `column.source_process` — which source system or measurement process produced the column;
   answer `free-text.v1`;
 - `design.concept_mapping` — which column, if any, measures a named concept;

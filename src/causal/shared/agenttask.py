@@ -69,7 +69,7 @@ class TaskRunner:
     emit: Callable[..., None]  # one operational event
     record: Callable[..., None]  # the audit row for one delegated task
     exhausted: Callable[..., None]  # routing after the last permitted correction
-    upsert: Callable[..., None]  # the requirement rows a result raised
+    upsert: Callable[..., None]  # the requirement rows a result raised, filtered by the harness
     requirements: Sequence[str] = ()  # every requirement id wall 2 admits; empty where none apply
 
     def invoke(self, state: Any, spec: Any, task_id: str, attempt: int,
@@ -143,7 +143,8 @@ class TaskRunner:
             self.upsert(
                 result.missing_requirements, state["analysis_id"], state["design_revision"])
             state["open_requirement_ids"] = sorted({*state["open_requirement_ids"], *(
-                row.requirement_id for row in result.missing_requirements)})
+                row.requirement_id for row in result.missing_requirements
+                if not self.requirements or row.requirement_id in self.requirements)})
             if not issues:
                 done = tuple((parse_strict(model, row), self.commit(
                     state, artifact_type, row, parents)) for row in items)

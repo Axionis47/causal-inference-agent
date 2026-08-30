@@ -60,11 +60,11 @@ Context requirements (PRD-002 §10):
 
 Registered ids for this task:
 - `design.assignment_mechanism` — how units came to be treated rather than compared;
-  answer `enum-choice.v1`;
+  answer `choice:randomized|self_selected|policy_cutoff|time_of_adoption`;
 - `design.table_grain` — the table's grain and whether a unit repeats across rows;
-  answer `enum-choice.v1`;
+  answer `choice:one_row_per_unit|one_row_per_unit_period|one_row_per_group_time|repeated_rows_per_unit`;
 - `design.unit_identity` — the unit of observation and the columns that identify one unit;
-  answer `column-list.v1`;
+  answer `free-text.v1`;
 - `design.outcome_window` — what the outcome measures and over which follow-up window;
   answer `duration-window.v1`;
 - `design.population_comparator` — the population studied and the comparator condition;

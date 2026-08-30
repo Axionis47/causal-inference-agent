@@ -56,14 +56,14 @@
     {
       "requirement_id": "design.unit_identity",
       "scope_kind": "design",
-      "fact_required": "The unit of observation and the columns that identify one unit.",
+      "fact_required": "The unit of observation, and the columns that identify one unit, or that the row itself is the unit when no column does.",
       "why_required": "Fixes the analysis unit so uniqueness, clustering, and sample size can be checked.",
       "criticality": "blocking",
       "acceptable_evidence_types": ["user_confirmation", "data_dictionary", "source_statement", "measured_observation"],
       "required_support": "direct_or_corroborated",
       "methods_required_for": ["randomized_experiment", "aipw", "did", "sharp_rdd"],
       "missing_action": "ask_user",
-      "expected_answer_schema": "column-list.v1",
+      "expected_answer_schema": "free-text.v1",
       "user_may_know": true
     },
     {
@@ -76,7 +76,7 @@
       "required_support": "direct_or_corroborated",
       "methods_required_for": ["randomized_experiment", "aipw", "did", "sharp_rdd"],
       "missing_action": "ask_user",
-      "expected_answer_schema": "enum-choice.v1",
+      "expected_answer_schema": "choice:one_row_per_unit|one_row_per_unit_period|one_row_per_group_time|repeated_rows_per_unit",
       "user_may_know": true
     },
     {
@@ -102,7 +102,7 @@
       "required_support": "direct_or_corroborated",
       "methods_required_for": ["randomized_experiment", "aipw", "did", "sharp_rdd"],
       "missing_action": "ask_user",
-      "expected_answer_schema": "enum-choice.v1",
+      "expected_answer_schema": "choice:randomized|self_selected|policy_cutoff|time_of_adoption",
       "user_may_know": true
     },
     {
@@ -121,40 +121,40 @@
     {
       "requirement_id": "column.encoding",
       "scope_kind": "column",
-      "fact_required": "How this column encodes its values, including codes, categories, and sentinels.",
+      "fact_required": "How each column encodes its values, including codes, categories, and sentinels; answer one column=encoding pair per column.",
       "why_required": "A misread encoding silently changes levels, comparisons, and missingness.",
       "criticality": "blocking",
       "acceptable_evidence_types": ["user_confirmation", "data_dictionary", "source_statement", "measured_observation"],
       "required_support": "direct_or_corroborated",
       "methods_required_for": ["randomized_experiment", "aipw", "did", "sharp_rdd"],
       "missing_action": "ask_user",
-      "expected_answer_schema": "level-map.v1",
+      "expected_answer_schema": "mapping-list.v1",
       "user_may_know": true
     },
     {
       "requirement_id": "column.missing_meaning",
       "scope_kind": "column",
-      "fact_required": "What a missing value in this column means.",
+      "fact_required": "What a missing value in this column means; answer with one of the listed codes.",
       "why_required": "Structural absence, not-applicable, and unrecorded call for different repairs.",
       "criticality": "blocking",
       "acceptable_evidence_types": ["user_confirmation", "data_dictionary", "source_statement"],
       "required_support": "direct_or_corroborated",
       "methods_required_for": ["randomized_experiment", "aipw", "did", "sharp_rdd"],
       "missing_action": "ask_user",
-      "expected_answer_schema": "enum-choice.v1",
+      "expected_answer_schema": "choice:no_missing_values|not_applicable|not_recorded|zero_is_not_missing|censored|unknown_reason",
       "user_may_know": true
     },
     {
       "requirement_id": "column.measurement_timing",
       "scope_kind": "column",
-      "fact_required": "When was this variable measured relative to treatment?",
+      "fact_required": "When each column was measured relative to treatment; answer one column=timing pair per column, using pre_treatment, concurrent, post_treatment, or unknown.",
       "why_required": "Prevents a post-treatment variable from being used as a confounder.",
       "criticality": "blocking",
       "acceptable_evidence_types": ["user_confirmation", "data_dictionary", "study_protocol", "timestamp_relationship"],
       "required_support": "direct_or_corroborated",
       "methods_required_for": ["randomized_experiment", "aipw", "did", "sharp_rdd"],
       "missing_action": "ask_user",
-      "expected_answer_schema": "timing-class.v1",
+      "expected_answer_schema": "mapping-list.v1",
       "user_may_know": true
     },
     {

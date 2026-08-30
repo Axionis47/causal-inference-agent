@@ -65,11 +65,11 @@ Registered ids for this task:
 - `design.population_comparator` — the population studied and the comparator condition;
   answer `free-text.v1`;
 - `design.unit_identity` — the unit of observation and the columns that identify one unit;
-  answer `column-list.v1`;
+  answer `free-text.v1`;
 - `design.table_grain` — the table's grain and whether a unit repeats across rows;
-  answer `enum-choice.v1`;
+  answer `choice:one_row_per_unit|one_row_per_unit_period|one_row_per_group_time|repeated_rows_per_unit`;
 - `design.assignment_mechanism` — how units came to be treated rather than compared;
-  answer `enum-choice.v1`;
+  answer `choice:randomized|self_selected|policy_cutoff|time_of_adoption`;
 - `design.conflict_resolution` — which reading holds where the admitted sources disagree;
   answer `free-text.v1`.
 
