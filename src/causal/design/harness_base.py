@@ -237,12 +237,18 @@ class HarnessBase:
 
     # -- validation context and requirement rows --------------------------
 
-    def _evidence(self, state: DesignState) -> frozenset[str]:
-        """The allowlisted intake evidence ids for this analysis."""
+    def _evidence(self, state: DesignState) -> dict[str, str]:
+        """The allowlisted intake evidence, id to the text it carries (D-102).
+
+        The bundle holds a Kaggle description or data dictionary that answers many registered
+        requirements outright. Returning ids alone left every worker reporting the document as
+        `not_offered`, so SC §6.2 condition 2 held trivially and the gate asked the user for
+        facts already committed to this analysis.
+        """
         outcome = self._payload(state["artifacts"]["IntakeOutcome"])
         bundle = outcome.get("evidence_bundle_artifact_id")
         items = self._payload(str(bundle))["items"] if bundle else []
-        return frozenset(str(row["evidence_id"]) for row in items)
+        return {str(row["evidence_id"]): str(row.get("value") or "") for row in items}
 
     def _upsert(self, raised: Sequence[agent.ContextRequirementV1], analysis_id: str,
                 design_revision: int) -> None:
@@ -284,7 +290,7 @@ class HarnessBase:
             "manifest": self._model(
                 state, "DesignContextManifest", contracts.DesignContextManifestV1),
             "rules": self.deps.rules, "packs": self.deps.packs, "templates": self.deps.templates,
-            "parents": dict(state["hashes"]), "evidence_ids": self._evidence(state),
+            "parents": dict(state["hashes"]), "evidence_ids": frozenset(self._evidence(state)),
             "user_answer_evidence_ids": frozenset(f"ua:{a}" for a in state["answer_ids"]),
             "resolved_requirements": self._requirement_states(state)}
         return validators.ValidationContext(**base | over)

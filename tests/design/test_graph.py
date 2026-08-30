@@ -571,7 +571,13 @@ def test_the_prompt_carries_the_evidence_allowlist(conn: Any, object_store: Obje
     section = evidence.split("## allowed_evidence\n")[-1]
     allowed = set(gateway.calls[0].allowed_evidence_ids)
     assert "ua:question/text" in allowed
-    assert section.split() == sorted(allowed)
+    lines = section.splitlines()
+    assert [line.rstrip(":") for line in lines if line and not line.startswith(" ")] == sorted(
+        allowed)
+    # D-102: the document, not only its name. Shown an id alone, a worker truthfully reports the
+    # source `not_offered`, SC §6.2 condition 2 holds trivially, and the gate asks the user for a
+    # fact this analysis already committed. A data dictionary is multi-line, so it renders whole.
+    assert "ua:question/text:" in lines and "  Does the programme raise earnings?" in lines
     ref = gateway.calls[0].parent_artifacts[0]
     assert parents.split() == [ref.artifact_id]
     # Wall 2 rejects an unregistered requirement id, so the legal vocabulary must be shown.

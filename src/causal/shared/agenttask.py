@@ -7,6 +7,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from functools import cache
 from pathlib import Path
+from textwrap import indent
 from typing import Any, Final, Protocol, cast
 
 from pydantic import BaseModel, ValidationError
@@ -18,13 +19,16 @@ from causal.shared.events import Severity
 from causal.shared.gateway import GatewayResultV1
 from causal.shared.validation import ValidationIssueV1, ValidationReport, parse_strict
 
-__all__ = ["EVIDENCE_HEADING", "PARENT_HEADING", "REQUIREMENT_HEADING", "GatewayProtocol",
-           "TaskRunner", "result_schema"]
+__all__ = ["EVIDENCE_CHARS", "EVIDENCE_HEADING", "PARENT_HEADING", "REQUIREMENT_HEADING",
+           "GatewayProtocol", "TaskRunner", "evidence_block", "result_schema"]
 
 EVIDENCE_HEADING: Final = "\n\n## allowed_evidence\n"
 PARENT_HEADING: Final = "\n\n## parent_artifacts\n"
 REQUIREMENT_HEADING: Final = "\n\n## registered_requirement_ids\n"
 NONE_LINE: Final = "(none)"
+# One evidence item's text is truncated at this many characters: the block goes into
+# every task prompt, and a codebook can be far longer than a model should be handed.
+EVIDENCE_CHARS: Final = 4000
 
 
 class GatewayProtocol(Protocol):
@@ -32,6 +36,19 @@ class GatewayProtocol(Protocol):
 
     def invoke(self, envelope: AgentTaskEnvelopeV1, prompt: str,
                response_schema: dict[str, object]) -> GatewayResultV1: ...
+
+
+def evidence_block(evidence: Mapping[str, str] | frozenset[str]) -> str:
+    """Every allowlisted evidence id with the text it carries (D-102).
+
+    Rendering the id alone let a worker report a document it was never shown as `not_offered`,
+    so the gate saw its sources exhausted and escalated to the user for facts the harness was
+    holding. A caller with no text — estimation, presentation — still renders bare ids.
+    """
+    values = evidence if isinstance(evidence, Mapping) else {}
+    return "\n".join(
+        f"{key}:\n{indent(values[key][:EVIDENCE_CHARS], '  ')}" if values.get(key) else key
+        for key in sorted(evidence)) or NONE_LINE
 
 
 @cache
@@ -63,7 +80,7 @@ class TaskRunner:
     validate: Callable[..., ValidationReport]  # walls 1..n over one result
     context: Callable[..., Any]  # the default validation context for this state
     manifest: Callable[..., ArtifactRef]  # the context manifest every envelope names
-    evidence: Callable[..., frozenset[str]]  # the analysis's allowlisted evidence ids
+    evidence: Callable[..., Any]  # allowlisted evidence ids, with their text where there is any
     parents: Callable[..., tuple[ArtifactEnvelopeV1, ...]]  # parent envelopes by artifact kind
     commit: Callable[..., ArtifactEnvelopeV1]  # commit one validated payload
     emit: Callable[..., None]  # one operational event
@@ -81,11 +98,12 @@ class TaskRunner:
         A `many` task whose payload carries no `items` list parses as `None`, so the
         caller's `schema_invalid` correction fires instead of a `KeyError` (D-066).
         """
+        evidence = self.evidence(state)
         built = self.envelope(
             spec, analysis_id=state["analysis_id"], stage_run_id=state["stage_run_id"],
             task_id=task_id, attempt_id=f"{task_id}:{attempt}", scope_kind=scope[0],
             manifest_ref=self.manifest(state), scope_ids=scope[1],
-            parent_artifacts=refs, allowed_evidence_ids=sorted(self.evidence(state)),
+            parent_artifacts=refs, allowed_evidence_ids=sorted(evidence),
             allowed_tool_ids=self.tools[spec.task_kind],
             payload_type=f"{spec.task_kind}-context", payload=payload)
         self.emit(state, "agent.started", self.evals[spec.task_kind], task_id=task_id,
@@ -94,7 +112,7 @@ class TaskRunner:
         # committed refs, so the prompt must carry every closed set it enforces — evidence,
         # parents, and the requirement ids a result may raise (D-065, D-068, D-098).
         rendered = self.prompt(spec, self.prompts_root, dict(payload)) + EVIDENCE_HEADING + (
-            "\n".join(sorted(built.allowed_evidence_ids)) or NONE_LINE) + PARENT_HEADING + (
+            evidence_block(evidence)) + PARENT_HEADING + (
             "\n".join(ref.artifact_id for ref in built.parent_artifacts) or NONE_LINE
             ) + REQUIREMENT_HEADING + ("\n".join(sorted(self.requirements)) or NONE_LINE)
         answer = self.gateway.invoke(built, rendered, result_schema(draft, many=many))
