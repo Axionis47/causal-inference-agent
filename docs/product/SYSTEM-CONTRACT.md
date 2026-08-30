@@ -560,23 +560,22 @@ or handoff.
 
 ### 10.3 Model text and privacy
 
-LangSmith may receive the complete prompt and response text that the model actually saw or
-returned, but only after the final task envelope has passed deterministic context allowlisting
-and a second trace-redaction pass. "Complete" never means an unrestricted upstream artifact.
+LangSmith receives the complete prompt, response, and reasoning text the model saw or returned,
+together with the artifact payloads each node committed. The trace is the primary record of what
+the harness did, not a summary of it.
 
-The trace must never contain:
+One restriction remains. The trace must never contain credentials, secrets, database connection
+values, or signed URLs. A single redaction pass strips these before delivery; its scrubbed
+classes are `aws_key`, `signed_url`, `bearer`, `authority_credentials`, and `api_key_assignment`.
 
-- credentials, secrets, database connection values, or signed URLs;
-- raw Kaggle provider captures or undifferentiated documents;
-- unrestricted CSV rows, cell values, dataframes, or prepared frames;
-- row-level dispositions or cell-level lineage ledgers;
-- unrestricted fold assignments, predictions, propensities, weights, residuals, influence scores,
-  model parameters, or replicate arrays;
-- unrestricted figure-data, SVG, PNG, object payloads, or executable code; or
-- hidden chain-of-thought or private scratch context.
+The initial freeze also banned dataset content, intermediate arrays, and model reasoning from the
+trace. That ban was authored without deliberation, was never revisited, and cost the
+observability this section exists to provide; it is removed on user ruling (D-097). V1 analyses
+public Kaggle datasets. A release that admits private data must restore a content restriction
+first.
 
 Every trace records the task-envelope ID/hash and redaction-policy version. Tests compare the
-outgoing trace body against forbidden-field and canary fixtures before production promotion.
+outgoing trace body against credential canary fixtures before production promotion.
 
 ### 10.4 Vertex AI model contract
 
@@ -596,7 +595,7 @@ change generation settings independently.
 | project | resolved from the authenticated Google Cloud configuration at startup; required but never logged |
 | sampling | temperature `0.0`, one candidate, no independently supplied top-p or top-k |
 | seed | non-negative 31-bit value derived from the canonical `task_id` hash (first 8 hex chars of sha256, masked to 31 bits) and reused for the same task; Vertex `generation_config.seed` is a signed INT32 and rejects larger values (D-061, live-pilot finding, 2026-08-25) |
-| thinking budget | `8192` tokens |
+| thinking budget | `8192` tokens; `include_thoughts` is `true` so reasoning returns to the harness and reaches the trace (D-097) |
 | maximum output | `16384` tokens |
 | output contract | `application/json` with the registered response JSON schema |
 | automatic function calling | disabled; the deterministic harness owns each allowlisted tool call |

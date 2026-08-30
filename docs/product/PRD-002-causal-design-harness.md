@@ -1213,24 +1213,19 @@ Required safe metadata includes:
 
 ### 20.4 Trace privacy
 
-Production tracing uses the shared allowlist. After the task envelope and a second trace-redaction
-pass, LangSmith records the complete model-facing prompt and returned response for intent,
-semantic, role-evidence, causal-synthesis, and method-design calls. Those texts are already
-bounded task context, not unrestricted upstream artifacts. Tracing must not emit:
+LangSmith records the complete model-facing prompt, the returned response, and the returned
+reasoning for the intent, semantic, role-evidence, causal-synthesis, and method-design calls,
+together with the payload of every artifact each node commits. Tracing must not emit credentials,
+secrets, connection values, or signed URLs; the redaction pass strips those and nothing else
+(SC §10.3, D-097).
 
-- credentials or secrets;
-- CSV rows or cell values;
-- raw provider responses;
-- unrestricted user documents or evidence bundles;
-- unrestricted user context;
-- dataframes or table-shaped payloads; or
-- full graph-view specifications, DOT source, or rendered SVG payloads; or
-- future prepared datasets.
+Auto-instrumented model and tool inputs and outputs are enabled. LangGraph's own node
+instrumentation is the source of the per-node spans SC §10.2 requires; the harness adds spans
+only where that instrumentation does not reach.
 
-Auto-instrumented model/tool inputs and outputs are disabled unless they pass the same sanitizer.
 Every span records the task-envelope ID/hash, prompt/model/schema versions, redaction-policy
-version, stable validation paths, artifacts, attempts, timings, tokens, and costs. Forbidden-field
-and canary tests gate production promotion.
+version, stable validation paths, artifacts, attempts, timings, tokens, and costs. Credential
+canary tests gate production promotion.
 
 ### 20.5 Projects
 
