@@ -40,21 +40,10 @@ REQUIRED_TEMPLATE_IDS = (
     "design.selection_variables", "design.conflict_resolution",
 )
 # SC §5.4 — the five PRD-002 model-task rows, verbatim.
-EXPECTED_RECIPIENT_MAP: dict[str, tuple[str, ...]] = {
-    "intent": ("list_intake_inventory", "get_semantic_evidence"),
-    "semantic_batch": (
-        "list_intake_inventory", "get_semantic_evidence", "get_measured_facts", "get_provenance",
-    ),
-    "role_evidence": ("list_intake_inventory", "get_semantic_evidence", "get_provenance"),
-    "causal_synthesis": (
-        "list_intake_inventory", "get_semantic_evidence", "get_provenance",
-        "validate_causal_model",
-    ),
-    "method_design": (
-        "list_intake_inventory", "get_semantic_evidence", "get_measured_facts", "get_provenance",
-        "get_method_contract", "run_preflight_diagnostic", "preview_eligibility_impact",
-    ),
-}
+# D-100: no design tool has a handler any more, so the registry advertises none
+# and every envelope's `allowed_tool_ids` is empty.
+EXPECTED_RECIPIENT_MAP: dict[str, tuple[str, ...]] = dict.fromkeys(TASK_KINDS, ())
+
 HARNESS_ONLY_TOOLS = ("validate_experiment_design", "render_causal_graph", "request_user_context")
 
 
@@ -223,16 +212,16 @@ class TestToolRegistry:
             assert row.registered is False
         assert registry.lookup("run_arbitrary_code") is None
 
-    def test_model_facing_tools_are_all_registered(self) -> None:
+    def test_no_tool_is_registered_and_none_reaches_a_task_kind(self) -> None:
+        """The handlers were deleted unrun, so the registry may not advertise them (D-100)."""
         registry = load_tool_registry(TOOLS_PATH)
         for tool_id in ("validate_causal_model", "run_preflight_diagnostic",
-                        "preview_eligibility_impact"):
+                        "preview_eligibility_impact", "list_intake_inventory",
+                        "get_semantic_evidence", "get_measured_facts", "get_provenance",
+                        "get_method_contract"):
             row = registry.lookup(tool_id)
-            assert row is not None and row.registered is True
-        for tool_id in ("list_intake_inventory", "get_semantic_evidence", "get_measured_facts",
-                        "get_provenance", "get_method_contract"):
-            row = registry.lookup(tool_id)
-            assert row is not None and row.registered is True
+            assert row is not None
+            assert (row.registered, row.allowed_task_kinds) == (False, ())
 
     def test_unknown_task_kind_fails_closed(self, tmp_path: Path) -> None:
         def mutate(document: dict[str, Any]) -> None:

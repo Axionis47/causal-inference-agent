@@ -19,9 +19,9 @@ Forbidden:
 - selecting a method or estimand; or
 - estimating an effect.
 
-Tools: call only the tool ids listed in your envelope, at most the tool-call budget it states.
-A denied call is reported as `tool_denied`, never worked around. You cannot call another agent,
-write graph state, or persist an artifact.
+Tools: you have none. Everything you may read is in this prompt and your
+envelope; nothing further can be fetched. You cannot call another agent, write
+graph state, or persist an artifact.
 
 Output contract (PRD-002 §16.1):
 - return one JSON object and nothing else: no prose, no markdown fence, no commentary;

@@ -1,4 +1,4 @@
-"""Read-only pre-repair diagnostics and the two inspection handlers (T-012 §4, §6)."""
+"""Read-only pre-repair diagnostics (T-012 §4)."""
 
 from __future__ import annotations
 
@@ -15,7 +15,6 @@ from causal.design.diagnostics import (
     BytesFrameSource,
     CsvObjectFrameSource,
     DiagnosticError,
-    make_diagnostic_handlers,
     run_diagnostic,
 )
 from causal.design.frame import DiagnosticResultV1, DiagnosticStatus
@@ -85,9 +84,6 @@ class FakeObjects:
 def run(spec_id: str, **params: Any) -> DiagnosticResultV1:
     return run_diagnostic(spec_id, RecordingSource(), params)
 
-
-def handlers(source: RecordingSource) -> dict[str, Any]:
-    return make_diagnostic_handlers(lambda: source, PACKS)
 
 
 class TestPrimitives:
@@ -229,55 +225,3 @@ class TestFrameSources:
         stored = CsvObjectFrameSource(objects, f"objects/{HASH}", REF)
         assert stored.frame().equals(BytesFrameSource("t.csv", CSV, REF).frame())
         assert (objects.locators, stored.csv_ref()) == ([f"objects/{HASH}"], REF)
-
-
-class TestHandlers:
-    def test_preflight_returns_one_serialized_result(self) -> None:
-        bound = handlers(RecordingSource())
-        result = bound["run_preflight_diagnostic"](
-            ENVELOPE, {"diagnostic_id": "arm_counts", "params": {"columns": ["arm"]},
-                       "method_id": "randomized_experiment"})
-        assert result["status"] == "computed"
-        assert result["values"]["count:treated"] == 4
-        assert result["csv_artifact"]["artifact_id"] == "csv-1"
-
-    def test_preflight_enforces_the_pack_allowed_list_and_the_spec_table(self) -> None:
-        bound = handlers(RecordingSource())
-        with pytest.raises(DiagnosticError) as outside_pack:
-            bound["run_preflight_diagnostic"](
-                ENVELOPE, {"diagnostic_id": "arm_counts", "method_id": "did"})
-        assert outside_pack.value.code == "diagnostic_not_allowed"
-        with pytest.raises(DiagnosticError) as unlisted:
-            bound["run_preflight_diagnostic"](ENVELOPE, {"diagnostic_id": "invented"})
-        assert unlisted.value.code == "unknown_diagnostic"
-
-    def test_eligibility_preview_counts_kept_and_excluded_rows(self) -> None:
-        bound = handlers(RecordingSource())
-        result = bound["preview_eligibility_impact"](ENVELOPE, {"rules": [
-            {"column": "outcome", "op": "not_null"},
-            {"column": "running", "op": "ge", "value": 4.0}], "by": "arm"})
-        assert (result["total_rows"], result["kept_rows"], result["excluded_rows"]) == (8, 5, 3)
-        assert result["kept_by"] == {"control": 2, "treated": 3}
-        assert result["excluded_by"] == {"control": 2, "treated": 1}
-
-    def test_eligibility_preview_supports_the_closed_grammar(self) -> None:
-        bound = handlers(RecordingSource())
-        for rule, kept in (
-            ({"column": "arm", "op": "in", "value": ["treated"]}, 4),
-            ({"column": "arm", "op": "eq", "value": "control"}, 4),
-            ({"column": "arm", "op": "ne", "value": "control"}, 4),
-            ({"column": "running", "op": "le", "value": 4.0}, 3),
-        ):
-            result = bound["preview_eligibility_impact"](ENVELOPE, {"rules": [rule]})
-            assert result["kept_rows"] == kept
-
-    def test_eligibility_preview_fails_closed_on_unknown_columns_and_ops(self) -> None:
-        bound = handlers(RecordingSource())
-        with pytest.raises(DiagnosticError) as unknown_column:
-            bound["preview_eligibility_impact"](
-                ENVELOPE, {"rules": [{"column": "nope", "op": "not_null"}]})
-        assert unknown_column.value.code == "unknown_column"
-        with pytest.raises(DiagnosticError) as unknown_op:
-            bound["preview_eligibility_impact"](
-                ENVELOPE, {"rules": [{"column": "arm", "op": "matches", "value": "x"}]})
-        assert unknown_op.value.code == "unsupported_rule"

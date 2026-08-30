@@ -18,10 +18,8 @@ from causal.design.packs import (
     RequirementTemplateV1,
 )
 from causal.design.semantics import CausalContextV1, CausalEdgeV1, RoleClaimV1, RoleLedgerV1
-from causal.design.tools import ToolHandler
 from causal.design.triage import ColumnTriageRecordV1
 from causal.shared.envelope import (
-    AgentTaskEnvelopeV1,
     AgentTaskResultV1,
     CausalFrameV1,
     ClaimV1,
@@ -53,7 +51,7 @@ from causal.shared.validation import (
 __all__ = [
     "ACTIONS", "EVIDENCE_CLASS_PREFIXES", "REGISTRY_VERSION", "RULE_KINDS", "UNKNOWN_RULE_KIND",
     "UNKNOWN_WALL", "ValidationContext", "ValidationIssueV1", "ValidationReport",
-    "ValidationRuleV1", "evidence_class", "load_validation_rules", "make_causal_model_handler",
+    "ValidationRuleV1", "evidence_class", "load_validation_rules",
     "validate_result", "wall_causal", "wall_evidence", "wall_frame", "wall_method",
     "wall_references", "wall_shape", "wall_temporal"]
 
@@ -324,14 +322,3 @@ def validate_result(wall: int, task_kind: str, model_cls: type[BaseModel],
     return ValidationReport(wall=highest, issues=())
 
 
-def make_causal_model_handler(
-    builder: Callable[[AgentTaskEnvelopeV1], ValidationContext],
-) -> ToolHandler:
-    """The `validate_causal_model` tool: wall 5 over a proposed causal context (§15)."""
-    def handler(envelope: AgentTaskEnvelopeV1, arguments: Mapping[str, Any]) -> dict[str, Any]:
-        report = wall_causal(_parse(CausalContextV1, arguments["causal_context"]), None,
-                             builder(envelope))
-        return {"issues": [issue.model_dump(mode="json") for issue in report.issues],
-                "passed": report.passed}
-
-    return handler

@@ -37,7 +37,6 @@ from causal.design.validators import (
     ValidationReport,
     evidence_class,
     load_validation_rules,
-    make_causal_model_handler,
     validate_result,
     wall_causal,
     wall_evidence,
@@ -431,7 +430,7 @@ def test_the_rule_loader_fails_closed(tmp_path: Path, body: str, code: str) -> N
     assert error.value.code == code
 
 
-# --- evidence classes, wall order, and the tool handler ---
+# --- evidence classes and wall order ---
 @pytest.mark.parametrize(("evidence_id", "expected"), [
     ("ua:answer-1", EvidenceClass.USER_CONFIRMATION),
     ("ev:kaggle/column/nsw/treat", EvidenceClass.DATA_DICTIONARY),
@@ -457,12 +456,3 @@ def test_validate_result_runs_every_wall_the_task_kind_allows() -> None:
     assert passing.passed and passing.wall == 4
     capped = validate_result(7, "causal_synthesis", RoleLedgerV1, result(ledger()), context())
     assert capped.wall == 5
-
-
-def test_causal_model_handler_returns_wall_five_issue_dicts() -> None:
-    handler = make_causal_model_handler(lambda envelope: context())
-    failing = handler(ENVELOPE, {"causal_context": CYCLE.model_dump(mode="json")})
-    assert failing["passed"] is False
-    assert failing["issues"][0]["code"] == "graph_cycle"
-    assert handler(ENVELOPE, {"causal_context": graph().model_dump(mode="json")}) == {
-        "issues": [], "passed": True}

@@ -5,29 +5,24 @@ from __future__ import annotations
 import hashlib
 import math
 from collections.abc import Callable, Mapping, Sequence
-from functools import partial
 from typing import Any, Final, NamedTuple
 
 import polars as pl
 
 from causal.design.frame import DiagnosticResultV1, DiagnosticStatus
-from causal.design.packs import PREREPAIR_DIAGNOSTIC_IDS, MethodPackRegistry
-from causal.design.tools import ToolHandler
-from causal.shared.envelope import AgentTaskEnvelopeV1
+from causal.design.packs import PREREPAIR_DIAGNOSTIC_IDS
 from causal.shared.readers import BytesFrameSource, CsvObjectFrameSource, FrameSource, ObjectReader
 
 __all__ = [
-    "DIAGNOSTIC_SPECS", "IMPLEMENTATION_VERSION", "RULE_OPS", "BytesFrameSource",
+    "DIAGNOSTIC_SPECS", "IMPLEMENTATION_VERSION", "BytesFrameSource",
     "CsvObjectFrameSource", "DiagnosticError", "DiagnosticSpec", "FrameSource",
-    "ObjectReader", "make_diagnostic_handlers", "run_diagnostic",
+    "ObjectReader", "run_diagnostic",
 ]
 
 IMPLEMENTATION_VERSION: Final = "design-diagnostics.v1"
 DIAGNOSTIC_VERSION: Final = "prerepair-diagnostic.v1"
-UNKNOWN_DIAGNOSTIC, DIAGNOSTIC_NOT_ALLOWED = "unknown_diagnostic", "diagnostic_not_allowed"
-UNKNOWN_COLUMN, UNSUPPORTED_RULE = "unknown_column", "unsupported_rule"
+UNKNOWN_DIAGNOSTIC: Final = "unknown_diagnostic"
 # The closed eligibility-rule grammar (PRD-002 §15); one preview's rules are a conjunction.
-RULE_OPS: Final = ("eq", "ne", "ge", "le", "not_null", "in")
 SIDE: Final = "side"  # the derived cutoff side, never a CSV column
 _ROW, _VALUE, _BAND = "__row_index", "__numeric_value", "__band"
 _MAX_GROUPS, _BANDS = 50, 5
@@ -295,72 +290,3 @@ def run_diagnostic(
         row_set_hash=_row_hash(outcome.kept) if selected and outcome.kept else None,
         values=outcome.values, warnings=tuple(warnings),
         implementation_version=IMPLEMENTATION_VERSION)
-
-
-# One closed-grammar eligibility conjunct as a polars predicate.
-def _rule_expr(rule: Mapping[str, Any], known: set[str]) -> pl.Expr:
-    column, op = str(rule["column"]), str(rule["op"])
-    if column not in known:
-        raise DiagnosticError(f"unknown eligibility column {column!r}", UNKNOWN_COLUMN)
-    if op not in RULE_OPS:
-        raise DiagnosticError(f"unsupported eligibility op {op!r}", UNSUPPORTED_RULE)
-    target = pl.col(column)
-    if op == "not_null":
-        return target.is_not_null()
-    if op == "in":
-        return target.is_in(list(rule["value"]))
-    return {"eq": target.eq, "ne": target.ne, "ge": target.ge, "le": target.le}[op](rule["value"])
-
-
-def _group_counts(frame: pl.DataFrame, column: str) -> dict[str, int]:
-    counts = frame.group_by(column).len().sort(column)
-    return {_key(row[:1]): int(row[1]) for row in counts.head(_MAX_GROUPS).iter_rows()}
-
-
-# `run_preflight_diagnostic`: one spec row, optionally bounded by the pack's allowed list.
-def _run_preflight(
-    source_for: Callable[[], FrameSource], packs: MethodPackRegistry,
-    envelope: AgentTaskEnvelopeV1, arguments: Mapping[str, Any],
-) -> dict[str, Any]:
-    diagnostic_id = str(arguments["diagnostic_id"])
-    if diagnostic_id not in DIAGNOSTIC_SPECS:
-        raise DiagnosticError(f"unknown diagnostic {diagnostic_id!r}", UNKNOWN_DIAGNOSTIC)
-    method_id = arguments.get("method_id")
-    if method_id is not None and diagnostic_id not in packs.get(
-            str(method_id)).allowed_prerepair_diagnostic_ids:
-        raise DiagnosticError(f"{diagnostic_id!r} is not allowed for method {method_id!r}",
-                              DIAGNOSTIC_NOT_ALLOWED)
-    result = run_diagnostic(diagnostic_id, source_for(), arguments.get("params") or {})
-    return dict(result.model_dump(mode="json"))
-
-
-# `preview_eligibility_impact`: kept and excluded counts under proposed rules; no writes.
-def _preview_eligibility(
-    source_for: Callable[[], FrameSource], envelope: AgentTaskEnvelopeV1,
-    arguments: Mapping[str, Any],
-) -> dict[str, Any]:
-    frame = source_for().frame()
-    known = set(frame.columns)
-    rules = [dict(rule) for rule in arguments["rules"]]
-    kept = frame
-    for rule in rules:
-        kept = kept.filter(_rule_expr(rule, known))
-    result: dict[str, Any] = {"total_rows": frame.height, "kept_rows": kept.height,
-                              "excluded_rows": frame.height - kept.height,
-                              "rule_count": len(rules)}
-    if (by := arguments.get("by")) is not None:
-        column = str(by)
-        if column not in known:
-            raise DiagnosticError(f"unknown grouping column {column!r}", UNKNOWN_COLUMN)
-        totals, keeps = _group_counts(frame, column), _group_counts(kept, column)
-        result |= {"by": column, "kept_by": keeps, "excluded_by": {
-            key: total - keeps.get(key, 0) for key, total in totals.items()}}
-    return result
-
-
-def make_diagnostic_handlers(
-    source_for: Callable[[], FrameSource], packs: MethodPackRegistry
-) -> dict[str, ToolHandler]:
-    """The two read-only inspection handlers the method-design task may call (PRD-002 §15)."""
-    return {"run_preflight_diagnostic": partial(_run_preflight, source_for, packs),
-            "preview_eligibility_impact": partial(_preview_eligibility, source_for)}

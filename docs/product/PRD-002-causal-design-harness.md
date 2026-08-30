@@ -939,7 +939,25 @@ will accept only a post-repair runnable frame.
 
 ## 15. Tool surface and permissions
 
-The model-facing toolbox is deliberately medium-grained: large enough to avoid excessive calls,
+**Amendment (D-100).** There is no model-facing toolbox. The eight tools this section listed for
+design agents were built, tested, and never wired: `ToolRouter` had no production caller, the
+handler factories had none, and `allowed_tool_ids` was never rendered into any prompt, so every
+envelope advertised eight tools no task could call. They are deleted rather than wired, for two
+reasons. Most of them re-served slices of the `DesignContextManifest` the context pack already
+carries, so the round trip bought nothing. And the design scope had no room for both the wiring
+and the ask-gate repair the stage actually needed; the tools had never once run, so they lost.
+
+`registries/design-tools.v1.json` keeps all eleven rows with `registered: false` and no allowed
+task kinds, which is what `ToolRegistrationV1.registered` is for: the identity of a capability is
+recorded, its absence is stated, and `recipient_map()` therefore returns an empty tuple for every
+task kind. Every design prompt now says the model has no tools and that everything it may read is
+already in the prompt and the envelope. Restoring a tool means restoring its handler, flipping its
+row, and funding both — not flipping the row alone.
+
+The table below is retained as the specification a future tool must meet, not as a description of
+what exists. The **Model access** column reads *harness only* for every row today.
+
+The model-facing toolbox was deliberately medium-grained: large enough to avoid excessive calls,
 but too narrow to hide arbitrary computation or mutation.
 
 | Tool | Returns | Model access |

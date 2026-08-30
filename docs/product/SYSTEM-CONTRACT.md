@@ -296,13 +296,20 @@ These are the only model task types in V1. Each named tool set is a closed, vers
 the envelope may remove tools but cannot add one. Every row permits one initial response plus at
 most two targeted schema corrections and returns to the named deterministic validator.
 
+**Amendment (D-100).** Every PRD-002 tool allowlist below is now empty. The design handlers were
+built and never wired — no production caller, and `allowed_tool_ids` never reached a prompt — so
+they were deleted rather than wired (PRD-002 §15). The design rows are struck through to record
+what the allowlist was; a struck tool is not callable, and restoring one restores its handler,
+its registry row, and its budget together. The PRD-005 row is unaffected by this amendment and is
+recorded separately as still-unwired.
+
 | PRD / task payload | Exact tool allowlist | Required draft schema | Validator and committed destination |
 |---|---|---|---|
-| PRD-002 `IntentTaskContext` | `list_intake_inventory`, `get_semantic_evidence` | `DesignIntentDraftV1` or `ContextRequirementV1[]` | intent validator → committed intent/requirements → semantic harness |
-| PRD-002 `SemanticBatchTaskContext` | `list_intake_inventory`, `get_semantic_evidence`, `get_measured_facts`, `get_provenance` | one `ColumnSemanticCardDraftV1` per assigned column | semantic-card validator → committed batch artifacts → harness fan-in |
-| PRD-002 `RoleEvidenceTaskContext` | `list_intake_inventory`, `get_semantic_evidence`, `get_provenance` | `RoleEvidenceDraftV1[]` or requirements | evidence validator → committed evidence artifacts → causal synthesis packet builder |
-| PRD-002 `CausalSynthesisTaskContext` | `list_intake_inventory`, `get_semantic_evidence`, `get_provenance`, `validate_causal_model` | `CausalSynthesisDraftV1` | causal validator → committed causal context/role-ledger artifacts → method packet builder |
-| PRD-002 `MethodDesignTaskContext` | `list_intake_inventory`, `get_semantic_evidence`, `get_measured_facts`, `get_provenance`, `get_method_contract`, `run_preflight_diagnostic`, `preview_eligibility_impact` | `MethodDesignDraftV1` | design validator → committed experiment-design/frame-contract drafts → approval harness |
+| PRD-002 `IntentTaskContext` | none — was ~~`list_intake_inventory`, `get_semantic_evidence`~~ (D-100) | `DesignIntentDraftV1` or `ContextRequirementV1[]` | intent validator → committed intent/requirements → semantic harness |
+| PRD-002 `SemanticBatchTaskContext` | none — was ~~`list_intake_inventory`, `get_semantic_evidence`, `get_measured_facts`, `get_provenance`~~ (D-100) | one `ColumnSemanticCardDraftV1` per assigned column | semantic-card validator → committed batch artifacts → harness fan-in |
+| PRD-002 `RoleEvidenceTaskContext` | none — was ~~`list_intake_inventory`, `get_semantic_evidence`, `get_provenance`~~ (D-100) | `RoleEvidenceDraftV1[]` or requirements | evidence validator → committed evidence artifacts → causal synthesis packet builder |
+| PRD-002 `CausalSynthesisTaskContext` | none — was ~~`list_intake_inventory`, `get_semantic_evidence`, `get_provenance`, `validate_causal_model`~~ (D-100) | `CausalSynthesisDraftV1` | causal validator → committed causal context/role-ledger artifacts → method packet builder |
+| PRD-002 `MethodDesignTaskContext` | none — was ~~`list_intake_inventory`, `get_semantic_evidence`, `get_measured_facts`, `get_provenance`, `get_method_contract`, `run_preflight_diagnostic`, `preview_eligibility_impact`~~ (D-100) | `MethodDesignDraftV1` | design validator → committed experiment-design/frame-contract drafts → approval harness |
 | PRD-003 `PreparationTaskContext` | deferred in V1 (PRD-003 Amendment 2, D-076): V1 preparation compiles plans deterministically and makes no model call; this row returns only with a future user-approved amendment backed by pilot or eval evidence | — | deterministic plan compiler → committed plan → wall 4; every action then returns to postcondition validator |
 | PRD-004 `ClaimReviewContext` | none | `ClaimJudgmentDraftV1` with one claim item per primary result item | claim validator → committed `ClaimJudgment` → figure-data/bundle validation |
 | PRD-005 `PresentationCuratorContext` | `resolve_registered_layout_facts` only, maximum one call | `FigurePlanDraftV1` or typed inability | plan validator → committed `FigurePlan` → deterministic compiler |
