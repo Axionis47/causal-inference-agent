@@ -1,13 +1,10 @@
-"""LangSmith preflight/span/flush and the V1 trace redactor (SC §10.2, §10.3; PRD-002 §20)."""
+"""LangSmith preflight/flush and the V1 credential redactor (SC §10.2, §10.3; PRD-002 §20)."""
 
 from __future__ import annotations
 
 import os
 import re
-import uuid
-from collections.abc import Callable, Iterator, Mapping
-from contextlib import AbstractContextManager, contextmanager
-from datetime import UTC, datetime
+from collections.abc import Callable, Mapping
 from typing import TYPE_CHECKING, Any, Final, Literal, Protocol
 
 if TYPE_CHECKING:  # the client is imported lazily so construction stays cheap
@@ -75,13 +72,14 @@ class ObservabilityError(Exception):
 
 
 class TracerProtocol(Protocol):
-    """Preflight, span, flush; every failure is an ObservabilityError (SC §10.2)."""
+    """Preflight and flush; every failure is an ObservabilityError (SC §10.2).
+
+    Spans are not built here. LangGraph's own node instrumentation emits the per-node spans
+    §10.2 requires (PRD-002 §20.4, D-097); this tracer owns only the fail-closed preflight and
+    the flush gate the commit protocol waits on.
+    """
 
     def preflight(self) -> None: ...
-
-    def span(
-        self, name: str, *, run_type: str, metadata: dict[str, object]
-    ) -> AbstractContextManager[str]: ...
 
     def flush(self) -> None: ...
 
@@ -111,7 +109,7 @@ class TraceRedactorV1:
 
 
 class LangSmithTracer:
-    """The one LangSmith tracer: fail-closed preflight, redacted spans, acknowledged flush."""
+    """The one LangSmith tracer: fail-closed preflight and acknowledged flush."""
 
     def __init__(
         self,
@@ -160,46 +158,6 @@ class LangSmithTracer:
             raise ObservabilityError(
                 f"LangSmith preflight call failed: {error!r}", PREFLIGHT_FAILED
             ) from error
-
-    @contextmanager
-    def span(self, name: str, *, run_type: str, metadata: dict[str, object]) -> Iterator[str]:
-        """Open and close one run with redacted metadata; yields the span id."""
-        client = self._client()
-        run_id = str(uuid.uuid4())
-        safe: dict[str, str | int | float | bool] = self._redactor.redact_metadata(metadata)
-        safe["environment"] = self._environment
-        safe["redaction_policy_version"] = self._redactor.redaction_policy_version
-        tags = [f"environment:{self._environment}", f"project:{self._project}"]
-        try:
-            client.create_run(
-                name=self._redactor.redact_text(name),
-                inputs={},
-                run_type=run_type,
-                id=run_id,
-                project_name=self._project,
-                start_time=datetime.now(UTC),
-                extra={"metadata": safe},
-                tags=tags,
-            )
-        except Exception as error:
-            raise ObservabilityError(
-                f"span {name!r} could not be opened: {error!r}", FLUSH_UNACKNOWLEDGED
-            ) from error
-        failure: str | None = None
-        try:
-            yield run_id
-        except BaseException as error:
-            failure = self._redactor.redact_text(repr(error))
-            raise
-        finally:
-            try:
-                client.update_run(run_id, end_time=datetime.now(UTC), error=failure)
-            except Exception as close_error:
-                if failure is None:
-                    raise ObservabilityError(
-                        f"span {name!r} could not be closed: {close_error!r}",
-                        FLUSH_UNACKNOWLEDGED,
-                    ) from close_error
 
     def flush(self) -> None:
         """Force delivery; raise unless every queued batch was acknowledged."""

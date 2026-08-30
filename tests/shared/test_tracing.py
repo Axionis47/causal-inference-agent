@@ -4,8 +4,7 @@ from __future__ import annotations
 
 import io
 import os
-from collections.abc import Callable, Iterator
-from contextlib import contextmanager
+from collections.abc import Callable
 from typing import Any, Final
 
 import psycopg
@@ -50,7 +49,6 @@ class FakeTracer:
     ) -> None:
         self.preflights = 0
         self.flushes = 0
-        self.spans: list[str] = []
         self._preflight_error = preflight_error
         self._flush_error = flush_error
 
@@ -58,11 +56,6 @@ class FakeTracer:
         self.preflights += 1
         if self._preflight_error is not None:
             raise self._preflight_error
-
-    @contextmanager
-    def span(self, name: str, *, run_type: str, metadata: dict[str, object]) -> Iterator[str]:
-        self.spans.append(name)
-        yield f"span-{len(self.spans)}"
 
     def flush(self) -> None:
         self.flushes += 1
@@ -132,8 +125,6 @@ class TestTraceRedactor:
 class TestTracerProtocol:
     def test_fake_tracer_satisfies_the_protocol(self) -> None:
         tracer: TracerProtocol = FakeTracer()
-        with tracer.span("s", run_type="chain", metadata={}) as span_id:
-            assert span_id == "span-1"
         tracer.preflight()
         tracer.flush()
 
@@ -230,13 +221,9 @@ class TestCommitFlushGate:
 @pytest.mark.skipif(
     not os.environ.get("RUN_LIVE_LANGSMITH"), reason="RUN_LIVE_LANGSMITH is unset"
 )
-def test_live_preflight_span_flush() -> None:
+def test_live_preflight_flush() -> None:
     tracer = LangSmithTracer(
         os.environ.get("LANGSMITH_PROJECT", "causal-dev"), "development", TraceRedactorV1()
     )
     tracer.preflight()
-    with tracer.span(
-        "t-010-smoke", run_type="chain", metadata={"analysis_id": "an-live-smoke"}
-    ) as span_id:
-        assert span_id
     tracer.flush()
