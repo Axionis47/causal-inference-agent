@@ -110,7 +110,8 @@ CONCEPT = ConceptV1(
 )
 LINK = MeasurementLinkV1(
     concept_id="c-earnings", table_name="nsw.csv", column_name="re78",
-    relation=MeasurementRelation.MEASURES, notes="the column states the year",
+    relation=MeasurementRelation.MEASURES, timing=TimingClass.POST_TREATMENT,
+    notes="the column states the year",
 )
 EDGE = CausalEdgeV1(
     edge_id="e-1", source_concept_id="c-treat", target_concept_id="c-earnings",

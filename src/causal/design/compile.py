@@ -102,6 +102,7 @@ def _link(concept_id: str, card: ColumnSemanticCardV1) -> MeasurementLinkV1:
     direct = card.concept_id == concept_id
     return MeasurementLinkV1(concept_id=concept_id, table_name=card.table_name,
                              column_name=card.column_name, notes="direct" if direct else "proxy",
+                             timing=card.timing,
                              relation=MeasurementRelation.MEASURES if direct
                              else MeasurementRelation.PROXIES)
 

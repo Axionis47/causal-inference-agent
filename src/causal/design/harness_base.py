@@ -167,7 +167,8 @@ class HarnessBase:
         self._cache: dict[str, Any] = {}
         self._runner = agenttask.TaskRunner(
             gateway=deps.gateway, tasks=deps.task_table, evals=EVAL_TASK,
-            tools=deps.tool_registry.recipient_map(), prompts_root=deps.prompts_root,
+            tools=deps.tool_registry.recipient_map(), requirements=sorted(deps.templates),
+            prompts_root=deps.prompts_root,
             envelope=compiler.build_task_envelope, prompt=compiler.render_prompt,
             validate=validators.validate_result, context=self._ctx, evidence=self._evidence,
             manifest=lambda state: self._ref(state, "DesignContextManifest"),

@@ -105,12 +105,18 @@ class ColumnSemanticCardV1(_Payload):
 
 
 class MeasurementLinkV1(_Row):
-    """How one column stands in for one concept."""
+    """How one column stands in for one concept, and when that column was measured.
+
+    `timing` is carried from the column's validated card because PRD-002 §9.5 routes
+    "concepts + timing + unresolved requirements" to the role workers; without it they cannot
+    tell a pre-treatment covariate from the outcome (D-098).
+    """
 
     concept_id: Identity
     table_name: Identity
     column_name: Identity
     relation: MeasurementRelation
+    timing: TimingClass
     notes: str
 
 

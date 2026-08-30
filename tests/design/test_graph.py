@@ -548,16 +548,21 @@ def test_the_gateway_gets_the_draft_result_schema(conn: Any, object_store: Objec
 
 
 def test_the_prompt_carries_the_evidence_allowlist(conn: Any, object_store: ObjectStore) -> None:
-    """D-065/D-068: the closed sets a model may cite and must parent to are rendered."""
+    """D-065/D-068/D-098: every closed set a wall enforces is rendered into the prompt."""
     gateway = ScriptedGateway({"semantic_batch": [{"not": "a result"}] * 3})
     start(conn, object_store, gateway=gateway)
-    evidence, parents = gateway.prompts["intent"].split("## parent_artifacts\n")
+    evidence, rest = gateway.prompts["intent"].split("## parent_artifacts\n")
+    parents, requirements = rest.split("## registered_requirement_ids\n")
     section = evidence.split("## allowed_evidence\n")[-1]
     allowed = set(gateway.calls[0].allowed_evidence_ids)
     assert "ua:question/text" in allowed
     assert section.split() == sorted(allowed)
     ref = gateway.calls[0].parent_artifacts[0]
     assert parents.split() == [ref.artifact_id]
+    # Wall 2 rejects an unregistered requirement id, so the legal vocabulary must be shown.
+    registered = set(load_requirement_templates(REGISTRIES / "context-requirements.v1.json"))
+    assert requirements.split() == sorted(registered)
+    assert "design.treatment_meaning" in registered
 
 
 class TestRefusal:

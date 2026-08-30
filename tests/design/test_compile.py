@@ -68,17 +68,19 @@ def proposal(name: str, *columns: str) -> ConceptProposalV1:
     return ConceptProposalV1(name=name, description=f"{name} concept", candidate_columns=columns)
 
 
-def card(column: str, concept_id: str) -> ColumnSemanticCardV1:
+def card(column: str, concept_id: str,
+         timing: TimingClass = TimingClass.UNKNOWN) -> ColumnSemanticCardV1:
     return ColumnSemanticCardV1(
         table_name=TABLE_NAME, column_name=column, display_name=column, concept_id=concept_id,
-        timing=TimingClass.UNKNOWN, slots=dict.fromkeys(COLUMN_CARD_SLOTS, UNKNOWN_SLOT),
+        timing=timing, slots=dict.fromkeys(COLUMN_CARD_SLOTS, UNKNOWN_SLOT),
         claims=(), alternatives=(), conflicts=(),
     )
 
 
-def link(concept_id: str, column: str, relation: MeasurementRelation) -> MeasurementLinkV1:
+def link(concept_id: str, column: str, relation: MeasurementRelation,
+         timing: TimingClass = TimingClass.UNKNOWN) -> MeasurementLinkV1:
     return MeasurementLinkV1(concept_id=concept_id, table_name=TABLE_NAME, column_name=column,
-                             relation=relation,
+                             relation=relation, timing=timing,
                              notes="direct" if relation is MEASURES else "proxy")
 
 
@@ -94,8 +96,9 @@ INTENT = DesignIntentV1(
     candidate_grain="one row per person",
     mandatory_concepts=(proposal("Prior earnings", "re74"),), claims=(),
 )
-CARDS = (card("treat", "c:training_program"), card("re78", "c:earnings"),
-         card("re74", "c:earnings_1974"))
+CARDS = (card("treat", "c:training_program", TimingClass.CONCURRENT),
+         card("re78", "c:earnings", TimingClass.POST_TREATMENT),
+         card("re74", "c:earnings_1974", TimingClass.PRE_TREATMENT))
 EXPECTED_MAP = MeasurementMapV1(
     concepts=(
         proposed("c:1978", "1978", ConceptStatus.UNMEASURED),
@@ -110,11 +113,13 @@ EXPECTED_MAP = MeasurementMapV1(
         proposed("c:training_program", "Training program", ConceptStatus.OBSERVED),
     ),
     links=(
-        link("c:earnings", "re74", PROXIES),
-        link("c:earnings", "re78", MEASURES),
-        link("c:earnings_1974", "re74", MEASURES),
-        link("c:prior_earnings", "re74", PROXIES),
-        link("c:training_program", "treat", MEASURES),
+        # D-098: each link carries its card's timing, so the role workers can tell a
+        # pre-treatment covariate (re74) from the outcome (re78).
+        link("c:earnings", "re74", PROXIES, TimingClass.PRE_TREATMENT),
+        link("c:earnings", "re78", MEASURES, TimingClass.POST_TREATMENT),
+        link("c:earnings_1974", "re74", MEASURES, TimingClass.PRE_TREATMENT),
+        link("c:prior_earnings", "re74", PROXIES, TimingClass.PRE_TREATMENT),
+        link("c:training_program", "treat", MEASURES, TimingClass.CONCURRENT),
     ),
     claims=(),
 )

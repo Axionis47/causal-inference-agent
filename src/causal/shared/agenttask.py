@@ -18,10 +18,12 @@ from causal.shared.events import Severity
 from causal.shared.gateway import GatewayResultV1
 from causal.shared.validation import ValidationIssueV1, ValidationReport, parse_strict
 
-__all__ = ["EVIDENCE_HEADING", "PARENT_HEADING", "GatewayProtocol", "TaskRunner", "result_schema"]
+__all__ = ["EVIDENCE_HEADING", "PARENT_HEADING", "REQUIREMENT_HEADING", "GatewayProtocol",
+           "TaskRunner", "result_schema"]
 
 EVIDENCE_HEADING: Final = "\n\n## allowed_evidence\n"
 PARENT_HEADING: Final = "\n\n## parent_artifacts\n"
+REQUIREMENT_HEADING: Final = "\n\n## registered_requirement_ids\n"
 NONE_LINE: Final = "(none)"
 
 
@@ -68,6 +70,7 @@ class TaskRunner:
     record: Callable[..., None]  # the audit row for one delegated task
     exhausted: Callable[..., None]  # routing after the last permitted correction
     upsert: Callable[..., None]  # the requirement rows a result raised
+    requirements: Sequence[str] = ()  # every requirement id wall 2 admits; empty where none apply
 
     def invoke(self, state: Any, spec: Any, task_id: str, attempt: int,
                scope: tuple[str, Sequence[str]], refs: tuple[ArtifactRef, ...],
@@ -88,10 +91,12 @@ class TaskRunner:
         self.emit(state, "agent.started", self.evals[spec.task_kind], task_id=task_id,
                   attempt_id=built.attempt_id, attempt_number=attempt)
         # Wall 2 admits only these ids, and a result's parents must be exactly these
-        # committed refs, so the prompt must carry both closed sets (D-065, D-068).
+        # committed refs, so the prompt must carry every closed set it enforces — evidence,
+        # parents, and the requirement ids a result may raise (D-065, D-068, D-098).
         rendered = self.prompt(spec, self.prompts_root, dict(payload)) + EVIDENCE_HEADING + (
             "\n".join(sorted(built.allowed_evidence_ids)) or NONE_LINE) + PARENT_HEADING + (
-            "\n".join(ref.artifact_id for ref in built.parent_artifacts) or NONE_LINE)
+            "\n".join(ref.artifact_id for ref in built.parent_artifacts) or NONE_LINE
+            ) + REQUIREMENT_HEADING + ("\n".join(sorted(self.requirements)) or NONE_LINE)
         answer = self.gateway.invoke(built, rendered, result_schema(draft, many=many))
         try:
             parsed = parse_strict(AgentTaskResultV1, answer.parsed or {})
