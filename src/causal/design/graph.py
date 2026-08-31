@@ -132,7 +132,10 @@ class _Harness(PipelineNodes):
         decision = parse_strict(contracts.DesignApprovalDecisionV1, interrupt({
             "kind": contracts.InterruptKind.APPROVAL.value,
             "interrupt_artifact_id": anchor.artifact_id, "interrupt_hash": anchor.content_hash,
-            "design_revision": state["design_revision"], "approved_artifacts": refs}))
+            "design_revision": state["design_revision"], "approved_artifacts": refs,
+            # A person cannot consent to a design shown as four artifact ids and a hash: the
+            # assumptions and identification risks they are approving must be legible (D-104).
+            "design": self._payload(anchor.artifact_id)}))
         held = self._commit(state, "DesignApprovalDecision", decision.canonical_payload(),
                             self._parents(state, "ExperimentDesign"))
         self._emit(state, "user_interrupt.resumed", EVAL_APPROVAL, status=decision.decision.value)

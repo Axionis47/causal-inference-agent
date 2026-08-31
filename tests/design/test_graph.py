@@ -608,6 +608,42 @@ def test_the_semantic_prompt_carries_the_measured_facts_of_its_columns(
     assert '"cardinality"' in section and '"dtype"' in section
 
 
+def test_the_role_prompt_carries_the_cards_of_its_assigned_columns(
+    conn: Any, object_store: ObjectStore
+) -> None:
+    """D-104: PRD-002 §9.5 routes the cited cards here; the worker was sent column names."""
+    gateway = ScriptedGateway()
+    start(conn, object_store, gateway=gateway)
+    prompt = gateway.prompts["role_evidence"]
+    body = json.loads(prompt.split("## allowed_evidence")[0].split("## payload\n")[-1]) if (
+        "## payload\n" in prompt) else None
+    assert '"column-semantic-card.v1"' in prompt, "no card payload reached the role worker"
+    # The slots are what the worker was missing: meaning, units, levels and timing per column.
+    assert '"slots"' in prompt and '"measurement_window"' in prompt
+    assert body is None or {card["column_name"] for card in body["cards"]}
+
+
+def test_the_approval_interrupt_shows_the_design_it_asks_a_person_to_approve(
+    conn: Any, object_store: ObjectStore, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """D-104: approving an artifact id and a sha256 is not informed consent."""
+    stub_renderer(monkeypatch)
+    bodies: list[dict[str, Any]] = []
+    real = graph.interrupt
+
+    def capture(body: dict[str, Any]) -> Any:
+        bodies.append(body)
+        return real(body)
+
+    monkeypatch.setattr(graph, "interrupt", capture)
+    start(conn, object_store)
+    shown = [body for body in bodies if body["kind"] == "approval"]
+    assert shown, "the approval gate never opened"
+    design = shown[0]["design"]
+    assert design["schema_version"] == "experiment-design.v1"
+    assert "assumptions" in design and "identification_risks" in design
+
+
 class TestRefusal:
     def test_no_admitted_csv_refuses_without_a_handoff(
         self, conn: Any, object_store: ObjectStore

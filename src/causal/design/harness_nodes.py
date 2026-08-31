@@ -167,8 +167,14 @@ class PipelineNodes(HarnessBase):
             done = self._run_task(
                 state, "role_evidence", semantics.RoleEvidenceV1, scope_kind="relationship",
                 scope_ids=concepts or [record.table_name], parent_kinds=("MeasurementMap",),
+                # PRD-002 §9.5 routes "assigned concepts/relationships, timing, cited cards" here.
+                # The cards hold the meaning, units, levels and timing of these exact columns and
+                # were committed one node ago; sending their names alone starved the worker (D-104).
                 payload={"batch_id": batch.batch_id, "concept_ids": concepts,
-                         "columns": list(batch.column_names)})
+                         "columns": list(batch.column_names),
+                         "cards": [card for found in state["card_ids"]
+                                   if (card := self._payload(found))["column_name"]
+                                   in batch.column_names]})
             if done is None:
                 return self._out(state)
             found_ids.extend(found.artifact_id for _, found in done)
