@@ -15,10 +15,15 @@ from causal.shared.canonical import canonical_bytes, content_hash
 from causal.shared.contracts import Identity, PayloadLocator, Sha256Hex
 
 __all__ = [
-    "FRAME_DTYPES", "FRAME_HASH_MISMATCH", "FRAME_SCHEMA_MISMATCH", "UNSUPPORTED_FRAME_DTYPE",
+    "FRAME_DTYPES", "FRAME_HASH_MISMATCH", "FRAME_SCHEMA_MISMATCH", "ROW_UNIT_COLUMN",
+    "UNSUPPORTED_FRAME_DTYPE",
     "FrameArtifactV1", "FrameColumnV1", "FrameError", "FrameObjectStore", "FrameStore",
     "dtype_name", "frame_bytes", "frame_columns", "read_frame", "write_frame",
 ]
+
+# The unit identifier of a table whose row IS the unit: no CSV column carries it, so the design
+# binds this name and preparation materialises it from the original row order (D-105).
+ROW_UNIT_COLUMN: Final = "__row_unit_id"
 
 FRAME_HASH_MISMATCH: Final = "frame_hash_mismatch"
 FRAME_SCHEMA_MISMATCH: Final = "frame_schema_mismatch"

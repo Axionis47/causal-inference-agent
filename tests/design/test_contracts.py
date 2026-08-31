@@ -180,7 +180,7 @@ INTENT: dict[str, object] = {
     "question_kind": QuestionKind.CAUSAL, "causal_claim": "the program raises earnings",
     "intended_decision": "whether to expand the program", "treatment": PROPOSAL,
     "outcome": PROPOSAL, "population": PROPOSAL, "comparator": PROPOSAL, "unit": PROPOSAL,
-    "timeframe": PROPOSAL, "candidate_grain": "person", "mandatory_concepts": (PROPOSAL,),
+    "timeframe": PROPOSAL, "candidate_grain": "one_row_per_unit", "mandatory_concepts": (PROPOSAL,),
     "claims": (CLAIM,),
 }
 PACKET: dict[str, object] = {
@@ -359,3 +359,10 @@ def test_interrupt_kinds_cover_the_three_pauses() -> None:
     assert tuple(kind.value for kind in InterruptKind) == (
         "table_selection", "clarification", "approval"
     )
+
+
+@pytest.mark.parametrize("grain", ["one row per person", "person", "", "ONE_ROW_PER_UNIT"])
+def test_an_unrecognised_table_grain_never_parses(grain: str) -> None:
+    """D-105: the grain becomes a unit identifier, so a free string must fail at wall 1."""
+    with pytest.raises(ValidationError):
+        DesignIntentV1(**{**INTENT, "candidate_grain": grain})

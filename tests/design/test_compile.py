@@ -93,7 +93,7 @@ INTENT = DesignIntentV1(
     intended_decision="fund the programme", treatment=proposal("Training program", "treat"),
     outcome=proposal("Earnings", "re78", "re74"), population=proposal("Eligible adults"),
     comparator=proposal("No training"), unit=proposal("Person"), timeframe=proposal("1978"),
-    candidate_grain="one row per person",
+    candidate_grain="one_row_per_unit",
     mandatory_concepts=(proposal("Prior earnings", "re74"),), claims=(),
 )
 CARDS = (card("treat", "c:training_program", TimingClass.CONCURRENT),

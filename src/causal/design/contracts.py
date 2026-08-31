@@ -154,6 +154,13 @@ class DesignContextManifestV1(_Payload):
         return self
 
 
+# The closed grain vocabulary. D-105 turns "one row per unit" into an actual unit identifier,
+# so an unrecognised value must fail at wall 1 rather than as UNSUPPORTED_METHOD five nodes later;
+# `result_schema` renders this Literal into the forced response schema, so it cannot be emitted.
+TableGrain = Literal["one_row_per_unit", "one_row_per_unit_period", "one_row_per_group_time",
+                     "repeated_rows_per_unit"]
+
+
 class ConceptProposalV1(_Row):
     """A proposed concept and the columns that might carry it."""
 
@@ -175,7 +182,7 @@ class DesignIntentV1(_Payload):
     comparator: ConceptProposalV1
     unit: ConceptProposalV1
     timeframe: ConceptProposalV1
-    candidate_grain: Identity
+    candidate_grain: TableGrain
     mandatory_concepts: tuple[ConceptProposalV1, ...]
     claims: tuple[ClaimV1, ...]
 

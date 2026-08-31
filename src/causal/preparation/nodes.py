@@ -113,7 +113,8 @@ class PreparationNodes(HarnessBase):
         pack, data = self.pack(book), self.deps.objects.get(book.source_object_locator)
         self.emit(state, "task.started", hb.EVAL_ROWS, status="stabilize")
         try:
-            parsed = stabilize.parse_source_csv(data, self.parse_specs(data, book))
+            parsed = stabilize.with_row_unit(
+                stabilize.parse_source_csv(data, self.parse_specs(data, book)), book.key_columns)
             role_rules, duplicates = self.row_rules(book, pack, parsed.frame.columns)
             result = stabilize.stabilize(
                 parsed, csv_hash=hashlib.sha256(data).hexdigest(), manifest=book, pack=pack,
@@ -253,8 +254,7 @@ class PreparationNodes(HarnessBase):
                     parents=(plan_ref,),
                     expected_inputs={} if first is None else {first.plan_item_id: source.ref})
             except executor.ExecutionError as error:
-                self.emit(state, "tool.failed", hb.EVAL_EXEC, severity=ERROR,
-                          error_code=error.code)
+                self.emit(state, "tool.failed", hb.EVAL_EXEC, severity=ERROR, error_code=error.code)
                 return self.fail(state, error.code, error.codes)
             self.emit(state, "tool.completed", hb.EVAL_EXEC, status="executed")
         # §25: the contract is already satisfied, so nothing is previewed or mutated and the

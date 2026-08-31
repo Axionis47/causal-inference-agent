@@ -25,12 +25,34 @@ from causal.shared import envelope as agent
 from causal.shared import handoff
 from causal.shared.canonical import content_hash
 from causal.shared.contracts import ArtifactEnvelopeV1
+from causal.shared.frames import ROW_UNIT_COLUMN
 from causal.shared.readers import CsvObjectFrameSource
 from causal.shared.validation import parse_strict
 
 __all__ = ["PipelineNodes"]
 
 CAPACITY_KIND: Final = "DeliveryCapacityCheck"
+# The three payloads that must name the row unit identifier once the harness binds it.
+ROW_UNIT_KINDS: Final = ("RoleLedger", "RunnableFrameContract", "ExperimentDesign")
+ROW_UNIT_ASSUMPTION: Final = (
+    "No column identifies a unit and the intent states one row per unit, so each row is treated "
+    f"as one unit and {ROW_UNIT_COLUMN!r} is derived from the source row order.")
+# `hypothesis`, never `evidenced`: no document names this column, because it does not exist yet.
+ROW_UNIT_CLAIM: Final[dict[str, Any]] = {
+    "role": semantics.RoleName.UNIT_IDENTIFIER.value, "concept_id": "c:row_unit",
+    "column_refs": [ROW_UNIT_COLUMN], "evidence_ids": [], "graph_edge_ids": [],
+    "timing": semantics.TimingClass.PRE_TREATMENT.value, "alternatives": [], "methods": [],
+    "support_class": agent.SupportClass.CORROBORATED_SOURCE_INFERENCE.value,
+    "status": agent.EpistemicStatus.HYPOTHESIS.value}
+
+
+def _bind_row_unit(kind: str, body: dict[str, Any]) -> dict[str, Any]:
+    """Name the derived row identifier in whichever payload carries it."""
+    if kind == "RoleLedger":
+        return body | {"claims": [*body["claims"], ROW_UNIT_CLAIM]}
+    if kind == "RunnableFrameContract":
+        return body | {"key_columns": [*body["key_columns"], ROW_UNIT_COLUMN]}
+    return body | {"assumptions": [*body["assumptions"], ROW_UNIT_ASSUMPTION]}
 
 
 class PipelineNodes(HarnessBase):
@@ -291,17 +313,33 @@ class PipelineNodes(HarnessBase):
         return self._out(state, stage="method", method_id=design.method_id,
                          candidate_method_ids=eligible)
 
+    def _row_is_unit(self, state: DesignState) -> bool:
+        """True when no column identifies a unit and the intent asserts one row per unit.
+
+        The assertion is load-bearing. "No column is unique" alone would turn a panel file that
+        lost its id column into one independent unit per row, and every interval would be too
+        narrow; the grain must be stated before the row number becomes an identifier (D-105).
+        """
+        intent = self._model(state, "DesignIntent", contracts.DesignIntentV1)
+        return (intent.candidate_grain == "one_row_per_unit"
+                and not self._grain(state)["unique_single_columns"])
+
     # PRD-003 §4 reads two facts off the committed design that no worker can know: the identity
     # of its delivery-capacity check, and the pre-repair report in its lineage. Both are bound
     # here, before the design is written, because a D-031 identity is a function of the payload
-    # alone — so the check can be named before `capacity_node` commits it (D-077).
+    # alone — so the check can be named before `capacity_node` commits it (D-077). The row unit
+    # identifier is the same class (D-105): the column does not exist until preparation makes it,
+    # and wall 2 admits only `manifest.structural_inventory` names, so no worker could name it.
     def _commit(self, state: DesignState, kind: str, payload: Mapping[str, object],
                 parents: tuple[ArtifactEnvelopeV1, ...]) -> ArtifactEnvelopeV1:
-        """Commit one artifact; an ExperimentDesign first gains its two harness-owned facts."""
+        """Commit one artifact, bound with the facts no worker can know."""
+        body = dict(payload)
+        if kind in ROW_UNIT_KINDS and self._row_is_unit(state):
+            body = _bind_row_unit(kind, body)
         if kind != "ExperimentDesign":
-            return super()._commit(state, kind, payload, parents)
-        draft = parse_strict(frame.ExperimentDesignV1, dict(payload))
-        bound = dict(payload) | {"capacity_check": self._capacity_ref(state, draft)}
+            return super()._commit(state, kind, body, parents)
+        draft = parse_strict(frame.ExperimentDesignV1, body)
+        bound = body | {"capacity_check": self._capacity_ref(state, draft)}
         return super()._commit(state, kind, bound, parents + self._prerepair(state, draft))
 
     def _capacity(self, design: frame.ExperimentDesignV1) -> frame.DeliveryCapacityCheckV1:

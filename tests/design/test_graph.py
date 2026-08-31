@@ -9,12 +9,13 @@ import shutil
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import psycopg
 import pytest
 
-from causal.design import graph
+from causal.design import graph, harness_nodes
 from causal.design.capacity import load_capacity_registry
 from causal.design.compile import load_task_table
 from causal.design.contracts import REGISTRY_VERSION_KEYS, DesignIntentV1
@@ -34,6 +35,7 @@ from causal.intake.fields import load_field_classes
 from causal.shared.contracts import ArtifactEnvelopeV1
 from causal.shared.envelope import AgentTaskEnvelopeV1
 from causal.shared.events import EventEmitter
+from causal.shared.frames import ROW_UNIT_COLUMN
 from causal.shared.gateway import GatewayResultV1
 from causal.shared.persistence import ArtifactCommitter, ObjectStore, ProductStore
 from causal.shared.registry import load_artifact_type_registry
@@ -90,7 +92,7 @@ def intent_payload(envelope: AgentTaskEnvelopeV1) -> dict[str, Any]:
             "comparator": proposal("comparator", "applicants not enrolled", ["group"]),
             "unit": proposal("unit", "one applicant", ["unit_id"]),
             "timeframe": proposal("timeframe", "the 1975-1978 window", []),
-            "candidate_grain": "one row per applicant", "mandatory_concepts": [], "claims": []}
+            "candidate_grain": "one_row_per_unit", "mandatory_concepts": [], "claims": []}
 
 
 def card(column: str) -> dict[str, Any]:
@@ -676,3 +678,43 @@ def test_state_carries_only_allowlisted_scalars(
 
 def test_registry_versions_are_the_closed_manifest_key_set() -> None:
     assert set(graph.REGISTRY_VERSIONS) == set(REGISTRY_VERSION_KEYS)
+
+
+class _GrainStub:
+    """Just enough harness to exercise the D-105 rule: the intent's grain and the profile."""
+
+    _row_is_unit = harness_nodes.PipelineNodes._row_is_unit
+
+    def __init__(self, grain: str, unique: list[str]) -> None:
+        self.grain, self.unique = grain, unique
+
+    def _model(self, state: Any, kind: str, model: Any) -> Any:
+        return SimpleNamespace(candidate_grain=self.grain)
+
+    def _grain(self, state: Any) -> dict[str, Any]:
+        return {"unique_single_columns": self.unique}
+
+
+@pytest.mark.parametrize(("grain", "unique", "bound"), [
+    ("one_row_per_unit", [], True),
+    # A panel file that lost its id column must NOT become one independent unit per row.
+    ("one_row_per_unit_period", [], False),
+    ("one_row_per_group_time", [], False),
+    # An id column exists, so the model's own claim stands and nothing is bound.
+    ("one_row_per_unit", ["unit_id"], False),
+])
+def test_the_row_is_the_unit_only_when_asserted_and_unidentified(
+    grain: str, unique: list[str], bound: bool
+) -> None:
+    """D-105: "no column is unique" alone would narrow every interval on a panel table."""
+    assert _GrainStub(grain, unique)._row_is_unit({}) is bound
+
+
+def test_binding_names_the_row_unit_in_every_payload_that_carries_it() -> None:
+    ledger = harness_nodes._bind_row_unit("RoleLedger", {"claims": []})
+    assert ledger["claims"][0]["column_refs"] == [ROW_UNIT_COLUMN]
+    assert ledger["claims"][0]["role"] == "unit_identifier"
+    contract = harness_nodes._bind_row_unit("RunnableFrameContract", {"key_columns": ["treat"]})
+    assert contract["key_columns"] == ["treat", ROW_UNIT_COLUMN]
+    design = harness_nodes._bind_row_unit("ExperimentDesign", {"assumptions": []})
+    assert ROW_UNIT_COLUMN in design["assumptions"][0]

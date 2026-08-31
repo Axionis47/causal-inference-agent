@@ -6,7 +6,7 @@ import datetime as dt
 import io
 from collections import Counter
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import StrEnum
 from typing import Final
 
@@ -18,7 +18,7 @@ from causal.preparation.contracts import PreparationError, RowDisposition, _Row
 from causal.preparation.plans import PreparationPackV1
 from causal.shared.canonical import canonical_bytes, content_hash
 from causal.shared.contracts import Identity, Sha256Hex
-from causal.shared.frames import FRAME_DTYPES, FrameObjectStore
+from causal.shared.frames import FRAME_DTYPES, ROW_UNIT_COLUMN, FrameObjectStore
 
 UNPARSABLE_SOURCE, UNREGISTERED_RULE = "unparsable_source", "unregistered_rule"
 UNKNOWN_RULE_TARGET, UNREPRESENTABLE_CELL = "unknown_rule_target", "unrepresentable_optional_cell"
@@ -128,6 +128,17 @@ def source_row_id(csv_hash: str, row_number: int, content_digest: str) -> str:
 
 
 # Parse under the pinned profile; typed cast errors, not a byte scanner, mark records.
+def with_row_unit(parsed: ParsedSource, key_columns: Sequence[str]) -> ParsedSource:
+    """Materialise the row identifier the frame contract asks for, in original CSV order (D-105).
+
+    Assigned here because stabilization precedes every repair: an index taken later would shift
+    under whatever those repairs dropped, and the identifier must name the row the file shipped.
+    """
+    if ROW_UNIT_COLUMN not in key_columns or ROW_UNIT_COLUMN in parsed.frame.columns:
+        return parsed
+    return replace(parsed, frame=parsed.frame.with_row_index(ROW_UNIT_COLUMN))
+
+
 def parse_source_csv(data: bytes, columns: tuple[ColumnParseSpecV1, ...]) -> ParsedSource:
     try:
         raw = pl.read_csv(io.BytesIO(data), has_header=True, infer_schema_length=0,

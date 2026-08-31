@@ -6,6 +6,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
+import polars as pl
 import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
@@ -29,6 +30,7 @@ from causal.preparation.stabilize import (
     UNREPRESENTABLE_CELL,
     ColumnParseSpecV1,
     DuplicatePolicyV1,
+    ParsedSource,
     RequiredRoleRuleV1,
     RowRuleV1,
     RuleEvaluator,
@@ -38,7 +40,9 @@ from causal.preparation.stabilize import (
     row_content_hash,
     stabilization_summaries,
     stabilize,
+    with_row_unit,
 )
+from causal.shared.frames import ROW_UNIT_COLUMN
 from tests.conftest import MemoryObjects
 from tests.preparation.test_contracts import MANIFEST, REF
 
@@ -260,3 +264,16 @@ def test_a_frozen_row_set_hash_moves_when_a_retained_row_leaves() -> None:
         for body in (kept, lost)
     }
     assert len(hashes) == 2
+
+
+def test_the_row_unit_column_is_materialised_in_source_order_and_only_when_asked() -> None:
+    """D-105: assigned in stabilization, before any repair can drop a row and shift the index."""
+    frame = pl.DataFrame({"treat": [1, 0, 1], "re78": [0.0, 5.0, 0.0]})
+    parsed = ParsedSource(frame=frame, corrupt_rows=frozenset(), parse_warning_counts={})
+    assert with_row_unit(parsed, ("treat",)) is parsed
+    bound = with_row_unit(parsed, ("treat", ROW_UNIT_COLUMN))
+    assert bound.frame[ROW_UNIT_COLUMN].to_list() == [0, 1, 2]
+    assert bound.frame[ROW_UNIT_COLUMN].n_unique() == bound.frame.height
+    assert bound.frame["treat"].to_list() == frame["treat"].to_list()
+    # Idempotent: a contract naming it twice, or a re-run, never renumbers the rows.
+    assert with_row_unit(bound, ("treat", ROW_UNIT_COLUMN)) is bound

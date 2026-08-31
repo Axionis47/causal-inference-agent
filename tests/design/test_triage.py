@@ -92,7 +92,7 @@ def intent(
         intended_decision="fund the program", treatment=proposal("treatment", *treatment),
         outcome=proposal("outcome", "re_78"), population=proposal("population"),
         comparator=proposal("comparator"), unit=proposal("unit", *unit),
-        timeframe=proposal("timeframe"), candidate_grain="one row per applicant",
+        timeframe=proposal("timeframe"), candidate_grain="one_row_per_unit",
         mandatory_concepts=(), claims=(),
     )
 
