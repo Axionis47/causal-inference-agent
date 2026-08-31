@@ -14,6 +14,7 @@ from causal.design.contracts import (
     StructuralFieldV1,
 )
 from causal.design.frame import ExperimentDesignV1, RunnableFrameContractV1
+from causal.design.harness_nodes import _bind_row_unit
 from causal.design.packs import (
     METHOD_IDS,
     PackRegistryError,
@@ -59,6 +60,8 @@ from causal.shared.envelope import (
     TaskBudgets,
     TaskStatus,
 )
+from causal.shared.frames import ROW_UNIT_COLUMN
+from causal.shared.validation import parse_strict
 
 REGISTRIES = Path(__file__).resolve().parents[2] / "registries"
 RULES = load_validation_rules(REGISTRIES / "design-validation-rules.v1.json")
@@ -464,3 +467,14 @@ def test_validate_result_runs_every_wall_the_task_kind_allows() -> None:
     assert passing.passed and passing.wall == 4
     capped = validate_result(7, "causal_synthesis", RoleLedgerV1, result(ledger()), context())
     assert capped.wall == 5
+
+
+def test_the_bound_row_unit_claim_survives_the_committed_read_back() -> None:
+    """D-105: the harness writes this claim as plain JSON, so it must parse back strictly."""
+    body = _bind_row_unit("RoleLedger", ledger().model_dump(mode="json"))
+    read = parse_strict(RoleLedgerV1, body)
+    claim = next(row for row in read.claims if row.role is RoleName.UNIT_IDENTIFIER)
+    assert claim.column_refs == (ROW_UNIT_COLUMN,)
+    assert claim.status is EpistemicStatus.HYPOTHESIS
+    # `method()` counts a role as held when its status is not UNKNOWN, so this makes packs eligible.
+    assert claim.status is not EpistemicStatus.UNKNOWN
