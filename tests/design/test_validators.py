@@ -478,3 +478,12 @@ def test_the_bound_row_unit_claim_survives_the_committed_read_back() -> None:
     assert claim.status is EpistemicStatus.HYPOTHESIS
     # `method()` counts a role as held when its status is not UNKNOWN, so this makes packs eligible.
     assert claim.status is not EpistemicStatus.UNKNOWN
+
+
+def test_wall_three_names_the_classes_it_accepts_and_the_ones_it_got() -> None:
+    """D-106: with an empty detail the worker re-sent the same claim until its budget ran out."""
+    built = claim("measurement_timing", evidence=("ev:kaggle/dataset/description",))
+    issue = wall_evidence(None, result(claims=(built,)), context()).issues[0]
+    assert issue.code == "blocking_claim_unsupported"
+    assert "data_dictionary" in issue.detail and "source_statement" in issue.detail
+    assert "hypothesis" in issue.detail

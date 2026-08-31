@@ -157,9 +157,16 @@ def _claim_issues(index: int, claim: ClaimV1, ctx: ValidationContext) -> Issues:
     classes = {evidence_class(found) for found in claim.supporting_evidence_ids}
     for template in blocking:
         if guessed or not classes & set(template.acceptable_evidence_types):
+            # D-106: this wall held both sets and reported neither, so a worker was told a code
+            # and a path and spent its whole correction budget re-sending the same claim.
             yield _issue("hypothesis_support_for_blocking_claim" if guessed
                          else "blocking_claim_unsupported", f"/claims/{index}", "wall3.evidence",
-                         _EVID, True, (claim.claim_id, template.requirement_id))
+                         _EVID, True, (claim.claim_id, template.requirement_id),
+                         f"{template.requirement_id} accepts "
+                         f"{sorted(template.acceptable_evidence_types)}; this claim cites "
+                         f"{sorted(found.value for found in classes if found)}. Cite one of those "
+                         "classes, or set epistemic_status to 'hypothesis' and raise the "
+                         "requirement instead.")
 
 
 def wall_evidence(payload: Any, result: Result, ctx: ValidationContext) -> ValidationReport:
