@@ -143,7 +143,8 @@ def wall_references(payload: Any, result: Result, ctx: ValidationContext) -> Val
         *_unresolved(_gather(dumped, _COLUMN_KEYS) - inventory, "unresolved_column", "/columns"),
         *_unresolved(_gather(dumped, _EVIDENCE_KEYS) - known, "unresolved_evidence", "/evidence"),
         *_unresolved(parents - set(ctx.parents), "uncommitted_parent", "/parent_artifact_ids"),
-        *_unresolved(raised - set(ctx.templates), "unknown_requirement_id", "/requirements"),
+        *_unresolved(raised - set(ctx.templates), "unknown_requirement_id", "/requirements",
+                     _ASK, sorted(ctx.templates)),
         *_self_citations(result.payload if result else dumped)))
 
 

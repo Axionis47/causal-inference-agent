@@ -19,16 +19,18 @@ from causal.shared.events import Severity
 from causal.shared.gateway import GatewayResultV1
 from causal.shared.validation import ValidationIssueV1, ValidationReport, parse_strict
 
-__all__ = ["EVIDENCE_CHARS", "EVIDENCE_HEADING", "PARENT_HEADING", "REQUIREMENT_HEADING",
-           "GatewayProtocol", "TaskRunner", "evidence_block", "result_schema"]
+__all__ = ["EVIDENCE_CHARS", "EVIDENCE_HEADING", "EVIDENCE_TOTAL", "PARENT_HEADING",
+           "REQUIREMENT_HEADING", "GatewayProtocol", "TaskRunner", "evidence_block",
+           "in_task_scope", "result_schema"]
 
 EVIDENCE_HEADING: Final = "\n\n## allowed_evidence\n"
 PARENT_HEADING: Final = "\n\n## parent_artifacts\n"
 REQUIREMENT_HEADING: Final = "\n\n## registered_requirement_ids\n"
 NONE_LINE: Final = "(none)"
-# One evidence item's text is truncated at this many characters: the block goes into
-# every task prompt, and a codebook can be far longer than a model should be handed.
+# One item's text, then the whole block. Every allowlisted item lands in every task prompt,
+# so a dataset with per-column evidence would otherwise grow the prompt without bound.
 EVIDENCE_CHARS: Final = 4000
+EVIDENCE_TOTAL: Final = 24000
 
 
 class GatewayProtocol(Protocol):
@@ -38,17 +40,44 @@ class GatewayProtocol(Protocol):
                response_schema: dict[str, object]) -> GatewayResultV1: ...
 
 
-def evidence_block(evidence: Mapping[str, str] | frozenset[str]) -> str:
-    """Every allowlisted evidence id with the text it carries (D-102).
+def in_task_scope(evidence_id: str, scope_ids: Sequence[str]) -> bool:
+    """A column-scoped evidence id belongs only to a task that was assigned that column.
+
+    Covers both families: `ev:kaggle/column/<table>/<column>/<field>` from intake, and the
+    `<profile>#/columns/<column>` measured facts the harness computed.
+    """
+    parts = [part for part in evidence_id.split("/") if part]
+    if not scope_ids:
+        return True
+    if "columns" in parts:  # <profile>#/columns/<column>
+        return parts[-1] in scope_ids
+    if "column" in parts and len(parts) > 3:  # ev:kaggle/column/<table>/<column>/<field>
+        return parts[3] in scope_ids
+    return True
+
+
+def evidence_block(evidence: Mapping[str, str] | frozenset[str],
+                   scope_ids: Sequence[str] = ()) -> str:
+    """Every in-scope evidence id with the text it carries, under one budget (D-102, D-103).
 
     Rendering the id alone let a worker report a document it was never shown as `not_offered`,
     so the gate saw its sources exhausted and escalated to the user for facts the harness was
-    holding. A caller with no text — estimation, presentation — still renders bare ids.
+    holding. Rendering all of them without a bound is the opposite failure, so a task sees the
+    dataset-wide sources plus its own columns, and an item dropped for budget says so rather
+    than vanishing. A caller with no text — estimation, presentation — still renders bare ids.
     """
     values = evidence if isinstance(evidence, Mapping) else {}
-    return "\n".join(
-        f"{key}:\n{indent(values[key][:EVIDENCE_CHARS], '  ')}" if values.get(key) else key
-        for key in sorted(evidence)) or NONE_LINE
+    lines, used = [], 0
+    for key in sorted(evidence):
+        if not in_task_scope(key, scope_ids):
+            continue
+        text = (values.get(key) or "")[:EVIDENCE_CHARS]
+        if used + len(text) > EVIDENCE_TOTAL:
+            lines.append(f"{key}:\n  (withheld: this task's evidence budget is full)")
+            continue
+        used += len(text)
+        lines.append(f"{key}:\n{indent(text, '  ')}" if text else key)
+    return "\n".join(lines) or NONE_LINE
 
 
 @cache
@@ -112,7 +141,7 @@ class TaskRunner:
         # committed refs, so the prompt must carry every closed set it enforces — evidence,
         # parents, and the requirement ids a result may raise (D-065, D-068, D-098).
         rendered = self.prompt(spec, self.prompts_root, dict(payload)) + EVIDENCE_HEADING + (
-            evidence_block(evidence)) + PARENT_HEADING + (
+            evidence_block(evidence, scope[1])) + PARENT_HEADING + (
             "\n".join(ref.artifact_id for ref in built.parent_artifacts) or NONE_LINE
             ) + REQUIREMENT_HEADING + ("\n".join(sorted(self.requirements)) or NONE_LINE)
         answer = self.gateway.invoke(built, rendered, result_schema(draft, many=many))

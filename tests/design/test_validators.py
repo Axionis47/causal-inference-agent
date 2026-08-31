@@ -259,11 +259,15 @@ def test_wall_references_catches_a_claim_that_cites_itself() -> None:
 
 
 # --- wall 3: evidence ---
+# D-103: wall 3 binds to `blocking` requirements, so `measurement_timing` carries these rules and
+# an inferred `meaning` is now an assumption the design records rather than a validation failure.
 @pytest.mark.parametrize(("built", "expected"), [
-    (claim("meaning"), set()),
-    (claim("meaning", evidence=("ev:none/x",)), {"blocking_claim_unsupported"}),
-    (claim("meaning", SupportClass.MODEL_HYPOTHESIS), {"hypothesis_support_for_blocking_claim"}),
+    (claim("measurement_timing", evidence=("ev:kaggle/column/nsw.csv/re78/timing",)), set()),
+    (claim("measurement_timing", evidence=("ev:none/x",)), {"blocking_claim_unsupported"}),
+    (claim("measurement_timing", SupportClass.MODEL_HYPOTHESIS),
+     {"hypothesis_support_for_blocking_claim"}),
     (claim("source_process", SupportClass.MODEL_HYPOTHESIS), set()),
+    (claim("meaning", SupportClass.MODEL_HYPOTHESIS), set()),
 ])
 def test_wall_evidence_rules(built: ClaimV1, expected: set[str]) -> None:
     assert codes(wall_evidence(None, result(claims=(built,)), context())) == expected
@@ -366,7 +370,11 @@ def test_wall_method_flags_a_forbidden_adjustment_member() -> None:
 def test_wall_method_flags_every_unresolved_requirement() -> None:
     report = wall_method(design(), None, method_ctx(resolved_requirements={}))
     assert codes(report) == {"unresolved_requirement"}
-    assert len(report.issues) == len(PACK.required_context_requirement_ids) - 1
+    # D-103: a `retain_as_sensitivity` requirement is carried as an assumption, never flagged here.
+    blocking = [found for found in PACK.required_context_requirement_ids
+                if TEMPLATES[found].missing_action != "retain_as_sensitivity"]
+    assert len(report.issues) == len(blocking)
+    assert "design.assignment_mechanism" in blocking and "column.meaning" not in blocking
 
 
 def test_wall_method_flags_a_structural_requirement_without_diagnostics() -> None:

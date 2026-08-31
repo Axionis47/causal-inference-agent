@@ -108,19 +108,18 @@ class PipelineNodes(HarnessBase):
             state, "intent", contracts.DesignIntentV1, scope_kind="design",
             scope_ids=(book.selected_table,), parent_kinds=("DesignContextManifest",),
             payload={"question": self._payload(state["artifacts"]["QuestionRecord"]),
-                     "selected_table": book.selected_table, "columns": [
+                     "selected_table": book.selected_table,
+                     # What the harness counted, so grain and unit identity are read off the
+                     # table rather than guessed from its shape (D-103).
+                     "table_facts": self._grain(state), "columns": [
                          row.column_name for row in book.structural_inventory]})
         return self._out(state) if done is None else self._out(state, stage="intent")
 
     def triage_node(self, state: DesignState) -> dict[str, Any]:
         """Deterministic `triage.v1` over the committed table profile; no model runs here."""
         book = self._model(state, "DesignContextManifest", contracts.DesignContextManifestV1)
-        hypotheses: dict[str, tuple[str, ...]] = {}
-        for found in self._payload(state["artifacts"]["IntakeOutcome"])["table_profile_artifact_ids"]:
-            profile = self._payload(str(found))
-            if profile.get("logical_name") == book.selected_table:
-                hypotheses = {name: tuple(str(item["kind"]) for item in col.get("hypotheses") or ())
-                              for name, col in (profile.get("columns") or {}).items()}
+        hypotheses = {name: tuple(str(item["kind"]) for item in col.get("hypotheses") or ())
+                      for name, col in self._profile(state)[1].items()}
         record = triage(
             self._model(state, "DesignIntent", contracts.DesignIntentV1), book, hypotheses)
         self._commit(state, "ColumnTriageRecord", record.canonical_payload(),

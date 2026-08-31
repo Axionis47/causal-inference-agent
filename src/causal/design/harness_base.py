@@ -62,6 +62,12 @@ OUTCOME_REFS: Final = {
     "causal_graph_view": "CausalGraphView", "capacity_check": "DeliveryCapacityCheck",
     "approval": "DesignApproval"}
 
+# The bounded per-column profile facts a model task may see (PRD-002 §15). The harness
+# measured these; a card slot citing one is a `measured_observation`, not an inference.
+MEASURED_FACT_KEYS: Final = ("dtype", "cardinality", "null_count", "null_rate", "all_null",
+                             "constant", "numeric", "hypotheses")
+GRAIN_KEYS: Final = ("row_count", "column_count", "duplicate_row_count", "unique_single_columns")
+
 _TASK_ROW: Final = (
     "INSERT INTO design.design_tasks (task_id, analysis_id, stage_run_id, design_revision,"
     " task_kind, scope, envelope_hash, prompt_version, model_profile_version, status,"
@@ -238,17 +244,40 @@ class HarnessBase:
     # -- validation context and requirement rows --------------------------
 
     def _evidence(self, state: DesignState) -> dict[str, str]:
-        """The allowlisted intake evidence, id to the text it carries (D-102).
+        """The allowlisted evidence, id to the text it carries: intake sources, then measurements.
 
         The bundle holds a Kaggle description or data dictionary that answers many registered
         requirements outright. Returning ids alone left every worker reporting the document as
         `not_offered`, so SC §6.2 condition 2 held trivially and the gate asked the user for
-        facts already committed to this analysis.
+        facts already committed to this analysis (D-102). The committed profile is the same
+        loss: the harness measured every column and asked the model what the column meant while
+        showing it the column's name (D-103).
         """
         outcome = self._payload(state["artifacts"]["IntakeOutcome"])
         bundle = outcome.get("evidence_bundle_artifact_id")
         items = self._payload(str(bundle))["items"] if bundle else []
-        return {str(row["evidence_id"]): str(row.get("value") or "") for row in items}
+        found, columns = self._profile(state)
+        return {str(row["evidence_id"]): str(row.get("value") or "") for row in items} | {
+            f"{found}#/columns/{name}": json.dumps(
+                {key: value for key, value in facts.items() if key in MEASURED_FACT_KEYS},
+                ensure_ascii=False, sort_keys=True)
+            for name, facts in columns.items()}
+
+    def _profile(self, state: DesignState) -> tuple[str, dict[str, Any]]:
+        """The committed profile of the selected table: its artifact id and its column facts."""
+        table = self._model(
+            state, "DesignContextManifest", contracts.DesignContextManifestV1).selected_table
+        for found in self._payload(state["artifacts"]["IntakeOutcome"])["table_profile_artifact_ids"]:
+            payload = self._payload(str(found))
+            if payload.get("logical_name") == table:
+                return str(found), dict(payload.get("columns") or {})
+        return "", {}
+
+    def _grain(self, state: DesignState) -> dict[str, Any]:
+        """Table-level measurements: what the harness counted, for grain and unit identity."""
+        found, _ = self._profile(state)
+        payload = self._payload(found) if found else {}
+        return {key: payload.get(key) for key in GRAIN_KEYS}
 
     def _upsert(self, raised: Sequence[agent.ContextRequirementV1], analysis_id: str,
                 design_revision: int) -> None:

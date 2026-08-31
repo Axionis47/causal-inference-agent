@@ -24,15 +24,15 @@ from causal.shared.contracts import Identity
 from causal.shared.envelope import (
     ContextRequirementV1,
     Criticality,
-    EvidenceClass,
     MissingAction,
     RequirementScopeKind,
 )
+from causal.shared.validation import evidence_class
 
 __all__ = [
     "CHOICE_PREFIX", "CLOSED_ANSWER_SCHEMAS", "MAX_QUESTIONS", "MAX_ROUNDS", "AnswerOutcome",
     "AskGateError", "GateDecision", "GateRoute", "PsycopgRequirementStore", "RequirementState",
-    "RequirementStore", "build_packet", "evidence_class_for", "freeze_requirements", "gate",
+    "RequirementStore", "build_packet", "freeze_requirements", "gate",
     "group", "schema_declared", "validate_answers",
 ]
 
@@ -50,12 +50,6 @@ _DURATION: Final = re.compile(r"^\d+ (day|week|month|year)s?$")
 _PAIRS: Final = re.compile(r"^[^=,\s]+=[^=,]+(,[^=,\s]+=[^=,]+)*$")
 # A pair answer carries one value per scope, so it resolves only the scopes it names.
 _PAIR_SCHEMAS: Final = frozenset({"level-map.v1", "mapping-list.v1"})
-# Evidence class by id family (PRD-002 §10.2); measured facts are `artifact#/pointer` ids.
-EVIDENCE_CLASS_PREFIXES: Final[tuple[tuple[str, EvidenceClass], ...]] = (
-    ("ua:", EvidenceClass.USER_CONFIRMATION), ("ev:kaggle/", EvidenceClass.DATA_DICTIONARY),
-    ("ev:doc/", EvidenceClass.SOURCE_STATEMENT), ("measured:", EvidenceClass.MEASURED_OBSERVATION))
-
-
 class AskGateError(ValueError):
     """An ask-gate operation failed; `code` is a stable contract value."""
 
@@ -95,14 +89,6 @@ class AnswerOutcome(_Row):
     scope_ids: tuple[Identity, ...]
     state: RequirementState
     value: str | None
-
-
-def evidence_class_for(evidence_id: str) -> EvidenceClass | None:
-    """The class an evidence id carries, or None when the id is outside the known families."""
-    for prefix, evidence_class in EVIDENCE_CLASS_PREFIXES:
-        if evidence_id.startswith(prefix):
-            return evidence_class
-    return EvidenceClass.MEASURED_OBSERVATION if "#/" in evidence_id else None
 
 
 def freeze_requirements(collected: Iterable[ContextRequirementV1],
@@ -152,7 +138,7 @@ def _is_resolved(requirement: ContextRequirementV1, statuses: tuple[tuple[str, s
     """True when an `evidenced` row's class is admitted by the acceptable evidence classes."""
     acceptable = set(template.acceptable_evidence_types if template
                      else requirement.acceptable_evidence_types)
-    return any(status == "evidenced" and evidence_class_for(evidence_id) in acceptable
+    return any(status == "evidenced" and evidence_class(evidence_id) in acceptable
                for evidence_id, status in statuses)
 
 

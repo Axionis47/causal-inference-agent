@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Iterable, Iterator, Mapping
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from pathlib import Path
 from typing import Annotated, Any, Final
 
@@ -135,8 +135,16 @@ def collect_ids(node: Any, keys: tuple[str, ...]) -> set[str]:
 
 
 def unresolved_issues(ids: set[str], code: str, prefix: str,
-                      actions: tuple[str, ...] = ASK_ACTIONS) -> Iterator[ValidationIssueV1]:
-    return (make_issue(code, f"{prefix}/{i}", f"wall2.{code}", actions, True, (i,))
+                      actions: tuple[str, ...] = ASK_ACTIONS,
+                      legal: Sequence[str] = ()) -> Iterator[ValidationIssueV1]:
+    """One issue per unresolved id, each naming the offending value and the legal set (D-103).
+
+    The correction budget is two attempts, and `detail` used to be empty on every issue: a
+    worker was told a code and a path and had to guess what the harness would accept.
+    """
+    allowed = f"; allowed: {', '.join(sorted(legal))}" if legal else ""
+    return (make_issue(code, f"{prefix}/{i}", f"wall2.{code}", actions, True, (i,),
+                       f"{i!r} is not a known {prefix.strip('/')} value{allowed}")
             for i in sorted(ids))
 
 

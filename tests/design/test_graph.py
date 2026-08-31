@@ -572,8 +572,14 @@ def test_the_prompt_carries_the_evidence_allowlist(conn: Any, object_store: Obje
     allowed = set(gateway.calls[0].allowed_evidence_ids)
     assert "ua:question/text" in allowed
     lines = section.splitlines()
-    assert [line.rstrip(":") for line in lines if line and not line.startswith(" ")] == sorted(
-        allowed)
+    rendered = [line.rstrip(":") for line in lines if line and not line.startswith(" ")]
+    # D-103: a column-scoped evidence id reaches only a task assigned that column, so the intent
+    # task sees the dataset-wide sources and neither the card evidence nor the measured facts of
+    # one column. Both families must be in the allowlist to be citable at all.
+    scoped = {i for i in allowed if "/column/" in i or "#/columns/" in i}
+    assert rendered == sorted(allowed - scoped)
+    assert any("/column/" in i for i in scoped) and any("#/columns/" in i for i in scoped)
+    assert not {i for i in rendered} & scoped
     # D-102: the document, not only its name. Shown an id alone, a worker truthfully reports the
     # source `not_offered`, SC §6.2 condition 2 holds trivially, and the gate asks the user for a
     # fact this analysis already committed. A data dictionary is multi-line, so it renders whole.
@@ -584,6 +590,22 @@ def test_the_prompt_carries_the_evidence_allowlist(conn: Any, object_store: Obje
     registered = set(load_requirement_templates(REGISTRIES / "context-requirements.v1.json"))
     assert requirements.split() == sorted(registered)
     assert "design.treatment_meaning" in registered
+
+
+def test_the_semantic_prompt_carries_the_measured_facts_of_its_columns(
+    conn: Any, object_store: ObjectStore
+) -> None:
+    """D-103: the harness profiled every column, then asked the model what a column name meant."""
+    gateway = ScriptedGateway()
+    start(conn, object_store, gateway=gateway)
+    prompt = gateway.prompts["semantic_batch"]
+    assigned = [call for call in gateway.calls if call.task_kind == "semantic_batch"][-1].scope_ids
+    section = prompt.split("## allowed_evidence\n")[-1].split("## parent_artifacts")[0]
+    measured = [line.rstrip(":") for line in section.splitlines() if "#/columns/" in line]
+    assert measured, "no measured facts reached the semantic worker"
+    assert {line.rsplit("/", 1)[-1] for line in measured} == set(assigned)
+    # A card slot citing one of these is a measured observation, not the model's inference.
+    assert '"cardinality"' in section and '"dtype"' in section
 
 
 class TestRefusal:
