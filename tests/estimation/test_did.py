@@ -252,4 +252,6 @@ def test_the_figure_payloads_wrap_frozen_values(staggered: pl.DataFrame) -> None
         for point in events)
     counts = builders["support_composition_counts"](None)  # type: ignore[arg-type]
     assert counts and all(point.denominator for point in counts)
+    assert {point.series_id for point in counts} == {"cohort_4", "cohort_7"}
+    assert len({point.category for point in counts}) > 1
     assert did.VISUAL_EVIDENCE["event_time_estimates"] == "event_time_evidence"

@@ -181,6 +181,8 @@ def _panel_chart(panel: pc.PanelSpecV1, rows: Sequence[Mapping[str, Any]],
         encode["color"] = alt.Color("group", type="nominal")
         if panel.mark in NON_COLOR:
             encode[NON_COLOR[panel.mark]] = NON_COLOR_CHANNELS[panel.mark]("group", type="nominal")
+        elif panel.mark == "bar":
+            encode["xOffset"] = alt.XOffset("group", type="nominal")
     quantitative = alt.X if measure == "x" else alt.Y
     base = alt.Chart(alt.Data(values=list(rows)))  # type: ignore[no-untyped-call]
     layers = [getattr(base, f"mark_{DRAWN_MARKS.get(panel.mark, panel.mark)}")().encode(**encode)]

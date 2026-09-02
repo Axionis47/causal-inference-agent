@@ -132,7 +132,7 @@ class TestCompiler:
         assert not any("transform" in row or "url" in row or row.get("resolve") for row in rows)
         assert not any((row.get("scale") or {}).get("reverse") for row in rows)
         assert all(set(row.get("encoding", {})) <= {"x", "y", "x2", "y2", "color", "shape",
-                                                    "strokeDash"} for row in rows)
+                                                    "strokeDash", "xOffset"} for row in rows)
 
     def test_identical_inputs_produce_an_identical_spec_hash(self) -> None:
         moved = dict(DATA) | {PRIMARY: figure_data(PRIMARY, [point(

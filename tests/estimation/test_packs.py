@@ -9,8 +9,10 @@ from typing import Any
 
 import pytest
 
+from causal.estimation import aipw, did, rct, rdd
 from causal.estimation import packs as ep
 from causal.estimation.contracts import EstimationError
+from causal.presentation.catalog import load_visualization_catalog, profile_for_method
 from causal.shared.registry import load_artifact_type_registry
 
 REGISTRIES = Path(__file__).resolve().parents[2] / "registries"
@@ -22,6 +24,12 @@ METHOD_KEYS = (
 )
 REGISTRY = ep.load_estimation_packs(PACKS_PATH, DESIGN_PATH)
 PACKS = REGISTRY.all()
+CATALOG = load_visualization_catalog(REGISTRIES / "visualization-catalog.v1.json")
+DESIGN_REQUIRED = {row["method_id"]: set(row["required_visual_evidence_ids"]) for row in
+                   json.loads(DESIGN_PATH.read_text(encoding="utf-8"))["packs"]}
+VISUAL_EVIDENCE = {"randomized_experiment": rct.VISUAL_EVIDENCE,
+                   "aipw": aipw.VISUAL_EVIDENCE, "did": did.VISUAL_EVIDENCE,
+                   "sharp_rdd": rdd.VISUAL_EVIDENCE}
 ARTIFACT_TYPES = load_artifact_type_registry(REGISTRIES / "artifact-types.v1.json")
 ESTIMATION_TYPES = (
     "EstimationContextManifest", "EstimationPlan", "AnalysisContributionMask",
@@ -76,6 +84,18 @@ def expect_code(path: Path, code: str) -> None:
 def test_the_registry_covers_all_four_methods() -> None:
     assert len(REGISTRY) == 4
     assert tuple((row.method_id, row.pack_version) for row in PACKS) == METHOD_KEYS
+
+
+@pytest.mark.parametrize("pack", PACKS, ids=[row.method_id for row in PACKS])
+def test_required_visual_evidence_has_a_registered_estimator_producer(
+    pack: ep.EstimationPackV1,
+) -> None:
+    mapping = VISUAL_EVIDENCE[pack.method_id]
+    required = DESIGN_REQUIRED[pack.method_id]
+    profile = profile_for_method(CATALOG, pack.method_id)
+    assert set(mapping) == set(pack.figure_builder_ids)
+    assert required == set(profile.required_evidence_ids)
+    assert required <= set(mapping.values())
 
 
 @pytest.mark.parametrize("pack", PACKS, ids=[row.method_id for row in PACKS])

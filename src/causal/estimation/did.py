@@ -350,8 +350,9 @@ def figure_builders(found: Mapping[str, ec.ValueMap]) -> dict[str, engine.Figure
         "group_time_means": lambda result: _points(found, "figure_group_time_means", "group_time"),
         "event_time_estimates": lambda result: _points(
             found, "figure_event_time_estimates", "event_time"),
-        "support_composition_counts": lambda result: _points(
-            found, "figure_support_counts", "support"),
+        "support_composition_counts": lambda result: tuple(point.model_copy(update={
+            "series_id": str(point.category), "category": str(point.x_value)})
+            for point in _points(found, "figure_support_counts", "support")),
         "primary_contrast_intervals": _intervals}
 
 

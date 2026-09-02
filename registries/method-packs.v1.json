@@ -187,7 +187,6 @@
         "weights_support",
         "balance_overview",
         "primary_estimate",
-        "qualifications",
         "required_sensitivities"
       ],
       "reserved_estimator_id": "aipw-estimator.v1",
@@ -281,8 +280,7 @@
         "trends",
         "event_time_evidence",
         "support_composition",
-        "primary_aggregate",
-        "qualifications"
+        "primary_aggregate"
       ],
       "reserved_estimator_id": "did-estimator.v1",
       "runnable_frame_schema": "runnable-frame-contract.v1"

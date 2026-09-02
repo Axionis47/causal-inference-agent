@@ -29,11 +29,13 @@ from tests.estimation.test_coordinator_e2e import (
     ATTRITION,
     BASE,
     NOW,
+    PACK_IDS,
     REGISTRIES,
     ROOT,
     SPECS,
     Gateway,
     estimation_deps,
+    pack_prepared,
     prepared_outcome,
 )
 from tests.estimation.test_coordinator_e2e import nodes as est_nodes
@@ -60,7 +62,10 @@ class Curator:
                schema: dict[str, object]) -> GatewayResultV1:
         self.calls.append(envelope)
         seen = dict(envelope.payload)
-        figures = [self._figure(row, seen) for row in seen["evidence"]]
+        evidence_ids = {str(row["visual_evidence_id"]) for row in seen["evidence"]}
+        profile = next(row for row in CATALOG.profiles
+                       if set(row.required_evidence_ids) <= evidence_ids)
+        figures = [self._figure(row, seen, profile) for row in seen["evidence"]]
         payload: dict[str, Any] = {"figures": [], "inability_code": self.inability,
                                    "implicated_evidence_ids": [], "summary": ""}
         if self.inability is None:
@@ -75,12 +80,18 @@ class Curator:
         return GatewayResultV1(text=json.dumps(body), parsed=body, token_usage={}, attempts=1,
                                seed=1)
 
-    def _figure(self, row: Any, seen: dict[str, Any]) -> dict[str, Any]:
+    def _figure(self, row: Any, seen: dict[str, Any], profile: pc.MethodProfileV1
+                ) -> dict[str, Any]:
         name = str(row["visual_evidence_id"])
         template = next(t for t in seen["templates"]
                         if t["template_id"] == (self.template or row["compatible_template_ids"][0]))
         choices = {key: value[0] for key, value in template["choices"].items()}
+        required = set(profile.mandatory_encodings.get(name, ()))
+        references = required & set(template["choices"]["reference_lines"])
+        choices["reference_lines"] = min(references, default=choices["reference_lines"])
         qualifications = [str(item) for item in seen["qualification_ids"]]
+        if qualifications and "null_effect" in required:
+            choices["qualifications"] = profile.qualification_placement
         units = sorted({str(unit) for unit in row["units"].values()})
         described = (f"A {choices['marks']} figure of {name} in {' and '.join(units)} with its"
                      f" interval, the {choices['reference_lines']} reference, and"
@@ -112,11 +123,14 @@ class Stack:
         self.conn, self.objects, self.sink, self.root = conn, objects, io.StringIO(), root
         self.est = estimation_deps(conn, objects, self.sink, Gateway())
         self.runs = {name: self._estimate(name) for name in (BASE, ATTRITION)}
+        self.runs |= {PACK_IDS[method]: self._estimate(PACK_IDS[method], method)
+                      for method in ("aipw", "did")}
         self.result, self.curator, self.deps = self.present(BASE, 1)
 
-    def _estimate(self, analysis_id: str) -> Any:
-        prepared = prepared_outcome(self.conn, self.objects, self.sink, analysis_id,
-                                    SPECS[analysis_id])
+    def _estimate(self, analysis_id: str, method: str | None = None) -> Any:
+        prepared = (pack_prepared(self.conn, self.objects, self.sink, method) if method else
+                    prepared_outcome(self.conn, self.objects, self.sink, analysis_id,
+                                     SPECS[analysis_id]))
         found = est_nodes.run_estimation(
             self.est, analysis_id=analysis_id, stage_run_id=f"es:{analysis_id}:1",
             preparation_outcome_artifact_id=prepared, estimation_revision=1)
@@ -223,6 +237,30 @@ def test_a_mandatory_qualification_stands_beside_the_primary_result(stack: Stack
     assert all(name in primary[0]["qualification_ids"] for name in wanted)
     assert all(name in primary[0]["text"]["caption"] for name in wanted)
     assert all(f"qualification {name}" in bundle["summary"] for name in wanted)
+
+
+@pytest.mark.parametrize(("method", "status", "primary_id"), (
+    ("aipw", "complete_with_qualifications", "primary_estimate"),
+    ("did", "complete", "primary_aggregate"),
+))
+def test_aipw_and_did_reach_delivery_with_their_real_figure_data(
+    stack: Stack, method: str, status: str, primary_id: str,
+) -> None:
+    analysis_id = PACK_IDS[method]
+    found, curator, _ = stack.present(analysis_id, 1)
+    assert found.status == status, (found.error_code, found.detail_codes)
+    assert len(curator.calls) == 1 and found.presentation_bundle_id is not None
+    bundle = stack.payload(str(found.presentation_bundle_id))
+    book = stack.payload(str(bundle["context_manifest"]["artifact_id"]))
+    plan = stack.payload(str(bundle["plan"]["artifact_id"]))
+    assert len(bundle["specs"]) == len(book["required_evidence_ids"])
+    if method == "aipw":
+        wanted = set(book["qualification_ids"])
+        primary = next(row for row in plan["figures"]
+                       if primary_id in row["visual_evidence_ids"])
+        assert wanted and wanted <= set(primary["qualification_ids"])
+        assert primary["choices"]["qualifications"] == "caption"
+        assert all(name in primary["text"]["caption"] for name in wanted)
 
 
 # -- delivery (EV-P5-006, §20) --------------------------------------------
