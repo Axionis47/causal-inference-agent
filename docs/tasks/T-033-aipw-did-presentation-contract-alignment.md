@@ -34,6 +34,15 @@ by PRD-005 §11.4 and gate 2.
 
 ## 4. Constraints
 
-No production-code change; tests ≤ +60 logical; declarative change net non-positive; no new
+Production code ≤ +8 logical; tests ≤ +60 logical; declarative change net non-positive; no new
 module. The V1 files are corrected in place before external release; affected local artifacts are
-not replay-compatible and must be rerun. Record measured results in D-107.
+not replay-compatible and must be rerun. Record measured results in D-107/D-108.
+
+## Amendment 1 — DiD grouped support encoding
+
+After the entry correction, DiD reached gate 4 and exposed a second defect: support rows for ten
+event periods all used series `support` and category `cohort`, while the grouped-bar compiler did
+not apply its documented group offset. The repeated rows stacked beyond the frozen y-domain and
+produced a 1,332-pixel canvas. The DiD builder must encode cohort as series and event time as
+category, and the compiler must apply an x-offset for nominal grouped bars. These are presentation
+encoding corrections over already-frozen counts; no estimate, diagnostic, or domain is changed.
