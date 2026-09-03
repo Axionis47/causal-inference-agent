@@ -198,9 +198,8 @@ def _sensitivities_terminal(ctx: WallContext, rule: ValidationRuleV1) -> tuple[s
     plan = ctx.plan
     if plan is None:
         return ()
-    reported = {row.branch_id: row.execution_status for row in ctx.sensitivities}
-    return tuple(sorted(branch for branch in plan.required_sensitivity_ids
-                        if reported.get(branch, "failed") == "failed"))
+    reported = {row.branch_id for row in ctx.sensitivities}
+    return tuple(sorted(set(plan.required_sensitivity_ids) - reported))
 
 
 def _results_resolve(ctx: WallContext, rule: ValidationRuleV1) -> tuple[str, ...]:

@@ -170,6 +170,11 @@ def test_every_wall_passes_on_a_complete_green_context() -> None:
     assert all(ew.wall(number, context()).passed for number in range(1, ew.MAX_WALL + 1))
 
 
+def test_a_visible_failed_sensitivity_is_terminal() -> None:
+    rows = tuple(sensitivity(name, "failed") for name in PLAN.required_sensitivity_ids)
+    assert ew.wall(10, context(sensitivities=rows)).passed
+
+
 @pytest.mark.parametrize(("number", "over", "code"), FAILURES)
 def test_each_wall_reports_its_characteristic_failure(
         number: int, over: dict[str, Any], code: str) -> None:

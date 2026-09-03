@@ -8,7 +8,7 @@ from collections.abc import Iterator
 from dataclasses import replace
 from io import StringIO
 from pathlib import Path
-from typing import Any, NamedTuple
+from typing import Any, ClassVar, NamedTuple
 
 import psycopg
 import pytest
@@ -16,8 +16,10 @@ import pytest
 from causal.cli.main import main
 from causal.design.contracts import ApprovalDecision, TableSelectionDecisionV1
 from causal.design.graph import DesignRunResult
+from causal.estimation import judge as ej
 from causal.intake.contracts import IntakeSubmissionV1
 from causal.intake.outcome import IntakeResult
+from causal.presentation import curate as cu
 from causal.runtime import composition
 from causal.shared.envelope import AgentTaskEnvelopeV1
 from causal.shared.gateway import GatewayError, GatewayResultV1
@@ -25,7 +27,9 @@ from causal.shared.persistence import ArtifactCommitter
 from causal.shared.tracing import ObservabilityError
 from tests.conftest import MIGRATIONS, requires_docker
 from tests.design.test_graph import NOW, ScriptedGateway, stub_renderer
+from tests.estimation.test_coordinator_e2e import Gateway as ClaimGateway
 from tests.intake.conftest import FrozenKaggleClient
+from tests.presentation.test_coordinator_e2e import Curator
 from tests.shared.test_tracing import FakeTracer
 
 pytestmark = requires_docker
@@ -33,6 +37,16 @@ pytestmark = requires_docker
 ROOT = Path(__file__).resolve().parents[2]
 QUESTION = "Does the programme raise earnings?"
 RUN_STATE = "SELECT state FROM design.design_runs WHERE analysis_id = %s"
+
+
+class PipelineGateway(ScriptedGateway):
+    """The design script plus the two bounded downstream receivers."""
+
+    delegates: ClassVar[dict[str, Any]] = {
+        ej.TASK_KIND: ClaimGateway(), cu.TASK_KIND: Curator()}
+
+    def invoke(self, envelope: Any, prompt: str, schema: dict[str, object]) -> Any:
+        return (self.delegates.get(envelope.task_kind) or super()).invoke(envelope, prompt, schema)
 
 
 class Interrupt(NamedTuple):
@@ -69,7 +83,7 @@ def runtime(conn: Any, minio_s3: dict[str, Any], tmp_path: Path,
     stub_renderer(monkeypatch)  # the test host needs no Graphviz binary
     built = composition.build_runtime(
         make_config(conn, minio_s3, tmp_path), client_factory=FrozenKaggleClient,
-        model=ScriptedGateway(), strict_observability=False, clock=lambda: NOW)
+        model=PipelineGateway(), strict_observability=False, clock=lambda: NOW)
     yield built
     built.close()
 
@@ -181,9 +195,7 @@ class TestCommands:
         settled = runtime.run(made.analysis_id, expected_stage_run=opened.stage_run_id,
                               idempotency_key="k-run-3")
         assert settled.stage_run_id == f"es:{made.analysis_id}:1"
-        # D-091b: entry admits the `not_computable` PRD-003 pre-checks and wall 9 passes, so the
-        # chain settles on wall 10 — the five-row fixture cannot refit `leave_one_cluster_out`.
-        assert settled.error_code == "sensitivity_not_terminal"
+        assert (settled.status, settled.error_code) == ("invalidated", "not_reportable")
         reported = runtime.run(made.analysis_id, expected_stage_run=opened.stage_run_id,
                                idempotency_key="k-run-4")
         assert (reported.stage_run_id, reported.status) == (settled.stage_run_id, settled.status)
