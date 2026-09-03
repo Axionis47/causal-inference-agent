@@ -245,11 +245,13 @@ def test_the_figure_payloads_wrap_frozen_values(staggered: pl.DataFrame) -> None
     means = builders["group_time_means"](None)  # type: ignore[arg-type]
     assert len(means) == 30
     assert {point.category for point in means} == {"0.0", "4.0", "7.0"}
+    assert {point.series_id for point in means} == {"0.0", "4.0", "7.0"}
     events = builders["event_time_estimates"](None)  # type: ignore[arg-type]
     assert events and all(
         point.interval_lower is not None and point.y_value is not None
         and point.interval_lower <= point.y_value <= (point.interval_upper or 0.0)
         for point in events)
+    assert {point.series_id for point in events} == {"cohort_4", "cohort_7"}
     counts = builders["support_composition_counts"](None)  # type: ignore[arg-type]
     assert counts and all(point.denominator for point in counts)
     assert {point.series_id for point in counts} == {"cohort_4", "cohort_7"}

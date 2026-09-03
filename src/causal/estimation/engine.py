@@ -379,12 +379,21 @@ def figure_data(plan: ec.EstimationPlanV1, builder_id: str, builder: FigureBuild
     # the presentation compiler draws an approved quantity and never invents one (D-094). A
     # payload that carries an interval is on the approved outcome scale; the rest are counts.
     points = builder(result)
+    specific_units = {"group_time_means": {"x": "period", "y": plan.outcome_scale},
+        "event_time_estimates": {"x": "period"},
+        "support_composition_counts": {"x": "period"},
+        "primary_contrast_intervals": {"y": "contrast"}}.get(builder_id, {})
+    specific_labels = {"group_time_means": {"x": "Time period"},
+        "event_time_estimates": {"x": "Event time (periods)"},
+        "support_composition_counts": {"x": "Event time (periods)", "y": "Count"},
+        "primary_contrast_intervals": {"y": "Contrast"}}.get(builder_id, {})
     named = dict.fromkeys(("x", "y"), plan.outcome_scale if any(
-        row.interval_lower is not None for row in points) else "count") | dict(units)
+        row.interval_lower is not None for row in points) else "count") | specific_units | dict(units)
     return ec.FigureDataArtifactV1(
         parents=parents, versions=dict(plan.versions), visual_evidence_id=visual_evidence_id,
         builder_id=builder_id, builder_version=BUILDER_VERSION, points=points, units=named,
-        labels={role: f"{plan.outcome_id} ({unit})" for role, unit in named.items()} | dict(labels),
+        labels={role: f"{plan.outcome_id} ({unit})" for role, unit in named.items()}
+        | specific_labels | dict(labels),
         rule_ids=tuple(rule_ids), contributing_counts=dict(counts),
         contribution_mask_hash=mask_hash, disclosure_status=disclosure)
 

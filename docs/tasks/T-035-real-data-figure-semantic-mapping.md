@@ -1,6 +1,6 @@
 # T-035 — Real-data figure semantic mapping
 
-Status: frozen for implementation
+Status: accepted
 Owning PRDs: PRD-004 §17; PRD-005 §11–§14
 Depends on: T-031, T-033, T-034
 
@@ -38,3 +38,14 @@ only; it does not change a frozen value, unit conversion, estimator, diagnostic,
 No estimator or diagnostic calculation changes. Production code net non-positive; tests no more
 than +12 logical lines; declarative line count unchanged; no new module. Run focused presentation
 and adapter tests, budget checker, ruff, mypy, and the full suite.
+
+## 4. Acceptance
+
+The shared interval builder now drives all four packs, DiD paths retain their group/cohort
+identity, numeric periods use a quantitative axis, affected builders carry semantic axis
+metadata, and every grouped line layer carries matching color and dash channels so Vega produces
+one legend. Fresh production-stage reruns over the actual Groupon and state-panel artifacts
+delivered AIPW `complete` and DiD `complete_with_qualifications`; the inspected PNG/SVG outputs
+place every point, interval, path, label, reference, and legend correctly. The full suite passed
+1,491 tests with 3 expected skips; ruff and mypy are clean. The budget has no breach: estimation
+net 0, presentation net 0, tests +12, declarative net 0, and no new module.

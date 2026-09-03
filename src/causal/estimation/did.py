@@ -19,7 +19,7 @@ from pyfixest.estimation.feols_ import Feols
 from scipy import stats  # type: ignore[import-untyped]
 
 from causal.estimation import contracts as ec
-from causal.estimation import engine
+from causal.estimation import engine, rct
 from causal.estimation.packs import EstimationPackV1
 from causal.shared.contracts import ArtifactRef
 
@@ -335,25 +335,20 @@ def _points(found: Mapping[str, ec.ValueMap], name: str,
         for parts in [key.split("|")])
 
 
-def _intervals(result: ec.PrimaryAnalysisResultV1) -> tuple[ec.FigureDataPointV1, ...]:
-    return tuple(ec.FigureDataPointV1(
-        series_id=result.estimand_family, category=item.contrast_id, x_value=float(index),
-        y_value=item.estimate, interval_lower=item.interval_lower,
-        interval_upper=item.interval_upper, denominator=item.contributing_counts.get("row"))
-        for index, item in enumerate(result.primary_items))
-
-
 def figure_builders(found: Mapping[str, ec.ValueMap]) -> dict[str, engine.FigureBuilder]:
     # §17 row three: group-time means, event-time estimates and intervals, support and
     # composition counts, and the primary aggregate. Each builder wraps values this run froze.
     return {
-        "group_time_means": lambda result: _points(found, "figure_group_time_means", "group_time"),
-        "event_time_estimates": lambda result: _points(
-            found, "figure_event_time_estimates", "event_time"),
+        "group_time_means": lambda result: tuple(point.model_copy(update={
+            "series_id": str(point.category)}) for point in _points(
+                found, "figure_group_time_means", "group_time")),
+        "event_time_estimates": lambda result: tuple(point.model_copy(update={
+            "series_id": str(point.category)}) for point in _points(
+                found, "figure_event_time_estimates", "event_time")),
         "support_composition_counts": lambda result: tuple(point.model_copy(update={
             "series_id": str(point.category), "category": str(point.x_value)})
             for point in _points(found, "figure_support_counts", "support")),
-        "primary_contrast_intervals": _intervals}
+        "primary_contrast_intervals": rct.interval_points}
 
 
 @dataclass(frozen=True)

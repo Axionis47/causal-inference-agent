@@ -17,7 +17,7 @@ from rddensity import rddensity  # type: ignore[import-untyped]
 from rdrobust import rdplot, rdrobust  # type: ignore[import-untyped]
 
 from causal.estimation import contracts as ec
-from causal.estimation import engine
+from causal.estimation import engine, rct
 from causal.estimation.packs import EstimationPackV1
 from causal.shared.contracts import ArtifactRef
 
@@ -265,14 +265,6 @@ def _points(found: Mapping[str, ec.ValueMap], name: str,
         for parts in [key.split("|") if key.count("|") == 4 else [key, "", "", "", ""]])
 
 
-def _intervals(result: ec.PrimaryAnalysisResultV1) -> tuple[ec.FigureDataPointV1, ...]:
-    return tuple(ec.FigureDataPointV1(
-        series_id=result.estimand_family, category=item.contrast_id, x_value=float(index),
-        y_value=item.estimate, interval_lower=item.interval_lower,
-        interval_upper=item.interval_upper, denominator=item.contributing_counts.get("row"))
-        for index, item in enumerate(result.primary_items))
-
-
 def figure_builders(found: Mapping[str, ec.ValueMap]) -> dict[str, engine.FigureBuilder]:
     # §17 row four: fixed binned outcome summaries, fitted-curve points, the density and
     # continuity summary with its cutoff and bandwidth metadata, and the primary local estimate.
@@ -281,7 +273,7 @@ def figure_builders(found: Mapping[str, ec.ValueMap]) -> dict[str, engine.Figure
         "fitted_curve_points": lambda result: _points(found, "figure_fitted_curve", "fitted"),
         "density_continuity_summary": lambda result: _points(
             found, "figure_density_continuity", "density"),
-        "primary_contrast_intervals": _intervals}
+        "primary_contrast_intervals": rct.interval_points}
 
 
 @dataclass(frozen=True)

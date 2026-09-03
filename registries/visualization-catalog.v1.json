@@ -128,7 +128,7 @@
      "figure_data_schema_ids": ["figure-data-artifact.v1"],
      "field_mappings": {"x": "x_value", "y": "y_value", "group": "series_id",
        "low": "interval_lower", "high": "interval_upper"},
-     "choices": {"marks": ["line", "point", "errorband"], "axes": ["temporal_x",
+     "choices": {"marks": ["line", "point", "errorband"], "axes": ["quantitative_x",
        "quantitative_y"], "scale_sharing": ["shared"], "labels": ["right"],
        "legends": ["right", "bottom"], "qualifications": ["caption", "panel_note"],
        "reference_lines": ["treatment_start", "zero"]},

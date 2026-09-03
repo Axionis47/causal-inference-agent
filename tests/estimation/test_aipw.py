@@ -253,6 +253,9 @@ def test_the_figure_payloads_are_the_pack_row_two_families() -> None:
     bins = builders["overlap_bins"](result)
     assert len(bins) == 2 * aipw.OVERLAP_BINS
     assert sum(int(point.y_value or 0) for point in bins) == view.height
+    primary = builders["primary_contrast_intervals"](result)[0]
+    expected = result.primary_items[0].estimate
+    assert primary.x_value == primary.y_value == expected and primary.series_id == CONTRAST
 
 
 def test_no_prediction_weight_or_influence_reaches_a_committed_payload() -> None:

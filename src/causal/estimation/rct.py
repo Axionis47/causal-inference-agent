@@ -237,12 +237,12 @@ def _measures(series_id: str, values: Mapping[str, ec.ParameterValue]
         if isinstance(value, int | float) and not isinstance(value, bool))
 
 
-def _intervals(result: ec.PrimaryAnalysisResultV1) -> tuple[ec.FigureDataPointV1, ...]:
+def interval_points(result: ec.PrimaryAnalysisResultV1) -> tuple[ec.FigureDataPointV1, ...]:
     return tuple(ec.FigureDataPointV1(
-        series_id=result.estimand_family, category=item.contrast_id, x_value=float(index),
+        series_id=item.contrast_id, category=item.contrast_id, x_value=item.estimate,
         y_value=item.estimate, interval_lower=item.interval_lower,
         interval_upper=item.interval_upper, denominator=item.contributing_counts.get("row"))
-        for index, item in enumerate(result.primary_items))
+        for item in result.primary_items)
 
 
 def figure_builders(found: Mapping[str, ec.ValueMap]) -> dict[str, engine.FigureBuilder]:
@@ -256,7 +256,7 @@ def figure_builders(found: Mapping[str, ec.ValueMap]) -> dict[str, engine.Figure
             "arm_counts", found.get("arm_cluster_stratum_contribution_counts", {})),
         "balance_measures": lambda result: _measures(
             "balance", found.get("baseline_balance", {})),
-        "primary_contrast_intervals": _intervals,
+        "primary_contrast_intervals": interval_points,
         "multiplicity_disclosure": lambda result: _measures(
             "multiplicity", found.get("multiplicity_handling", {}))}
 

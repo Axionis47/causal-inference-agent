@@ -32,7 +32,7 @@ FIXED_REFERENCES: Final = {"null_effect": 0.0, "zero": 0.0, "balance_threshold":
 # its groups by position, which is already a non-color distinction.
 NON_COLOR: Final = {"point": "shape", "line": "strokeDash", "rule": "strokeDash"}
 NON_COLOR_CHANNELS: Final = {"point": alt.Shape, "line": alt.StrokeDash, "rule": alt.StrokeDash}
-PANEL_SPACING, TITLE_BAND, AXIS_GUTTER = 24, 90, 150
+PANEL_SPACING, TITLE_BAND, AXIS_GUTTER = 24, 90, 180
 
 
 def panel_width(profile: pc.DisplayProfileV1) -> int:
@@ -192,7 +192,7 @@ def _panel_chart(panel: pc.PanelSpecV1, rows: Sequence[Mapping[str, Any]],
                 f"{measure}2": (alt.X2 if measure == "x" else alt.Y2)("high")}
         layers.append(base.mark_rule().encode(**{
             role: channel for role, channel in encode.items()
-            if role not in (measure, "shape", "strokeDash")}, **span))
+            if role not in (measure, "shape")}, **span))
     for name, value in sorted(references.items()):
         if value is not None:
             layers.append(alt.Chart(alt.Data(  # type: ignore[no-untyped-call]

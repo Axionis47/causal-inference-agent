@@ -340,10 +340,10 @@ def points(found: ec.PrimaryAnalysisResultV1) -> tuple[ec.FigureDataPointV1, ...
 
 def test_a_figure_dataset_wraps_frozen_values_and_a_bundle_counts_them() -> None:
     figure = engine.figure_data(
-        make_plan(), "arm_summary_table", points, make_result(),
+        make_plan(), "group_time_means", points, make_result(),
         visual_evidence_id="arm_summary", disclosure="reportable_with_qualifications",
         parents=(ref("plan"),), counts={"row": 100}, mask_hash=digest("mask"))
-    assert figure.points[0].y_value == 1.0 and figure.builder_version == engine.BUILDER_VERSION
+    assert figure.points[0].y_value == 1.0 and figure.builder_version == engine.BUILDER_VERSION and figure.units == {"x": "period", "y": "difference"} and figure.labels["x"] == "Time period"
     bundle = engine.evidence_bundle(
         make_plan(), "diagnostic", ((ref("d1"), "computed"), (ref("d2"), "failed"),
                                     (ref("d3"), "computed")),

@@ -457,7 +457,7 @@ def figure_builders(found: Mapping[str, ec.ValueMap]) -> dict[str, engine.Figure
             "balance", found.get("weighted_covariate_balance", {})),
         "influence_summary": lambda result: rct._measures(
             "influence", found.get("influence_score_distribution", {})),
-        "primary_contrast_intervals": rct._intervals}
+        "primary_contrast_intervals": rct.interval_points}
 
 
 @dataclass(frozen=True)

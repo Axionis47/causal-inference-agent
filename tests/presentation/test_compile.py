@@ -67,7 +67,8 @@ POINTS: dict[str, list[dict[str, Any]]] = {
     "assignment_attrition_flow": [point("arm_a", "enrolled", y_value=120.0, denominator=200),
                                   point("arm_b", "enrolled", y_value=118.0, denominator=200)],
     "balance_overview": [point("arm_a", "age", x_value=0.02), point("arm_b", "age", x_value=-0.01)],
-    "trends": [point("treated", x_value=1.0, y_value=3.0), point("control", x_value=2.0,
+    "trends": [point("treated", x_value=1.0, y_value=3.0, interval_lower=2.5,
+                     interval_upper=3.5), point("control", x_value=2.0,
                y_value=2.0), point("treated", "treatment_start", x_value=1.5)],
     "binned_outcome_fit": [point("below", x_value=-1.0, y_value=0.4, interval_lower=0.3,
                                  interval_upper=0.5),
@@ -150,6 +151,13 @@ class TestCompiler:
         assert low <= 0.0 and high >= 0.23
         assert panel.encodings["reference_lines"] == ("null_effect",)
         assert panel.encodings["uncertainty"] == ("low", "high")
+        assert compiled("trends", "trend_lines.v1", "did")[0].panels[0].axes["x"].scale == "linear"
+
+    def test_every_grouped_line_layer_uses_the_same_legend_channels(self) -> None:
+        grouped = [node["encoding"] for node in nodes(compiled(
+            "trends", "trend_lines.v1", "did")[1])
+                   if "color" in node.get("encoding", {})]
+        assert grouped and all("strokeDash" in encoding for encoding in grouped)
 
     def test_missing_and_suppressed_values_stay_distinct(self) -> None:
         data = dict(DATA) | {"assignment_attrition_flow": figure_data(
