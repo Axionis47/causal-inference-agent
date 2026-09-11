@@ -1,0 +1,3 @@
+Express calendar time and adoption time on the same numeric period scale. The last pre-treatment period is one unit before adoption, so irregular or differently scaled time encodings need preparation before analysis. Use one authoritative adoption schedule, constant within each unit; zero denotes a never-treated unit in an adoption column.
+
+The treatment history must agree with that schedule. Simultaneous adoption and staggered adoption are distinct specifications. Identify the clustering unit from the dependence structure, and retain the approved reference population and event-time window when interpreting the primary aggregate.

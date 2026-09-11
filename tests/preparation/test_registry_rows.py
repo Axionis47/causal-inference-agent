@@ -22,7 +22,7 @@ OUTCOME_STATUSES = (
 )
 # SC §3.1 amended row: the bundle names every consolidated parent PRD-004 reads.
 BUNDLE_PARENTS = (
-    "TableSelection", "ExperimentDesign", "RunnableFrameContract", "DeliveryCapacityCheck",
+    "TableSelection", "CompiledDesign", "CapacityReport", "DesignApproval",
     "StabilizationRecord", "StabilizedFrame", "PreparedFrame", "ExecutionReceiptBundle",
 )
 ESTIMATION_READABLE = (
@@ -34,7 +34,7 @@ ESTIMATION_READABLE = (
 def test_registry_loads_with_the_preparation_rows_appended() -> None:
     assert len(PREPARATION_TYPES) == 9
     assert REGISTRY.registry_version == "artifact-types.v1"
-    assert len(REGISTRY) == 57
+    assert len(REGISTRY) == 70
 
 
 @pytest.mark.parametrize("artifact_type", PREPARATION_TYPES)
@@ -62,10 +62,11 @@ class TestPreparationRow:
         assert ("estimation" in row.destinations) is readable
 
 
-def test_the_context_manifest_requires_the_four_handoff_parents() -> None:
+def test_the_context_manifest_requires_the_v2_handoff_parents() -> None:
     row = REGISTRY.lookup("PreparationContextManifest")
     assert row.required_parent_types == (
-        "TableSelection", "ExperimentDesign", "RunnableFrameContract", "DeliveryCapacityCheck",
+        "TableSelection", "CompiledDesign", "DiagnosticReport", "CapacityReport",
+        "DesignReviewBundle", "DesignApproval",
     )
     assert row.destinations == ("preparation",)
 

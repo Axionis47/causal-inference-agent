@@ -70,15 +70,14 @@ class TestRegistry:
 class TestRealRegistryFile:
     def test_loads_and_looks_up_seeded_rows(self) -> None:
         registry = load_artifact_type_registry(REGISTRY_PATH)
-        # Append-only (D-012): 7 intake + 20 design + 9 preparation + 15 estimation
-        # + 5 presentation rows.
-        assert len(registry) == 57
+        assert len(registry) == 70
         intake = registry.lookup("IntakeOutcome")
         assert intake.producer_component == "intake-coordinator"
         assert intake.terminal_statuses == ("usable", "partial", "refused")
-        frame = registry.lookup("RunnableFrameContract")
-        assert frame.required_parent_types == ("ExperimentDesign",)
-        assert frame.destinations == ("preparation", "estimation")
+        compiled = registry.lookup("CompiledDesign")
+        assert compiled.required_parent_types == (
+            "DesignFactSet", "DiagnosticPlan", "DiagnosticReport")
+        assert compiled.destinations == ("design", "preparation", "estimation", "presentation")
 
     def test_intake_lineage_chain(self) -> None:
         registry = load_artifact_type_registry(REGISTRY_PATH)

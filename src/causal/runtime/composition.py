@@ -17,15 +17,17 @@ from typing import Any, Final, Protocol, TextIO, cast
 import psycopg
 from psycopg import Connection
 
+from causal.analysis.integration import RESOURCE_ROOT as ANALYSIS_RESOURCES
 from causal.cli.main import StatusView
 from causal.design import capacity, contracts, entry, graph, packs, validators
 from causal.design import compile as compiler
-from causal.intake import catalog, coordinator, fields, outcome
+from causal.intake import catalog, fields, outcome
 from causal.intake import contracts as intake
+from causal.intake.entry import IntakeDeps, run_intake
 from causal.intake.kaggle import KaggleClientProtocol
+from causal.post_analysis import runtime as pr
 from causal.preparation.harness import PreparationDeps
 from causal.runtime import failures
-from causal.runtime import presentation as pr
 from causal.runtime.kaggle_live import LiveKaggleClient
 from causal.shared import events, gateway, persistence, tracing
 from causal.shared.canonical import content_hash
@@ -58,8 +60,6 @@ _TABLES: Final = ("CREATE TABLE IF NOT EXISTS public.causal_migrations (filename
 
 
 class CompositionError(ValueError):
-    """A dependency could not be built. `code` is a stable contract value."""
-
     def __init__(self, message: str, code: str) -> None:
         super().__init__(message)
         self.code = code
@@ -88,7 +88,6 @@ class RuntimeConfig:
 
     @classmethod
     def from_env(cls, source: Mapping[str, str] | None = None) -> RuntimeConfig:
-        """`CAUSAL_*` plus the standard AWS variables; boto3 reads the keys itself."""
         env = os.environ if source is None else source
         root = Path(env.get("CAUSAL_REPO_ROOT") or REPO_ROOT)
         return cls(
@@ -103,8 +102,6 @@ class RuntimeConfig:
 
 
 class _InterruptView(Protocol):
-    """The open interrupt an answer command names (the CLI's `InterruptIdentity`)."""
-
     @property
     def interrupt_id(self) -> str: ...
     @property
@@ -114,7 +111,6 @@ class _InterruptView(Protocol):
 
 
 def apply_migrations(conn: Connection[Any], migrations_dir: Path) -> tuple[str, ...]:
-    """Run each unapplied `*.sql` in name order; a ledger makes a second call a no-op."""
     conn.execute(_TABLES)
     applied = {str(row[0]) for row in
                conn.execute("SELECT filename FROM public.causal_migrations").fetchall()}
@@ -135,7 +131,6 @@ def apply_migrations(conn: Connection[Any], migrations_dir: Path) -> tuple[str, 
 
 
 def startup_fingerprint(config: RuntimeConfig) -> dict[str, str]:
-    """SC §1.2: the pinned Python is required; `dot` and the lock hash are recorded only."""
     version = platform.python_version()
     if not version.startswith("3.12"):
         raise CompositionError(f"python {version} is not the pinned 3.12", FINGERPRINT_MISMATCH)
@@ -147,7 +142,6 @@ def startup_fingerprint(config: RuntimeConfig) -> dict[str, str]:
 
 
 def _s3_client(config: RuntimeConfig) -> persistence.S3ClientProtocol:
-    """The one boto3 construction in the application; every caller sees the protocol only."""
     import boto3  # type: ignore[import-untyped]
     from botocore.config import Config  # type: ignore[import-untyped]
 
@@ -158,7 +152,6 @@ def _s3_client(config: RuntimeConfig) -> persistence.S3ClientProtocol:
 
 
 def build_tracer(config: RuntimeConfig, *, strict: bool) -> tracing.TracerProtocol | None:
-    """SC §10.2 requires tracing in production; only a non-strict build may run without it."""
     if not config.langsmith_project:
         if strict:
             raise CompositionError("CAUSAL_LANGSMITH_PROJECT is unset and tracing is required"
@@ -172,7 +165,6 @@ def build_tracer(config: RuntimeConfig, *, strict: bool) -> tracing.TracerProtoc
 
 def _validate(opened: Mapping[str, Any], kind: contracts.InterruptKind,
               interrupt: _InterruptView) -> tuple[str, str] | None:
-    """§1.1: kind, id, hash, and revision must match; a mismatch names what was expected."""
     seen = (str(opened.get("kind")), str(opened.get("interrupt_artifact_id")),
             str(opened.get("interrupt_hash")), int(opened.get("design_revision", 0)))
     wanted = (kind.value, interrupt.interrupt_id, interrupt.expected_interrupt_hash,
@@ -183,8 +175,6 @@ def _validate(opened: Mapping[str, Any], kind: contracts.InterruptKind,
 
 
 class CausalRuntime:
-    """The coordinator calls the CLI commands make; the CLI itself holds nothing else."""
-
     def __init__(self, config: RuntimeConfig, deps: graph.DesignDeps,
                  prep: PreparationDeps,
                  registry: ArtifactTypeRegistry, field_classes: fields.FieldClasses,
@@ -197,24 +187,21 @@ class CausalRuntime:
         self.field_classes, self.fingerprint = field_classes, dict(fingerprint)
         self._client_factory, self._conn, self._closing = (
             client_factory, deps.conn, tuple(closing))
+        self.intake = IntakeDeps(
+            client_factory, deps.committer, deps.products, catalog.CatalogStore(deps.conn),
+            deps.objects, registry, field_classes, deps.emitter, deps.clock)
 
     def close(self) -> None:
-        """Release the event sink and the connections this runtime opened."""
         for item in self._closing:
             item.close()
 
     # -- commands ---------------------------------------------------------
 
     def new(self, submission: intake.IntakeSubmissionV1) -> outcome.IntakeResult:
-        """Run PRD-001 intake to its boundary under the creation-key lock (SC §1.1)."""
         with self._lock(f"new:{submission.idempotency_key}", "new"):
-            return coordinator.IntakeCoordinator(
-                self._client_factory(), self.deps.committer, self.deps.products,
-                catalog.CatalogStore(self._conn), self.deps.objects, self.registry,
-                self.field_classes, self.deps.emitter, self.deps.clock).run(submission)
+            return run_intake(self.intake, submission)
 
     def status(self, analysis_id: str) -> StatusView:
-        """Committed indexes only: no lock, no resume, and no model call (SC §1.1)."""
         row = catalog.CatalogStore(self._conn).find_run_by_analysis(analysis_id)
         if row is None:
             raise self._blocked("status", analysis_id, UNKNOWN_ANALYSIS)
@@ -232,20 +219,22 @@ class CausalRuntime:
         opened = self._open_interrupt(found.thread_id) or {}
         # D-069b: an open interrupt names its answer command; a crashed revision and an
         # approved design (preparation is next) share the one command `causal run`.
+        terminal = self._terminal(found)
         following = NEXT_COMMAND.get(str(opened.get("kind", ""))) or (
-            RUN if found.state in failures.LIVE or self._terminal(found) == APPROVED else None)
+            RUN if found.state in failures.LIVE
+            or terminal in {APPROVED, "changes_requested"} else None)
         return StatusView(analysis_id=analysis_id, stage="design", state=found.state,
                           next_command=following)
 
     def run(self, analysis_id: str, *, expected_stage_run: str,
             idempotency_key: str) -> graph.DesignRunResult:
-        """Resume from the committed boundary; stop at the next interrupt or terminal state."""
         with self._lock(analysis_id, "run"):
             row = catalog.CatalogStore(self._conn).find_run_by_analysis(analysis_id)
             if row is None or row.intake_outcome_artifact_id is None:
                 raise self._blocked("run", analysis_id, UNKNOWN_ANALYSIS)
             if row.intake_status not in USABLE_INTAKE:
                 raise self._blocked("run", analysis_id, STAGE_UNAVAILABLE)
+            intake_outcome_id = row.intake_outcome_artifact_id
             found = self._latest_design_run(analysis_id)
             current = found.stage_run_id if found else row.stage_run_id
             if expected_stage_run != current:
@@ -253,10 +242,16 @@ class CausalRuntime:
             self._claim("run", idempotency_key, analysis_id, expected_stage_run)
             if found is not None:  # an open boundary is reported, never restarted
                 opened = self._open_interrupt(found.thread_id) or {}
-                if not opened and self._terminal(found) == APPROVED:  # PRD-003 is next (§1.4)
+                terminal = self._terminal(found)
+                if not opened and terminal == APPROVED:  # PRD-003 is next (§1.4)
                     ready = failures.prepare(self.deps, self.prep, analysis_id, found)
                     return ready if ready.status != failures.PREPARED else pr.estimate_and_present(
                         self.deps, self.est, self.pres, analysis_id, found.revision)
+                if not opened and terminal == "changes_requested":
+                    return failures.guard(self.deps, "run", analysis_id, lambda: graph.run_design(
+                        self.deps, analysis_id=analysis_id, thread_id=f"gt:{uuid.uuid4()}",
+                        intake_outcome_artifact_id=intake_outcome_id,
+                        design_revision=found.revision + 1))
                 return graph.DesignRunResult(
                     status=graph.NEEDS_USER_INPUT if opened else self._terminal(found),
                     analysis_id=analysis_id, stage_run_id=found.stage_run_id,
@@ -275,21 +270,18 @@ class CausalRuntime:
 
     def select_table(self, analysis_id: str,
                      decision: contracts.TableSelectionDecisionV1) -> graph.DesignRunResult:
-        """Submit `TableSelectionDecisionV1` against the exact open table-selection interrupt."""
         return self._decide(analysis_id, "select-table", decision, decision.idempotency_key,
                             lambda opened: decision.canonical_payload())
 
     def answer_context(self, analysis_id: str, answer: contracts.UserContextAnswerV1,
                        interrupt: _InterruptView,
                        idempotency_key: str) -> graph.DesignRunResult:
-        """Submit `UserContextAnswerV1` against the exact open clarification interrupt."""
         return self._decide(analysis_id, "answer-context", interrupt, idempotency_key,
                             lambda opened: answer.canonical_payload())
 
     def approve_design(self, analysis_id: str, interrupt: _InterruptView,
                        decision: contracts.ApprovalDecision, idempotency_key: str,
                        change_requests: Sequence[str] = ()) -> graph.DesignRunResult:
-        """Complete `DesignApprovalDecisionV1` from the interrupt's own approved refs (§22)."""
         approved = decision is contracts.ApprovalDecision.APPROVED
 
         def build(opened: Mapping[str, Any]) -> Mapping[str, object]:
@@ -310,7 +302,6 @@ class CausalRuntime:
                 idempotency_key: str,
                 build: Callable[[Mapping[str, Any]], Mapping[str, object]],
                 ) -> graph.DesignRunResult:
-        """Validate the open interrupt exactly, then resume its design thread once."""
         with self._lock(analysis_id, command):
             found = self._latest_design_run(analysis_id)
             opened = None if found is None else self._open_interrupt(found.thread_id)
@@ -329,20 +320,17 @@ class CausalRuntime:
         return failures.latest_design_run(self._conn, analysis_id)
 
     def _open_interrupt(self, thread_id: str) -> dict[str, Any] | None:
-        """The checkpointed interrupt payload a CLI decision must answer exactly (§11.1)."""
         pending = tuple(graph.build_graph(self.deps).get_state(
             {"configurable": {"thread_id": thread_id}}).interrupts)
         return dict(pending[0].value) if pending else None
 
     def _terminal(self, found: failures.DesignRun) -> str:
-        """The committed `DesignOutcome`'s own status; a revision without one failed."""
         if found.outcome_artifact_id is None:
             return "failed"
         return str(failures.payload(self.deps, found.outcome_artifact_id)["status"])
 
     @contextmanager
     def _lock(self, key: str, command: str) -> Iterator[None]:
-        """One session advisory lock per analysis; contention never queues or polls (§1.1)."""
         row = self._conn.execute("SELECT pg_try_advisory_lock(hashtext(%s))", (key,)).fetchone()
         if not (row and row[0]):
             raise self._blocked(command, key, ANALYSIS_BUSY)
@@ -352,7 +340,6 @@ class CausalRuntime:
             self._conn.execute("SELECT pg_advisory_unlock(hashtext(%s))", (key,))
 
     def _claim(self, command: str, key: str, analysis_id: str, request: str) -> None:
-        """One idempotency key per logical command; reuse with a different request blocks."""
         digest = content_hash({"command": command, "analysis_id": analysis_id,
                                "request": request})
         row = self._conn.execute("SELECT request_hash FROM public.causal_command_keys"
@@ -365,7 +352,6 @@ class CausalRuntime:
 
     def _blocked(self, command: str, analysis_id: str, code: str,
                  expected: str = "") -> CompositionError:
-        """Every refusal emits one `blocker.raised` and carries its stable code (SC §1.1)."""
         failures.emit_blocker(self.deps, command, analysis_id, code, expected)
         return CompositionError(f"{command} is blocked: {code}", code)
 
@@ -389,21 +375,23 @@ def build_runtime(
     emitter = events.EventEmitter(sink)
     products = persistence.ProductStore(conn)
     objects = persistence.ObjectStore(_s3_client(config), config.s3_bucket)
+    method_packs = packs.load_method_packs(root / "method-packs.v1.json")
+    requirements = packs.load_requirement_templates(root / "context-requirements.v1.json")
+    packs.verify_requirement_references(method_packs, requirements)
     deps = graph.DesignDeps(
         conn=conn, catalog=entry.PsycopgCatalogReader(conn), products=products, objects=objects,
         committer=persistence.ArtifactCommitter(objects, products, registry, emitter,
                                                 tracer=tracer),
         registry=registry, emitter=emitter, clock=clock,
         gateway=model or gateway.VertexGateway(gateway.GenAiTransport(),
-                                               gateway.VERTEX_PROFILE_V1, emitter, clock),
+                                               gateway.VERTEX_PROFILE_V1, emitter, clock, tracer),
         checkpointer=graph.build_checkpointer(saver_conn),
-        packs=packs.load_method_packs(root / "method-packs.v1.json"),
-        templates=packs.load_requirement_templates(root / "context-requirements.v1.json"),
-        tool_registry=packs.load_tool_registry(root / "design-tools.v1.json"),
+        packs=method_packs, templates=requirements,
         task_table=compiler.load_task_table(root / "design-tasks.v1.json"),
         rules=validators.load_validation_rules(root / "design-validation-rules.v1.json"),
         capacity_registry=capacity.load_capacity_registry(root / "delivery-capacity.v1.json"),
-        prompts_root=config.prompts_root, repo_root=config.repo_root)
+        prompts_root=config.prompts_root,
+        estimation_registry_path=ANALYSIS_RESOURCES / "method-pack-estimation.v1.json", tracer=tracer)
     return CausalRuntime(
         config, deps, failures.preparation_deps(deps, root, config.repo_root), registry,
         fields.load_field_classes(root / "kaggle-field-classes.v1.json"), fingerprint,

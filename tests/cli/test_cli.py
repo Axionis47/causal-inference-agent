@@ -49,8 +49,8 @@ class FakeDesign:
     interrupt_artifact_id: str | None = "uq-1"
     interrupt_hash: str | None = HASH
     outcome_artifact_id: str | None = None
-    refusal_code: str | None = None
     error_code: str | None = None
+    review_summary: dict[str, str] | None = None
 
 
 class FakeRuntime:
@@ -269,7 +269,7 @@ def test_presentation_refuses_a_bundle_the_runtime_will_not_open() -> None:
     ("failed_observability", 5, "failed_observability"), ("something_else", 4, "failed")])
 def test_exit_codes_follow_the_result_status(design_status: str, exit_code: int,
                                              status: str) -> None:
-    runtime = FakeRuntime(design=FakeDesign(status=design_status, refusal_code="capacity_fail"))
+    runtime = FakeRuntime(design=FakeDesign(status=design_status, error_code="capacity_fail"))
     code, result = json_cli(runtime, *RUN_ARGS)
     assert (code, result["status"]) == (exit_code, status)
     assert result["error_code"] == "capacity_fail"

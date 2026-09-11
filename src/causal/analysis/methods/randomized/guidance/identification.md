@@ -1,0 +1,3 @@
+Random assignment is a property of the study, not a conclusion from baseline balance. Preserve the assigned population and distinguish assignment from treatment received. An intention-to-treat contrast answers the effect of assignment under the study's adherence and outcome-observation conditions.
+
+The assignment unit determines the uncertainty calculation. When clusters were randomized, identify the actual assignment clusters; individual rows do not provide additional independent assignments. Binary outcomes are reported on the risk-difference scale. An estimate can be numerically precise while remaining limited by attrition, interference, or the study population.

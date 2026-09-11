@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import io
+import math
 from typing import Final
 
 import polars as pl
@@ -18,10 +19,9 @@ QUANTILES: Final = (0.25, 0.5, 0.75)
 
 def _read(data: bytes, media_type: str) -> pl.DataFrame:
     buffer = io.BytesIO(data)
-    if media_type == "csv":
-        return pl.read_csv(buffer, try_parse_dates=True)
-    if media_type == "tsv":
-        return pl.read_csv(buffer, separator="\t", try_parse_dates=True)
+    if media_type in ("csv", "tsv"):
+        return pl.read_csv(buffer, separator="\t" if media_type == "tsv" else ",",
+                           try_parse_dates=True)
     if media_type == "parquet":
         return pl.read_parquet(buffer)
     raise ValueError(f"unsupported media type for profiling: {media_type!r}")
@@ -29,12 +29,18 @@ def _read(data: bytes, media_type: str) -> pl.DataFrame:
 
 def _numeric_stats(series: pl.Series) -> dict[str, object]:
     def as_float(value: object) -> float | None:
-        return None if value is None else float(value)  # type: ignore[arg-type]
+        if value is None:
+            return None
+        number = float(value)  # type: ignore[arg-type]
+        # Finite inputs can still overflow a derived statistic.
+        return number if math.isfinite(number) else None
 
     non_finite = 0
     if series.dtype.is_float():
         flags = series.is_nan() | series.is_infinite()
         non_finite = int(flags.sum() or 0)
+        # Summarize usable numbers without changing the source's measured facts.
+        series = series.filter(series.is_finite())
     return {
         "min": as_float(series.min()),
         "max": as_float(series.max()),
@@ -76,7 +82,7 @@ def _hypotheses(series: pl.Series, row_count: int, cardinality: int) -> list[dic
 
 
 def _column_profile(series: pl.Series, row_count: int) -> dict[str, object]:
-    cardinality = int(series.n_unique())
+    cardinality = int(series.drop_nulls().n_unique())
     null_count = int(series.null_count())
     profile: dict[str, object] = {
         "dtype": str(series.dtype),

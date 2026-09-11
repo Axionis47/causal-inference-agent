@@ -8,15 +8,15 @@ from typing import Any
 import psycopg
 import pytest
 
-from tests.conftest import requires_docker
+from tests.infrastructure import requires_docker
 
 pytestmark = requires_docker
 
 HASH = "a" * 64
 NOW = datetime(2026, 8, 24, 12, 0, 0, 0, tzinfo=UTC)
 DESIGN_TABLES = {
-    "design_runs", "design_artifact_refs", "design_context_manifests", "causal_graph_views",
-    "design_tasks", "context_requirements", "delivery_capacity_checks", "design_approvals",
+    "design_runs", "causal_graph_views", "design_tasks", "context_requirements",
+    "accepted_facts",
 }
 
 
@@ -31,7 +31,7 @@ def seed_artifact(conn: psycopg.Connection[Any], artifact_id: str = "art-1") -> 
     conn.execute(
         "INSERT INTO causal.artifacts (artifact_id, artifact_type, schema_version, content_hash,"
         " analysis_id, stage_run_id, producer_component, producer_version, sensitivity_class,"
-        " created_at_utc, payload_locator) VALUES (%s, 'DesignOutcome', 'design-outcome.v1', %s,"
+        " created_at_utc, payload_locator) VALUES (%s, 'DesignOutcome', 'design-outcome.v2', %s,"
         " 'an-1', 'run-1', 'design-harness', '0.1.0', 'internal', %s, %s)",
         (artifact_id, HASH, NOW, f"objects/{HASH}"),
     )
@@ -60,21 +60,11 @@ def test_design_schema_tables_exist(conn: psycopg.Connection[Any]) -> None:
     assert {row[0] for row in rows} == DESIGN_TABLES
 
 
-def test_run_and_artifact_ref_insert(conn: psycopg.Connection[Any]) -> None:
-    artifact_id = seed_artifact(conn)
+def test_run_insert(conn: psycopg.Connection[Any]) -> None:
+    seed_artifact(conn)
     insert_run(conn)
-    conn.execute(
-        "INSERT INTO design.design_artifact_refs (artifact_id, analysis_id, design_revision,"
-        " kind, content_hash, schema_version)"
-        " VALUES (%s, 'an-1', 1, 'DesignOutcome', %s, 'design-outcome.v1')",
-        (artifact_id, HASH),
-    )
-    row = conn.execute(
-        "SELECT r.state, r.selected_table, a.approval_bound FROM design.design_runs r"
-        " JOIN design.design_artifact_refs a"
-        " ON a.analysis_id = r.analysis_id AND a.design_revision = r.design_revision"
-    ).fetchone()
-    assert row == ("running", None, False)
+    row = conn.execute("SELECT state, selected_table FROM design.design_runs").fetchone()
+    assert row == ("running", None)
 
 
 def test_duplicate_analysis_revision_rejected(conn: psycopg.Connection[Any]) -> None:
@@ -92,15 +82,11 @@ def test_invalid_run_state_rejected(conn: psycopg.Connection[Any]) -> None:
     conn.rollback()
 
 
-def test_invalid_approval_decision_rejected(conn: psycopg.Connection[Any]) -> None:
-    artifact_id = seed_artifact(conn)
-    approval = (
-        "INSERT INTO design.design_approvals (artifact_id, analysis_id, design_revision,"
-        " decision, approved_hashes, decided_at) VALUES (%s, 'an-1', 1, %s, '{}'::jsonb, %s)"
-    )
+def test_a_resolved_requirement_requires_an_accepted_fact(conn: psycopg.Connection[Any]) -> None:
     with pytest.raises(psycopg.errors.CheckViolation):
-        conn.execute(approval, (artifact_id, "maybe", NOW))
+        conn.execute(
+            "INSERT INTO design.context_requirements (analysis_id, design_revision,"
+            " requirement_id, scope_kind, scope_id, criticality, missing_action, state,"
+            " attempted_evidence) VALUES ('an-1', 1, 'design.table_grain', 'design', 'design',"
+            " 'blocking', 'ask_user', 'resolved', '[]')")
     conn.rollback()
-    conn.execute(approval, (artifact_id, "approved", NOW))
-    decision = conn.execute("SELECT decision FROM design.design_approvals").fetchone()
-    assert decision == ("approved",)

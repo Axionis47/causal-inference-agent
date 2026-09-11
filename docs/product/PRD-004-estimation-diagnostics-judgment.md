@@ -1,8 +1,16 @@
 # PRD-004 — Estimation, diagnostics, sensitivity, and claim judgment
 
+**T-039 amendment (2026-09-10):** The [system boundary amendment](SYSTEM-CONTRACT.md#t-039-boundary-amendment--2026-09-10)
+supersedes this document's historical claim-agent, mandatory figure-builder and
+delivery-capacity requirements. The live analysis path emits a NumericalBundle
+and raw AnalysisSupportingData. Interpretation and visualization are owned only by
+[post-analysis](../post_analysis/README.md). Estimation, diagnostics, sensitivity
+execution and scientific supporting calculations remain here. Historical schemas
+remain readable; new public v2 plans require their own compilation and approval.
+
 Status: final for implementation  
 Product stage: post-preparation statistical execution  
-Depends on: `SYSTEM-CONTRACT.md`; PRD-002 — causal design harness and runnable-frame contract; PRD-003 — runnable-frame
+Depends on: `SYSTEM-CONTRACT.md`; PRD-002 — causal design harness and compiled preparation policy; PRD-003 — runnable-frame
 preparation, row-set stabilization, and recoverable lineage  
 Unlocks: PRD-005 — visualization rendering and presentation
 
@@ -65,8 +73,9 @@ rewrite what was approved.
     as the primary causal estimate.
 16. Sharp RDD uses the exact approved cutoff. Manipulation evidence, mass points, and observations
     near the cutoff are diagnosed rather than repaired or removed.
-17. The V1 claim-review model receives typed frozen results and approved assumptions, never raw
-    rows, dataframes, fold predictions, residual arrays, or unrestricted tools.
+17. The claim-decision model receives typed frozen results, approved assumptions, and registered
+    statement IDs. It returns statuses and IDs only, never prose, numbers, raw rows, dataframes,
+    fold predictions, residual arrays, or tools.
 18. Deterministic judgment guards set the maximum claim status. A model cannot override a failed
     estimator, invalidating diagnostic, or required qualification.
 19. `reportable` means the estimate may be presented under the approved assumptions. It does not
@@ -79,7 +88,7 @@ rewrite what was approved.
     `failed_observability`, preserves committed statistical artifacts, and stops the graph before
     later work or handoff. If the claim-review model is unavailable, frozen statistical artifacts
     remain intact but the run cannot complete.
-23. The approved `DeliveryCapacityCheck` is recomputed from the frozen plan and prepared structure
+23. The approved `CapacityReport` is recomputed from the frozen plan and prepared structure
     before primary-outcome values enter an estimator.
 
 ## 3. Scope
@@ -123,16 +132,15 @@ rewrite what was approved.
 The estimation workflow opens with exactly:
 
 - `prepared_frame_bundle_artifact_id`;
-- `experiment_design_artifact_id`;
-- `runnable_frame_contract_artifact_id`; and
-- `design_approval_capacity_check_artifact_id` for the exact passing design-approval check.
+- `compiled_design_artifact_id`; and
+- `capacity_report_artifact_id` for the exact passing design-approval report.
 
 Entry requires:
 
 1. PRD-003 `PreparationOutcome.status` is `prepared`.
-2. The prepared bundle, approved design, runnable-frame contract, design-time delivery-capacity
-   check, and all required parents exist and match their hashes.
-3. The prepared bundle references the exact approved design and runnable-frame contract hashes.
+2. The prepared bundle, approved design, embedded compiled preparation policy, design-time
+   `CapacityReport`, and all required parents exist and match their hashes.
+3. The prepared bundle references the exact approved design and compiled preparation policy hashes.
 4. The stabilized and prepared frames share the same `row_set_hash`.
 5. Every source row has a terminal PRD-003 disposition and every changed cell or derived column
    has valid lineage.
@@ -157,9 +165,9 @@ substitute a default that is absent from the registered method pack.
 
 `EstimationBundle` contains identifiers and hashes for:
 
-- the approved `ExperimentDesign` and `RunnableFrameContract`;
+- the approved `CompiledDesign`, including its compiled preparation policy;
 - the PRD-003 `PreparedFrameBundle` and exact `row_set_hash`;
-- the exact passing `DeliveryCapacityCheck[pre_estimation]`;
+- the exact passing design `CapacityReport`, after the frozen plan recheck;
 - `EstimationContextManifest`;
 - `EstimationPlan`;
 - all `AnalysisContributionMask` artifacts;
@@ -300,7 +308,7 @@ compared under estimator-specific numerical tolerances rather than assumed to be
 ### 6.5 Exact delivery-capacity recheck
 
 After plan compilation but before primary-outcome values enter an estimator, the harness reruns
-`DeliveryCapacityCheck` using the frozen prepared structure and exact planned result cardinality.
+`CapacityReport` using the frozen prepared structure and exact planned result cardinality.
 It verifies arms, contrasts, cohorts, periods, event-time points, required evidence families,
 registered templates, accessible tables, and execution/render budgets against the versions bound
 by PRD-002 approval. Failure returns `design_conflict` before estimation; PRD-004 does not weaken
@@ -315,7 +323,7 @@ open valid PRD-003 handoff
 compile, validate, and commit EstimationPlan
               │
               ▼
-re-run exact DeliveryCapacityCheck before outcome access
+re-run exact CapacityReport before outcome access
        │                         │
        │                         └── unsupported capacity ──▶ design conflict
        ▼
@@ -443,7 +451,7 @@ Allowed V1 branches include, only when approved:
 - a separately prespecified sensitivity covariance profile;
 - leave-one-cluster-out influence summary;
 - bounded missing-outcome or attrition sensitivity; and
-- approved subgroup contrasts already declared in the experiment design.
+- approved subgroup contrasts already declared in the compiled design.
 
 As-treated, per-protocol, complier-average, and newly discovered subgroup analyses are outside the
 V1 primary RCT pack.
@@ -770,7 +778,7 @@ Invocation: one initial bounded call after results, diagnostics, sensitivities, 
 ceiling are frozen. A schema or citation failure may receive at most two targeted corrections for
 the same stable validation code.
 
-The agent receives `AgentTaskEnvelopeV1` containing one typed `ClaimReviewContext` with only:
+The agent receives `AgentTaskEnvelopeV1` containing one typed `ClaimReviewContextV2` with only:
 
 - approved causal question, estimand, method, population, and timeframe;
 - approved assumptions, material alternative graphs, and unresolved non-blocking uncertainty;
@@ -780,21 +788,19 @@ The agent receives `AgentTaskEnvelopeV1` containing one typed `ClaimReviewContex
 - judgment ceiling and required qualifications; and
 - artifact IDs for every statement.
 
-It may:
+It may only select:
 
-- express the estimate and interval in the approved outcome units;
-- distinguish association, estimate, and causal interpretation;
-- state the assumptions under which the estimate is reportable;
-- summarize required diagnostic and sensitivity qualifications;
-- state what population and timeframe the claim applies to; and
-- return one structured claim item per primary contrast and an overall `ClaimJudgment` at or below
-  the deterministic ceilings.
+- one status per registered contrast and one overall status at or below the deterministic ceilings;
+- registered finding and diagnostic-non-finding IDs;
+- every mandatory registered qualification ID plus optional registered qualification IDs; and
+- registered alternative-explanation and cannot-conclude IDs.
 
 It may not:
 
 - inspect raw rows, dataframes, predictions, residuals, weights, or full figure data;
 - call an estimator, arbitrary calculator, repair tool, or visualization tool;
-- invent another estimand, method, subgroup, sensitivity branch, or diagnostic;
+- author a number, effect statement, assumption, qualification sentence, or final prose;
+- invent another estimand, method, subgroup, sensitivity branch, diagnostic, or statement ID;
 - claim an assumption was proven by a test;
 - hide an unfavorable or failed result; or
 - expose internal chain-of-thought.
@@ -811,23 +817,20 @@ It may not:
 | `not_estimable` | no complete valid primary analysis result is available |
 | `failed` | judgment could not be completed or validated |
 
-The artifact contains:
+The model returns `ClaimJudgmentDecisionV2`. The deterministic compiler combines that decision
+with the frozen context to produce `ClaimJudgmentV2`, which contains:
 
 - approved causal question and estimand;
-- one ordered `ClaimItem` per `PrimaryContrastResult`, each with a bounded effect statement;
+- one ordered compiler-authored `ClaimItemV2` per `PrimaryContrastResult`;
 - per-item estimate, interval, units, population, comparator, timeframe, and result references;
-- required assumption statements;
-- diagnostic findings and explicit non-findings;
-- sensitivity stability or instability summary;
-- missingness, contribution, overlap, support, or attrition qualifications as applicable;
-- material alternative explanations and unresolved design uncertainty;
-- statement of what cannot be concluded;
+- compiler-authored registered assumptions, findings, non-findings, sensitivities, qualifications,
+  alternatives, unresolved uncertainty, and cannot-conclude statements;
 - per-item ceilings/statuses plus an overall ceiling and final status;
 - every supporting artifact ID and hash; and
 - prompt, model-profile, schema, validator, and policy versions.
 
-Model-reported confidence is not stored. Every substantive sentence resolves to an approved
-design claim or frozen result artifact.
+Model-reported confidence and prose are not stored. Every substantive sentence resolves to a
+registered statement or frozen result artifact.
 
 The overall status is the most restrictive required claim-item status. V1 does not open a partial
 PRD-005 handoff when one required primary contrast is `not_reportable`, `not_estimable`, or
@@ -921,7 +924,7 @@ PRD-003 graph thread, preparation-agent messages, checkpoints, scratch context, 
 model memory. After validating the three input IDs, the harness compiles one immutable
 `EstimationContextManifest` containing:
 
-- the exact prepared-bundle, experiment-design, runnable-frame-contract, and row-set hashes;
+- the exact prepared-bundle, compiled-design, compiled-preparation-policy, and row-set hashes;
 - selected method, estimand, population, timeframe, comparator, outcome, and role mappings;
 - prepared-frame schema and registered estimator-input view;
 - contribution-mask, fold, preprocessing, uncertainty, diagnostic, sensitivity, judgment, and
@@ -936,17 +939,17 @@ rendered causal-graph image, unrestricted prepared rows, or model-generated prep
 
 ```mermaid
 flowchart TD
-    P3["PRD-003 handoff: four artifact IDs"] --> HV["PRD-004 handoff validator"]
+    P3["PRD-003 handoff: three artifact IDs"] --> HV["PRD-004 handoff validator"]
     HV --> CM["Frozen EstimationContextManifest"]
     CM --> EP["Deterministic EstimationPlan compiler"]
-    EP --> DC["Exact DeliveryCapacityCheck revalidation"]
+    EP --> DC["Exact CapacityReport revalidation"]
     DC -->|"declared estimator inputs only"| MA["Selected method adapter"]
     MA -->|"PrimaryAnalysisResult + uncertainty artifacts"| RF["Result freeze"]
     RF -->|"registered IDs fixed before results"| DS["Deterministic diagnostic and sensitivity tasks"]
     DS -->|"frozen typed results"| JC["Deterministic JudgmentCeiling"]
-    JC -->|"bounded ClaimReviewContext"| CRA["Claim-review agent"]
-    CRA -->|"structured ClaimJudgment draft"| JV["Deterministic claim validator"]
-    JV -->|"approved statements + frozen results"| FD["Registered figure-data builders"]
+    JC -->|"bounded ClaimReviewContextV2"| CRA["Claim-decision agent"]
+    CRA -->|"ClaimJudgmentDecisionV2"| JV["Validator + wording compiler"]
+    JV -->|"ClaimJudgmentV2 + frozen results"| FD["Registered figure-data builders"]
     FD -->|"Bundle + Judgment + FigureData + Design + Capacity IDs"| P5["PRD-005 handoff"]
     MA -. "not estimable" .-> STOP["Typed terminal outcome"]
     DC -. "unsupported exact capacity" .-> STOP
@@ -960,7 +963,7 @@ flowchart TD
 | Delivery-capacity validator | approved capacity artifact plus exact plan/structure cardinalities | registered capacity and catalog manifests | passing recheck or `DesignConflict` | selected adapter or PRD-002 |
 | Selected method adapter | declared estimator-input columns/views, contribution-mask rules, preprocessing recipe, seed and parameters | prepared-frame payload through a non-model data boundary | one typed `PrimaryAnalysisResult` and uncertainty artifacts | result freeze |
 | Diagnostic/sensitivity task | frozen primary result plus one prespecified task contract | only its registered inputs and contribution mask | one typed terminal result | deterministic fan-in |
-| Claim-review agent | `AgentTaskEnvelopeV1` containing `ClaimReviewContext`: approved question/assumptions, every primary-item summary, diagnostic/sensitivity statuses, ceilings, qualifications, and evidence IDs | no additional tools or context | one structured judgment draft | claim validator only |
+| Claim-decision agent | `AgentTaskEnvelopeV1` containing `ClaimReviewContextV2`: approved question/assumptions, primary-item summaries, diagnostic/sensitivity statuses, ceilings, and registered statement IDs | no additional tools or context | `ClaimJudgmentDecisionV2` containing statuses and registered IDs only | claim validator and deterministic wording compiler |
 | Figure-data builder | approved visual-evidence ID and frozen statistical parents | declared prepared aggregates only when its registered contract permits them | typed figure-data artifact | PRD-005 handoff |
 
 Only the claim-review receiver is a model agent. Method adapters, diagnostics, sensitivities,
@@ -1062,11 +1065,10 @@ Allowlisted production metadata includes:
 - seed identifiers, retry counts, latency, token usage, and cost; and
 - numerical-environment and implementation identifiers.
 
-After task-envelope allowlisting and a second trace-redaction pass, LangSmith records the complete
-model-facing `ClaimReviewContext`, prompt, and returned `ClaimJudgment` draft. This includes only
-the bounded estimates, intervals, diagnostic statuses, sensitivity summaries, assumptions, and
-qualifications the claim-review model is explicitly permitted to see. Production traces must
-never emit:
+The explicit gateway span records only sanitized task identities, prompt/schema/envelope hashes,
+model profile, seed, correction count, evaluation IDs, attempts, token counts, and terminal error
+codes. It never records prompt text, response text, reasoning, context payloads, or gold labels.
+Production traces must never emit:
 
 - raw or prepared rows, cell values, dataframes, or source documents;
 - treatment, outcome, covariate, running-variable, or identifier value samples;
@@ -1074,8 +1076,7 @@ never emit:
   parameters;
 - bootstrap or randomization replicate arrays;
 - unrestricted statistical result collections, full diagnostic payloads, or figure-data payloads;
-- prompts or responses outside the validated claim-review task, hidden chain-of-thought, or
-  unrestricted user context; or
+- prompts, responses, reasoning, unrestricted user context, or evaluator gold labels; or
 - credentials, database values, object payloads, or signed URLs.
 
 Auto-instrumented inputs and outputs are disabled unless they pass the same sanitizer. Every span
@@ -1173,7 +1174,7 @@ ClaimJudgment statement
       → EstimationPlan + AnalysisContributionMask
       → PreparedFrameBundle + row_set_hash
       → PRD-003 transformation and row-disposition lineage
-      → selected source CSV and approved ExperimentDesign
+      → selected source CSV and approved CompiledDesign
 ```
 
 Figure-data lineage is:
@@ -1192,15 +1193,15 @@ PRD-005 opens with exactly:
 - `estimation_bundle_artifact_id`;
 - `claim_judgment_artifact_id`;
 - `figure_data_bundle_artifact_id`;
-- `experiment_design_artifact_id`; and
-- `pre_estimation_capacity_check_artifact_id` for the exact passing pre-estimation recheck.
+- `compiled_design_artifact_id`; and
+- `capacity_report_artifact_id` for the design report that survived the exact plan recheck.
 
 The handoff is readable only when:
 
 1. `EstimationOutcome.status` is `complete`.
 2. All five artifacts and every required parent exist and match their hashes.
 3. The estimation bundle references the exact PRD-003 prepared bundle, approved design,
-   runnable-frame contract, and row-set hash.
+   compiled preparation policy, and row-set hash.
 4. One `PrimaryAnalysisResult`, every ordered primary item, applicable multiplicity result, and
    required uncertainty are frozen.
 5. Every required diagnostic and sensitivity branch has a terminal visible result.
@@ -1230,7 +1231,7 @@ statistic.
 | Contracts | `pydantic==2.13.4` | schemas and validation |
 | Orchestration | `langgraph==1.2.11` | typed control, checkpoints, and bounded parallelism |
 | Production checkpointer | `langgraph-checkpoint-postgres==3.1.1` | shared durable checkpoint schema with estimation namespace |
-| Required observability/evaluation | `langsmith==0.11.0` | sanitized full claim-review text, operation traces, and fail-closed progression |
+| Required observability/evaluation | `langsmith==0.11.0` | sanitized gateway metadata and hashes, operation traces, and fail-closed progression |
 | Model API | `google-genai==2.19.0`, Vertex AI stable `v1`, `gemini-2.5-flash` | the frozen shared profile for one claim-review task plus targeted corrections |
 | Table access | `polars==1.43.2` | authoritative prepared-frame reads and aggregations |
 | Compatibility dataframe | `pandas==3.0.5` | bounded adapters for estimator libraries only |
@@ -1273,12 +1274,12 @@ Reference basis for selected maintained capabilities:
 
 ## 24. Acceptance criteria
 
-1. PRD-004 opens only from the four artifact IDs defined by PRD-003.
+1. PRD-004 opens only from the three artifact IDs defined by PRD-003.
 2. Every upstream artifact, hash, registry version, lineage edge, and row-set hash is validated
    before plan compilation.
 3. Exactly one primary method, estimator, estimand family, and outcome execute per run; the single
    `PrimaryAnalysisResult` contains the finite ordered primary contrast set approved in design.
-4. The complete estimation plan and exact `DeliveryCapacityCheck` revalidation pass before the
+4. The complete estimation plan and exact `CapacityReport` revalidation pass before the
    primary outcome enters an estimator.
 5. No result-dependent method, covariate, subgroup, mask, bandwidth, trimming, period, cohort, or
    sensitivity choice is possible.
@@ -1321,9 +1322,9 @@ Reference basis for selected maintained capabilities:
 31. PRD-005 receives no unrestricted raw observation and cannot reopen the prepared frame.
 32. Graph state contains no dataframes, predictions, weights, residuals, replicate arrays, or
     figure-data payloads.
-33. Production LangSmith traces contain the complete sanitized claim-review prompt and response,
-    including only its bounded result summaries, but no raw/prepared rows, unrestricted result
-    collections, predictions, weights, residuals, influence arrays, or figure-data payloads.
+33. Production LangSmith traces contain only allowlisted scalar identities, hashes, model and
+    evaluation metadata, correction counts, attempts, and token usage; never prompts, responses,
+    reasoning, rows, credentials, result payloads, or evaluator gold labels.
 34. A LangSmith preflight or flush failure produces `failed_observability`, preserves committed
     statistical artifacts, and prevents later graph work or the PRD-005 handoff.
 35. An unavailable required claim-review service leaves the statistical artifacts intact but
@@ -1343,7 +1344,7 @@ Reference basis for selected maintained capabilities:
     PRD-003 messages or checkpoints, and freezes one `EstimationContextManifest` before plan
     compilation.
 43. The claim-review agent receives `AgentTaskEnvelopeV1` containing only the bounded
-    `ClaimReviewContext`; no other PRD-004
+    `ClaimReviewContextV2`; no other PRD-004
     computation is a model agent and no statistical array or unrestricted row is routed to it.
 44. The claim-review loop is one initial response plus at most two targeted schema/citation
     corrections for the same stable validation code.
@@ -1445,3 +1446,12 @@ leakage rules; every method-pack requirement in Sections 9–12; the judgment ce
 the single bounded claim-review call with at most two targeted corrections;
 figure-data lineage; the Section 20 observability contract (every boundary still
 emits and flushes); and the PRD-005 handoff conditions.
+
+## Standalone analysis boundary (T-038)
+
+The user-approved [T-038 plan](../tasks/T-038-analysis-module-boundary.md) introduces
+the standalone [analysis capability library](../../src/causal/analysis/README.md).
+New contracts use analysis-specific versions and immutable hash-bound plans. The
+existing estimation schemas, stored records, and agent pipeline remain historical
+integration contracts; they are not reinterpreted as the new boundary. Numerical
+implementations are method-owned and reused after behavioral verification.

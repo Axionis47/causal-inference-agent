@@ -6,12 +6,21 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Final, Literal, Self
 
-from causal.design.contracts import DesignIntentV1, _Row
+from pydantic import Field, model_validator
+
+from causal.design.contracts import (
+    ConceptProposalV1,
+    DesignContextManifestV1,
+    DesignIntentV1,
+    _Payload,
+    _Row,
+)
 from causal.design.packs import TASK_KINDS, PackRegistryError, TaskKind, _parse
 from causal.design.semantics import (
     ColumnSemanticCardV1,
@@ -21,12 +30,101 @@ from causal.design.semantics import (
     MeasurementMapV1,
     MeasurementRelation,
 )
-from causal.design.triage import normalize_column_name
-from causal.shared.contracts import ArtifactRef
+from causal.shared.contracts import ArtifactRef, Identity
 from causal.shared.envelope import AgentTaskEnvelopeV1, TaskBudgets, TaskStatus
 
-__all__ = ["TaskSpecV1", "build_task_envelope", "compile_measurement_map", "load_task_table",
-           "render_prompt"]
+__all__ = ["BATCH_COLUMN_LIMIT", "MAX_BATCHES", "TIER2_HYPOTHESIS_KINDS",
+           "ColumnTriageRecordV1", "TaskSpecV1", "TriageBatchV1",
+           "build_batches", "build_task_envelope", "compile_measurement_map", "load_task_table",
+           "normalize_column_name", "render_prompt", "triage"]
+
+# Even two 12-slot cards can exhaust the provider output budget (NHEFS education/exercise).
+# Bound each response to one card and retain the existing total capacity of 24 columns.
+MAX_BATCHES: Final = 24
+BATCH_COLUMN_LIMIT: Final = 1
+TIER2_HYPOTHESIS_KINDS: Final = ("missing_sentinel", "identifier")
+
+
+class TriageBatchV1(_Row):
+    batch_id: Identity
+    column_names: Annotated[
+        tuple[Identity, ...], Field(min_length=1, max_length=BATCH_COLUMN_LIMIT)]
+
+
+class ColumnTriageRecordV1(_Payload):
+    """The bounded semantic-work scope for one selected table."""
+
+    schema_version: Literal["column-triage.v1"] = "column-triage.v1"
+    table_name: Identity
+    batches: tuple[TriageBatchV1, ...]
+    deferred: tuple[Identity, ...]
+
+    @model_validator(mode="after")
+    def _bounded_partition(self) -> Self:
+        if len(self.batches) > MAX_BATCHES:
+            raise ValueError(f"at most {MAX_BATCHES} batches, got {len(self.batches)}")
+        batched = tuple(name for batch in self.batches for name in batch.column_names)
+        if len(batched) != len(set(batched)) or set(batched) & set(self.deferred):
+            raise ValueError("batched and deferred columns must be distinct")
+        if self.deferred != tuple(sorted(set(self.deferred))):
+            raise ValueError("deferred columns must be sorted and distinct")
+        return self
+
+
+def normalize_column_name(name: str) -> str:
+    return name.strip().casefold().replace(" ", "_").replace("-", "_")
+
+
+def _intent_columns(intent: DesignIntentV1) -> frozenset[str]:
+    proposals: tuple[ConceptProposalV1, ...] = (
+        intent.treatment, intent.outcome, intent.population, intent.comparator,
+        intent.unit, intent.timeframe, *intent.mandatory_concepts)
+    return frozenset(normalize_column_name(column) for proposal in proposals
+                     for column in proposal.candidate_columns)
+
+
+def _batch(table_name: str, members: tuple[str, ...]) -> TriageBatchV1:
+    material = table_name + "\x1f" + "\x1f".join(sorted(members))
+    digest = hashlib.sha256(material.encode()).hexdigest()
+    return TriageBatchV1(batch_id=f"tb:{digest[:16]}", column_names=members)
+
+
+def build_batches(table_name: str, critical: Sequence[str],
+                  plausible_adjustment: Sequence[str]) -> tuple[TriageBatchV1, ...]:
+    # Both dimensions are hard ceilings: never preserve the fan-out cap by silently widening
+    # a model response. Overflow remains deferred in the triage record for downstream routing.
+    members = (*critical, *plausible_adjustment)[:MAX_BATCHES * BATCH_COLUMN_LIMIT]
+    if not members:
+        return ()
+    return tuple(_batch(table_name, members[start:start + BATCH_COLUMN_LIMIT])
+                 for start in range(0, len(members), BATCH_COLUMN_LIMIT))
+
+
+def triage(intent: DesignIntentV1, manifest: DesignContextManifestV1,
+           hypothesis_columns: Mapping[str, tuple[str, ...]] | None = None,
+           ) -> ColumnTriageRecordV1:
+    """Assign every selected-table column to one bounded processing tier."""
+    intent_columns = _intent_columns(intent)
+    evidenced = frozenset(normalize_column_name(row.column_name) for row
+                          in manifest.semantic_available if row.scope_kind == "column"
+                          and row.column_name is not None and row.field_or_slot_name == "meaning"
+                          and row.status == "evidenced")
+    flagged = frozenset(normalize_column_name(column)
+                        for column, kinds in (hypothesis_columns or {}).items()
+                        if any(kind in TIER2_HYPOTHESIS_KINDS for kind in kinds))
+    inventory = sorted((row for row in manifest.structural_inventory
+                        if row.table_name == manifest.selected_table), key=lambda row: row.ordinal)
+    critical = tuple(row.column_name for row in inventory
+                     if normalize_column_name(row.column_name) in intent_columns)
+    plausible = tuple(row.column_name for row in inventory if row.column_name not in critical
+                      and normalize_column_name(row.column_name) in evidenced | flagged)
+    batches = build_batches(manifest.selected_table, critical, plausible)
+    batched = {name for batch in batches for name in batch.column_names}
+    return ColumnTriageRecordV1(
+        table_name=manifest.selected_table,
+        batches=batches,
+        deferred=tuple(sorted(row.column_name for row in inventory
+                              if row.column_name not in batched)))
 
 
 class TaskSpecV1(_Row):
@@ -39,6 +137,7 @@ class TaskSpecV1(_Row):
     output_schema_version: str
     wall: int
     allowed_stopping_states: tuple[TaskStatus, ...]
+    allowed_requirement_ids: Annotated[tuple[Identity, ...], Field(min_length=1)]
     token_budget: int
     tool_call_budget: int
     correction_budget: int
@@ -64,10 +163,16 @@ def load_task_table(path: Path) -> dict[str, TaskSpecV1]:
 def render_prompt(spec: TaskSpecV1, prompts_root: Path, sections: Mapping[str, object]) -> str:
     """Template text plus one JSON section per key, sorted by key; `prompt_path` is root-relative."""
     template = (prompts_root / spec.prompt_path).read_text(encoding="utf-8")
-    return template + "".join(
-        f"\n\n## {key}\n{json.dumps(sections[key], indent=1, sort_keys=True)}"
+    compact = spec.task_kind == "causal_context"
+    rendered = template + "".join(
+        f"\n\n## {key}\n{json.dumps(sections[key], indent=None if compact else 1, sort_keys=True,
+                                   separators=(',', ':') if compact else None)}"
         for key in sorted(sections)
     )
+    return rendered + ("\n\n## prerequisite_rule\nSettled requirements are authoritative. "
+        "Use cited evidence for `resolved`; preserve uncertainty without asking again for "
+        "`unknown_accepted`; never return a settled id and canonical scope in "
+        "`missing_requirements`." if sections.get("prerequisite_context") else "")
 
 
 def build_task_envelope(
@@ -127,4 +232,4 @@ def compile_measurement_map(intent: DesignIntentV1,
     links = sorted({_link(cid, card) for cid, card in pairs},
                    key=lambda k: (k.concept_id, k.table_name, k.column_name, k.relation))
     return MeasurementMapV1(concepts=tuple(concepts[key] for key in sorted(concepts)),
-                            links=tuple(links), claims=())
+                            links=tuple(links))

@@ -1,0 +1,5 @@
+Local support is assessed within the selected bandwidth as well as in the full input data. Heaping and limited distinct running values affect what local polynomial estimation can resolve. A density discontinuity can undermine the causal interpretation; failure to detect one does not prove that sorting is absent.
+
+Covariate continuity is inapplicable when no predetermined covariate was selected. A selected covariate's numerical check can fail or be unavailable during execution without changing that design applicability. The mandatory specification check includes half-bandwidth, double-bandwidth and quadratic probes; separate sensitivity results provide fuller comparisons if selected. Neither diagnostics nor sensitivities should silently replace the approved primary result.
+
+A bound covariate leaves continuity and adjusted comparisons conditional until factual support for `covariate_pre_treatment=True` covers that selected column. Missing assignment facts also keep dependent branches conditional; contradicted sharp assignment blocks them. Applicability resolves during design, while diagnostic measurements and sensitivity fits run only during execution.

@@ -9,13 +9,19 @@ from typing import Any
 import pytest
 
 from causal.design.compile import (
+    build_batches,
     build_task_envelope,
     compile_measurement_map,
     load_task_table,
     render_prompt,
 )
-from causal.design.contracts import ConceptProposalV1, DesignIntentV1, QuestionKind
-from causal.design.packs import TASK_KINDS, PackRegistryError
+from causal.design.contracts import (
+    ConceptProposalV1,
+    DesignIntentV1,
+    GrainSourceInterpretationV1,
+    QuestionKind,
+)
+from causal.design.packs import TASK_KINDS, PackRegistryError, load_requirement_templates
 from causal.design.semantics import (
     COLUMN_CARD_SLOTS,
     ColumnSemanticCardV1,
@@ -38,17 +44,25 @@ MEASURES = MeasurementRelation.MEASURES
 PROXIES = MeasurementRelation.PROXIES
 UNKNOWN_SLOT = SlotAssertionV1(value=None, status=EpistemicStatus.UNKNOWN, evidence_ids=())
 
+
+def test_an_evidenced_slot_requires_a_citation() -> None:
+    with pytest.raises(ValueError, match="evidence id"):
+        SlotAssertionV1(value="earnings", status=EpistemicStatus.EVIDENCED, evidence_ids=())
+
+
+def test_semantic_card_schema_names_every_required_slot() -> None:
+    slot_schema = ColumnSemanticCardV1.model_json_schema()["$defs"]["ColumnSemanticSlotsV1"]
+    assert set(slot_schema["required"]) == set(COLUMN_CARD_SLOTS)
+    assert slot_schema["additionalProperties"] is False
+
 # task kind: artifact type, schema version, highest wall, allowed stopping states (T-013 §1.1).
 EXPECTED_ROWS = {
     "intent": ("DesignIntent", "design-intent.v1", 3, ("complete", "needs_context")),
-    "semantic_batch": ("ColumnSemanticCard", "column-semantic-card.v1", 4,
-                       ("complete", "needs_context")),
-    "role_evidence": ("RoleEvidence", "role-evidence.v1", 4,
-                      ("complete", "needs_context", "conflict")),
-    "causal_synthesis": ("CausalContext", "causal-context.v1", 5,
-                         ("complete", "needs_context", "conflict")),
-    "method_design": ("ExperimentDesign", "experiment-design.v1", 7,
-                      ("complete", "needs_context", "refused")),
+    "semantic_batch": ("ColumnSemanticCard", "column-semantic-card.v1", 4, ("complete", "needs_context")),
+    "role_evidence": ("RoleEvidence", "role-evidence.v1", 4, ("complete", "needs_context", "conflict")),
+    "causal_context": ("CausalContext", "causal-context.v1", 5, ("complete", "needs_context", "conflict")),
+    "role_ledger": ("RoleLedger", "role-ledger.v1", 5, ("complete", "needs_context", "conflict")),
+    "method_design": ("AgentDesignProposal", "agent-design-proposal.v2", 6, ("complete", "needs_context")),
 }
 
 
@@ -73,7 +87,7 @@ def card(column: str, concept_id: str,
     return ColumnSemanticCardV1(
         table_name=TABLE_NAME, column_name=column, display_name=column, concept_id=concept_id,
         timing=timing, slots=dict.fromkeys(COLUMN_CARD_SLOTS, UNKNOWN_SLOT),
-        claims=(), alternatives=(), conflicts=(),
+        alternatives=(), conflicts=(),
     )
 
 
@@ -94,7 +108,11 @@ INTENT = DesignIntentV1(
     outcome=proposal("Earnings", "re78", "re74"), population=proposal("Eligible adults"),
     comparator=proposal("No training"), unit=proposal("Person"), timeframe=proposal("1978"),
     candidate_grain="one_row_per_unit",
-    mandatory_concepts=(proposal("Prior earnings", "re74"),), claims=(),
+    source_interpretations=(GrainSourceInterpretationV1(
+        fact_key="grain", value="one_row_per_unit",
+        evidence_id="ev:profile/nsw.csv#/columns/unit_id",
+        verbatim_excerpt="one row per unit", relation="direct"),),
+    mandatory_concepts=(proposal("Prior earnings", "re74"),),
 )
 CARDS = (card("treat", "c:training_program", TimingClass.CONCURRENT),
          card("re78", "c:earnings", TimingClass.POST_TREATMENT),
@@ -121,13 +139,18 @@ EXPECTED_MAP = MeasurementMapV1(
         link("c:prior_earnings", "re74", PROXIES, TimingClass.PRE_TREATMENT),
         link("c:training_program", "treat", MEASURES, TimingClass.CONCURRENT),
     ),
-    claims=(),
 )
 
 
 class TestTaskTable:
-    def test_holds_exactly_the_five_task_kinds(self) -> None:
+    def test_holds_exactly_the_six_task_kinds(self) -> None:
         assert sorted(TABLE) == sorted(TASK_KINDS)
+
+    def test_every_task_requirement_resolves_in_the_registry(self) -> None:
+        registered = load_requirement_templates(
+            ROOT / "registries" / "context-requirements.v1.json")
+        assert all(set(spec.allowed_requirement_ids) <= set(registered)
+                   for spec in TABLE.values())
 
     @pytest.mark.parametrize("task_kind", TASK_KINDS)
     def test_row_carries_its_output_contract_and_budgets(self, task_kind: str) -> None:
@@ -137,7 +160,8 @@ class TestTaskTable:
                                                                           schema_version)
         assert spec.wall == wall
         assert spec.allowed_stopping_states == tuple(TaskStatus(state) for state in states)
-        assert (spec.token_budget, spec.tool_call_budget, spec.correction_budget) == (24576, 8, 2)
+        assert (spec.token_budget, spec.tool_call_budget, spec.correction_budget) == (
+            24576, 4 if task_kind == "method_design" else 0, 2)
 
     @pytest.mark.parametrize("task_kind", TASK_KINDS)
     def test_prompt_template_exists_and_names_its_version(self, task_kind: str) -> None:
@@ -234,6 +258,15 @@ class TestBuildTaskEnvelope:
 
 
 class TestMeasurementMap:
+    def test_single_column_tasks_preserve_every_measurement_and_causal_concept(self) -> None:
+        batches = build_batches(TABLE_NAME, ("treat", "re78"), ("re74",))
+        assert [batch.column_names for batch in batches] == [("treat",), ("re78",), ("re74",)]
+        scoped_cards = tuple(
+            existing for batch in batches for existing in CARDS
+            if existing.column_name in batch.column_names)
+        assert scoped_cards == CARDS
+        assert compile_measurement_map(INTENT, scoped_cards) == EXPECTED_MAP
+
     def test_compiles_the_golden_concepts_and_links(self) -> None:
         assert compile_measurement_map(INTENT, CARDS) == EXPECTED_MAP
 

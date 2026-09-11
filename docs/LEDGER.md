@@ -14,12 +14,12 @@ Recomputed and updated by Fable at every doc freeze
 
 | Document | SHA-256 | Frozen at (commit) |
 |---|---|---|
-| SYSTEM-CONTRACT.md | `fa9071bfe60af1e113659fee82dc7ad36ec64fc2fb5b964eeffcb3ca2b475ee4` | D-100 amendment (§5.4 tool allowlists emptied), 2026-08-30 |
+| SYSTEM-CONTRACT.md | `36d113a908a352ee0a44ce6270262c1c18c0e621c4bdcbb416dc112734cc170a` | T-039 boundary amendment, working tree, 2026-09-10 |
 | PRD-001-kaggle-intake-storage.md | `a69337d3bfeac33cc7c017da357df369e01fe2c00d2b8ade429b84eac6913188` | initial freeze |
-| PRD-002-causal-design-harness.md | `59281bee16c28c441e2970e4fc4604721a888372a1c1995ebe67510135e2d8cc` | D-100 amendment (§15 model-facing tools deleted), 2026-08-30 |
-| PRD-003-runnable-frame-preparation.md | `e2fa601f633672424e2f683b96ad510f53d82363e8513e7b77a1739609a0ef78` | Amendment 2 (V1-mech, D-076), 2026-08-26 |
-| PRD-004-estimation-diagnostics-judgment.md | `895e49331bdaceb5978604971a42bb6ac6937c8f47f6b505cfbdf794ea4de38e` | Amendment 1 (V1-mech, D-083), 2026-08-26 |
-| PRD-005-evidence-visualization-presentation.md | `6f00087cd29cfd052d61b305a3f2fe22333c25cef22d8b2c669b243aad5f5f37` | initial freeze |
+| PRD-002-causal-design-harness.md | `6502d55d09d6752521e822139ee2a8cffa89e880b2999380660ed5be5ef1f1c6` | D-117 Design V2 cutover, 2026-09-06 |
+| PRD-003-runnable-frame-preparation.md | `48bb8e3c5aef0f090e5e42c7e8745cbcba676d7949c52c695ce7bda3e76c3a31` | D-117 Design V2 handoff alignment, 2026-09-06 |
+| PRD-004-estimation-diagnostics-judgment.md | `49b9e84c7915eb97a8510159c98f3234d6da1f61d6e35c429ffcea6ae590ccb0` | T-039 boundary amendment, working tree, 2026-09-10 |
+| PRD-005-evidence-visualization-presentation.md | `6f2c4e7a4af998479ead1d4b38381690d463f30fd398c2ae3b8c147fb0d300bf` | T-039 boundary amendment, working tree, 2026-09-10 |
 
 ## Task board
 
@@ -59,10 +59,69 @@ Recomputed and updated by Fable at every doc freeze
 | T-034 | Real-data sensitivity terminal correction | PRD-004 §15/§18/§26 | T-024, T-028, T-033 | single-session | ACCEPTED | yes | Actual Groupon AIPW and state-panel DiD deliver with qualifications; suite 1,490 green; D-110..D-111 |
 | T-035 | Real-data figure semantic mapping | PRD-004 §17; PRD-005 §11–§14 | T-031, T-033, T-034 | single-session | ACCEPTED | yes | Four-pack primary coordinates, DiD paths/period axes, semantic labels, and single legends fixed; actual AIPW/DiD reruns inspected; 1,491 green; D-112..D-114 |
 | T-014 | CLI seven commands, runtime composition, live Kaggle adapter | shared (SC §1.1) + PRD-002 §11.1 | T-013 | single-session + opus subagents (D-041) | ACCEPTED | yes | commit (see checkpoint log); 67 new tests, suite 717 green; closes D-034; maps to EV-SYS-007; cli 410/500, runtime 421/800; modules 50/50 and largest module 350/350 — both caps fully consumed |
+| T-036 | Design V2 compiler cutover | PRD-002 + downstream entry contracts | T-014, T-019, T-029, T-032, T-035 | single-session + parallel subagents | ACCEPTED | yes | Compiler-owned facts, diagnostics, policies, contrasts, capacity, approval, handoffs, and typed repair; superseded executable paths deleted; three actual-data journeys verified; 1,458 passed / 3 skipped; ruff, mypy, docs, and budgets clean. |
+| T-039 | Post-analysis contract, LangGraph and consolidation | PRD-004/005 + shared tracing | T-038 | single-session + parallel subagents | REVIEW | yes, current amendment | Implemented; full suite 1,811 passed/3 skipped, final entry/graph 40 passed, Ruff/mypy/wheel pass. Complexity and separate live/product-release gates remain open; see T-039-verification. |
 
 ## Decision log
 
 Append-only. One line per decision: date, decision, why.
+
+- 2026-09-06 — D-118: Post-cutover actual-data verification exercised the production artifact,
+  compiler, preparation, estimation, persistence, and presentation paths on three unlike CSVs:
+  Lalonde/NSW (445 cross-sectional rows) selected `randomized_experiment`; Groupon deals (710
+  rows) selected `aipw`; and the 51-state, seven-period minimum-wage panel (357 rows) selected
+  simultaneous `did`. All three completed. The final DiD rerun compiled `unit_id + period` keys,
+  preserved the adoption-column binding, estimated -0.032764 (95% interval -0.429472–0.363944),
+  and correctly delivered `complete_with_qualifications`; the qualifications include the failed
+  pre-period diagnostic, so the system does not overstate causal credibility. The run used actual
+  CSV bytes and production deterministic/statistical code; semantic proposals, claim review, and
+  figure curation were deterministic scripted agent responses, not live-model quality tests.
+  Real inputs exposed five contract defects now closed at their owning boundaries: compiled keys
+  now follow table grain; derived row ids use the frame serializer's supported `Int64`; suffixed
+  multi-column role bindings validate against their base schema column; preparation accepts a DiD
+  adoption threshold bound to a column; and DiD cohort profiling derives observed treatment
+  transitions rather than counting never-treated sentinel values as cohorts. Actual Groupon
+  failure injection also proved actionable routing: unknown assignment mechanism → `ask_human`
+  with `needs_context`, the required field, and user actor; missing bound data → `stop` with
+  `needs_data`, diagnostic id, and data-owner actor. Regression tests pin every defect. Verification
+  superseding
+  D-117's pre-pilot count: 1,458 passed / 3 skipped; ruff clean; mypy clean across 86 source files;
+  no budget breach (design 4,297/4,300; preparation 2,980/3,000; estimation 3,286/4,000; tests
+  12,735/13,000; production 16,399/16,400; grand total 33,638/34,000). Actual public-data RDD is
+  the remaining method-family gap; its compiler and estimator remain covered by deterministic
+  fixtures, not by this pilot.
+
+- 2026-09-06 — D-117: T-036 accepted. The design stage is now one compiler-owned V2 authority:
+  models propose evidence-cited semantics and rank only feasible methods; deterministic code owns
+  profiling, fact resolution, structural and empirical eligibility, diagnostic bindings, exact
+  contrasts, preparation policy, estimator parameters, capacity, failure routing, and exact-hash
+  approval. RDD carries cutoff, direction, and observed arm values; DiD carries adoption time and
+  measured adoption profile. Unsupported contrasts fail before fitting and commit no misleading
+  partial primary result. `model_fix`, `human_input`, `needs_data`, `unsupported`, and
+  `system_failure` have distinct responsible actors and bounded repair/escalation. The retired
+  frame/triage modules, method prompt, design-tool registry, follow-on migration, V1 registrations,
+  runtime readers, duplicate contracts, and downstream adapters were deleted rather than wrapped.
+  The active PRD was rewritten to the implemented V2 contract; append-only historical ledger/task
+  records retain their original vocabulary. Verification: full suite 1,456 passed / 3 skipped;
+  ruff clean; mypy clean across 86 source files; public-doc and budget tests 47 passed; no budget
+  breach. Final budgets: design 4,299/4,300; production 16,400/16,400; grand total 33,615/34,000;
+  86/86 modules; largest module 350/350; largest function 68/75.
+
+- 2026-09-06 — D-116: User explicitly approved the T-036 complexity revisions after the bounded
+  deletion/consolidation pass: PRD-002 design 3,400 → 4,300; production total 15,500 → 16,400;
+  grand total 33,100 → 34,000. The approval is not permission to preserve superseded code: the
+  user separately required a systematic caller-backed cleanup, so T-036 still deletes obsolete
+  contracts, runtime paths, prompts, registry rows, migration structures, and downstream adapters
+  before close. Module count remains 86, and the 350-line module / 75-line function ceilings stand.
+
+- 2026-09-05 — D-115: User approved the Design V2 clean replacement. Models propose semantics,
+  causal structure, missing context, and rankings only inside compiler-proven feasibility; typed
+  deterministic profiling, evidence support, diagnostic binding, eligibility, executable design
+  compilation, failure routing, capacity, approval, and handoff are authoritative. Failures split
+  into model-fix, human-input, needs-data, unsupported, and system-failure routes. The user chose
+  no V1 design reader or translator, restart of unfinished V1 runs with fresh approval, and a
+  clean pre-production database baseline because no valuable deployed V1 data exists. T-036 is
+  the binding implementation specification.
 
 - 2026-09-03 — D-114: T-035 accepted. All four packs now share one primary-interval builder whose quantitative coordinate is the estimate and whose nominal series is the contrast. DiD group-time/event-time paths preserve group/cohort identity, numeric periods compile on a linear scale, builder-specific time/event/count/contrast labels replace generic outcome defaults, and grouped uncertainty layers repeat the line's color+dash channels so Vega merges one accessible legend. Fresh production PRD-004→PRD-005 reruns over the actual prepared Groupon and state-panel artifacts delivered AIPW `complete` (estimate 160.0621, 95% interval 43.7085–276.4157; weighted price SMD 0.0933) and DiD `complete_with_qualifications` (−0.032764, −0.429472–0.363944; pre-period p=0.000549). The DiD result remains non-credible causally because parallel trends fails; the AIPW run remains exploratory because the actual file supplies only price as adjustment evidence. Visual inspection passed. Full suite 1,491 passed / 3 skipped; ruff and mypy clean; budget has no breaches (estimation net 0, presentation net 0, tests +12, declarative net 0).
 - 2026-09-03 — D-113: T-035 Amendment 1 frozen after the corrected actual renders. FigureData's generic axis metadata describes both axes as the outcome; consequently a correct DiD year/event-time coordinate is titled as the outcome and forest contrast labels inherit an outcome unit. Registered builders will override only the affected axis units/labels (time, event time, count, contrast). The compiler will suppress the duplicate legend created by the mandatory non-color group channel while preserving that channel. No numerical value or inferential calculation changes.
@@ -225,3 +284,146 @@ One line per checkpoint commit: date, commit subject, what state it freezes.
 - 2026-08-26 — `3772ea6`/`f7ddf0a` T-016 + T-017 merged: Phase A engine (stabilize 298, impact 180, shared/frames 90) and Phase B engine (operations 278, executor 214, diagnostics 179 + 2 registries); 108 new tests; suite 997 green.
 - 2026-08-26 — T-015: preparation substrate (contracts 295, plans 203, packs 95, shared/receipts 97; 9 registry rows → 36; 0006_preparation.sql; overlay registry); 152 tests; suite 891 green.
 - 2026-08-25 — Step 1 of the PRD-003 wave (D-057..D-059): PRD-003 Amendment 1 (V1-lite) appended; SC §5.4/§3.1/§14.1 aligned and budgets revised; budget_check constants updated; hashes recomputed. Checker `warning` (pre-existing near-cap scopes only), no breaches.
+
+- 2026-09-09 — D-119 / T-037: Four fresh public-data live executions are the
+  acceptance target. Source selection replaces the stress RCT lacking its assignment
+  cluster and the two-wave DiD that cannot satisfy the registered pre-period rule.
+  Rock the Vote retains randomized cable systems/strata; Castle Doctrine uses the
+  2006 adoption cohort, omits the partial-exposure transition year, and declares
+  retained-wave timing. NHEFS and Head Start inputs remain unchanged and pinned.
+  Live execution exposed shared request/repair defects: provider schemas expanded
+  long evidence catalogs beyond the serving limit; two semantic cards could exceed
+  the output cap; reference corrections omitted frozen decision fields; removal of
+  an invalid array citation shifted valid indices and was wrongly rejected; and
+  recording supporting uncertainties replayed already completed column work.
+  Repairs retain strict local evidence validation and exact approval, use one card
+  per call with exact count/scope checks, supply the original complete correction
+  baseline, preserve valid reference sequences, and settle only nonblocking
+  RECORD_SENSITIVITY outcomes inline. No estimator was substituted. The resumable
+  four-case command retains real model decisions, source/input hashes, bound review
+  responses, every artifact, and verified presentation exports. Failed attempts
+  remain visible and do not count as delivered. This execution exercise does not
+  self-approve the separate human-gold release gate. Final results and verification
+  will be recorded after all four complete.
+
+- 2026-09-09 — D-120 / T-037 user-approved priority sweep: completion now
+  separates verified execution from numerical, visual and interpretation review
+  bound to the exact input and presentation hashes. The saved failures are
+  regression cases before another live attempt. Repairs cover graph-edge
+  identities, preserved review feedback, source-supported measurement metadata,
+  truthful RDD applicability and density plots, criterion-specific sensitivity
+  descriptions with all intervals, and categorical balance based on indicators.
+  No approved estimand, estimator or prespecified sensitivity threshold changes.
+  Fresh acceptance runs use output/four-verified-20260909; original attempts remain
+  intact. The existing complexity gate remains blocked (interim production 18,262
+  versus 16,500 lines; grand total 39,940 versus 35,000, plus scoped/file/function
+  breaches). The user explicitly authorized this narrow correctness sweep and
+  recording those breaches; budget ceilings and separate release authority remain
+  unchanged. Final verification and the four reviewed deliveries are pending.
+
+- 2026-09-09 — D-121 / T-037 change classification and implementation log:
+  this sweep contained both artifact-contract work and context-engineering work.
+  Artifact work changed the durable outputs and their validation: graph views now
+  reject conflicting edge identities; measurement metadata carries documented units
+  and provenance into approved designs, estimation plans and figure payloads;
+  categorical balance uses indicator-based quantities; RDD density figures contain
+  only measured one-sided densities with cutoff references kept separate; missing
+  RDD covariates are explicitly unavailable rather than fabricated zeros; all
+  sensitivity branches retain estimates, intervals and failure states; and the
+  runner distinguishes execution verification from final acceptance bound to input
+  and presentation bundle hashes. The RCT adapter also makes its physical-column
+  casting and covariance label truthful while preserving the direct CRV1 numbers.
+
+  Context-engineering work changed what model tasks are allowed to see and how they
+  repair decisions: provider context is bounded to serving limits; semantic batches
+  have exact scope/count; correction prompts receive the complete immutable baseline;
+  valid reference sequences survive citation repair; nonblocking sensitivity unknowns
+  settle without replaying completed work; and a later design revision receives the
+  exact prior review decision as separate review feedback, while accepted facts and
+  source evidence remain separate. Prompts now require criterion-specific sensitivity
+  language and preserve the documented NHEFS study window without treating outcome
+  weight change as a time column. Head Start context includes source-documented
+  poverty-percent and mortality-per-100,000 units.
+
+  Evidence: focused design safeguards passed 97 tests; RCT/walls/packs passed 120;
+  measurement/figure tests passed 115; the latest full suite reached 1,658 passed,
+  3 skipped, with two presentation expectation failures still requiring resolution.
+  Ruff and mypy were clean on the last completed checks. Offline Head Start replay
+  matched the primary estimate, SE and interval exactly and rendered three figures
+  with no curator/render codes. The complexity checker remains blocked by existing
+  scope, production-total, grand-total, module and function ceilings; this log does
+  not treat that as a release pass. No human-gold release approval was created.
+
+- 2026-09-09 — D-122: Artifact design principle recorded. In AI workflows, the
+  model proposes, the artifact records, deterministic code validates, and later
+  stages consume only validated artifacts. Schemas, provenance, lineage, hashes,
+  explicit failure states, measurement units and human-readable summaries make
+  model work testable, auditable, reproducible and safe across retries. Artifact
+  design is part of the correctness boundary, not merely storage or presentation.
+  Applied to T-037 through graph identities, units, diagnostic/sensitivity states,
+  source references and export verification.
+
+- 2026-09-09 — D-123 / T-038: Implemented the user-approved standalone analysis
+  capability library. Method-owned typed specifications, exact guidance retrieval,
+  scientific-context feedback, data preflight, immutable compilation and hash-bound
+  execution now form an agent-independent public boundary. Estimation, numerical
+  diagnostics and plotting fail independently, preserving valid primary results.
+  Historical integration schemas remain readable; no design-agent rewrite or new
+  estimator was introduced. Final focused acceptance passes 51 cases, with source
+  lint and strict typing clean and wheel resources verified. The user clarified
+  that legacy regression counts are not the acceptance gate. Complexity remains
+  blocked: analysis 5,672/4,000, production 20,759/16,500 and grand total
+  51,406/35,000, with other recorded breaches; no ceilings were raised. See
+  docs/tasks/T-038-verification.md and evals/reports/T-038-analysis-budget.json.
+
+- 2026-09-10 — T-040: Refactored intake around an independent public entry,
+  immutable reusable dependencies, invocation-local run state, typed resource
+  inventory/results, and deterministic evidence publication. Runtime `new` now
+  dispatches through that entry; CLI commands and design responsibilities remain
+  separate. Replay skips source-client construction. Duplicate archives refuse,
+  corrupt members fail independently, unsafe members retain catalogue outcomes,
+  and non-finite numeric source values produce serializable measured profiles.
+  Existing question/context/temporal evidence and public coordinator interfaces
+  are preserved. Final focused verification: 186 tests pass, scoped Ruff and
+  strict mypy pass. Intake is 1,200/1,200 significant lines (starting worktree
+  1,192), largest module/function 155/49. The overall complexity gate remains
+  blocked by the recorded broader worktree breaches; ceilings are unchanged.
+  Remaining runtime/catalogue/recovery limitations are explicit in
+  src/causal/intake/README.md. See docs/tasks/T-040-verification.md and
+  evals/reports/T-040-intake-budget.json. Changes remain in the shared worktree.
+
+
+- 2026-09-10 — T-039: Completed the authorized post-analysis consolidation.
+  One package owns the exact input reader, LangGraph author/tool loop, independent
+  image-aware review, report composition, release, recovery and delivery. Deleted
+  the old presentation pipeline, runtime coordinator, claim judge/curator prompts,
+  mandatory figure builders, claim ceiling and duplicated capacity recheck. The
+  numerical stage now publishes NumericalBundle and AnalysisSupportingData;
+  scientific calculations and immutable approved source bindings are preserved.
+  New design/public analysis outputs no longer prescribe plots. Full application
+  prompts, outputs, tools, preview images and provider-exposed reasoning summaries
+  use nested LangSmith traces, with required flushes and ordinary operational logs.
+  No live model call or live LangSmith transmission was performed in this refactor.
+  Full suite: 1,811 passed / 3 skipped; final reference-validation hardening:
+  40 entry/graph tests passed. All-repository Ruff, strict production mypy (129
+  files) and wheel/source-byte checks pass. Post-analysis is 2,229/1,500 significant
+  lines; its largest module/function are 270/75. Overall production is
+  20,658/16,500 and grand total 52,580/35,000. No complexity ceilings were raised;
+  functional completion does not waive that gate or approve the separate legacy
+  gold-rubric migration/live release. Contract, actual graph, removal map, producer
+  gaps and AGENTS.md are maintained under docs/post_analysis and the package.
+  Verification: docs/tasks/T-039-verification.md; budget:
+  evals/reports/T-039-post-analysis-budget.json. Existing unrelated work remains
+  intact; no broad checkpoint commit was made over the shared dirty worktree.
+
+- 2026-09-11 — Repository transition: At the user's request, preserve the previous
+  GitHub main at `b5e1a9e68a2724eb6b9df42d17f6d82140a4fae4` on
+  `codex/archive-main-before-causal-final-2026-09-11` and promote the Causal Final
+  workspace, including its 138 existing commits, to the repository's active main.
+  The current shared worktree is explicitly authorized for a checkpoint covering
+  the accumulated source, tests, resources and documentation. Generated runs,
+  scratch files, local analysis caches and credentials remain local; curated
+  budget reports and authored evaluation findings are retained. The independent
+  histories and comparison workflow are documented in docs/REPOSITORY-HISTORY.md.
+  This repository transition does not waive the previously recorded complexity
+  gates or constitute live release approval.

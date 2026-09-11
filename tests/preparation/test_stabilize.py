@@ -43,7 +43,7 @@ from causal.preparation.stabilize import (
     with_row_unit,
 )
 from causal.shared.frames import ROW_UNIT_COLUMN
-from tests.conftest import MemoryObjects
+from tests.infrastructure import MemoryObjects
 from tests.preparation.test_contracts import MANIFEST, REF
 
 REGISTRIES = Path(__file__).resolve().parents[2] / "registries"
@@ -273,7 +273,8 @@ def test_the_row_unit_column_is_materialised_in_source_order_and_only_when_asked
     assert with_row_unit(parsed, ("treat",)) is parsed
     bound = with_row_unit(parsed, ("treat", ROW_UNIT_COLUMN))
     assert bound.frame[ROW_UNIT_COLUMN].to_list() == [0, 1, 2]
-    assert bound.frame[ROW_UNIT_COLUMN].n_unique() == bound.frame.height
+    assert (bound.frame[ROW_UNIT_COLUMN].dtype, bound.frame[ROW_UNIT_COLUMN].n_unique()) == (
+        pl.Int64, bound.frame.height)
     assert bound.frame["treat"].to_list() == frame["treat"].to_list()
     # Idempotent: a contract naming it twice, or a re-run, never renumbers the rows.
     assert with_row_unit(bound, ("treat", ROW_UNIT_COLUMN)) is bound

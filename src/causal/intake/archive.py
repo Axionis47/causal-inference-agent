@@ -6,6 +6,8 @@ import io
 import posixpath
 import stat
 import zipfile
+from collections import Counter
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Final
 
@@ -93,8 +95,8 @@ class ArchiveSafety:
 
     def admit(self, archive_bytes: bytes) -> ArchiveAdmission:
         try:
-            archive = zipfile.ZipFile(io.BytesIO(archive_bytes))
-            infos = [info for info in archive.infolist() if not info.is_dir()]
+            with zipfile.ZipFile(io.BytesIO(archive_bytes)) as archive:
+                infos = [info for info in archive.infolist() if not info.is_dir()]
         except zipfile.BadZipFile:
             return ArchiveAdmission(False, (), "corrupt or unsupported archive")
         if len(infos) > self._max_entries:
@@ -102,8 +104,10 @@ class ArchiveSafety:
         if sum(info.file_size for info in infos) > self._max_total_bytes:
             return ArchiveAdmission(False, (), "total uncompressed size exceeds limit")
         decisions: list[ResourceDecision] = []
+        names = Counter(info.filename for info in infos)
         for info in infos:
-            safety_reason = self._entry_safety_reason(info)
+            safety_reason = ("duplicate member name" if names[info.filename] > 1
+                             else self._entry_safety_reason(info))
             if safety_reason is not None:
                 decisions.append(ResourceDecision(info.filename, "unsafe", safety_reason))
                 continue
@@ -114,15 +118,24 @@ class ArchiveSafety:
         return ArchiveAdmission(not unsafe, tuple(decisions), refusal)
 
     def extract_admitted(
-        self, archive_bytes: bytes, admission: ArchiveAdmission
+        self, archive_bytes: bytes, admission: ArchiveAdmission,
+        on_error: Callable[[str, Exception], None] | None = None,
     ) -> dict[str, bytes]:
-        """Bytes for extractable classes only; never called on an unsafe archive."""
+        """Read admitted members; an optional callback records individual failures."""
         if not admission.safe:
             raise ValueError("refusing to extract from an archive that failed admission")
-        archive = zipfile.ZipFile(io.BytesIO(archive_bytes))
         extractable = {
             decision.name
             for decision in admission.decisions
             if decision.classification in EXTRACTABLE_CLASSES
         }
-        return {name: archive.read(name) for name in sorted(extractable)}
+        extracted: dict[str, bytes] = {}
+        with zipfile.ZipFile(io.BytesIO(archive_bytes)) as archive:
+            for name in sorted(extractable):
+                try:
+                    extracted[name] = archive.read(name)
+                except Exception as error:
+                    if on_error is None:
+                        raise
+                    on_error(name, error)
+        return extracted

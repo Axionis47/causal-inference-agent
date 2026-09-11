@@ -8,7 +8,7 @@ from collections.abc import Iterator
 from dataclasses import replace
 from io import StringIO
 from pathlib import Path
-from typing import Any, ClassVar, NamedTuple
+from typing import Any, NamedTuple
 
 import psycopg
 import pytest
@@ -16,20 +16,17 @@ import pytest
 from causal.cli.main import main
 from causal.design.contracts import ApprovalDecision, TableSelectionDecisionV1
 from causal.design.graph import DesignRunResult
-from causal.estimation import judge as ej
 from causal.intake.contracts import IntakeSubmissionV1
 from causal.intake.outcome import IntakeResult
-from causal.presentation import curate as cu
+from causal.post_analysis.tests.support import PostAnalysisGateway
 from causal.runtime import composition
 from causal.shared.envelope import AgentTaskEnvelopeV1
-from causal.shared.gateway import GatewayError, GatewayResultV1
+from causal.shared.gateway import GatewayError, GatewayImage, GatewayResultV1
 from causal.shared.persistence import ArtifactCommitter
 from causal.shared.tracing import ObservabilityError
-from tests.conftest import MIGRATIONS, requires_docker
-from tests.design.test_graph import NOW, ScriptedGateway, stub_renderer
-from tests.estimation.test_coordinator_e2e import Gateway as ClaimGateway
+from tests.design.test_graph import NOW, STUDY_CONTEXT, ScriptedGateway, stub_renderer
+from tests.infrastructure import MIGRATIONS, requires_docker
 from tests.intake.conftest import FrozenKaggleClient
-from tests.presentation.test_coordinator_e2e import Curator
 from tests.shared.test_tracing import FakeTracer
 
 pytestmark = requires_docker
@@ -40,13 +37,17 @@ RUN_STATE = "SELECT state FROM design.design_runs WHERE analysis_id = %s"
 
 
 class PipelineGateway(ScriptedGateway):
-    """The design script plus the two bounded downstream receivers."""
+    """The design script and the single post-analysis author/reviewer."""
 
-    delegates: ClassVar[dict[str, Any]] = {
-        ej.TASK_KIND: ClaimGateway(), cu.TASK_KIND: Curator()}
+    def __init__(self) -> None:
+        super().__init__()
+        self.post = PostAnalysisGateway()
 
-    def invoke(self, envelope: Any, prompt: str, schema: dict[str, object]) -> Any:
-        return (self.delegates.get(envelope.task_kind) or super()).invoke(envelope, prompt, schema)
+    def invoke(self, envelope: Any, prompt: str, schema: dict[str, object], *,
+               images: tuple[GatewayImage, ...] = ()) -> Any:
+        if envelope.task_kind.startswith("post_analysis_"):
+            return self.post.invoke(envelope, prompt, schema, images=images)
+        return super().invoke(envelope, prompt, schema)
 
 
 class Interrupt(NamedTuple):
@@ -84,13 +85,16 @@ def runtime(conn: Any, minio_s3: dict[str, Any], tmp_path: Path,
     built = composition.build_runtime(
         make_config(conn, minio_s3, tmp_path), client_factory=FrozenKaggleClient,
         model=PipelineGateway(), strict_observability=False, clock=lambda: NOW)
+    built.pres = replace(built.pres, require_tracing=False, tracer=FakeTracer(),
+                         render_root=tmp_path / "renders")
     yield built
     built.close()
 
 
 def submission(key: str = "k-new") -> IntakeSubmissionV1:
     return IntakeSubmissionV1(
-        schema_version="intake-submission.v1", question_text=QUESTION, context_text=None,
+        schema_version="intake-submission.v1", question_text=QUESTION,
+        context_text=STUDY_CONTEXT,
         kaggle_ref="lalonde/nsw", idempotency_key=key)
 
 
@@ -194,11 +198,35 @@ class TestCommands:
         # T-029 chains on into PRD-004 as soon as that frame reaches `prepared`.
         settled = runtime.run(made.analysis_id, expected_stage_run=opened.stage_run_id,
                               idempotency_key="k-run-3")
-        assert settled.stage_run_id == f"es:{made.analysis_id}:1"
-        assert (settled.status, settled.error_code) == ("invalidated", "not_reportable")
+        assert settled.stage_run_id == f"ps:{made.analysis_id}:1"
+        assert (settled.status, settled.error_code) == ("complete", None)
+        model_calls = runtime.pres.gateway.post.author_calls
         reported = runtime.run(made.analysis_id, expected_stage_run=opened.stage_run_id,
                                idempotency_key="k-run-4")
         assert (reported.stage_run_id, reported.status) == (settled.stage_run_id, settled.status)
+        assert reported.outcome_artifact_id == settled.outcome_artifact_id
+        assert runtime.pres.gateway.post.author_calls == model_calls
+
+    def test_changes_requested_starts_a_new_revision_with_inherited_facts(
+        self, runtime: composition.CausalRuntime, conn: Any
+    ) -> None:
+        made, opened = start(runtime)
+        changed = runtime.approve_design(
+            made.analysis_id, binding(opened), ApprovalDecision.CHANGES_REQUESTED,
+            "k-change", ("Recheck the proposed design.",))
+        assert changed.status == "changes_requested"
+        assert runtime.status(made.analysis_id).next_command == "run"
+        revised = runtime.run(
+            made.analysis_id, expected_stage_run=opened.stage_run_id,
+            idempotency_key="k-revise")
+        assert revised.design_revision == 2
+        assert revised.stage_run_id == f"dr:{made.analysis_id}:2"
+        assert revised.interrupt_kind == "approval"
+        inherited = conn.execute(
+            "SELECT count(*) FROM design.accepted_facts WHERE analysis_id = %s"
+            " AND design_revision = 2 AND inherited_from_fact_id IS NOT NULL",
+            (made.analysis_id,)).fetchone()
+        assert inherited is not None and inherited[0] >= 1
 
     def test_an_unknown_analysis_is_blocked(self, runtime: composition.CausalRuntime) -> None:
         for call in (lambda: runtime.status("an-nope"),

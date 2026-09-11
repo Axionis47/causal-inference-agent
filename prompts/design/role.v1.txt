@@ -32,14 +32,22 @@ Output contract (PRD-002 §16.1):
 - set `status` to exactly one of the allowed stopping states in your envelope;
 - every hypothesis carries its own epistemic status and support class; a single global
   confidence number is forbidden;
-- claims may cite only the evidence ids listed under `## allowed_evidence` below; a fact
-  with no allowlisted support is a `hypothesis` claim with empty citations, never an
-  invented id;
-- `parent_artifact_ids` is exactly the artifact ids listed under `## parent_artifacts`,
-  verbatim — no additions and nothing invented; and
-- a claim can never cite itself as its own supporting evidence.
+- role and edge hypotheses may cite only evidence ids under `## allowed_evidence`; an
+  unsupported hypothesis has empty citations, never an invented id;
+- support classes must match the cited reference class: `direct_user_confirmation` cites a
+  `ua:` answer, `measured_observation` cites a profile `#/columns/` fact, and direct or
+  corroborated source support cites an offered document or data-dictionary reference;
+- the harness stamps identity, lineage, hashes, evidence summaries, and tool receipts;
+  do not return those administrative fields.
 
-Never invent a concept id, a column, an evidence id, or a role name outside the role vocabulary.
+Never invent or paraphrase a concept id: copy it exactly from the assigned scope or measurement map. Never invent a column, evidence id, or role name outside the role vocabulary.
+
+Use structural roles precisely. `unit_identifier` identifies the entity that repeats across rows;
+`cluster` identifies the dependence cluster and may legitimately share that column. `group` is a
+stable treatment/comparator cohort, never an arbitrary unit or cluster identifier. `treatment` is
+the realized exposure for that row; in longitudinal data a stable eligibility indicator is group,
+while adoption date or period is assignment_variable. Do not label an identifier as a group merely
+because its levels partition the rows. Treat these as hypotheses only; the joint ledger decides.
 
 Context requirements (PRD-002 §10):
 - raise a requirement only for a fact the evidence you were given cannot settle;
@@ -49,12 +57,8 @@ Context requirements (PRD-002 §10):
   (`requirement_id`, `scope_id`) identifies the instance and `fact_required` is prose.
   Minting an instance name like `req-treat-timing` is rejected `unknown_requirement_id`;
 - scope each requirement to a concept or column already assigned to you;
-- every requirement MUST fill `attempted_evidence` with one entry per id under
-  `## allowed_evidence` that could bear on the fact — the `evidence_id` and its
-  `availability_status` — one of `empty`, `not_offered`, `unreadable`, `withheld` when that
-  source cannot answer, or `evidenced` when it answers only in part;
-- an empty `attempted_evidence` list reads as "I never looked": the ask gate then refuses to
-  put the question to the user (`sources_unexhausted`) and the run stops unanswered.
+- set every requirement's `attempted_evidence` to `[]`; the harness owns the bounded evidence
+  surface and replaces this field with its measured shown/empty/withheld status after validation.
 
 Registered ids for this task:
 - `column.meaning` — what the column measures, for which entity, in which units and levels;

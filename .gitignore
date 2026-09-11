@@ -12,3 +12,20 @@ renders/
 
 # Local credentials and run configuration; never committed.
 .env.local
+.env
+.env.*
+!.env.example
+
+# Generated runs, scratch work and local analysis caches.
+/output/
+/tmp/
+/.claude/analysis/
+
+# Keep reviewed verification evidence; exclude runtime traces and inbox state.
+/evals/reports/*
+!/evals/reports/T-038-analysis-budget.json
+!/evals/reports/T-039-post-analysis-budget.json
+!/evals/reports/T-040-intake-budget.json
+/evals/review/*
+!/evals/review/open-findings.md
+!/evals/review/known-live-checkpoint-2026-09-09.md

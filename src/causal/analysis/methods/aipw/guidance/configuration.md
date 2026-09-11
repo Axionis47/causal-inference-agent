@@ -1,0 +1,3 @@
+Identify the target estimand, the actual treatment encoding and the baseline adjustment set from the fixed scientific design. Do not add a mediator, treatment descendant or an arbitrary unit identifier to improve prediction. Supplying numeric columns does not by itself establish appropriate confounder control.
+
+Nuisance fitting uses held-out observations according to the frozen cross-fitting rule. Changing a numerical propensity bound is a computational sensitivity, while trimming observations changes the population and requires a distinct scientific specification. A comparison between ATE and ATT similarly needs separate labels and approval rather than an unlabelled parameter substitution.

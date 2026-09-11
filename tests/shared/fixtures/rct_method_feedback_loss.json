@@ -1,0 +1,370 @@
+{
+  "original_task_correction": {
+    "code": "diagnostic_tool_budget_exhausted",
+    "detail": "diagnostic tool-call budget exhausted"
+  },
+  "original_agent_loop": {
+    "must_investigate": false,
+    "remaining_tool_calls": 0,
+    "turn": 3
+  },
+  "source_request_sha256": "bee95b84681e72d2d3ff0a428bb3c978208e5f74c4d0a3966d6984753b12e7d6",
+  "attempt2": {
+    "status": "complete",
+    "payload": {
+      "schema_version": "agent-design-proposal.v2",
+      "assignment_mechanism": "randomized",
+      "requested_estimand": "itt",
+      "comparator": "treatment=0",
+      "ranked_method_ids": [
+        "randomized_experiment",
+        "aipw",
+        "did",
+        "sharp_rdd"
+      ],
+      "method_facts": [],
+      "optional_assumption_ids": [],
+      "optional_risk_ids": [
+        "rct.noncompliance_risk"
+      ],
+      "optional_sensitivity_ids": [],
+      "requested_diagnostic_ids": [],
+      "diagnostic_assessments": [
+        {
+          "diagnostic_result_id": "dr:arm_counts:bf089261ecfdebbc66010112",
+          "judgment": "supports"
+        },
+        {
+          "diagnostic_result_id": "dr:assignment_unit_uniqueness:d70546f49664e747caffa7c2",
+          "judgment": "supports"
+        },
+        {
+          "diagnostic_result_id": "dr:cluster_sizes:d8ea0c71568fdf17861a75e1",
+          "judgment": "supports"
+        },
+        {
+          "diagnostic_result_id": "dr:baseline_availability:0aa9afcbc5874db155c0333b",
+          "judgment": "not_decisive"
+        }
+      ],
+      "source_interpretations": [
+        {
+          "fact_key": "assignment_mechanism",
+          "value": "randomized",
+          "evidence_id": "ua:usercontextanswer:an-82bd653613239d1c:59ddc3c9a4b0dc6e",
+          "verbatim_excerpt": "randomized",
+          "relation": "direct"
+        },
+        {
+          "fact_key": "estimand",
+          "value": "itt",
+          "evidence_id": "ua:question/text",
+          "verbatim_excerpt": "intention-to-treat effect",
+          "relation": "direct"
+        },
+        {
+          "fact_key": "estimand",
+          "value": "itt",
+          "evidence_id": "ev:doc/README.md",
+          "verbatim_excerpt": "Estimate the cluster-level ITT",
+          "relation": "corroborating"
+        },
+        {
+          "fact_key": "comparator",
+          "value": "treatment=0",
+          "evidence_id": "ua:context/text",
+          "verbatim_excerpt": "control (treatment=0)",
+          "relation": "direct"
+        },
+        {
+          "fact_key": "comparator",
+          "value": "treatment=0",
+          "evidence_id": "ev:doc/README.md",
+          "verbatim_excerpt": "control (treatment=0)",
+          "relation": "corroborating"
+        }
+      ]
+    },
+    "missing_requirements": [
+      {
+        "requirement_id": "design.unit_identity",
+        "registry_version": "design.v1",
+        "scope_kind": "design",
+        "scope_id": "design",
+        "fact_required": "unit_identity",
+        "why_required": "Required by randomized_experiment method.",
+        "decisions_blocked": [
+          "method_selection",
+          "estimator_configuration"
+        ],
+        "criticality": "blocking",
+        "acceptable_evidence_types": [
+          "user_confirmation",
+          "data_dictionary",
+          "study_protocol",
+          "source_statement",
+          "timestamp_relationship",
+          "measured_observation"
+        ],
+        "required_support": "direct_or_corroborated",
+        "methods_required_for": [
+          "randomized_experiment"
+        ],
+        "attempted_evidence": [],
+        "user_may_know": true,
+        "expected_answer_schema": "string",
+        "missing_action": "ask_user"
+      },
+      {
+        "requirement_id": "design.population_comparator",
+        "registry_version": "design.v1",
+        "scope_kind": "design",
+        "scope_id": "design",
+        "fact_required": "population_comparator",
+        "why_required": "Required by randomized_experiment method.",
+        "decisions_blocked": [
+          "method_selection",
+          "estimator_configuration"
+        ],
+        "criticality": "blocking",
+        "acceptable_evidence_types": [
+          "user_confirmation",
+          "data_dictionary",
+          "study_protocol",
+          "source_statement",
+          "timestamp_relationship",
+          "measured_observation"
+        ],
+        "required_support": "direct_or_corroborated",
+        "methods_required_for": [
+          "randomized_experiment"
+        ],
+        "attempted_evidence": [],
+        "user_may_know": true,
+        "expected_answer_schema": "string",
+        "missing_action": "ask_user"
+      },
+      {
+        "requirement_id": "design.estimand",
+        "registry_version": "design.v1",
+        "scope_kind": "design",
+        "scope_id": "design",
+        "fact_required": "estimand",
+        "why_required": "Required by randomized_experiment method.",
+        "decisions_blocked": [
+          "method_selection",
+          "estimator_configuration"
+        ],
+        "criticality": "blocking",
+        "acceptable_evidence_types": [
+          "user_confirmation",
+          "data_dictionary",
+          "study_protocol",
+          "source_statement",
+          "timestamp_relationship",
+          "measured_observation"
+        ],
+        "required_support": "direct_or_corroborated",
+        "methods_required_for": [
+          "randomized_experiment"
+        ],
+        "attempted_evidence": [],
+        "user_may_know": true,
+        "expected_answer_schema": "string",
+        "missing_action": "ask_user"
+      },
+      {
+        "requirement_id": "design.adoption_time",
+        "registry_version": "design.v1",
+        "scope_kind": "design",
+        "scope_id": "design",
+        "fact_required": "adoption_time",
+        "why_required": "Required by did method.",
+        "decisions_blocked": [
+          "method_selection",
+          "estimator_configuration"
+        ],
+        "criticality": "supporting",
+        "acceptable_evidence_types": [
+          "user_confirmation",
+          "data_dictionary",
+          "study_protocol",
+          "source_statement",
+          "timestamp_relationship",
+          "measured_observation"
+        ],
+        "required_support": "direct_or_corroborated",
+        "methods_required_for": [
+          "did"
+        ],
+        "attempted_evidence": [],
+        "user_may_know": true,
+        "expected_answer_schema": "string",
+        "missing_action": "ask_user"
+      },
+      {
+        "requirement_id": "design.cutoff",
+        "registry_version": "design.v1",
+        "scope_kind": "design",
+        "scope_id": "design",
+        "fact_required": "cutoff",
+        "why_required": "Required by sharp_rdd method.",
+        "decisions_blocked": [
+          "method_selection",
+          "estimator_configuration"
+        ],
+        "criticality": "supporting",
+        "acceptable_evidence_types": [
+          "user_confirmation",
+          "data_dictionary",
+          "study_protocol",
+          "source_statement",
+          "timestamp_relationship",
+          "measured_observation"
+        ],
+        "required_support": "direct_or_corroborated",
+        "methods_required_for": [
+          "sharp_rdd"
+        ],
+        "attempted_evidence": [],
+        "user_may_know": true,
+        "expected_answer_schema": "string",
+        "missing_action": "ask_user"
+      },
+      {
+        "requirement_id": "design.sharp_assignment",
+        "registry_version": "design.v1",
+        "scope_kind": "design",
+        "scope_id": "design",
+        "fact_required": "sharp_assignment",
+        "why_required": "Required by sharp_rdd method.",
+        "decisions_blocked": [
+          "method_selection",
+          "estimator_configuration"
+        ],
+        "criticality": "supporting",
+        "acceptable_evidence_types": [
+          "user_confirmation",
+          "data_dictionary",
+          "study_protocol",
+          "source_statement",
+          "timestamp_relationship",
+          "measured_observation"
+        ],
+        "required_support": "direct_or_corroborated",
+        "methods_required_for": [
+          "sharp_rdd"
+        ],
+        "attempted_evidence": [],
+        "user_may_know": true,
+        "expected_answer_schema": "boolean",
+        "missing_action": "ask_user"
+      }
+    ],
+    "conflicts": [],
+    "warnings": []
+  },
+  "attempt3": {
+    "status": "needs_context",
+    "payload": {
+      "schema_version": "agent-design-proposal.v2",
+      "assignment_mechanism": "randomized",
+      "requested_estimand": "itt",
+      "comparator": "treatment=0",
+      "ranked_method_ids": [
+        "randomized_experiment",
+        "aipw",
+        "did",
+        "sharp_rdd"
+      ],
+      "method_facts": [],
+      "optional_assumption_ids": [],
+      "optional_risk_ids": [
+        "rct.noncompliance_risk"
+      ],
+      "optional_sensitivity_ids": [],
+      "requested_diagnostic_ids": [
+        "outcome_missingness",
+        "compliance_availability"
+      ],
+      "diagnostic_assessments": [
+        {
+          "diagnostic_result_id": "dr:arm_counts:bf089261ecfdebbc66010112",
+          "judgment": "supports"
+        },
+        {
+          "diagnostic_result_id": "dr:assignment_unit_uniqueness:d70546f49664e747caffa7c2",
+          "judgment": "supports"
+        },
+        {
+          "diagnostic_result_id": "dr:cluster_sizes:d8ea0c71568fdf17861a75e1",
+          "judgment": "supports"
+        },
+        {
+          "diagnostic_result_id": "dr:baseline_availability:0aa9afcbc5874db155c0333b",
+          "judgment": "not_decisive"
+        }
+      ],
+      "source_interpretations": [
+        {
+          "fact_key": "assignment_mechanism",
+          "value": "randomized",
+          "evidence_id": "ua:context/text",
+          "verbatim_excerpt": "This is a randomized experiment",
+          "relation": "direct"
+        },
+        {
+          "fact_key": "assignment_mechanism",
+          "value": "randomized",
+          "evidence_id": "ev:doc/README.md",
+          "verbatim_excerpt": "This is a randomized experiment",
+          "relation": "corroborating"
+        },
+        {
+          "fact_key": "estimand",
+          "value": "itt",
+          "evidence_id": "ua:question/text",
+          "verbatim_excerpt": "intention-to-treat effect",
+          "relation": "direct"
+        },
+        {
+          "fact_key": "estimand",
+          "value": "itt",
+          "evidence_id": "ev:doc/README.md",
+          "verbatim_excerpt": "Estimate the cluster-level ITT",
+          "relation": "corroborating"
+        },
+        {
+          "fact_key": "comparator",
+          "value": "treatment=0",
+          "evidence_id": "ua:context/text",
+          "verbatim_excerpt": "control (treatment=0)",
+          "relation": "direct"
+        },
+        {
+          "fact_key": "comparator",
+          "value": "treatment=0",
+          "evidence_id": "ev:doc/README.md",
+          "verbatim_excerpt": "control (treatment=0)",
+          "relation": "corroborating"
+        }
+      ]
+    },
+    "missing_requirements": [],
+    "conflicts": [],
+    "warnings": []
+  },
+  "validation_issue": {
+    "code": "invalid_context_requirement",
+    "json_path": "/missing_requirements/0",
+    "rule_id": "wall3.requirement_search",
+    "artifact_ids": [
+      "design.unit_identity"
+    ],
+    "allowed_actions": [
+      "revise_field"
+    ],
+    "user_resolvable": false,
+    "detail": "design.unit_identity at canonical scope design is already unknown_accepted; remove it from missing_requirements."
+  }
+}

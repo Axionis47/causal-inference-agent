@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Annotated, Any
+from urllib.parse import quote, unquote
 
 from pydantic import (
     AfterValidator,
@@ -16,11 +17,55 @@ from pydantic import (
 )
 
 __all__ = [
+    "REFERENCE_KIND_SCHEMA_KEY",
+    "REFERENCE_ROLE_SCHEMA_KEY",
     "ArtifactEnvelopeV1",
     "ArtifactRef",
     "HandoffManifestV1",
+    "ReferenceKind",
+    "ReferenceRole",
     "SensitivityClass",
+    "decode_contrast",
+    "encode_contrast",
+    "reference_field",
 ]
+
+REFERENCE_KIND_SCHEMA_KEY = "x-causal-reference-kind"
+REFERENCE_ROLE_SCHEMA_KEY = "x-causal-reference-role"
+
+
+class ReferenceKind(StrEnum):
+    """Closed namespaces for identifiers copied by a model from a task catalog."""
+
+    EVIDENCE = "evidence"
+    DIAGNOSTIC = "diagnostic"
+    DIAGNOSTIC_RESULT = "diagnostic_result"
+    REQUIREMENT = "requirement"
+    COLUMN = "column"
+    CONCEPT = "concept"
+    GRAPH_EDGE = "graph_edge"
+    ALTERNATIVE = "alternative"
+    METHOD = "method"
+    ARTIFACT = "artifact"
+
+
+class ReferenceRole(StrEnum):
+    """Whether a typed identifier points at a catalog entry or declares one locally."""
+
+    REFERENCE = "reference"
+    DECLARATION = "declaration"
+
+
+def reference_field(
+    kind: ReferenceKind, *, declaration: bool = False, **constraints: Any,
+) -> Any:
+    """Pydantic field metadata consumed by the one model-reference walker."""
+    extra = dict(constraints.pop("json_schema_extra", {}) or {})
+    extra[REFERENCE_KIND_SCHEMA_KEY] = kind.value
+    extra[REFERENCE_ROLE_SCHEMA_KEY] = (
+        ReferenceRole.DECLARATION if declaration else ReferenceRole.REFERENCE
+    ).value
+    return Field(json_schema_extra=extra, **constraints)
 
 
 class SensitivityClass(StrEnum):
@@ -60,6 +105,16 @@ PayloadLocator = Annotated[
     AfterValidator(_reject_signed_url),
 ]
 
+def encode_contrast(treated: str, comparator: str) -> str:
+    return f"{quote(treated, safe='')}_vs_{quote(comparator, safe='')}"
+
+
+def decode_contrast(contrast_id: str) -> tuple[str, str]:
+    treated, separator, comparator = contrast_id.partition("_vs_")
+    if not separator or not treated or not comparator:
+        raise ValueError(f"invalid treatment contrast {contrast_id!r}")
+    return unquote(treated), unquote(comparator)
+
 _MODEL_CONFIG = ConfigDict(frozen=True, extra="forbid", strict=True)
 
 
@@ -68,7 +123,7 @@ class ArtifactRef(BaseModel):
 
     model_config = _MODEL_CONFIG
 
-    artifact_id: Identity
+    artifact_id: Annotated[Identity, reference_field(ReferenceKind.ARTIFACT)]
     content_hash: Sha256Hex
 
 

@@ -1,0 +1,1365 @@
+{
+  "packet": {
+    "case_id": "rock_the_vote_rct",
+    "cell_id": "rock_the_vote_rct",
+    "context_variant": "rich",
+    "interrupt": {
+      "expected_interrupt_hash": "e752803ed6dfa3b5aa8195ca701f98cf419d1126cf37966fb4e797e1c42f9dac",
+      "expected_revision": 1,
+      "interrupt_id": "designreviewbundle:an-82bd653613239d1c:e752803ed6dfa3b5",
+      "interrupt_kind": "approval"
+    },
+    "kind": "approval",
+    "payload": {
+      "capacity_report": {
+        "compatible_template_ids": [
+          "assignment_flow.v1",
+          "estimate_forest.v1",
+          "balance_overview.v1",
+          "small_multiples.v1",
+          "sensitivity_panel.v1"
+        ],
+        "compiled_design": {
+          "artifact_id": "compileddesign:an-82bd653613239d1c:9a2dcee75ced4cad",
+          "content_hash": "9a2dcee75ced4cadc97de7291f794eefcfa4e05c4084375833086fc954665a1a"
+        },
+        "dimensions": [
+          {
+            "applicability": "applicable",
+            "dimension": "arms",
+            "source": "treatment cardinality",
+            "value": 2
+          },
+          {
+            "applicability": "applicable",
+            "dimension": "contrasts",
+            "source": "compiled primary contrasts",
+            "value": 1
+          },
+          {
+            "applicability": "not_applicable",
+            "dimension": "subgroups",
+            "source": "not applicable",
+            "value": null
+          },
+          {
+            "applicability": "not_applicable",
+            "dimension": "cohorts",
+            "source": "not applicable",
+            "value": null
+          },
+          {
+            "applicability": "not_applicable",
+            "dimension": "periods",
+            "source": "not applicable",
+            "value": null
+          },
+          {
+            "applicability": "not_applicable",
+            "dimension": "event_times",
+            "source": "not applicable",
+            "value": null
+          },
+          {
+            "applicability": "not_applicable",
+            "dimension": "cutoff_sides",
+            "source": "not applicable",
+            "value": null
+          },
+          {
+            "applicability": "applicable",
+            "dimension": "series",
+            "source": "treatment cardinality",
+            "value": 2
+          },
+          {
+            "applicability": "applicable",
+            "dimension": "evidence_items",
+            "source": "method-pack visual requirements",
+            "value": 4
+          }
+        ],
+        "issues": [],
+        "schema_version": "capacity-report.v2",
+        "status": "pass"
+      },
+      "compiled_design": {
+        "assumptions": [
+          "Treatment assignment is randomized at the approved unit.",
+          "One unit's assignment does not change another unit's outcome."
+        ],
+        "causal_question": "Randomized Rock the Vote television advertising affects the turnout rate of registered 18- and 19-year-olds across experimental cable systems.",
+        "column_measurements": {
+          "cable_system_id": {
+            "label": "Cable System ID",
+            "scale": null,
+            "source_card": {
+              "artifact_id": "columnsemanticcard:an-82bd653613239d1c:dc67c1ac95de66fd",
+              "content_hash": "dc67c1ac95de66fddfde35fee5ac4ad0a2f1ce4e0a71a4714ab6089d9cdf11bd"
+            },
+            "supporting_evidence_ids": [],
+            "units": null
+          },
+          "randomization_stratum": {
+            "label": "randomization_stratum",
+            "scale": "nominal",
+            "source_card": {
+              "artifact_id": "columnsemanticcard:an-82bd653613239d1c:e55c27de1a2f5f71",
+              "content_hash": "e55c27de1a2f5f71f9f2b9259bfb3318a44a340b16f50151bb68cf8947945490"
+            },
+            "supporting_evidence_ids": [
+              "ev:kaggle/column/rock_the_vote.csv/randomization_stratum/description"
+            ],
+            "units": null
+          },
+          "treatment": {
+            "label": "treatment",
+            "scale": "nominal",
+            "source_card": {
+              "artifact_id": "columnsemanticcard:an-82bd653613239d1c:f6b08dae8f990bfb",
+              "content_hash": "f6b08dae8f990bfb0568830153722cdcf1e014b0991c7ddda500243694df6265"
+            },
+            "supporting_evidence_ids": [
+              "ev:doc/README.md",
+              "ev:kaggle/column/rock_the_vote.csv/treatment/description",
+              "ev:kaggle/dataset/description",
+              "ev:kaggle/file/rock_the_vote.csv/description",
+              "tableprofile:an-82bd653613239d1c:0548be1486238151#/columns/treatment",
+              "ua:context/text"
+            ],
+            "units": "None"
+          },
+          "turnout_rate": {
+            "label": "Turnout Rate",
+            "scale": "ratio",
+            "source_card": {
+              "artifact_id": "columnsemanticcard:an-82bd653613239d1c:0a53e930ba478ac7",
+              "content_hash": "0a53e930ba478ac76ac4e8def87a19998909b1baf6f0f6c7f9eaa10a74103c93"
+            },
+            "supporting_evidence_ids": [
+              "ev:doc/README.md",
+              "ua:context/text"
+            ],
+            "units": "proportion"
+          }
+        },
+        "comparator": "0",
+        "estimand": "itt",
+        "frame": {
+          "outcome": "c:turnout_rate_of_registered_18__and_19_year_olds",
+          "population": "Experimental cable systems",
+          "timeframe": "Post-assignment period",
+          "treatment": "c:rock_the_vote_television_advertising"
+        },
+        "identification_risks": [
+          "Missing outcomes can break the randomized comparison and must remain visible.",
+          "Noncompliance can separate assignment effects from treatment-received effects."
+        ],
+        "intended_decision": "Demonstrate and verify this public-data causal analysis end to end, including reproducibility, diagnostics and interpretable reporting.",
+        "method_id": "randomized_experiment",
+        "method_pack_version": "randomized-experiment-pack.v1",
+        "multiplicity_policy_id": null,
+        "preparation": {
+          "deletion_impact_dimensions": [
+            "overall",
+            "arm",
+            "cluster",
+            "stratum",
+            "subgroup",
+            "effective_sample_size",
+            "target_population"
+          ],
+          "eligibility_rule_ids": [
+            "pre_randomization_eligibility",
+            "randomization_window",
+            "arm_membership",
+            "followup_window"
+          ],
+          "estimator_input_schema_id": "randomized-experiment-estimator.v1",
+          "imputation_permitted": [],
+          "key_columns": [
+            "cable_system_id"
+          ],
+          "method_structure": {},
+          "output_grain": "one_row_per_unit",
+          "protected_columns": [
+            "cable_system_id",
+            "randomization_stratum",
+            "treatment",
+            "turnout_rate"
+          ],
+          "required_final_diagnostic_ids": [
+            "arm_counts",
+            "assignment_unit_uniqueness",
+            "baseline_availability",
+            "outcome_missingness"
+          ],
+          "required_missingness_indicators": [
+            "outcome_observed"
+          ],
+          "required_roles": [
+            "treatment",
+            "outcome",
+            "unit_identifier"
+          ],
+          "unusable_row_rule_ids": [
+            "missing_randomization_unit",
+            "missing_treatment_assignment",
+            "randomization_unit_collision"
+          ]
+        },
+        "primary_contrasts": [
+          "1_vs_0"
+        ],
+        "registry_versions": {
+          "artifact_types": "artifact-types.v1",
+          "capacity": "delivery-capacity.v1",
+          "field_classes": "kaggle-field-classes.v1",
+          "graph": "design-harness.v2",
+          "method_packs": "method-packs.v1",
+          "requirements": "context-requirements.v1",
+          "schema": "design-tasks.v1",
+          "validators": "design-validators.v1",
+          "visualization_catalog": "visualization-catalog.v1"
+        },
+        "rejected_methods": {
+          "aipw": "assignment_mechanism_incompatible; estimand_not_supported; required_role_unverified",
+          "did": "assignment_mechanism_incompatible; estimand_not_supported; required_role_unbound; structural_unit_time_or_group_time_rows; structural_adoption_time_defined",
+          "sharp_rdd": "assignment_mechanism_incompatible; estimand_not_supported; required_role_unbound; structural_running_variable_with_cutoff; structural_fixed_cutoff; structural_sharp_assignment_at_cutoff"
+        },
+        "required_visual_evidence": [
+          "assignment_attrition_flow",
+          "primary_contrast_estimates",
+          "balance_overview",
+          "required_sensitivities"
+        ],
+        "role_bindings": [
+          {
+            "columns": [
+              "cable_system_id"
+            ],
+            "concept_id": "c:cable_system",
+            "derived": false,
+            "epistemic_status": "evidenced",
+            "role": "cluster",
+            "source_artifact_ids": [
+              "roleledger:an-82bd653613239d1c:38edcae9c9f9c5e4"
+            ]
+          },
+          {
+            "columns": [
+              "turnout_rate"
+            ],
+            "concept_id": "c:turnout_rate_of_registered_18__and_19_year_olds",
+            "derived": false,
+            "epistemic_status": "evidenced",
+            "role": "outcome",
+            "source_artifact_ids": [
+              "roleledger:an-82bd653613239d1c:38edcae9c9f9c5e4"
+            ]
+          },
+          {
+            "columns": [
+              "randomization_stratum"
+            ],
+            "concept_id": "c:randomization_stratum",
+            "derived": false,
+            "epistemic_status": "evidenced",
+            "role": "stratum",
+            "source_artifact_ids": [
+              "roleledger:an-82bd653613239d1c:38edcae9c9f9c5e4"
+            ]
+          },
+          {
+            "columns": [
+              "treatment"
+            ],
+            "concept_id": "c:rock_the_vote_television_advertising",
+            "derived": false,
+            "epistemic_status": "evidenced",
+            "role": "treatment",
+            "source_artifact_ids": [
+              "roleledger:an-82bd653613239d1c:38edcae9c9f9c5e4"
+            ]
+          },
+          {
+            "columns": [
+              "cable_system_id"
+            ],
+            "concept_id": "c:cable_system",
+            "derived": false,
+            "epistemic_status": "evidenced",
+            "role": "unit_identifier",
+            "source_artifact_ids": [
+              "roleledger:an-82bd653613239d1c:38edcae9c9f9c5e4"
+            ]
+          }
+        ],
+        "schema_version": "compiled-design.v2",
+        "selected_csv": {
+          "artifact_id": "tableselection:an-82bd653613239d1c:a34fb09a3f85936f",
+          "content_hash": "a34fb09a3f85936fe725a8cc2d73144396a9def5472015232b72c11f362d40f6"
+        },
+        "sensitivity_requirements": [
+          "Report sensitivity to outcome attrition by assignment arm."
+        ],
+        "unit": "c:cable_system"
+      },
+      "design": {
+        "assumptions": [
+          "Treatment assignment is randomized at the approved unit.",
+          "One unit's assignment does not change another unit's outcome."
+        ],
+        "capacity_report": {
+          "artifact_id": "capacityreport:an-82bd653613239d1c:26b5d8f176529e6f",
+          "content_hash": "26b5d8f176529e6fc7c44f7937a6b514a9e410a3e8072b1842e043f18b4690c0"
+        },
+        "compiled_design": {
+          "artifact_id": "compileddesign:an-82bd653613239d1c:9a2dcee75ced4cad",
+          "content_hash": "9a2dcee75ced4cadc97de7291f794eefcfa4e05c4084375833086fc954665a1a"
+        },
+        "diagnostic_report": {
+          "artifact_id": "diagnosticreport:an-82bd653613239d1c:c1daa6c37ef6ce86",
+          "content_hash": "c1daa6c37ef6ce860dff463abde864343994884229c1ab0eff58b991d6623e8a"
+        },
+        "graph_views": {
+          "artifact_id": "graphviewset:an-82bd653613239d1c:c4d3e2e956df12ed",
+          "content_hash": "c4d3e2e956df12ed97f0ab08e08c4c5baa8b2e5993b437d4bbe5b132408f4d2f"
+        },
+        "identification_risks": [
+          "Missing outcomes can break the randomized comparison and must remain visible.",
+          "Noncompliance can separate assignment effects from treatment-received effects."
+        ],
+        "rejected_methods": {
+          "aipw": "assignment_mechanism_incompatible; estimand_not_supported; required_role_unverified",
+          "did": "assignment_mechanism_incompatible; estimand_not_supported; required_role_unbound; structural_unit_time_or_group_time_rows; structural_adoption_time_defined",
+          "sharp_rdd": "assignment_mechanism_incompatible; estimand_not_supported; required_role_unbound; structural_running_variable_with_cutoff; structural_fixed_cutoff; structural_sharp_assignment_at_cutoff"
+        },
+        "schema_version": "design-review-bundle.v2",
+        "sensitivity_requirements": [
+          "Report sensitivity to outcome attrition by assignment arm."
+        ]
+      },
+      "diagnostic_report": {
+        "candidate_method_id": "randomized_experiment",
+        "computable": true,
+        "issues": [],
+        "results": [
+          {
+            "columns_read": [
+              "treatment"
+            ],
+            "csv_artifact": {
+              "artifact_id": "tableselection:an-82bd653613239d1c:a34fb09a3f85936f",
+              "content_hash": "a34fb09a3f85936fe725a8cc2d73144396a9def5472015232b72c11f362d40f6"
+            },
+            "diagnostic_id": "arm_counts",
+            "diagnostic_version": "prerepair-diagnostic.v1",
+            "implementation_version": "design-diagnostics.v1",
+            "row_set_hash": null,
+            "status": "computed",
+            "total_rows": 85,
+            "unused_reason_counts": {},
+            "used_rows": 85,
+            "values": {
+              "cell_completeness": 1.0,
+              "count:0": 43,
+              "count:1": 42,
+              "distinct_count:treatment": 2,
+              "expected_cells": 2,
+              "group_count": 2,
+              "maximum_group_count": 43,
+              "minimum_group_count": 42,
+              "row_count": 85
+            },
+            "warnings": []
+          },
+          {
+            "columns_read": [
+              "cable_system_id"
+            ],
+            "csv_artifact": {
+              "artifact_id": "tableselection:an-82bd653613239d1c:a34fb09a3f85936f",
+              "content_hash": "a34fb09a3f85936fe725a8cc2d73144396a9def5472015232b72c11f362d40f6"
+            },
+            "diagnostic_id": "assignment_unit_uniqueness",
+            "diagnostic_version": "prerepair-diagnostic.v1",
+            "implementation_version": "design-diagnostics.v1",
+            "row_set_hash": null,
+            "status": "computed",
+            "total_rows": 85,
+            "unused_reason_counts": {},
+            "used_rows": 85,
+            "values": {
+              "distinct_key_count": 85,
+              "duplicate_row_count": 0,
+              "is_unique": true,
+              "row_count": 85
+            },
+            "warnings": []
+          },
+          {
+            "columns_read": [
+              "cable_system_id"
+            ],
+            "csv_artifact": {
+              "artifact_id": "tableselection:an-82bd653613239d1c:a34fb09a3f85936f",
+              "content_hash": "a34fb09a3f85936fe725a8cc2d73144396a9def5472015232b72c11f362d40f6"
+            },
+            "diagnostic_id": "cluster_sizes",
+            "diagnostic_version": "prerepair-diagnostic.v1",
+            "implementation_version": "design-diagnostics.v1",
+            "row_set_hash": null,
+            "status": "computed",
+            "total_rows": 85,
+            "unused_reason_counts": {},
+            "used_rows": 85,
+            "values": {
+              "cell_completeness": 1.0,
+              "count:1": 1,
+              "count:10": 1,
+              "count:11": 1,
+              "count:12": 1,
+              "count:13": 1,
+              "count:14": 1,
+              "count:15": 1,
+              "count:16": 1,
+              "count:17": 1,
+              "count:18": 1,
+              "count:19": 1,
+              "count:2": 1,
+              "count:20": 1,
+              "count:21": 1,
+              "count:22": 1,
+              "count:23": 1,
+              "count:24": 1,
+              "count:25": 1,
+              "count:26": 1,
+              "count:27": 1,
+              "count:28": 1,
+              "count:29": 1,
+              "count:3": 1,
+              "count:30": 1,
+              "count:31": 1,
+              "count:32": 1,
+              "count:33": 1,
+              "count:34": 1,
+              "count:35": 1,
+              "count:36": 1,
+              "count:37": 1,
+              "count:38": 1,
+              "count:39": 1,
+              "count:4": 1,
+              "count:40": 1,
+              "count:41": 1,
+              "count:42": 1,
+              "count:43": 1,
+              "count:44": 1,
+              "count:45": 1,
+              "count:46": 1,
+              "count:47": 1,
+              "count:48": 1,
+              "count:49": 1,
+              "count:5": 1,
+              "count:50": 1,
+              "count:6": 1,
+              "count:7": 1,
+              "count:8": 1,
+              "count:9": 1,
+              "distinct_count:cable_system_id": 85,
+              "expected_cells": 85,
+              "group_count": 85,
+              "maximum_group_count": 1,
+              "minimum_group_count": 1,
+              "row_count": 85
+            },
+            "warnings": [
+              "only the first 50 groups are reported"
+            ]
+          },
+          {
+            "columns_read": [],
+            "csv_artifact": {
+              "artifact_id": "tableselection:an-82bd653613239d1c:a34fb09a3f85936f",
+              "content_hash": "a34fb09a3f85936fe725a8cc2d73144396a9def5472015232b72c11f362d40f6"
+            },
+            "diagnostic_id": "baseline_availability",
+            "diagnostic_version": "prerepair-diagnostic.v1",
+            "implementation_version": "design-diagnostics.v1",
+            "row_set_hash": null,
+            "status": "not_computable",
+            "total_rows": 85,
+            "unused_reason_counts": {},
+            "used_rows": 0,
+            "values": {},
+            "warnings": [
+              "baseline_availability cannot run without ['columns']"
+            ]
+          },
+          {
+            "columns_read": [
+              "turnout_rate"
+            ],
+            "csv_artifact": {
+              "artifact_id": "tableselection:an-82bd653613239d1c:a34fb09a3f85936f",
+              "content_hash": "a34fb09a3f85936fe725a8cc2d73144396a9def5472015232b72c11f362d40f6"
+            },
+            "diagnostic_id": "outcome_missingness",
+            "diagnostic_version": "prerepair-diagnostic.v1",
+            "implementation_version": "design-diagnostics.v1",
+            "row_set_hash": null,
+            "status": "computed",
+            "total_rows": 85,
+            "unused_reason_counts": {},
+            "used_rows": 85,
+            "values": {
+              "missing_count": 0,
+              "missing_share": 0.0,
+              "non_null_count": 85,
+              "row_count": 85
+            },
+            "warnings": []
+          },
+          {
+            "columns_read": [],
+            "csv_artifact": {
+              "artifact_id": "tableselection:an-82bd653613239d1c:a34fb09a3f85936f",
+              "content_hash": "a34fb09a3f85936fe725a8cc2d73144396a9def5472015232b72c11f362d40f6"
+            },
+            "diagnostic_id": "compliance_availability",
+            "diagnostic_version": "prerepair-diagnostic.v1",
+            "implementation_version": "design-diagnostics.v1",
+            "row_set_hash": null,
+            "status": "not_computable",
+            "total_rows": 85,
+            "unused_reason_counts": {},
+            "used_rows": 0,
+            "values": {},
+            "warnings": [
+              "compliance_availability cannot run without ['columns']"
+            ]
+          },
+          {
+            "columns_read": [
+              "treatment",
+              "turnout_rate"
+            ],
+            "csv_artifact": {
+              "artifact_id": "tableselection:an-82bd653613239d1c:a34fb09a3f85936f",
+              "content_hash": "a34fb09a3f85936fe725a8cc2d73144396a9def5472015232b72c11f362d40f6"
+            },
+            "diagnostic_id": "power_precision_feasibility",
+            "diagnostic_version": "prerepair-diagnostic.v1",
+            "implementation_version": "design-diagnostics.v1",
+            "row_set_hash": null,
+            "status": "computed",
+            "total_rows": 85,
+            "unused_reason_counts": {},
+            "used_rows": 85,
+            "values": {
+              "group_count": 2,
+              "mde_80pct_95ci": 0.06017668303860317,
+              "outcome_sd": 0.09952416988470919,
+              "row_count": 85,
+              "standard_error_max_pair": 0.02147939857174585
+            },
+            "warnings": []
+          }
+        ],
+        "schema_version": "diagnostic-report.v2",
+        "selected_csv": {
+          "artifact_id": "tableselection:an-82bd653613239d1c:a34fb09a3f85936f",
+          "content_hash": "a34fb09a3f85936fe725a8cc2d73144396a9def5472015232b72c11f362d40f6"
+        }
+      },
+      "review_summary": {
+        "capacity": "pass",
+        "contrasts": "1_vs_0",
+        "diagnostics": "computable",
+        "estimand": "itt",
+        "graph": "7 concepts and 5 causal edges. c:control_group causes c:rock_the_vote_television_advertising (evidenced). c:control_group causes c:turnout_rate_of_registered_18__and_19_year_olds (hypothesis). c:randomization_stratum causes c:rock_the_vote_television_advertising (evidenced). c:randomization_stratum causes c:turnout_rate_of_registered_18__and_19_year_olds (hypothesis). c:rock_the_vote_television_advertising causes c:turnout_rate_of_registered_18__and_19_year_olds (evidenced).",
+        "method": "randomized_experiment"
+      }
+    },
+    "request_hash": "15bdfa652c79c9d31e26e330da4844616597b16dc58e82ff295f8a38055d1ba9",
+    "run_id": "four-87d2a31e3d0d4c3d8ac1c5205aeb9c4c",
+    "schema_version": "evaluation-hitl-request.v1",
+    "source": {
+      "kind": "url",
+      "provenance": "Green-Vavreck (2008) Rock the Vote cable-system randomized experiment; pscl snapshot. All 85 randomized cable systems retained as one row per assignment cluster; 42 treated and 43 control within 40 randomization strata.",
+      "sha256": "1281dab15dd01905096947e4495a4a342ca7e8654b0b613deeade923fc94eca4",
+      "url": "https://raw.githubusercontent.com/vincentarelbundock/Rdatasets/1dcc2bf5f955cc1224a3e1307256e1fe86b68dae/csv/pscl/RockTheVote.csv",
+      "version": "Rdatasets@1dcc2bf5f955cc1224a3e1307256e1fe86b68dae"
+    },
+    "study_question": "What is the intention-to-treat effect of randomized Rock the Vote television advertising on the turnout rate of registered 18- and 19-year-olds across the experimental cable systems?"
+  },
+  "question": {
+    "context_text": "This is a randomized experiment: 85 cable television systems were assigned within 40 pre-randomization strata to Rock the Vote advertising (treatment=1) or control (treatment=0). cable_system_id identifies the randomized cable system, and each row is one complete cable-system aggregate, not an individual voter. turnout_rate is the post-assignment proportion of registered 18- and 19-year-olds who voted. randomization_stratum records the matched randomization stratum and should enter as stratum fixed effects. Estimate the cluster-level ITT for treatment=1 versus treatment=0 using one unweighted cable-system outcome per row; the contrast is on the turnout-proportion scale. The same cable_system_id may serve as the cluster role because each randomized cluster contributes exactly one row. Do not expand rows into individual voters or weight them by voter counts. The target is the experimental cable systems, with no unsupported claim of a nationwide individual-level effect. Original source fields r and n are turnout numerator and voter denominator, and p is the supplied proportion; the projection retains p without recomputing outcomes. User-requested purpose: demonstrate and verify this public-data causal analysis end to end, including reproducibility, diagnostics and interpretable reporting.",
+    "kaggle_ref": "evaluation/rock_the_vote_rct",
+    "question_text": "What is the intention-to-treat effect of randomized Rock the Vote television advertising on the turnout rate of registered 18- and 19-year-olds across the experimental cable systems?",
+    "schema_version": "question-record.v1",
+    "submission_schema_version": "intake-submission.v1"
+  },
+  "question_ref": {
+    "artifact_id": "questionrecord:an-82bd653613239d1c:68fe49f04814aa14",
+    "content_hash": "68fe49f04814aa148cf0c367ed06ff04f6fe50401296bfbecfa8640e35afabb3"
+  },
+  "artifacts": {
+    "QuestionRecord": {
+      "payload": {
+        "context_text": "This is a randomized experiment: 85 cable television systems were assigned within 40 pre-randomization strata to Rock the Vote advertising (treatment=1) or control (treatment=0). cable_system_id identifies the randomized cable system, and each row is one complete cable-system aggregate, not an individual voter. turnout_rate is the post-assignment proportion of registered 18- and 19-year-olds who voted. randomization_stratum records the matched randomization stratum and should enter as stratum fixed effects. Estimate the cluster-level ITT for treatment=1 versus treatment=0 using one unweighted cable-system outcome per row; the contrast is on the turnout-proportion scale. The same cable_system_id may serve as the cluster role because each randomized cluster contributes exactly one row. Do not expand rows into individual voters or weight them by voter counts. The target is the experimental cable systems, with no unsupported claim of a nationwide individual-level effect. Original source fields r and n are turnout numerator and voter denominator, and p is the supplied proportion; the projection retains p without recomputing outcomes. User-requested purpose: demonstrate and verify this public-data causal analysis end to end, including reproducibility, diagnostics and interpretable reporting.",
+        "kaggle_ref": "evaluation/rock_the_vote_rct",
+        "question_text": "What is the intention-to-treat effect of randomized Rock the Vote television advertising on the turnout rate of registered 18- and 19-year-olds across the experimental cable systems?",
+        "schema_version": "question-record.v1",
+        "submission_schema_version": "intake-submission.v1"
+      },
+      "envelope": {
+        "artifact_id": "questionrecord:an-82bd653613239d1c:68fe49f04814aa14",
+        "artifact_type": "QuestionRecord",
+        "schema_version": "question-record.v1",
+        "content_hash": "68fe49f04814aa148cf0c367ed06ff04f6fe50401296bfbecfa8640e35afabb3",
+        "analysis_id": "an-82bd653613239d1c",
+        "stage_run_id": "sr:an-82bd653613239d1c:1",
+        "producer_component": "intake-coordinator",
+        "producer_version": "intake-coordinator.v1",
+        "parent_artifacts": [],
+        "sensitivity_class": "internal",
+        "created_at_utc": "2026-09-09T18:48:27.809704Z",
+        "payload_locator": "objects/68fe49f04814aa148cf0c367ed06ff04f6fe50401296bfbecfa8640e35afabb3"
+      }
+    },
+    "CompiledDesign": {
+      "payload": {
+        "assumptions": [
+          "Treatment assignment is randomized at the approved unit.",
+          "One unit's assignment does not change another unit's outcome."
+        ],
+        "causal_question": "Randomized Rock the Vote television advertising affects the turnout rate of registered 18- and 19-year-olds across experimental cable systems.",
+        "column_measurements": {
+          "cable_system_id": {
+            "label": "Cable System ID",
+            "scale": null,
+            "source_card": {
+              "artifact_id": "columnsemanticcard:an-82bd653613239d1c:dc67c1ac95de66fd",
+              "content_hash": "dc67c1ac95de66fddfde35fee5ac4ad0a2f1ce4e0a71a4714ab6089d9cdf11bd"
+            },
+            "supporting_evidence_ids": [],
+            "units": null
+          },
+          "randomization_stratum": {
+            "label": "randomization_stratum",
+            "scale": "nominal",
+            "source_card": {
+              "artifact_id": "columnsemanticcard:an-82bd653613239d1c:e55c27de1a2f5f71",
+              "content_hash": "e55c27de1a2f5f71f9f2b9259bfb3318a44a340b16f50151bb68cf8947945490"
+            },
+            "supporting_evidence_ids": [
+              "ev:kaggle/column/rock_the_vote.csv/randomization_stratum/description"
+            ],
+            "units": null
+          },
+          "treatment": {
+            "label": "treatment",
+            "scale": "nominal",
+            "source_card": {
+              "artifact_id": "columnsemanticcard:an-82bd653613239d1c:f6b08dae8f990bfb",
+              "content_hash": "f6b08dae8f990bfb0568830153722cdcf1e014b0991c7ddda500243694df6265"
+            },
+            "supporting_evidence_ids": [
+              "ev:doc/README.md",
+              "ev:kaggle/column/rock_the_vote.csv/treatment/description",
+              "ev:kaggle/dataset/description",
+              "ev:kaggle/file/rock_the_vote.csv/description",
+              "tableprofile:an-82bd653613239d1c:0548be1486238151#/columns/treatment",
+              "ua:context/text"
+            ],
+            "units": "None"
+          },
+          "turnout_rate": {
+            "label": "Turnout Rate",
+            "scale": "ratio",
+            "source_card": {
+              "artifact_id": "columnsemanticcard:an-82bd653613239d1c:0a53e930ba478ac7",
+              "content_hash": "0a53e930ba478ac76ac4e8def87a19998909b1baf6f0f6c7f9eaa10a74103c93"
+            },
+            "supporting_evidence_ids": [
+              "ev:doc/README.md",
+              "ua:context/text"
+            ],
+            "units": "proportion"
+          }
+        },
+        "comparator": "0",
+        "estimand": "itt",
+        "frame": {
+          "outcome": "c:turnout_rate_of_registered_18__and_19_year_olds",
+          "population": "Experimental cable systems",
+          "timeframe": "Post-assignment period",
+          "treatment": "c:rock_the_vote_television_advertising"
+        },
+        "identification_risks": [
+          "Missing outcomes can break the randomized comparison and must remain visible.",
+          "Noncompliance can separate assignment effects from treatment-received effects."
+        ],
+        "intended_decision": "Demonstrate and verify this public-data causal analysis end to end, including reproducibility, diagnostics and interpretable reporting.",
+        "method_id": "randomized_experiment",
+        "method_pack_version": "randomized-experiment-pack.v1",
+        "multiplicity_policy_id": null,
+        "preparation": {
+          "deletion_impact_dimensions": [
+            "overall",
+            "arm",
+            "cluster",
+            "stratum",
+            "subgroup",
+            "effective_sample_size",
+            "target_population"
+          ],
+          "eligibility_rule_ids": [
+            "pre_randomization_eligibility",
+            "randomization_window",
+            "arm_membership",
+            "followup_window"
+          ],
+          "estimator_input_schema_id": "randomized-experiment-estimator.v1",
+          "imputation_permitted": [],
+          "key_columns": [
+            "cable_system_id"
+          ],
+          "method_structure": {},
+          "output_grain": "one_row_per_unit",
+          "protected_columns": [
+            "cable_system_id",
+            "randomization_stratum",
+            "treatment",
+            "turnout_rate"
+          ],
+          "required_final_diagnostic_ids": [
+            "arm_counts",
+            "assignment_unit_uniqueness",
+            "baseline_availability",
+            "outcome_missingness"
+          ],
+          "required_missingness_indicators": [
+            "outcome_observed"
+          ],
+          "required_roles": [
+            "treatment",
+            "outcome",
+            "unit_identifier"
+          ],
+          "unusable_row_rule_ids": [
+            "missing_randomization_unit",
+            "missing_treatment_assignment",
+            "randomization_unit_collision"
+          ]
+        },
+        "primary_contrasts": [
+          "1_vs_0"
+        ],
+        "registry_versions": {
+          "artifact_types": "artifact-types.v1",
+          "capacity": "delivery-capacity.v1",
+          "field_classes": "kaggle-field-classes.v1",
+          "graph": "design-harness.v2",
+          "method_packs": "method-packs.v1",
+          "requirements": "context-requirements.v1",
+          "schema": "design-tasks.v1",
+          "validators": "design-validators.v1",
+          "visualization_catalog": "visualization-catalog.v1"
+        },
+        "rejected_methods": {
+          "aipw": "assignment_mechanism_incompatible; estimand_not_supported; required_role_unverified",
+          "did": "assignment_mechanism_incompatible; estimand_not_supported; required_role_unbound; structural_unit_time_or_group_time_rows; structural_adoption_time_defined",
+          "sharp_rdd": "assignment_mechanism_incompatible; estimand_not_supported; required_role_unbound; structural_running_variable_with_cutoff; structural_fixed_cutoff; structural_sharp_assignment_at_cutoff"
+        },
+        "required_visual_evidence": [
+          "assignment_attrition_flow",
+          "primary_contrast_estimates",
+          "balance_overview",
+          "required_sensitivities"
+        ],
+        "role_bindings": [
+          {
+            "columns": [
+              "cable_system_id"
+            ],
+            "concept_id": "c:cable_system",
+            "derived": false,
+            "epistemic_status": "evidenced",
+            "role": "cluster",
+            "source_artifact_ids": [
+              "roleledger:an-82bd653613239d1c:38edcae9c9f9c5e4"
+            ]
+          },
+          {
+            "columns": [
+              "turnout_rate"
+            ],
+            "concept_id": "c:turnout_rate_of_registered_18__and_19_year_olds",
+            "derived": false,
+            "epistemic_status": "evidenced",
+            "role": "outcome",
+            "source_artifact_ids": [
+              "roleledger:an-82bd653613239d1c:38edcae9c9f9c5e4"
+            ]
+          },
+          {
+            "columns": [
+              "randomization_stratum"
+            ],
+            "concept_id": "c:randomization_stratum",
+            "derived": false,
+            "epistemic_status": "evidenced",
+            "role": "stratum",
+            "source_artifact_ids": [
+              "roleledger:an-82bd653613239d1c:38edcae9c9f9c5e4"
+            ]
+          },
+          {
+            "columns": [
+              "treatment"
+            ],
+            "concept_id": "c:rock_the_vote_television_advertising",
+            "derived": false,
+            "epistemic_status": "evidenced",
+            "role": "treatment",
+            "source_artifact_ids": [
+              "roleledger:an-82bd653613239d1c:38edcae9c9f9c5e4"
+            ]
+          },
+          {
+            "columns": [
+              "cable_system_id"
+            ],
+            "concept_id": "c:cable_system",
+            "derived": false,
+            "epistemic_status": "evidenced",
+            "role": "unit_identifier",
+            "source_artifact_ids": [
+              "roleledger:an-82bd653613239d1c:38edcae9c9f9c5e4"
+            ]
+          }
+        ],
+        "schema_version": "compiled-design.v2",
+        "selected_csv": {
+          "artifact_id": "tableselection:an-82bd653613239d1c:a34fb09a3f85936f",
+          "content_hash": "a34fb09a3f85936fe725a8cc2d73144396a9def5472015232b72c11f362d40f6"
+        },
+        "sensitivity_requirements": [
+          "Report sensitivity to outcome attrition by assignment arm."
+        ],
+        "unit": "c:cable_system"
+      },
+      "envelope": {
+        "artifact_id": "compileddesign:an-82bd653613239d1c:9a2dcee75ced4cad",
+        "artifact_type": "CompiledDesign",
+        "schema_version": "compiled-design.v2",
+        "content_hash": "9a2dcee75ced4cadc97de7291f794eefcfa4e05c4084375833086fc954665a1a",
+        "analysis_id": "an-82bd653613239d1c",
+        "stage_run_id": "dr:an-82bd653613239d1c:1",
+        "producer_component": "design-harness",
+        "producer_version": "design-harness.v2",
+        "parent_artifacts": [
+          {
+            "artifact_id": "designfactset:an-82bd653613239d1c:92400767d70586f9",
+            "content_hash": "92400767d70586f9a714b80ee64218017a146caab2fac536c60089bd0c7be06d"
+          },
+          {
+            "artifact_id": "diagnosticplan:an-82bd653613239d1c:2264dd3dfe28a69d",
+            "content_hash": "2264dd3dfe28a69d869a8c15c5a87c98988430b6d9d64d31aa8713513ac631bb"
+          },
+          {
+            "artifact_id": "diagnosticreport:an-82bd653613239d1c:c1daa6c37ef6ce86",
+            "content_hash": "c1daa6c37ef6ce860dff463abde864343994884229c1ab0eff58b991d6623e8a"
+          },
+          {
+            "artifact_id": "measurementmap:an-82bd653613239d1c:db1af16efdc9bee3",
+            "content_hash": "db1af16efdc9bee347728998d587686a02f4a9d90f31e9f5ec86c6d5065e3638"
+          },
+          {
+            "artifact_id": "causalcontext:an-82bd653613239d1c:fa4e33615cf5c0d6",
+            "content_hash": "fa4e33615cf5c0d65125200f7c79e97366c07766b72ea24a55f05b8a570f2758"
+          },
+          {
+            "artifact_id": "roleledger:an-82bd653613239d1c:38edcae9c9f9c5e4",
+            "content_hash": "38edcae9c9f9c5e4703e3d59775ae450217fdc16ac7b27608f4a6ffa6a63a1b0"
+          },
+          {
+            "artifact_id": "columnsemanticcard:an-82bd653613239d1c:dc67c1ac95de66fd",
+            "content_hash": "dc67c1ac95de66fddfde35fee5ac4ad0a2f1ce4e0a71a4714ab6089d9cdf11bd"
+          },
+          {
+            "artifact_id": "columnsemanticcard:an-82bd653613239d1c:e55c27de1a2f5f71",
+            "content_hash": "e55c27de1a2f5f71f9f2b9259bfb3318a44a340b16f50151bb68cf8947945490"
+          },
+          {
+            "artifact_id": "columnsemanticcard:an-82bd653613239d1c:f6b08dae8f990bfb",
+            "content_hash": "f6b08dae8f990bfb0568830153722cdcf1e014b0991c7ddda500243694df6265"
+          },
+          {
+            "artifact_id": "columnsemanticcard:an-82bd653613239d1c:0a53e930ba478ac7",
+            "content_hash": "0a53e930ba478ac76ac4e8def87a19998909b1baf6f0f6c7f9eaa10a74103c93"
+          }
+        ],
+        "sensitivity_class": "internal",
+        "created_at_utc": "2026-09-09T18:59:49.923065Z",
+        "payload_locator": "objects/9a2dcee75ced4cadc97de7291f794eefcfa4e05c4084375833086fc954665a1a"
+      }
+    },
+    "DiagnosticReport": {
+      "payload": {
+        "candidate_method_id": "randomized_experiment",
+        "computable": true,
+        "issues": [],
+        "results": [
+          {
+            "columns_read": [
+              "treatment"
+            ],
+            "csv_artifact": {
+              "artifact_id": "tableselection:an-82bd653613239d1c:a34fb09a3f85936f",
+              "content_hash": "a34fb09a3f85936fe725a8cc2d73144396a9def5472015232b72c11f362d40f6"
+            },
+            "diagnostic_id": "arm_counts",
+            "diagnostic_version": "prerepair-diagnostic.v1",
+            "implementation_version": "design-diagnostics.v1",
+            "row_set_hash": null,
+            "status": "computed",
+            "total_rows": 85,
+            "unused_reason_counts": {},
+            "used_rows": 85,
+            "values": {
+              "cell_completeness": 1.0,
+              "count:0": 43,
+              "count:1": 42,
+              "distinct_count:treatment": 2,
+              "expected_cells": 2,
+              "group_count": 2,
+              "maximum_group_count": 43,
+              "minimum_group_count": 42,
+              "row_count": 85
+            },
+            "warnings": []
+          },
+          {
+            "columns_read": [
+              "cable_system_id"
+            ],
+            "csv_artifact": {
+              "artifact_id": "tableselection:an-82bd653613239d1c:a34fb09a3f85936f",
+              "content_hash": "a34fb09a3f85936fe725a8cc2d73144396a9def5472015232b72c11f362d40f6"
+            },
+            "diagnostic_id": "assignment_unit_uniqueness",
+            "diagnostic_version": "prerepair-diagnostic.v1",
+            "implementation_version": "design-diagnostics.v1",
+            "row_set_hash": null,
+            "status": "computed",
+            "total_rows": 85,
+            "unused_reason_counts": {},
+            "used_rows": 85,
+            "values": {
+              "distinct_key_count": 85,
+              "duplicate_row_count": 0,
+              "is_unique": true,
+              "row_count": 85
+            },
+            "warnings": []
+          },
+          {
+            "columns_read": [
+              "cable_system_id"
+            ],
+            "csv_artifact": {
+              "artifact_id": "tableselection:an-82bd653613239d1c:a34fb09a3f85936f",
+              "content_hash": "a34fb09a3f85936fe725a8cc2d73144396a9def5472015232b72c11f362d40f6"
+            },
+            "diagnostic_id": "cluster_sizes",
+            "diagnostic_version": "prerepair-diagnostic.v1",
+            "implementation_version": "design-diagnostics.v1",
+            "row_set_hash": null,
+            "status": "computed",
+            "total_rows": 85,
+            "unused_reason_counts": {},
+            "used_rows": 85,
+            "values": {
+              "cell_completeness": 1.0,
+              "count:1": 1,
+              "count:10": 1,
+              "count:11": 1,
+              "count:12": 1,
+              "count:13": 1,
+              "count:14": 1,
+              "count:15": 1,
+              "count:16": 1,
+              "count:17": 1,
+              "count:18": 1,
+              "count:19": 1,
+              "count:2": 1,
+              "count:20": 1,
+              "count:21": 1,
+              "count:22": 1,
+              "count:23": 1,
+              "count:24": 1,
+              "count:25": 1,
+              "count:26": 1,
+              "count:27": 1,
+              "count:28": 1,
+              "count:29": 1,
+              "count:3": 1,
+              "count:30": 1,
+              "count:31": 1,
+              "count:32": 1,
+              "count:33": 1,
+              "count:34": 1,
+              "count:35": 1,
+              "count:36": 1,
+              "count:37": 1,
+              "count:38": 1,
+              "count:39": 1,
+              "count:4": 1,
+              "count:40": 1,
+              "count:41": 1,
+              "count:42": 1,
+              "count:43": 1,
+              "count:44": 1,
+              "count:45": 1,
+              "count:46": 1,
+              "count:47": 1,
+              "count:48": 1,
+              "count:49": 1,
+              "count:5": 1,
+              "count:50": 1,
+              "count:6": 1,
+              "count:7": 1,
+              "count:8": 1,
+              "count:9": 1,
+              "distinct_count:cable_system_id": 85,
+              "expected_cells": 85,
+              "group_count": 85,
+              "maximum_group_count": 1,
+              "minimum_group_count": 1,
+              "row_count": 85
+            },
+            "warnings": [
+              "only the first 50 groups are reported"
+            ]
+          },
+          {
+            "columns_read": [],
+            "csv_artifact": {
+              "artifact_id": "tableselection:an-82bd653613239d1c:a34fb09a3f85936f",
+              "content_hash": "a34fb09a3f85936fe725a8cc2d73144396a9def5472015232b72c11f362d40f6"
+            },
+            "diagnostic_id": "baseline_availability",
+            "diagnostic_version": "prerepair-diagnostic.v1",
+            "implementation_version": "design-diagnostics.v1",
+            "row_set_hash": null,
+            "status": "not_computable",
+            "total_rows": 85,
+            "unused_reason_counts": {},
+            "used_rows": 0,
+            "values": {},
+            "warnings": [
+              "baseline_availability cannot run without ['columns']"
+            ]
+          },
+          {
+            "columns_read": [
+              "turnout_rate"
+            ],
+            "csv_artifact": {
+              "artifact_id": "tableselection:an-82bd653613239d1c:a34fb09a3f85936f",
+              "content_hash": "a34fb09a3f85936fe725a8cc2d73144396a9def5472015232b72c11f362d40f6"
+            },
+            "diagnostic_id": "outcome_missingness",
+            "diagnostic_version": "prerepair-diagnostic.v1",
+            "implementation_version": "design-diagnostics.v1",
+            "row_set_hash": null,
+            "status": "computed",
+            "total_rows": 85,
+            "unused_reason_counts": {},
+            "used_rows": 85,
+            "values": {
+              "missing_count": 0,
+              "missing_share": 0.0,
+              "non_null_count": 85,
+              "row_count": 85
+            },
+            "warnings": []
+          },
+          {
+            "columns_read": [],
+            "csv_artifact": {
+              "artifact_id": "tableselection:an-82bd653613239d1c:a34fb09a3f85936f",
+              "content_hash": "a34fb09a3f85936fe725a8cc2d73144396a9def5472015232b72c11f362d40f6"
+            },
+            "diagnostic_id": "compliance_availability",
+            "diagnostic_version": "prerepair-diagnostic.v1",
+            "implementation_version": "design-diagnostics.v1",
+            "row_set_hash": null,
+            "status": "not_computable",
+            "total_rows": 85,
+            "unused_reason_counts": {},
+            "used_rows": 0,
+            "values": {},
+            "warnings": [
+              "compliance_availability cannot run without ['columns']"
+            ]
+          },
+          {
+            "columns_read": [
+              "treatment",
+              "turnout_rate"
+            ],
+            "csv_artifact": {
+              "artifact_id": "tableselection:an-82bd653613239d1c:a34fb09a3f85936f",
+              "content_hash": "a34fb09a3f85936fe725a8cc2d73144396a9def5472015232b72c11f362d40f6"
+            },
+            "diagnostic_id": "power_precision_feasibility",
+            "diagnostic_version": "prerepair-diagnostic.v1",
+            "implementation_version": "design-diagnostics.v1",
+            "row_set_hash": null,
+            "status": "computed",
+            "total_rows": 85,
+            "unused_reason_counts": {},
+            "used_rows": 85,
+            "values": {
+              "group_count": 2,
+              "mde_80pct_95ci": 0.06017668303860317,
+              "outcome_sd": 0.09952416988470919,
+              "row_count": 85,
+              "standard_error_max_pair": 0.02147939857174585
+            },
+            "warnings": []
+          }
+        ],
+        "schema_version": "diagnostic-report.v2",
+        "selected_csv": {
+          "artifact_id": "tableselection:an-82bd653613239d1c:a34fb09a3f85936f",
+          "content_hash": "a34fb09a3f85936fe725a8cc2d73144396a9def5472015232b72c11f362d40f6"
+        }
+      },
+      "envelope": {
+        "artifact_id": "diagnosticreport:an-82bd653613239d1c:c1daa6c37ef6ce86",
+        "artifact_type": "DiagnosticReport",
+        "schema_version": "diagnostic-report.v2",
+        "content_hash": "c1daa6c37ef6ce860dff463abde864343994884229c1ab0eff58b991d6623e8a",
+        "analysis_id": "an-82bd653613239d1c",
+        "stage_run_id": "dr:an-82bd653613239d1c:1",
+        "producer_component": "design-harness",
+        "producer_version": "design-harness.v2",
+        "parent_artifacts": [
+          {
+            "artifact_id": "diagnosticplan:an-82bd653613239d1c:2264dd3dfe28a69d",
+            "content_hash": "2264dd3dfe28a69d869a8c15c5a87c98988430b6d9d64d31aa8713513ac631bb"
+          }
+        ],
+        "sensitivity_class": "internal",
+        "created_at_utc": "2026-09-09T18:59:49.890304Z",
+        "payload_locator": "objects/c1daa6c37ef6ce860dff463abde864343994884229c1ab0eff58b991d6623e8a"
+      }
+    },
+    "CapacityReport": {
+      "payload": {
+        "compatible_template_ids": [
+          "assignment_flow.v1",
+          "estimate_forest.v1",
+          "balance_overview.v1",
+          "small_multiples.v1",
+          "sensitivity_panel.v1"
+        ],
+        "compiled_design": {
+          "artifact_id": "compileddesign:an-82bd653613239d1c:9a2dcee75ced4cad",
+          "content_hash": "9a2dcee75ced4cadc97de7291f794eefcfa4e05c4084375833086fc954665a1a"
+        },
+        "dimensions": [
+          {
+            "applicability": "applicable",
+            "dimension": "arms",
+            "source": "treatment cardinality",
+            "value": 2
+          },
+          {
+            "applicability": "applicable",
+            "dimension": "contrasts",
+            "source": "compiled primary contrasts",
+            "value": 1
+          },
+          {
+            "applicability": "not_applicable",
+            "dimension": "subgroups",
+            "source": "not applicable",
+            "value": null
+          },
+          {
+            "applicability": "not_applicable",
+            "dimension": "cohorts",
+            "source": "not applicable",
+            "value": null
+          },
+          {
+            "applicability": "not_applicable",
+            "dimension": "periods",
+            "source": "not applicable",
+            "value": null
+          },
+          {
+            "applicability": "not_applicable",
+            "dimension": "event_times",
+            "source": "not applicable",
+            "value": null
+          },
+          {
+            "applicability": "not_applicable",
+            "dimension": "cutoff_sides",
+            "source": "not applicable",
+            "value": null
+          },
+          {
+            "applicability": "applicable",
+            "dimension": "series",
+            "source": "treatment cardinality",
+            "value": 2
+          },
+          {
+            "applicability": "applicable",
+            "dimension": "evidence_items",
+            "source": "method-pack visual requirements",
+            "value": 4
+          }
+        ],
+        "issues": [],
+        "schema_version": "capacity-report.v2",
+        "status": "pass"
+      },
+      "envelope": {
+        "artifact_id": "capacityreport:an-82bd653613239d1c:26b5d8f176529e6f",
+        "artifact_type": "CapacityReport",
+        "schema_version": "capacity-report.v2",
+        "content_hash": "26b5d8f176529e6fc7c44f7937a6b514a9e410a3e8072b1842e043f18b4690c0",
+        "analysis_id": "an-82bd653613239d1c",
+        "stage_run_id": "dr:an-82bd653613239d1c:1",
+        "producer_component": "design-harness",
+        "producer_version": "design-harness.v2",
+        "parent_artifacts": [
+          {
+            "artifact_id": "compileddesign:an-82bd653613239d1c:9a2dcee75ced4cad",
+            "content_hash": "9a2dcee75ced4cadc97de7291f794eefcfa4e05c4084375833086fc954665a1a"
+          },
+          {
+            "artifact_id": "graphviewset:an-82bd653613239d1c:c4d3e2e956df12ed",
+            "content_hash": "c4d3e2e956df12ed97f0ab08e08c4c5baa8b2e5993b437d4bbe5b132408f4d2f"
+          }
+        ],
+        "sensitivity_class": "internal",
+        "created_at_utc": "2026-09-09T18:59:50.152510Z",
+        "payload_locator": "objects/26b5d8f176529e6fc7c44f7937a6b514a9e410a3e8072b1842e043f18b4690c0"
+      }
+    },
+    "GraphViewSet": {
+      "payload": {
+        "accessible_summaries": [
+          "7 concepts and 5 causal edges. c:control_group causes c:rock_the_vote_television_advertising (evidenced). c:control_group causes c:turnout_rate_of_registered_18__and_19_year_olds (hypothesis). c:randomization_stratum causes c:rock_the_vote_television_advertising (evidenced). c:randomization_stratum causes c:turnout_rate_of_registered_18__and_19_year_olds (hypothesis). c:rock_the_vote_television_advertising causes c:turnout_rate_of_registered_18__and_19_year_olds (evidenced)."
+        ],
+        "alternative_views": [],
+        "base_view": {
+          "artifact_id": "causalgraphview:an-82bd653613239d1c:7d2ada34d748ceac",
+          "content_hash": "7d2ada34d748ceacb030b7a5c76ae15ae53a75cc89fbecde44964cb812ec04b2"
+        },
+        "schema_version": "graph-view-set.v2"
+      },
+      "envelope": {
+        "artifact_id": "graphviewset:an-82bd653613239d1c:c4d3e2e956df12ed",
+        "artifact_type": "GraphViewSet",
+        "schema_version": "graph-view-set.v2",
+        "content_hash": "c4d3e2e956df12ed97f0ab08e08c4c5baa8b2e5993b437d4bbe5b132408f4d2f",
+        "analysis_id": "an-82bd653613239d1c",
+        "stage_run_id": "dr:an-82bd653613239d1c:1",
+        "producer_component": "design-harness",
+        "producer_version": "design-harness.v2",
+        "parent_artifacts": [
+          {
+            "artifact_id": "compileddesign:an-82bd653613239d1c:9a2dcee75ced4cad",
+            "content_hash": "9a2dcee75ced4cadc97de7291f794eefcfa4e05c4084375833086fc954665a1a"
+          },
+          {
+            "artifact_id": "causalgraphview:an-82bd653613239d1c:7d2ada34d748ceac",
+            "content_hash": "7d2ada34d748ceacb030b7a5c76ae15ae53a75cc89fbecde44964cb812ec04b2"
+          }
+        ],
+        "sensitivity_class": "internal",
+        "created_at_utc": "2026-09-09T18:59:50.130987Z",
+        "payload_locator": "objects/c4d3e2e956df12ed97f0ab08e08c4c5baa8b2e5993b437d4bbe5b132408f4d2f"
+      }
+    },
+    "DesignReviewBundle": {
+      "payload": {
+        "assumptions": [
+          "Treatment assignment is randomized at the approved unit.",
+          "One unit's assignment does not change another unit's outcome."
+        ],
+        "capacity_report": {
+          "artifact_id": "capacityreport:an-82bd653613239d1c:26b5d8f176529e6f",
+          "content_hash": "26b5d8f176529e6fc7c44f7937a6b514a9e410a3e8072b1842e043f18b4690c0"
+        },
+        "compiled_design": {
+          "artifact_id": "compileddesign:an-82bd653613239d1c:9a2dcee75ced4cad",
+          "content_hash": "9a2dcee75ced4cadc97de7291f794eefcfa4e05c4084375833086fc954665a1a"
+        },
+        "diagnostic_report": {
+          "artifact_id": "diagnosticreport:an-82bd653613239d1c:c1daa6c37ef6ce86",
+          "content_hash": "c1daa6c37ef6ce860dff463abde864343994884229c1ab0eff58b991d6623e8a"
+        },
+        "graph_views": {
+          "artifact_id": "graphviewset:an-82bd653613239d1c:c4d3e2e956df12ed",
+          "content_hash": "c4d3e2e956df12ed97f0ab08e08c4c5baa8b2e5993b437d4bbe5b132408f4d2f"
+        },
+        "identification_risks": [
+          "Missing outcomes can break the randomized comparison and must remain visible.",
+          "Noncompliance can separate assignment effects from treatment-received effects."
+        ],
+        "rejected_methods": {
+          "aipw": "assignment_mechanism_incompatible; estimand_not_supported; required_role_unverified",
+          "did": "assignment_mechanism_incompatible; estimand_not_supported; required_role_unbound; structural_unit_time_or_group_time_rows; structural_adoption_time_defined",
+          "sharp_rdd": "assignment_mechanism_incompatible; estimand_not_supported; required_role_unbound; structural_running_variable_with_cutoff; structural_fixed_cutoff; structural_sharp_assignment_at_cutoff"
+        },
+        "schema_version": "design-review-bundle.v2",
+        "sensitivity_requirements": [
+          "Report sensitivity to outcome attrition by assignment arm."
+        ]
+      },
+      "envelope": {
+        "artifact_id": "designreviewbundle:an-82bd653613239d1c:e752803ed6dfa3b5",
+        "artifact_type": "DesignReviewBundle",
+        "schema_version": "design-review-bundle.v2",
+        "content_hash": "e752803ed6dfa3b5aa8195ca701f98cf419d1126cf37966fb4e797e1c42f9dac",
+        "analysis_id": "an-82bd653613239d1c",
+        "stage_run_id": "dr:an-82bd653613239d1c:1",
+        "producer_component": "design-harness",
+        "producer_version": "design-harness.v2",
+        "parent_artifacts": [
+          {
+            "artifact_id": "compileddesign:an-82bd653613239d1c:9a2dcee75ced4cad",
+            "content_hash": "9a2dcee75ced4cadc97de7291f794eefcfa4e05c4084375833086fc954665a1a"
+          },
+          {
+            "artifact_id": "diagnosticreport:an-82bd653613239d1c:c1daa6c37ef6ce86",
+            "content_hash": "c1daa6c37ef6ce860dff463abde864343994884229c1ab0eff58b991d6623e8a"
+          },
+          {
+            "artifact_id": "capacityreport:an-82bd653613239d1c:26b5d8f176529e6f",
+            "content_hash": "26b5d8f176529e6fc7c44f7937a6b514a9e410a3e8072b1842e043f18b4690c0"
+          },
+          {
+            "artifact_id": "graphviewset:an-82bd653613239d1c:c4d3e2e956df12ed",
+            "content_hash": "c4d3e2e956df12ed97f0ab08e08c4c5baa8b2e5993b437d4bbe5b132408f4d2f"
+          }
+        ],
+        "sensitivity_class": "internal",
+        "created_at_utc": "2026-09-09T18:59:50.160998Z",
+        "payload_locator": "objects/e752803ed6dfa3b5aa8195ca701f98cf419d1126cf37966fb4e797e1c42f9dac"
+      }
+    }
+  }
+}

@@ -9,8 +9,13 @@
       "output_schema_version": "design-intent.v1",
       "wall": 3,
       "allowed_stopping_states": ["complete", "needs_context"],
+      "allowed_requirement_ids": [
+        "design.causal_question", "design.treatment_meaning", "design.outcome_window",
+        "design.population_comparator", "design.unit_identity", "design.table_grain",
+        "design.assignment_mechanism", "design.conflict_resolution"
+      ],
       "token_budget": 24576,
-      "tool_call_budget": 8,
+      "tool_call_budget": 0,
       "correction_budget": 2
     },
     {
@@ -21,8 +26,12 @@
       "output_schema_version": "column-semantic-card.v1",
       "wall": 4,
       "allowed_stopping_states": ["complete", "needs_context"],
+      "allowed_requirement_ids": [
+        "column.meaning", "column.encoding", "column.missing_meaning",
+        "column.measurement_timing", "column.source_process", "design.concept_mapping"
+      ],
       "token_budget": 24576,
-      "tool_call_budget": 8,
+      "tool_call_budget": 0,
       "correction_budget": 2
     },
     {
@@ -33,32 +42,58 @@
       "output_schema_version": "role-evidence.v1",
       "wall": 4,
       "allowed_stopping_states": ["complete", "needs_context", "conflict"],
+      "allowed_requirement_ids": [
+        "column.meaning", "column.measurement_timing", "design.concept_mapping",
+        "design.treatment_descendants", "design.selection_variables",
+        "dataset.sampling_mechanism"
+      ],
       "token_budget": 24576,
-      "tool_call_budget": 8,
+      "tool_call_budget": 0,
       "correction_budget": 2
     },
     {
-      "task_kind": "causal_synthesis",
-      "prompt_path": "prompts/design/synthesis.v1.txt",
-      "prompt_version": "design-synthesis-prompt.v1",
+      "task_kind": "causal_context",
+      "prompt_path": "prompts/design/causal-context.v1.txt",
+      "prompt_version": "design-causal-context-prompt.v1",
       "output_artifact_type": "CausalContext",
       "output_schema_version": "causal-context.v1",
       "wall": 5,
       "allowed_stopping_states": ["complete", "needs_context", "conflict"],
+      "allowed_requirement_ids": [
+        "design.assignment_mechanism", "design.conflict_resolution"
+      ],
       "token_budget": 24576,
-      "tool_call_budget": 8,
+      "tool_call_budget": 0,
+      "correction_budget": 2
+    },
+    {
+      "task_kind": "role_ledger",
+      "prompt_path": "prompts/design/role-ledger.v1.txt",
+      "prompt_version": "design-role-ledger-prompt.v1",
+      "output_artifact_type": "RoleLedger",
+      "output_schema_version": "role-ledger.v1",
+      "wall": 5,
+      "allowed_stopping_states": ["complete", "needs_context", "conflict"],
+      "allowed_requirement_ids": ["design.treatment_meaning", "design.outcome_window"],
+      "token_budget": 24576,
+      "tool_call_budget": 0,
       "correction_budget": 2
     },
     {
       "task_kind": "method_design",
-      "prompt_path": "prompts/design/method.v1.txt",
-      "prompt_version": "design-method-prompt.v1",
-      "output_artifact_type": "ExperimentDesign",
-      "output_schema_version": "experiment-design.v1",
-      "wall": 7,
-      "allowed_stopping_states": ["complete", "needs_context", "refused"],
+      "prompt_path": "prompts/design/proposal.v2.txt",
+      "prompt_version": "design-proposal-prompt.v2",
+      "output_artifact_type": "AgentDesignProposal",
+      "output_schema_version": "agent-design-proposal.v2",
+      "wall": 6,
+      "allowed_stopping_states": ["complete", "needs_context"],
+      "allowed_requirement_ids": [
+        "design.assignment_mechanism", "design.estimand", "design.population_comparator",
+        "design.unit_identity", "design.cutoff", "design.sharp_assignment",
+        "design.adoption_time"
+      ],
       "token_budget": 24576,
-      "tool_call_budget": 8,
+      "tool_call_budget": 4,
       "correction_budget": 2
     }
   ]

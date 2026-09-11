@@ -1,6 +1,9 @@
 # T-038 — Analysis capability library and execution boundary
 
-Status: implementation in progress. Frozen implementation scope: user-approved
+Status: implemented; focused library acceptance passes; complexity gate remains blocked.
+Verification: [T-038-verification.md](T-038-verification.md).
+
+Frozen implementation scope: user-approved
 plan of 2026-09-09, replacing the earlier extraction-only proposal.
 
 ## Ownership

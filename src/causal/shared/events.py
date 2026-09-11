@@ -29,6 +29,8 @@ EVENT_NAMES_V1: Final[frozenset[str]] = frozenset(
         "task.started", "task.completed", "task.failed",
         "artifact.committed", "artifact.validation_failed",
         "agent.started", "agent.schema_failed", "agent.correction_requested",
+        "agent.diagnostic_requested", "agent.design_revised", "agent.escalated",
+        "diagnostic.completed",
         "tool.started", "tool.completed", "tool.denied", "tool.failed",
         "retry.scheduled", "retry.exhausted",
         "user_interrupt.created", "user_interrupt.resumed",
@@ -45,7 +47,7 @@ _VERSION_KEYS: Final = frozenset(
     {"model", "prompt", "tool", "registry", "schema", "validator", "compiler", "renderer"}
 )
 _TOKEN_USAGE_KEYS: Final = frozenset({"input", "output", "thinking", "total"})
-_EVAL_REQUIRED_PREFIXES: Final = ("task.", "agent.", "tool.", "handoff.")
+_EVAL_REQUIRED_PREFIXES: Final = ("task.", "agent.", "diagnostic.", "tool.", "handoff.")
 
 
 class Severity(StrEnum):

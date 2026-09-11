@@ -6,36 +6,51 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Final
 
+from langgraph.types import interrupt
 from psycopg import Connection
 
 from causal.design.contracts import (
     AvailabilityRowV1,
     DesignContextManifestV1,
+    InterruptKind,
     SelectionSource,
     StructuralFieldV1,
     TableSelectionDecisionV1,
     TableSelectionV1,
 )
+from causal.design.harness_base import (
+    ALLOWED_INTAKE,
+    COMPONENT,
+    EVAL_STAGE,
+    REGISTRY_VERSIONS,
+    HarnessBase,
+)
+from causal.shared import handoff
 from causal.shared.contracts import ArtifactEnvelopeV1, ArtifactRef, HandoffManifestV1
 from causal.shared.readers import CatalogReader, ProductsReader, SqlCatalogReader
+from causal.shared.validation import parse_strict
 
 __all__ = [
-    "CSV_MEDIA_TYPES", "ENTRY_ERROR_CODES", "RETRIEVAL_SURFACES", "CatalogReader",
-    "CsvCandidate", "EntryError", "ProductsReader", "PsycopgCatalogReader",
-    "SelectionRequired", "compile_manifest", "list_admitted_non_csv",
-    "list_csv_candidates", "resolve_selection", "validate_entry",
+    "CSV_MEDIA_TYPES",
+    "RETRIEVAL_SURFACES",
+    "CatalogReader",
+    "CsvCandidate",
+    "EntryError",
+    "EntryNodes",
+    "ProductsReader",
+    "PsycopgCatalogReader",
+    "SelectionRequired",
+    "compile_manifest",
+    "list_admitted_non_csv",
+    "list_csv_candidates",
+    "resolve_selection",
+    "validate_entry",
 ]
 
 HANDOFF_UNAVAILABLE: Final = "handoff_unavailable"
 ENTRY_VALIDATION_FAILED: Final = "entry_validation_failed"
 NO_ANALYSIS_CSV: Final = "NO_ANALYSIS_CSV"
 UNSUPPORTED_ANALYSIS_FORMAT_V1: Final = "UNSUPPORTED_ANALYSIS_FORMAT_V1"
-MULTI_TABLE_REQUIRED: Final = "MULTI_TABLE_REQUIRED"
-ENTRY_ERROR_CODES: Final = (
-    HANDOFF_UNAVAILABLE, ENTRY_VALIDATION_FAILED, NO_ANALYSIS_CSV,
-    UNSUPPORTED_ANALYSIS_FORMAT_V1, MULTI_TABLE_REQUIRED,
-)
-
 # The five PRD-001 §9.3 retrieval views; there is deliberately no all-context view.
 RETRIEVAL_SURFACES: Final = (
     "structural_manifest", "semantic_available", "semantic_missing",
@@ -288,7 +303,6 @@ def compile_manifest(
     selection_ref: ArtifactRef,
     design_revision: int,
     registry_versions: Mapping[str, str],
-    recipient_map: Mapping[str, tuple[str, ...]],
 ) -> DesignContextManifestV1:
     """The one immutable context surface every design task reads from (PRD-002 §5)."""
     table = selection.logical_name
@@ -309,5 +323,69 @@ def compile_manifest(
         provenance_surface=_availability(rows["provenance_manifest"], table),
         retrieval_surfaces=RETRIEVAL_SURFACES,
         registry_versions=dict(registry_versions),
-        recipient_map={key: tuple(value) for key, value in recipient_map.items()},
     )
+
+
+class EntryNodes(HarnessBase):
+    """The intake-handoff, table-selection, and context-manifest graph nodes."""
+
+    def entry(self, state: Any) -> dict[str, Any]:
+        self._emit(state, "stage.started", EVAL_STAGE)
+        manifest = self._handoff_manifest(state)
+        payload = self._payload(state["artifacts"]["IntakeOutcome"])
+        gate = handoff.HandoffGate(self.deps.objects, self.deps.products,
+                                   handoff.HandoffStore(self.deps.conn), self.deps.registry,
+                                   self.deps.emitter)
+        opened = gate.accept(manifest, COMPONENT, ALLOWED_INTAKE, lambda verdict, codes: self._event(
+            state, f"handoff.{verdict}", EVAL_STAGE, status=verdict,
+            error_code=codes[0] if codes else None))
+        for found in (manifest.entries[0].artifact_id, str(payload["question_artifact_id"])):
+            state["hashes"][found] = self.deps.products.load_envelope(found).content_hash
+        state["artifacts"]["QuestionRecord"] = str(payload["question_artifact_id"])
+        if not opened.accepted:
+            return self._fail(state, "handoff_unavailable", opened.error_codes)
+        return self._out(state, stage="entry", dataset_id=str(payload["dataset_id"]))
+
+    def selection(self, state: Any) -> dict[str, Any]:
+        dataset = state["dataset_id"]
+        candidates = list_csv_candidates(self.deps.catalog, dataset)
+        try:
+            routed = resolve_selection(candidates, None, dataset)
+            if isinstance(routed, SelectionRequired):
+                anchor = self._ref(state, "IntakeOutcome")
+                self._emit(state, "user_interrupt.created", EVAL_STAGE, status="table_selection")
+                decision = parse_strict(TableSelectionDecisionV1, interrupt({
+                    "kind": InterruptKind.TABLE_SELECTION.value,
+                    "interrupt_artifact_id": anchor.artifact_id,
+                    "interrupt_hash": anchor.content_hash,
+                    "design_revision": state["design_revision"],
+                    "candidates": [row.logical_name for row in routed.candidates]}))
+                chosen = self._commit(state, "TableSelectionDecision", decision.canonical_payload(),
+                                      self._parents(state, "IntakeOutcome"))
+                self._emit(state, "user_interrupt.resumed", EVAL_STAGE, status="table_selection")
+                routed = resolve_selection(
+                    candidates, decision, dataset, decision_artifact_id=chosen.artifact_id,
+                    other_admitted=list_admitted_non_csv(self.deps.catalog, dataset))
+        except EntryError as error:
+            return self._out(state, status="needs_data", error_code=error.code)
+        assert isinstance(routed, TableSelectionV1)
+        self._commit(state, "TableSelection", routed.canonical_payload(),
+                     self._parents(state, "IntakeOutcome", "QuestionRecord"))
+        return self._out(state, stage="selection")
+
+    def manifest(self, state: Any) -> dict[str, Any]:
+        selection = self._model(state, "TableSelection", TableSelectionV1)
+        try:
+            validate_entry(self._handoff_manifest(state),
+                           self._payload(state["artifacts"]["IntakeOutcome"]),
+                           self.deps.products, selection=selection)
+        except EntryError as error:
+            return self._fail(state, error.code, error.detail_codes)
+        compiled = compile_manifest(
+            self.deps.catalog, selection, question_ref=self._ref(state, "QuestionRecord"),
+            outcome_ref=self._ref(state, "IntakeOutcome"),
+            selection_ref=self._ref(state, "TableSelection"),
+            design_revision=state["design_revision"], registry_versions=REGISTRY_VERSIONS)
+        self._commit(state, "DesignContextManifest", compiled.canonical_payload(),
+                     self._parents(state, "TableSelection"))
+        return self._out(state, stage="manifest")

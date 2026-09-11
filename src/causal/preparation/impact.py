@@ -75,8 +75,7 @@ class MethodStructureResultV1(_Row):
 def _column(frame: pl.DataFrame, name: str | None, role: str) -> list[object]:
     if name is None or name not in frame.columns:
         raise StabilizationError(f"{role} column {name} absent from the frame", UNKNOWN_RULE_TARGET)
-    values: list[object] = frame.get_column(name).to_list()
-    return values
+    return frame.get_column(name).to_list()
 
 
 # Numeric comparison when both sides are numbers; ISO-lexicographic otherwise.
@@ -145,8 +144,12 @@ def _did(frame: pl.DataFrame, spec: MethodStructureSpecV1) -> tuple[list[str], l
     expected = {(group, period) for group in set(groups) for period in set(periods)}
     if expected - set(cells):
         return [GROUP_TIME_CELL_EMPTIED], []
-    sides = set() if spec.threshold is None else {
-        _at_or_after(period, spec.threshold) for period in periods if period is not None}
+    thresholds = (_column(frame, spec.threshold, "adoption_time")
+                  if isinstance(spec.threshold, str) and spec.threshold in frame.columns
+                  else [spec.threshold] * frame.height)
+    sides = {_at_or_after(period, threshold)
+             for period, threshold in zip(periods, thresholds, strict=True)
+             if period is not None and isinstance(threshold, str | int | float)}
     if spec.threshold is not None and len(sides) < 2:
         return [PERIOD_REMOVED], []
     return [], [GROUP_TIME_CELL_SUPPORT] if min(cells.values()) < spec.minimum_cell_rows else []

@@ -22,7 +22,7 @@ from causal.shared.tracing import (
     TraceRedactorV1,
     TracerProtocol,
 )
-from tests.conftest import requires_docker
+from tests.infrastructure import requires_docker
 from tests.shared.test_persistence import committed_event, envelope_for, registration
 
 # One canary per pattern class: (label, text, the secret that must not survive).
@@ -61,6 +61,9 @@ class FakeTracer:
         self.flushes += 1
         if self._flush_error is not None:
             raise self._flush_error
+
+    def start_gateway_span(self, metadata: Any) -> Any:
+        raise AssertionError("the persistence tests never create model spans")
 
 
 def make_traced_committer(
@@ -128,17 +131,16 @@ class TestTracerProtocol:
         tracer.preflight()
         tracer.flush()
 
-    def test_preflight_failure_code(self) -> None:
-        tracer = FakeTracer(preflight_error=ObservabilityError("down", "preflight_failed"))
+    @pytest.mark.parametrize(("method", "kwargs", "code"), (
+        ("preflight", {"preflight_error": ObservabilityError("down", "preflight_failed")},
+         "preflight_failed"),
+        ("flush", {"flush_error": ObservabilityError("lost", "flush_unacknowledged")},
+         "flush_unacknowledged")))
+    def test_failure_code(self, method: str, kwargs: dict[str, ObservabilityError], code: str) -> None:
+        tracer = FakeTracer(**kwargs)
         with pytest.raises(ObservabilityError) as excinfo:
-            tracer.preflight()
-        assert excinfo.value.code == "preflight_failed"
-
-    def test_flush_failure_code(self) -> None:
-        tracer = FakeTracer(flush_error=ObservabilityError("lost", "flush_unacknowledged"))
-        with pytest.raises(ObservabilityError) as excinfo:
-            tracer.flush()
-        assert excinfo.value.code == "flush_unacknowledged"
+            getattr(tracer, method)()
+        assert excinfo.value.code == code
 
 
 class TestLangSmithTracer:
@@ -177,6 +179,43 @@ class TestLangSmithTracer:
         with pytest.raises(ObservabilityError) as excinfo:
             tracer.preflight()
         assert excinfo.value.code == "preflight_failed"
+
+    def test_gateway_span_sends_only_allowlisted_scalars(self) -> None:
+        class Client:
+            def __init__(self) -> None:
+                self.created: dict[str, Any] = {}
+                self.updated: dict[str, Any] = {}
+
+            def create_run(self, name: str, inputs: Any, run_type: str, **kwargs: Any) -> None:
+                self.created = {"name": name, "inputs": inputs, "run_type": run_type} | kwargs
+
+            def update_run(self, run_id: Any, **kwargs: Any) -> None:
+                self.updated = {"run_id": run_id} | kwargs
+
+        client = Client()
+        tracer = LangSmithTracer("causal-test", "test", TraceRedactorV1(),
+                                 client_factory=lambda callback: client)
+        span = tracer.start_gateway_span({"analysis_id": "an-1", "prompt_hash": "abc",
+                                          "raw_rows": [1], "gold_labels": "forbidden"})
+        span.finish({"total_tokens": 4, "reasoning": "hidden"})
+        assert client.created["inputs"] == {
+            "analysis_id": "an-1", "prompt_hash": "abc", "environment": "test"}
+        assert client.updated["outputs"] == {"total_tokens": 4}
+
+    def test_gateway_span_finish_failure_is_fail_closed(self) -> None:
+        class Client:
+            def create_run(self, *args: Any, **kwargs: Any) -> None:
+                pass
+
+            def update_run(self, *args: Any, **kwargs: Any) -> None:
+                raise RuntimeError("trace rejected")
+
+        tracer = LangSmithTracer("causal-test", "test", TraceRedactorV1(),
+                                 client_factory=lambda callback: Client())
+        span = tracer.start_gateway_span({"analysis_id": "an-1"})
+        with pytest.raises(ObservabilityError) as excinfo:
+            span.finish({"total_tokens": 4})
+        assert excinfo.value.code == "flush_unacknowledged"
 
 
 @requires_docker

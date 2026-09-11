@@ -1,0 +1,3 @@
+Difference in differences relies on a justified comparison for the treated units' unobserved counterfactual change. Record why parallel trends and the stated anticipation convention are scientifically plausible. Pre-treatment evidence can reveal problems but a nonsignificant test cannot establish either assumption.
+
+The current estimators follow persistent units and irreversible adoption. Keep the adoption schedule and the never-treated comparison explicit. A staggered-adoption aggregate depends on which cohorts and event times contribute; it should not be interpreted as the same target as every other aggregation or a generic two-way fixed-effect coefficient.

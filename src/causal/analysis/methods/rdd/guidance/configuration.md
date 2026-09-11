@@ -1,0 +1,3 @@
+Match the evidenced cutoff to the running variable's units and preserve the treatment encoding. The bandwidth selector is a declared computational rule; it does not choose the policy threshold. A predetermined covariate must be measured before treatment and should not be selected because its adjustment changes the result favorably.
+
+Sensitivity fits compare prespecified departures from the primary local fit. Arbitrary donut radii and placebo cutoffs are excluded because their scientific interpretation depends on the study and measurement scale. A bandwidth comparison leaves the policy cutoff fixed while changing which local observations support the estimate.

@@ -43,8 +43,8 @@ def open_preparation_handoff(deps: PreparationDeps, analysis_id: str, outcome_ar
         str(body["prepared_bundle"]["artifact_id"])).payload_locator))
     return hb.build_handoff(
         analysis_id, found, receiving_stage_run_id,
-        (body["prepared_bundle"], bundle["experiment_design"], bundle["runnable_frame_contract"],
-         bundle["capacity_check"]), PREPARED, (), deps.clock())
+        (body["prepared_bundle"], bundle["compiled_design"], bundle["capacity_report"]),
+        PREPARED, (), deps.clock())
 
 
 class PreparationNodes(HarnessBase):
@@ -72,8 +72,7 @@ class PreparationNodes(HarnessBase):
                                   str(inputs.design["method_pack_version"]))
             entry.validate_entry(
                 opened.manifest, inputs,
-                self.policy(pack, deps.products.load_envelope(
-                    opened.manifest.entries[1].artifact_id)),
+                self.policy(pack),
                 products=deps.products, objects=deps.objects)
         except (entry.PreparationEntryError, KeyError, TypeError) as error:
             code = getattr(error, "code", entry.ENTRY_UNREADABLE)
@@ -92,14 +91,9 @@ class PreparationNodes(HarnessBase):
             self.deps.products.load_envelope(entries[0].artifact_id).parent_artifacts)
         book = entry.compile_context_manifest(
             inputs, entries, pack=pack,
-            role_ledger=self.payload(str(inputs.design["role_ledger"]["artifact_id"])),
-            measurement_map=self.payload(str(inputs.design["measurement_map"]["artifact_id"])),
-            causal_context=ArtifactRef.model_validate(inputs.design["causal_context"]),
             question_id=next((found for found, kind in sorted(types.items())
                               if kind == "QuestionRecord"), state["analysis_id"]),
-            parser_profile_id=hb.PARSER_PROFILE, registry_versions=hb.REGISTRY_VERSIONS,
-            # Amendment 2: no preparation task is delegated, so no recipient may hold a tool.
-            recipient_map={})
+            parser_profile_id=hb.PARSER_PROFILE, registry_versions=hb.REGISTRY_VERSIONS)
         self.commit(state, "PreparationContextManifest", book.canonical_payload(),
                     tuple(self.deps.products.load_envelope(ref.artifact_id) for ref in entries))
         self.emit(state, "task.completed", hb.EVAL_STAGE, status="entry")
@@ -109,7 +103,7 @@ class PreparationNodes(HarnessBase):
 
     # Parse, identify rows, run the §9.1 engine, and freeze the row set (§9.6).
     def stabilize_node(self, state: PreparationState) -> dict[str, Any]:
-        book, contract = self.book(state), self.entry_body(state, "RunnableFrameContract")
+        book, preparation = self.book(state), self.entry_body(state, "CompiledDesign")["preparation"]
         pack, data = self.pack(book), self.deps.objects.get(book.source_object_locator)
         self.emit(state, "task.started", hb.EVAL_ROWS, status="stabilize")
         try:
@@ -125,14 +119,14 @@ class PreparationNodes(HarnessBase):
                          if row.disposition is pc.RowDisposition.UNRESOLVED_CONFLICT)
         if unresolved:  # §9.3: no registered V1 operation clears a mismatched required role
             return self.conflict(state, pc.conflict_draft(hb.UNRESOLVED, unresolved))
-        return self._freeze(state, book, pack, contract, parsed, result)
+        return self._freeze(state, book, pack, preparation, parsed, result)
 
     # Impact, method structure, walls 2 and 3, then the frozen `StabilizedFrame`.
     def _freeze(self, state: PreparationState, book: pc.PreparationContextManifestV1,
-                pack: pp.PreparationPackV1, contract: Mapping[str, Any],
+                pack: pp.PreparationPackV1, preparation: Mapping[str, Any],
                 parsed: stabilize.ParsedSource,
                 result: stabilize.StabilizationResult) -> dict[str, Any]:
-        spec, keep = self.structure(book, contract), result.retained_mask()
+        spec, keep = self.structure(book, preparation), result.retained_mask()
         retained = parsed.frame.filter(pl.Series(values=keep, dtype=pl.Boolean))
         units = (retained.select(spec.unit_columns).unique().height if spec.unit_columns
                  else retained.height)
@@ -187,10 +181,11 @@ class PreparationNodes(HarnessBase):
 
     # The §25.1 deterministic gap compilation over the §7.4 task graph, then the fan-in.
     def plan_node(self, state: PreparationState) -> dict[str, Any]:
-        book, frame = self.book(state), self.frame(state, "StabilizedFrame")
+        book, frame, preparation = (self.book(state), self.frame(state, "StabilizedFrame"),
+                                    self.entry_body(state, "CompiledDesign")["preparation"])
         pack, schema = self.pack(book), self.dtypes(frame)
         surface = plancompile.contract_surface(
-            book, pack, self.entry_body(state, "RunnableFrameContract"), schema)
+            book, pack, preparation, schema)
         gaps = plancompile.contract_gaps(schema, surface, dict(zip(
             frame.columns, (int(found) for found in frame.null_count().row(0)), strict=True)))
         groups = plancompile.group_gaps(gaps, surface)
@@ -290,7 +285,7 @@ class PreparationNodes(HarnessBase):
         book, prepared = self.book(state), self.frame(state, "PreparedFrame")
         pack, baseline = self.pack(book), self.frame(state, "StabilizedFrame")
         surface = plancompile.contract_surface(
-            book, pack, self.entry_body(state, "RunnableFrameContract"), self.dtypes(baseline))
+            book, pack, self.entry_body(state, "CompiledDesign")["preparation"], self.dtypes(baseline))
         required_schema = {column: "Boolean" for column in surface.required_derivations}
         receipts = self.payload(state["artifacts"]["ExecutionReceiptBundle"])
         request = diag.DiagnosticRequest(
@@ -306,9 +301,9 @@ class PreparationNodes(HarnessBase):
             "StabilizationRecord", "StabilizedFrame", "PreparedFrame", "ExecutionReceiptBundle")}
         bundle = pc.PreparedFrameBundleV1(
             selected_table=book.selected_csv,
-            experiment_design=self.entry_ref(state, "ExperimentDesign"),
-            runnable_frame_contract=self.entry_ref(state, "RunnableFrameContract"),
-            capacity_check=self.entry_ref(state, "DeliveryCapacityCheck"),
+            compiled_design=self.entry_ref(state, "CompiledDesign"),
+            capacity_report=self.entry_ref(state, "CapacityReport"),
+            design_approval=self.entry_ref(state, "DesignApproval"),
             stabilization_record=refs["StabilizationRecord"],
             stabilized_frame=refs["StabilizedFrame"], prepared_frame=refs["PreparedFrame"],
             execution_receipt_bundle=refs["ExecutionReceiptBundle"], row_set_hash=state[

@@ -1,0 +1,3 @@
+Choose the treatment contrast and assignment unit from the study design before reviewing outcomes. The declared treatment values must match the dataset's actual encoding. A baseline covariate can support precision adjustment only when its measurement precedes assignment and its role is distinct from an absorbed randomization stratum.
+
+Keep the estimator choice explicit: a supplied covariate may be used for descriptive balance while the primary contrast remains unadjusted. Do not interpret an unadjusted comparison as eliminating the approved stratum structure. Missing outcomes remain part of assignment and attrition accounting even when they cannot contribute to fitting.

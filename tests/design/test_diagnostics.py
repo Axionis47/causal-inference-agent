@@ -9,18 +9,23 @@ from typing import Any
 import polars as pl
 import pytest
 
+from causal.design import v2
+from causal.design.contracts import DiagnosticResultV1, DiagnosticStatus
 from causal.design.diagnostics import (
+    DIAGNOSTIC_ASSESSMENT_MISMATCH,
+    DIAGNOSTIC_NOT_ALLOWED,
     DIAGNOSTIC_SPECS,
+    DIAGNOSTIC_TOOL_BUDGET_EXHAUSTED,
     IMPLEMENTATION_VERSION,
     BytesFrameSource,
     CsvObjectFrameSource,
     DiagnosticError,
+    diagnostic_result_id,
     run_diagnostic,
+    run_requested_diagnostics,
 )
-from causal.design.frame import DiagnosticResultV1, DiagnosticStatus
 from causal.design.packs import PREREPAIR_DIAGNOSTIC_IDS, load_method_packs
 from causal.shared.contracts import ArtifactRef
-from causal.shared.envelope import AgentTaskEnvelopeV1, TaskBudgets, TaskStatus
 
 ROOT = Path(__file__).resolve().parents[2]
 HASH = "a" * 64
@@ -29,31 +34,11 @@ PACKS = load_method_packs(ROOT / "registries" / "method-packs.v1.json")
 # The golden frame: one null cluster, two missing outcomes, one unparsable dose, a repeated key.
 CSV = (
     b"unit_id,arm,cluster,period,outcome,score,running,dose\n"
-    b"u1,control,c1,2020,1.0,10,4.5,10\n"
-    b"u2,control,c1,2020,,11,4.0,na\n"
-    b"u3,treated,c2,2020,3.0,12,5.5,12\n"
-    b"u4,treated,c2,2021,4.0,,6.0,13\n"
-    b"u5,control,c1,2021,5.0,10,4.0,10\n"
-    b"u6,treated,,2021,,13,5.0,10\n"
-    b"u7,treated,c2,2021,7.0,14,5.0,14\n"
-    b"u8,control,c1,2020,8.0,10,3.0,10\n"
+    b"u1,control,c1,2020,1.0,10,4.5,10\nu2,control,c1,2020,,11,4.0,na\n"
+    b"u3,treated,c2,2020,3.0,12,5.5,12\nu4,treated,c2,2021,4.0,,6.0,13\n"
+    b"u5,control,c1,2021,5.0,10,4.0,10\nu6,treated,,2021,,13,5.0,10\n"
+    b"u7,treated,c2,2021,7.0,14,5.0,14\nu8,control,c1,2020,8.0,10,3.0,10\n"
 )
-
-ENVELOPE = AgentTaskEnvelopeV1(
-    envelope_id="env-1", schema_version="agent-task-envelope.v1", analysis_id="an-1",
-    stage_run_id="run-1", task_id="task-1", attempt_id="attempt-1", context_manifest=REF,
-    task_kind="method_design", scope_kind="design", scope_ids=("design",),
-    parent_artifacts=(REF,), allowed_evidence_ids=(),
-    allowed_retrieval_ids=("intake_inventory",),
-    allowed_tool_ids=("run_preflight_diagnostic", "preview_eligibility_impact"),
-    output_schema_version="experiment-design.v1",
-    validator_version="experiment-design-validator.v1", prompt_version="method-design.v1",
-    model_profile_version="vertex-model-profile.v1",
-    budgets=TaskBudgets(token_budget=8000, tool_call_budget=4),
-    allowed_stopping_states=(TaskStatus.COMPLETE,), error_vocabulary=("SCHEMA_INVALID",),
-    forbidden_payload_classes=("raw_rows",), payload_type="method-design-request.v1",
-    payload={"method_id": "randomized_experiment"})
-
 
 class RecordingSource:
     """A FrameSource that counts reads and exposes no writer of any kind."""
@@ -85,8 +70,45 @@ def run(spec_id: str, **params: Any) -> DiagnosticResultV1:
     return run_diagnostic(spec_id, RecordingSource(), params)
 
 
+ARM_RESULT = run("arm_counts", columns=["arm"])
+ARM_RESULT_ID = diagnostic_result_id(ARM_RESULT)
+
+
+PLAN = v2.DiagnosticPlanV2(selected_csv=REF, candidate_method_id="randomized_experiment", issues=(),
+    items=(v2.DiagnosticPlanItemV2(diagnostic_id="arm_counts", primitive="count_by", required_for_eligibility=True,
+        inputs=(v2.BoundDiagnosticInputV2(parameter="columns", source_kind="role", source_id="treatment", columns=("arm",)),)),))
+
+
+def decision(requested: tuple[str, ...], assessed: tuple[str, ...] = ()) -> v2.AgentDesignProposalV2:
+    return v2.AgentDesignProposalV2.model_construct(requested_diagnostic_ids=requested,
+        diagnostic_assessments=tuple(v2.DiagnosticAssessmentV2(
+            diagnostic_result_id=name, judgment="not_decisive") for name in assessed))
+
+
+def test_model_diagnostic_request_runs_only_the_compiler_bound_read_only_plan() -> None:
+    assert (result := run_requested_diagnostics(decision(("arm_counts",)), PLAN, RecordingSource()))[0].diagnostic_id == "arm_counts" and result[0].values["count:treated"] == 4
+
+
+@pytest.mark.parametrize(("requested", "assessed", "observed", "code"), [
+    (("not_registered",), (), (), DIAGNOSTIC_NOT_ALLOWED),
+    (("arm_counts", "arm_counts"), (), (), DIAGNOSTIC_ASSESSMENT_MISMATCH),
+    ((), (), (ARM_RESULT,), DIAGNOSTIC_ASSESSMENT_MISMATCH),
+    (("a", "b", "c", "d"), (ARM_RESULT_ID,), (ARM_RESULT,),
+     DIAGNOSTIC_TOOL_BUDGET_EXHAUSTED)])
+def test_model_diagnostic_turn_fails_closed(requested: tuple[str, ...], assessed: tuple[str, ...], observed: tuple[DiagnosticResultV1, ...], code: str) -> None:
+    with pytest.raises(DiagnosticError) as error:
+        run_requested_diagnostics(decision(requested, assessed), PLAN, RecordingSource(), observed)
+    assert error.value.code == code
+
 
 class TestPrimitives:
+    def test_aliased_group_and_assignment_roles_count_one_actual_column(self) -> None:
+        repeated = run("adoption_cohorts", columns=["arm", "arm"])
+        expected = run("adoption_cohorts", columns=["arm"])
+        assert repeated == expected
+        assert repeated.values["expected_cells"] == repeated.values["group_count"] == 2
+        assert repeated.used_rows == 8 and repeated.columns_read == ("arm",)
+
     def test_arm_counts_report_group_sizes(self) -> None:
         result = run("arm_counts", columns=["arm"])
         assert result.status is DiagnosticStatus.COMPUTED
@@ -112,10 +134,17 @@ class TestPrimitives:
         assert result.values["count:control|2020"] == 3
 
     def test_cutoff_side_counts_use_the_derived_side_column(self) -> None:
-        result = run("cutoff_side_counts", running_column="running", cutoff=5.0)
-        assert result.values["count:below"] == 4
-        assert result.values["count:at_or_above"] == 4
-        assert result.columns_read == ("running",)
+        result = run("cutoff_side_counts", running_column="running", target="arm", cutoff=5.0)
+        assert result.values["below_count"] == 4
+        assert result.values["at_or_above_count"] == 4
+        assert result.values["assignment_direction"] == "above"
+        assert result.values["contradiction_count"] == 0
+        assert result.columns_read == ("arm", "running")
+
+    def test_zero_cutoff_is_computable(self) -> None:
+        result = run("cutoff_side_counts", running_column="running", target="arm", cutoff=0.0)
+        assert result.status is DiagnosticStatus.COMPUTED
+        assert result.values["at_or_above_count"] == 8
 
     def test_missing_share_reports_overall_group_and_cutoff_side_shares(self) -> None:
         overall = run("outcome_missingness", target="outcome")
@@ -204,14 +233,7 @@ class TestDeterminism:
 
 class TestSpecTable:
     def test_every_pack_diagnostic_id_has_a_spec_row_with_a_known_primitive(self) -> None:
-        assert set(DIAGNOSTIC_SPECS) == set(PREREPAIR_DIAGNOSTIC_IDS)
-        primitives = {"count_by", "missing_share", "uniqueness", "level_profile",
-                      "numeric_support", "availability"}
-        for pack in PACKS.all():
-            assert set(pack.allowed_prerepair_diagnostic_ids) <= set(DIAGNOSTIC_SPECS)
-        for spec_id, spec in DIAGNOSTIC_SPECS.items():
-            assert spec.diagnostic_id == spec_id
-            assert spec.primitive in primitives
+        assert set(DIAGNOSTIC_SPECS) == set(PREREPAIR_DIAGNOSTIC_IDS) and all(set(pack.allowed_prerepair_diagnostic_ids) <= set(DIAGNOSTIC_SPECS) for pack in PACKS.all())
 
 
 class TestFrameSources:

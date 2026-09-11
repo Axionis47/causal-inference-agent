@@ -21,7 +21,7 @@ from causal.shared.contracts import (
     HandoffManifestV1,
     SensitivityClass,
 )
-from tests.conftest import requires_docker
+from tests.infrastructure import requires_docker
 
 NOW = datetime(2026, 8, 24, 12, 0, 0, tzinfo=UTC)
 HASH = "a" * 64
@@ -29,10 +29,6 @@ OTHER_HASH = "b" * 64
 DATASET = "ds-1"
 REF = ArtifactRef(artifact_id="art-1", content_hash=HASH)
 REGISTRY_VERSIONS = dict.fromkeys(REGISTRY_VERSION_KEYS, "v1")
-RECIPIENT_MAP = {
-    "intent": ("list_intake_inventory", "get_semantic_evidence"),
-    "method_design": ("get_method_contract",),
-}
 SELECTION = TableSelectionV1(
     dataset_id=DATASET, logical_name="nsw.csv", resource_object_locator="objects/nsw.csv",
     resource_sha256=HASH, candidate_count=1,
@@ -189,7 +185,7 @@ class TestManifestCompilation:
         assert isinstance(selection, TableSelectionV1)
         manifest = entry.compile_manifest(
             reader, selection, question_ref=REF, outcome_ref=REF, selection_ref=REF,
-            design_revision=2, registry_versions=REGISTRY_VERSIONS, recipient_map=RECIPIENT_MAP)
+            design_revision=2, registry_versions=REGISTRY_VERSIONS)
         # One ordered structural row per column of the selected table, and no other table.
         assert [
             (row.column_name, row.ordinal, row.dtype) for row in manifest.structural_inventory
@@ -207,7 +203,6 @@ class TestManifestCompilation:
         assert manifest.design_revision == 2
         assert manifest.retrieval_surfaces == entry.RETRIEVAL_SURFACES
         assert manifest.registry_versions == REGISTRY_VERSIONS
-        assert manifest.recipient_map == RECIPIENT_MAP
 
 
 def envelope(artifact_id: str, artifact_type: str, digest: str = HASH) -> ArtifactEnvelopeV1:

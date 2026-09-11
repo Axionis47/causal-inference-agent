@@ -29,13 +29,13 @@ Output contract (PRD-002 §16.1):
 - represent unknown information explicitly — omitting a slot is a schema failure, and a slot
   whose value is unknown says so with the `unknown` epistemic status;
 - set `status` to exactly one of the allowed stopping states in your envelope;
-- support belongs to individual claims and slots; a single global confidence number is forbidden;
-- claims and slots may cite only the evidence ids listed under `## allowed_evidence`
-  below; a fact with no allowlisted support is a `hypothesis` claim with empty
-  citations, never an invented id;
-- `parent_artifact_ids` is exactly the artifact ids listed under `## parent_artifacts`,
-  verbatim — no additions and nothing invented; and
-- a claim can never cite itself as its own supporting evidence.
+- support belongs to individual slots; a single global confidence number is forbidden;
+- slots may cite only evidence ids under `## allowed_evidence`; a slot with no allowlisted
+  support is a hypothesis with empty citations, never an invented id;
+- keep slot values concise and cite only the smallest sufficient set of evidence ids, usually
+  one or two per slot; do not repeat duplicate copies of the same source or context;
+- the harness stamps identity, lineage, hashes, evidence summaries, and tool receipts;
+  do not return those administrative fields.
 
 Card slots — the `slots` mapping holds exactly these 12 keys, in this spelling, no others:
 - `meaning` — what the column measures in the world;
@@ -62,12 +62,13 @@ Context requirements (PRD-002 §10):
   (`requirement_id`, `scope_id`) identifies the instance and `fact_required` is prose.
   Minting an instance name like `req-treat-timing` is rejected `unknown_requirement_id`;
 - scope each requirement to the assigned column it blocks;
-- every requirement MUST fill `attempted_evidence` with one entry per id under
-  `## allowed_evidence` that could bear on the fact — the `evidence_id` and its
-  `availability_status` — one of `empty`, `not_offered`, `unreadable`, `withheld` when that
-  source cannot answer, or `evidenced` when it answers only in part;
-- an empty `attempted_evidence` list reads as "I never looked": the ask gate then refuses to
-  put the question to the user (`sources_unexhausted`) and the run stops unanswered.
+- copy `scope_id` from the assigned `column_name` exactly, with no table prefix;
+- never raise `column.measurement_timing` when the timing slot is evidenced or the column is an
+  identifier; identifiers cannot enter an adjustment set, so their treatment-relative timing is
+  not a blocking semantic fact;
+- never raise a requirement for a fact that this same card represents as evidenced;
+- set every requirement's `attempted_evidence` to `[]`; the harness owns the bounded evidence
+  surface and replaces this field with its measured shown/empty/withheld status after validation.
 
 Registered ids for this task:
 - `column.meaning` — what the column measures, for which entity, in which units and levels;

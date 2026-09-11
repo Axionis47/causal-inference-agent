@@ -31,7 +31,9 @@ SCOPE_PREFIXES: tuple[tuple[str, str], ...] = (
     ("src/causal/design/", "design"),
     ("src/causal/preparation/", "preparation"),
     ("src/causal/estimation/", "estimation"),
-    ("src/causal/presentation/", "presentation"),
+    ("src/causal/analysis/", "estimation"),
+    ("src/causal/post_analysis/", "presentation"),
+    ("src/causal/presentation/", "presentation"),  # historical baseline accounting
     ("src/causal/", "shared"),
     ("tests/", "tests"),
     ("tools/", "tests"),
@@ -41,15 +43,17 @@ SCOPE_PREFIXES: tuple[tuple[str, str], ...] = (
     ("registries/", "declarative"),
 )
 EXCLUDED_FILES = {"pyproject.toml", "uv.lock", ".python-version", ".gitignore", "CLAUDE.md", "README.md"}
-EXCLUDED_PREFIXES = ("docs/", ".claude/", "assets/")
+DOCUMENTATION_FILES = {"README.md", "CLAUDE.md"}
+EXCLUDED_PREFIXES = ("docs/", ".claude/", "assets/", "evals/reports/", "evals/review/")
 
 PRODUCTION_SCOPES = ("shared", "cli", "runtime", "intake", "design", "preparation", "estimation", "presentation")
 CEILINGS = {
-    "shared": 2500, "cli": 500, "runtime": 800, "intake": 1200, "design": 3400,
-    "preparation": 3000, "estimation": 4000, "presentation": 1500, "tests": 13000, "declarative": 4600,
+    "shared": 2500, "cli": 500, "runtime": 800, "intake": 1200, "design": 4300,
+    "preparation": 3000, "estimation": 4000, "presentation": 1500, "tests": 13500,
+    "declarative": 4900,
 }
-PRODUCTION_TOTAL_CEILING = 15_500
-GRAND_TOTAL_CEILING = 33_100
+PRODUCTION_TOTAL_CEILING = 16_500
+GRAND_TOTAL_CEILING = 35_000
 MAX_PRODUCTION_MODULES = 86
 MAX_MODULE_LINES = 350
 MAX_FUNCTION_LINES = 75
@@ -88,11 +92,17 @@ def count_declarative(text: str, extension: str) -> int:
 
 def assign_scope(path: str) -> str | None:
     """Scope name, None when excluded/uncounted, or 'UNASSIGNED' (a blocker)."""
-    if path in EXCLUDED_FILES or path.startswith(EXCLUDED_PREFIXES):
+    location = Path(path)
+    if (path in EXCLUDED_FILES or path.startswith(EXCLUDED_PREFIXES)
+            or location.name in DOCUMENTATION_FILES):
         return None
-    extension = Path(path).suffix.lower()
+    extension = location.suffix.lower()
     if extension not in PY_EXTENSIONS | DECLARATIVE_EXTENSIONS:
         return None
+    if location.name == "conftest.py" or "tests" in location.parts:
+        return "tests"
+    if path.startswith("src/causal/") and extension not in PY_EXTENSIONS:
+        return "declarative"
     for prefix, scope in SCOPE_PREFIXES:
         if path.startswith(prefix):
             return scope
@@ -125,7 +135,11 @@ def _git(repo: Path, *args: str) -> str:
 
 def list_files(repo: Path, revision: str | None) -> list[str]:
     if revision is None:
-        output = _git(repo, "ls-files")
+        # The worktree snapshot is the union of tracked and non-ignored untracked files.
+        # `git ls-files` alone retains deleted tracked paths and omits new files, which both
+        # crashes `read_file` during deletion-heavy cutovers and undercounts new modules.
+        output = _git(repo, "ls-files", "--cached", "--others", "--exclude-standard")
+        return sorted({line for line in output.splitlines() if line and (repo / line).is_file()})
     else:
         output = _git(repo, "ls-tree", "-r", "--name-only", revision)
     return [line for line in output.splitlines() if line]

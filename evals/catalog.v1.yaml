@@ -3,7 +3,8 @@
   "catalog_version": "catalog.v1",
   "registration_schema": "EvaluationRegistrationV1",
   "registrations": [
-    { "eval_id": "EV-SYS-001",
+    {
+      "eval_id": "EV-SYS-001",
       "kind": "contract",
       "owner": "shared system",
       "boundary": "artifact validation, canonicalization, hashing, and lineage",
@@ -14,8 +15,10 @@
       "case_notes": [
         "D-068: a model asked to echo committed parent artifact ids it was never shown fails wall 2 with `uncommitted_parent`; keep a lineage case where the parent id vocabulary is hydrated and one where it is withheld.",
         "D-068a: the rendered parent line must be a bare artifact id -- an `id hash` pair was echoed whole as the id."
-      ] },
-    { "eval_id": "EV-SYS-002",
+      ]
+    },
+    {
+      "eval_id": "EV-SYS-002",
       "kind": "policy",
       "owner": "shared system",
       "boundary": "context packs, task envelopes, sanitization, and isolation",
@@ -25,8 +28,10 @@
       "case_budget": 8,
       "case_notes": [
         "D-064b/D-065c/D-067/D-068 (one pilot class): every closed vocabulary a wall enforces -- registered requirement ids, the evidence allowlist, the 12 column-card slot keys, committed parent artifact ids -- must be rendered into the task context; a fixture binds the prompt-rendered vocabularies to the registered constants."
-      ] },
-    { "eval_id": "EV-SYS-003",
+      ]
+    },
+    {
+      "eval_id": "EV-SYS-003",
       "kind": "contract",
       "owner": "shared system",
       "boundary": "shared Vertex gateway",
@@ -39,8 +44,10 @@
         "D-063: the registered draft schema must reach the model; passing `{\"type\": \"object\"}` makes constrained decoding at temperature 0.0 return `{}` deterministically.",
         "D-066: a many-item task must send the `items`-wrapped result schema; a many reply without a list `items` routes through the schema_invalid correction path.",
         "The nine named fixture focuses fold into at most eight logical cases per the SS10.5.2 ceiling."
-      ] },
-    { "eval_id": "EV-SYS-004",
+      ]
+    },
+    {
+      "eval_id": "EV-SYS-004",
       "kind": "contract",
       "owner": "shared system",
       "boundary": "product persistence, checkpoints, commit boundaries, and restart",
@@ -50,8 +57,10 @@
       "case_budget": 8,
       "case_notes": [
         "D-069a: a stage run killed mid-flight leaves its row `running` and is not resumable -- the restart reading of D-035 (new run row + deterministic replay, or true checkpoint resume) needs a case at a committed boundary."
-      ] },
-    { "eval_id": "EV-SYS-005",
+      ]
+    },
+    {
+      "eval_id": "EV-SYS-005",
       "kind": "policy",
       "owner": "shared system",
       "boundary": "operational events, LangSmith delivery, and trace privacy",
@@ -61,8 +70,10 @@
       "case_budget": 8,
       "case_notes": [
         "D-062: an ObservabilityError must end the run as `failed_observability` with committed artifacts preserved and no blocker -- the flush gate's own event is the failure's single event."
-      ] },
-    { "eval_id": "EV-SYS-006",
+      ]
+    },
+    {
+      "eval_id": "EV-SYS-006",
       "kind": "contract",
       "owner": "shared system",
       "boundary": "adjacent-stage handoffs",
@@ -72,8 +83,10 @@
       "case_budget": 8,
       "case_notes": [
         "D-071: the red team forged a parent on the real run-10 committed manifest and wall 2 returned `uncommitted_parent`; keep the forged-parent manifest as a wrong-parent case."
-      ] },
-    { "eval_id": "EV-SYS-007",
+      ]
+    },
+    {
+      "eval_id": "EV-SYS-007",
       "kind": "contract",
       "owner": "shared system",
       "boundary": "CLI commands, idempotency, interrupts, and stale-write protection",
@@ -86,8 +99,10 @@
         "D-066: broad-exception hardening is T-019 runtime work -- an arbitrary exception must reach the same typed destination.",
         "D-069b: `causal status` for a running row must print the one next command SS1.1 promises.",
         "D-069c: the `stale_revision` blocker must name the expected revision id."
-      ] },
-    { "eval_id": "EV-E2E-001",
+      ]
+    },
+    {
+      "eval_id": "EV-E2E-001",
       "kind": "end_to_end",
       "owner": "shared system",
       "boundary": "randomized-experiment journey",
@@ -95,8 +110,10 @@
       "trigger": "release",
       "hard_pass_condition": "every stage and evidence, claim, and figure route passes",
       "case_budget": 1,
-      "case_notes": [] },
-    { "eval_id": "EV-E2E-002",
+      "case_notes": []
+    },
+    {
+      "eval_id": "EV-E2E-002",
       "kind": "end_to_end",
       "owner": "shared system",
       "boundary": "observational-AIPW journey",
@@ -104,8 +121,10 @@
       "trigger": "release",
       "hard_pass_condition": "registered estimate/tolerance, diagnostics, judgment, and delivery pass",
       "case_budget": 1,
-      "case_notes": [] },
-    { "eval_id": "EV-E2E-003",
+      "case_notes": []
+    },
+    {
+      "eval_id": "EV-E2E-003",
       "kind": "end_to_end",
       "owner": "shared system",
       "boundary": "simultaneous-DiD journey",
@@ -113,8 +132,10 @@
       "trigger": "release",
       "hard_pass_condition": "aggregate primary result and supporting event-time route pass",
       "case_budget": 1,
-      "case_notes": [] },
-    { "eval_id": "EV-E2E-004",
+      "case_notes": []
+    },
+    {
+      "eval_id": "EV-E2E-004",
       "kind": "end_to_end",
       "owner": "shared system",
       "boundary": "staggered-DiD journey",
@@ -122,8 +143,10 @@
       "trigger": "release",
       "hard_pass_condition": "registered staggered profile remains distinct and passes end to end",
       "case_budget": 1,
-      "case_notes": [] },
-    { "eval_id": "EV-E2E-005",
+      "case_notes": []
+    },
+    {
+      "eval_id": "EV-E2E-005",
       "kind": "end_to_end",
       "owner": "shared system",
       "boundary": "sharp-RDD journey",
@@ -131,8 +154,10 @@
       "trigger": "release",
       "hard_pass_condition": "cutoff, bandwidth, density, claim, and delivery routes pass",
       "case_budget": 1,
-      "case_notes": [] },
-    { "eval_id": "EV-E2E-006",
+      "case_notes": []
+    },
+    {
+      "eval_id": "EV-E2E-006",
       "kind": "end_to_end",
       "owner": "shared system",
       "boundary": "ask-user and revision journey",
@@ -142,8 +167,10 @@
       "case_budget": 1,
       "case_notes": [
         "D-070: the pilot run reached terminal needs_context WITHOUT asking the user -- the frozen journey must actually reach the consolidated interrupt."
-      ] },
-    { "eval_id": "EV-E2E-007",
+      ]
+    },
+    {
+      "eval_id": "EV-E2E-007",
       "kind": "end_to_end",
       "owner": "shared system",
       "boundary": "blocker, trace-outage, and restart journey",
@@ -151,20 +178,24 @@
       "trigger": "runtime/persistence/observability change + release",
       "hard_pass_condition": "immediate typed blocker, no fallback or downstream opening, and exact explicit restart",
       "case_budget": 1,
-      "case_notes": [] },
-    { "eval_id": "EV-P1-001",
+      "case_notes": []
+    },
+    {
+      "eval_id": "EV-P1-001",
       "kind": "contract",
-      "owner": "PRD-001 — intake coordinator",
-      "boundary": "submission validation and identity creation — intake coordinator",
+      "owner": "PRD-001 \u2014 intake coordinator",
+      "boundary": "submission validation and identity creation \u2014 intake coordinator",
       "fixture_focus": "valid, malformed, duplicate, conflicting-idempotency, and credential-in-argument submissions",
       "trigger": "command/contract change + release",
       "hard_pass_condition": "exact identities or registered refusal; no secret enters an artifact or event",
       "case_budget": 8,
-      "case_notes": [] },
-    { "eval_id": "EV-P1-002",
+      "case_notes": []
+    },
+    {
+      "eval_id": "EV-P1-002",
       "kind": "contract",
-      "owner": "PRD-001 — Kaggle capture component",
-      "boundary": "Kaggle version capture and inventory — Kaggle capture component",
+      "owner": "PRD-001 \u2014 Kaggle capture component",
+      "boundary": "Kaggle version capture and inventory \u2014 Kaggle capture component",
       "fixture_focus": "zero, one, and multiple tables; provider failure; frozen response replay; one batch inventory",
       "trigger": "provider/capture change + release",
       "hard_pass_condition": "exact version snapshot and one inventory retrieval; no per-column provider fetch",
@@ -172,53 +203,63 @@
       "case_notes": [
         "D-060: Kaggle retired `GetDatasetStatus`; the version number resolves through an exact-ref match on `dataset_list` and the capture payload records `dataset.status` as `unknown`.",
         "D-065a: live Kaggle metadata nests under `info` -- a flat capture reading yields zero evidence items for a dataset that has title, subtitle, and description."
-      ] },
-    { "eval_id": "EV-P1-003",
+      ]
+    },
+    {
+      "eval_id": "EV-P1-003",
       "kind": "policy",
-      "owner": "PRD-001 — archive component",
-      "boundary": "archive admission and resource outcomes — archive component",
+      "owner": "PRD-001 \u2014 archive component",
+      "boundary": "archive admission and resource outcomes \u2014 archive component",
       "fixture_focus": "safe, traversal, link, bomb-limit, corrupt, unsupported, and duplicate resources",
       "trigger": "archive/parser change + release",
       "hard_pass_condition": "unsafe bytes never extract and every resource has one terminal outcome",
       "case_budget": 8,
-      "case_notes": [] },
-    { "eval_id": "EV-P1-004",
+      "case_notes": []
+    },
+    {
+      "eval_id": "EV-P1-004",
       "kind": "contract",
-      "owner": "PRD-001 — profiler",
-      "boundary": "parsing, profiling, evidence classification, and availability — profiler",
+      "owner": "PRD-001 \u2014 profiler",
+      "boundary": "parsing, profiling, evidence classification, and availability \u2014 profiler",
       "fixture_focus": "every admitted format/outcome, empty/not-offered/failed distinctions, deterministic statistics and semantic evidence",
       "trigger": "parser/profile/semantic change + release",
       "hard_pass_condition": "identical inputs produce identical profiles, hashes, classifications, and availability",
       "case_budget": 8,
       "case_notes": [
         "D-064a: a zero-metadata dataset must still emit a structural `presence` row per profiled column -- a profiled column's existence is structural fact independent of provider metadata."
-      ] },
-    { "eval_id": "EV-P1-005",
+      ]
+    },
+    {
+      "eval_id": "EV-P1-005",
       "kind": "contract",
-      "owner": "PRD-001 — intake coordinator",
-      "boundary": "artifact commit, retrieval views, observability, and PRD-002 handoff — intake coordinator",
+      "owner": "PRD-001 \u2014 intake coordinator",
+      "boundary": "artifact commit, retrieval views, observability, and PRD-002 handoff \u2014 intake coordinator",
       "fixture_focus": "commit/reopen, stale parent, known-missing lookup, trace canaries/outages, exact handoff",
       "trigger": "persistence/retrieval/handoff change + release",
       "hard_pass_condition": "only committed narrow views are readable and only an acknowledged exact handoff advances",
       "case_budget": 8,
       "case_notes": [
         "D-065b: no allowlisted evidence id represented the user's question, so intent claims could not legally cite it -- the coordinator appends `ua:question/text` (user_confirmation class) to the EvidenceBundle after the usable/partial status computation."
-      ] },
-    { "eval_id": "EV-P2-001",
+      ]
+    },
+    {
+      "eval_id": "EV-P2-001",
       "kind": "contract",
-      "owner": "PRD-002 — design harness",
-      "boundary": "entry gate and table selection — design harness",
+      "owner": "PRD-002 \u2014 design harness",
+      "boundary": "entry gate and table selection \u2014 design harness",
       "fixture_focus": "invalid handoff, zero/one/multiple candidates, stale interrupt, and exact resume",
       "trigger": "entry/interrupt change + release",
       "hard_pass_condition": "deterministic route; table choice never consumes clarification budget",
       "case_budget": 8,
       "case_notes": [
         "D-069a: a design run killed mid-flight cannot be resumed by `causal run` -- the runtime sees no open interrupt and reports `failed` without consulting the checkpoint; the exact-resume case must cover a crashed run, not only a clean interrupt."
-      ] },
-    { "eval_id": "EV-P2-002",
+      ]
+    },
+    {
+      "eval_id": "EV-P2-002",
       "kind": "contract",
-      "owner": "PRD-002 — intent worker and validator",
-      "boundary": "intent task — intent worker and validator",
+      "owner": "PRD-002 \u2014 intent worker and validator",
+      "boundary": "intent task \u2014 intent worker and validator",
       "fixture_focus": "clear, ambiguous, conflicting, and unsupported questions with allowed evidence only",
       "trigger": "intent prompt/context/schema change + release",
       "hard_pass_condition": "schema-valid intent with resolved evidence IDs or explicit unresolved requirements",
@@ -227,11 +268,13 @@
         "D-064b: models invent requirement ids when the registered vocabulary is absent from the prompt; wall 2 rejects them and corrections cannot converge. Templates carry the closed registered id list and a test binds prompt-mentioned ids to the registry.",
         "D-065b: the user's question is citable only through the appended `ua:question/text` allowlisted id.",
         "D-070: every intent answer must carry one `attempted_evidence` entry per relevant allowlisted id with a status from {empty, not_offered, unreadable, withheld, evidenced}."
-      ] },
-    { "eval_id": "EV-P2-003",
+      ]
+    },
+    {
+      "eval_id": "EV-P2-003",
       "kind": "policy",
-      "owner": "PRD-002 — semantic workers and fan-in validator",
-      "boundary": "semantic batches — semantic workers and fan-in validator",
+      "owner": "PRD-002 \u2014 semantic workers and fan-in validator",
+      "boundary": "semantic batches \u2014 semantic workers and fan-in validator",
       "fixture_focus": "column partitions, missing meanings, contradictory evidence, duplicate coverage, and scope expansion attempts",
       "trigger": "semantic prompt/batching/tool change + release",
       "hard_pass_condition": "each frozen column appears once, evidence labels are valid, and scope never expands",
@@ -239,11 +282,13 @@
       "case_notes": [
         "D-067: the exact 12-key column-card slot vocabulary must appear in the prompt and ValidationIssueV1 must carry a `detail` message -- without both, a temperature-0 model repeats an identical near-miss slot key on every correction round.",
         "D-066: a many-column batch must receive the `items`-wrapped response schema; the single-draft schema returns one bare card."
-      ] },
-    { "eval_id": "EV-P2-004",
+      ]
+    },
+    {
+      "eval_id": "EV-P2-004",
       "kind": "policy",
-      "owner": "PRD-002 — role workers and validator",
-      "boundary": "causal-role evidence — role workers and validator",
+      "owner": "PRD-002 \u2014 role workers and validator",
+      "boundary": "causal-role evidence \u2014 role workers and validator",
       "fixture_focus": "confounder, mediator, collider, instrument, selection, post-treatment, unknown, and forbidden all-pairs cases",
       "trigger": "role prompt/grouping/schema change + release",
       "hard_pass_condition": "temporal/causal constraints and evidence references pass with no all-pairs search",
@@ -252,82 +297,98 @@
         "D-071 red team (over the real run-10 committed manifest, evidence bundle, parents, and registries): a forged evidence citation returns wall 2 `unresolved_evidence`; a self-citing claim is caught at the ClaimV1 validator and surfaces as wall 1 with detail; a forged parent returns wall 2 `uncommitted_parent`; an invented requirement id returns wall 2 `unknown_requirement_id`.",
         "future case (D-071 gap a): an invented `candidate_columns` entry is not in `_COLUMN_KEYS` and passes the walls -- it is neutralized downstream by construction because triage folds candidates against the real inventory, but a wall-2 catch would be tighter.",
         "future case (D-071 gap b): the epistemic-laundering check `_claim_issues` runs at wall 4 and above, over intent's wall-3 cap, so a laundered claim rides until it is consumed at the next stage."
-      ] },
-    { "eval_id": "EV-P2-005",
+      ]
+    },
+    {
+      "eval_id": "EV-P2-005",
       "kind": "contract",
-      "owner": "PRD-002 — synthesis worker and graph validator",
-      "boundary": "synthesis, alternatives, and causal graph — synthesis worker and graph validator",
+      "owner": "PRD-002 \u2014 synthesis worker and graph validator",
+      "boundary": "synthesis, alternatives, and causal graph \u2014 synthesis worker and graph validator",
       "fixture_focus": "evidenced, hypothetical, disputed, unknown, cyclic, inaccessible, and mismatched graph views",
       "trigger": "synthesis/graph/renderer change + release",
       "hard_pass_condition": "typed graph is acyclic where required and every visual element matches its artifact",
       "case_budget": 8,
       "case_notes": [
         "D-068: causal_synthesis exhausted its corrections on `uncommitted_parent` because the task never showed the committed parent artifact ids it was required to echo."
-      ] },
-    { "eval_id": "EV-P2-006",
+      ]
+    },
+    {
+      "eval_id": "EV-P2-006",
       "kind": "policy",
-      "owner": "PRD-002 — deterministic ask owner",
-      "boundary": "requirement fan-in and ask gate — deterministic ask owner",
+      "owner": "PRD-002 \u2014 deterministic ask owner",
+      "boundary": "requirement fan-in and ask gate \u2014 deterministic ask owner",
       "fixture_focus": "blocking/non-blocking, answerable/technical, resolvable/unresolved, deduplication, `unknown`, and two-round exhaustion",
       "trigger": "ask-policy/context change + release",
       "hard_pass_condition": "every and only legitimate requirement reaches the consolidated PRD-002 interrupt",
       "case_budget": 8,
       "case_notes": [
         "D-070: with `attempted_evidence` empty the gate refused every blocking requirement as `sources_unexhausted` and the run ended needs_context without asking -- keep a case where the terminal statuses over consulted sources are present and one where they are not."
-      ] },
-    { "eval_id": "EV-P2-007",
+      ]
+    },
+    {
+      "eval_id": "EV-P2-007",
       "kind": "contract",
-      "owner": "PRD-002 — method designer and deterministic validators",
-      "boundary": "method design and delivery capacity — method designer and deterministic validators",
+      "owner": "PRD-002 \u2014 method designer and deterministic validators",
+      "boundary": "method design and delivery capacity \u2014 method designer and deterministic validators",
       "fixture_focus": "valid/invalid cases for RCT, AIPW, both DiD profiles, RDD, multiplicity, capacity overflow, and unsupported method",
       "trigger": "method/registry/capacity change + release",
       "hard_pass_condition": "exactly one complete registered method profile and a passing exact capacity check",
       "case_budget": 8,
-      "case_notes": [] },
-    { "eval_id": "EV-P2-008",
+      "case_notes": []
+    },
+    {
+      "eval_id": "EV-P2-008",
       "kind": "contract",
-      "owner": "PRD-002 — design coordinator",
-      "boundary": "approval, revision, checkpoint resume, conflict return, and PRD-003 handoff — design coordinator",
+      "owner": "PRD-002 \u2014 design coordinator",
+      "boundary": "approval, revision, checkpoint resume, conflict return, and PRD-003 handoff \u2014 design coordinator",
       "fixture_focus": "approve/change/decline, stale approval, restarted interrupt node, later-stage conflict, and manifest mismatch",
       "trigger": "graph/approval/handoff change + release",
       "hard_pass_condition": "immutable revision semantics and one exact compatible handoff; no duplicated pre-interrupt work",
       "case_budget": 8,
-      "case_notes": [] },
-    { "eval_id": "EV-P3-001",
+      "case_notes": []
+    },
+    {
+      "eval_id": "EV-P3-001",
       "kind": "policy",
-      "owner": "PRD-003 — preparation harness",
-      "boundary": "entry gate, context manifest, and gap triage — preparation harness",
+      "owner": "PRD-003 \u2014 preparation harness",
+      "boundary": "entry gate, context manifest, and gap triage \u2014 preparation harness",
       "fixture_focus": "exact/stale handoffs, no gap, independent gaps, coupled gaps, forbidden prior-stage memory",
       "trigger": "entry/context/triage change + release",
       "hard_pass_condition": "exact context only; a satisfied contract creates no agent task",
       "case_budget": 8,
       "case_notes": [
         "amendment_2 (PRD-003 SS25.1, D-076): V1 preparation has no model surface, so \"creates no agent task\" is read as \"creates no plan item\"; a satisfied contract compiles an empty plan."
-      ] },
-    { "eval_id": "EV-P3-002",
+      ]
+    },
+    {
+      "eval_id": "EV-P3-002",
       "kind": "contract",
-      "owner": "PRD-003 — stabilization component",
-      "boundary": "row identity, eligibility, stabilization, and freeze — stabilization component",
+      "owner": "PRD-003 \u2014 stabilization component",
+      "boundary": "row identity, eligibility, stabilization, and freeze \u2014 stabilization component",
       "fixture_focus": "duplicate keys, ineligible rows, unusable rows, missing protected roles, and replay",
       "trigger": "stabilization/rule change + release",
       "hard_pass_condition": "every source row has one disposition and the frozen row-set hash is reproducible",
       "case_budget": 8,
-      "case_notes": [] },
-    { "eval_id": "EV-P3-003",
+      "case_notes": []
+    },
+    {
+      "eval_id": "EV-P3-003",
       "kind": "policy",
-      "owner": "PRD-003 — preparation harness",
-      "boundary": "preparation task fan-out and context isolation — preparation harness",
+      "owner": "PRD-003 \u2014 preparation harness",
+      "boundary": "preparation task fan-out and context isolation \u2014 preparation harness",
       "fixture_focus": "independent/coupled dependencies, sibling access, row/value leakage, and scope expansion",
       "trigger": "planning graph/context/tool change + release",
       "hard_pass_condition": "correct grouping, maximum bound, and no undeclared context or action authority",
       "case_budget": 8,
       "case_notes": [
         "amendment_2 (PRD-003 SS25.1, D-076): re-scoped to the deterministic plan compiler -- grouping and coupling are evaluated as compiler fixtures with NO live model leg; no task envelope, prompt, model profile, or correction loop exists in this stage. Criterion 34's fan-out bound applies to compiler group waves."
-      ] },
-    { "eval_id": "EV-P3-004",
+      ]
+    },
+    {
+      "eval_id": "EV-P3-004",
       "kind": "contract",
-      "owner": "PRD-003 — plan compiler",
-      "boundary": "proposal fan-in and plan validation — plan compiler",
+      "owner": "PRD-003 \u2014 plan compiler",
+      "boundary": "proposal fan-in and plan validation \u2014 plan compiler",
       "fixture_focus": "conflicts, incomplete gap coverage, invalid order, unregistered operations, and forbidden replacement values/code",
       "trigger": "prompt/schema/plan/registry change + release",
       "hard_pass_condition": "one complete conflict-free topological plan or typed `DesignConflict`",
@@ -335,142 +396,237 @@
       "case_notes": [
         "amendment_2 (PRD-003 SS25.1, D-076): re-scoped to the deterministic plan compiler -- coverage and fan-in rejection are evaluated as compiler fixtures with NO live model leg; the `prompt/schema` half of the trigger is vacuous in V1 and the gap-to-operation table of SS25.1 is the fixture source.",
         "amendment_2: anything without a unique contract-pinned resolution -- an absent required column with no named derivation, an unconfirmed sentinel hypothesis, an `unresolved_conflict` row disposition, any table-wide mismatch -- produces a typed `DesignConflict` to PRD-002."
-      ] },
-    { "eval_id": "EV-P3-005",
+      ]
+    },
+    {
+      "eval_id": "EV-P3-005",
       "kind": "contract",
-      "owner": "PRD-003 — execution component",
-      "boundary": "sequential mutation, receipts, and postconditions — execution component",
+      "owner": "PRD-003 \u2014 execution component",
+      "boundary": "sequential mutation, receipts, and postconditions \u2014 execution component",
       "fixture_focus": "every registered operation, failed preview, hash mismatch, partial mutation, replay, and attempted parallel mutation",
       "trigger": "operation/execution change + release",
       "hard_pass_condition": "sequential execution only; every mutation has one receipt, lineage, and passing postcondition",
       "case_budget": 8,
-      "case_notes": [] },
-    { "eval_id": "EV-P3-006",
+      "case_notes": []
+    },
+    {
+      "eval_id": "EV-P3-006",
       "kind": "policy",
-      "owner": "PRD-003 — method validators",
-      "boundary": "method-specific preparation walls — method validators",
+      "owner": "PRD-003 \u2014 method validators",
+      "boundary": "method-specific preparation walls \u2014 method validators",
       "fixture_focus": "RCT, AIPW, simultaneous/staggered DiD, and RDD protected roles and imputation scopes",
       "trigger": "preparation-method rule change + release",
       "hard_pass_condition": "no protected role imputation, leakage, synthetic panel row, or cutoff corruption",
       "case_budget": 8,
-      "case_notes": [] },
-    { "eval_id": "EV-P3-007",
+      "case_notes": []
+    },
+    {
+      "eval_id": "EV-P3-007",
       "kind": "contract",
-      "owner": "PRD-003 — preparation coordinator",
-      "boundary": "diagnostics, conflict routing, checkpoint restart, and PRD-004 handoff — preparation coordinator",
+      "owner": "PRD-003 \u2014 preparation coordinator",
+      "boundary": "diagnostics, conflict routing, checkpoint restart, and PRD-004 handoff \u2014 preparation coordinator",
       "fixture_focus": "failed walls, semantic uncertainty, conflict return, restart at commits, trace outage, and manifest mismatch",
       "trigger": "graph/diagnostic/handoff change + release",
       "hard_pass_condition": "uncertainty returns only to PRD-002 and only the exact prepared-frame handoff opens PRD-004",
       "case_budget": 8,
       "case_notes": [
         "amendment_2 (PRD-003 SS25.2, D-076): the \"checkpoint restart\" leg becomes rerun replay -- a rerun uses a new `stage_run_id`, deterministic artifact identities make recommits no-ops, and restart at committed boundaries must produce NO duplicate artifacts and the same terminal outcome. No checkpoint is consulted; the stage runs as a plain sequential coordinator."
-      ] },
-    { "eval_id": "EV-P4-001", "kind": "policy", "owner": "PRD-004 — estimation harness",
-      "boundary": "entry, frozen plan, capacity recheck, and result-exposure wall — estimation harness",
+      ]
+    },
+    {
+      "eval_id": "EV-P4-001",
+      "kind": "policy",
+      "owner": "PRD-004 \u2014 estimation harness",
+      "boundary": "entry, frozen plan, capacity recheck, and result-exposure wall \u2014 estimation harness",
       "fixture_focus": "stale/mismatched handoff, plan drift, capacity overflow, and premature outcome access",
-      "trigger": "entry/plan/capacity change + release", "case_budget": 8,
+      "trigger": "entry/plan/capacity change + release",
+      "case_budget": 8,
       "hard_pass_condition": "estimator sees the outcome only after every frozen precondition passes",
       "case_notes": [
         "amendment_1 (PRD-004 SS26.2, D-083): the shared validation report's wall bound widens from 10 to 15, so the SS18 walls this row gates number natively and wall 8 checks per-item uncertainty inline on `PrimaryContrastResult`.",
         "D-089b: the approved design facts an estimator cannot run without -- the RDD cutoff and its assignment direction -- must reach `estimator_parameters`; a plan compiled without one estimates at the adapter's own fallback. Keep a case where the design names a fact the artifacts do not carry (`missing_plan_field`)."
-      ] },
-    { "eval_id": "EV-P4-002", "kind": "numerical", "owner": "PRD-004 — RCT component",
-      "boundary": "randomized-experiment adapter — RCT component",
+      ]
+    },
+    {
+      "eval_id": "EV-P4-002",
+      "kind": "numerical",
+      "owner": "PRD-004 \u2014 RCT component",
+      "boundary": "randomized-experiment adapter \u2014 RCT component",
       "fixture_focus": "two/multi-arm contrasts, comparator, clustering, attrition, noncompliance, multiplicity, and reference parity",
-      "trigger": "RCT adapter/profile change + release", "case_budget": 8,
-      "hard_pass_condition": "all approved contrasts and mandatory multiplicity match registered tolerances", "case_notes": [] },
-    { "eval_id": "EV-P4-003", "kind": "numerical", "owner": "PRD-004 — AIPW component",
-      "boundary": "AIPW adapter — AIPW component",
+      "trigger": "RCT adapter/profile change + release",
+      "case_budget": 8,
+      "hard_pass_condition": "all approved contrasts and mandatory multiplicity match registered tolerances",
+      "case_notes": []
+    },
+    {
+      "eval_id": "EV-P4-003",
+      "kind": "numerical",
+      "owner": "PRD-004 \u2014 AIPW component",
+      "boundary": "AIPW adapter \u2014 AIPW component",
       "fixture_focus": "ATE/ATT, folds, nuisance profiles, overlap, clipping rules, leakage traps, and reference parity",
-      "trigger": "AIPW adapter/profile change + release", "case_budget": 8,
+      "trigger": "AIPW adapter/profile change + release",
+      "case_budget": 8,
       "hard_pass_condition": "one approved profile, reproducible folds, no leakage, and estimate/uncertainty parity",
       "case_notes": [
         "D-089 (T-027, T-029): wall-6 receipts are measured, not asserted -- a fold fit reaches its rows only through the ledger that receipts what it handed over, so keep the leakage trap that swaps the registered fold fit; and the coordinator commits what the adapter dealt -- the `CrossFitAssignment` beside its restricted row-to-fold mapping and out-of-fold prediction objects, neither of which ever reaches an envelope, an event, or a diagnostic value."
-      ] },
-    { "eval_id": "EV-P4-004", "kind": "numerical", "owner": "PRD-004 — DiD component",
-      "boundary": "simultaneous-DiD adapter — DiD component",
+      ]
+    },
+    {
+      "eval_id": "EV-P4-004",
+      "kind": "numerical",
+      "owner": "PRD-004 \u2014 DiD component",
+      "boundary": "simultaneous-DiD adapter \u2014 DiD component",
       "fixture_focus": "common adoption, clustering, support, trends, event time, and reference parity",
-      "trigger": "simultaneous-DiD change + release", "case_budget": 8,
+      "trigger": "simultaneous-DiD change + release",
+      "case_budget": 8,
       "hard_pass_condition": "registered aggregate primary and supporting event-time results pass",
       "case_notes": [
         "D-089 (T-028): a repeated cross-section is refused under BOTH DiD profiles -- unit fixed-effect saturation aborts the pyfixest fit before it runs; keep that refusal as a visible case, not a silent fallback."
-      ] },
-    { "eval_id": "EV-P4-005", "kind": "numerical", "owner": "PRD-004 — DiD component",
-      "boundary": "staggered-DiD adapter — DiD component",
+      ]
+    },
+    {
+      "eval_id": "EV-P4-005",
+      "kind": "numerical",
+      "owner": "PRD-004 \u2014 DiD component",
+      "boundary": "staggered-DiD adapter \u2014 DiD component",
       "fixture_focus": "cohorts, never/not-yet-treated comparisons, support/composition, and reference parity",
-      "trigger": "staggered-DiD change + release", "case_budget": 8,
+      "trigger": "staggered-DiD change + release",
+      "case_budget": 8,
       "hard_pass_condition": "staggered profile remains distinct and registered aggregate/diagnostics pass",
       "case_notes": [
         "D-089 (T-028): pyfixest 0.60 ships no `sunab()`, so Sun-Abraham is the saturated event study plus a registered cohort-share delta-method aggregation over the library's own vcov; the not-yet-treated pool is never-treated union the last cohort. Pin both against reference values."
-      ] },
-    { "eval_id": "EV-P4-006", "kind": "numerical", "owner": "PRD-004 — RDD component",
-      "boundary": "sharp-RDD adapter — RDD component",
+      ]
+    },
+    {
+      "eval_id": "EV-P4-006",
+      "kind": "numerical",
+      "owner": "PRD-004 \u2014 RDD component",
+      "boundary": "sharp-RDD adapter \u2014 RDD component",
       "fixture_focus": "one cutoff, direction, bandwidth, mass points, density, continuity, and reference parity",
-      "trigger": "RDD adapter/profile change + release", "case_budget": 8,
+      "trigger": "RDD adapter/profile change + release",
+      "case_budget": 8,
       "hard_pass_condition": "no cutoff/model substitution and estimate/robust inference pass tolerance",
       "case_notes": [
         "D-089 (T-028): the placebo branch fails visibly on narrow support rather than widening the window; a failed branch is reported failed and never omitted.",
         "D-089b: the cutoff under test must be the approved one and not 0.0, so a fixture whose approved cutoff is nonzero is required -- a dropped design fact would otherwise pass."
-      ] },
-    { "eval_id": "EV-P4-007", "kind": "contract", "owner": "PRD-004 — deterministic task fan-out/fan-in",
-      "boundary": "uncertainty, diagnostics, and sensitivities — deterministic task fan-out/fan-in",
+      ]
+    },
+    {
+      "eval_id": "EV-P4-007",
+      "kind": "contract",
+      "owner": "PRD-004 \u2014 deterministic task fan-out/fan-in",
+      "boundary": "uncertainty, diagnostics, and sensitivities \u2014 deterministic task fan-out/fan-in",
       "fixture_focus": "contribution counts, convergence, every registered severity, prespecified branches, missing/non-computable rules",
-      "trigger": "diagnostic/sensitivity change + release", "case_budget": 8,
+      "trigger": "diagnostic/sensitivity change + release",
+      "case_budget": 8,
       "hard_pass_condition": "all required tasks terminate visibly and frozen results never change their plan",
       "case_notes": [
         "amendment_1 (PRD-004 SS26.1, D-083): the \"at most eight concurrent tasks\" clause of SS7/SS19 is an UPPER BOUND; V1 runs diagnostics and sensitivities sequentially in registered order at concurrency one, with the same deterministic ordering and the same requirement that every branch reach a visible terminal result.",
         "amendment_1 (PRD-004 SS26.2, D-083): `DiagnosticBundle`, `SensitivityBundle`, `FigureDataBundle`, and `UncertaintyBundle` consolidate into one `EvidenceBundleV1` per kind; every identity, ordering, completeness, and lineage requirement binds unchanged on the generic bundle, and no separate uncertainty artifact exists."
-      ] },
-    { "eval_id": "EV-P4-008", "kind": "policy", "owner": "PRD-004 — claim worker and deterministic validator",
-      "boundary": "claim review and judgment ceiling — claim worker and deterministic validator",
+      ]
+    },
+    {
+      "eval_id": "EV-P4-008",
+      "kind": "policy",
+      "owner": "PRD-004 \u2014 claim worker and deterministic validator",
+      "boundary": "claim review and judgment ceiling \u2014 claim worker and deterministic validator",
       "fixture_focus": "supported/unsupported claims, qualifications, contradictory evidence, ceiling levels, malformed output, and corrections",
-      "trigger": "claim prompt/context/schema/ceiling change + release", "case_budget": 8,
+      "trigger": "claim prompt/context/schema/ceiling change + release",
+      "case_budget": 8,
       "hard_pass_condition": "one evidence-linked item per primary contrast and no claim exceeds its ceiling",
       "case_notes": [
         "amendment_1 (PRD-004 SS26.1, D-083): claim review is the ONE model call the stage makes; the four representative live Vertex cases of SS20.6 belong to this row alone."
-      ] },
-    { "eval_id": "EV-P4-009", "kind": "contract", "owner": "PRD-004 — deterministic builders",
-      "boundary": "figure-data builders and result freeze — deterministic builders",
+      ]
+    },
+    {
+      "eval_id": "EV-P4-009",
+      "kind": "contract",
+      "owner": "PRD-004 \u2014 deterministic builders",
+      "boundary": "figure-data builders and result freeze \u2014 deterministic builders",
       "fixture_focus": "every visual-evidence family, lineage mismatch, hidden transform, changed parent, and replay",
-      "trigger": "builder/schema change + release", "case_budget": 8,
-      "hard_pass_condition": "figure data contains only frozen registered values with exact parent hashes", "case_notes": [] },
-    { "eval_id": "EV-P4-010", "kind": "contract", "owner": "PRD-004 — estimation coordinator",
-      "boundary": "graph restart, design-conflict return, observability, and PRD-005 handoff — estimation coordinator",
+      "trigger": "builder/schema change + release",
+      "case_budget": 8,
+      "hard_pass_condition": "figure data contains only frozen registered values with exact parent hashes",
+      "case_notes": []
+    },
+    {
+      "eval_id": "EV-P4-010",
+      "kind": "contract",
+      "owner": "PRD-004 \u2014 estimation coordinator",
+      "boundary": "graph restart, design-conflict return, observability, and PRD-005 handoff \u2014 estimation coordinator",
       "fixture_focus": "committed-boundary restarts, trace outages, semantic conflicts, result cardinality, and manifest mismatch",
-      "trigger": "graph/handoff/observability change + release", "case_budget": 8,
+      "trigger": "graph/handoff/observability change + release",
+      "case_budget": 8,
       "hard_pass_condition": "no duplicate estimate, only PRD-002 receives conflicts, and only exact frozen evidence advances",
       "case_notes": [
         "amendment_1 (PRD-004 SS26.1, D-083): the \"graph restart\" leg becomes rerun replay -- run twice, no duplicate artifacts, same terminal outcome; there is no checkpointer, `StateGraph`, or interrupt in this stage, and `graph_thread_id` remains a recorded identity for trace threading only. D-089d: that rerun leg is exercised once per registered pack (RCT, AIPW, DiD, sharp RDD) through the one coordinator over the four-adapter factory map the runtime constructs."
-      ] },
-    { "eval_id": "EV-P5-001", "kind": "policy", "owner": "PRD-005 — presentation coordinator",
-      "boundary": "entry, presentation context, catalog identity, and capacity — presentation coordinator",
-      "fixture_focus": "exact/stale handoff, missing evidence, catalog/version mismatch, boundary/overflow cardinalities, and trace preflight",
-      "trigger": "entry/catalog/capacity change + release", "case_budget": 8,
-      "hard_pass_condition": "curator starts only with exact frozen evidence and a passing catalog capacity check", "case_notes": [] },
-    { "eval_id": "EV-P5-002", "kind": "policy", "owner": "PRD-005 — curator and deterministic validator",
-      "boundary": "one-bundle curator — curator and deterministic validator",
-      "fixture_focus": "all method profiles, required/conditional evidence, unsupported annotations, hidden evidence, malformed schema, and correction exhaustion",
-      "trigger": "curator prompt/context/schema change + release", "case_budget": 8,
-      "hard_pass_condition": "one schema-valid complete plan using only registered evidence and templates", "case_notes": [] },
-    { "eval_id": "EV-P5-003", "kind": "contract", "owner": "PRD-005 — plan validator",
-      "boundary": "figure-plan and catalog validation — plan validator",
-      "fixture_focus": "panel/series/label/annotation limits, missing required figures, duplicated evidence, inaccessible plans, and template/layout statuses",
-      "trigger": "plan/catalog/validator change + release", "case_budget": 8,
-      "hard_pass_condition": "every required evidence item has an honest accepted destination or typed catalog-owner status", "case_notes": [] },
-    { "eval_id": "EV-P5-004", "kind": "contract", "owner": "PRD-005 — compiler",
-      "boundary": "deterministic compilation and `FigureSpec` hashing — compiler",
-      "fixture_focus": "every template family, forbidden transforms/remote assets/code, units/domains/references, parent drift, and replay",
-      "trigger": "compiler/template change + release", "case_budget": 8,
-      "hard_pass_condition": "semantically exact spec with identical hash for identical frozen inputs", "case_notes": [] },
-    { "eval_id": "EV-P5-005", "kind": "render", "owner": "PRD-005 — renderer",
-      "boundary": "pinned SVG/PNG rendering and accessibility — renderer",
-      "fixture_focus": "short/long/sparse/dense cases, clipping, font/theme fingerprints, contrast, descriptions, table parity, and same/cross-environment comparisons",
-      "trigger": "renderer/theme/font/accessibility change + release", "case_budget": 8,
-      "hard_pass_condition": "exact hashes in the pinned environment and registered semantic/tolerance parity elsewhere", "case_notes": [] },
-    { "eval_id": "EV-P5-006", "kind": "contract", "owner": "PRD-005 — presentation coordinator",
-      "boundary": "summary, bundle provenance, observability, export, and delivery — presentation coordinator",
-      "fixture_focus": "statement/value lineage, incomplete bundle, trace outage at every boundary, wrong export hash, existing destination, and replay",
-      "trigger": "summary/bundle/delivery change + release", "case_budget": 8,
-      "hard_pass_condition": "every visible claim/value resolves to frozen parents and only one complete verified bundle is deliverable", "case_notes": [] }
+      ]
+    },
+    {
+      "eval_id": "EV-P5-001",
+      "kind": "policy",
+      "owner": "PRD-005 \u2014 presentation coordinator",
+      "boundary": "exact input handoff",
+      "fixture_focus": "approved source lineage, method/role joins, missing versus failed evidence",
+      "trigger": "entry/catalog/capacity change + release",
+      "case_budget": 8,
+      "hard_pass_condition": "Reject malformed sources with expected/received values and owner; preserve exact approved identities.",
+      "case_notes": "Implemented under src/causal/post_analysis/tests; historical evaluation ID retained."
+    },
+    {
+      "eval_id": "EV-P5-002",
+      "kind": "policy",
+      "owner": "PRD-005 \u2014 curator and deterministic validator",
+      "boundary": "author agent",
+      "fixture_focus": "bounded LLM actions, diagnostic/sensitivity interpretation and source-bound visual choices",
+      "trigger": "curator prompt/context/schema change + release",
+      "case_budget": 8,
+      "hard_pass_condition": "Only validated tools write artifacts; no source repair or numerical reanalysis.",
+      "case_notes": "Implemented under src/causal/post_analysis/tests; historical evaluation ID retained."
+    },
+    {
+      "eval_id": "EV-P5-003",
+      "kind": "contract",
+      "owner": "PRD-005 \u2014 plan validator",
+      "boundary": "draft and coverage",
+      "fixture_focus": "cited report statements and coverage for every expected result",
+      "trigger": "plan/catalog/validator change + release",
+      "case_budget": 8,
+      "hard_pass_condition": "Missing citations or expected evidence blocks submission; changed drafts invalidate review.",
+      "case_notes": "Implemented under src/causal/post_analysis/tests; historical evaluation ID retained."
+    },
+    {
+      "eval_id": "EV-P5-004",
+      "kind": "contract",
+      "owner": "PRD-005 \u2014 compiler",
+      "boundary": "visual compilation",
+      "fixture_focus": "source values, units, intervals, DAG edges and row lineage",
+      "trigger": "compiler/template change + release",
+      "case_budget": 8,
+      "hard_pass_condition": "Render only supplied values and encodings supported by typed scientific inputs.",
+      "case_notes": "Implemented under src/causal/post_analysis/tests; historical evaluation ID retained."
+    },
+    {
+      "eval_id": "EV-P5-005",
+      "kind": "render",
+      "owner": "PRD-005 \u2014 renderer",
+      "boundary": "report rendering and review",
+      "fixture_focus": "actual final page previews, readable display and independent LLM review",
+      "trigger": "renderer/theme/font/accessibility change + release",
+      "case_budget": 8,
+      "hard_pass_condition": "Final pages preserve content; image-aware review binds the exact export bytes.",
+      "case_notes": "Implemented under src/causal/post_analysis/tests; historical evaluation ID retained."
+    },
+    {
+      "eval_id": "EV-P5-006",
+      "kind": "contract",
+      "owner": "PRD-005 \u2014 presentation coordinator",
+      "boundary": "post-analysis graph and release",
+      "fixture_focus": "bounded corrections, persisted budget, failure tracing, exact release and recovery",
+      "trigger": "summary/bundle/delivery change + release",
+      "case_budget": 8,
+      "hard_pass_condition": "Release only the passed dependency set after source/hash checks and acknowledged LangSmith flush; replay does not reset budget.",
+      "case_notes": "Implemented under src/causal/post_analysis/tests; historical evaluation ID retained."
+    }
   ]
 }

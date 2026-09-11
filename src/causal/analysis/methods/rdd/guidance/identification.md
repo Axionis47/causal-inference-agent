@@ -1,0 +1,3 @@
+A sharp regression discontinuity estimates a local effect at a substantively established assignment threshold. The threshold and running-variable units must come from the study, not from inspecting the outcome curve. Continuity of potential outcomes and the absence of other relevant changes at that threshold require scientific justification.
+
+The current numerical orientation treats the state at or above the cutoff as treated. Assignment must follow that rule for every row. Imperfect compliance is a different identification problem. Even a credible local discontinuity does not by itself justify extending the effect to units far from the cutoff.

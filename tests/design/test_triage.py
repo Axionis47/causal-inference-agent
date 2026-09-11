@@ -5,24 +5,26 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from pydantic import BaseModel, ValidationError
+from pydantic import ValidationError
 
-from causal.design.contracts import (
-    REGISTRY_VERSION_KEYS,
-    AvailabilityRowV1,
-    ConceptProposalV1,
-    DesignContextManifestV1,
-    DesignIntentV1,
-    QuestionKind,
-    StructuralFieldV1,
-)
-from causal.design.triage import (
+from causal.design.compile import (
+    BATCH_COLUMN_LIMIT,
     MAX_BATCHES,
     ColumnTriageRecordV1,
     TriageBatchV1,
     build_batches,
     normalize_column_name,
     triage,
+)
+from causal.design.contracts import (
+    REGISTRY_VERSION_KEYS,
+    AvailabilityRowV1,
+    ConceptProposalV1,
+    DesignContextManifestV1,
+    DesignIntentV1,
+    GrainSourceInterpretationV1,
+    QuestionKind,
+    StructuralFieldV1,
 )
 from causal.shared.contracts import ArtifactRef
 from causal.shared.registry import load_artifact_type_registry
@@ -35,11 +37,6 @@ TABLE = "nsw.csv"
 GOLDEN_COLUMNS = (
     "treat", "Re 78", "unit_id", "education", "black", "sample_row_id", "age", "married",
     "nodegree", "re74", "hispanic", "notes_blob", "stray_flag",
-)
-GOLDEN_RULES = (
-    "intent_candidate", "intent_candidate", "intent_candidate", "evidenced_meaning",
-    "flagged_by_profile", "flagged_by_profile", "profiled_only", "profiled_only", "profiled_only",
-    "profiled_only", "no_signal", "no_signal", "no_signal",
 )
 GOLDEN_MEASURED = GOLDEN_COLUMNS[:10]
 GOLDEN_HYPOTHESES = {
@@ -76,7 +73,6 @@ def manifest(
         measured_surface=tuple(availability(c, "profile", "measured") for c in measured),
         provenance_surface=(), retrieval_surfaces=("catalog.structural_manifest",),
         registry_versions=dict.fromkeys(REGISTRY_VERSION_KEYS, "artifact-types.v1"),
-        recipient_map={"design_intent": ("list_intake_inventory",)},
     )
 
 
@@ -93,7 +89,11 @@ def intent(
         outcome=proposal("outcome", "re_78"), population=proposal("population"),
         comparator=proposal("comparator"), unit=proposal("unit", *unit),
         timeframe=proposal("timeframe"), candidate_grain="one_row_per_unit",
-        mandatory_concepts=(), claims=(),
+        source_interpretations=(GrainSourceInterpretationV1(
+            fact_key="grain", value="one_row_per_unit",
+            evidence_id="ev:profile/nsw.csv#/columns/unit_id",
+            verbatim_excerpt="one row per unit", relation="direct"),),
+        mandatory_concepts=(),
     )
 
 
@@ -115,41 +115,28 @@ def golden_record() -> ColumnTriageRecordV1:
 
 
 class TestGoldenFixture:
-    def test_tiers_are_sorted_and_exhaustive(self) -> None:
+    def test_scope_is_bounded_and_exhaustive(self) -> None:
         record = golden_record()
         assert record.table_name == TABLE
         assert record.schema_version == "column-triage.v1"
-        assert record.triage_rule_version == "triage.v1"
-        assert record.tiers == {
-            "critical": ("Re 78", "treat", "unit_id"),
-            "plausible_adjustment": ("black", "education", "sample_row_id"),
-            "supporting": ("age", "married", "nodegree", "re74"),
-            "unused": ("hispanic", "notes_blob", "stray_flag"),
-        }
-
-    def test_match_trace_names_the_rule_that_placed_every_column(self) -> None:
-        assert golden_record().match_trace == dict(zip(GOLDEN_COLUMNS, GOLDEN_RULES, strict=True))
-
-    def test_deferred_is_supporting_plus_unused(self) -> None:
-        record = golden_record()
         assert record.deferred == ("age", "hispanic", "married", "nodegree", "notes_blob",
                                    "re74", "stray_flag")
-        assert {name for tier in record.tiers.values() for name in tier} == set(GOLDEN_COLUMNS)
+        scoped = {name for batch in record.batches for name in batch.column_names}
+        assert scoped | set(record.deferred) == set(GOLDEN_COLUMNS)
 
     def test_batches_take_critical_first_in_inventory_order(self) -> None:
         assert [batch.column_names for batch in golden_record().batches] == [
-            ("treat", "Re 78", "unit_id", "education"), ("black", "sample_row_id"),
-        ]
+            (name,) for name in ("treat", "Re 78", "unit_id", "education", "black", "sample_row_id")]
 
     def test_intent_beats_every_later_rule(self) -> None:
         record = triage(intent(treatment=("black",)), golden_record_manifest(), GOLDEN_HYPOTHESES)
-        assert record.match_trace["black"] == "intent_candidate"
-        assert "black" in record.tiers["critical"]
+        assert any("black" in batch.column_names for batch in record.batches)
 
     def test_without_hypotheses_flagged_columns_fall_to_supporting(self) -> None:
         record = triage(intent(), golden_record_manifest())
-        assert record.tiers["plausible_adjustment"] == ("education",)
-        assert {"black", "sample_row_id"} <= set(record.tiers["supporting"])
+        scoped = {name for batch in record.batches for name in batch.column_names}
+        assert "education" in scoped
+        assert {"black", "sample_row_id"} <= set(record.deferred)
 
 
 def golden_record_manifest() -> DesignContextManifestV1:
@@ -174,7 +161,16 @@ class TestDeterminism:
 
 
 class TestBatchCap:
-    def test_thirty_batchable_columns_fill_exactly_eight_batches(self) -> None:
+    @pytest.mark.parametrize("column_count", (12, 24))
+    def test_one_card_per_call_preserves_the_existing_total_column_capacity(
+        self, column_count: int,
+    ) -> None:
+        columns = tuple(f"c{index:02d}" for index in range(column_count))
+        record = triage(intent(treatment=columns, unit=()), manifest(columns))
+        assert [batch.column_names for batch in record.batches] == [(name,) for name in columns]
+        assert record.deferred == ()
+
+    def test_wide_semantic_scope_never_widens_a_batch_or_exceeds_fanout(self) -> None:
         columns = tuple(f"c{index:02d}" for index in range(30))
         record = triage(
             intent(treatment=columns[:15], unit=()),
@@ -185,67 +181,61 @@ class TestBatchCap:
         )
         assert len(record.batches) == MAX_BATCHES
         batched = [name for batch in record.batches for name in batch.column_names]
-        assert sorted(batched) == sorted(columns)
+        assert all(len(batch.column_names) <= BATCH_COLUMN_LIMIT for batch in record.batches)
+        assert batched == list(columns[:MAX_BATCHES * BATCH_COLUMN_LIMIT])
+        assert record.deferred == tuple(sorted(columns[MAX_BATCHES * BATCH_COLUMN_LIMIT:]))
         assert len(batched) == len(set(batched))
 
     def test_batch_count_stays_capped_and_empty_input_makes_no_batch(self) -> None:
         columns = tuple(f"x{index:03d}" for index in range(97))
         batches = build_batches(TABLE, columns, ())
         assert len(batches) <= MAX_BATCHES
-        assert sum(len(batch.column_names) for batch in batches) == len(columns)
+        assert all(len(batch.column_names) <= BATCH_COLUMN_LIMIT for batch in batches)
+        assert sum(len(batch.column_names) for batch in batches) == (
+            MAX_BATCHES * BATCH_COLUMN_LIMIT)
         assert build_batches(TABLE, (), ()) == ()
 
+    def test_an_external_record_cannot_bypass_the_per_batch_limit(self) -> None:
+        with pytest.raises(ValidationError, match=f"at most {BATCH_COLUMN_LIMIT}"):
+            TriageBatchV1(batch_id="tb:wide", column_names=("a", "b", "c", "d", "e"))
 
-TIERS: dict[str, tuple[str, ...]] = {
-    "critical": ("a",), "plausible_adjustment": ("b",), "supporting": ("c",), "unused": ("d",),
-}
+
 RECORD_KWARGS: dict[str, object] = {
     "table_name": TABLE,
-    "tiers": TIERS,
-    "batches": (TriageBatchV1(batch_id="tb:0123456789abcdef", column_names=("a", "b")),),
-    "deferred": ("c", "d"),
-    "match_trace": {
-        "a": "intent_candidate", "b": "evidenced_meaning", "c": "profiled_only", "d": "no_signal",
-    },
+    "batches": (TriageBatchV1(batch_id="tb:0123456789abcdef", column_names=("a",)),),
+    "deferred": ("b", "c", "d"),
 }
 
 
-NINE = tuple(f"c{index:02d}" for index in range(9))
-NINE_BATCHES: dict[str, object] = {
-    "tiers": {"critical": NINE, "plausible_adjustment": (), "supporting": (), "unused": ()},
+OVERFLOW = tuple(f"c{index:02d}" for index in range(MAX_BATCHES + 1))
+OVERFLOW_BATCHES: dict[str, object] = {
     "batches": tuple(
         TriageBatchV1(batch_id=f"tb:{index}", column_names=(name,))
-        for index, name in enumerate(NINE)
+        for index, name in enumerate(OVERFLOW)
     ),
     "deferred": (),
-    "match_trace": dict.fromkeys(NINE, "intent_candidate"),
 }
 REJECTED: tuple[tuple[str, dict[str, object]], ...] = (
-    ("overlaps", {"tiers": {**TIERS, "supporting": ("a", "c")}, "deferred": ("a", "c", "d")}),
-    ("sorted", {"tiers": {**TIERS, "supporting": ("e", "c")}, "deferred": ("c", "d", "e")}),
-    ("tiers key mismatch", {"tiers": {**TIERS, "extra": ()}}),
-    ("match_trace", {"match_trace": {"a": "intent_candidate"}}),
-    ("deferred", {"deferred": ("c",)}),
-    ("non-batchable", {"batches": (TriageBatchV1(batch_id="tb:0", column_names=("a", "c")),)}),
-    ("repeats", {"batches": (
-        TriageBatchV1(batch_id="tb:1", column_names=("a", "b")),
-        TriageBatchV1(batch_id="tb:2", column_names=("b",)),
+    ("distinct", {"deferred": ("a", "c", "d")}),
+    ("sorted", {"deferred": ("d", "c")}),
+    ("distinct", {"batches": (
+        TriageBatchV1(batch_id="tb:1", column_names=("a",)),
+        TriageBatchV1(batch_id="tb:2", column_names=("a",)),
     )}),
-    ("at most 8 batches", NINE_BATCHES),
+    (f"at most {MAX_BATCHES} batches", OVERFLOW_BATCHES),
 )
 
 
-def record(**overrides: object) -> BaseModel:
+def record(**overrides: object) -> ColumnTriageRecordV1:
     """Build the minimal valid record with per-test overrides (kwargs typed loosely)."""
-    model: type[BaseModel] = ColumnTriageRecordV1
-    return model(**{**RECORD_KWARGS, **overrides})
+    return ColumnTriageRecordV1(**{**RECORD_KWARGS, **overrides})  # type: ignore[arg-type]
 
 
 class TestRecordValidators:
     def test_minimal_record_is_valid(self) -> None:
         built = record()
         assert isinstance(built, ColumnTriageRecordV1)
-        assert built.deferred == ("c", "d")
+        assert built.deferred == ("b", "c", "d")
 
     @pytest.mark.parametrize(("message", "overrides"), REJECTED)
     def test_cross_field_rules_reject(self, message: str, overrides: dict[str, object]) -> None:

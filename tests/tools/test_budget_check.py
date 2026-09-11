@@ -59,7 +59,19 @@ class TestScopeAssignment:
             ("src/causal/design/harness.py", "design"),
             ("src/causal/preparation/harness.py", "preparation"),
             ("src/causal/estimation/adapters.py", "estimation"),
-            ("src/causal/presentation/coordinator.py", "presentation"),
+            ("src/causal/analysis/methods/rdd/estimation.py", "estimation"),
+            ("src/causal/analysis/tests/test_executor.py", "tests"),
+            ("src/causal/analysis/methods/aipw/tests/test_aipw.py", "tests"),
+            ("src/causal/analysis/integration/tests/support/coordinator.py", "tests"),
+            ("src/causal/analysis/integration/tests/fixtures/plan.json", "tests"),
+            ("conftest.py", "tests"),
+            ("src/causal/analysis/AGENTS.md", "declarative"),
+            ("src/causal/analysis/methods/rdd/SKILL.md", "declarative"),
+            ("src/causal/analysis/methods/rdd/guidance.md", "declarative"),
+            ("src/causal/analysis/integration/resources/method-pack-estimation.v1.json",
+             "declarative"),
+            ("src/causal/post_analysis/resources/author.v1.txt", "declarative"),
+            ("src/causal/post_analysis/graph.py", "presentation"),
             ("src/causal/__init__.py", "shared"),
             ("tests/shared/test_canonical.py", "tests"),
             ("tools/budget_check.py", "tests"),
@@ -75,7 +87,7 @@ class TestScopeAssignment:
     @pytest.mark.parametrize(
         "path",
         ["pyproject.toml", "uv.lock", "docs/LEDGER.md", ".claude/settings.json",
-         "CLAUDE.md", "assets/font.ttf"],
+         "CLAUDE.md", "src/causal/analysis/README.md", "assets/font.ttf", "evals/reports/run.json", "evals/review/run.json"],
     )
     def test_excluded_or_uncounted(self, path: str) -> None:
         assert bc.assign_scope(path) is None
@@ -163,6 +175,45 @@ class TestEndToEnd:
         assert report["changed_files"] == [
             "src/causal/cli/main.py", "tests/test_main.py"
         ]
+
+    def test_worktree_includes_untracked_and_skips_deleted_tracked_files(self,
+                                                                         repo: Path) -> None:
+        tracked = repo / "src/causal/cli/main.py"
+        tracked.unlink()
+        untracked = repo / "tests/test_untracked.py"
+        untracked.write_text("def test_new():\n    assert True\n")
+
+        files = bc.list_files(repo, None)
+
+        assert "src/causal/cli/main.py" not in files
+        assert "tests/test_untracked.py" in files
+        report = bc.build_report(repo, "T-TEST", "HEAD", None, True, None)
+        assert report["scopes"]["cli"]["actual"] == 0
+        assert report["scopes"]["tests"]["actual"] == 4
+
+    def test_colocation_preserves_scope_totals_and_production_module_count(self,
+                                                                           repo: Path) -> None:
+        locations = {
+            "src/causal/analysis/methods/rdd/estimation.py": "def fit():\n    return 1\n",
+            "src/causal/analysis/methods/rdd/tests/test_estimation.py":
+                "def test_fit():\n    assert True\n",
+            "src/causal/analysis/integration/resources/diagnostics.json": '{"checks": []}\n',
+            "src/causal/analysis/README.md": "Package documentation.\n",
+            "src/causal/analysis/methods/rdd/guidance.md": "Required causal checks.\n",
+            "conftest.py": 'pytest_plugins = ["tests.infrastructure"]\n',
+        }
+        for name, content in locations.items():
+            target = repo / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(content)
+        snapshot = bc.take_snapshot(repo, None)
+        totals = snapshot.scope_totals()
+        assert totals["estimation"] == 2
+        assert totals["tests"] == 5
+        assert totals["declarative"] == 2
+        assert snapshot.module_count == 2
+        assert snapshot.unassigned == []
+        assert "src/causal/analysis/README.md" not in snapshot.per_file
 
     def test_unassigned_file_blocks(self, repo: Path) -> None:
         (repo / "scripts").mkdir()

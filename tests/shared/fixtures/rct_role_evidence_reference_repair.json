@@ -1,0 +1,268 @@
+{
+  "source_capture_manifest": "output/four-verified-20260909/verification/rct-reference-reproduction/manifest.json",
+  "attempts": [
+    {
+      "attempt_id": "dt:dr:an-82bd653613239d1c:1:role_evidence:13082a08c1f5:1",
+      "request_file": "db3990d17325fdcee9b73e4fca8bab2d6fe1d02f0a9c6d73212cc22142b70965.request.json",
+      "request_sha256": "1ae62480596c42fb41894191e8b39d7176085eaa73579101e24234075ca5f38e",
+      "response_file": "db3990d17325fdcee9b73e4fca8bab2d6fe1d02f0a9c6d73212cc22142b70965.response.json",
+      "response_sha256": "83f06e3dcd67311af89cb76511eca2df54afafd960d361a9bd6ddde7c30b9144",
+      "decision": {
+        "status": "complete",
+        "payload": {
+          "schema_version": "role-evidence.v1",
+          "assigned_scope": [
+            "c:turnout_rate_of_registered_18__and_19_year_olds"
+          ],
+          "edge_hypotheses": [
+            {
+              "edge_id": "e:treatment_causes_outcome",
+              "source_concept_id": "c:rock_the_vote_television_advertising",
+              "target_concept_id": "c:turnout_rate_of_registered_18__and_19_year_olds",
+              "timeframe": "post_assignment_period",
+              "mechanism_summary": "Rock the Vote television advertising is hypothesized to increase the turnout rate of registered 18- and 19-year-olds, as per the study's primary causal claim and the randomized experimental design.",
+              "supporting_evidence_ids": [
+                "design_intent.causal_claim",
+                "ua:context/text",
+                "ev:doc/README.md"
+              ],
+              "contrary_evidence_ids": [],
+              "status": "evidenced",
+              "differing_alternative_ids": []
+            },
+            {
+              "edge_id": "e:outcome_causes_treatment",
+              "source_concept_id": "c:turnout_rate_of_registered_18__and_19_year_olds",
+              "target_concept_id": "c:rock_the_vote_television_advertising",
+              "timeframe": "unknown",
+              "mechanism_summary": "The turnout rate is measured post-assignment, while treatment assignment is randomized and occurs prior to turnout measurement. Therefore, the turnout rate cannot cause the treatment.",
+              "supporting_evidence_ids": [],
+              "contrary_evidence_ids": [
+                "ua:context/text",
+                "ev:doc/README.md"
+              ],
+              "status": "disputed",
+              "differing_alternative_ids": []
+            },
+            {
+              "edge_id": "e:outcome_influences_selection",
+              "source_concept_id": "c:turnout_rate_of_registered_18__and_19_year_olds",
+              "target_concept_id": "c:experimental_cable_systems",
+              "timeframe": "unknown",
+              "mechanism_summary": "The selection of cable systems into the experimental study (c:experimental_cable_systems) occurred prior to treatment assignment, while the turnout rate is a post-assignment outcome. Therefore, the turnout rate cannot influence selection into the study population.",
+              "supporting_evidence_ids": [],
+              "contrary_evidence_ids": [
+                "design_intent.population",
+                "ua:context/text"
+              ],
+              "status": "disputed",
+              "differing_alternative_ids": []
+            }
+          ],
+          "role_hypotheses": [
+            {
+              "role": "outcome",
+              "concept_id": "c:turnout_rate_of_registered_18__and_19_year_olds",
+              "column_refs": [
+                "turnout_rate"
+              ],
+              "evidence_ids": [
+                "design_intent.outcome",
+                "ua:context/text",
+                "ev:doc/README.md"
+              ],
+              "timing": "post_treatment",
+              "graph_edge_ids": [
+                "e:treatment_causes_outcome"
+              ],
+              "support_class": "direct_source_statement",
+              "alternatives": [],
+              "status": "evidenced",
+              "methods": [
+                "randomized_experiment"
+              ]
+            }
+          ],
+          "competing_mechanisms": []
+        },
+        "missing_requirements": [],
+        "conflicts": [],
+        "warnings": []
+      }
+    },
+    {
+      "attempt_id": "dt:dr:an-82bd653613239d1c:1:role_evidence:13082a08c1f5:2",
+      "request_file": "0fccd9b4d30716133b81914ae031527f416c1cc9815af72c6505684d091db3fe.request.json",
+      "request_sha256": "3dc214691fc1ca53ff3e7ee66eb5946d633a07bee2ac2b4bf0a08742807b26cf",
+      "response_file": "0fccd9b4d30716133b81914ae031527f416c1cc9815af72c6505684d091db3fe.response.json",
+      "response_sha256": "3b24226ab047ae3cc141fe079e04fe427be75e32bd31078cd36dac2176995090",
+      "decision": {
+        "status": "complete",
+        "payload": {
+          "assigned_scope": [
+            "c:turnout_rate_of_registered_18__and_19_year_olds"
+          ],
+          "edge_hypotheses": [
+            {
+              "edge_id": "e:treatment_causes_outcome",
+              "source_concept_id": "c:rock_the_vote_television_advertising",
+              "target_concept_id": "c:turnout_rate_of_registered_18__and_19_year_olds",
+              "timeframe": "post_assignment_period",
+              "mechanism_summary": "Rock the Vote television advertising is hypothesized to increase the turnout rate of registered 18- and 19-year-olds, as per the study's primary causal claim and the randomized experimental design.",
+              "supporting_evidence_ids": [
+                "ua:context/text",
+                "ev:doc/README.md"
+              ],
+              "contrary_evidence_ids": [],
+              "status": "evidenced",
+              "differing_alternative_ids": []
+            },
+            {
+              "edge_id": "e:outcome_causes_treatment",
+              "source_concept_id": "c:turnout_rate_of_registered_18__and_19_year_olds",
+              "target_concept_id": "c:rock_the_vote_television_advertising",
+              "timeframe": "unknown",
+              "mechanism_summary": "The turnout rate is measured post-assignment, while treatment assignment is randomized and occurs prior to turnout measurement. Therefore, the turnout rate cannot cause the treatment.",
+              "supporting_evidence_ids": [],
+              "contrary_evidence_ids": [
+                "ua:context/text",
+                "ev:doc/README.md"
+              ],
+              "status": "disputed",
+              "differing_alternative_ids": []
+            },
+            {
+              "edge_id": "e:outcome_influences_selection",
+              "source_concept_id": "c:turnout_rate_of_registered_18__and_19_year_olds",
+              "target_concept_id": "c:experimental_cable_systems",
+              "timeframe": "unknown",
+              "mechanism_summary": "The selection of cable systems into the experimental study (c:experimental_cable_systems) occurred prior to treatment assignment, while the turnout rate is a post-assignment outcome. Therefore, the turnout rate cannot influence selection into the study population.",
+              "supporting_evidence_ids": [],
+              "contrary_evidence_ids": [
+                "ua:context/text"
+              ],
+              "status": "disputed",
+              "differing_alternative_ids": []
+            }
+          ],
+          "role_hypotheses": [
+            {
+              "role": "outcome",
+              "concept_id": "c:turnout_rate_of_registered_18__and_19_year_olds",
+              "column_refs": [
+                "turnout_rate"
+              ],
+              "evidence_ids": [
+                "ua:context/text",
+                "ev:doc/README.md"
+              ],
+              "timing": "post_treatment",
+              "graph_edge_ids": [
+                "e:treatment_causes_outcome"
+              ],
+              "support_class": "direct_source_statement",
+              "alternatives": [],
+              "status": "evidenced",
+              "methods": [
+                "randomized_experiment"
+              ]
+            }
+          ],
+          "competing_mechanisms": []
+        },
+        "missing_requirements": [],
+        "conflicts": [],
+        "warnings": []
+      }
+    },
+    {
+      "attempt_id": "dt:dr:an-82bd653613239d1c:1:role_evidence:13082a08c1f5:3",
+      "request_file": "e17610bb2dfcd9dea9831cfc242ddbc79a472d4b95de236727a2746a1fcec97d.request.json",
+      "request_sha256": "2617634eb2fc76e51a043686834358ed3c7d1abdf71495687e72e16baede8d4f",
+      "response_file": "e17610bb2dfcd9dea9831cfc242ddbc79a472d4b95de236727a2746a1fcec97d.response.json",
+      "response_sha256": "d0f999b88f7d251da5a61d5d1d62f8063ebfcd6001aa0abb81327ef288e9cb68",
+      "decision": {
+        "status": "complete",
+        "payload": {
+          "schema_version": "role-evidence.v1",
+          "assigned_scope": [
+            "c:turnout_rate_of_registered_18__and_19_year_olds"
+          ],
+          "edge_hypotheses": [
+            {
+              "edge_id": "e:treatment_causes_outcome",
+              "source_concept_id": "c:rock_the_vote_television_advertising",
+              "target_concept_id": "c:turnout_rate_of_registered_18__and_19_year_olds",
+              "timeframe": "post_assignment_period",
+              "mechanism_summary": "Rock the Vote television advertising is hypothesized to increase the turnout rate of registered 18- and 19-year-olds, as per the study's primary causal claim and the randomized experimental design.",
+              "supporting_evidence_ids": [
+                "design_intent.causal_claim",
+                "ua:context/text",
+                "ev:doc/README.md"
+              ],
+              "contrary_evidence_ids": [],
+              "status": "evidenced",
+              "differing_alternative_ids": []
+            },
+            {
+              "edge_id": "e:outcome_causes_treatment",
+              "source_concept_id": "c:turnout_rate_of_registered_18__and_19_year_olds",
+              "target_concept_id": "c:rock_the_vote_television_advertising",
+              "timeframe": "unknown",
+              "mechanism_summary": "The turnout rate is measured post-assignment, while treatment assignment is randomized and occurs prior to turnout measurement. Therefore, the turnout rate cannot cause the treatment.",
+              "supporting_evidence_ids": [],
+              "contrary_evidence_ids": [
+                "ua:context/text",
+                "ev:doc/README.md"
+              ],
+              "status": "disputed",
+              "differing_alternative_ids": []
+            },
+            {
+              "edge_id": "e:outcome_influences_selection",
+              "source_concept_id": "c:turnout_rate_of_registered_18__and_19_year_olds",
+              "target_concept_id": "c:experimental_cable_systems",
+              "timeframe": "unknown",
+              "mechanism_summary": "The selection of cable systems into the experimental study (c:experimental_cable_systems) occurred prior to treatment assignment, while the turnout rate is a post-assignment outcome. Therefore, the turnout rate cannot influence selection into the study population.",
+              "supporting_evidence_ids": [],
+              "contrary_evidence_ids": [
+                "design_intent.population",
+                "ua:context/text"
+              ],
+              "status": "disputed",
+              "differing_alternative_ids": []
+            }
+          ],
+          "role_hypotheses": [
+            {
+              "role": "outcome",
+              "concept_id": "c:turnout_rate_of_registered_18__and_19_year_olds",
+              "column_refs": [
+                "turnout_rate"
+              ],
+              "evidence_ids": [
+                "design_intent.outcome",
+                "ua:context/text",
+                "ev:doc/README.md"
+              ],
+              "timing": "post_treatment",
+              "graph_edge_ids": [
+                "e:treatment_causes_outcome"
+              ],
+              "support_class": "direct_source_statement",
+              "alternatives": [],
+              "status": "evidenced",
+              "methods": [
+                "randomized_experiment"
+              ]
+            }
+          ],
+          "competing_mechanisms": []
+        },
+        "missing_requirements": [],
+        "conflicts": [],
+        "warnings": []
+      }
+    }
+  ]
+}

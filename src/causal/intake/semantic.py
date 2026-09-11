@@ -77,9 +77,7 @@ def build_evidence_bundle(
             add(f"ev:kaggle/column/{table}/{column}/description", "column", table,
                 column, "description", text)
     for name in sorted(documents):
-        text = documents[name]
-        if len(text.encode("utf-8")) > MAX_DOCUMENT_BYTES:
-            text = text.encode("utf-8")[:MAX_DOCUMENT_BYTES].decode("utf-8", "ignore")
+        text = documents[name].encode("utf-8")[:MAX_DOCUMENT_BYTES].decode("utf-8", "ignore")
         add(f"ev:doc/{name}", "dataset", None, None, name, text)
     return {"schema_version": "evidence-bundle.v1", "items": items}
 
@@ -90,9 +88,7 @@ def _meaning_slot(description: str | None, offered: bool, table: str, column: st
         return SemanticSlotV1(
             status=SemanticStatus.EVIDENCED, value=description, evidence_ids=(evidence_id,)
         )
-    if offered:
-        return SemanticSlotV1(status=SemanticStatus.EMPTY)
-    return SemanticSlotV1(status=SemanticStatus.NOT_OFFERED)
+    return SemanticSlotV1(status=SemanticStatus.EMPTY if offered else SemanticStatus.NOT_OFFERED)
 
 
 def _hypothesis_slot(profile_column: dict[str, object], kind: str) -> SemanticSlotV1 | None:

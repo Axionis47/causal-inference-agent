@@ -1,4 +1,4 @@
-"""The nineteen design artifact-type registry rows (T-009 §4, §6; T-011 §2; PRD-002 §6)."""
+"""The Design V2 artifact-type registry rows (T-036)."""
 
 from __future__ import annotations
 
@@ -15,21 +15,21 @@ DESIGN_TYPES = (
     "TableSelection", "DesignContextManifest", "DesignIntent", "ColumnTriageRecord",
     "ColumnSemanticCard",
     "MeasurementMap", "RoleEvidence", "CausalContext", "RoleLedger",
-    "PreRepairFeasibilityReport", "ExperimentDesign", "CausalGraphView", "DeliveryCapacityCheck",
+    "AgentDesignProposal", "DiagnosticObservationSet", "DesignFactSet", "DiagnosticPlan",
+    "DiagnosticReport",
+    "CompiledDesign", "CausalGraphView", "GraphViewSet", "CapacityReport", "DesignReviewBundle",
     "UserQuestionPacket", "UserContextAnswer", "TableSelectionDecision",
     "DesignApprovalDecision", "DesignApproval", "DesignOutcome",
 )
-# PRD-002 §6: the design stage's seven terminal statuses, in the order the PRD lists them.
 OUTCOME_STATUSES = (
-    "approved", "needs_context", "changes_requested", "declined", "refused",
-    "failed_observability", "failed",
+    "approved", "needs_context", "needs_data", "unsupported", "changes_requested", "declined",
+    "system_failure",
 )
 
 
 def test_registry_loads_with_the_design_rows_appended() -> None:
-    assert len(DESIGN_TYPES) == 19
-    # Append-only (D-012): the preparation, estimation, and presentation waves appended.
-    assert len(REGISTRY) == 57
+    assert len(DESIGN_TYPES) == 25
+    assert len(REGISTRY) == 70
 
 
 @pytest.mark.parametrize("artifact_type", DESIGN_TYPES)
@@ -44,9 +44,17 @@ class TestDesignRow:
 
     def test_validator_version_follows_the_schema_stem(self, artifact_type: str) -> None:
         row = REGISTRY.lookup(artifact_type)
-        stem = row.schema_version.removesuffix(".v1")
-        assert row.validator_version == f"{stem}-validator.v1"
+        stem, version = row.schema_version.rsplit(".", 1)
+        assert row.validator_version == f"{stem}-validator.{version}"
 
 
-def test_design_outcome_carries_the_seven_terminal_statuses() -> None:
+def test_design_outcome_carries_the_explicit_terminal_statuses() -> None:
     assert REGISTRY.lookup("DesignOutcome").terminal_statuses == OUTCOME_STATUSES
+
+
+def test_review_artifact_readers_are_least_privilege() -> None:
+    assert REGISTRY.lookup("CausalGraphView").allowed_reader_components == (
+        "design-harness", "presentation-coordinator", "post-analysis")
+    assert REGISTRY.lookup("GraphViewSet").allowed_reader_components == ("design-harness", "post-analysis")
+    assert REGISTRY.lookup("DesignReviewBundle").allowed_reader_components == (
+        "design-harness", "preparation-harness", "post-analysis")

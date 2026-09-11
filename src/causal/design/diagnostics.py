@@ -3,25 +3,30 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import math
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any, Final, NamedTuple
 
 import polars as pl
 
-from causal.design.frame import DiagnosticResultV1, DiagnosticStatus
+from causal.design import compiler_v2, statistics_v2
+from causal.design.contracts import DiagnosticResultV1, DiagnosticStatus
 from causal.design.packs import PREREPAIR_DIAGNOSTIC_IDS
+from causal.design.v2 import AgentDesignProposalV2, DiagnosticPlanV2
+from causal.shared.frames import ROW_UNIT_COLUMN
 from causal.shared.readers import BytesFrameSource, CsvObjectFrameSource, FrameSource, ObjectReader
 
-__all__ = [
-    "DIAGNOSTIC_SPECS", "IMPLEMENTATION_VERSION", "BytesFrameSource",
-    "CsvObjectFrameSource", "DiagnosticError", "DiagnosticSpec", "FrameSource",
-    "ObjectReader", "run_diagnostic",
-]
+__all__ = ["DIAGNOSTIC_SPECS", "DIAGNOSTIC_TOOL_CALL_LIMIT", "DIAGNOSTIC_TOOL_ID",
+    "IMPLEMENTATION_VERSION", "BytesFrameSource", "CsvObjectFrameSource", "DiagnosticError",
+    "DiagnosticSpec", "FrameSource", "ObjectReader", "diagnostic_result_id", "run_diagnostic",
+    "run_requested_diagnostics"]
 
-IMPLEMENTATION_VERSION: Final = "design-diagnostics.v1"
-DIAGNOSTIC_VERSION: Final = "prerepair-diagnostic.v1"
-UNKNOWN_DIAGNOSTIC: Final = "unknown_diagnostic"
+IMPLEMENTATION_VERSION, DIAGNOSTIC_VERSION = "design-diagnostics.v1", "prerepair-diagnostic.v1"
+UNKNOWN_DIAGNOSTIC, DIAGNOSTIC_TOOL_ID = "unknown_diagnostic", "run_statistical_diagnostic"
+DIAGNOSTIC_TOOL_CALL_LIMIT: Final = 4
+DIAGNOSTIC_NOT_ALLOWED, DIAGNOSTIC_ASSESSMENT_MISMATCH = "diagnostic_not_allowed", "diagnostic_assessment_mismatch"
+DIAGNOSTIC_TOOL_BUDGET_EXHAUSTED = "diagnostic_tool_budget_exhausted"
 # The closed eligibility-rule grammar (PRD-002 §15); one preview's rules are a conjunction.
 SIDE: Final = "side"  # the derived cutoff side, never a CSV column
 _ROW, _VALUE, _BAND = "__row_index", "__numeric_value", "__band"
@@ -42,11 +47,10 @@ class DiagnosticError(ValueError):
 
 
 class DiagnosticSpec(NamedTuple):
-    """One code-level diagnostic row: the primitive that runs and its default parameters."""
-
     diagnostic_id: str
     primitive: str
     default_params: Mapping[str, Any]
+    required_params: tuple[str, ...]
 
 
 # One primitive's values plus the exact row accounting it produced.
@@ -57,38 +61,24 @@ class _Outcome(NamedTuple):
     parse_failed: int = 0
 
 
-_DEFAULTS: Final[dict[str, dict[str, Any]]] = {
-    "count_by": {"columns": (), "cutoff": None, "running_column": None},
-    "missing_share": {"target": None, "by": (), "cutoff": None, "running_column": None},
-    "uniqueness": {"key_columns": ()}, "availability": {"columns": ()},
-    "level_profile": {"column": None, "max_levels": 20, "min_level_count": 5},
-    "numeric_support": {"column": None, "cutoff": None, "band": None, "top_values": 3},
-}
-_REQUIRED: Final[dict[str, tuple[str, ...]]] = {
-    "count_by": ("columns",), "missing_share": ("target",), "uniqueness": ("key_columns",),
-    "level_profile": ("column",), "numeric_support": ("column",), "availability": ("columns",)}
-# Every PRD-002 §13.1–§13.4 pre-repair id, mapped to the primitive reporting its raw inputs.
-_IDS_BY_PRIMITIVE: Final[dict[str, tuple[str, ...]]] = {
-    "count_by": ("arm_counts", "cluster_sizes", "power_precision_feasibility",
-                 "treatment_prevalence", "rough_overlap", "effective_sample_feasibility",
-                 "cross_fitting_feasibility", "group_time_counts", "panel_completeness",
-                 "adoption_cohorts", "composition", "clustering_feasibility",
-                 "cutoff_side_counts"),
-    "missing_share": ("outcome_missingness", "missingness", "missingness_by_group_time",
-                      "missingness_by_side_and_distance"),
-    "uniqueness": ("assignment_unit_uniqueness", "unit_period_uniqueness", "duplicates"),
-    "level_profile": ("level_sparsity",),
-    "numeric_support": ("distance_to_cutoff_support", "mass_points",
-                        "density_manipulation_warnings", "bandwidth_feasibility"),
-    "availability": ("baseline_availability", "compliance_availability",
-                     "covariate_availability", "pre_period_availability")}
+_PRIMITIVE_SPECS: Final[dict[str, tuple[dict[str, Any], tuple[str, ...]]]] = {
+    "count_by": ({"columns": (), "cutoff": None, "running_column": None}, ("columns",)),
+    "missing_share": ({"target": None, "by": (), "cutoff": None, "running_column": None}, ("target",)),
+    "uniqueness": ({"key_columns": ()}, ("key_columns",)), "availability": ({"columns": ()}, ("columns",)),
+    "level_profile": ({"column": None, "max_levels": 20, "min_level_count": 5}, ("column",)),
+    "numeric_support": ({"column": None, "cutoff": None, "band": None, "top_values": 3}, ("column",)),
+    "power_precision": ({"columns": (), "target": None}, ("columns", "target")),
+    "rough_overlap": ({"target": None, "columns": ()}, ("target", "columns")),
+    "panel_structure": ({"key_columns": ()}, ("key_columns",)),
+    "did_support": ({"key_columns": (), "target": None, "adoption_time": None}, ("key_columns", "target", "adoption_time")),
+    "rdd_assignment": ({"running_column": None, "target": None, "cutoff": None}, ("running_column", "target", "cutoff"))}
 _OVERRIDES: Final[dict[str, dict[str, Any]]] = {
-    "cutoff_side_counts": {"columns": (SIDE,)},
     "missingness_by_side_and_distance": {"by": (SIDE,)}}
 DIAGNOSTIC_SPECS: Final[dict[str, DiagnosticSpec]] = {
-    identity: DiagnosticSpec(identity, primitive,
-                             _DEFAULTS[primitive] | _OVERRIDES.get(identity, {}))
-    for primitive, ids in _IDS_BY_PRIMITIVE.items() for identity in ids}
+    identity: DiagnosticSpec(identity, recipe.primitive, defaults | _OVERRIDES.get(identity, {}),
+                             required)
+    for identity, recipe in compiler_v2.DIAGNOSTIC_RECIPES.items()
+    for defaults, required in (_PRIMITIVE_SPECS[recipe.primitive],)}
 if set(DIAGNOSTIC_SPECS) != set(PREREPAIR_DIAGNOSTIC_IDS):
     raise RuntimeError("DIAGNOSTIC_SPECS must cover exactly the pre-repair diagnostic vocabulary")
 
@@ -107,31 +97,35 @@ def _number(value: object) -> float | None:
 
 # The rows a primitive may aggregate (every selection column non-null) and their row indices.
 def _used(frame: pl.DataFrame, columns: Sequence[str]) -> tuple[pl.DataFrame, list[int]]:
-    indexed = frame.with_row_index(_ROW)
-    used = indexed.drop_nulls(subset=list(columns)) if columns else indexed
+    used = (frame.with_row_index(_ROW).drop_nulls(subset=list(columns))
+            if columns else frame.with_row_index(_ROW))
     return used, [int(value) for value in used[_ROW]]
 
 
 # Group sizes: arms, clusters, group-time cells, adoption cohorts, cutoff sides.
 def _count_by(frame: pl.DataFrame, params: Mapping[str, Any]) -> _Outcome:
-    columns = list(params["columns"])
-    used, kept = _used(frame, columns)
-    counts = used.group_by(columns).len().sort(columns)
-    cells = math.prod(int(used[name].n_unique()) for name in columns)
+    # Several causal roles may name one measurement; it remains one grouping dimension.
+    used, kept = _used(frame, columns := list(dict.fromkeys(params["columns"])))
+    counts, cells = (used.group_by(columns).len().sort(columns),
+                     math.prod(int(used[name].n_unique()) for name in columns))
+    sizes = [int(value) for value in counts["len"]] if counts.height else []
     values: _Values = {"row_count": used.height, "group_count": counts.height,
-                       "expected_cells": cells, "cell_completeness": _share(counts.height, cells)}
+                       "expected_cells": cells, "cell_completeness": _share(counts.height, cells),
+                       "minimum_group_count": min(sizes, default=0),
+                       "maximum_group_count": max(sizes, default=0)}
+    values.update({f"distinct_count:{name}": int(used[name].n_unique()) for name in columns})
     for row in counts.head(_MAX_GROUPS).iter_rows():
         values[f"count:{_key(row[:-1])}"] = int(row[-1])
-    warnings = (f"only the first {_MAX_GROUPS} groups are reported",)
-    return _Outcome(values, warnings if counts.height > _MAX_GROUPS else (), kept)
+    return _Outcome(values, (f"only the first {_MAX_GROUPS} groups are reported",)
+                    if counts.height > _MAX_GROUPS else (), kept)
 
 
 # Missing share of one target column, overall and inside each requested group.
 def _missing_share(frame: pl.DataFrame, params: Mapping[str, Any]) -> _Outcome:
     target, by = str(params["target"]), list(params["by"])
     used, kept = _used(frame, by)
-    missing = int(used[target].null_count())
-    values: _Values = {"row_count": used.height, "missing_count": missing,
+    values: _Values = {"row_count": used.height,
+                       "missing_count": (missing := int(used[target].null_count())),
                        "non_null_count": used.height - missing,
                        "missing_share": _share(missing, used.height)}
     if by:
@@ -146,8 +140,7 @@ def _missing_share(frame: pl.DataFrame, params: Mapping[str, Any]) -> _Outcome:
 
 # Distinct and repeated key counts over the rows whose key columns are complete.
 def _uniqueness(frame: pl.DataFrame, params: Mapping[str, Any]) -> _Outcome:
-    keys = list(params["key_columns"])
-    used, kept = _used(frame, keys)
+    used, kept = _used(frame, keys := list(params["key_columns"]))
     distinct = int(used.select(keys).n_unique())
     repeated = used.height - distinct
     values: _Values = {"row_count": used.height, "distinct_key_count": distinct,
@@ -157,8 +150,8 @@ def _uniqueness(frame: pl.DataFrame, params: Mapping[str, Any]) -> _Outcome:
 
 # Level counts and sparsity for one categorical column.
 def _level_profile(frame: pl.DataFrame, params: Mapping[str, Any]) -> _Outcome:
-    column, cap = str(params["column"]), int(params["max_levels"])
-    floor_count = int(params["min_level_count"])
+    column, cap, floor_count = (str(params["column"]), int(params["max_levels"]),
+                                int(params["min_level_count"]))
     used, kept = _used(frame, [column])
     counts = used[column].value_counts().sort([column])
     sizes = [int(row[1]) for row in counts.iter_rows()]
@@ -167,8 +160,8 @@ def _level_profile(frame: pl.DataFrame, params: Mapping[str, Any]) -> _Outcome:
                        "min_level_count": min(sizes, default=0)}
     for row in counts.head(cap).iter_rows():
         values[f"level:{_key(row[:1])}"] = int(row[1])
-    warnings = (f"only the first {cap} levels are reported",)
-    return _Outcome(values, warnings if counts.height > cap else (), kept)
+    return _Outcome(values, (f"only the first {cap} levels are reported",)
+                    if counts.height > cap else (), kept)
 
 
 # Range, quantiles, repeated mass points, cutoff support, and a bounded distance histogram.
@@ -177,8 +170,7 @@ def _numeric_support(frame: pl.DataFrame, params: Mapping[str, Any]) -> _Outcome
     indexed = frame.with_row_index(_ROW).with_columns(
         pl.col(column).cast(pl.Float64, strict=False).alias(_VALUE))
     parse_failed = int(indexed[_VALUE].null_count()) - int(frame[column].null_count())
-    used = indexed.drop_nulls(subset=[_VALUE])
-    series = used[_VALUE]
+    series = (used := indexed.drop_nulls(subset=[_VALUE]))[_VALUE]
     low, high = _number(series.min()), _number(series.max())
     values: _Values = {"row_count": used.height, "min": low, "max": high}
     for quantile in _QUANTILES:
@@ -208,16 +200,26 @@ def _numeric_support(frame: pl.DataFrame, params: Mapping[str, Any]) -> _Outcome
 def _availability(frame: pl.DataFrame, params: Mapping[str, Any]) -> _Outcome:
     values: _Values = {"row_count": frame.height}
     for name in params["columns"]:
-        count = int(frame[str(name)].count())
-        values[f"non_null_count:{name}"] = count
-        values[f"non_null_share:{name}"] = _share(count, frame.height)
+        values.update({f"non_null_count:{name}": (count := int(frame[str(name)].count())),
+                       f"non_null_share:{name}": _share(count, frame.height)})
     return _Outcome(values, (), None)
+
+
+def _statistic(function: Callable[[pl.DataFrame, Mapping[str, Any]], tuple[Any, ...]],
+               ) -> Callable[[pl.DataFrame, Mapping[str, Any]], _Outcome]:
+    def run(frame: pl.DataFrame, params: Mapping[str, Any]) -> _Outcome:
+        return _Outcome(*function(frame, params))
+    return run
 
 
 _PRIMITIVES: Final[dict[str, Callable[[pl.DataFrame, Mapping[str, Any]], _Outcome]]] = {
     "count_by": _count_by, "missing_share": _missing_share, "uniqueness": _uniqueness,
     "level_profile": _level_profile, "numeric_support": _numeric_support,
-    "availability": _availability}
+    "availability": _availability,
+    **{name: _statistic(fn) for name, fn in {
+        "power_precision": statistics_v2.power_precision, "rough_overlap": statistics_v2.rough_overlap,
+        "panel_structure": statistics_v2.panel_structure, "did_support": statistics_v2.did_support,
+        "rdd_assignment": statistics_v2.rdd_assignment}.items()}}
 
 
 # Add the derived `side` column when a running column and a cutoff were both resolved.
@@ -225,9 +227,8 @@ def _with_side(frame: pl.DataFrame, params: Mapping[str, Any]) -> pl.DataFrame:
     running, cutoff = params.get("running_column"), params.get("cutoff")
     if running is None or cutoff is None:
         return frame
-    value = pl.col(str(running))
     return frame.with_columns(
-        pl.when(value.is_null()).then(pl.lit(None, dtype=pl.String))
+        pl.when((value := pl.col(str(running))).is_null()).then(pl.lit(None, dtype=pl.String))
         .when(value >= float(cutoff)).then(pl.lit("at_or_above"))
         .otherwise(pl.lit("below")).alias(SIDE))
 
@@ -253,10 +254,6 @@ def _resolve(
     return resolved, present, missing
 
 
-def _row_hash(kept: list[int]) -> str:
-    return hashlib.sha256(",".join(str(index) for index in sorted(kept)).encode()).hexdigest()
-
-
 def run_diagnostic(
     spec_id: str, source: FrameSource, params: Mapping[str, Any] | None = None
 ) -> DiagnosticResultV1:
@@ -265,13 +262,20 @@ def run_diagnostic(
     if spec is None:
         raise DiagnosticError(f"unknown diagnostic {spec_id!r}", UNKNOWN_DIAGNOSTIC)
     frame = source.frame()
+    call_params = {**spec.default_params, **(params or {})}
+    requested = {str(name) for key in _LIST_KEYS for name in (call_params.get(key) or ())}
+    if ROW_UNIT_COLUMN in requested and ROW_UNIT_COLUMN not in frame.columns:
+        frame = frame.with_row_index(ROW_UNIT_COLUMN)
     total = frame.height
-    resolved, present, missing = _resolve(frame, {**spec.default_params, **(params or {})})
+    resolved, present, missing = _resolve(frame, call_params)
+    if spec.primitive == "panel_structure" and not resolved.get("key_columns"):
+        resolved["key_columns"] = resolved.get("columns") or ()
     warnings = [f"requested column {name!r} is absent from the selected CSV" for name in missing]
     outcome, used = _Outcome({}, (), None), 0
     unused: dict[str, int] = {}
     status = DiagnosticStatus.NOT_COMPUTABLE
-    if absent := [key for key in _REQUIRED[spec.primitive] if not resolved.get(key)]:
+    if absent := [key for key in spec.required_params
+                  if resolved.get(key) in (None, "", (), [])]:
         warnings.append(f"{spec_id} cannot run without {absent}")
     else:
         outcome = _PRIMITIVES[spec.primitive](_with_side(frame, resolved), resolved)
@@ -282,11 +286,37 @@ def run_diagnostic(
         if excluded := total - used - outcome.parse_failed:
             unused["null_excluded"] = excluded
         warnings.extend(outcome.warnings)
-    selected = outcome.kept is not None and used < total
     return DiagnosticResultV1(
         diagnostic_id=spec_id, diagnostic_version=DIAGNOSTIC_VERSION, status=status,
         csv_artifact=source.csv_ref(), columns_read=tuple(dict.fromkeys(present)),
         total_rows=total, used_rows=used, unused_reason_counts=unused,
-        row_set_hash=_row_hash(outcome.kept) if selected and outcome.kept else None,
+        row_set_hash=(hashlib.sha256(",".join(str(i) for i in sorted(outcome.kept)).encode()).hexdigest()
+                      if outcome.kept and used < total else None),
         values=outcome.values, warnings=tuple(warnings),
         implementation_version=IMPLEMENTATION_VERSION)
+
+
+def diagnostic_result_id(result: DiagnosticResultV1) -> str:
+    """Stable handle for one observed result; distinct from its registered diagnostic name."""
+    encoded = json.dumps(result.model_dump(mode="json"), sort_keys=True, separators=(",", ":"))
+    return f"dr:{result.diagnostic_id}:{hashlib.sha256(encoded.encode()).hexdigest()[:24]}"
+
+
+def run_requested_diagnostics(
+    proposal: AgentDesignProposalV2, plan: DiagnosticPlanV2, source: FrameSource,
+    observed: Sequence[DiagnosticResultV1] = (),
+) -> tuple[DiagnosticResultV1, ...]:
+    prior = tuple(row.diagnostic_id for row in observed)
+    assessed = tuple(row.diagnostic_result_id for row in proposal.diagnostic_assessments)
+    result_ids = tuple(diagnostic_result_id(row) for row in observed)
+    requested = proposal.requested_diagnostic_ids
+    if any(len(ids) != len(set(ids)) for ids in (prior, assessed, requested)) or set(assessed) != set(result_ids):
+        raise DiagnosticError("assess exactly the observed diagnostics", DIAGNOSTIC_ASSESSMENT_MISMATCH)
+    if len(prior) + len(requested) > DIAGNOSTIC_TOOL_CALL_LIMIT:
+        raise DiagnosticError("diagnostic tool-call budget exhausted", DIAGNOSTIC_TOOL_BUDGET_EXHAUSTED)
+    planned = {row.diagnostic_id: row for row in plan.items}
+    if refused := set(requested) - set(planned) | set(requested) & set(prior):
+        raise DiagnosticError(f"diagnostics not allowed: {sorted(refused)}", DIAGNOSTIC_NOT_ALLOWED)
+    return tuple(run_diagnostic(item.diagnostic_id, source,
+                                compiler_v2.diagnostic_parameters(item))
+                 for item in (planned[diagnostic_id] for diagnostic_id in requested))

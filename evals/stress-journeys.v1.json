@@ -1,0 +1,81 @@
+{
+  "schema_version": "stress-journey-fixtures.v1",
+  "cases": [
+    {
+      "case_id": "resume_audit_rct",
+      "family": "randomized_experiment",
+      "context_variants": ["rich", "sparse"],
+      "eval_id": "EV-STRESS-001",
+      "source": {
+        "kind": "url",
+        "url": "https://raw.githubusercontent.com/vincentarelbundock/Rdatasets/1dcc2bf5f955cc1224a3e1307256e1fe86b68dae/csv/AER/ResumeNames.csv",
+        "version": "Rdatasets@1dcc2bf5f955cc1224a3e1307256e1fe86b68dae",
+        "sha256": "9ece4fea6e77a3fa7ed8737ced8b02250b6b768d9cd15be26360e00a4c29e1aa",
+        "provenance": "Bertrand-Mullainathan randomized resume correspondence experiment, AER ResumeNames snapshot"
+      },
+      "file_name": "resume_audit.csv",
+      "question": "What is the intention-to-treat effect of randomized Black-sounding rather than White-sounding names on employer callbacks?",
+      "context": "Names were randomly assigned to otherwise fictional resumes. treatment equals 1 for a Black-sounding name and 0 for a White-sounding name. callback is a post-assignment binary outcome, resume_id identifies a submitted resume, and baseline_experience is a pre-assignment resume attribute. Estimate ITT for treatment=1 versus treatment=0 at one row per submitted resume.",
+      "expected_initial_question_ids": [],
+      "answers": {},
+      "transform": "resume_audit_projection_v1"
+    },
+    {
+      "case_id": "nhefs_aipw",
+      "family": "aipw",
+      "context_variants": ["rich", "sparse"],
+      "eval_id": "EV-STRESS-002",
+      "source": {
+        "kind": "url",
+        "url": "https://raw.githubusercontent.com/vincentarelbundock/Rdatasets/1dcc2bf5f955cc1224a3e1307256e1fe86b68dae/csv/causaldata/nhefs_complete.csv",
+        "version": "Rdatasets@1dcc2bf5f955cc1224a3e1307256e1fe86b68dae",
+        "sha256": "e29d98d35265a96e17793449434ea37a690507885be91b5ca676d8289aae612d",
+        "provenance": "NHEFS complete-case observational smoking-cessation cohort from causaldata"
+      },
+      "file_name": "nhefs.csv",
+      "question": "What is the ATE of quitting smoking by 1982 on weight change from 1971 to 1982?",
+      "context": "This is an observational cohort, not randomized. treatment is qsmk recoded as 1 for quitting and 0 for not quitting; weight_change is wt82_71 in kilograms; participant_id identifies a person. The approved pre-exposure adjustment set is age, sex, race, education, smokeintensity, smokeyrs, exercise, active, and wt71. Estimate ATE for treatment=1 versus treatment=0 in the frozen complete-case cohort. Positivity, consistency, and no unmeasured confounding remain assumptions.",
+      "expected_initial_question_ids": [],
+      "answers": {},
+      "transform": "nhefs_projection_v1"
+    },
+    {
+      "case_id": "card_krueger_did",
+      "family": "did",
+      "context_variants": ["rich", "sparse"],
+      "eval_id": "EV-STRESS-003",
+      "source": {
+        "kind": "url",
+        "url": "https://davidcard.berkeley.edu/data_sets/njmin.zip",
+        "version": "official-njmin-archive-sha256-41a29aec",
+        "sha256": "41a29aec6b489658b20030d044a2b20a5f5a04b871cde41df057afd6013ba587",
+        "provenance": "Card-Krueger 1994 New Jersey/Pennsylvania fast-food restaurant survey archive"
+      },
+      "file_name": "card_krueger_panel.csv",
+      "question": "What is the simultaneous-adoption DiD ATT of New Jersey's 1992 minimum-wage increase on restaurant full-time-equivalent employment?",
+      "context": "The source has one restaurant per record and two survey waves; the pinned transform makes a long panel. restaurant_id identifies a restaurant and is also the clustering unit, period is 0 before and 1 after, state is 1 for New Jersey and 0 for Pennsylvania, treatment is active exposure equal to 1 only for New Jersey after the increase, and fte_employment is the outcome. Adoption is period 1 for New Jersey; Pennsylvania is the comparison group. Use restaurant_id plus period grain. Parallel trends is required and is not proven by these two periods.",
+      "expected_initial_question_ids": [],
+      "answers": {},
+      "transform": "card_krueger_panel_v1"
+    },
+    {
+      "case_id": "head_start_rdd",
+      "family": "sharp_rdd",
+      "context_variants": ["rich", "sparse"],
+      "eval_id": "EV-STRESS-004",
+      "source": {
+        "kind": "url",
+        "url": "https://raw.githubusercontent.com/rdpackages-replication/CCF_2020_ECTJ/a6e699a5b7937ce72f3c5229ba265816c776b4fc/headstart.csv",
+        "version": "CCF_2020_ECTJ@a6e699a5b7937ce72f3c5229ba265816c776b4fc",
+        "sha256": "5af1328bfd53087adaa115cac0ace8e8c09c664469f437fdb2864e946376650e",
+        "provenance": "Ludwig-Miller Head Start county RDD data in the Calonico-Cattaneo-Farrell replication"
+      },
+      "file_name": "head_start.csv",
+      "question": "What is the local reduced-form effect at the Head Start poverty cutoff of grant-writing assistance eligibility on child mortality related to Head Start services?",
+      "context": "poverty_rate_1960 is the running variable, the fixed cutoff is exactly 59.1984, eligibility is assigned sharply at poverty_rate_1960 greater than or equal to 59.1984, treatment is that binary eligibility indicator, and child_mortality is the post-program outcome. county_id identifies a county and each row is one county. Estimate only the local sharp-RDD reduced-form effect of grant-writing assistance eligibility above versus below the cutoff, not the effect of funding, participation, or service receipt.",
+      "expected_initial_question_ids": [],
+      "answers": {},
+      "transform": "head_start_projection_v1"
+    }
+  ]
+}

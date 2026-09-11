@@ -1,0 +1,319 @@
+{
+  "registry_version": "method-pack-estimation.v1",
+  "packs": [
+    {
+      "method_id": "randomized_experiment",
+      "pack_version": "randomized-experiment-pack.v1",
+      "estimator_id": "itt_contrast_estimator",
+      "estimator_version": "itt-contrast-estimator.v1",
+      "parameter_defaults": {
+        "specification": "ancova_when_baseline_approved", "outcome_scale": "difference",
+        "stratum_handling": "fixed_effects", "cluster_covariance": "cluster_robust_cr1",
+        "minimum_clusters": 8, "mask_rule_id": "outcome_observed",
+        "multiplicity_policy_id": "holm_step_down.v1"
+      },
+      "estimator_input_schema": {
+        "treatment": ["categorical", "binary"], "outcome": ["numeric", "binary"],
+        "unit_identifier": ["identifier"], "stratum": ["categorical"],
+        "cluster": ["identifier"], "precision_covariate": ["numeric", "categorical"]
+      },
+      "allowed_mask_rule_ids": ["outcome_observed", "arm_membership", "stratum_cell"],
+      "uncertainty_method": "analytic_robust_variance",
+      "finite_sample_correction": "hc2_cr1",
+      "confidence_level": 0.95,
+      "estimator_profiles": [],
+      "nuisance_profiles": [],
+      "fold_count_default": null,
+      "required_diagnostics": [
+        {"diagnostic_id": "randomization_unit_reconciliation",
+         "severity": "required_blocking", "threshold_params": {}},
+        {"diagnostic_id": "arm_cluster_stratum_contribution_counts",
+         "severity": "required_blocking", "threshold_params": {}},
+        {"diagnostic_id": "baseline_balance", "severity": "descriptive", "threshold_params": {}},
+        {"diagnostic_id": "outcome_attrition_by_arm", "severity": "qualification_guard",
+         "threshold_params": {"max_overall_attrition": 0.2, "max_differential_attrition": 0.1}},
+        {"diagnostic_id": "covariance_cluster_adequacy", "severity": "invalidation_guard",
+         "threshold_params": {"minimum_clusters": 8}},
+        {"diagnostic_id": "influential_cluster_leverage", "severity": "qualification_guard",
+         "threshold_params": {"max_single_cluster_leverage_share": 0.25}},
+        {"diagnostic_id": "model_convergence_integrity", "severity": "required_blocking", "threshold_params": {}},
+        {"diagnostic_id": "multiplicity_handling", "severity": "required_blocking", "threshold_params": {}}
+      ],
+      "sensitivity_branches": [
+        {"branch_id": "unadjusted_itt", "purpose": "unadjusted against approved adjusted ITT",
+         "parameter_delta": {"specification": "difference_in_means"},
+         "comparison_rule_id": "sign_and_interval_stability"},
+        {"branch_id": "sensitivity_covariance_profile",
+         "purpose": "prespecified alternative covariance profile",
+         "parameter_delta": {"cluster_covariance": "cluster_robust_cr3"},
+         "comparison_rule_id": "interval_width_stability"},
+        {"branch_id": "leave_one_cluster_out", "purpose": "cluster influence summary",
+         "parameter_delta": {"influence_summary": "leave_one_cluster_out"},
+         "comparison_rule_id": "influence_stability"},
+        {"branch_id": "bounded_missing_outcome", "purpose": "bounded attrition sensitivity",
+         "parameter_delta": {"missing_outcome_rule": "bounded_worst_case"},
+         "comparison_rule_id": "bound_containment"},
+        {"branch_id": "approved_subgroup_contrast", "purpose": "subgroups declared in the design",
+         "parameter_delta": {"subgroup_scope": "approved_design_subgroups"},
+         "comparison_rule_id": "descriptive_only"}
+      ],
+      "figure_builder_ids": [
+        "assignment_attrition_counts", "arm_summary_table", "balance_measures",
+        "primary_contrast_intervals", "multiplicity_disclosure"
+      ],
+      "not_estimable_rule_ids": [
+        "arm_without_contributing_rows", "comparator_without_contributing_rows",
+        "outcome_never_observed"
+      ],
+      "invalidation_rule_ids": [
+        "post_randomization_exclusion_detected", "cluster_mapping_unresolved",
+        "multiplicity_policy_missing"
+      ]
+    },
+    {
+      "method_id": "aipw",
+      "pack_version": "aipw-pack.v1",
+      "estimator_id": "aipw_score_estimator",
+      "estimator_version": "aipw-score-estimator.v1",
+      "parameter_defaults": {
+        "estimand": "ate", "propensity_bound": 0.01, "aggregation": "cross_fit_influence_mean",
+        "nuisance_profile_id": "regularized_glm", "mask_rule_id": "cross_fit_predicted",
+        "fold_assignment_rule_id": "stratified_by_treatment_and_cluster"
+      },
+      "estimator_input_schema": {
+        "treatment": ["binary"], "outcome": ["numeric", "binary"],
+        "unit_identifier": ["identifier"], "adjustment_covariate": ["numeric", "categorical"],
+        "missingness_indicator": ["binary"], "cluster": ["identifier"]
+      },
+      "estimator_role_aliases": {"confounder_candidate": "adjustment_covariate", "precision_covariate": "adjustment_covariate"},
+      "allowed_mask_rule_ids": [
+        "outcome_observed", "cross_fit_predicted", "approved_target_population"
+      ],
+      "uncertainty_method": "influence_function_variance",
+      "finite_sample_correction": "cross_fit_degrees_of_freedom",
+      "confidence_level": 0.95,
+      "estimator_profiles": [],
+      "nuisance_profiles": [
+        {"profile_id": "regularized_glm", "role": "primary",
+         "propensity_learner": "sklearn_logistic_regression_l2",
+         "outcome_learner": "sklearn_ridge_regression_l2",
+         "hyperparameters": {"regularization_c": 1.0, "max_iter": 1000, "standardize": true,
+                             "random_state": 0}},
+        {"profile_id": "histogram_gradient_boosting", "role": "sensitivity",
+         "propensity_learner": "sklearn_hist_gradient_boosting_classifier",
+         "outcome_learner": "sklearn_hist_gradient_boosting_regressor",
+         "hyperparameters": {"max_iter": 200, "learning_rate": 0.1, "max_leaf_nodes": 31,
+                             "early_stopping": true, "random_state": 0}}
+      ],
+      "fold_count_default": 5,
+      "required_diagnostics": [
+        {"diagnostic_id": "fold_assignment_treatment_support",
+         "severity": "required_blocking", "threshold_params": {}},
+        {"diagnostic_id": "nuisance_calibration_performance", "severity": "qualification_guard",
+         "threshold_params": {"max_calibration_slope_deviation": 0.25}},
+        {"diagnostic_id": "propensity_common_support", "severity": "invalidation_guard",
+         "threshold_params": {"min_propensity": 0.01, "max_propensity": 0.99,
+                              "max_out_of_support_share": 0.05}},
+        {"diagnostic_id": "weight_tail_effective_sample", "severity": "qualification_guard",
+         "threshold_params": {"min_effective_sample_fraction": 0.3, "max_single_weight_share": 0.1}},
+        {"diagnostic_id": "weighted_covariate_balance", "severity": "qualification_guard",
+         "threshold_params": {"max_standardized_difference": 0.1}},
+        {"diagnostic_id": "influence_score_distribution", "severity": "qualification_guard",
+         "threshold_params": {"max_single_unit_influence_share": 0.05}},
+        {"diagnostic_id": "cross_fit_score_integrity", "severity": "required_blocking", "threshold_params": {}},
+        {"diagnostic_id": "preprocessing_missingness_usage", "severity": "descriptive", "threshold_params": {}},
+        {"diagnostic_id": "unmeasured_confounding_qualification", "severity": "descriptive", "threshold_params": {}}
+      ],
+      "sensitivity_branches": [
+        {"branch_id": "alternative_nuisance_profile", "purpose": "registered alternative learners",
+         "parameter_delta": {"nuisance_profile_id": "histogram_gradient_boosting"},
+         "comparison_rule_id": "sign_and_interval_stability"},
+        {"branch_id": "alternative_cross_fit_seed", "purpose": "fold-assignment stability",
+         "parameter_delta": {"seed_offset": 1, "fold_count": 10},
+         "comparison_rule_id": "interval_width_stability"},
+        {"branch_id": "propensity_bound_sensitivity", "purpose": "numerical propensity bound",
+         "parameter_delta": {"propensity_bound": 0.02},
+         "comparison_rule_id": "sign_and_interval_stability"},
+        {"branch_id": "ate_versus_att", "purpose": "both estimands separately approved",
+         "parameter_delta": {"estimand": "att"}, "comparison_rule_id": "descriptive_only"},
+        {"branch_id": "unmeasured_confounding_summary", "purpose": "registered bounding summary",
+         "parameter_delta": {"confounding_bound_rule": "e_value"},
+         "comparison_rule_id": "bound_containment"}
+      ],
+      "figure_builder_ids": [
+        "overlap_bins", "weight_summary", "balance_measures", "influence_summary",
+        "primary_contrast_intervals"
+      ],
+      "not_estimable_rule_ids": [
+        "no_contributing_treated_units", "no_contributing_comparison_units",
+        "fold_without_both_treatment_states"
+      ],
+      "invalidation_rule_ids": [
+        "propensity_mass_outside_support", "adjustment_set_altered_after_approval",
+        "validation_fold_leakage_detected"
+      ]
+    },
+    {
+      "method_id": "did",
+      "pack_version": "did-pack.v1",
+      "estimator_id": "did_profile_estimator",
+      "estimator_version": "did-profile-estimator.v1",
+      "parameter_defaults": {
+        "adoption_profile_id": "simultaneous", "mask_rule_id": "group_time_cell",
+        "cluster_level": "unit", "reference_period": "last_pre_period"
+      },
+      "estimator_input_schema": {
+        "treatment": ["binary"], "outcome": ["numeric"], "unit_identifier": ["identifier"],
+        "time": ["time"], "group": ["categorical"],
+        "cluster": ["identifier"]
+      },
+      "allowed_mask_rule_ids": ["group_time_cell", "event_time_cell", "balanced_panel_cell"],
+      "uncertainty_method": "cluster_robust_variance",
+      "finite_sample_correction": "small_cluster_t",
+      "confidence_level": 0.95,
+      "estimator_profiles": [
+        {"profile_id": "simultaneous", "estimator_id": "common_adoption_did",
+         "estimator_version": "common-adoption-did.v1",
+         "parameter_defaults": {"fixed_effects": "unit_and_time", "weighting": "cell_size",
+                                "anticipation_periods": 0},
+         "required_structure_ids": ["one_adoption_time", "pre_and_post_period_support"]},
+        {"profile_id": "staggered", "estimator_id": "sun_abraham_event_study",
+         "estimator_version": "sun-abraham-event-study.v1",
+         "parameter_defaults": {"aggregation": "cohort_weighted_overall", "event_window_leads": 3,
+                                "event_window_lags": 3, "comparison_cohort": "never_treated",
+                                "anticipation_periods": 0},
+         "required_structure_ids": ["declared_panel", "cohort_support", "reference_period_fixed"]}
+      ],
+      "nuisance_profiles": [],
+      "fold_count_default": null,
+      "required_diagnostics": [
+        {"diagnostic_id": "unit_period_schema_reconciliation",
+         "severity": "required_blocking", "threshold_params": {}},
+        {"diagnostic_id": "group_time_cohort_support", "severity": "invalidation_guard",
+         "threshold_params": {"min_cell_units": 5}},
+        {"diagnostic_id": "pre_and_post_period_placement", "severity": "required_blocking",
+         "threshold_params": {"min_pre_periods": 2, "min_post_periods": 1}},
+        {"diagnostic_id": "treatment_timing_anticipation", "severity": "qualification_guard",
+         "threshold_params": {"max_anticipation_periods": 1}},
+        {"diagnostic_id": "event_study_pre_period_test", "severity": "qualification_guard",
+         "threshold_params": {"joint_pre_period_p_value_floor": 0.05}},
+        {"diagnostic_id": "attrition_composition_change", "severity": "qualification_guard",
+         "threshold_params": {"max_composition_change_share": 0.1}},
+        {"diagnostic_id": "cluster_covariance_adequacy", "severity": "invalidation_guard",
+         "threshold_params": {"minimum_clusters": 10}},
+        {"diagnostic_id": "aggregate_weight_sensitivity", "severity": "descriptive", "threshold_params": {}},
+        {"diagnostic_id": "concurrent_event_qualification", "severity": "descriptive", "threshold_params": {}},
+        {"diagnostic_id": "reference_period_numerical_integrity",
+         "severity": "required_blocking", "threshold_params": {}}
+      ],
+      "sensitivity_branches": [
+        {"branch_id": "alternative_anticipation_window", "purpose": "registered anticipation window",
+         "parameter_delta": {"anticipation_periods": 1},
+         "comparison_rule_id": "sign_and_interval_stability"},
+        {"branch_id": "not_yet_treated_comparison", "purpose": "both comparison cohorts approved",
+         "parameter_delta": {"comparison_cohort": "not_yet_treated"},
+         "comparison_rule_id": "sign_and_interval_stability"},
+        {"branch_id": "alternative_event_time_aggregation", "purpose": "approved aggregation",
+         "parameter_delta": {"aggregation": "equal_weighted_event_time"},
+         "comparison_rule_id": "interval_width_stability"},
+        {"branch_id": "balanced_panel_contribution", "purpose": "balanced-panel contribution mask",
+         "parameter_delta": {"mask_rule_id": "balanced_panel_cell"},
+         "comparison_rule_id": "sign_and_interval_stability"},
+        {"branch_id": "leave_one_cohort_out", "purpose": "cohort influence summary",
+         "parameter_delta": {"influence_summary": "leave_one_cohort_out"},
+         "comparison_rule_id": "influence_stability"},
+        {"branch_id": "placebo_period_check", "purpose": "approved placebo-period check",
+         "parameter_delta": {"placebo_shift_periods": -2},
+         "comparison_rule_id": "null_effect_expected"}
+      ],
+      "figure_builder_ids": [
+        "group_time_means", "event_time_estimates", "support_composition_counts",
+        "primary_contrast_intervals"
+      ],
+      "not_estimable_rule_ids": [
+        "cohort_without_comparison_cell", "missing_required_pre_period",
+        "repeated_cross_section_under_panel_profile"
+      ],
+      "invalidation_rule_ids": [
+        "comparison_cohort_removed", "period_or_cohort_dropped_after_results",
+        "cluster_count_below_minimum"
+      ]
+    },
+    {
+      "method_id": "sharp_rdd",
+      "pack_version": "sharp-rdd-pack.v1",
+      "estimator_id": "rdrobust_sharp_estimator",
+      "estimator_version": "rdrobust-sharp-estimator.v1",
+      "parameter_defaults": {
+        "polynomial_order": 1, "kernel": "triangular", "bandwidth_selector": "mserd",
+        "primary_quantity": "robust_bias_corrected", "mass_point_handling": "checked",
+        "mask_rule_id": "selected_bandwidth"
+      },
+      "estimator_input_schema": {
+        "running_variable": ["numeric"], "treatment": ["binary"], "outcome": ["numeric"],
+        "unit_identifier": ["identifier"], "predetermined_covariate": ["numeric", "categorical"],
+        "cluster": ["identifier"]
+      },
+      "estimator_role_aliases": {"precision_covariate": "predetermined_covariate", "confounder_candidate": "predetermined_covariate"},
+      "allowed_mask_rule_ids": ["selected_bandwidth", "donut_exclusion", "cutoff_side"],
+      "uncertainty_method": "robust_bias_corrected_variance",
+      "finite_sample_correction": "nearest_neighbour_variance",
+      "confidence_level": 0.95,
+      "estimator_profiles": [],
+      "nuisance_profiles": [],
+      "fold_count_default": null,
+      "required_diagnostics": [
+        {"diagnostic_id": "cutoff_side_support", "severity": "required_blocking",
+         "threshold_params": {"min_effective_observations_per_side": 20}},
+        {"diagnostic_id": "selected_bandwidth_report", "severity": "required_blocking", "threshold_params": {}},
+        {"diagnostic_id": "mass_points_and_heaping", "severity": "qualification_guard",
+         "threshold_params": {"max_repeated_value_share": 0.2}},
+        {"diagnostic_id": "density_manipulation_test", "severity": "invalidation_guard",
+         "threshold_params": {"density_p_value_floor": 0.05}},
+        {"diagnostic_id": "covariate_continuity", "severity": "qualification_guard",
+         "threshold_params": {"max_covariate_jump_z": 2.0}},
+        {"diagnostic_id": "bandwidth_polynomial_sensitivity", "severity": "qualification_guard",
+         "threshold_params": {"max_relative_estimate_change": 0.5}},
+        {"diagnostic_id": "influence_leverage_near_cutoff", "severity": "qualification_guard",
+         "threshold_params": {"max_single_observation_leverage_share": 0.25}},
+        {"diagnostic_id": "sorting_and_other_policy_qualification",
+         "severity": "descriptive", "threshold_params": {}},
+        {"diagnostic_id": "robust_bias_correction_integrity", "severity": "required_blocking", "threshold_params": {}}
+      ],
+      "sensitivity_branches": [
+        {"branch_id": "half_bandwidth", "purpose": "registered bandwidth multiple",
+         "parameter_delta": {"bandwidth_multiplier": 0.5},
+         "comparison_rule_id": "sign_and_interval_stability"},
+        {"branch_id": "double_bandwidth", "purpose": "registered bandwidth multiple",
+         "parameter_delta": {"bandwidth_multiplier": 2.0},
+         "comparison_rule_id": "sign_and_interval_stability"},
+        {"branch_id": "local_quadratic", "purpose": "polynomial-order comparison",
+         "parameter_delta": {"polynomial_order": 2},
+         "comparison_rule_id": "sign_and_interval_stability"},
+        {"branch_id": "alternative_kernel", "purpose": "registered alternative kernel",
+         "parameter_delta": {"kernel": "uniform"}, "comparison_rule_id": "interval_width_stability"},
+        {"branch_id": "symmetric_donut", "purpose": "approved symmetric donut exclusion",
+         "parameter_delta": {"mask_rule_id": "donut_exclusion", "donut_radius": 0.05},
+         "comparison_rule_id": "sign_and_interval_stability"},
+        {"branch_id": "covariate_adjusted", "purpose": "adjusted against unadjusted estimation",
+         "parameter_delta": {"covariate_adjustment": true},
+         "comparison_rule_id": "sign_and_interval_stability"},
+        {"branch_id": "placebo_cutoff", "purpose": "cutoff fixed before the primary result",
+         "parameter_delta": {"placebo_cutoff_offset": -1.0},
+         "comparison_rule_id": "null_effect_expected"}
+      ],
+      "figure_builder_ids": [
+        "binned_outcome_summary", "fitted_curve_points", "density_continuity_summary",
+        "primary_contrast_intervals"
+      ],
+      "not_estimable_rule_ids": [
+        "no_observations_within_selected_bandwidth", "cutoff_side_without_support",
+        "bandwidth_selector_failure"
+      ],
+      "invalidation_rule_ids": [
+        "assignment_contradicts_approved_cutoff", "manipulation_density_rejected",
+        "mass_point_at_cutoff_unresolved"
+      ]
+    }
+  ]
+}

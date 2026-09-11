@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+import json
 import shutil
 from typing import Any
+from xml.etree import ElementTree
 
 import pytest
 
 from causal.design import renderer
-from causal.design.frame import CausalGraphViewV1
+from causal.design.renderer import CausalGraphViewV1
 from causal.design.semantics import (
     CausalContextV1,
     CausalEdgeV1,
@@ -58,12 +60,12 @@ ALTERNATIVE = GraphAlternativeV1(
     edges=(edge("e-spend-trust", "ad_spend", "brand_trust", EpistemicStatus.HYPOTHESIS), EDGES[0]))
 CONTEXT = CausalContextV1(
     frame=FRAME, concept_ids=("sales", "ad_spend", "season", "brand_trust"), edges=EDGES,
-    alternatives=(ALTERNATIVE,), selection_notes="", claims=())
+    alternatives=(ALTERNATIVE,), selection_notes="")
 LEDGER = RoleLedgerV1(frame=FRAME, claims=(
     claim(RoleName.TREATMENT, "ad_spend"), claim(RoleName.OUTCOME, "sales"),
     claim(RoleName.CONFOUNDER_CANDIDATE, "season"), claim(RoleName.PRECISION_COVARIATE, "season"),
     claim(RoleName.COLLIDER, "brand_trust")))
-MAP = MeasurementMapV1(links=(), claims=(), concepts=(
+MAP = MeasurementMapV1(links=(), concepts=(
     concept("ad_spend", ConceptStatus.OBSERVED), concept("sales", ConceptStatus.OBSERVED),
     concept("season", ConceptStatus.PROXY_MEASURED),
     concept("brand_trust", ConceptStatus.UNMEASURED)))
@@ -185,6 +187,15 @@ class TestRender:
         assert error.value.code == "graph_view_infidelity"
         assert "brand_trust" in str(error.value)
 
+    def test_xml_escaped_node_identity_survives_the_fidelity_check(self) -> None:
+        node = renderer.GraphNodeViewV1(
+            concept_id="full-time & wages", label="employment", status=ConceptStatus.OBSERVED,
+            roles=())
+        spec: renderer.GraphSpec = ((node,), (), {}, "")
+        renderer._check_fidelity(
+            '<svg><g class="node"><title>full&#45;time &amp; wages</title></g></svg>', "",
+            "full-time & wages | observed | none", spec)
+
     @requires_dot
     def test_the_rendered_view_validates_and_records_the_actual_graphviz_version(self) -> None:
         view = render()
@@ -212,3 +223,43 @@ def test_the_version_probe_is_none_without_a_binary(monkeypatch: pytest.MonkeyPa
 def test_the_version_probe_reports_the_actual_local_version() -> None:
     version = renderer.graphviz_version()
     assert version is not None and version[0].isdigit()
+
+
+@requires_dot
+@pytest.mark.parametrize("alternative", (None, "alt-collider"))
+def test_colon_and_space_concept_ids_render_literal_edges_in_base_and_alternative(
+        alternative: str | None) -> None:
+    mapping = {name: f"c:{name} with space" for name in CONTEXT.concept_ids}
+
+    def renamed(value: Any) -> Any:
+        if isinstance(value, str):
+            return mapping.get(value, value)
+        if isinstance(value, dict):
+            return {key: renamed(item) for key, item in value.items()}
+        if isinstance(value, list):
+            return [renamed(item) for item in value]
+        return value
+
+    context = CausalContextV1.model_validate_json(json.dumps(
+        renamed(CONTEXT.model_dump(mode="json"))))
+    ledger = RoleLedgerV1.model_validate_json(json.dumps(
+        renamed(LEDGER.model_dump(mode="json"))))
+    measurements = MeasurementMapV1.model_validate_json(json.dumps(
+        renamed(MAP.model_dump(mode="json"))))
+    view = renderer.render_causal_graph(
+        context=context, ledger=ledger, measurement_map=measurements, parents=PARENTS,
+        selected_alternative_id=alternative)
+    root = ElementTree.fromstring(view.svg)
+    actual = {kind: [group.find("{*}title").text for group in root.iter()  # type: ignore[union-attr]
+                     if group.attrib.get("class") == kind] for kind in ("node", "edge")}
+    assert set(actual["node"]) == set(mapping.values())
+    assert sorted(actual["edge"]) == sorted(
+        f"{edge.source_concept_id}->{edge.target_concept_id}" for edge in view.edges)
+    assert all(node.concept_id in node.label for node in view.nodes)
+    # Corrupt the real SVG connectivity while leaving every node label and DOT unchanged.
+    first = next(group for group in root.iter() if group.attrib.get("class") == "edge")
+    first.find("{*}title").text = "c->c"  # type: ignore[union-attr]
+    spec = renderer.build_graph_spec(context, ledger, measurements, alternative_id=alternative)
+    with pytest.raises(renderer.RendererError, match="svg_edge_set"):
+        renderer._check_fidelity(ElementTree.tostring(root, encoding="unicode"), spec[3],
+                                 view.node_edge_table, spec)

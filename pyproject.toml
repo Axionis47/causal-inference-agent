@@ -47,6 +47,8 @@ target-version = "py312"
 [tool.mypy]
 strict = true
 python_version = "3.12"
+exclude = ['^src/causal/(analysis/(.*/)?tests|post_analysis/tests)/']
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "src/causal/analysis", "src/causal/post_analysis/tests"]
+pythonpath = ["src", "."]

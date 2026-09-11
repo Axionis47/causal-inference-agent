@@ -9,13 +9,12 @@ import shutil
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Any
 
 import psycopg
 import pytest
 
-from causal.design import graph, harness_nodes
+from causal.design import graph
 from causal.design.capacity import load_capacity_registry
 from causal.design.compile import load_task_table
 from causal.design.contracts import REGISTRY_VERSION_KEYS, DesignIntentV1
@@ -24,7 +23,6 @@ from causal.design.packs import (
     METHOD_IDS,
     load_method_packs,
     load_requirement_templates,
-    load_tool_registry,
 )
 from causal.design.semantics import COLUMN_CARD_SLOTS
 from causal.design.validators import load_validation_rules
@@ -35,11 +33,10 @@ from causal.intake.fields import load_field_classes
 from causal.shared.contracts import ArtifactEnvelopeV1
 from causal.shared.envelope import AgentTaskEnvelopeV1
 from causal.shared.events import EventEmitter
-from causal.shared.frames import ROW_UNIT_COLUMN
 from causal.shared.gateway import GatewayResultV1
 from causal.shared.persistence import ArtifactCommitter, ObjectStore, ProductStore
 from causal.shared.registry import load_artifact_type_registry
-from tests.conftest import requires_docker
+from tests.infrastructure import requires_docker
 from tests.intake.conftest import CSV, FILES_RESPONSE, README, FrozenKaggleClient
 
 pytestmark = requires_docker
@@ -50,12 +47,14 @@ REGISTRY = load_artifact_type_registry(REGISTRIES / "artifact-types.v1.json")
 CLASSES = load_field_classes(REGISTRIES / "kaggle-field-classes.v1.json")
 PACKS = load_method_packs(REGISTRIES / "method-packs.v1.json")
 TEMPLATES = load_requirement_templates(REGISTRIES / "context-requirements.v1.json")
-TOOLS = load_tool_registry(REGISTRIES / "design-tools.v1.json")
 RULES = load_validation_rules(REGISTRIES / "design-validation-rules.v1.json")
 TASKS = load_task_table(REGISTRIES / "design-tasks.v1.json")
 CAPACITY = load_capacity_registry(REGISTRIES / "delivery-capacity.v1.json")
-PACK = PACKS.get("randomized_experiment")
 NOW = datetime(2026, 8, 25, 12, 0, 0, tzinfo=UTC)
+STUDY_CONTEXT = (
+    "The program used randomized assignment. The target estimand is intention-to-treat "
+    "(ITT), comparing assigned training to control. Each row is one applicant."
+)
 TSV = CSV.replace(b",", b"\t")
 FRAME = {"treatment": "c:treatment", "outcome": "c:outcome", "population": "applicants",
          "timeframe": "1975-1978"}
@@ -76,7 +75,8 @@ def proposal(name: str, description: str, columns: list[str]) -> dict[str, Any]:
 
 
 def role(name: str, concept: str, columns: list[str], timing: str) -> dict[str, Any]:
-    return {"role": name, "concept_id": concept, "column_refs": columns, "evidence_ids": [],
+    return {"role": name, "concept_id": concept, "column_refs": columns,
+            "evidence_ids": ["ev:doc/readme.md"],
             "timing": timing, "graph_edge_ids": ["e-1"], "alternatives": [],
             "support_class": "direct_source_statement", "status": "evidenced",
             "methods": ["randomized_experiment"]}
@@ -92,7 +92,12 @@ def intent_payload(envelope: AgentTaskEnvelopeV1) -> dict[str, Any]:
             "comparator": proposal("comparator", "applicants not enrolled", ["group"]),
             "unit": proposal("unit", "one applicant", ["unit_id"]),
             "timeframe": proposal("timeframe", "the 1975-1978 window", []),
-            "candidate_grain": "one_row_per_unit", "mandatory_concepts": [], "claims": []}
+            "candidate_grain": "one_row_per_unit",
+            "source_interpretations": [{
+                "fact_key": "grain", "value": "one_row_per_unit",
+                "evidence_id": "ua:context/text", "verbatim_excerpt": STUDY_CONTEXT,
+                "relation": "direct"}],
+            "mandatory_concepts": []}
 
 
 def card(column: str) -> dict[str, Any]:
@@ -101,7 +106,7 @@ def card(column: str) -> dict[str, Any]:
             "timing": "post_treatment" if column == "earnings" else "pre_treatment",
             "slots": {slot: {"value": column, "status": "hypothesis", "evidence_ids": []}
                       for slot in COLUMN_CARD_SLOTS},
-            "claims": [], "alternatives": [], "conflicts": []}
+            "alternatives": [], "conflicts": []}
 
 
 def cards_payload(envelope: AgentTaskEnvelopeV1) -> dict[str, Any]:
@@ -110,99 +115,63 @@ def cards_payload(envelope: AgentTaskEnvelopeV1) -> dict[str, Any]:
 
 def roles_payload(envelope: AgentTaskEnvelopeV1) -> dict[str, Any]:
     return {"schema_version": "role-evidence.v1", "assigned_scope": list(envelope.scope_ids),
-            "edge_hypotheses": [], "role_hypotheses": [], "competing_mechanisms": [],
-            "claims": []}
+            "edge_hypotheses": [], "role_hypotheses": [], "competing_mechanisms": []}
 
 
 def context_payload(envelope: AgentTaskEnvelopeV1) -> dict[str, Any]:
     return {"schema_version": "causal-context.v1", "frame": FRAME,
             "concept_ids": ["c:treatment", "c:outcome", "c:unit"], "edges": [EDGE],
-            "alternatives": [], "selection_notes": "one mechanism, no live alternative",
-            "claims": []}
+            "alternatives": [], "selection_notes": "one mechanism, no live alternative"}
 
 
 def ledger_payload(envelope: AgentTaskEnvelopeV1) -> dict[str, Any]:
     return {"schema_version": "role-ledger.v1", "frame": FRAME, "claims": [
-        role("treatment", "c:treatment", ["group"], "pre_treatment"),
+        role("treatment", "c:treatment", ["group"], "concurrent"),
         role("outcome", "c:outcome", ["earnings"], "post_treatment"),
         role("unit_identifier", "c:unit", ["unit_id"], "pre_treatment")]}
 
 
-def design_payload(envelope: AgentTaskEnvelopeV1) -> dict[str, Any]:
-    parents: Any = envelope.payload["parents"]
-    return {"schema_version": "experiment-design.v1",
-            "causal_question": "Does the programme raise earnings?",
-            "intended_decision": "whether to expand the programme",
-            "selected_csv": parents["TableSelection"], "method_id": "randomized_experiment",
-            "method_pack_version": PACK.pack_version, "frame": FRAME,
-            "rejected_methods": {name: "required roles are absent" for name in METHOD_IDS
-                                 if name != "randomized_experiment"},
-            "comparator": "applicants not enrolled", "unit": "one applicant", "estimand": "itt",
-            "measurement_map": parents["MeasurementMap"],
-            "causal_context": parents["CausalContext"], "role_ledger": parents["RoleLedger"],
-            "assumptions": ["assignment was randomised"],
-            "identification_risks": ["differential attrition"], "eligibility_rules": [],
-            "mandatory_repair_boundaries": [], "forbidden_repair_boundaries": [],
-            "imputation_eligible_columns": [], "imputation_forbidden_columns": ["group",
-                                                                                "earnings"],
-            "deletion_impact_dimensions": list(PACK.deletion_impact_dimensions),
-            "invalidation_conditions": ["randomisation is broken"],
-            "required_prerepair_diagnostics": ["arm_counts", "assignment_unit_uniqueness"],
-            "required_postrepair_diagnostics": list(PACK.required_postrepair_diagnostic_ids),
-            "required_visual_evidence": list(PACK.required_visual_evidence_ids),
-            "primary_contrasts": ["treated vs control"], "multiplicity_policy": None,
-            "capacity_check": None, "sensitivity_requirements": [],
-            "visualization_catalog_version": "visualization-catalog.v1",
-            "capacity_registry_version": "delivery-capacity.v1",
-            "registry_versions": dict(graph.REGISTRY_VERSIONS)}
-
-
-def contract_payload(envelope: AgentTaskEnvelopeV1) -> dict[str, Any]:
-    parents: Any = envelope.payload["parents"]
-    held: Any = envelope.payload["experiment_design"]
-    return {"schema_version": "runnable-frame-contract.v1",
-            "selected_csv": parents["TableSelection"], "output_grain": "one row per applicant",
-            "key_columns": ["unit_id"],
-            "required_roles": ["treatment", "outcome", "unit_identifier"],
-            "allowed_roles": [], "forbidden_roles": [], "type_constraints": {},
-            "uniqueness_constraints": ["unit_id is unique"], "eligibility_rules": [],
-            "exclusion_reason_vocabulary": list(PACK.eligibility_rule_vocabulary),
-            "treatment_missingness_rule": "drop the row",
-            "outcome_missingness_rule": "drop the row",
-            "method_structure": {"design": "randomized_experiment"}, "imputation_permitted": [],
-            "imputation_forbidden": ["group", "earnings", "unit_id"],
-            "required_missingness_indicators": ["outcome_observed"],
-            "deletion_impact_dimensions": list(PACK.deletion_impact_dimensions),
-            "revision_required_conditions": ["randomisation is broken"],
-            "feasibility_gates": ["arm_counts >= 2"],
-            "required_final_diagnostics": list(PACK.required_postrepair_diagnostic_ids),
-            "estimator_input_schema": PACK.reserved_estimator_id,
-            "experiment_design_hash": held["content_hash"]}
+def method_payload(envelope: AgentTaskEnvelopeV1) -> dict[str, Any]:
+    source = "ua:context/text"
+    observed = [str(row["diagnostic_result_id"])
+                for row in envelope.payload.get("diagnostic_results", [])]
+    return {"schema_version": "agent-design-proposal.v2",
+            "assignment_mechanism": "randomized", "requested_estimand": "itt",
+            "comparator": "control", "source_interpretations": [
+                {"fact_key": fact_key, "value": value, "evidence_id": source,
+                 "verbatim_excerpt": STUDY_CONTEXT, "relation": "direct"}
+                for fact_key, value in (("assignment_mechanism", "randomized"),
+                                        ("estimand", "itt"),
+                                        ("comparator", "control"))],
+            "ranked_method_ids": list(METHOD_IDS), "method_facts": [],
+            "optional_assumption_ids": [], "optional_risk_ids": ["rct.noncompliance_risk"], "optional_sensitivity_ids": [],
+            "requested_diagnostic_ids": [] if observed else ["arm_counts"],
+            "diagnostic_assessments": [{"diagnostic_result_id": name,
+                                        "judgment": "supports"} for name in observed]}
 
 
 BUILDERS = {"intent": intent_payload, "semantic_batch": cards_payload,
             "role_evidence": roles_payload, "causal_context": context_payload,
-            "role_ledger": ledger_payload, "experiment_design": design_payload,
-            "runnable_frame_contract": contract_payload}
-ARTIFACTS = {"intent": ("DesignIntent", "design-intent.v1"),
-             "semantic_batch": ("ColumnSemanticCard", "column-semantic-card.v1"),
-             "role_evidence": ("RoleEvidence", "role-evidence.v1"),
-             "causal_context": ("CausalContext", "causal-context.v1"),
+            "role_ledger": ledger_payload, "agent_design_proposal": method_payload}
+ARTIFACTS = {"intent": ("DesignIntent", "design-intent.v1"), "semantic_batch": ("ColumnSemanticCard", "column-semantic-card.v1"),
+             "role_evidence": ("RoleEvidence", "role-evidence.v1"), "causal_context": ("CausalContext", "causal-context.v1"),
              "role_ledger": ("RoleLedger", "role-ledger.v1"),
-             "experiment_design": ("ExperimentDesign", "experiment-design.v1"),
-             "runnable_frame_contract": ("RunnableFrameContract", "runnable-frame-contract.v1")}
-TIMING_REQUIREMENT: dict[str, Any] = {
-    "requirement_id": "column.measurement_timing", "registry_version": "context-requirements.v1",
-    "scope_id": "earnings", "decisions_blocked": ["role_assignment"], "attempted_evidence": [
-        {"evidence_id": "ev:doc/readme.md", "availability_status": "not_offered"}],
-    **{key: value for key, value in dict(TEMPLATES["column.measurement_timing"]).items()
-       if key != "requirement_id"}}
+             "agent_design_proposal": ("AgentDesignProposal", "agent-design-proposal.v2")}
+def requirement(name: str, scope: str, blocked: str) -> dict[str, Any]:
+    return {"requirement_id": name, "registry_version": "context-requirements.v1",
+            "scope_id": scope, "decisions_blocked": [blocked], "attempted_evidence": [],
+            **TEMPLATES[name].model_dump(
+                mode="json", exclude={"requirement_id", "accepted_fact"})}
+
+
+TIMING_REQUIREMENT = requirement("column.measurement_timing", "earnings", "role_assignment")
+GRAIN_REQUIREMENT = requirement("design.table_grain", "nsw.csv", "method_eligibility")
 
 
 def script_key(envelope: AgentTaskEnvelopeV1) -> str:
     """The canned-response key: the task kind, or the artifact each two-step task builds."""
     return (str(envelope.scope_ids[0])
-            if envelope.task_kind in ("causal_synthesis", "method_design")
+            if envelope.task_kind in ("causal_context", "role_ledger", "method_design")
             else envelope.task_kind)
 
 
@@ -229,14 +198,18 @@ class ScriptedGateway:
 
     def default(self, key: str, envelope: AgentTaskEnvelopeV1,
                 **over: Any) -> dict[str, Any]:
-        artifact_type, schema_version = ARTIFACTS[key]
-        return {"envelope_id": envelope.envelope_id, "schema_version": "agent-task-result.v1",
-                "task_id": envelope.task_id, "status": "complete",
-                "artifact_type": artifact_type, "artifact_schema_version": schema_version,
-                "parent_artifact_ids": [], "payload": BUILDERS[key](envelope), "claims": [],
-                "missing_requirements": [], "conflicts": [], "warnings": [], "evidence_ids": [],
-                "tool_receipts": [], "output_hash": None,
-                "validation_target": f"{schema_version}-validator"} | over
+        return {"status": "complete", "payload": BUILDERS[key](envelope),
+                "missing_requirements": [], "conflicts": [], "warnings": []} | over
+
+
+class RejectedRequirementGateway(ScriptedGateway):
+    """A corrected draft must not leave its rejected requirement in durable state."""
+
+    def default(self, key: str, envelope: AgentTaskEnvelopeV1,
+                **over: Any) -> dict[str, Any]:
+        if key == "role_ledger" and envelope.attempt_id.endswith(":1"):
+            over["missing_requirements"] = [TIMING_REQUIREMENT]
+        return super().default(key, envelope, **over)
 
 
 # --- fixtures -------------------------------------------------------------
@@ -252,7 +225,7 @@ def run_intake(conn: Any, objects: ObjectStore, files: dict[str, bytes] | None =
         products, CatalogStore(conn), objects, REGISTRY, CLASSES, emitter, clock=lambda: NOW)
     return coordinator.run(IntakeSubmissionV1(
         schema_version="intake-submission.v1", question_text="Does the programme raise earnings?",
-        context_text=None, kaggle_ref="lalonde/nsw", idempotency_key="design-key"))
+        context_text=STUDY_CONTEXT, kaggle_ref="lalonde/nsw", idempotency_key="design-key"))
 
 
 def make_deps(conn: Any, objects: ObjectStore, gateway: ScriptedGateway,
@@ -265,8 +238,8 @@ def make_deps(conn: Any, objects: ObjectStore, gateway: ScriptedGateway,
         committer=ArtifactCommitter(objects, products, REGISTRY, emitter), products=products,
         objects=objects, registry=REGISTRY, gateway=gateway, emitter=emitter, clock=lambda: NOW,
         checkpointer=graph.build_checkpointer(sibling(conn)), packs=PACKS, templates=TEMPLATES,
-        tool_registry=TOOLS, task_table=TASKS, rules=RULES, capacity_registry=CAPACITY,
-        prompts_root=ROOT, repo_root=ROOT)
+        task_table=TASKS, rules=RULES, capacity_registry=CAPACITY,
+        prompts_root=ROOT)
 
 
 def sibling(conn: Any) -> Any:
@@ -301,25 +274,40 @@ def start(conn: Any, objects: ObjectStore, gateway: ScriptedGateway | None = Non
 
 class TestApprovedRun:
     @needs_dot
-    def test_full_run_reaches_an_approved_outcome_and_handoff(
-        self, conn: Any, object_store: ObjectStore
-    ) -> None:
-        deps, opened, sink = start(conn, object_store)
+    def test_full_run_reaches_an_approved_outcome_and_handoff(self, conn: Any, object_store: ObjectStore) -> None:
+        gateway = ScriptedGateway()
+        deps, opened, sink = start(conn, object_store, gateway)
         assert opened.status == graph.NEEDS_USER_INPUT
         assert opened.interrupt_kind == "approval"
         done = graph.resume_design(deps, thread_id=opened.thread_id, resume_value=approval(opened))
         assert done.status == "approved"
         outcome = payload_of(conn, object_store, str(done.outcome_artifact_id))
         assert outcome["status"] == "approved"
-        assert outcome["counts"]["columns_carded"] == 3
         manifest = graph.open_design_handoff(
             deps, done.analysis_id, str(done.outcome_artifact_id), "sr:prep")
         kinds = [ProductStore(conn).load_envelope(row.artifact_id).artifact_type
                  for row in manifest.entries]
-        assert kinds == ["TableSelection", "ExperimentDesign", "RunnableFrameContract",
-                         "DeliveryCapacityCheck"]
+        assert kinds == ["TableSelection", "CompiledDesign", "DiagnosticReport",
+                         "CapacityReport", "DesignReviewBundle", "DesignApproval"]
         assert done.handoff_id == manifest.handoff_id
-        assert '"event_name":"stage.completed"' in sink.getvalue()
+        events = sink.getvalue()
+        assert all(name in events for name in ("agent.diagnostic_requested", "diagnostic.completed", "agent.design_revised"))
+        method_calls = [call for call in gateway.calls if call.task_kind == "method_design"]
+        assert len(method_calls) == 2 and all(call.allowed_tool_ids == ("run_statistical_diagnostic",) for call in method_calls)
+        observed = method_calls[1].payload["diagnostic_results"][0]
+        assert observed["registered_diagnostic_id"] == "arm_counts"
+        assert str(observed["diagnostic_result_id"]).startswith("dr:arm_counts:")
+        observation_id = str(conn.execute(
+            "SELECT artifact_id FROM causal.artifacts WHERE analysis_id=%s "
+            "AND artifact_type='DiagnosticObservationSet'", (done.analysis_id,)).fetchone()[0])
+        proposals = conn.execute(
+            "SELECT artifact_id FROM causal.artifacts WHERE analysis_id=%s "
+            "AND artifact_type='AgentDesignProposal' ORDER BY created_at_utc, artifact_id",
+            (done.analysis_id,)).fetchall()
+        committed = [ProductStore(conn).load_envelope(str(row[0])) for row in proposals]
+        assert any(observation_id in {ref.artifact_id for ref in item.parent_artifacts}
+                   for item in committed)
+        assert '"event_name":"stage.completed"' in events
         rows = conn.execute(
             "SELECT state, method_id FROM design.design_runs WHERE analysis_id = %s",
             (done.analysis_id,)).fetchone()
@@ -338,7 +326,7 @@ class TestApprovedRun:
         tasks = conn.execute(
             "SELECT count(*) FROM design.design_tasks WHERE analysis_id = %s",
             (done.analysis_id,)).fetchone()
-        assert tasks is not None and tasks[0] == 7
+        assert tasks is not None and tasks[0] == 11
 
 
 def approval(opened: graph.DesignRunResult) -> dict[str, Any]:
@@ -360,8 +348,7 @@ def view_id(conn: Any) -> str:
 
 def stub_renderer(monkeypatch: pytest.MonkeyPatch) -> None:
     """Replace the Graphviz call with a validated `CausalGraphViewV1`, not with a skip."""
-    from causal.design.frame import CausalGraphViewV1
-    from causal.design.renderer import LEGEND_TEXT, build_graph_spec
+    from causal.design.renderer import LEGEND_TEXT, CausalGraphViewV1, build_graph_spec
 
     def render(**kwargs: Any) -> CausalGraphViewV1:
         nodes, edges, _, dot = build_graph_spec(
@@ -431,12 +418,43 @@ def selected_id(conn: Any) -> str:
 
 
 class TestAskGate:
+    def test_requirement_from_a_rejected_draft_never_reaches_the_gate(
+        self, conn: Any, object_store: ObjectStore, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        stub_renderer(monkeypatch)
+        _, opened, _ = start(conn, object_store, gateway=RejectedRequirementGateway())
+        assert opened.interrupt_kind == "approval"
+        rows = conn.execute(
+            "SELECT requirement_id FROM design.context_requirements WHERE requirement_id = %s",
+            ("column.measurement_timing",)).fetchall()
+        assert rows == []
+
+    def test_compiler_proven_fact_settles_an_earlier_model_requirement(
+        self, conn: Any, object_store: ObjectStore, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        stub_renderer(monkeypatch)
+        _, opened, _ = start(conn, object_store, gateway=asking_gateway(GRAIN_REQUIREMENT))
+        assert opened.interrupt_kind == "approval"
+        row = conn.execute("SELECT state FROM design.context_requirements WHERE requirement_id = %s",
+                           ("design.table_grain",)).fetchone()
+        assert row == ("resolved",)
+
     def test_blocking_requirement_asks_once_and_then_continues(
         self, conn: Any, object_store: ObjectStore, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         stub_renderer(monkeypatch)
         deps, opened, sink = start(conn, object_store, gateway=asking_gateway())
         assert opened.interrupt_kind == "clarification"
+        assert all(call.task_kind != "method_design" for call in deps.gateway.calls)
+        attempted = conn.execute(
+            "SELECT attempted_evidence FROM design.context_requirements"
+            " WHERE requirement_id = 'column.measurement_timing'"
+        ).fetchone()
+        assert attempted is not None
+        availability = {row["evidence_id"]: row["availability_status"]
+                        for row in attempted[0]}
+        assert availability["ev:doc/readme.md"] == "evidenced"
+        assert "not_offered" not in availability.values()
         assert '"event_name":"user_interrupt.created"' in sink.getvalue()
         answered = graph.resume_design(deps, thread_id=opened.thread_id, resume_value={
             "schema_version": "user-context-answer.v1", "packet_id": "qp:1:1",
@@ -444,43 +462,140 @@ class TestAskGate:
                          "value": "earnings=post_treatment"}],
             "provenance": "user"})
         assert answered.interrupt_kind == "approval"
+        semantic_calls = [call for call in deps.gateway.calls
+                          if call.task_kind == "semantic_batch"]
+        assert sum("earnings" in call.scope_ids for call in semantic_calls) == 2
+        resumed = next(call for call in semantic_calls
+                       if any(item.startswith("ua:usercontextanswer:")
+                              for item in call.allowed_evidence_ids))
+        answer_evidence = [item for item in resumed.allowed_evidence_ids
+                           if item.startswith("ua:usercontextanswer:")]
+        assert len(answer_evidence) == 1
+        assert answer_evidence[0] in deps.gateway.prompts["semantic_batch"]
+        assert any(row["requirement_id"] == "column.measurement_timing"
+                   and row["scope_id"] == "earnings" and row["value"] == "post_treatment"
+                   for row in resumed.payload["prerequisite_context"]["accepted_facts"])
         done = graph.resume_design(
             deps, thread_id=answered.thread_id, resume_value=approval(answered))
         outcome = payload_of(conn, object_store, str(done.outcome_artifact_id))
-        assert outcome["clarification_rounds_used"] == 1
+        assert outcome["status"] == "approved"
         state = conn.execute(
             "SELECT state FROM design.context_requirements WHERE requirement_id = %s",
             ("column.measurement_timing",)).fetchone()
         assert state == ("resolved",)
 
+    def test_supporting_unknowns_are_retained_without_replaying_completed_columns(
+        self, conn: Any, object_store: ObjectStore, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        class SupportingGateway(ScriptedGateway):
+            def default(self, key: str, envelope: AgentTaskEnvelopeV1,
+                        **over: Any) -> dict[str, Any]:
+                body = super().default(key, envelope, **over)
+                if key != "semantic_batch":
+                    return body
+                settled = envelope.payload.get("prerequisite_context", {}).get(
+                    "settled_requirements", [])
+                known = {(row["requirement_id"], row["scope_id"]) for row in settled}
+                missing = [requirement("column.source_process", str(column), "semantic")
+                           for column in envelope.scope_ids
+                           if ("column.source_process", column) not in known]
+                return body | {"missing_requirements": missing,
+                               "status": "needs_context" if missing else "complete"}
 
-    def test_invented_ids_are_dropped_and_a_prefixed_column_scope_is_folded(
+        stub_renderer(monkeypatch)
+        gateway = SupportingGateway()
+        deps, opened, sink = start(conn, object_store, gateway=gateway)
+        assert opened.interrupt_kind == "approval"
+        calls = [call for call in gateway.calls if call.task_kind == "semantic_batch"]
+        columns = [column for call in calls for column in call.scope_ids]
+        assert len(calls) == len(set(columns)) == 3
+        assert not any(json.loads(line).get("status") == "clarification"
+                       for line in sink.getvalue().splitlines())
+        rows = conn.execute(
+            "SELECT scope_id, state, resolving_fact_id FROM design.context_requirements"
+            " WHERE requirement_id = 'column.source_process' ORDER BY scope_id").fetchall()
+        assert rows == [(column, "unknown_accepted", None) for column in sorted(columns)]
+        final_call = gateway.calls[-1].payload["prerequisite_context"]
+        assert {row["scope_id"] for row in final_call["settled_requirements"]
+                if row["requirement_id"] == "column.source_process"} == set(columns)
+        assert not any(row["requirement_id"] == "column.source_process"
+                       for row in final_call["accepted_facts"])
+        done = graph.resume_design(deps, thread_id=opened.thread_id, resume_value=approval(opened))
+        assert done.status == "approved"
+
+
+    def test_a_prefixed_column_scope_is_folded(
         self, conn: Any, object_store: ObjectStore, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Nothing in production mints these, so the model's inventions are filtered (D-100)."""
+        """A namespace-qualified copy of the selected column resolves to one scope (D-100)."""
         stub_renderer(monkeypatch)
         start(conn, object_store, gateway=asking_gateway(
-            TIMING_REQUIREMENT,
-            TIMING_REQUIREMENT | {"scope_id": "nsw.csv::earnings"},
-            TIMING_REQUIREMENT | {"requirement_id": "req:invented_timing"}))
+            TIMING_REQUIREMENT | {"scope_id": "nsw.csv::earnings"}))
         rows = conn.execute(
             "SELECT requirement_id, scope_id FROM design.context_requirements"
             " ORDER BY requirement_id, scope_id").fetchall()
         assert rows == [("column.measurement_timing", "earnings")]
 
-    def test_two_unknown_rounds_end_the_revision_as_needs_context(
+    def test_the_registry_owns_a_design_requirement_scope(
+        self, conn: Any, object_store: ObjectStore
+    ) -> None:
+        raised = requirement("design.assignment_mechanism", "invented-concept", "method") | {
+            "scope_kind": "concept"}
+        start(conn, object_store, gateway=asking_gateway(raised))
+        row = conn.execute("SELECT scope_kind, scope_id FROM design.context_requirements"
+                           " WHERE requirement_id='design.assignment_mechanism'").fetchone()
+        assert row == ("design", "design")
+
+    def test_an_invented_requirement_cannot_mutate_state_from_a_rejected_draft(
+        self, conn: Any, object_store: ObjectStore, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        stub_renderer(monkeypatch)
+        start(conn, object_store, gateway=asking_gateway(
+            TIMING_REQUIREMENT | {"requirement_id": "req:invented_timing"}))
+        assert conn.execute("SELECT requirement_id FROM design.context_requirements").fetchall() == []
+
+    def test_unknown_answer_ends_without_reasking_the_same_fact(
         self, conn: Any, object_store: ObjectStore
     ) -> None:
         deps, first, _ = start(conn, object_store, gateway=asking_gateway())
-        second = graph.resume_design(
-            deps, thread_id=first.thread_id, resume_value=unknown_answer("qp:1:1"))
-        assert second.interrupt_kind == "clarification"
-        done = graph.resume_design(
-            deps, thread_id=second.thread_id, resume_value=unknown_answer("qp:1:2"))
+        done = graph.resume_design(deps, thread_id=first.thread_id,
+            resume_value=unknown_answer("qp:1:1"))
         assert done.status == "needs_context"
+        assert done.error_code == "user_answer_unknown"
         outcome = payload_of(conn, object_store, str(done.outcome_artifact_id))
-        assert outcome["clarification_rounds_used"] == 2
-        assert outcome["open_requirement_ids"] == ["column.measurement_timing"]
+        assert outcome["status"] == "needs_context"
+        assert outcome["issues"][0]["required_input_ids"] == ["column.measurement_timing"]
+
+    def test_a_new_revision_inherits_an_accepted_answer_without_reasking(
+        self, conn: Any, object_store: ObjectStore, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        stub_renderer(monkeypatch)
+        deps, first, _ = start(conn, object_store, gateway=asking_gateway())
+        answered = graph.resume_design(deps, thread_id=first.thread_id, resume_value={
+            "schema_version": "user-context-answer.v1", "packet_id": "qp:1:1",
+            "answers": [{"question_id": "q:column.measurement_timing",
+                         "answer_kind": "value", "value": "earnings=post_treatment"}],
+            "provenance": "user"})
+        changed = graph.resume_design(deps, thread_id=answered.thread_id, resume_value={
+            **approval(answered), "decision": "changes_requested", "approved_artifacts": [],
+            "change_requests": ["Recheck the design while preserving confirmed timing."],
+            "idempotency_key": "idem-change"})
+        assert changed.status == "changes_requested"
+        intake = conn.execute(
+            "SELECT artifact_id FROM causal.artifacts WHERE analysis_id = %s"
+            " AND artifact_type = 'IntakeOutcome'", (changed.analysis_id,)).fetchone()
+        assert intake is not None
+        revised = graph.run_design(
+            deps, analysis_id=changed.analysis_id,
+            intake_outcome_artifact_id=str(intake[0]), thread_id="gt:design:2",
+            design_revision=2)
+        assert revised.interrupt_kind == "approval"
+        facts = conn.execute(
+            "SELECT design_revision, inherited_from_fact_id FROM design.accepted_facts"
+            " WHERE requirement_id = 'column.measurement_timing' AND is_current"
+            " ORDER BY design_revision").fetchall()
+        assert facts[0][0] == 1 and facts[0][1] is None
+        assert facts[1][0] == 2 and facts[1][1] is not None
 
 
 def unknown_answer(packet_id: str) -> dict[str, Any]:
@@ -491,13 +606,17 @@ def unknown_answer(packet_id: str) -> dict[str, Any]:
 
 
 def asking_gateway(*raised: dict[str, Any]) -> ScriptedGateway:
-    """An intent reply that raises one blocking, user-answerable requirement."""
+    """Raise requirements only from a task whose registry allowlist contains them."""
     gateway = ScriptedGateway()
     original = gateway.default
 
     def default(key: str, envelope: AgentTaskEnvelopeV1, **over: Any) -> dict[str, Any]:
         rows = list(raised) or [TIMING_REQUIREMENT]
-        extra = {"missing_requirements": rows} if key == "intent" else {}
+        target = ("semantic_batch" if any(
+            row["requirement_id"].startswith("column.") for row in rows) else "intent")
+        settled = envelope.payload.get("prerequisite_context", {}).get(
+            "settled_requirements", [])
+        extra = {"missing_requirements": rows} if key == target and not settled else {}
         return original(key, envelope, **extra | over)
 
     gateway.default = default  # type: ignore[method-assign]
@@ -515,6 +634,36 @@ class UnwrappedFirstBatch(ScriptedGateway):
 
 
 class TestCorrectionLoop:
+    @pytest.mark.parametrize("defect", ("empty", "duplicate", "wrong_column"))
+    def test_semantic_card_count_and_scope_are_checked_before_commit(
+        self, defect: str, conn: Any, object_store: ObjectStore,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        class InvalidFirstBatch(ScriptedGateway):
+            changed = False
+
+            def default(self, key: str, envelope: AgentTaskEnvelopeV1,
+                        **over: Any) -> dict[str, Any]:
+                body = super().default(key, envelope, **over)
+                if key == "semantic_batch" and not self.changed:
+                    self.changed = True
+                    assigned = str(envelope.scope_ids[0])
+                    columns = [] if defect == "empty" else (
+                        [assigned, assigned] if defect == "duplicate" else
+                        ["earnings" if assigned != "earnings" else "group"])
+                    return body | {"payload": {"items": [card(name) for name in columns]}}
+                return body
+
+        stub_renderer(monkeypatch)
+        gateway = InvalidFirstBatch()
+        deps, opened, sink = start(conn, object_store, gateway=gateway)
+        code = "semantic_batch_scope_mismatch" if defect == "wrong_column" else "schema_invalid"
+        assert f'"error_code":"{code}"' in sink.getvalue()
+        items = gateway.schemas["semantic_batch"]["properties"]["payload"]["properties"]["items"]
+        assert items["minItems"] == items["maxItems"] == 1
+        done = graph.resume_design(deps, thread_id=opened.thread_id, resume_value=approval(opened))
+        assert done.status == "approved"
+
     def test_schema_failure_corrects_and_the_second_reply_is_committed(
         self, conn: Any, object_store: ObjectStore, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -525,8 +674,9 @@ class TestCorrectionLoop:
         assert '"event_name":"agent.correction_requested"' in sink.getvalue()
         done = graph.resume_design(deps, thread_id=opened.thread_id, resume_value=approval(opened))
         outcome = payload_of(conn, object_store, str(done.outcome_artifact_id))
-        assert outcome["status"] == "approved" and outcome["counts"]["corrections"] == 1
-        assert [call.task_kind for call in gateway.calls].count("semantic_batch") == 2
+        assert outcome["status"] == "approved"
+        semantic = [call for call in gateway.calls if call.task_kind == "semantic_batch"]
+        assert len(semantic) == len({call.task_id for call in semantic}) + 1
 
     def test_a_many_reply_without_items_corrects_instead_of_crashing(
         self, conn: Any, object_store: ObjectStore, monkeypatch: pytest.MonkeyPatch
@@ -537,7 +687,7 @@ class TestCorrectionLoop:
         assert '"error_code":"schema_invalid"' in sink.getvalue()
         done = graph.resume_design(deps, thread_id=opened.thread_id, resume_value=approval(opened))
         outcome = payload_of(conn, object_store, str(done.outcome_artifact_id))
-        assert outcome["status"] == "approved" and outcome["counts"]["corrections"] == 1
+        assert outcome["status"] == "approved"
 
     def test_exhausted_corrections_end_the_revision(
         self, conn: Any, object_store: ObjectStore
@@ -545,11 +695,11 @@ class TestCorrectionLoop:
         broken = [{"not": "a result"}] * 3
         gateway = ScriptedGateway({"semantic_batch": broken})
         _, done, sink = start(conn, object_store, gateway=gateway)
-        assert done.status == "failed" and done.error_code == "correction_exhausted"
+        assert done.status == "system_failure" and done.error_code == "agent_output_invalid"
         assert '"event_name":"retry.exhausted"' in sink.getvalue()
         outcome = payload_of(conn, object_store, str(done.outcome_artifact_id))
-        assert outcome["error_code"] == "correction_exhausted"
-        assert outcome["experiment_design"] is None
+        assert outcome["issues"][0]["code"] == "agent_output_invalid"
+        assert outcome["compiled_design"] is None
 
 
 def test_the_gateway_gets_the_draft_result_schema(conn: Any, object_store: ObjectStore) -> None:
@@ -561,7 +711,7 @@ def test_the_gateway_gets_the_draft_result_schema(conn: Any, object_store: Objec
     payload = schema["properties"]["payload"]
     assert payload != {"type": "object"}
     assert set(payload["properties"]) == set(DesignIntentV1.model_fields)
-    assert {"ClaimV1", "ConceptProposalV1"} <= set(schema["$defs"])
+    assert "ConceptProposalV1" in schema["$defs"]
 
 
 def test_the_prompt_carries_the_evidence_allowlist(conn: Any, object_store: ObjectStore) -> None:
@@ -575,13 +725,12 @@ def test_the_prompt_carries_the_evidence_allowlist(conn: Any, object_store: Obje
     assert "ua:question/text" in allowed
     lines = section.splitlines()
     rendered = [line.rstrip(":") for line in lines if line and not line.startswith(" ")]
-    # D-103: a column-scoped evidence id reaches only a task assigned that column, so the intent
-    # task sees the dataset-wide sources and neither the card evidence nor the measured facts of
-    # one column. Both families must be in the allowlist to be citable at all.
+    # D-103: the intent decision receives the bounded column evidence it needs to select
+    # candidate roles and establish row identity. The prompt and enforced envelope use one exact
+    # task-local allowlist; neither hides references that validation would nevertheless accept.
     scoped = {i for i in allowed if "/column/" in i or "#/columns/" in i}
-    assert rendered == sorted(allowed - scoped)
+    assert rendered == sorted(allowed, key=lambda item: (not item.startswith("ua:"), item))
     assert any("/column/" in i for i in scoped) and any("#/columns/" in i for i in scoped)
-    assert not {i for i in rendered} & scoped
     # D-102: the document, not only its name. Shown an id alone, a worker truthfully reports the
     # source `not_offered`, SC §6.2 condition 2 holds trivially, and the gate asks the user for a
     # fact this analysis already committed. A data dictionary is multi-line, so it renders whole.
@@ -590,7 +739,9 @@ def test_the_prompt_carries_the_evidence_allowlist(conn: Any, object_store: Obje
     assert parents.split() == [ref.artifact_id]
     # Wall 2 rejects an unregistered requirement id, so the legal vocabulary must be shown.
     registered = set(load_requirement_templates(REGISTRIES / "context-requirements.v1.json"))
-    assert requirements.split() == sorted(registered)
+    allowed = set(TASKS["intent"].allowed_requirement_ids)
+    assert allowed <= registered
+    assert requirements.split() == sorted(allowed)
     assert "design.treatment_meaning" in registered
 
 
@@ -625,6 +776,18 @@ def test_the_role_prompt_carries_the_cards_of_its_assigned_columns(
     assert body is None or {card["column_name"] for card in body["cards"]}
 
 
+def test_the_role_ledger_prompt_carries_the_frame_it_must_copy(
+    conn: Any, object_store: ObjectStore
+) -> None:
+    gateway = ScriptedGateway()
+    start(conn, object_store, gateway=gateway)
+    payload = next(call.payload for call in gateway.calls if call.task_kind == "role_ledger")
+    assert payload["causal_context"]["frame"] == FRAME  # type: ignore[index]
+    prompt = gateway.prompts["role_ledger"]
+    assert "never bind both roles to the same CSV column" in prompt and "decision-sufficient claims" in prompt
+    assert "concept -> frame.outcome" in prompt and "selected base graph" in prompt
+
+
 def test_the_approval_interrupt_shows_the_design_it_asks_a_person_to_approve(
     conn: Any, object_store: ObjectStore, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -642,7 +805,7 @@ def test_the_approval_interrupt_shows_the_design_it_asks_a_person_to_approve(
     shown = [body for body in bodies if body["kind"] == "approval"]
     assert shown, "the approval gate never opened"
     design = shown[0]["design"]
-    assert design["schema_version"] == "experiment-design.v1"
+    assert design["schema_version"] == "design-review-bundle.v2"
     assert "assumptions" in design and "identification_risks" in design
 
 
@@ -651,11 +814,11 @@ class TestRefusal:
         self, conn: Any, object_store: ObjectStore
     ) -> None:
         _, done, _ = start(conn, object_store, files={"nsw.tsv": TSV, "readme.md": README})
-        assert done.status == "refused" and done.refusal_code == "NO_ANALYSIS_CSV"
+        assert done.status == "needs_data" and done.error_code == "NO_ANALYSIS_CSV"
         assert done.handoff_id is None
         outcome = payload_of(conn, object_store, str(done.outcome_artifact_id))
-        assert outcome["refusal_code"] == "NO_ANALYSIS_CSV"
-        assert outcome["causal_graph_view"] is None
+        assert outcome["issues"][0]["code"] == "NO_ANALYSIS_CSV"
+        assert outcome["compiled_design"] is None
 
 
 def test_state_carries_only_allowlisted_scalars(
@@ -678,43 +841,3 @@ def test_state_carries_only_allowlisted_scalars(
 
 def test_registry_versions_are_the_closed_manifest_key_set() -> None:
     assert set(graph.REGISTRY_VERSIONS) == set(REGISTRY_VERSION_KEYS)
-
-
-class _GrainStub:
-    """Just enough harness to exercise the D-105 rule: the intent's grain and the profile."""
-
-    _row_is_unit = harness_nodes.PipelineNodes._row_is_unit
-
-    def __init__(self, grain: str, unique: list[str]) -> None:
-        self.grain, self.unique = grain, unique
-
-    def _model(self, state: Any, kind: str, model: Any) -> Any:
-        return SimpleNamespace(candidate_grain=self.grain)
-
-    def _grain(self, state: Any) -> dict[str, Any]:
-        return {"unique_single_columns": self.unique}
-
-
-@pytest.mark.parametrize(("grain", "unique", "bound"), [
-    ("one_row_per_unit", [], True),
-    # A panel file that lost its id column must NOT become one independent unit per row.
-    ("one_row_per_unit_period", [], False),
-    ("one_row_per_group_time", [], False),
-    # An id column exists, so the model's own claim stands and nothing is bound.
-    ("one_row_per_unit", ["unit_id"], False),
-])
-def test_the_row_is_the_unit_only_when_asserted_and_unidentified(
-    grain: str, unique: list[str], bound: bool
-) -> None:
-    """D-105: "no column is unique" alone would narrow every interval on a panel table."""
-    assert _GrainStub(grain, unique)._row_is_unit({}) is bound
-
-
-def test_binding_names_the_row_unit_in_every_payload_that_carries_it() -> None:
-    ledger = harness_nodes._bind_row_unit("RoleLedger", {"claims": []})
-    assert ledger["claims"][0]["column_refs"] == [ROW_UNIT_COLUMN]
-    assert ledger["claims"][0]["role"] == "unit_identifier"
-    contract = harness_nodes._bind_row_unit("RunnableFrameContract", {"key_columns": ["treat"]})
-    assert contract["key_columns"] == ["treat", ROW_UNIT_COLUMN]
-    design = harness_nodes._bind_row_unit("ExperimentDesign", {"assumptions": []})
-    assert ROW_UNIT_COLUMN in design["assumptions"][0]

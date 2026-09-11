@@ -18,7 +18,7 @@ from causal.shared.frames import (
     read_frame,
     write_frame,
 )
-from tests.conftest import MemoryObjects, requires_docker
+from tests.infrastructure import MemoryObjects, requires_docker
 
 FRAME = pl.DataFrame({
     "unit": ["u1", "u2", None], "count": [1, None, 3], "score": [1.5, 2.25, None],

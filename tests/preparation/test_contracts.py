@@ -46,7 +46,6 @@ MANIFEST: dict[str, Any] = {
     "question_id": "q-1", "population_id": "pop-1", "timeframe_id": "tf-1",
     "treatment_id": "tr-1", "outcome_id": "out-1", "comparator_id": "cmp-1",
     "estimand_id": "ate", "method_id": "aipw", "method_pack_version": "aipw-pack.v1",
-    "measurement_map": REF, "role_ledger": REF, "column_concepts": {"age": "c-age"},
     "column_roles": {"age": "confounder_candidate"}, "protected_columns": ("treat", "y"),
     "permitted_repair_columns": ("age",), "permitted_imputation_columns": ("age",),
     "approved_grain": "one_row_per_unit", "key_columns": ("unit_id",),
@@ -106,8 +105,8 @@ PREPARED: dict[str, Any] = {
     "prepared_frame_schema_id": "aipw-prepared-frame.v1",
 }
 BUNDLE: dict[str, Any] = {
-    "selected_table": REF, "experiment_design": REF, "runnable_frame_contract": REF,
-    "capacity_check": REF, "stabilization_record": REF, "stabilized_frame": REF,
+    "selected_table": REF, "compiled_design": REF, "capacity_report": REF,
+    "design_approval": REF, "stabilization_record": REF, "stabilized_frame": REF,
     "prepared_frame": REF, "execution_receipt_bundle": REF, "row_set_hash": HASH,
     "stabilized_frame_row_set_hash": HASH, "prepared_frame_row_set_hash": HASH,
     "versions": VERSIONS,

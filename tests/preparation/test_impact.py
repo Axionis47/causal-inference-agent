@@ -23,7 +23,8 @@ AIPW = pl.DataFrame({"unit": UNITS, "treat": [index % 2 for index in range(20)],
                      "y": [float(index) for index in range(20)]})
 DID = pl.DataFrame({"unit": [f"u{index // 4}" for index in range(20)],
                     "grp": [(index // 4) % 2 for index in range(20)],
-                    "t": [index % 4 for index in range(20)], "y": [1.0] * 20})
+                    "t": [index % 4 for index in range(20)], "adoption": [2] * 20,
+                    "y": [1.0] * 20})
 RDD = pl.DataFrame({"unit": UNITS, "run": [float(index) for index in range(20)], "y": [1.0] * 20})
 
 RCT_SPEC = im.MethodStructureSpecV1(unit_columns=("unit",), treatment_column="arm",
@@ -46,6 +47,8 @@ STRUCTURE = (
     ("aipw", pl.concat([AIPW, AIPW.head(1)]), AIPW_SPEC, im.StructureVerdict.CONFLICT,
      im.UNIT_GRAIN_VIOLATED),
     ("did", DID, DID_SPEC, im.StructureVerdict.RUNNABLE, None),
+    ("did", DID, DID_SPEC.model_copy(update={"threshold": "adoption"}),
+     im.StructureVerdict.RUNNABLE, None),
     ("did", DID, DID_SPEC.model_copy(update={"minimum_cell_rows": 3}),
      im.StructureVerdict.NOT_RUNNABLE, "group_time_cell_min_rows"),
     ("did", DID.filter(~((pl.col("grp") == 1) & (pl.col("t") == 3))), DID_SPEC,

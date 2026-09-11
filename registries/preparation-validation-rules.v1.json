@@ -88,8 +88,8 @@
      "allowed_actions": ["revise_field"],
      "params": {"check": "diagnostics_terminal", "path": "/diagnostics"}},
 
-    {"rule_id": "prep.final.contract", "wall": 6, "kind": "final",
-     "code": "runnable_frame_contract_unmet", "user_resolvable": false,
+    {"rule_id": "prep.final.estimator_schema", "wall": 6, "kind": "final",
+     "code": "estimator_schema_unmet", "user_resolvable": false,
      "allowed_actions": ["revise_field"],
      "params": {"check": "contract_satisfied", "path": "/prepared_frame/columns"}},
 

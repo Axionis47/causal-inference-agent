@@ -17,9 +17,10 @@
         "selection_variable"
       ],
       "forbidden_adjustment_roles": ["mediator", "collider"],
-      "supported_estimands": ["itt", "per_protocol"],
+      "supported_estimands": ["itt"],
       "required_context_requirement_ids": [
         "design.causal_question",
+        "design.estimand",
         "design.treatment_meaning",
         "design.outcome_window",
         "design.population_comparator",
@@ -57,6 +58,11 @@
         "arm_membership",
         "followup_window"
       ],
+      "unusable_row_rule_ids": [
+        "missing_randomization_unit",
+        "missing_treatment_assignment",
+        "randomization_unit_collision"
+      ],
       "imputation_forbidden_roles": [
         "treatment",
         "outcome",
@@ -78,12 +84,22 @@
         "effective_sample_size",
         "target_population"
       ],
-      "invalidation_rules": [
-        "Excluding a randomized unit after assignment breaks the randomized comparison and requires design revision.",
-        "A missing outcome is attrition to be reported, never an ordinary silent deletion.",
-        "Using a post-treatment variable as a baseline adjuster invalidates the design.",
-        "More than one confirmatory contrast without a registered multiplicity policy blocks approval."
-      ],
+      "statements": {
+        "rct.random_assignment": "Treatment assignment is randomized at the approved unit.",
+        "rct.no_interference": "One unit's assignment does not change another unit's outcome.",
+        "rct.attrition_risk": "Missing outcomes can break the randomized comparison and must remain visible.",
+        "rct.noncompliance_risk": "Noncompliance can separate assignment effects from treatment-received effects.",
+        "rct.attrition_bounds": "Report sensitivity to outcome attrition by assignment arm.",
+        "rct.exclusion_rule": "Excluding a randomized unit after assignment requires design revision.",
+        "rct.post_treatment_rule": "Post-treatment variables cannot be used as baseline adjusters."
+      },
+      "mandatory_assumption_ids": ["rct.random_assignment", "rct.no_interference"],
+      "optional_assumption_ids": [],
+      "mandatory_risk_ids": ["rct.attrition_risk"],
+      "optional_risk_ids": ["rct.noncompliance_risk"],
+      "mandatory_sensitivity_ids": ["rct.attrition_bounds"],
+      "optional_sensitivity_ids": [],
+      "invalidation_rule_ids": ["rct.exclusion_rule", "rct.post_treatment_rule"],
       "required_postrepair_diagnostic_ids": [
         "arm_counts",
         "assignment_unit_uniqueness",
@@ -96,8 +112,7 @@
         "balance_overview",
         "required_sensitivities"
       ],
-      "reserved_estimator_id": "randomized-experiment-estimator.v1",
-      "runnable_frame_schema": "runnable-frame-contract.v1"
+      "reserved_estimator_id": "randomized-experiment-estimator.v1"
     },
     {
       "method_id": "aipw",
@@ -118,6 +133,7 @@
       "supported_estimands": ["ate", "att"],
       "required_context_requirement_ids": [
         "design.causal_question",
+        "design.estimand",
         "design.treatment_meaning",
         "design.outcome_window",
         "design.population_comparator",
@@ -156,6 +172,12 @@
         "propensity_trimming",
         "observation_window"
       ],
+      "unusable_row_rule_ids": [
+        "missing_unit_identifier",
+        "missing_observed_treatment",
+        "missing_observed_outcome",
+        "unit_grain_collision"
+      ],
       "imputation_forbidden_roles": ["treatment", "outcome"],
       "imputation_eligible_roles": [
         "confounder_candidate",
@@ -170,12 +192,23 @@
         "effective_sample_size",
         "target_population"
       ],
-      "invalidation_rules": [
-        "Propensity trimming changes the target population and belongs to the design, never to repair.",
-        "Imputing treatment or the primary outcome invalidates the estimand.",
-        "Adjusting on a mediator, a collider, or any treatment descendant invalidates identification.",
-        "Losing overlap support after repair requires design revision, not silent trimming."
-      ],
+      "statements": {
+        "aipw.exchangeability": "Conditional on the approved pre-treatment adjustment set, treatment assignment is exchangeable.",
+        "aipw.positivity": "Every target-population covariate pattern has positive probability of each treatment level.",
+        "aipw.consistency": "Observed outcomes equal the potential outcome under the treatment actually received.",
+        "aipw.overlap_risk": "Weak overlap can make the estimate unstable or change the supported target population.",
+        "aipw.unmeasured_confounding": "Unmeasured common causes of treatment and outcome can bias the estimate.",
+        "aipw.confounding_sensitivity": "Report sensitivity to plausible unmeasured confounding.",
+        "aipw.trimming_rule": "Propensity trimming changes the target population and requires design revision.",
+        "aipw.adjustment_rule": "Mediators, colliders, and treatment descendants cannot enter the adjustment set."
+      },
+      "mandatory_assumption_ids": ["aipw.exchangeability", "aipw.positivity", "aipw.consistency"],
+      "optional_assumption_ids": [],
+      "mandatory_risk_ids": ["aipw.overlap_risk", "aipw.unmeasured_confounding"],
+      "optional_risk_ids": [],
+      "mandatory_sensitivity_ids": ["aipw.confounding_sensitivity"],
+      "optional_sensitivity_ids": [],
+      "invalidation_rule_ids": ["aipw.trimming_rule", "aipw.adjustment_rule"],
       "required_postrepair_diagnostic_ids": [
         "treatment_prevalence",
         "covariate_availability",
@@ -189,17 +222,16 @@
         "primary_estimate",
         "required_sensitivities"
       ],
-      "reserved_estimator_id": "aipw-estimator.v1",
-      "runnable_frame_schema": "runnable-frame-contract.v1"
+      "reserved_estimator_id": "aipw-estimator.v1"
     },
     {
       "method_id": "did",
       "pack_version": "did-pack.v1",
       "display_name": "Difference-in-differences",
       "compatible_assignment_mechanisms": ["time_of_adoption"],
-      "required_roles": ["treatment", "outcome", "group", "time", "cluster"],
+      "required_roles": ["treatment", "outcome", "group", "time", "unit_identifier"],
       "optional_roles": [
-        "unit_identifier",
+        "cluster",
         "confounder_candidate",
         "precision_covariate",
         "effect_modifier",
@@ -210,6 +242,7 @@
       "supported_estimands": ["att_group_time_aggregate"],
       "required_context_requirement_ids": [
         "design.causal_question",
+        "design.estimand",
         "design.treatment_meaning",
         "design.outcome_window",
         "design.population_comparator",
@@ -217,6 +250,7 @@
         "design.table_grain",
         "dataset.sampling_mechanism",
         "design.assignment_mechanism",
+        "design.adoption_time",
         "column.meaning",
         "column.encoding",
         "column.missing_meaning",
@@ -249,6 +283,11 @@
         "period_window",
         "cohort_inclusion"
       ],
+      "unusable_row_rule_ids": [
+        "missing_unit_or_time_key",
+        "missing_group_membership",
+        "unit_period_collision"
+      ],
       "imputation_forbidden_roles": ["treatment", "outcome", "group", "time"],
       "imputation_eligible_roles": [
         "confounder_candidate",
@@ -264,12 +303,23 @@
         "effective_sample_size",
         "target_population"
       ],
-      "invalidation_rules": [
-        "Removing an inconvenient period, group, or adoption cohort without design revision invalidates the design.",
-        "Parallel trends is an assumption stated in the design, never a fact inferred from one pre-trend test.",
-        "Synthetic panel rows or interpolated outcomes destroy the required group-time support.",
-        "An unclassified simultaneous versus staggered adoption profile blocks approval."
-      ],
+      "statements": {
+        "did.parallel_trends": "Absent treatment, treated and comparison groups would have followed parallel outcome trends.",
+        "did.no_anticipation": "Units do not change outcomes in anticipation of treatment.",
+        "did.stable_composition": "Group composition is comparable across the approved periods.",
+        "did.differential_trends_risk": "Differential pre-treatment trends weaken the causal interpretation.",
+        "did.composition_risk": "Changing group composition can mimic a treatment effect.",
+        "did.pretrend_sensitivity": "Report event-time and pre-period evidence without treating it as proof of parallel trends.",
+        "did.period_removal_rule": "Removing a period, group, or cohort requires design revision.",
+        "did.synthetic_panel_rule": "Synthetic panel rows and interpolated outcomes are forbidden."
+      },
+      "mandatory_assumption_ids": ["did.parallel_trends", "did.no_anticipation", "did.stable_composition"],
+      "optional_assumption_ids": [],
+      "mandatory_risk_ids": ["did.differential_trends_risk", "did.composition_risk"],
+      "optional_risk_ids": [],
+      "mandatory_sensitivity_ids": ["did.pretrend_sensitivity"],
+      "optional_sensitivity_ids": [],
+      "invalidation_rule_ids": ["did.period_removal_rule", "did.synthetic_panel_rule"],
       "required_postrepair_diagnostic_ids": [
         "unit_period_uniqueness",
         "group_time_counts",
@@ -282,8 +332,7 @@
         "support_composition",
         "primary_aggregate"
       ],
-      "reserved_estimator_id": "did-estimator.v1",
-      "runnable_frame_schema": "runnable-frame-contract.v1"
+      "reserved_estimator_id": "did-estimator.v1"
     },
     {
       "method_id": "sharp_rdd",
@@ -304,6 +353,7 @@
       "supported_estimands": ["late_at_cutoff"],
       "required_context_requirement_ids": [
         "design.causal_question",
+        "design.estimand",
         "design.treatment_meaning",
         "design.outcome_window",
         "design.population_comparator",
@@ -311,6 +361,8 @@
         "design.table_grain",
         "dataset.sampling_mechanism",
         "design.assignment_mechanism",
+        "design.cutoff",
+        "design.sharp_assignment",
         "column.meaning",
         "column.encoding",
         "column.missing_meaning",
@@ -344,6 +396,12 @@
         "cutoff_side_membership",
         "bandwidth_window"
       ],
+      "unusable_row_rule_ids": [
+        "missing_unit_identifier",
+        "missing_running_variable",
+        "missing_observed_outcome",
+        "unit_grain_collision"
+      ],
       "imputation_forbidden_roles": ["treatment", "outcome", "running_variable"],
       "imputation_eligible_roles": [
         "confounder_candidate",
@@ -358,12 +416,23 @@
         "effective_sample_size",
         "target_population"
       ],
-      "invalidation_rules": [
-        "Suspected manipulation or bunching at the cutoff is reported, never repaired away.",
-        "Outcome-based or asymmetric deletion around the cutoff invalidates the discontinuity.",
-        "Bandwidth restriction belongs to the approved design and the later estimator, never to ad hoc repair.",
-        "Losing support on either side of the cutoff requires design revision."
-      ],
+      "statements": {
+        "rdd.continuity": "Potential outcomes are continuous at the approved cutoff.",
+        "rdd.no_precise_manipulation": "Units cannot precisely manipulate the running variable around the cutoff.",
+        "rdd.local_assignment": "Treatment changes sharply at the cutoff and the estimand is local to it.",
+        "rdd.support_risk": "Sparse local support can make the cutoff estimate unstable.",
+        "rdd.manipulation_risk": "Sorting or bunching near the cutoff weakens identification.",
+        "rdd.bandwidth_sensitivity": "Report sensitivity to registered bandwidth and polynomial choices.",
+        "rdd.manipulation_rule": "Suspected manipulation is reported and never repaired away.",
+        "rdd.asymmetric_deletion_rule": "Outcome-based or asymmetric cutoff deletion is forbidden."
+      },
+      "mandatory_assumption_ids": ["rdd.continuity", "rdd.no_precise_manipulation", "rdd.local_assignment"],
+      "optional_assumption_ids": [],
+      "mandatory_risk_ids": ["rdd.support_risk", "rdd.manipulation_risk"],
+      "optional_risk_ids": [],
+      "mandatory_sensitivity_ids": ["rdd.bandwidth_sensitivity"],
+      "optional_sensitivity_ids": [],
+      "invalidation_rule_ids": ["rdd.manipulation_rule", "rdd.asymmetric_deletion_rule"],
       "required_postrepair_diagnostic_ids": [
         "cutoff_side_counts",
         "distance_to_cutoff_support",
@@ -376,8 +445,7 @@
         "density_continuity",
         "primary_local_estimate"
       ],
-      "reserved_estimator_id": "sharp-rdd-estimator.v1",
-      "runnable_frame_schema": "runnable-frame-contract.v1"
+      "reserved_estimator_id": "sharp-rdd-estimator.v1"
     }
   ]
 }

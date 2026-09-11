@@ -1,4 +1,4 @@
-"""Tests for method packs, requirement templates, and the tool allowlist (T-011)."""
+"""Tests for method packs and requirement templates (T-011)."""
 
 from __future__ import annotations
 
@@ -9,22 +9,22 @@ from typing import Any
 
 import pytest
 
+from causal.analysis.integration import RESOURCE_ROOT
 from causal.design.packs import (
     METHOD_IDS,
     PREREPAIR_DIAGNOSTIC_IDS,
-    TASK_KINDS,
     PackRegistryError,
     load_method_packs,
     load_requirement_templates,
-    load_tool_registry,
     verify_requirement_references,
 )
 from causal.design.semantics import RoleName
 
 REGISTRIES = Path(__file__).resolve().parents[2] / "registries"
 PACKS_PATH = REGISTRIES / "method-packs.v1.json"
+PREPARATION_PACKS_PATH = REGISTRIES / "method-pack-preparation.v1.json"
+ESTIMATION_PACKS_PATH = RESOURCE_ROOT / "method-pack-estimation.v1.json"
 REQUIREMENTS_PATH = REGISTRIES / "context-requirements.v1.json"
-TOOLS_PATH = REGISTRIES / "design-tools.v1.json"
 
 ROLE_FIELDS = (
     "required_roles", "optional_roles", "forbidden_adjustment_roles",
@@ -32,19 +32,14 @@ ROLE_FIELDS = (
 )
 # PRD-002 §10.1 — one requirement template per common semantic bullet.
 REQUIRED_TEMPLATE_IDS = (
-    "design.causal_question", "design.treatment_meaning", "design.outcome_window",
+    "design.causal_question", "design.estimand", "design.treatment_meaning", "design.outcome_window",
     "design.population_comparator", "design.unit_identity", "design.table_grain",
     "dataset.sampling_mechanism", "design.assignment_mechanism", "column.meaning",
+    "design.cutoff", "design.sharp_assignment", "design.adoption_time",
     "column.encoding", "column.missing_meaning", "column.measurement_timing",
     "column.source_process", "design.concept_mapping", "design.treatment_descendants",
     "design.selection_variables", "design.conflict_resolution",
 )
-# SC §5.4 — the five PRD-002 model-task rows, verbatim.
-# D-100: no design tool has a handler any more, so the registry advertises none
-# and every envelope's `allowed_tool_ids` is empty.
-EXPECTED_RECIPIENT_MAP: dict[str, tuple[str, ...]] = dict.fromkeys(TASK_KINDS, ())
-
-HARNESS_ONLY_TOOLS = ("validate_experiment_design", "render_causal_graph", "request_user_context")
 
 
 def tamper(tmp_path: Path, source: Path, mutate: Callable[[dict[str, Any]], None]) -> Path:
@@ -73,7 +68,6 @@ class TestMethodPacks:
         for pack in load_method_packs(PACKS_PATH).all():
             assert pack.pack_version.endswith("-pack.v1")
             assert pack.reserved_estimator_id.endswith("-estimator.v1")
-            assert pack.runnable_frame_schema == "runnable-frame-contract.v1"
             for field in ROLE_FIELDS:
                 cited: tuple[str, ...] = getattr(pack, field)
                 assert set(cited) <= known, f"{pack.method_id}.{field}"
@@ -99,12 +93,31 @@ class TestMethodPacks:
         assert "treatment_binary" in aipw.structural_requirements
         did = packs.get("did")
         assert did.supported_estimands == ("att_group_time_aggregate",)
-        assert RoleName.CLUSTER.value in did.required_roles
+        assert RoleName.UNIT_IDENTIFIER.value in did.required_roles
+        assert RoleName.CLUSTER.value in did.optional_roles
         assert "unit_time_or_group_time_rows" in did.structural_requirements
         rdd = packs.get("sharp_rdd")
         assert rdd.supported_estimands == ("late_at_cutoff",)
         assert RoleName.RUNNING_VARIABLE.value in rdd.required_roles
         assert "support_on_both_sides_of_cutoff" in rdd.structural_requirements
+
+    def test_unusable_row_rules_are_registered_by_preparation(self) -> None:
+        design = load_method_packs(PACKS_PATH)
+        preparation = json.loads(PREPARATION_PACKS_PATH.read_text(encoding="utf-8"))
+        permitted = {row["method_id"]: set(row["permitted_disposition_rule_ids"])
+                     for row in preparation["packs"]}
+        for pack in design.all():
+            assert set(pack.unusable_row_rule_ids) <= permitted[pack.method_id]
+
+    def test_required_roles_are_inputs_of_the_reserved_estimators(self) -> None:
+        design = load_method_packs(PACKS_PATH)
+        estimation = json.loads(ESTIMATION_PACKS_PATH.read_text(encoding="utf-8"))
+        by_method = {row["method_id"]: row for row in estimation["packs"]}
+        for pack in design.all():
+            row = by_method[pack.method_id]
+            aliases = row.get("estimator_role_aliases", {})
+            required = {aliases.get(role, role) for role in pack.required_roles}
+            assert required <= set(row["estimator_input_schema"]), pack.method_id
 
     def test_unsupported_method_lookup(self) -> None:
         with pytest.raises(PackRegistryError) as excinfo:
@@ -159,7 +172,7 @@ class TestTamperedPacks:
 class TestRequirementTemplates:
     def test_every_common_requirement_has_a_row(self) -> None:
         templates = load_requirement_templates(REQUIREMENTS_PATH)
-        assert set(REQUIRED_TEMPLATE_IDS) <= set(templates)
+        assert set(REQUIRED_TEMPLATE_IDS) == set(templates)
         timing = templates["column.measurement_timing"]
         assert timing.scope_kind.value == "column"
         assert timing.criticality.value == "blocking"
@@ -175,7 +188,29 @@ class TestRequirementTemplates:
         templates = load_requirement_templates(REQUIREMENTS_PATH)
         verify_requirement_references(packs, templates)
         for pack in packs.all():
-            assert set(pack.required_context_requirement_ids) <= set(templates)
+            expected = {requirement_id for requirement_id, template in templates.items()
+                        if pack.method_id in template.methods_required_for}
+            assert set(pack.required_context_requirement_ids) == expected
+
+    def test_every_requirement_declares_a_typed_accepted_fact_contract(self) -> None:
+        templates = load_requirement_templates(REQUIREMENTS_PATH)
+        contracts = [template.accepted_fact for template in templates.values()]
+        assert len(contracts) == len(templates) == 21
+        assert len({contract.fact_key for contract in contracts}) == 21
+        assert all(contract.consumer_ids for contract in contracts)
+        assert templates["design.cutoff"].expected_answer_schema == "number"
+        assert templates["design.cutoff"].accepted_fact.value_type == "number"
+        assert templates["column.measurement_timing"].accepted_fact.value_type == "mapping"
+
+    def test_requirement_without_an_accepted_fact_contract_fails_closed(
+        self, tmp_path: Path
+    ) -> None:
+        def mutate(document: dict[str, Any]) -> None:
+            del document["requirements"][0]["accepted_fact"]
+
+        with pytest.raises(PackRegistryError) as excinfo:
+            load_requirement_templates(tamper(tmp_path, REQUIREMENTS_PATH, mutate))
+        assert excinfo.value.code == "invalid_registry_file"
 
     def test_unknown_requirement_id_fails_closed(self, tmp_path: Path) -> None:
         def mutate(document: dict[str, Any]) -> None:
@@ -186,6 +221,25 @@ class TestRequirementTemplates:
             verify_requirement_references(packs, load_requirement_templates(REQUIREMENTS_PATH))
         assert excinfo.value.code == "unknown_requirement"
 
+    def test_missing_method_requirement_fails_closed(self, tmp_path: Path) -> None:
+        def mutate(document: dict[str, Any]) -> None:
+            document["packs"][0]["required_context_requirement_ids"].remove("design.estimand")
+
+        packs = load_method_packs(tamper(tmp_path, PACKS_PATH, mutate))
+        with pytest.raises(PackRegistryError) as excinfo:
+            verify_requirement_references(packs, load_requirement_templates(REQUIREMENTS_PATH))
+        assert excinfo.value.code == "requirement_mismatch"
+
+    def test_known_but_inapplicable_requirement_fails_closed(self, tmp_path: Path) -> None:
+        def mutate(document: dict[str, Any]) -> None:
+            document["packs"][0]["required_context_requirement_ids"].append(
+                "design.adoption_time")
+
+        packs = load_method_packs(tamper(tmp_path, PACKS_PATH, mutate))
+        with pytest.raises(PackRegistryError) as excinfo:
+            verify_requirement_references(packs, load_requirement_templates(REQUIREMENTS_PATH))
+        assert excinfo.value.code == "requirement_mismatch"
+
     def test_wrong_requirement_registry_version(self, tmp_path: Path) -> None:
         def mutate(document: dict[str, Any]) -> None:
             document["registry_version"] = "context-requirements.v2"
@@ -193,41 +247,4 @@ class TestRequirementTemplates:
         path = tamper(tmp_path, REQUIREMENTS_PATH, mutate)
         with pytest.raises(PackRegistryError) as excinfo:
             load_requirement_templates(path)
-        assert excinfo.value.code == "invalid_registry_file"
-
-
-class TestToolRegistry:
-    def test_eleven_tools_and_recipient_map_matches_the_audit_ledger(self) -> None:
-        registry = load_tool_registry(TOOLS_PATH)
-        assert len(registry) == 11
-        assert registry.recipient_map() == EXPECTED_RECIPIENT_MAP
-        assert tuple(registry.recipient_map()) == TASK_KINDS
-
-    def test_harness_only_tools_reach_no_task_kind(self) -> None:
-        registry = load_tool_registry(TOOLS_PATH)
-        for tool_id in HARNESS_ONLY_TOOLS:
-            row = registry.lookup(tool_id)
-            assert row is not None
-            assert row.allowed_task_kinds == ()
-            assert row.registered is False
-        assert registry.lookup("run_arbitrary_code") is None
-
-    def test_no_tool_is_registered_and_none_reaches_a_task_kind(self) -> None:
-        """The handlers were deleted unrun, so the registry may not advertise them (D-100)."""
-        registry = load_tool_registry(TOOLS_PATH)
-        for tool_id in ("validate_causal_model", "run_preflight_diagnostic",
-                        "preview_eligibility_impact", "list_intake_inventory",
-                        "get_semantic_evidence", "get_measured_facts", "get_provenance",
-                        "get_method_contract"):
-            row = registry.lookup(tool_id)
-            assert row is not None
-            assert (row.registered, row.allowed_task_kinds) == (False, ())
-
-    def test_unknown_task_kind_fails_closed(self, tmp_path: Path) -> None:
-        def mutate(document: dict[str, Any]) -> None:
-            document["tools"][0]["allowed_task_kinds"].append("free_for_all")
-
-        path = tamper(tmp_path, TOOLS_PATH, mutate)
-        with pytest.raises(PackRegistryError) as excinfo:
-            load_tool_registry(path)
         assert excinfo.value.code == "invalid_registry_file"

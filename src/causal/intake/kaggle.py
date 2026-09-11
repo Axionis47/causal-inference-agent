@@ -7,6 +7,7 @@ authenticates itself from the runtime secret source at construction time.
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Final, Protocol
 
@@ -52,22 +53,21 @@ def _resolve_version(
     raise KaggleError("provider returned no resolvable version", VERSION_UNRESOLVED)
 
 
-def capture(client: KaggleClientProtocol, kaggle_ref: str) -> CaptureResult:
+def capture(client: KaggleClientProtocol | Callable[[], KaggleClientProtocol],
+            kaggle_ref: str) -> CaptureResult:
     """Freeze one provider snapshot into the kaggle-capture.v1 payload (§5.1–§5.4)."""
     owner, slug = kaggle_ref.split("/")
     try:
+        client = client() if callable(client) else client
         status_response = client.dataset_status(owner, slug)
         metadata_response = client.dataset_metadata(owner, slug)
         files_response = client.dataset_files(owner, slug)
+        version = _resolve_version(status_response, metadata_response)
+        archive_bytes = client.download_archive(owner, slug, version)
     except KaggleError:
         raise
     except Exception as error:
-        raise KaggleError(f"provider fetch failed: {error}", FETCH_FAILED) from error
-    version = _resolve_version(status_response, metadata_response)
-    try:
-        archive_bytes = client.download_archive(owner, slug, version)
-    except Exception as error:
-        raise KaggleError(f"archive download failed: {error}", FETCH_FAILED) from error
+        raise KaggleError(f"provider capture failed: {type(error).__name__}", FETCH_FAILED) from error
     payload: dict[str, object] = {
         "schema_version": "kaggle-capture.v1", "kaggle_ref": kaggle_ref,
         "dataset": {

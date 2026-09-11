@@ -13,29 +13,9 @@ CREATE TABLE design.design_runs (
     selected_table        text,
     method_id             text,
     outcome_artifact_id   text REFERENCES causal.artifacts (artifact_id),
-    observability_failure text,
     created_at            timestamptz NOT NULL,
     updated_at            timestamptz NOT NULL,
     UNIQUE (analysis_id, design_revision)
-);
-
-CREATE TABLE design.design_artifact_refs (
-    artifact_id     text PRIMARY KEY REFERENCES causal.artifacts (artifact_id),
-    analysis_id     text NOT NULL,
-    design_revision integer NOT NULL CHECK (design_revision >= 1),
-    kind            text NOT NULL,
-    content_hash    text NOT NULL CHECK (content_hash ~ '^[a-f0-9]{64}$'),
-    schema_version  text NOT NULL,
-    approval_bound  boolean NOT NULL DEFAULT false
-);
-
-CREATE TABLE design.design_context_manifests (
-    artifact_id                text PRIMARY KEY REFERENCES causal.artifacts (artifact_id),
-    analysis_id                text NOT NULL,
-    design_revision            integer NOT NULL CHECK (design_revision >= 1),
-    content_hash               text NOT NULL CHECK (content_hash ~ '^[a-f0-9]{64}$'),
-    intake_outcome_artifact_id text NOT NULL REFERENCES causal.artifacts (artifact_id),
-    registry_versions          jsonb NOT NULL
 );
 
 CREATE TABLE design.causal_graph_views (
@@ -77,25 +57,44 @@ CREATE TABLE design.context_requirements (
         ('open', 'resolved', 'unknown_accepted', 'refused')),
     attempted_evidence           jsonb NOT NULL,
     resolving_answer_artifact_id text REFERENCES causal.artifacts (artifact_id),
-    PRIMARY KEY (analysis_id, design_revision, requirement_id)
+    resolving_fact_id            text,
+    PRIMARY KEY (analysis_id, design_revision, requirement_id, scope_id)
 );
 
-CREATE TABLE design.delivery_capacity_checks (
-    artifact_id                   text PRIMARY KEY REFERENCES causal.artifacts (artifact_id),
-    analysis_id                   text NOT NULL,
-    design_revision               integer NOT NULL CHECK (design_revision >= 1),
-    status                        text NOT NULL CHECK (status IN ('pass', 'fail')),
-    cardinalities                 jsonb NOT NULL,
-    capacity_registry_version     text NOT NULL,
-    visualization_catalog_version text NOT NULL
+CREATE TABLE design.accepted_facts (
+    accepted_fact_id       text PRIMARY KEY,
+    analysis_id            text NOT NULL,
+    design_revision        integer NOT NULL CHECK (design_revision >= 1),
+    requirement_id         text NOT NULL,
+    scope_id               text NOT NULL,
+    value                  jsonb NOT NULL,
+    value_schema           text NOT NULL,
+    source_kind            text NOT NULL CHECK (source_kind IN
+        ('user', 'document', 'measurement', 'interpretation', 'derived')),
+    evidence_ids           jsonb NOT NULL,
+    evidence_class         text NOT NULL,
+    support_relation       text NOT NULL CHECK (support_relation IN
+        ('direct', 'corroborating')),
+    acceptance_status      text NOT NULL CHECK (acceptance_status IN
+        ('accepted', 'superseded', 'conflicting')),
+    is_current             boolean NOT NULL,
+    origin_revision        integer NOT NULL CHECK (origin_revision >= 1),
+    origin_reference_id    text NOT NULL,
+    origin_reference_hash  text NOT NULL CHECK (origin_reference_hash ~ '^[a-f0-9]{64}$'),
+    inherited_from_fact_id text REFERENCES design.accepted_facts (accepted_fact_id),
+    supersedes_fact_id     text REFERENCES design.accepted_facts (accepted_fact_id),
+    created_at             timestamptz NOT NULL,
+    UNIQUE (analysis_id, design_revision, accepted_fact_id)
 );
 
-CREATE TABLE design.design_approvals (
-    artifact_id     text PRIMARY KEY REFERENCES causal.artifacts (artifact_id),
-    analysis_id     text NOT NULL,
-    design_revision integer NOT NULL CHECK (design_revision >= 1),
-    decision        text NOT NULL CHECK (decision IN
-        ('approved', 'changes_requested', 'declined')),
-    approved_hashes jsonb NOT NULL,
-    decided_at      timestamptz NOT NULL
-);
+CREATE UNIQUE INDEX accepted_facts_one_current
+    ON design.accepted_facts (analysis_id, design_revision, requirement_id, scope_id)
+    WHERE is_current;
+
+ALTER TABLE design.context_requirements
+    ADD CONSTRAINT context_requirement_resolving_fact_fk
+    FOREIGN KEY (resolving_fact_id) REFERENCES design.accepted_facts (accepted_fact_id);
+
+ALTER TABLE design.context_requirements
+    ADD CONSTRAINT resolved_requirement_has_fact
+    CHECK ((state = 'resolved') = (resolving_fact_id IS NOT NULL));

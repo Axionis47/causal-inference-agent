@@ -1,0 +1,3 @@
+Assess panel support, cohort-period support and the fixed reference period before attributing changes to treatment. Composition changes can alter who is being compared. Event-time evidence before adoption should be interpreted alongside study knowledge about anticipation and concurrent shocks.
+
+An alternative event-time aggregation applies to the staggered-adoption estimator; it would not change the simultaneous estimator. A balanced-panel restriction changes the contributing population and must be reported as such. Unavailable checks and unstable comparisons remain evidence about the analysis rather than instructions to search automatically for a different specification.

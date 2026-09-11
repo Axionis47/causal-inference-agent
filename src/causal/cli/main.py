@@ -10,7 +10,7 @@ import argparse
 import json
 import sys
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import IO, Annotated, Any, Final, Literal, Protocol, Self, cast, get_args
 
@@ -177,9 +177,8 @@ class DesignOutcomeView(OutcomeView, Protocol):
     @property
     def interrupt_hash(self) -> str | None: ...
     @property
-    def refusal_code(self) -> str | None: ...
-    @property
     def error_code(self) -> str | None: ...
+    review_summary: Mapping[str, str] | None
 
 
 class Runtime(Protocol):
@@ -417,10 +416,9 @@ def _from_design(envelope: CliCommandEnvelopeV1, outcome: DesignOutcomeView) -> 
         cli_invocation_id=envelope.cli_invocation_id, command_name=envelope.command_name,
         analysis_id=outcome.analysis_id, stage_run_id=outcome.stage_run_id, status=status,
         interrupt=interrupt, next_command_name=_next_command(status, outcome.interrupt_kind),
-        error_code=outcome.refusal_code or outcome.error_code,
+        error_code=outcome.error_code,
         message_key=MESSAGE_BY_STATUS[status],
-        message_args=_message_args(outcome, {"design_revision": outcome.design_revision,
-                                             "design_status": outcome.status}))
+        message_args=_message_args(outcome, {"design_revision": outcome.design_revision, "design_status": outcome.status, **dict(outcome.review_summary or {})}))
 
 
 def _next_command(status: CliStatus, interrupt_kind: str | None) -> CommandName | None:

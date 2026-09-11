@@ -1,0 +1,167 @@
+{
+  "schema_version": "human-gold.v1",
+  "prompt_leak_canary": "HUMAN_GOLD_EVALUATOR_ONLY_7c3b91",
+  "reviewer": null,
+  "matrix_expectations": {
+    "rich": {
+      "minimum_question_count": 0,
+      "maximum_question_count": 0,
+      "required_requirement_ids": [],
+      "allowed_requirement_ids": []
+    },
+    "sparse": {
+      "minimum_question_count": 1,
+      "maximum_question_count": 48,
+      "required_requirement_ids": [],
+      "allowed_requirement_ids": [
+        "design.causal_question", "design.estimand", "design.treatment_meaning",
+        "design.outcome_window", "design.population_comparator", "design.unit_identity",
+        "design.table_grain", "dataset.sampling_mechanism",
+        "design.assignment_mechanism", "design.cutoff", "design.sharp_assignment",
+        "design.adoption_time", "column.meaning", "column.encoding",
+        "column.missing_meaning", "column.measurement_timing", "column.source_process",
+        "design.concept_mapping", "design.treatment_descendants",
+        "design.selection_variables", "design.conflict_resolution"
+      ]
+    }
+  },
+  "cases": {
+    "lalonde_nsw_rct": {
+      "scientific_suitability": {
+        "status": "conditional",
+        "reasons": ["Requires authoritative documentation that treat is randomized assignment in the experimental sample rather than treatment receipt."]
+      },
+      "accepted_safe_terminal_outcomes": ["needs_context", "declined"],
+      "assignment_mechanisms": ["randomized"],
+      "estimands": ["itt"],
+      "methods": ["randomized_experiment"],
+      "profiles": ["rct-profile.v1"],
+      "grains": ["one_row_per_unit"],
+      "units": ["derived:row_unit", "participant"],
+      "comparators": ["0", "control", "treat=0"],
+      "role_bindings": {
+        "treatment": [["treat"]],
+        "outcome": [["re78"]],
+        "unit_identifier": [["__row_unit_id"]]
+      },
+      "timing": {"treatment": ["concurrent"], "outcome": ["post_treatment"]},
+      "required_role_relationships": [["treatment", "outcome"]],
+      "forbidden_role_relationships": [["outcome", "treatment"]],
+      "required_claim_statuses": ["reportable", "reportable_with_qualifications"],
+      "accepted_templates": {
+        "assignment_attrition_flow": ["composition_stack.v1"],
+        "balance_overview": ["balance_overview.v1"],
+        "primary_contrast_estimates": ["estimate_forest.v1"],
+        "required_sensitivities": ["estimate_forest.v1"]
+      },
+      "terminal_outcomes": ["complete", "complete_with_qualifications"]
+    },
+    "groupon_aipw": {
+      "scientific_suitability": {
+        "status": "unsuitable",
+        "reasons": ["Exposure construction and covariate timing are not independently documented, and price alone is not a defensible verified adjustment set."]
+      },
+      "accepted_safe_terminal_outcomes": ["needs_context", "invalidated", "declined", "unsupported"],
+      "assignment_mechanisms": ["self_selected"],
+      "estimands": ["att"],
+      "methods": ["aipw"],
+      "profiles": ["aipw-profile.v1"],
+      "grains": ["one_row_per_unit"],
+      "units": ["deal", "c:deal", "c:unit"],
+      "comparators": ["0", "unexposed", "treatment=0"],
+      "role_bindings": {
+        "treatment": [["treatment"]],
+        "outcome": [["quantity_sold"]],
+        "unit_identifier": [["unit_id"]],
+        "confounder_candidate": [["price"]]
+      },
+      "timing": {
+        "treatment": ["concurrent"], "outcome": ["post_treatment"],
+        "confounder_candidate": ["pre_treatment"]
+      },
+      "required_role_relationships": [
+        ["confounder_candidate", "treatment"],
+        ["confounder_candidate", "outcome"],
+        ["treatment", "outcome"]
+      ],
+      "forbidden_role_relationships": [
+        ["outcome", "treatment"], ["treatment", "confounder_candidate"]
+      ],
+      "required_claim_statuses": ["reportable_with_qualifications"],
+      "accepted_templates": {
+        "overlap": ["binned_scatter.v1"],
+        "weights_support": ["balance_overview.v1"],
+        "balance_overview": ["balance_overview.v1"],
+        "primary_estimate": ["estimate_forest.v1"],
+        "required_sensitivities": ["estimate_forest.v1"]
+      },
+      "terminal_outcomes": ["complete_with_qualifications"]
+    },
+    "minimum_wage_did": {
+      "scientific_suitability": {
+        "status": "unsuitable",
+        "reasons": ["The asserted single 2009 adoption rule conflicts with the staged 2007-2009 federal minimum-wage increases."]
+      },
+      "accepted_safe_terminal_outcomes": ["needs_context", "invalidated", "declined", "unsupported"],
+      "assignment_mechanisms": ["time_of_adoption"],
+      "estimands": ["att_group_time_aggregate"],
+      "methods": ["did"],
+      "profiles": ["did-profile.v1"],
+      "grains": ["one_row_per_unit_period"],
+      "units": ["state", "c:state"],
+      "comparators": ["comparison states", "not exposed", "unexposed states"],
+      "structural_facts": {"adoption_time": [2009, "2009"]},
+      "role_bindings": {
+        "treatment": [["treatment"]],
+        "outcome": [["poverty_rate"]],
+        "unit_identifier": [["unit_id"]],
+        "time": [["period"]],
+        "group": [["federal_exposed"]]
+      },
+      "timing": {"outcome": ["post_treatment"], "time": ["pre_treatment", "concurrent"]},
+      "required_role_relationships": [["treatment", "outcome"]],
+      "forbidden_role_relationships": [["outcome", "treatment"]],
+      "required_claim_statuses": ["reportable_with_qualifications", "not_reportable"],
+      "required_qualification_fragments": ["parallel"],
+      "accepted_templates": {
+        "trends": ["trend_lines.v1"],
+        "event_time_evidence": ["trend_lines.v1"],
+        "support_composition": ["composition_stack.v1"],
+        "primary_aggregate": ["estimate_forest.v1"]
+      },
+      "terminal_outcomes": ["complete_with_qualifications", "invalidated"]
+    },
+    "rd_senate_sharp": {
+      "scientific_suitability": {"status": "suitable", "reasons": []},
+      "accepted_safe_terminal_outcomes": [],
+      "assignment_mechanisms": ["policy_cutoff"],
+      "estimands": ["late_at_cutoff"],
+      "methods": ["sharp_rdd"],
+      "profiles": ["rdd-profile.v1"],
+      "grains": ["one_row_per_unit"],
+      "units": ["derived:row_unit", "senate_race"],
+      "comparators": ["below cutoff", "margin<0"],
+      "structural_facts": {"cutoff": [0, 0.0, "0"], "sharp_assignment": [true]},
+      "role_bindings": {
+        "treatment": [["treatment"]],
+        "outcome": [["vote"]],
+        "running_variable": [["margin"]],
+        "unit_identifier": [["__row_unit_id"]]
+      },
+      "timing": {
+        "treatment": ["concurrent"], "outcome": ["post_treatment"],
+        "running_variable": ["pre_treatment", "concurrent"]
+      },
+      "required_role_relationships": [["running_variable", "treatment"], ["treatment", "outcome"]],
+      "forbidden_role_relationships": [["outcome", "treatment"]],
+      "required_claim_statuses": ["reportable", "reportable_with_qualifications"],
+      "accepted_templates": {
+        "binned_outcome_fit": ["binned_scatter.v1"],
+        "cutoff_bandwidth": ["binned_scatter.v1"],
+        "density_continuity": ["binned_scatter.v1"],
+        "primary_local_estimate": ["estimate_forest.v1"]
+      },
+      "terminal_outcomes": ["complete", "complete_with_qualifications"]
+    }
+  }
+}

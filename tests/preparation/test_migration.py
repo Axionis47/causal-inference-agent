@@ -9,7 +9,7 @@ from typing import Any
 import psycopg
 import pytest
 
-from tests.conftest import MIGRATIONS, requires_docker
+from tests.infrastructure import MIGRATIONS, requires_docker
 
 pytestmark = requires_docker
 

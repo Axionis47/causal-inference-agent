@@ -1,0 +1,5 @@
+An ATE concerns the declared target population; an ATT concerns the treated population. They are different questions and must be named explicitly. Adjustment requires a substantively defensible set of variables measured before treatment. Good prediction, cross-fitting, and measured balance cannot establish that unmeasured confounding is absent.
+
+The factual timing assertion `adjustment_set_pre_treatment=True` must include supporting references and a scope covering every selected adjustment column. Binding columns alone does not establish their timing. Adding or replacing a covariate reevaluates that support and all dependent choices.
+
+Double robustness is conditional on identifying assumptions, overlap and nuisance-model conditions. It is not protection against arbitrary model misspecification or unsupported target-population regions. The current numerical specification treats units as independent and requires complete numeric adjustment inputs; a missing-data strategy must be resolved before analysis.

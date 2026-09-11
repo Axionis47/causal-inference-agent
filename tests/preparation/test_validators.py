@@ -105,7 +105,7 @@ EXECUTION_OK: dict[str, Any] = {"source_ref": SOURCE, "row_set_hash": HASH,
     (6, FINAL_OK, set()),
     (6, {**FINAL_OK, "implemented_diagnostic_ids": frozenset(), "prepared_schema": {"age": "S"},
          "readability": {**READABLE, "receipts_complete": False}},
-     {"required_diagnostic_unhandled", "runnable_frame_contract_unmet", "handoff_not_readable"}),
+     {"required_diagnostic_unhandled", "estimator_schema_unmet", "handoff_not_readable"}),
     # A registered-but-unimplemented method diagnostic passes only as approved `not_computable`.
     (6, {**FINAL_OK, "implemented_diagnostic_ids": frozenset(),
          "approved_handling": frozenset({"not_computable"}),

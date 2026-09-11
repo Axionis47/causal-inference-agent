@@ -1,38 +1,32 @@
-"""Delivery-capacity preflight against the frozen template registry (PRD-002 §13.5; SC §11)."""
+"""Scientific cardinality measurements, with historical registry readers."""
 
 from __future__ import annotations
 
 from collections.abc import Mapping
 from pathlib import Path
-from typing import Annotated, Final, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import Field, ValidationError
 
 from causal.design.contracts import _Row
-from causal.design.frame import CAPACITY_DIMENSIONS, CapacityStatus, DeliveryCapacityCheckV1
 from causal.design.packs import (
     INVALID_REGISTRY_FILE,
-    MethodPackRegistry,
     MethodPackV1,
     PackRegistryError,
 )
-from causal.shared.contracts import Identity
+from causal.design.semantics import RoleName
+from causal.design.v2 import (
+    CapacityReportV2,
+    CapacityValueV2,
+    DesignFactSetV2,
+)
+from causal.shared.contracts import ArtifactRef, Identity
 
 __all__ = [
-    "MAX_CONCURRENCY", "CapacityRegistryError", "CapacityRegistryV1",
-    "VisualizationTemplateV1", "check_capacity", "load_capacity_registry",
+    "CapacityRegistryError", "CapacityRegistryV1", "VisualizationTemplateV1",
+    "compile_capacity_report",
+    "load_capacity_registry",
 ]
-
-UNKNOWN_DIMENSION: Final = "unknown_dimension"
-MAX_CONCURRENCY: Final = 8
-_LIMIT_FIELDS: Final = ("max_panels", "max_series", "max_labels", "max_annotations")
-# Which template limits each cardinality dimension must fit inside (T-012 §5).
-_DIMENSION_FIT: Final[dict[str, tuple[str, ...]]] = {
-    "arms": ("max_series", "max_panels"), "contrasts": ("max_labels", "max_annotations"),
-    "subgroups": ("max_panels",), "cohorts": ("max_panels",), "periods": ("max_series",),
-    "event_times": ("max_series",), "cutoff_sides": ("max_panels",), "series": ("max_series",),
-    "evidence_items": (),
-}
 
 _Limit = Annotated[int, Field(ge=1)]
 
@@ -75,54 +69,46 @@ def load_capacity_registry(path: Path) -> CapacityRegistryV1:
     return registry
 
 
-# The closed dimension vector: an unnamed dimension is zero, an unknown one fails closed.
-def _dimensions(cardinalities: Mapping[str, int]) -> dict[str, int]:
-    if unknown := sorted(set(cardinalities) - set(CAPACITY_DIMENSIONS)):
-        raise CapacityRegistryError(f"unknown cardinalities: {unknown}", UNKNOWN_DIMENSION)
-    return {dimension: int(cardinalities.get(dimension, 0)) for dimension in CAPACITY_DIMENSIONS}
+def _cardinality(facts: DesignFactSetV2, profile: Mapping[str, Any],
+                 role: RoleName) -> int | None:
+    columns = facts.columns(role)
+    if not columns:
+        return None
+    value = (profile.get("columns") or {}).get(columns[0], {}).get("cardinality")
+    return int(value) if value is not None else None
 
 
-# One `over_limit` code per dimension the template cannot carry.
-def _violations(template: VisualizationTemplateV1, dimensions: Mapping[str, int]) -> list[str]:
-    return [
-        f"over_limit:{template.template_id}:{dimension}"
-        for dimension, fields in _DIMENSION_FIT.items()
-        if any(dimensions[dimension] > int(getattr(template, field)) for field in fields)
-    ]
+def compile_capacity_report(
+    *, pack: MethodPackV1, facts: DesignFactSetV2, profile: Mapping[str, Any],
+    contrast_count: int, compiled_design: ArtifactRef, registry: CapacityRegistryV1,
+) -> CapacityReportV2:
+    """Record applicable scientific counts without prescribing or gating report layout.
 
-
-def check_capacity(
-    pack: MethodPackV1, cardinalities: Mapping[str, int],
-    required_visual_evidence: tuple[str, ...], *, registry: CapacityRegistryV1,
-) -> DeliveryCapacityCheckV1:
-    """Prove one registered delivery path carries every required visual; never invent one."""
-    dimensions = _dimensions(cardinalities)
-    failures: list[str] = []
-    compatible: list[str] = []
-    limits: dict[str, int] = {}
-    for evidence_id in required_visual_evidence:
-        candidates = [t for t in registry.templates if evidence_id in t.visual_evidence_ids]
-        if not candidates:
-            failures.append(f"no_template:{evidence_id}")
-            continue
-        broken = {t.template_id: _violations(t, dimensions) for t in candidates}
-        limits |= {f"{t.template_id}:{field}": int(getattr(t, field))
-                   for t in candidates for field in _LIMIT_FIELDS}
-        if fitting := [name for name, codes in broken.items() if not codes]:
-            compatible.extend(fitting)
-        else:
-            failures.extend(code for codes in broken.values() for code in codes)
-    if dimensions["evidence_items"] > registry.accessible_table_max_rows:
-        failures.append("over_limit:accessible_table:evidence_items")
-    concurrency = min(MAX_CONCURRENCY, registry.max_concurrency)
-    return DeliveryCapacityCheckV1(
-        method_id=pack.method_id, method_profile_id=pack.pack_version, cardinalities=dimensions,
-        required_visual_evidence=tuple(required_visual_evidence),
-        compatible_templates=tuple(dict.fromkeys(compatible)), template_limits=limits,
-        accessible_table_capacity=registry.accessible_table_max_rows,
-        execution_concurrency=concurrency, render_concurrency=concurrency,
-        status=CapacityStatus.FAIL if failures else CapacityStatus.PASS,
-        failure_codes=tuple(dict.fromkeys(failures)),
-        visualization_catalog_version=registry.visualization_catalog_version,
-        capacity_registry_version=registry.capacity_registry_version,
-        method_registry_version=MethodPackRegistry.registry_version)
+    The registry argument preserves the existing caller contract. Its historical display
+    limits have no authority over a new scientific design or post-analysis presentation.
+    """
+    treatment = _cardinality(facts, profile, RoleName.TREATMENT)
+    groups = _cardinality(facts, profile, RoleName.GROUP)
+    periods = _cardinality(facts, profile, RoleName.TIME)
+    required = pack.required_roles
+    na = (None, "not applicable")
+    applicable: dict[str, tuple[int | None, str]] = {
+        "arms": (treatment, "treatment cardinality"),
+        "contrasts": (contrast_count, "compiled primary contrasts"),
+        "subgroups": na,
+        "cohorts": (groups, "group cardinality") if RoleName.GROUP in required else na,
+        "periods": (periods, "time cardinality") if RoleName.TIME in required else na,
+        "event_times": na,
+        "cutoff_sides": (2, "compiled cutoff partition") if RoleName.RUNNING_VARIABLE in required else na,
+        "series": na,
+        "evidence_items": na,
+    }
+    relevant = {name for name, (_, source) in applicable.items() if source != "not applicable"}
+    dimensions = tuple(CapacityValueV2(
+        dimension=name, value=value, applicability=(
+            "applicable" if value is not None else
+            "unknown" if name in relevant else "not_applicable"), source=source)
+        for name, (value, source) in applicable.items())
+    return CapacityReportV2(
+        compiled_design=compiled_design, dimensions=dimensions,
+        compatible_template_ids=(), issues=(), status="pass")

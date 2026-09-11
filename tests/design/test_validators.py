@@ -4,17 +4,21 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 
 import pytest
+from pydantic import BaseModel
 
+# isort: off
 from causal.design.contracts import (
     REGISTRY_VERSION_KEYS,
+    ConceptProposalV1,
     DesignContextManifestV1,
+    DesignIntentV1,
+    QuestionKind,
+    SourceInterpretationV1,
     StructuralFieldV1,
 )
-from causal.design.frame import ExperimentDesignV1, RunnableFrameContractV1
-from causal.design.harness_nodes import _bind_row_unit
 from causal.design.packs import (
     METHOD_IDS,
     PackRegistryError,
@@ -22,37 +26,29 @@ from causal.design.packs import (
     load_requirement_templates,
 )
 from causal.design.semantics import (
-    CausalContextV1,
-    CausalEdgeV1,
-    GraphAlternativeV1,
-    RoleClaimV1,
-    RoleLedgerV1,
-    RoleName,
-    TimingClass,
-)
-from causal.design.triage import ColumnTriageRecordV1
+    COLUMN_CARD_SLOTS, CausalContextV1, CausalEdgeV1, ColumnSemanticCardV1,
+    GraphAlternativeV1, RoleClaimV1, RoleLedgerV1, RoleName, SlotAssertionV1, TimingClass)
+from causal.design.v2 import AgentDesignProposalV2
 from causal.design.validators import (
     ACTIONS,
     RULE_KINDS,
     ValidationContext,
     ValidationReport,
+    canonical_requirement_scope,
     evidence_class,
     load_validation_rules,
     validate_result,
     wall_causal,
     wall_evidence,
-    wall_frame,
     wall_method,
     wall_references,
     wall_shape,
     wall_temporal,
 )
-from causal.shared.contracts import ArtifactRef
+from causal.shared.contracts import ArtifactRef, ReferenceKind, reference_field
 from causal.shared.envelope import (
-    AgentTaskEnvelopeV1,
-    AgentTaskResultV1,
+    AgentTaskEnvelopeV1, AgentTaskResultV1, AttemptedEvidenceV1,
     CausalFrameV1,
-    ClaimV1,
     ContextRequirementV1,
     EpistemicStatus,
     EvidenceClass,
@@ -60,15 +56,12 @@ from causal.shared.envelope import (
     TaskBudgets,
     TaskStatus,
 )
-from causal.shared.frames import ROW_UNIT_COLUMN
-from causal.shared.validation import parse_strict
+# isort: on
 
 REGISTRIES = Path(__file__).resolve().parents[2] / "registries"
 RULES = load_validation_rules(REGISTRIES / "design-validation-rules.v1.json")
 PACKS = load_method_packs(REGISTRIES / "method-packs.v1.json")
 TEMPLATES = load_requirement_templates(REGISTRIES / "context-requirements.v1.json")
-PACK = PACKS.get("did")
-BINARY = next(row for row in PACKS.all() if "treatment_binary" in row.structural_requirements)
 HASH = "a" * 64
 REF = ArtifactRef(artifact_id="art-1", content_hash=HASH)
 FRAME = CausalFrameV1(treatment="c-treat", outcome="c-earn", population="p", timeframe="t")
@@ -80,18 +73,11 @@ MANIFEST = DesignContextManifestV1(
         StructuralFieldV1(table_name="nsw.csv", column_name=name, dtype="float64", ordinal=index)
         for index, name in enumerate(COLUMNS)),
     semantic_available=(), semantic_missing=(), measured_surface=(), provenance_surface=(),
-    retrieval_surfaces=("s-1",), registry_versions=dict.fromkeys(REGISTRY_VERSION_KEYS, "v1"),
-    recipient_map={})
-TRIAGE = ColumnTriageRecordV1(
-    table_name="nsw.csv",
-    tiers={"critical": ("treat",), "plausible_adjustment": (), "supporting": ("age",),
-           "unused": ()},
-    batches=(), deferred=("age",),
-    match_trace={"treat": "intent_candidate", "age": "profiled_only"})
+    retrieval_surfaces=("s-1",), registry_versions=dict.fromkeys(REGISTRY_VERSION_KEYS, "v1"))
 ENVELOPE = AgentTaskEnvelopeV1(
     envelope_id="env-1", schema_version="agent-task-envelope.v1", analysis_id="an-1",
     stage_run_id="sr-1", task_id="t-1", attempt_id="at-1", context_manifest=REF,
-    task_kind="causal_synthesis", scope_kind="design", scope_ids=("d-1",), parent_artifacts=(REF,),
+    task_kind="causal_context", scope_kind="design", scope_ids=("d-1",), parent_artifacts=(REF,),
     allowed_evidence_ids=(), allowed_retrieval_ids=(), allowed_tool_ids=("validate_causal_model",),
     output_schema_version="causal-context.v1", validator_version="v1", prompt_version="v1",
     model_profile_version="v1", budgets=TaskBudgets(token_budget=1, tool_call_budget=1),
@@ -106,31 +92,26 @@ def codes(report: ValidationReport) -> set[str]:
 
 def context(**overrides: Any) -> ValidationContext:
     base: dict[str, Any] = {"manifest": MANIFEST, "rules": RULES, "packs": PACKS,
-                            "templates": TEMPLATES, "method_id": "did"}
+                            "templates": TEMPLATES,
+                            "user_answer_evidence_ids": frozenset({"ua:answer-1"}),
+                            "concept_ids": frozenset({"c-treat", "c-earn", "c-x", "c-g"})}
     return ValidationContext(**base | overrides)
 
 
 def role(name: RoleName, concept: str = "c-treat", *, columns: tuple[str, ...] = (),
          timing: TimingClass = TimingClass.PRE_TREATMENT, edges: tuple[str, ...] = (),
-         evidence: tuple[str, ...] = ()) -> RoleClaimV1:
+         evidence: tuple[str, ...] = ("ua:answer-1",)) -> RoleClaimV1:
     return RoleClaimV1(role=name, concept_id=concept, column_refs=columns, evidence_ids=evidence,
                        timing=timing, graph_edge_ids=edges, alternatives=(), methods=("did",),
-                       support_class=SupportClass.DIRECT_SOURCE_STATEMENT,
+                       support_class=SupportClass.DIRECT_USER_CONFIRMATION,
                        status=EpistemicStatus.EVIDENCED)
 
 
 def ledger(*claims: RoleClaimV1) -> RoleLedgerV1:
     return RoleLedgerV1(frame=FRAME, claims=(
-        role(RoleName.TREATMENT, columns=("treat",)),
+        role(RoleName.TREATMENT, columns=("treat",), timing=TimingClass.CONCURRENT),
         role(RoleName.OUTCOME, "c-earn", columns=("re78",), timing=TimingClass.POST_TREATMENT),
         *claims))
-
-
-FULL = ledger(role(RoleName.GROUP, "c-g", columns=("age",)),
-              role(RoleName.TIME, "c-t", columns=("period",)),
-              role(RoleName.CLUSTER, "c-c", columns=("person_id",)),
-              role(RoleName.UNIT_IDENTIFIER, "c-u", columns=("person_id",)))
-RESOLVED = dict.fromkeys(PACK.required_context_requirement_ids, "resolved")
 
 
 def edge(edge_id: str, source: str, target: str,
@@ -140,18 +121,11 @@ def edge(edge_id: str, source: str, target: str,
                         contrary_evidence_ids=(), status=status, differing_alternative_ids=())
 
 
-def graph(*edges: CausalEdgeV1,
-          alternatives: tuple[GraphAlternativeV1, ...] = ()) -> CausalContextV1:
-    return CausalContextV1(frame=FRAME, concept_ids=("c-treat", "c-earn", "c-x"), edges=edges,
-                           alternatives=alternatives, selection_notes="n", claims=())
-
-
-def claim(predicate: str, support: SupportClass = SupportClass.DIRECT_SOURCE_STATEMENT,
-          evidence: tuple[str, ...] = ("ev:doc/a",)) -> ClaimV1:
-    return ClaimV1(claim_id="cl-1", subject_kind="column", subject_id="re78", predicate=predicate,
-                   value="x", epistemic_status=EpistemicStatus.EVIDENCED, alternatives=(),
-                   supporting_evidence_ids=evidence, contrary_evidence_ids=(),
-                   support_class=support, causal_frame=None)
+def graph(*edges: CausalEdgeV1, alternatives: tuple[GraphAlternativeV1, ...] = (),
+          target: bool = True) -> CausalContextV1:
+    base = (edge("e-target", "c-treat", "c-earn", EpistemicStatus.EVIDENCED),) if target else ()
+    return CausalContextV1(frame=FRAME, concept_ids=("c-treat", "c-earn", "c-x"), edges=base + edges,
+                           alternatives=alternatives, selection_notes="n")
 
 
 def result(payload: Any = None, **overrides: Any) -> AgentTaskResultV1:
@@ -160,55 +134,56 @@ def result(payload: Any = None, **overrides: Any) -> AgentTaskResultV1:
         "envelope_id": "env-1", "schema_version": "agent-task-result.v1", "task_id": "t-1",
         "status": TaskStatus.COMPLETE, "artifact_type": "CausalContext",
         "artifact_schema_version": "causal-context.v1", "parent_artifact_ids": (),
-        "payload": body or {}, "claims": (), "missing_requirements": (), "conflicts": (),
-        "warnings": (), "evidence_ids": (), "tool_receipts": (), "output_hash": None,
+        "payload": body or {}, "missing_requirements": (), "conflicts": (), "warnings": (),
         "validation_target": "causal-context-validator.v1"}
     return AgentTaskResultV1(**base | overrides)
 
 
 def requirement(requirement_id: str) -> ContextRequirementV1:
     template = {key: value for key, value in dict(TEMPLATES["column.meaning"]).items()
-                if key != "requirement_id"}
+                if key not in {"requirement_id", "accepted_fact"}}
     return ContextRequirementV1(
         requirement_id=requirement_id, registry_version="context-requirements.v1", scope_id="re78",
         decisions_blocked=(), attempted_evidence=(), **template)
 
 
-def design(**overrides: Any) -> ExperimentDesignV1:
-    base: dict[str, Any] = {
-        "causal_question": "q", "intended_decision": "d", "selected_csv": REF, "method_id": "did",
-        "method_pack_version": "did-pack.v1", "frame": FRAME, "comparator": "c", "unit": "u",
-        "rejected_methods": {name: "no" for name in METHOD_IDS if name != "did"},
-        "estimand": "att", "measurement_map": REF, "causal_context": REF, "role_ledger": REF,
-        "assumptions": (), "identification_risks": (), "eligibility_rules": (),
-        "mandatory_repair_boundaries": (), "forbidden_repair_boundaries": (),
-        "imputation_eligible_columns": (), "imputation_forbidden_columns": ("treat", "re78"),
-        "deletion_impact_dimensions": PACK.deletion_impact_dimensions,
-        "invalidation_conditions": (), "required_prerepair_diagnostics": ("group_time_counts",),
-        "required_postrepair_diagnostics": PACK.required_postrepair_diagnostic_ids,
-        "required_visual_evidence": PACK.required_visual_evidence_ids, "primary_contrasts": (),
-        "multiplicity_policy": None, "capacity_check": None, "sensitivity_requirements": (),
-        "visualization_catalog_version": "v1", "capacity_registry_version": "v1",
-        "registry_versions": dict.fromkeys(REGISTRY_VERSION_KEYS, "v1")}
-    return ExperimentDesignV1(**base | overrides)
+def registered_requirement(requirement_id: str, scope_id: str) -> ContextRequirementV1:
+    template = TEMPLATES[requirement_id]
+    return ContextRequirementV1(
+        requirement_id=requirement_id, registry_version="context-requirements.v1",
+        scope_kind=template.scope_kind, scope_id=scope_id, decisions_blocked=("decision",),
+        attempted_evidence=(AttemptedEvidenceV1(
+            evidence_id="ua:answer-1", availability_status="not_offered"),),
+        **{key: value for key, value in dict(template).items()
+           if key not in {"requirement_id", "scope_kind", "accepted_fact"}})
 
 
-def contract(**overrides: Any) -> RunnableFrameContractV1:
+class TypedReferenceProbe(BaseModel):
+    source: Annotated[str, reference_field(ReferenceKind.EVIDENCE)]
+    diagnostic: Annotated[str, reference_field(ReferenceKind.DIAGNOSTIC)]
+    artifact: ArtifactRef
+
+
+class UntypedSuffixProbe(BaseModel):
+    future_fact_evidence_ids: tuple[str, ...]
+
+
+def proposal(**overrides: Any) -> AgentDesignProposalV2:
     base: dict[str, Any] = {
-        "selected_csv": REF, "output_grain": "one row per unit-period",
-        "key_columns": ("person_id", "period"), "required_roles": (RoleName.TREATMENT,),
-        "allowed_roles": (), "forbidden_roles": (), "type_constraints": {},
-        "uniqueness_constraints": (), "eligibility_rules": (),
-        "exclusion_reason_vocabulary": PACK.eligibility_rule_vocabulary,
-        "treatment_missingness_rule": "drop", "outcome_missingness_rule": "drop",
-        "method_structure": {}, "imputation_permitted": ("person_id",),
-        "imputation_forbidden": ("treat", "re78", "age", "period"),
-        "required_missingness_indicators": (),
-        "deletion_impact_dimensions": PACK.deletion_impact_dimensions,
-        "revision_required_conditions": (), "feasibility_gates": (),
-        "required_final_diagnostics": PACK.required_postrepair_diagnostic_ids,
-        "estimator_input_schema": PACK.reserved_estimator_id, "experiment_design_hash": HASH}
-    return RunnableFrameContractV1(**base | overrides)
+        "assignment_mechanism": "time_of_adoption", "requested_estimand": "att_group_time_aggregate",
+        "comparator": "not yet treated", "ranked_method_ids": METHOD_IDS,
+        "method_facts": (), "optional_assumption_ids": (), "optional_risk_ids": (),
+        "optional_sensitivity_ids": ()}
+    body = base | overrides
+    body.setdefault("source_interpretations", tuple(SourceInterpretationV1(
+        fact_key=fact_key, value=value, evidence_id="ev:doc/x",
+        verbatim_excerpt="documented assignment and comparator", relation="direct")
+        for fact_key, value in (
+            ("assignment_mechanism", body["assignment_mechanism"]),
+            ("estimand", body["requested_estimand"]),
+            ("comparator", body["comparator"]),
+        ) if value != "unknown"))
+    return AgentDesignProposalV2(**body)
 
 
 def rule_file(**overrides: Any) -> str:
@@ -220,6 +195,24 @@ def rule_file(**overrides: Any) -> str:
 # --- wall 1: shape ---
 def test_wall_shape_accepts_a_valid_payload() -> None:
     assert wall_shape(CausalContextV1, result(graph())).passed
+
+
+def test_causal_context_frame_anchors_must_be_graph_concept_ids() -> None:
+    payload = graph().model_dump(mode="json")
+    payload["frame"]["treatment"] = "human-readable treatment label"
+    parsed = CausalContextV1.model_validate_json(json.dumps(payload))
+    report = wall_references(parsed, result(parsed), context())
+    assert codes(report) == {"unresolved_concept"}
+    assert {issue.json_path for issue in report.issues} == {"/frame/treatment"}
+
+
+def test_causal_context_rejects_concepts_outside_the_measurement_map() -> None:
+    payload = graph(edge("e-1", "missing-source", "missing-target")).model_copy(update={"concept_ids": (*graph().concept_ids, "missing-source", "missing-target")})
+    report = wall_references(payload, result(payload), context(concept_ids=frozenset(graph().concept_ids)))
+    assert codes(report) == {"unresolved_concept"}
+    assert {issue.json_path for issue in report.issues} == {"/concept_ids/3", "/concept_ids/4"}
+    assert all("allowed:" in issue.detail and not issue.user_resolvable
+               for issue in report.issues)
 
 
 def test_wall_shape_maps_error_locations_to_json_paths() -> None:
@@ -245,35 +238,96 @@ def test_wall_references_flags_an_unknown_column() -> None:
     report = wall_references(ledger(role(RoleName.GROUP, "c-g", columns=("nope",))), result(),
                              context())
     assert codes(report) == {"unresolved_column"}
-    assert report.issues[0].user_resolvable and report.issues[0].artifact_ids == ("nope",)
+    assert not report.issues[0].user_resolvable
+    assert report.issues[0].artifact_ids == ("nope",)
+    assert report.issues[0].json_path == "/claims/2/column_refs/0"
 
 
-def test_wall_references_flags_evidence_parent_and_requirement_ids() -> None:
+def test_wall_references_flags_evidence_artifact_and_requirement_ids() -> None:
     report = wall_references(
-        ledger(role(RoleName.GROUP, "c-g", columns=("age",), evidence=("ev:doc/x",))),
-        result(parent_artifact_ids=("art-9",), missing_requirements=(requirement("nope"),)),
+        TypedReferenceProbe(
+            source="ev:doc/x", diagnostic="arm_counts",
+            artifact=ArtifactRef(artifact_id="art-9", content_hash=HASH)),
+        result(missing_requirements=(requirement("nope"),)),
         context())
-    assert codes(report) == {"unresolved_evidence", "uncommitted_parent", "unknown_requirement_id"}
+    assert codes(report) == {
+        "unresolved_evidence", "unresolved_diagnostic", "unresolved_artifact",
+        "unresolved_requirement"}
+    assert {issue.json_path for issue in report.issues} == {
+        "/source", "/diagnostic", "/artifact/artifact_id",
+        "/missing_requirements/0/requirement_id"}
 
 
-def test_wall_references_catches_a_claim_that_cites_itself() -> None:
-    payload = {"claims": [{"claim_id": "cl-1", "supporting_evidence_ids": ["cl-1"]}]}
-    assert "claim_cites_itself" in codes(wall_references(payload, None, context()))
+def test_wall_references_checks_metadata_typed_fields_regardless_of_name() -> None:
+    report = wall_references(
+        TypedReferenceProbe(
+            source="table_facts", diagnostic="arm_counts",
+            artifact=ArtifactRef(artifact_id="art-1", content_hash=HASH)),
+        result(), context(diagnostic_ids=frozenset({"arm_counts"}), parents={"art-1": HASH}))
+    assert codes(report) == {"unresolved_evidence"}
+    assert report.issues[0].json_path == "/source"
+
+
+def test_wall_references_does_not_use_a_suffix_exception_list() -> None:
+    payload = UntypedSuffixProbe(future_fact_evidence_ids=("invented",))
+    assert wall_references(payload, result(), context()).passed
+
+
+def test_requirement_scope_is_registry_and_context_owned() -> None:
+    ctx = context(dataset_id="dataset-1", concept_ids=frozenset({"c-x"}),
+                  relationship_ids=frozenset({"e-x"}))
+    assert canonical_requirement_scope(
+        registered_requirement("design.assignment_mechanism", "invented"), ctx) == "design"
+    assert canonical_requirement_scope(
+        registered_requirement("dataset.sampling_mechanism", "invented"), ctx) == "dataset-1"
+    assert canonical_requirement_scope(
+        registered_requirement("column.meaning", "nsw.csv::age"), ctx) == "age"
+    assert canonical_requirement_scope(
+        registered_requirement("design.concept_mapping", "c-x"), ctx) == "c-x"
+    assert canonical_requirement_scope(
+        registered_requirement("design.treatment_descendants", "e-x"), ctx) == "e-x"
+    assert canonical_requirement_scope(
+        registered_requirement("design.concept_mapping", "invented"), ctx) is None
+
+
+def test_wall_evidence_rejects_an_invented_registered_scope() -> None:
+    sealed = result(graph(), missing_requirements=(
+        registered_requirement("design.concept_mapping", "invented"),))
+    report = wall_evidence(graph(), sealed, context(concept_ids=frozenset({"c-x"})))
+    assert codes(report) == {"invalid_requirement_scope"}
 
 
 # --- wall 3: evidence ---
-# D-103: wall 3 binds to `blocking` requirements, so `measurement_timing` carries these rules and
-# an inferred `meaning` is now an assumption the design records rather than a validation failure.
-@pytest.mark.parametrize(("built", "expected"), [
-    (claim("measurement_timing", evidence=("ev:kaggle/column/nsw.csv/re78/timing",)), set()),
-    (claim("measurement_timing", evidence=("ev:none/x",)), {"blocking_claim_unsupported"}),
-    (claim("measurement_timing", SupportClass.MODEL_HYPOTHESIS),
-     {"hypothesis_support_for_blocking_claim"}),
-    (claim("source_process", SupportClass.MODEL_HYPOTHESIS), set()),
-    (claim("meaning", SupportClass.MODEL_HYPOTHESIS), set()),
-])
-def test_wall_evidence_rules(built: ClaimV1, expected: set[str]) -> None:
-    assert codes(wall_evidence(None, result(claims=(built,)), context())) == expected
+def test_wall_evidence_rejects_an_unsupported_role_binding() -> None:
+    payload = ledger(role(RoleName.CONFOUNDER_CANDIDATE, "c-x", evidence=()), role(RoleName.GROUP, "c-x").model_copy(update={"status": EpistemicStatus.HYPOTHESIS}))
+    assert codes(wall_evidence(payload, result(), context())) == {"role_claim_unsupported"}
+    asked = result(missing_requirements=(requirement("design.treatment_meaning"), requirement("column.measurement_timing").model_copy(update={"attempted_evidence": (AttemptedEvidenceV1(evidence_id="ua:answer-1", availability_status="evidenced"),)})))
+    report = wall_evidence(ledger(), asked, context())
+    assert codes(report) == {"invalid_context_requirement"} and len(report.issues) == 2
+
+
+def test_wall_evidence_derives_support_class_from_the_citation() -> None:
+    claim = role(RoleName.GROUP, "c-g", columns=("age",), evidence=("ua:answer-1",)
+                 ).model_copy(update={"support_class": SupportClass.MEASURED_OBSERVATION})
+    report = wall_evidence(ledger(claim), result(), context())
+    assert codes(report) == {"role_support_class_mismatch"}
+
+
+@pytest.mark.parametrize(("kind", "timing"), [("identifier", EpistemicStatus.UNKNOWN), ("continuous", EpistemicStatus.EVIDENCED)])
+def test_wall_evidence_rejects_redundant_timing_asks(kind: str, timing: EpistemicStatus) -> None:
+    slots = dict.fromkeys(COLUMN_CARD_SLOTS, SlotAssertionV1(value=None, status=EpistemicStatus.UNKNOWN, evidence_ids=()))
+    slots["kind"] = SlotAssertionV1(value=kind, status=EpistemicStatus.EVIDENCED,
+                                     evidence_ids=("ev:kaggle/column/nsw.csv/age/description",))
+    slots["timing"] = SlotAssertionV1(value="pre_treatment" if timing.value == "evidenced" else None, status=timing, evidence_ids=("ua:answer-1",) if timing.value == "evidenced" else ())
+    card = ColumnSemanticCardV1(table_name="nsw.csv", column_name="age", display_name="age",
+                                concept_id="c-x", timing=TimingClass.UNKNOWN, slots=slots,
+                                alternatives=(), conflicts=())
+    req = requirement("column.measurement_timing").model_copy(update={"attempted_evidence": (
+        AttemptedEvidenceV1(evidence_id="ua:answer-1", availability_status="not_offered"),)})
+    sealed = result(card, missing_requirements=(req,))
+    assert codes(validate_result(3, "semantic_batch", ColumnSemanticCardV1, sealed,
+                                 context(evidence_ids={"ev:kaggle/column/nsw.csv/age/description"}))) == {"invalid_context_requirement"}
+    assert sealed.payload["slots"]["kind"]["evidence_ids"] == ["ev:kaggle/column/nsw.csv/age/description"]
 
 
 # --- wall 4: temporal rows ---
@@ -283,17 +337,35 @@ def test_wall_evidence_rules(built: ClaimV1, expected: set[str]) -> None:
     (RoleName.MEDIATOR, TimingClass.PRE_TREATMENT, {"mediator_timing_invalid"}),
     (RoleName.RUNNING_VARIABLE, TimingClass.POST_TREATMENT, {"running_variable_timing_invalid"}),
     (RoleName.CONFOUNDER_CANDIDATE, TimingClass.PRE_TREATMENT, set()),
-    (RoleName.MEDIATOR, TimingClass.POST_TREATMENT, set()),
 ])
 def test_wall_temporal_rows(name: RoleName, timing: TimingClass, expected: set[str]) -> None:
     payload = ledger(role(name, "c-x", timing=timing))
     assert codes(wall_temporal(payload, None, context())) == expected
 
 
-def test_wall_temporal_rejects_a_pre_treatment_outcome() -> None:
-    payload = RoleLedgerV1(frame=FRAME, claims=(role(RoleName.TREATMENT),
-                                                role(RoleName.OUTCOME, "c-earn")))
-    assert codes(wall_temporal(payload, None, context())) == {"outcome_timing_invalid"}
+def test_validation_canonicalizes_only_typed_reference_syntax() -> None:
+    raw = ledger().model_dump(mode="json")
+    raw["claims"][0].update(timing="pre_treatment", column_refs=["nsw.csv/treat"],
+                            evidence_ids=["ua:answer-1:"])
+    sealed = result().model_copy(update={"payload": raw})
+    report = validate_result(5, "role_ledger", RoleLedgerV1, sealed,
+                             context(causal_context=graph()))
+    assert codes(report) == {"treatment_timing_invalid"}
+    assert tuple(sealed.payload["claims"][0][key]
+                 for key in ("timing", "column_refs", "evidence_ids")) == (
+                     "pre_treatment", ["treat"], ["ua:answer-1"])
+
+
+@pytest.mark.parametrize("bad", ("UA:ANSWER-1", "prefix/ua:answer-1"))
+def test_evidence_identity_rejects_fuzzy_matches(bad: str) -> None:
+    raw = ledger().model_dump(mode="json")
+    raw["claims"][0]["evidence_ids"] = [bad]
+    sealed = result().model_copy(update={"payload": raw})
+    report = validate_result(5, "role_ledger", RoleLedgerV1, sealed,
+                             context(causal_context=graph()))
+    assert codes(report) == {"unresolved_evidence"}
+    assert report.issues[0].allowed_actions == ("revise_field",)
+    assert "allowed: ua:answer-1" in report.issues[0].detail
 
 
 # --- wall 5: causal graph ---
@@ -302,6 +374,7 @@ CYCLE = graph(edge("e-1", "c-treat", "c-earn"), edge("e-2", "c-earn", "c-treat")
 
 def test_wall_causal_accepts_an_acyclic_graph() -> None:
     assert wall_causal(graph(edge("e-1", "c-treat", "c-earn")), None, context()).passed
+    assert codes(wall_causal(graph(target=False), None, context())) == {"causal_target_edge_missing"}
 
 
 def test_wall_causal_finds_a_cycle() -> None:
@@ -321,9 +394,88 @@ def test_wall_causal_requires_a_disputed_edge_to_appear_in_an_alternative() -> N
     assert codes(wall_causal(disputed, None, context())) == {"disputed_edge_without_alternative"}
 
 
+def test_opposite_alternative_edges_cannot_share_the_rct_relation_identity() -> None:
+    shared_id = "e:randomization_stratum_influences_treatment_assignment"
+    forward = edge(shared_id, "c-x", "c-treat", EpistemicStatus.EVIDENCED)
+    reverse = edge(shared_id, "c-treat", "c-x", EpistemicStatus.DISPUTED)
+    alternative = GraphAlternativeV1(
+        alternative_id="alt:treatment_causes_stratum", label="reverse direction",
+        edges=(forward, reverse))
+    report = wall_causal(graph(forward, alternatives=(alternative,)), None, context())
+    assert codes(report) == {"duplicate_graph_edge_id", "conflicting_graph_edge_identity"}
+    assert all(issue.json_path == "/alternatives/0/edges/1/edge_id" for issue in report.issues)
+    assert "c-x -> c-treat" in report.issues[1].detail
+    assert "c-treat -> c-x" in report.issues[1].detail
+    corrected = alternative.model_copy(update={"edges": (forward,)})
+    assert wall_causal(graph(forward, alternatives=(corrected,)), None, context()).passed
+
+
+def test_duplicate_identical_edges_inside_one_graph_are_rejected_without_rewriting() -> None:
+    relation = edge("repeated", "c-x", "c-treat")
+    graph_body = graph(relation, relation)
+    before = graph_body.canonical_payload()
+    report = wall_causal(graph_body, None, context())
+    assert codes(report) == {"duplicate_graph_edge_id"}
+    assert graph_body.canonical_payload() == before
+
+
+def test_nhefs_outcome_change_is_not_an_observed_time_coordinate() -> None:
+    payload = ledger(role(RoleName.TIME, "c-x", columns=("weight_change",),
+                          timing=TimingClass.CONCURRENT))
+    payload = payload.model_copy(update={"claims": tuple(
+        row.model_copy(update={"column_refs": ("weight_change",)})
+        if row.role is RoleName.OUTCOME else row for row in payload.claims)})
+    before = payload.canonical_payload()
+    report = wall_causal(payload, None, context(causal_context=graph()))
+    assert codes(report) == {"time_role_is_outcome_measurement"}
+    assert report.issues[0].json_path == "/claims/2/column_refs"
+    assert "Preserve the outcome role and frame.timeframe" in report.issues[0].detail
+    assert payload.canonical_payload() == before
+    corrected = payload.model_copy(update={"claims": payload.claims[:2]})
+    assert wall_causal(corrected, None, context(causal_context=graph())).passed
+
+
+def test_nhefs_study_window_stays_metadata_when_no_time_column_is_observed() -> None:
+    common = ConceptProposalV1(name="cohort", description="", candidate_columns=())
+    timeframe = ConceptProposalV1(name="1971 to 1982", description="Study follow-up window",
+                                   candidate_columns=("wt71", "weight_change"))
+    outcome = ConceptProposalV1(name="weight change", description="Kilograms from 1971 to 1982",
+                                 candidate_columns=("weight_change",))
+    intent = DesignIntentV1(
+        question_kind=QuestionKind.CAUSAL, causal_claim="Quitting affects weight change",
+        intended_decision="estimate ATE", treatment=common, outcome=outcome, population=common,
+        comparator=common, unit=common, timeframe=timeframe,
+        candidate_grain="one_row_per_unit", mandatory_concepts=())
+    report = wall_evidence(intent, None, context())
+    assert codes(report) == {"timeframe_is_outcome_measurement"}
+    assert report.issues[0].json_path == "/timeframe/candidate_columns"
+    fixed = intent.model_copy(update={"timeframe": timeframe.model_copy(update={"candidate_columns": ()})})
+    assert wall_evidence(fixed, None, context()).passed
+    assert fixed.timeframe.name == intent.timeframe.name and fixed.outcome == intent.outcome
+
+
 def test_wall_causal_resolves_every_role_edge_id() -> None:
-    ctx = context(role_ledger=ledger(role(RoleName.GROUP, "c-x", edges=("e-missing",))))
-    assert codes(wall_causal(graph(), None, ctx)) == {"unresolved_graph_edge"}
+    payload = ledger(role(RoleName.GROUP, "c-x", edges=("e-missing",)))
+    ctx = context(causal_context=graph())
+    report = wall_references(payload, result(payload), ctx)
+    assert codes(report) == {"unresolved_graph_edge"}
+    assert report.issues[0].json_path.endswith("/graph_edge_ids/0")
+
+
+def test_wall_causal_rejects_role_ledger_frame_drift_and_unbound_anchors() -> None:
+    changed = CausalFrameV1(treatment="c-other", outcome="c-earn", population="p", timeframe="t")
+    payload = RoleLedgerV1(frame=changed, claims=(
+        role(RoleName.TREATMENT, "c-other"), role(RoleName.OUTCOME, "c-earn",
+                                                  timing=TimingClass.POST_TREATMENT)))
+    assert codes(wall_causal(payload, None, context(causal_context=graph()))) == {
+        "causal_frame_changed", "causal_target_edge_missing", "required_role_columns_missing"}
+
+
+def test_wall_causal_rejects_multiple_columns_for_a_single_role() -> None:
+    payload = ledger(role(RoleName.GROUP, "c-x", columns=("age",)),
+                     role(RoleName.GROUP, "c-g", columns=("period",)))
+    assert codes(wall_causal(payload, None, context(causal_context=graph()))) == {
+        "ambiguous_single_role"}
 
 
 @pytest.mark.parametrize(("name", "pairs", "expected"), [
@@ -333,92 +485,43 @@ def test_wall_causal_resolves_every_role_edge_id() -> None:
     (RoleName.MEDIATOR, ("c-treat>c-x", "c-x>c-earn"), set()),
     (RoleName.COLLIDER, ("c-treat>c-x",), {"collider_edges_missing"}),
     (RoleName.COLLIDER, ("c-treat>c-x", "c-earn>c-x"), set()),
-    (RoleName.INSTRUMENT_CANDIDATE, ("c-x>c-treat", "c-x>c-earn"),
-     {"instrument_exclusion_violated"}),
+    (RoleName.INSTRUMENT_CANDIDATE, ("c-x>c-treat", "c-x>c-earn"), {"instrument_exclusion_violated"}),
     (RoleName.INSTRUMENT_CANDIDATE, ("c-x>c-treat",), set()),
 ])
 def test_role_graph_rows(name: RoleName, pairs: tuple[str, ...], expected: set[str]) -> None:
-    ends = [pair.split(">") for pair in pairs]
     built = graph(*(edge(f"e-{index}", source, target, EpistemicStatus.EVIDENCED)
-                    for index, (source, target) in enumerate(ends)))
+                    for index, (source, target) in enumerate(pair.split(">") for pair in pairs)))
     ctx = context(role_ledger=ledger(role(name, "c-x")))
     assert codes(wall_causal(built, None, ctx)) == expected
 
 
-# --- wall 6: method ---
-def method_ctx(**overrides: Any) -> ValidationContext:
-    base: dict[str, Any] = {"role_ledger": FULL, "resolved_requirements": RESOLVED}
-    return context(**base | overrides)
+def test_confounder_graph_correction_explains_the_required_relationships() -> None:
+    report = wall_causal(graph(edge("e-1", "c-x", "c-treat")), None,
+                         context(role_ledger=ledger(role(RoleName.CONFOUNDER_CANDIDATE, "c-x"))))
+    assert report.issues[0].code == "confounder_edges_missing"
+    assert "both the frame treatment and frame outcome" in report.issues[0].detail
 
 
-def test_wall_method_accepts_a_complete_design() -> None:
-    assert wall_method(design(), None, method_ctx()).passed
+# --- wall 6: bounded model proposal ---
+def test_wall_method_accepts_a_complete_ranked_proposal() -> None:
+    assert wall_method(proposal(), None, context()).passed
 
 
-def test_wall_method_flags_a_missing_role_and_its_deferred_columns() -> None:
-    thin = ledger(role(RoleName.TIME, "c-t"), role(RoleName.UNIT_IDENTIFIER, "c-u"))
-    report = wall_method(design(), None, method_ctx(role_ledger=thin, triage=TRIAGE))
-    assert {"required_role_missing", "deferred_column_blocks_role"} <= codes(report)
-    blocked = [issue for issue in report.issues if issue.code == "deferred_column_blocks_role"]
-    assert blocked[0].user_resolvable and "age" in blocked[0].artifact_ids
+def test_wall_method_requires_every_registered_method_exactly_once() -> None:
+    report = wall_method(proposal(ranked_method_ids=("did", "did")), None, context())
+    assert codes(report) == {"method_ranking_incomplete"}
 
 
-def test_wall_method_flags_a_forbidden_adjustment_member() -> None:
-    claims = (*FULL.claims, role(RoleName.CONFOUNDER_CANDIDATE, "c-m"),
-              role(RoleName.MEDIATOR, "c-m", timing=TimingClass.POST_TREATMENT))
-    ctx = method_ctx(role_ledger=RoleLedgerV1(frame=FRAME, claims=claims))
-    assert codes(wall_method(design(), None, ctx)) == {"forbidden_adjustment_role"}
+def test_wall_method_requires_an_explicit_estimand() -> None:
+    report = wall_method(proposal(requested_estimand="unknown"), None, context())
+    assert codes(report) == {"estimand_missing"}
 
 
-def test_wall_method_flags_every_unresolved_requirement() -> None:
-    report = wall_method(design(), None, method_ctx(resolved_requirements={}))
-    assert codes(report) == {"unresolved_requirement"}
-    # D-103: a `retain_as_sensitivity` requirement is carried as an assumption, never flagged here.
-    blocking = [found for found in PACK.required_context_requirement_ids
-                if TEMPLATES[found].missing_action != "retain_as_sensitivity"]
-    assert len(report.issues) == len(blocking)
-    assert "design.assignment_mechanism" in blocking and "column.meaning" not in blocking
-
-
-def test_wall_method_flags_a_structural_requirement_without_diagnostics() -> None:
-    report = wall_method(design(required_prerepair_diagnostics=()), None, method_ctx())
-    assert codes(report) == {"structural_panel_grain_unmet"}
-
-
-def test_wall_method_checks_the_binary_treatment_requirement() -> None:
-    rejected = {name: "no" for name in METHOD_IDS if name != BINARY.method_id}
-    built = design(method_id=BINARY.method_id, rejected_methods=rejected)
-    assert "structural_treatment_binary_unmet" in codes(wall_method(built, None, method_ctx()))
-
-
-# --- wall 7: frame ---
-def frame_ctx(**overrides: Any) -> ValidationContext:
-    base: dict[str, Any] = {"role_ledger": FULL, "design": design(), "parents": {"art-1": HASH}}
-    return context(**base | overrides)
-
-
-def test_wall_frame_accepts_a_complete_contract() -> None:
-    assert wall_frame(contract(), None, frame_ctx()).passed
-
-
-@pytest.mark.parametrize(("overrides", "code"), [
-    ({"exclusion_reason_vocabulary": ()}, "exclusion_vocabulary_incomplete"),
-    ({"deletion_impact_dimensions": ()}, "deletion_dimensions_incomplete"),
-    ({"required_final_diagnostics": ()}, "postrepair_diagnostics_incomplete"),
-    ({"imputation_permitted": ("treat",)}, "imputation_lists_overlap"),
-    ({"imputation_forbidden": ("treat",)}, "imputation_forbidden_incomplete"),
-    ({"key_columns": ("nope",)}, "unknown_key_column"),
-    ({"output_grain": "  "}, "frame_grain_missing"),
-    ({"experiment_design_hash": "b" * 64}, "design_hash_mismatch"),
-    ({"estimator_input_schema": "other.v1"}, "estimator_schema_mismatch"),
-])
-def test_wall_frame_rows(overrides: dict[str, Any], code: str) -> None:
-    assert codes(wall_frame(contract(**overrides), None, frame_ctx())) == {code}
-
-
-def test_wall_frame_reads_visual_evidence_from_the_design() -> None:
-    ctx = frame_ctx(design=design(required_visual_evidence=("trends",)))
-    assert codes(wall_frame(contract(), None, ctx)) == {"visual_evidence_incomplete"}
+def test_wall_method_rejects_estimand_drift_in_the_preferred_compatible_method() -> None:
+    ranked = ("did", "aipw", "randomized_experiment", "sharp_rdd")
+    report = wall_method(
+        proposal(ranked_method_ids=ranked, requested_estimand="att"), None, context())
+    assert codes(report) == {"preferred_method_estimand_mismatch"}
 
 
 # --- the declarative registry ---
@@ -465,25 +568,5 @@ def test_validate_result_stops_at_the_first_failing_wall() -> None:
 def test_validate_result_runs_every_wall_the_task_kind_allows() -> None:
     passing = validate_result(4, "role_evidence", RoleLedgerV1, result(ledger()), context())
     assert passing.passed and passing.wall == 4
-    capped = validate_result(7, "causal_synthesis", RoleLedgerV1, result(ledger()), context())
+    capped = validate_result(7, "role_ledger", RoleLedgerV1, result(ledger()), context())
     assert capped.wall == 5
-
-
-def test_the_bound_row_unit_claim_survives_the_committed_read_back() -> None:
-    """D-105: the harness writes this claim as plain JSON, so it must parse back strictly."""
-    body = _bind_row_unit("RoleLedger", ledger().model_dump(mode="json"))
-    read = parse_strict(RoleLedgerV1, body)
-    claim = next(row for row in read.claims if row.role is RoleName.UNIT_IDENTIFIER)
-    assert claim.column_refs == (ROW_UNIT_COLUMN,)
-    assert claim.status is EpistemicStatus.HYPOTHESIS
-    # `method()` counts a role as held when its status is not UNKNOWN, so this makes packs eligible.
-    assert claim.status is not EpistemicStatus.UNKNOWN
-
-
-def test_wall_three_names_the_classes_it_accepts_and_the_ones_it_got() -> None:
-    """D-106: with an empty detail the worker re-sent the same claim until its budget ran out."""
-    built = claim("measurement_timing", evidence=("ev:kaggle/dataset/description",))
-    issue = wall_evidence(None, result(claims=(built,)), context()).issues[0]
-    assert issue.code == "blocking_claim_unsupported"
-    assert "data_dictionary" in issue.detail and "source_statement" in issue.detail
-    assert "hypothesis" in issue.detail

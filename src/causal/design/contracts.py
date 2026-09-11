@@ -8,8 +8,14 @@ from typing import Annotated, Any, Final, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from causal.shared.contracts import ArtifactRef, Identity, PayloadLocator, Sha256Hex
-from causal.shared.envelope import ClaimV1
+from causal.shared.contracts import (
+    ArtifactRef,
+    Identity,
+    PayloadLocator,
+    ReferenceKind,
+    Sha256Hex,
+    reference_field,
+)
 
 __all__ = [
     "REGISTRY_VERSION_KEYS",
@@ -21,10 +27,14 @@ __all__ = [
     "DesignApprovalDecisionV1",
     "DesignContextManifestV1",
     "DesignIntentV1",
+    "DiagnosticResultV1",
+    "DiagnosticStatus",
+    "GrainSourceInterpretationV1",
     "InterruptKind",
     "QuestionItemV1",
     "QuestionKind",
     "SelectionSource",
+    "SourceInterpretationV1",
     "StructuralFieldV1",
     "TableSelectionDecisionV1",
     "TableSelectionV1",
@@ -33,7 +43,7 @@ __all__ = [
 ]
 
 REGISTRY_VERSION_KEYS: Final = (
-    "artifact_types", "field_classes", "method_packs", "requirements", "tools",
+    "artifact_types", "field_classes", "method_packs", "requirements",
     "validators", "capacity", "graph", "schema",
 )
 
@@ -95,6 +105,35 @@ class AnswerKind(StrEnum):
     UNKNOWN = "unknown"
 
 
+class DiagnosticStatus(StrEnum):
+    COMPUTED = "computed"
+    PARTIAL = "partial"
+    NOT_COMPUTABLE = "not_computable"
+
+
+class DiagnosticResultV1(_Row):
+    """One read-only measurement over the selected CSV."""
+
+    diagnostic_id: Annotated[Identity, reference_field(ReferenceKind.DIAGNOSTIC)]
+    diagnostic_version: Identity
+    status: DiagnosticStatus
+    csv_artifact: ArtifactRef
+    columns_read: Annotated[tuple[Identity, ...], reference_field(ReferenceKind.COLUMN)]
+    total_rows: _NonNegInt
+    used_rows: _NonNegInt
+    unused_reason_counts: dict[str, int]
+    row_set_hash: Sha256Hex | None
+    values: dict[str, float | int | str | bool | None]
+    warnings: tuple[str, ...]
+    implementation_version: Identity
+
+    @model_validator(mode="after")
+    def _used_rows_within_total(self) -> Self:
+        if self.used_rows > self.total_rows:
+            raise ValueError("used_rows cannot exceed total_rows")
+        return self
+
+
 class TableSelectionV1(_Payload):
     """The one analysis CSV this design revision is bound to (PRD-002 §6)."""
 
@@ -146,7 +185,6 @@ class DesignContextManifestV1(_Payload):
     provenance_surface: tuple[AvailabilityRowV1, ...]
     retrieval_surfaces: tuple[Identity, ...]
     registry_versions: dict[str, Identity]
-    recipient_map: dict[str, tuple[Identity, ...]]
 
     @model_validator(mode="after")
     def _closed_registry_versions(self) -> Self:
@@ -166,7 +204,26 @@ class ConceptProposalV1(_Row):
 
     name: Identity
     description: str
-    candidate_columns: tuple[Identity, ...]
+    candidate_columns: Annotated[tuple[Identity, ...], reference_field(ReferenceKind.COLUMN)]
+
+
+class SourceInterpretationV1(_Row):
+    """A reviewable model judgment about what one exact source span says about one fact."""
+
+    fact_key: Literal[
+        "assignment_mechanism", "estimand", "comparator", "grain", "cutoff",
+        "sharp_assignment", "adoption_time"]
+    value: str | int | float | bool
+    evidence_id: Annotated[Identity, reference_field(ReferenceKind.EVIDENCE)]
+    verbatim_excerpt: Annotated[str, Field(min_length=1, max_length=500)]
+    relation: Literal["direct", "corroborating", "conflicting", "irrelevant"]
+
+
+class GrainSourceInterpretationV1(SourceInterpretationV1):
+    """The intent task may interpret grain only; later tasks own causal design facts."""
+
+    fact_key: Literal["grain"]
+    value: TableGrain
 
 
 class DesignIntentV1(_Payload):
@@ -183,15 +240,27 @@ class DesignIntentV1(_Payload):
     unit: ConceptProposalV1
     timeframe: ConceptProposalV1
     candidate_grain: TableGrain
+    source_interpretations: tuple[GrainSourceInterpretationV1, ...] = ()
     mandatory_concepts: tuple[ConceptProposalV1, ...]
-    claims: tuple[ClaimV1, ...]
+
+    @model_validator(mode="after")
+    def _interpretations_are_for_the_proposed_grain(self) -> Self:
+        keys = [(row.fact_key, row.evidence_id) for row in self.source_interpretations]
+        if len(keys) != len(set(keys)):
+            raise ValueError("a source may be interpreted once per fact")
+        if any(row.fact_key != "grain" or row.value != self.candidate_grain
+               for row in self.source_interpretations):
+            raise ValueError("intent source interpretations must bear on the proposed grain")
+        return self
 
 
 class QuestionItemV1(_Row):
     """One user-facing clarification, always answerable with `unknown`."""
 
     question_id: Identity
-    requirement_ids: Annotated[tuple[Identity, ...], Field(min_length=1)]
+    requirement_ids: Annotated[
+        tuple[Identity, ...], reference_field(ReferenceKind.REQUIREMENT, min_length=1)
+    ]
     question_text: str
     why_it_matters: str
     blocked_decisions: tuple[Identity, ...]
@@ -200,13 +269,11 @@ class QuestionItemV1(_Row):
 
 
 class UserQuestionPacketV1(_Payload):
-    """One clarification round: at most five questions, at most two rounds."""
-
     schema_version: Literal["user-question-packet.v1"] = "user-question-packet.v1"
     packet_id: Identity
     design_revision: _PositiveInt
-    round_number: Literal[1, 2]
-    questions: Annotated[tuple[QuestionItemV1, ...], Field(min_length=1, max_length=5)]
+    round_number: Annotated[int, Field(ge=1, le=6)]
+    questions: Annotated[tuple[QuestionItemV1, ...], Field(min_length=1, max_length=8)]
 
 
 class AnswerItemV1(_Row):

@@ -5,6 +5,30 @@ Applies to: PRD-001 through PRD-005
 Purpose: the single authority for application boundaries, cross-stage execution, context,
 persistence, observability, retry, and handoff behavior
 
+## T-039 boundary amendment — 2026-09-10
+
+The user-authorized post-analysis cutover supersedes historical requirements below
+for upstream claim judgment, required plot templates, presentation capacity gates,
+and the deterministic PRD-005 coordinator. The current authority for that boundary
+is [the post-analysis contract](../post_analysis/contract.md), with its implemented
+[LangGraph](../post_analysis/graph.md) and [producer coverage](../post_analysis/coverage.md).
+
+Analysis emits numerical results, diagnostics, sensitivities and scientific support.
+Post-analysis alone owns interpretation, visual choices, report composition, independent
+image-aware LLM review and exact export release. It follows the exact approved design
+and causal graph through shared artifacts. New output types are NumericalBundle,
+AnalysisSupportingData and PostAnalysisContext/Visual/Draft/Export/Review/Bundle;
+old artifact types remain historical readers. Post-analysis outcomes are complete,
+blocked and incomplete. A failed diagnostic remains evidence; missing expected evidence
+is rejected with its responsible owner. No reporting agent repairs upstream science.
+
+Both design and post-analysis use LangGraph. Reporting state contains exact references,
+bounded actions and observations, never editable scientific authority or raw frames.
+Live reporting requires full application-content LangSmith traces and acknowledged
+flushes, with credentials redacted. Physical call budgets survive recovery. Shared
+operational names and storage remain compatible. Complexity ceilings are unchanged;
+functional verification does not waive the recorded budget or product-release gates.
+
 ## 1. Authority and system shape
 
 This document owns rules that apply to more than one PRD. A stage PRD owns only its scientific
@@ -207,12 +231,12 @@ artifacts under the same rule.
 | Entry artifact | Sole producer | Allowed cross-stage reader | Required parent types | Terminal statuses | Destination |
 |---|---|---|---|---|---|
 | `IntakeOutcome` | PRD-001 intake coordinator | PRD-002 entry gate | `QuestionRecord`, `SourceManifest`, admitted `TableProfile`, `EvidenceBundle`, and `SemanticMap` artifacts | `usable`, `partial`, `refused` | PRD-002 by `analysis_id` plus intake-outcome ID |
-| `ExperimentDesign` | PRD-002 design harness | PRD-003, PRD-004, PRD-005 validators | selected table, approved intent, measurement map, causal context, role ledger, feasibility report, method manifest | `approved`, `superseded`, `declined` | bound design handoffs only |
-| `RunnableFrameContract` | PRD-002 design harness | PRD-003 and PRD-004 | exact approved `ExperimentDesign` | `approved`, `superseded` | PRD-003 then PRD-004 |
-| `DeliveryCapacityCheck[design_approval]` | PRD-002 design harness | PRD-003 and PRD-004 entry gates plus PRD-004 recheck gate | exact design, method/capacity registries, visualization catalog | `pass`, `fail` | explicit PRD-002→003 and PRD-003→004 handoff entry; then PRD-004 recheck input |
-| `DeliveryCapacityCheck[pre_estimation]` | PRD-004 capacity validator | PRD-004 estimator gate and PRD-005 entry gate | design-time check, exact estimation plan, prepared structure, method/capacity registries, visualization catalog | `pass`, `fail` | estimator access and presentation entry |
-| `PreparedFrameBundle` | PRD-003 preparation harness | PRD-004 entry gate | selected table, design, frame contract, approved design-time capacity check, stabilization record (row-set freeze, dispositions, impact, diagnostics), stabilized and prepared frames, execution-receipt bundle carrying operation-level lineage (consolidated per PRD-003 Amendment 1) | `prepared` | PRD-004 only with a `prepared` stage outcome |
-| `EstimationBundle` | PRD-004 estimation harness | PRD-005 entry gate | design, prepared bundle, pre-estimation capacity check, estimation plan, primary result, uncertainty, diagnostic, sensitivity, figure-data, and judgment artifacts | `complete` | PRD-005 only with a `complete` stage outcome |
+| `CompiledDesign` | PRD-002 design harness | PRD-003, PRD-004, PRD-005 validators | `DesignFactSet`, `DiagnosticPlan`, and `DiagnosticReport`; optionally causal context, measurement map, and role ledger | `committed` | bound design handoffs only |
+| `CapacityReport` | PRD-002 design harness | PRD-003, PRD-004, and PRD-005 entry gates | `CompiledDesign` and `GraphViewSet`; optionally `DiagnosticReport` | `committed` | exact V2 handoff entry and later capacity recheck input; payload status is `pass` or `fail` |
+| `DesignReviewBundle` | PRD-002 design harness | approval gate and downstream validators | compiled design, diagnostic report, capacity report, and graph views | `committed` | exact human-review surface |
+| `DesignApproval` | PRD-002 design harness | PRD-003 entry gate | exact review bundle and approval decision | `approved` | opens PRD-003 only with the matching bundle hash |
+| `PreparedFrameBundle` | PRD-003 preparation harness | PRD-004 entry gate | selected table, compiled design, capacity report, approval, stabilization record, stabilized and prepared frames, and execution receipts | `prepared` | PRD-004 only with a `prepared` stage outcome |
+| `EstimationBundle` | PRD-004 estimation harness | PRD-005 entry gate | compiled design, prepared bundle, design capacity report, estimation plan, primary result, uncertainty, diagnostic, sensitivity, figure-data, and judgment artifacts | `complete` | PRD-005 only with a `complete` stage outcome |
 | `ClaimJudgment` | PRD-004 claim validator | PRD-005 entry gate and delivery validator | one claim-review draft or deterministic non-estimable disposition, judgment ceiling, primary result, diagnostics, sensitivities | `reportable`, `reportable_with_qualifications`, `not_reportable`, `not_estimable`, `failed` | PRD-005 only for reportable statuses |
 | `FigureDataBundle` | PRD-004 deterministic figure-data fan-in | PRD-005 coordinator/compiler | exact required visual-evidence declarations and frozen statistical parents | `complete`, `failed` | PRD-005 only when complete |
 | `PresentationBundle` | PRD-005 presentation coordinator | CLI delivery command | presentation manifest, accepted plan, exact specs/renders/tables/descriptions, validation report, catalog and renderer manifest | `complete`, `complete_with_qualifications` | final delivery only |
@@ -292,27 +316,26 @@ advance the workflow.
 
 ### 5.4 Complete model-task audit ledger
 
-These are the only model task types in V1. Each named tool set is a closed, versioned allowlist;
-the envelope may remove tools but cannot add one. Every row permits one initial response plus at
-most two targeted schema corrections and returns to the named deterministic validator.
+These are the only eight model decision boundaries. Every tool allowlist and tool-call budget is
+zero. Every row permits one initial response plus at most two targeted schema corrections and
+returns to the named deterministic validator.
 
-**Amendment (D-100).** Every PRD-002 tool allowlist below is now empty. The design handlers were
-built and never wired — no production caller, and `allowed_tool_ids` never reached a prompt — so
-they were deleted rather than wired (PRD-002 §15). The design rows are struck through to record
-what the allowlist was; a struck tool is not callable, and restoring one restores its handler,
-its registry row, and its budget together. The PRD-005 row is unaffected by this amendment and is
-recorded separately as still-unwired.
+**Amendment (D-119).** The pre-production cutover deletes the combined causal-synthesis task and
+the nonfunctional curator tool. Causal context and the role ledger are separate decisions. Claim
+review and figure planning return registered decisions only; deterministic compilers own every
+number, assumption, claim, caption, accessible description, and qualification sentence.
 
 | PRD / task payload | Exact tool allowlist | Required draft schema | Validator and committed destination |
 |---|---|---|---|
-| PRD-002 `IntentTaskContext` | none — was ~~`list_intake_inventory`, `get_semantic_evidence`~~ (D-100) | `DesignIntentDraftV1` or `ContextRequirementV1[]` | intent validator → committed intent/requirements → semantic harness |
-| PRD-002 `SemanticBatchTaskContext` | none — was ~~`list_intake_inventory`, `get_semantic_evidence`, `get_measured_facts`, `get_provenance`~~ (D-100) | one `ColumnSemanticCardDraftV1` per assigned column | semantic-card validator → committed batch artifacts → harness fan-in |
-| PRD-002 `RoleEvidenceTaskContext` | none — was ~~`list_intake_inventory`, `get_semantic_evidence`, `get_provenance`~~ (D-100) | `RoleEvidenceDraftV1[]` or requirements | evidence validator → committed evidence artifacts → causal synthesis packet builder |
-| PRD-002 `CausalSynthesisTaskContext` | none — was ~~`list_intake_inventory`, `get_semantic_evidence`, `get_provenance`, `validate_causal_model`~~ (D-100) | `CausalSynthesisDraftV1` | causal validator → committed causal context/role-ledger artifacts → method packet builder |
-| PRD-002 `MethodDesignTaskContext` | none — was ~~`list_intake_inventory`, `get_semantic_evidence`, `get_measured_facts`, `get_provenance`, `get_method_contract`, `run_preflight_diagnostic`, `preview_eligibility_impact`~~ (D-100) | `MethodDesignDraftV1` | design validator → committed experiment-design/frame-contract drafts → approval harness |
+| PRD-002 `IntentTaskContext` | none | `DesignIntentDraftV1` or `ContextRequirementV1[]` | intent validator → committed intent/requirements → semantic harness |
+| PRD-002 `SemanticBatchTaskContext` | none | one `ColumnSemanticCardDraftV1` per assigned column | semantic-card validator → committed batch artifacts → harness fan-in |
+| PRD-002 `RoleEvidenceTaskContext` | none | `RoleEvidenceDraftV1[]` or requirements | evidence validator → committed evidence artifacts → causal-context packet builder |
+| PRD-002 `CausalContextTaskContext` | none | `CausalContextDraftV1` | causal validator → committed causal context → role-ledger packet builder |
+| PRD-002 `RoleLedgerTaskContext` | none | `RoleLedgerDraftV1` | role validator → committed role ledger → method packet builder |
+| PRD-002 proposal context | none; measured profiles and diagnostics are supplied in its bounded context | `AgentDesignProposalV2` | fact compiler → structural and empirical eligibility → `CompiledDesign` → approval harness |
 | PRD-003 `PreparationTaskContext` | deferred in V1 (PRD-003 Amendment 2, D-076): V1 preparation compiles plans deterministically and makes no model call; this row returns only with a future user-approved amendment backed by pilot or eval evidence | — | deterministic plan compiler → committed plan → wall 4; every action then returns to postcondition validator |
-| PRD-004 `ClaimReviewContext` | none | `ClaimJudgmentDraftV1` with one claim item per primary result item | claim validator → committed `ClaimJudgment` → figure-data/bundle validation |
-| PRD-005 `PresentationCuratorContext` | `resolve_registered_layout_facts` only, maximum one call | `FigurePlanDraftV1` or typed inability | plan validator → committed `FigurePlan` → deterministic compiler |
+| PRD-004 `ClaimReviewContextV2` | none | `ClaimJudgmentDecisionV2`: statuses and registered finding/qualification/alternative/cannot-conclude IDs | claim validator → deterministic wording compiler → committed `ClaimJudgmentV2` |
+| PRD-005 `PresentationCuratorContextV1` | none; bounded layout facts are hydrated | `FigurePlanDecisionV2` or typed inability | plan validator → deterministic text/spec compiler → committed `FigurePlanV2` |
 
 No model invocation may address another row, receive its uncommitted draft, or choose its own
 destination. Tool denial, context mismatch, or unsupported output schema raises a blocker; the
@@ -547,10 +570,10 @@ names and unstructured exception dumps are forbidden in production.
 
 ### 10.2 Required LangSmith behavior
 
-LangSmith is configured in development, staging, and production using separate projects. A health
-and authorization preflight must pass before stage work. Each graph node or registered operation
-is a child span. The application synchronously flushes the required span at the operation boundary
-before the next node, action, or handoff becomes eligible.
+LangSmith is configured in development, staging, production, and evaluation using separate
+projects. A health and authorization preflight must pass before stage work. Every model call has
+one explicit gateway span, and the application synchronously flushes required traces at commit
+boundaries before later work or handoff becomes eligible.
 
 If delivery fails:
 
@@ -567,22 +590,16 @@ or handoff.
 
 ### 10.3 Model text and privacy
 
-LangSmith receives the complete prompt, response, and reasoning text the model saw or returned,
-together with the artifact payloads each node committed. The trace is the primary record of what
-the harness did, not a summary of it.
+LangSmith receives only an explicit, allowlisted gateway record: task and attempt identities,
+prompt/schema/envelope hashes, model profile, task-derived seed, correction count, evaluation
+identifiers, physical attempts, token usage, and terminal error code. It never receives prompt or
+response text, hidden reasoning, raw or prepared rows, artifact payloads, credentials, connection
+values, signed URLs, or evaluator gold labels.
 
-One restriction remains. The trace must never contain credentials, secrets, database connection
-values, or signed URLs. A single redaction pass strips these before delivery; its scrubbed
-classes are `aws_key`, `signed_url`, `bearer`, `authority_credentials`, and `api_key_assignment`.
-
-The initial freeze also banned dataset content, intermediate arrays, and model reasoning from the
-trace. That ban was authored without deliberation, was never revisited, and cost the
-observability this section exists to provide; it is removed on user ruling (D-097). V1 analyses
-public Kaggle datasets. A release that admits private data must restore a content restriction
-first.
-
-Every trace records the task-envelope ID/hash and redaction-policy version. Tests compare the
-outgoing trace body against credential canary fixtures before production promotion.
+The redactor strips `aws_key`, `signed_url`, `bearer`, `authority_credentials`, and
+`api_key_assignment` patterns from the remaining scalar values and drops every unapproved key or
+non-scalar value. Tests exercise one canary for every forbidden class and fail closed when span
+creation, update, or delivery cannot be acknowledged.
 
 ### 10.4 Vertex AI model contract
 
@@ -602,7 +619,7 @@ change generation settings independently.
 | project | resolved from the authenticated Google Cloud configuration at startup; required but never logged |
 | sampling | temperature `0.0`, one candidate, no independently supplied top-p or top-k |
 | seed | non-negative 31-bit value derived from the canonical `task_id` hash (first 8 hex chars of sha256, masked to 31 bits) and reused for the same task; Vertex `generation_config.seed` is a signed INT32 and rejects larger values (D-061, live-pilot finding, 2026-08-25) |
-| thinking budget | `8192` tokens; `include_thoughts` is `true` so reasoning returns to the harness and reaches the trace (D-097) |
+| thinking budget | `4096` tokens; `include_thoughts` is `true`, while only aggregate usage reaches the sanitized trace (D-097) |
 | maximum output | `16384` tokens |
 | output contract | `application/json` with the registered response JSON schema |
 | automatic function calling | disabled; the deterministic harness owns each allowlisted tool call |
@@ -726,7 +743,7 @@ The following limits are hard:
 | registrations | exactly the current 50; a bug adds a case under an existing ID, and a new ID requires new contracted product behavior |
 | non-end-to-end fixture sets | at most eight logical cases per `eval_id`, including valid, blocking, boundary, and replay cases |
 | end-to-end fixtures | exactly one frozen case for each `EV-E2E-001` through `EV-E2E-007` |
-| live model cases | eight registered model task types with at most four live Vertex cases each; complete release maximum is 32 logical live-model cases |
+| live model cases | exactly four full live journeys, each exercising the eight model decision boundaries once except for bounded corrections |
 | live model repetitions | one run per case using the frozen task identity and seed; no seed sweeps, majority vote, best-of-N, or repeated run until pass |
 | schema/failure injection | malformed responses, transport errors, safety blocks, and correction-loop branches use deterministic gateway fixtures instead of paid calls whenever model semantics are not under test |
 | numerical testing | one frozen reference case per registered method profile plus focused boundary cases; no Cartesian product of learners, seeds, masks, diagnostics, or sensitivities |
@@ -762,7 +779,7 @@ An unresolved excess becomes `blocked_complexity_budget` before more tests or ev
 
 ## 11. Delivery-capacity contract
 
-`DeliveryCapacityCheck` prevents a registered analysis from reaching estimation when the frozen
+`CapacityReport` prevents a registered analysis from reaching estimation when the frozen
 delivery stack cannot honestly present it. It contains:
 
 - method and method-profile IDs;
@@ -774,11 +791,11 @@ delivery stack cannot honestly present it. It contains:
 - execution-task and render budgets;
 - check status, stable failure codes, and registry versions.
 
-PRD-002 runs the first check before user approval and binds it to the approved design. PRD-004
-recomputes it from the frozen plan and prepared structure before exposing the primary outcome to
-an estimator. PRD-005 validates the same contract before curator invocation. A failed capacity
-check is not permission to create a dynamic template, hide evidence, or proceed and hope layout
-works later.
+PRD-002 compiles and commits the report before user approval. PRD-004 rechecks the same registered
+constraints in memory from the frozen plan and prepared structure before exposing the primary
+outcome to an estimator; the original report remains the bound artifact carried downstream.
+PRD-005 validates it again before curator invocation. A failed capacity report is not permission
+to create a dynamic template, hide evidence, or proceed and hope layout works later.
 
 ## 12. Four-method end-to-end traceability
 
@@ -871,11 +888,11 @@ Production Python lives only under `src/causal/` and has these non-transferable 
 | CLI | `src/causal/cli/` | 500 | the seven commands and human/JSON result rendering only |
 | runtime composition | `src/causal/runtime/` | 800 | concrete startup, stage dispatch, dependency construction, and shutdown only; no domain logic |
 | PRD-001 | `src/causal/intake/` | 1,200 | intake responsibilities in PRD-001 |
-| PRD-002 | `src/causal/design/` | 3,400 | design responsibilities in PRD-002 (2,500 at initial freeze; revised by explicit user approval to 2,750 (D-051) and 3,400 (D-055) on 2026-08-25) |
+| PRD-002 | `src/causal/design/` | 4,300 | design responsibilities in PRD-002 (2,500 at initial freeze; revised by explicit user approval to 2,750 (D-051), 3,400 (D-055), and 4,300 (D-116)) |
 | PRD-003 | `src/causal/preparation/` | 3,000 | preparation responsibilities in PRD-003 (2,000 at initial freeze; revised by explicit user approval to 3,000 (D-058) on 2026-08-25) |
-| PRD-004 | `src/causal/estimation/` | 4,000 | all four method adapters, uncertainty, diagnostics, sensitivities, figure-data builders, and judgment |
+| PRD-004 | `src/causal/analysis/` | 4,000 | all four method adapters, uncertainty, diagnostics, sensitivities, figure-data builders, and judgment |
 | PRD-005 | `src/causal/presentation/` | 1,500 | presentation responsibilities in PRD-005 |
-| **Production total** | `src/causal/` | **15,500** | hard ceiling across every package (15,000 at initial freeze; revised by explicit user approval (D-094) on 2026-08-27) |
+| **Production total** | `src/causal/` | **16,500** | hard ceiling across every package (revised by explicit user approval; D-119) |
 
 Unused lines in one package cannot be consumed by another. Production is also limited to 86
 hand-authored Python modules (50 at initial freeze; revised by explicit user approval to 68
@@ -888,13 +905,14 @@ The remaining repository ceilings are:
 
 | Scope | Maximum logical lines | Rule |
 |---|---:|---|
-| tests | 13,000 | parameterized tests and shared fixtures are preferred; helpers cannot contain production behavior or alternate implementations (8,000 at initial freeze; revised by explicit user approval to 9,000 (D-058) on 2026-08-25 and 13,000 (D-082) on 2026-08-26) |
-| migrations, static registries, prompt templates, and evaluation catalogs | 4,600 | declarative values only; no executable application logic (3,000 at initial freeze; revised by explicit user approval to 3,500 (D-058) on 2026-08-25 and 4,600 (D-082) on 2026-08-26) |
-| total human-authored implementation | 33,100 | production + tests + migrations/registries/prompts; documentation is reported separately (26,000 at initial freeze; revised by explicit user approval to 32,600 (D-082) on 2026-08-26 and 33,100 (D-094) on 2026-08-27 as the sum of the revised caps) |
+| tests and evaluation tooling | 13,500 | parameterized tests and shared fixtures are preferred; helpers cannot contain production behavior or alternate implementations (D-119) |
+| migrations, static registries, prompt templates, evaluation catalogs, and fixture manifests | 4,900 | declarative values only; no executable application logic (D-119) |
+| total human-authored implementation | 35,000 | production + tests/tools + migrations/registries/prompts/evaluations; documentation is reported separately (D-119) |
 
-`uv.lock`, vendored third-party assets, raw test datasets, and generated render fixtures are
-reported by file count and bytes but excluded from logical-line totals. They cannot contain
-hand-authored application behavior. Generated source, minification, multiple statements placed on
+`uv.lock`, vendored third-party assets, raw test datasets, generated render fixtures, immutable
+evaluation reports, and generated human-review packets are reported as artifacts but excluded from
+logical-line totals. They cannot contain hand-authored application behavior. Generated source,
+minification, multiple statements placed on
 one line, moving logic into SQL/JSON/YAML/templates, or relabelling production code as tests are
 budget evasion and immediately produce `blocked_complexity_budget`.
 
@@ -1000,8 +1018,8 @@ a specific immutable budget revision. The coding agent cannot approve its own ex
     byte hashes.
 23. Every coding task has a before-write projection and after-edit `ImplementationBudgetReportV1`
     produced by `python-token-lines.v1`.
-24. Production remains at or below 15,000 logical lines, every package remains inside its
-    non-transferable allocation, production contains at most 50 modules, and no production module
+24. Production remains at or below 16,500 logical lines, every package remains inside its
+    non-transferable allocation, production contains at most 86 modules, and no production module
     or function exceeds its respective 350-line or 75-line ceiling.
 25. A projected or actual breach permits exactly one bounded `ComplexityRethinkV1`; an unresolved
     breach becomes `blocked_complexity_budget` before completion, commit, handoff, or delegation.
@@ -1025,9 +1043,9 @@ a specific immutable budget revision. The coding agent cannot approve its own ex
     and prevents promotion.
 33. A non-end-to-end evaluation registration contains at most eight logical cases; every
     end-to-end registration contains exactly one frozen journey, with no Cartesian expansion.
-34. A complete release contains at most 32 logical live-Vertex cases across the eight model task
-    types, with no seed sweep, best-of-N, majority vote, or repeated execution until pass.
-35. Test code remains at or below 8,000 logical lines, names the distinct registered risk it
+34. A complete release runs the four frozen live journeys once across all eight model decision
+    boundaries, with no seed sweep, best-of-N, majority vote, or repeated execution until pass.
+35. Test and evaluation-tool code remains at or below 13,500 logical lines, names the distinct registered risk it
     proves, and does not duplicate a lower-layer assertion solely to increase coverage.
 36. Any proposed test or evaluation excess consumes the task's one `ComplexityRethinkV1`; an
     unresolved excess blocks further test/eval creation rather than silently expanding the suite.
@@ -1049,11 +1067,11 @@ This record validates the implementation contract, not an application that does 
 | model-provider audit | pass: every model-using PRD inherits one Vertex AI stable-`v1` `gemini-2.5-flash` profile with ADC, structured output, harness-owned tools, and no provider fallback |
 | evaluation audit | pass: one registry-driven fixture catalog, deterministic hard gates, five method reference cases plus ask/revision and failure/restart journeys, immutable report, and change-trigger rules cover intake through presentation |
 | evaluation-surface audit | pass: 50 unique registrations cover seven shared boundaries, seven end-to-end journeys, and 36 stage boundaries; every row declares an owner, fixtures, trigger, and hard pass condition |
-| bounded-test/eval audit | pass: eight cases maximum per non-end-to-end registration, seven single-case journeys, 32 live-Vertex cases maximum, impact-based pull-request selection, no cross-product or coverage quota, and an 8,000-line test ceiling |
+| bounded-test/eval audit | pass: four frozen live journeys, one pass per case, impact-based development selection, no cross-product, retry-until-pass, or LLM judge, and a 13,500-line tests/tools ceiling |
 | checkpoint audit | pass: only PRD-002 uses LangGraph (PRD-003 Amendment 2 and PRD-004 Amendment 1 run deterministic coordinators with artifact-replay restart); checkpoint schemas contain IDs/hashes/status only and never payloads, transcripts, or cross-stage memory |
 | CLI boundary | pass: the seven fixed commands have one typed destination each; no Streamlit, browser, API server, authentication service, background worker, or alternate execution path exists |
 | runtime inputs | pass: the canonical OCI platform digest, development-platform digest, Graphviz source identity, font bytes, and font-license bytes have exact recorded identities; implementation must verify them before work |
-| complexity budget | pass: one token-based counting rule, eight non-transferable production allocations totaling 15,000 lines, repository/file/function ceilings, one bounded rethink, and a terminal blocker are defined in Section 14.1 |
+| complexity budget | pass: one token-based counting rule, eight non-transferable production allocations totaling at most 16,500 lines, a 35,000-line grand ceiling, repository/file/function ceilings, one bounded rethink, and a terminal blocker are defined in Section 14.1 |
 | Mermaid syntax | pass: all 15 Mermaid blocks rendered successfully during final documentation review |
 | dependency compatibility | pass: the listed direct Python pins, including `google-genai==2.19.0`, resolved together to 150 package entries for Python 3.12 with `uv==0.12.0`; the CLI adds no dependency and no repository lockfile was created |
 | terminology/status scan | pass: no stale stage-specific thread IDs, single-estimate contradiction, tracing-requirement contradiction, committed-lockfile claim, web/frontend path, or cross-stage user-interrupt owner remains |

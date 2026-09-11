@@ -15,16 +15,21 @@ import uuid
 from collections.abc import Callable
 from contextlib import suppress
 from pathlib import Path
-from typing import Any, Final, NamedTuple, cast
+from typing import Any, Final, NamedTuple
 
 from psycopg import Connection
 
+from causal.analysis.common import legacy_engine as engine
+from causal.analysis.integration import RESOURCE_ROOT as ANALYSIS_RESOURCES
+from causal.analysis.integration.harness import EstimationDeps, EstimationRunResult
+from causal.analysis.integration.nodes import run_estimation
+from causal.analysis.integration.packs import load_estimation_packs
+from causal.analysis.integration.walls import load_validation_rules as load_estimation_rules
+from causal.analysis.methods.aipw import estimation as aipw
+from causal.analysis.methods.did import estimation as did
+from causal.analysis.methods.randomized import estimation as rct
+from causal.analysis.methods.rdd import estimation as rdd
 from causal.design import graph
-from causal.estimation import aipw, did, engine, rct, rdd
-from causal.estimation.harness import EstimationDeps, EstimationRunResult
-from causal.estimation.nodes import run_estimation
-from causal.estimation.packs import load_estimation_packs
-from causal.estimation.walls import load_validation_rules as load_estimation_rules
 from causal.preparation.diagnostics import load_preparation_diagnostics
 from causal.preparation.harness import PreparationDeps, PreparationRunResult
 from causal.preparation.nodes import run_preparation
@@ -74,8 +79,6 @@ _STAGE_SQL: Final = {"preparation": _LATEST_PREPARATION, "estimation": _LATEST_E
 
 
 class DesignRun(NamedTuple):
-    """One stage-run row — design or preparation — as the boundary a command acts on."""
-
     stage_run_id: str
     thread_id: str
     revision: int
@@ -91,27 +94,22 @@ def _stage_run(conn: Connection[Any], sql: str, analysis_id: str) -> DesignRun |
 
 
 def latest_design_run(conn: Connection[Any], analysis_id: str) -> DesignRun | None:
-    """The newest revision's row, or None when the analysis has no design run yet."""
     return _stage_run(conn, _LATEST_RUN, analysis_id)
 
 
 def latest_preparation_run(conn: Connection[Any], analysis_id: str) -> DesignRun | None:
-    """The newest preparation revision's row; both stage tables expose these five columns."""
     return _stage_run(conn, _LATEST_PREPARATION, analysis_id)
 
 
 def latest_estimation_run(conn: Connection[Any], analysis_id: str) -> DesignRun | None:
-    """The newest estimation revision's row; all three stage tables expose these five columns."""
     return _stage_run(conn, _LATEST_ESTIMATION, analysis_id)
 
 
 def latest_stage_run(conn: Connection[Any], stage: str, analysis_id: str) -> DesignRun | None:
-    """The newest row of one later stage, for the `status` command's stage walk (D-069b)."""
     return _stage_run(conn, _STAGE_SQL[stage], analysis_id)
 
 
 def payload(deps: graph.DesignDeps, artifact_id: str) -> dict[str, Any]:
-    """One committed payload, read through the stores every stage commits through."""
     body: dict[str, Any] = json.loads(
         deps.objects.get(deps.products.load_envelope(artifact_id).payload_locator))
     return body
@@ -119,7 +117,6 @@ def payload(deps: graph.DesignDeps, artifact_id: str) -> dict[str, Any]:
 
 def preparation_deps(deps: graph.DesignDeps, registries: Path,
                      repo_root: Path) -> PreparationDeps:
-    """PRD-003 makes no model call, so these are the design deps minus gateway and saver."""
     return PreparationDeps(
         conn=deps.conn, products=deps.products, objects=deps.objects, committer=deps.committer,
         registry=deps.registry, emitter=deps.emitter, clock=deps.clock,
@@ -135,20 +132,18 @@ def preparation_deps(deps: graph.DesignDeps, registries: Path,
 
 def estimation_deps(deps: graph.DesignDeps, registries: Path,
                     repo_root: Path) -> EstimationDeps:
-    """PRD-004's dependencies: the four registered adapters and the one claim-review receiver."""
     return EstimationDeps(
         conn=deps.conn, products=deps.products, objects=deps.objects, committer=deps.committer,
         registry=deps.registry, emitter=deps.emitter, clock=deps.clock,
-        packs=load_estimation_packs(registries / "method-pack-estimation.v1.json",
+        packs=load_estimation_packs(ANALYSIS_RESOURCES / "method-pack-estimation.v1.json",
                                     registries / "method-packs.v1.json"),
-        rules=load_estimation_rules(registries / "estimation-validation-rules.v1.json"),
+        rules=load_estimation_rules(ANALYSIS_RESOURCES / "estimation-validation-rules.v1.json"),
         frames=frames.FrameStore(objects=deps.objects), registries=registries,
-        repo_root=repo_root, adapters=ADAPTERS, gateway=cast(Any, deps.gateway))
+        repo_root=repo_root, adapters=ADAPTERS)
 
 
 def estimate(deps: graph.DesignDeps, est: EstimationDeps, analysis_id: str,
              design_revision: int) -> graph.DesignRunResult:
-    """Run the PRD-004 revision the prepared frame opens (T-029 §1.1; PRD-004 §4)."""
     # D-037 rebuilds the handoff from committed payloads rather than storing it, so the recorded
     # PRD-004 handoff is exactly a preparation revision that ended `prepared` with its bundle.
     prepared = latest_preparation_run(deps.conn, analysis_id)
@@ -159,7 +154,7 @@ def estimate(deps: graph.DesignDeps, est: EstimationDeps, analysis_id: str,
         return graph.DesignRunResult(
             status=FAILED, analysis_id=analysis_id, design_revision=design_revision,
             stage_run_id="" if prepared is None else prepared.stage_run_id,
-            thread_id="" if prepared is None else prepared.thread_id, refusal_code=NOT_PREPARED)
+            thread_id="" if prepared is None else prepared.thread_id, error_code=NOT_PREPARED)
     started = latest_estimation_run(deps.conn, analysis_id)
     if started is not None and started.state not in LIVE:
         return _finished(deps, analysis_id, design_revision, started)
@@ -178,7 +173,6 @@ def estimate(deps: graph.DesignDeps, est: EstimationDeps, analysis_id: str,
 
 def _finished(deps: graph.DesignDeps, analysis_id: str, design_revision: int,
               found: DesignRun) -> graph.DesignRunResult:
-    """A finished revision is reported from its committed outcome, never re-run (D-035)."""
     # PRD-003 §16 and PRD-004 §5.2 answer a `design_conflict` with a new design revision, so the
     # conflict code travels as the refusal code and the revision named is the design one.
     body = {} if found.outcome_artifact_id is None else payload(deps, found.outcome_artifact_id)
@@ -187,14 +181,12 @@ def _finished(deps: graph.DesignDeps, analysis_id: str, design_revision: int,
         status=str(body.get("status") or FAILED), analysis_id=analysis_id,
         stage_run_id=found.stage_run_id, thread_id=found.thread_id,
         design_revision=design_revision, outcome_artifact_id=found.outcome_artifact_id,
-        refusal_code=None if not conflict else str(
-            payload(deps, str(conflict["artifact_id"]))["conflict_code"]),
-        error_code=body.get("error_code"))
+        error_code=(str(payload(deps, str(conflict["artifact_id"]))["conflict_code"])
+                    if conflict else body.get("error_code")))
 
 
 def prepare(deps: graph.DesignDeps, prep: PreparationDeps, analysis_id: str,
             design: DesignRun) -> graph.DesignRunResult:
-    """Run the PRD-003 revision the approved design's recorded handoff opens (T-019 §1.4)."""
     started = latest_preparation_run(deps.conn, analysis_id)
     if started is not None and started.state not in LIVE:
         return _finished(deps, analysis_id, design.revision, started)
@@ -213,17 +205,15 @@ def prepare(deps: graph.DesignDeps, prep: PreparationDeps, analysis_id: str,
 
 def view(design_revision: int,
          run: PreparationRunResult | EstimationRunResult) -> graph.DesignRunResult:
-    """One later-stage terminal in the single result shape the CLI renders (T-019, T-029 §1.2)."""
     return graph.DesignRunResult(
         status=run.status, analysis_id=run.analysis_id, stage_run_id=run.stage_run_id,
         thread_id=run.thread_id, design_revision=design_revision,
         outcome_artifact_id=run.outcome_artifact_id, handoff_id=run.handoff_id,
-        refusal_code=run.conflict_code, error_code=run.error_code)
+        error_code=run.conflict_code or run.error_code)
 
 
 def emit_blocker(deps: graph.DesignDeps, command: str, analysis_id: str, code: str,
                  detail: str = "") -> None:
-    """One `blocker.raised` per refusal or terminal failure, with its stable code (SC §1.1)."""
     # `detail` is the one dimension a blocker adds: the identity a stale command should have
     # named, or a crash's exception class name — never a message body (D-069, D-071).
     deps.emitter.emit(events.build_event(
@@ -236,11 +226,6 @@ def emit_blocker(deps: graph.DesignDeps, command: str, analysis_id: str, code: s
 
 def guard(deps: graph.DesignDeps, command: str, analysis_id: str,
           call: Callable[[], graph.DesignRunResult]) -> graph.DesignRunResult:
-    """Run one coordinator call, converting a terminal harness-boundary error to a result.
-
-    The T-010 gateway emits `retry.scheduled` and `retry.exhausted` only and never a
-    blocker, so the one raised here is the whole failure's single `blocker.raised`.
-    """
     try:
         return call()
     except gateway.GatewayError as error:
@@ -257,7 +242,6 @@ def guard(deps: graph.DesignDeps, command: str, analysis_id: str,
 def guarded(deps: graph.DesignDeps, table: str, analysis_id: str, stage_run_id: str,
             design_revision: int, thread_id: str,
             call: Callable[[], graph.DesignRunResult]) -> graph.DesignRunResult:
-    """Run one later-stage revision, converting a boundary error to that stage's terminal."""
     # Those stages' own nodes already type every other failure. SC §10.2 keeps its own terminal
     # state and committed artifacts stay committed; SC §4 leaves no run row live after a crash.
     try:
@@ -274,7 +258,6 @@ def guarded(deps: graph.DesignDeps, table: str, analysis_id: str, stage_run_id: 
 
 
 def _close_rows(deps: graph.DesignDeps, table: str, stage_run_id: str, state: str) -> None:
-    """Close a crashed revision's two rows; SC §4 leaves no run row live after a failure."""
     deps.conn.execute(_STATE_ROW.format(table), (state, deps.clock(), stage_run_id))
     with suppress(persistence.PersistenceError):  # a crash before the stage run was opened
         deps.products.transition_stage_run(stage_run_id, state)
@@ -282,7 +265,6 @@ def _close_rows(deps: graph.DesignDeps, table: str, stage_run_id: str, state: st
 
 def _terminal(deps: graph.DesignDeps, analysis_id: str, state: str,
               code: str) -> graph.DesignRunResult:
-    """Close the design run and its stage run in `state`, then report that as the result."""
     # Both rows exist before any model or tracer call, so the fallback identity only names
     # a revision that failed before `run_design` recorded it.
     found = latest_design_run(deps.conn, analysis_id) or DesignRun(

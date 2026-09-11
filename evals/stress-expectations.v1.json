@@ -1,0 +1,149 @@
+{
+  "schema_version": "development-expectations.v1",
+  "prompt_leak_canary": "HUMAN_GOLD_EVALUATOR_ONLY_7c3b91",
+  "review_status": "provisional_non_gating",
+  "reviewer": null,
+  "cases": {
+    "resume_audit_rct": {
+      "scientific_suitability": {
+        "status": "conditional",
+        "reasons": ["The projection lacks the employment-ad assignment/block identifier needed for appropriately clustered inference."]
+      },
+      "accepted_safe_terminal_outcomes": ["needs_context", "invalidated", "declined"],
+      "assignment_mechanisms": ["randomized"],
+      "estimands": ["itt"],
+      "methods": ["randomized_experiment"],
+      "profiles": ["rct-profile.v1"],
+      "grains": ["one_row_per_unit"],
+      "units": ["resume", "submitted resume", "c:resume", "c:submitted_resume"],
+      "comparators": ["0", "treatment=0", "White-sounding name"],
+      "role_bindings": {
+        "treatment": [["treatment"]],
+        "outcome": [["callback"]],
+        "unit_identifier": [["resume_id"]]
+      },
+      "timing": {"treatment": ["concurrent"], "outcome": ["post_treatment"]},
+      "required_role_relationships": [["treatment", "outcome"]],
+      "forbidden_role_relationships": [["outcome", "treatment"]],
+      "required_claim_statuses": ["reportable", "reportable_with_qualifications"],
+      "accepted_templates": {
+        "assignment_attrition_flow": ["composition_stack.v1"],
+        "balance_overview": ["balance_overview.v1"],
+        "primary_contrast_estimates": ["estimate_forest.v1"],
+        "required_sensitivities": ["estimate_forest.v1"]
+      },
+      "terminal_outcomes": ["complete", "complete_with_qualifications"]
+    },
+    "nhefs_aipw": {
+      "scientific_suitability": {
+        "status": "suitable",
+        "reasons": ["The target population is explicitly limited to the frozen complete-case cohort."]
+      },
+      "accepted_safe_terminal_outcomes": [],
+      "assignment_mechanisms": ["self_selected"],
+      "estimands": ["ate"],
+      "methods": ["aipw"],
+      "profiles": ["aipw-profile.v1"],
+      "grains": ["one_row_per_unit"],
+      "units": ["participant", "person", "c:participant", "c:person"],
+      "comparators": ["0", "treatment=0", "not quitting"],
+      "role_bindings": {
+        "treatment": [["treatment"]],
+        "outcome": [["weight_change"]],
+        "unit_identifier": [["participant_id"]],
+        "confounder_candidate": [["age", "sex", "race", "education", "smokeintensity", "smokeyrs", "exercise", "active", "wt71"]]
+      },
+      "timing": {
+        "treatment": ["concurrent"], "outcome": ["post_treatment"],
+        "confounder_candidate": ["pre_treatment"]
+      },
+      "required_role_relationships": [
+        ["confounder_candidate", "treatment"],
+        ["confounder_candidate", "outcome"],
+        ["treatment", "outcome"]
+      ],
+      "forbidden_role_relationships": [
+        ["outcome", "treatment"], ["treatment", "confounder_candidate"]
+      ],
+      "required_claim_statuses": ["reportable_with_qualifications"],
+      "accepted_templates": {
+        "overlap": ["binned_scatter.v1"],
+        "weights_support": ["balance_overview.v1"],
+        "balance_overview": ["balance_overview.v1"],
+        "primary_estimate": ["estimate_forest.v1"],
+        "required_sensitivities": ["estimate_forest.v1"]
+      },
+      "terminal_outcomes": ["complete_with_qualifications"]
+    },
+    "card_krueger_did": {
+      "scientific_suitability": {
+        "status": "unsuitable",
+        "reasons": ["The two-wave source violates the current pack's two-pre-period minimum, and the transform performs post-treatment complete-case selection."]
+      },
+      "accepted_safe_terminal_outcomes": ["needs_context", "not_estimable", "invalidated", "declined", "unsupported"],
+      "assignment_mechanisms": ["time_of_adoption"],
+      "estimands": ["att_group_time_aggregate"],
+      "methods": ["did"],
+      "profiles": ["did-profile.v1"],
+      "grains": ["one_row_per_unit_period"],
+      "units": ["restaurant", "c:restaurant"],
+      "comparators": ["0", "Pennsylvania", "PA", "state=0"],
+      "structural_facts": {"adoption_time": [1, "1"]},
+      "role_bindings": {
+        "treatment": [["treatment"]],
+        "outcome": [["fte_employment"]],
+        "unit_identifier": [["restaurant_id"]],
+        "cluster": [["restaurant_id"]],
+        "time": [["period"]],
+        "group": [["state"]]
+      },
+      "timing": {"outcome": ["post_treatment"], "time": ["pre_treatment", "concurrent"]},
+      "required_role_relationships": [["treatment", "outcome"]],
+      "forbidden_role_relationships": [["outcome", "treatment"]],
+      "required_claim_statuses": ["reportable_with_qualifications", "not_reportable"],
+      "required_qualification_fragments": ["parallel"],
+      "accepted_templates": {
+        "trends": ["trend_lines.v1"],
+        "event_time_evidence": ["trend_lines.v1"],
+        "support_composition": ["composition_stack.v1"],
+        "primary_aggregate": ["estimate_forest.v1"]
+      },
+      "terminal_outcomes": ["complete_with_qualifications", "invalidated"]
+    },
+    "head_start_rdd": {
+      "scientific_suitability": {
+        "status": "conditional",
+        "reasons": ["Only the reduced-form local effect of grant-writing-assistance eligibility is supported; funding, participation, and service-receipt effects are out of scope."]
+      },
+      "accepted_safe_terminal_outcomes": ["needs_context", "declined"],
+      "assignment_mechanisms": ["policy_cutoff"],
+      "estimands": ["late_at_cutoff"],
+      "methods": ["sharp_rdd"],
+      "profiles": ["rdd-profile.v1"],
+      "grains": ["one_row_per_unit"],
+      "units": ["county", "c:county", "county_id"],
+      "comparators": ["below cutoff", "poverty_rate_1960<59.1984", "Units with poverty_rate_1960 below the cutoff of 59.1984"],
+      "structural_facts": {"cutoff": [59.1984, "59.1984"], "sharp_assignment": [true]},
+      "role_bindings": {
+        "treatment": [["treatment"]],
+        "outcome": [["child_mortality"]],
+        "running_variable": [["poverty_rate_1960"]],
+        "unit_identifier": [["county_id"]]
+      },
+      "timing": {
+        "treatment": ["concurrent"], "outcome": ["post_treatment"],
+        "running_variable": ["pre_treatment", "concurrent"]
+      },
+      "required_role_relationships": [["running_variable", "treatment"], ["treatment", "outcome"]],
+      "forbidden_role_relationships": [["outcome", "treatment"]],
+      "required_claim_statuses": ["reportable", "reportable_with_qualifications"],
+      "accepted_templates": {
+        "binned_outcome_fit": ["binned_scatter.v1"],
+        "cutoff_bandwidth": ["binned_scatter.v1"],
+        "density_continuity": ["binned_scatter.v1"],
+        "primary_local_estimate": ["estimate_forest.v1"]
+      },
+      "terminal_outcomes": ["complete", "complete_with_qualifications"]
+    }
+  }
+}

@@ -136,7 +136,8 @@ def with_row_unit(parsed: ParsedSource, key_columns: Sequence[str]) -> ParsedSou
     """
     if ROW_UNIT_COLUMN not in key_columns or ROW_UNIT_COLUMN in parsed.frame.columns:
         return parsed
-    return replace(parsed, frame=parsed.frame.with_row_index(ROW_UNIT_COLUMN))
+    indexed = parsed.frame.with_columns(pl.Series(ROW_UNIT_COLUMN, range(parsed.frame.height)))
+    return replace(parsed, frame=indexed)
 
 
 def parse_source_csv(data: bytes, columns: tuple[ColumnParseSpecV1, ...]) -> ParsedSource:

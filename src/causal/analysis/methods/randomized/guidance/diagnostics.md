@@ -1,0 +1,5 @@
+Balance describes the realized groups; it neither proves nor disproves randomized assignment. Attrition must be assessed against all assigned units, since outcome availability can weaken the original randomization argument. Cluster counts and concentration concern the confidence that the uncertainty calculation warrants.
+
+A check requiring a baseline covariate is inapplicable when no such covariate was selected. That is different from a calculation failing for an approved covariate. Required applicable checks remain in the result when they fail. Compare prespecified sensitivity results with the primary contrast without choosing whichever result looks more favorable.
+
+A bound baseline column leaves dependent checks conditional until the caller supplies factual support for `precision_covariate_pre_treatment=True`, scoped to that selected column. Applicability is resolved during design; baseline balance is measured during execution. Local availability does not certify the whole candidate or establish randomized assignment.

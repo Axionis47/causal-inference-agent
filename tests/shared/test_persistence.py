@@ -22,7 +22,7 @@ from causal.shared.persistence import (
     ProductStore,
 )
 from causal.shared.registry import ArtifactTypeRegistrationV1, ArtifactTypeRegistry, RegistryError
-from tests.conftest import requires_docker
+from tests.infrastructure import requires_docker
 
 MIGRATIONS = Path(__file__).resolve().parents[2] / "migrations"
 NOW = datetime(2026, 8, 24, 15, 0, 0, 0, tzinfo=UTC)

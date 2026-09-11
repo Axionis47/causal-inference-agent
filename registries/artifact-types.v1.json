@@ -150,27 +150,24 @@
       "validator_version": "intake-outcome-validator.v1"
     },
     {
-      "artifact_type": "RunnableFrameContract",
-      "schema_version": "runnable-frame-contract.v1",
+      "artifact_type": "DiagnosticPlan",
+      "schema_version": "diagnostic-plan.v2",
       "producer_component": "design-harness",
       "allowed_reader_components": [
-        "preparation-harness",
-        "estimation-harness"
+        "design-harness"
       ],
       "required_parent_types": [
-        "ExperimentDesign"
+        "DesignFactSet"
       ],
       "optional_parent_types": [],
       "sensitivity_class": "internal",
       "terminal_statuses": [
-        "approved",
-        "superseded"
+        "committed"
       ],
       "destinations": [
-        "preparation",
-        "estimation"
+        "design"
       ],
-      "validator_version": "runnable-frame-contract-validator.v1"
+      "validator_version": "diagnostic-plan-validator.v2"
     },
     {
       "artifact_type": "TableSelection",
@@ -264,7 +261,8 @@
       "schema_version": "column-semantic-card.v1",
       "producer_component": "design-harness",
       "allowed_reader_components": [
-        "design-harness"
+        "design-harness",
+        "post-analysis"
       ],
       "required_parent_types": [
         "DesignIntent"
@@ -286,7 +284,8 @@
       "schema_version": "measurement-map.v1",
       "producer_component": "design-harness",
       "allowed_reader_components": [
-        "design-harness"
+        "design-harness",
+        "post-analysis"
       ],
       "required_parent_types": [
         "DesignIntent"
@@ -328,7 +327,8 @@
       "schema_version": "causal-context.v1",
       "producer_component": "design-harness",
       "allowed_reader_components": [
-        "design-harness"
+        "design-harness",
+        "post-analysis"
       ],
       "required_parent_types": [
         "MeasurementMap"
@@ -351,7 +351,8 @@
       "schema_version": "role-ledger.v1",
       "producer_component": "design-harness",
       "allowed_reader_components": [
-        "design-harness"
+        "design-harness",
+        "post-analysis"
       ],
       "required_parent_types": [
         "CausalContext"
@@ -367,14 +368,37 @@
       "validator_version": "role-ledger-validator.v1"
     },
     {
-      "artifact_type": "PreRepairFeasibilityReport",
-      "schema_version": "pre-repair-feasibility-report.v1",
+      "artifact_type": "AgentDesignProposal",
+      "schema_version": "agent-design-proposal.v2",
       "producer_component": "design-harness",
       "allowed_reader_components": [
         "design-harness"
       ],
       "required_parent_types": [
         "RoleLedger"
+      ],
+      "optional_parent_types": [
+        "DiagnosticObservationSet"
+      ],
+      "sensitivity_class": "internal",
+      "terminal_statuses": [
+        "committed"
+      ],
+      "destinations": [
+        "design"
+      ],
+      "validator_version": "agent-design-proposal-validator.v2"
+    },
+    {
+      "artifact_type": "DiagnosticObservationSet",
+      "schema_version": "diagnostic-observation-set.v2",
+      "producer_component": "design-harness",
+      "allowed_reader_components": [
+        "design-harness"
+      ],
+      "required_parent_types": [
+        "TableSelection",
+        "AgentDesignProposal"
       ],
       "optional_parent_types": [],
       "sensitivity_class": "internal",
@@ -384,23 +408,20 @@
       "destinations": [
         "design"
       ],
-      "validator_version": "pre-repair-feasibility-report-validator.v1"
+      "validator_version": "diagnostic-observation-set-validator.v2"
     },
     {
-      "artifact_type": "ExperimentDesign",
-      "schema_version": "experiment-design.v1",
+      "artifact_type": "DesignFactSet",
+      "schema_version": "design-fact-set.v2",
       "producer_component": "design-harness",
       "allowed_reader_components": [
-        "design-harness",
-        "preparation-harness",
-        "estimation-harness",
-        "presentation-coordinator"
+        "design-harness"
       ],
       "required_parent_types": [
+        "AgentDesignProposal",
         "RoleLedger"
       ],
       "optional_parent_types": [
-        "PreRepairFeasibilityReport",
         "UserContextAnswer"
       ],
       "sensitivity_class": "internal",
@@ -408,12 +429,9 @@
         "committed"
       ],
       "destinations": [
-        "design",
-        "preparation",
-        "estimation",
-        "presentation"
+        "design"
       ],
-      "validator_version": "experiment-design-validator.v1"
+      "validator_version": "design-fact-set-validator.v2"
     },
     {
       "artifact_type": "CausalGraphView",
@@ -421,17 +439,16 @@
       "producer_component": "design-harness",
       "allowed_reader_components": [
         "design-harness",
-        "preparation-harness",
-        "presentation-coordinator"
+        "presentation-coordinator",
+        "post-analysis"
       ],
       "required_parent_types": [
-        "RunnableFrameContract"
+        "CompiledDesign"
       ],
       "optional_parent_types": [
         "CausalContext",
         "MeasurementMap",
-        "RoleLedger",
-        "ExperimentDesign"
+        "RoleLedger"
       ],
       "sensitivity_class": "internal",
       "terminal_statuses": [
@@ -445,8 +462,8 @@
       "validator_version": "causal-graph-view-validator.v1"
     },
     {
-      "artifact_type": "DeliveryCapacityCheck",
-      "schema_version": "delivery-capacity-check.v1",
+      "artifact_type": "CapacityReport",
+      "schema_version": "capacity-report.v2",
       "producer_component": "design-harness",
       "allowed_reader_components": [
         "design-harness",
@@ -455,11 +472,11 @@
         "preparation-harness"
       ],
       "required_parent_types": [
-        "CausalGraphView"
+        "CompiledDesign",
+        "GraphViewSet"
       ],
       "optional_parent_types": [
-        "ExperimentDesign",
-        "RunnableFrameContract"
+        "DiagnosticReport"
       ],
       "sensitivity_class": "internal",
       "terminal_statuses": [
@@ -471,7 +488,7 @@
         "presentation",
         "preparation"
       ],
-      "validator_version": "delivery-capacity-check-validator.v1"
+      "validator_version": "capacity-report-validator.v2"
     },
     {
       "artifact_type": "UserQuestionPacket",
@@ -535,6 +552,111 @@
       "validator_version": "table-selection-decision-validator.v1"
     },
     {
+      "artifact_type": "DiagnosticReport",
+      "schema_version": "diagnostic-report.v2",
+      "producer_component": "design-harness",
+      "allowed_reader_components": [
+        "design-harness",
+        "preparation-harness"
+      ],
+      "required_parent_types": [
+        "DiagnosticPlan"
+      ],
+      "optional_parent_types": [],
+      "sensitivity_class": "internal",
+      "terminal_statuses": [
+        "committed"
+      ],
+      "destinations": [
+        "design",
+        "preparation"
+      ],
+      "validator_version": "diagnostic-report-validator.v2"
+    },
+    {
+      "artifact_type": "CompiledDesign",
+      "schema_version": "compiled-design.v2",
+      "producer_component": "design-harness",
+      "allowed_reader_components": [
+        "design-harness",
+        "preparation-harness",
+        "estimation-harness",
+        "presentation-coordinator",
+        "post-analysis"
+      ],
+      "required_parent_types": [
+        "DesignFactSet",
+        "DiagnosticPlan",
+        "DiagnosticReport"
+      ],
+      "optional_parent_types": [
+        "CausalContext",
+        "MeasurementMap",
+        "RoleLedger"
+      ],
+      "sensitivity_class": "internal",
+      "terminal_statuses": [
+        "committed"
+      ],
+      "destinations": [
+        "design",
+        "preparation",
+        "estimation",
+        "presentation"
+      ],
+      "validator_version": "compiled-design-validator.v2"
+    },
+    {
+      "artifact_type": "GraphViewSet",
+      "schema_version": "graph-view-set.v2",
+      "producer_component": "design-harness",
+      "allowed_reader_components": [
+        "design-harness",
+        "post-analysis"
+      ],
+      "required_parent_types": [
+        "CompiledDesign",
+        "CausalGraphView"
+      ],
+      "optional_parent_types": [],
+      "sensitivity_class": "internal",
+      "terminal_statuses": [
+        "committed"
+      ],
+      "destinations": [
+        "design",
+        "presentation"
+      ],
+      "validator_version": "graph-view-set-validator.v2"
+    },
+    {
+      "artifact_type": "DesignReviewBundle",
+      "schema_version": "design-review-bundle.v2",
+      "producer_component": "design-harness",
+      "allowed_reader_components": [
+        "design-harness",
+        "preparation-harness",
+        "post-analysis"
+      ],
+      "required_parent_types": [
+        "CompiledDesign",
+        "DiagnosticReport",
+        "CapacityReport",
+        "GraphViewSet"
+      ],
+      "optional_parent_types": [],
+      "sensitivity_class": "internal",
+      "terminal_statuses": [
+        "committed"
+      ],
+      "destinations": [
+        "design",
+        "preparation",
+        "presentation"
+      ],
+      "validator_version": "design-review-bundle-validator.v2"
+    },
+    {
       "artifact_type": "DesignApprovalDecision",
       "schema_version": "design-approval-decision.v1",
       "producer_component": "design-harness",
@@ -542,13 +664,9 @@
         "design-harness"
       ],
       "required_parent_types": [
-        "ExperimentDesign"
+        "DesignReviewBundle"
       ],
-      "optional_parent_types": [
-        "RunnableFrameContract",
-        "CausalGraphView",
-        "DeliveryCapacityCheck"
-      ],
+      "optional_parent_types": [],
       "sensitivity_class": "internal",
       "terminal_statuses": [
         "committed"
@@ -560,19 +678,17 @@
     },
     {
       "artifact_type": "DesignApproval",
-      "schema_version": "design-approval.v1",
+      "schema_version": "design-approval.v2",
       "producer_component": "design-harness",
       "allowed_reader_components": [
         "design-harness",
-        "preparation-harness"
+        "preparation-harness",
+        "post-analysis"
       ],
       "required_parent_types": [
-        "ExperimentDesign"
+        "DesignReviewBundle"
       ],
       "optional_parent_types": [
-        "RunnableFrameContract",
-        "CausalGraphView",
-        "DeliveryCapacityCheck",
         "DesignApprovalDecision"
       ],
       "sensitivity_class": "internal",
@@ -585,11 +701,11 @@
         "design",
         "preparation"
       ],
-      "validator_version": "design-approval-validator.v1"
+      "validator_version": "design-approval-validator.v2"
     },
     {
       "artifact_type": "DesignOutcome",
-      "schema_version": "design-outcome.v1",
+      "schema_version": "design-outcome.v2",
       "producer_component": "design-harness",
       "allowed_reader_components": [
         "design-harness",
@@ -601,27 +717,27 @@
       "optional_parent_types": [
         "TableSelection",
         "DesignIntent",
-        "ExperimentDesign",
-        "RunnableFrameContract",
-        "CausalGraphView",
-        "DeliveryCapacityCheck",
+        "CompiledDesign",
+        "DiagnosticReport",
+        "CapacityReport",
+        "DesignReviewBundle",
         "DesignApproval"
       ],
       "sensitivity_class": "internal",
       "terminal_statuses": [
         "approved",
         "needs_context",
+        "needs_data",
+        "unsupported",
         "changes_requested",
         "declined",
-        "refused",
-        "failed_observability",
-        "failed"
+        "system_failure"
       ],
       "destinations": [
         "design",
         "preparation"
       ],
-      "validator_version": "design-outcome-validator.v1"
+      "validator_version": "design-outcome-validator.v2"
     },
     {
       "artifact_type": "PreparationContextManifest",
@@ -632,9 +748,11 @@
       ],
       "required_parent_types": [
         "TableSelection",
-        "ExperimentDesign",
-        "RunnableFrameContract",
-        "DeliveryCapacityCheck"
+        "CompiledDesign",
+        "DiagnosticReport",
+        "CapacityReport",
+        "DesignReviewBundle",
+        "DesignApproval"
       ],
       "optional_parent_types": [],
       "sensitivity_class": "internal",
@@ -740,7 +858,8 @@
       "producer_component": "preparation-harness",
       "allowed_reader_components": [
         "preparation-harness",
-        "estimation-harness"
+        "estimation-harness",
+        "post-analysis"
       ],
       "required_parent_types": [
         "StabilizedFrame",
@@ -763,13 +882,14 @@
       "producer_component": "preparation-harness",
       "allowed_reader_components": [
         "preparation-harness",
-        "estimation-harness"
+        "estimation-harness",
+        "post-analysis"
       ],
       "required_parent_types": [
         "TableSelection",
-        "ExperimentDesign",
-        "RunnableFrameContract",
-        "DeliveryCapacityCheck",
+        "CompiledDesign",
+        "CapacityReport",
+        "DesignApproval",
         "StabilizationRecord",
         "StabilizedFrame",
         "PreparedFrame",
@@ -849,13 +969,13 @@
       "schema_version": "estimation-context-manifest.v1",
       "producer_component": "estimation-harness",
       "allowed_reader_components": [
-        "estimation-harness"
+        "estimation-harness",
+        "post-analysis"
       ],
       "required_parent_types": [
-        "ExperimentDesign",
-        "RunnableFrameContract",
+        "CompiledDesign",
         "PreparedFrameBundle",
-        "DeliveryCapacityCheck"
+        "CapacityReport"
       ],
       "optional_parent_types": [],
       "sensitivity_class": "internal",
@@ -872,13 +992,14 @@
       "schema_version": "estimation-plan.v1",
       "producer_component": "estimation-harness",
       "allowed_reader_components": [
-        "estimation-harness"
+        "estimation-harness",
+        "post-analysis"
       ],
       "required_parent_types": [
         "EstimationContextManifest"
       ],
       "optional_parent_types": [
-        "DeliveryCapacityCheck"
+        "CapacityReport"
       ],
       "sensitivity_class": "internal",
       "terminal_statuses": [
@@ -894,7 +1015,8 @@
       "schema_version": "analysis-contribution-mask.v1",
       "producer_component": "estimation-harness",
       "allowed_reader_components": [
-        "estimation-harness"
+        "estimation-harness",
+        "post-analysis"
       ],
       "required_parent_types": [
         "EstimationPlan"
@@ -916,7 +1038,8 @@
       "schema_version": "cross-fit-assignment.v1",
       "producer_component": "estimation-harness",
       "allowed_reader_components": [
-        "estimation-harness"
+        "estimation-harness",
+        "post-analysis"
       ],
       "required_parent_types": [
         "EstimationPlan"
@@ -939,7 +1062,8 @@
       "producer_component": "estimation-harness",
       "allowed_reader_components": [
         "estimation-harness",
-        "presentation-coordinator"
+        "presentation-coordinator",
+        "post-analysis"
       ],
       "required_parent_types": [
         "EstimationPlan",
@@ -965,7 +1089,8 @@
       "producer_component": "estimation-harness",
       "allowed_reader_components": [
         "estimation-harness",
-        "presentation-coordinator"
+        "presentation-coordinator",
+        "post-analysis"
       ],
       "required_parent_types": [
         "EstimationPlan"
@@ -987,7 +1112,8 @@
       "producer_component": "estimation-harness",
       "allowed_reader_components": [
         "estimation-harness",
-        "presentation-coordinator"
+        "presentation-coordinator",
+        "post-analysis"
       ],
       "required_parent_types": [
         "EstimationPlan",
@@ -1013,7 +1139,8 @@
       "producer_component": "estimation-harness",
       "allowed_reader_components": [
         "estimation-harness",
-        "presentation-coordinator"
+        "presentation-coordinator",
+        "post-analysis"
       ],
       "required_parent_types": [
         "EstimationPlan",
@@ -1065,7 +1192,8 @@
       "producer_component": "estimation-harness",
       "allowed_reader_components": [
         "estimation-harness",
-        "presentation-coordinator"
+        "presentation-coordinator",
+        "post-analysis"
       ],
       "required_parent_types": [
         "EstimationPlan"
@@ -1114,7 +1242,7 @@
     },
     {
       "artifact_type": "ClaimJudgment",
-      "schema_version": "claim-judgment.v1",
+      "schema_version": "claim-judgment.v2",
       "producer_component": "estimation-harness",
       "allowed_reader_components": [
         "estimation-harness",
@@ -1149,7 +1277,8 @@
       "producer_component": "estimation-harness",
       "allowed_reader_components": [
         "estimation-harness",
-        "presentation-coordinator"
+        "presentation-coordinator",
+        "post-analysis"
       ],
       "required_parent_types": [
         "EstimationPlan"
@@ -1174,10 +1303,9 @@
         "presentation-coordinator"
       ],
       "required_parent_types": [
-        "ExperimentDesign",
-        "RunnableFrameContract",
+        "CompiledDesign",
         "PreparedFrameBundle",
-        "DeliveryCapacityCheck",
+        "CapacityReport",
         "EstimationContextManifest",
         "EstimationPlan",
         "PrimaryAnalysisResult",
@@ -1207,14 +1335,17 @@
       "allowed_reader_components": [
         "estimation-harness",
         "presentation-coordinator",
-        "design-harness"
+        "design-harness",
+        "post-analysis"
       ],
       "required_parent_types": [
         "EstimationContextManifest"
       ],
       "optional_parent_types": [
         "EstimationBundle",
-        "DesignConflict"
+        "DesignConflict",
+        "NumericalBundle",
+        "EstimationPlan"
       ],
       "sensitivity_class": "internal",
       "terminal_statuses": [
@@ -1232,46 +1363,357 @@
       ],
       "validator_version": "estimation-outcome-validator.v1"
     },
-    {"artifact_type": "PresentationContextManifest",
-     "schema_version": "presentation-context-manifest.v1",
-     "producer_component": "presentation-coordinator",
-     "allowed_reader_components": ["presentation-coordinator"],
-     "required_parent_types": ["EstimationBundle", "ClaimJudgment", "EstimationEvidenceBundle",
-       "ExperimentDesign", "DeliveryCapacityCheck"],
-     "optional_parent_types": ["CausalGraphView"], "sensitivity_class": "internal",
-     "terminal_statuses": ["committed"], "destinations": ["presentation"],
-     "validator_version": "presentation-context-manifest-validator.v1"},
-    {"artifact_type": "FigurePlan", "schema_version": "figure-plan.v1",
-     "producer_component": "presentation-coordinator",
-     "allowed_reader_components": ["presentation-coordinator"],
-     "required_parent_types": ["PresentationContextManifest"], "optional_parent_types": [],
-     "sensitivity_class": "internal", "terminal_statuses": ["committed"],
-     "destinations": ["presentation"], "validator_version": "figure-plan-validator.v1"},
-    {"artifact_type": "FigureSpec", "schema_version": "figure-spec.v1",
-     "producer_component": "presentation-coordinator",
-     "allowed_reader_components": ["presentation-coordinator"],
-     "required_parent_types": ["FigurePlan"], "optional_parent_types": ["FigureDataArtifact"],
-     "sensitivity_class": "internal", "terminal_statuses": ["committed"],
-     "destinations": ["presentation"], "validator_version": "figure-spec-validator.v1"},
-    {"artifact_type": "PresentationRender", "schema_version": "presentation-render.v1",
-     "producer_component": "presentation-coordinator",
-     "allowed_reader_components": ["presentation-coordinator"],
-     "required_parent_types": ["FigureSpec"], "optional_parent_types": [],
-     "sensitivity_class": "internal", "terminal_statuses": ["committed"],
-     "destinations": ["presentation"], "validator_version": "presentation-render-validator.v1"},
-    {"artifact_type": "PresentationValidationReport", "optional_parent_types": [],
-     "schema_version": "presentation-validation-report.v1", "destinations": [],
-     "producer_component": "presentation-coordinator", "required_parent_types": ["FigurePlan"],
-     "allowed_reader_components": ["presentation-coordinator", "cli"], "terminal_statuses": ["committed"],
-     "sensitivity_class": "internal", "validator_version": "presentation-gate-validator.v1"},
-    {"artifact_type": "PresentationBundle", "schema_version": "presentation-bundle.v1",
-     "producer_component": "presentation-coordinator",
-     "allowed_reader_components": ["presentation-coordinator", "cli"],
-     "required_parent_types": ["PresentationContextManifest", "FigurePlan", "FigureSpec",
-       "PresentationRender"],
-     "optional_parent_types": ["CausalGraphView"], "sensitivity_class": "internal",
-     "terminal_statuses": ["complete", "complete_with_qualifications"],
-     "destinations": ["presentation"],
-     "validator_version": "presentation-bundle-validator.v1"}
+    {
+      "artifact_type": "PresentationContextManifest",
+      "schema_version": "presentation-context-manifest.v1",
+      "producer_component": "presentation-coordinator",
+      "allowed_reader_components": [
+        "presentation-coordinator"
+      ],
+      "required_parent_types": [
+        "EstimationBundle",
+        "ClaimJudgment",
+        "EstimationEvidenceBundle",
+        "CompiledDesign",
+        "CapacityReport"
+      ],
+      "optional_parent_types": [
+        "CausalGraphView"
+      ],
+      "sensitivity_class": "internal",
+      "terminal_statuses": [
+        "committed"
+      ],
+      "destinations": [
+        "presentation"
+      ],
+      "validator_version": "presentation-context-manifest-validator.v1"
+    },
+    {
+      "artifact_type": "FigurePlan",
+      "schema_version": "figure-plan.v2",
+      "producer_component": "presentation-coordinator",
+      "allowed_reader_components": [
+        "presentation-coordinator"
+      ],
+      "required_parent_types": [
+        "PresentationContextManifest"
+      ],
+      "optional_parent_types": [],
+      "sensitivity_class": "internal",
+      "terminal_statuses": [
+        "committed"
+      ],
+      "destinations": [
+        "presentation"
+      ],
+      "validator_version": "figure-plan-validator.v1"
+    },
+    {
+      "artifact_type": "FigureSpec",
+      "schema_version": "figure-spec.v1",
+      "producer_component": "presentation-coordinator",
+      "allowed_reader_components": [
+        "presentation-coordinator"
+      ],
+      "required_parent_types": [
+        "FigurePlan"
+      ],
+      "optional_parent_types": [
+        "FigureDataArtifact"
+      ],
+      "sensitivity_class": "internal",
+      "terminal_statuses": [
+        "committed"
+      ],
+      "destinations": [
+        "presentation"
+      ],
+      "validator_version": "figure-spec-validator.v1"
+    },
+    {
+      "artifact_type": "PresentationRender",
+      "schema_version": "presentation-render.v1",
+      "producer_component": "presentation-coordinator",
+      "allowed_reader_components": [
+        "presentation-coordinator"
+      ],
+      "required_parent_types": [
+        "FigureSpec"
+      ],
+      "optional_parent_types": [],
+      "sensitivity_class": "internal",
+      "terminal_statuses": [
+        "committed"
+      ],
+      "destinations": [
+        "presentation"
+      ],
+      "validator_version": "presentation-render-validator.v1"
+    },
+    {
+      "artifact_type": "PresentationValidationReport",
+      "optional_parent_types": [],
+      "schema_version": "presentation-validation-report.v1",
+      "destinations": [],
+      "producer_component": "presentation-coordinator",
+      "required_parent_types": [
+        "FigurePlan"
+      ],
+      "allowed_reader_components": [
+        "presentation-coordinator",
+        "cli"
+      ],
+      "terminal_statuses": [
+        "committed"
+      ],
+      "sensitivity_class": "internal",
+      "validator_version": "presentation-gate-validator.v1"
+    },
+    {
+      "artifact_type": "PresentationBundle",
+      "schema_version": "presentation-bundle.v1",
+      "producer_component": "presentation-coordinator",
+      "allowed_reader_components": [
+        "presentation-coordinator",
+        "cli"
+      ],
+      "required_parent_types": [
+        "PresentationContextManifest",
+        "FigurePlan",
+        "FigureSpec",
+        "PresentationRender"
+      ],
+      "optional_parent_types": [
+        "CausalGraphView"
+      ],
+      "sensitivity_class": "internal",
+      "terminal_statuses": [
+        "complete",
+        "complete_with_qualifications"
+      ],
+      "destinations": [
+        "presentation"
+      ],
+      "validator_version": "presentation-bundle-validator.v1"
+    },
+    {
+      "artifact_type": "AnalysisSupportingData",
+      "schema_version": "analysis-supporting-data.v1",
+      "producer_component": "estimation-harness",
+      "allowed_reader_components": [
+        "post-analysis",
+        "stage-coordinator"
+      ],
+      "required_parent_types": [
+        "EstimationPlan",
+        "PrimaryAnalysisResult"
+      ],
+      "optional_parent_types": [],
+      "sensitivity_class": "internal",
+      "terminal_statuses": [
+        "committed"
+      ],
+      "destinations": [
+        "presentation"
+      ],
+      "validator_version": "post-analysis-validator.v1"
+    },
+    {
+      "artifact_type": "NumericalBundle",
+      "schema_version": "numerical-bundle.v1",
+      "producer_component": "estimation-harness",
+      "allowed_reader_components": [
+        "post-analysis",
+        "stage-coordinator"
+      ],
+      "required_parent_types": [
+        "CompiledDesign",
+        "PreparedFrameBundle",
+        "EstimationContextManifest",
+        "EstimationPlan",
+        "PrimaryAnalysisResult",
+        "EstimationEvidenceBundle",
+        "AnalysisSupportingData",
+        "NumericalEnvironmentManifest"
+      ],
+      "optional_parent_types": [
+        "AnalysisContributionMask",
+        "CrossFitAssignment",
+        "MultiplicityResult"
+      ],
+      "sensitivity_class": "internal",
+      "terminal_statuses": [
+        "committed"
+      ],
+      "destinations": [
+        "presentation"
+      ],
+      "validator_version": "post-analysis-validator.v1"
+    },
+    {
+      "artifact_type": "PostAnalysisContext",
+      "schema_version": "post-analysis-context.v1",
+      "producer_component": "post-analysis",
+      "allowed_reader_components": [
+        "post-analysis",
+        "stage-coordinator"
+      ],
+      "required_parent_types": [
+        "EstimationOutcome",
+        "EstimationPlan",
+        "CompiledDesign",
+        "PreparedFrameBundle"
+      ],
+      "optional_parent_types": [
+        "NumericalBundle",
+        "EstimationContextManifest",
+        "PrimaryAnalysisResult",
+        "DiagnosticResult",
+        "SensitivityResult",
+        "AnalysisSupportingData",
+        "EstimationEvidenceBundle",
+        "NumericalEnvironmentManifest",
+        "PreparedFrame",
+        "DesignApproval",
+        "DesignReviewBundle",
+        "GraphViewSet",
+        "CausalGraphView",
+        "CausalContext",
+        "MeasurementMap",
+        "RoleLedger",
+        "ColumnSemanticCard",
+        "MultiplicityResult",
+        "AnalysisContributionMask",
+        "CrossFitAssignment"
+      ],
+      "sensitivity_class": "internal",
+      "terminal_statuses": [
+        "committed"
+      ],
+      "destinations": [
+        "presentation"
+      ],
+      "validator_version": "post-analysis-validator.v1"
+    },
+    {
+      "artifact_type": "PostAnalysisVisual",
+      "schema_version": "post-analysis-visual.v1",
+      "producer_component": "post-analysis",
+      "allowed_reader_components": [
+        "post-analysis",
+        "stage-coordinator"
+      ],
+      "required_parent_types": [
+        "PostAnalysisContext"
+      ],
+      "optional_parent_types": [
+        "PrimaryAnalysisResult",
+        "DiagnosticResult",
+        "SensitivityResult",
+        "AnalysisSupportingData",
+        "NumericalBundle",
+        "CausalContext"
+      ],
+      "sensitivity_class": "internal",
+      "terminal_statuses": [
+        "committed"
+      ],
+      "destinations": [
+        "presentation"
+      ],
+      "validator_version": "post-analysis-validator.v1"
+    },
+    {
+      "artifact_type": "PostAnalysisDraft",
+      "schema_version": "post-analysis-draft.v1",
+      "producer_component": "post-analysis",
+      "allowed_reader_components": [
+        "post-analysis",
+        "stage-coordinator"
+      ],
+      "required_parent_types": [
+        "PostAnalysisContext"
+      ],
+      "optional_parent_types": [],
+      "sensitivity_class": "internal",
+      "terminal_statuses": [
+        "committed"
+      ],
+      "destinations": [
+        "presentation"
+      ],
+      "validator_version": "post-analysis-validator.v1"
+    },
+    {
+      "artifact_type": "PostAnalysisExport",
+      "schema_version": "post-analysis-export.v1",
+      "producer_component": "post-analysis",
+      "allowed_reader_components": [
+        "post-analysis",
+        "stage-coordinator"
+      ],
+      "required_parent_types": [
+        "PostAnalysisDraft"
+      ],
+      "optional_parent_types": [
+        "PostAnalysisVisual"
+      ],
+      "sensitivity_class": "internal",
+      "terminal_statuses": [
+        "committed"
+      ],
+      "destinations": [
+        "presentation"
+      ],
+      "validator_version": "post-analysis-validator.v1"
+    },
+    {
+      "artifact_type": "PostAnalysisReview",
+      "schema_version": "post-analysis-review.v1",
+      "producer_component": "post-analysis",
+      "allowed_reader_components": [
+        "post-analysis",
+        "stage-coordinator"
+      ],
+      "required_parent_types": [
+        "PostAnalysisContext",
+        "PostAnalysisDraft",
+        "PostAnalysisExport"
+      ],
+      "optional_parent_types": [],
+      "sensitivity_class": "internal",
+      "terminal_statuses": [
+        "committed"
+      ],
+      "destinations": [
+        "presentation"
+      ],
+      "validator_version": "post-analysis-validator.v1"
+    },
+    {
+      "artifact_type": "PostAnalysisBundle",
+      "schema_version": "post-analysis-bundle.v1",
+      "producer_component": "post-analysis",
+      "allowed_reader_components": [
+        "post-analysis",
+        "stage-coordinator"
+      ],
+      "required_parent_types": [
+        "PostAnalysisContext",
+        "PostAnalysisDraft",
+        "PostAnalysisExport",
+        "PostAnalysisReview"
+      ],
+      "optional_parent_types": [],
+      "sensitivity_class": "internal",
+      "terminal_statuses": [
+        "committed"
+      ],
+      "destinations": [
+        "presentation"
+      ],
+      "validator_version": "post-analysis-validator.v1"
+    }
   ]
 }

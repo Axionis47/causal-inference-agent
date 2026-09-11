@@ -1,4 +1,4 @@
-"""Method packs, §10.1 requirement templates, and the tool allowlist (PRD-002 §13, §15; SC §5.4)."""
+"""Method packs and §10.1 requirement templates (PRD-002 §10, §13)."""
 
 from __future__ import annotations
 
@@ -19,10 +19,10 @@ from causal.shared.envelope import (
 )
 
 __all__ = [
-    "METHOD_IDS", "PREREPAIR_DIAGNOSTIC_IDS", "TASK_KINDS", "MethodPackRegistry", "MethodPackV1",
-    "PackRegistryError", "RequirementTemplateV1", "ToolRegistrationV1", "ToolRegistry",
-    "load_method_packs", "load_requirement_templates", "load_tool_registry",
-    "verify_requirement_references",
+    "METHOD_IDS", "PREREPAIR_DIAGNOSTIC_IDS", "TASK_KINDS", "AcceptedFactContractV1",
+    "MethodPackRegistry", "MethodPackV1", "PackRegistryError", "RequirementTemplateV1",
+    "load_method_packs",
+    "load_requirement_templates", "verify_requirement_references",
 ]
 
 INVALID_REGISTRY_FILE: Final = "invalid_registry_file"
@@ -31,11 +31,12 @@ WRONG_PACK_COUNT: Final = "wrong_pack_count"
 UNKNOWN_ROLE: Final = "unknown_role"
 UNKNOWN_DIAGNOSTIC: Final = "unknown_diagnostic"
 UNKNOWN_REQUIREMENT: Final = "unknown_requirement"
+REQUIREMENT_MISMATCH: Final = "requirement_mismatch"
 UNSUPPORTED_METHOD: Final = "unsupported_method"
 
 METHOD_IDS: Final = ("randomized_experiment", "aipw", "did", "sharp_rdd")
-TASK_KINDS: Final = ("intent", "semantic_batch", "role_evidence", "causal_synthesis",
-                     "method_design")
+TASK_KINDS: Final = ("intent", "semantic_batch", "role_evidence", "causal_context",
+                     "role_ledger", "method_design")
 # The closed pre-repair diagnostic vocabulary: one id per inspection named in PRD-002 §13.1–§13.4.
 PREREPAIR_DIAGNOSTIC_IDS: Final = (
     "arm_counts", "assignment_unit_uniqueness", "cluster_sizes", "baseline_availability",
@@ -51,9 +52,8 @@ PREREPAIR_DIAGNOSTIC_IDS: Final = (
 _ROLE_FIELDS: Final = ("required_roles", "optional_roles", "forbidden_adjustment_roles",
                        "imputation_forbidden_roles", "imputation_eligible_roles")
 _KNOWN_ROLES: Final = frozenset(role.value for role in RoleName)
-
 AssignmentMechanism = Literal["randomized", "self_selected", "policy_cutoff", "time_of_adoption"]
-Estimand = Literal["itt", "per_protocol", "ate", "att", "att_group_time_aggregate",
+Estimand = Literal["itt", "ate", "att", "att_group_time_aggregate",
                    "late_at_cutoff"]
 StructuralRequirement = Literal[
     "one_row_per_unit", "one_row_per_randomization_unit", "unit_time_or_group_time_rows",
@@ -62,22 +62,25 @@ StructuralRequirement = Literal[
     "treatment_and_outcome_observed", "treated_and_comparison_groups", "adoption_time_defined",
     "pre_and_post_periods",
 ]
-TaskKind = Literal["intent", "semantic_batch", "role_evidence", "causal_synthesis", "method_design"]
+TaskKind = Literal["intent", "semantic_batch", "role_evidence", "causal_context", "role_ledger",
+                   "method_design"]
+AcceptedFactType = Literal[
+    "text", "choice", "boolean", "number", "date", "duration", "column", "column_list",
+    "mapping"]
+AcceptedFactConsumer = Literal[
+    "design_intent", "semantic_compiler", "causal_context", "role_ledger",
+    "method_compiler", "preparation_compiler", "claim_compiler", "presentation_compiler"]
 
 _Ids = Annotated[tuple[Identity, ...], Field(min_length=1)]
 
 
 class PackRegistryError(ValueError):
-    """A pack, requirement, or tool registry operation failed; `code` is a contract value."""
-
     def __init__(self, message: str, code: str) -> None:
         super().__init__(message)
         self.code = code
 
 
 class MethodPackV1(_Row):
-    """One versioned method manifest (PRD-002 §13); `supported_estimands[0]` is the default."""
-
     method_id: Identity
     pack_version: Identity
     display_name: str
@@ -91,14 +94,21 @@ class MethodPackV1(_Row):
     structural_requirements: Annotated[tuple[StructuralRequirement, ...], Field(min_length=1)]
     allowed_prerepair_diagnostic_ids: _Ids
     eligibility_rule_vocabulary: _Ids
+    unusable_row_rule_ids: _Ids
     imputation_forbidden_roles: _Ids
     imputation_eligible_roles: tuple[Identity, ...]
     deletion_impact_dimensions: _Ids
-    invalidation_rules: Annotated[tuple[str, ...], Field(min_length=1)]
+    statements: dict[Identity, str]
+    mandatory_assumption_ids: _Ids
+    optional_assumption_ids: tuple[Identity, ...]
+    mandatory_risk_ids: tuple[Identity, ...]
+    optional_risk_ids: tuple[Identity, ...]
+    mandatory_sensitivity_ids: tuple[Identity, ...]
+    optional_sensitivity_ids: tuple[Identity, ...]
+    invalidation_rule_ids: _Ids
     required_postrepair_diagnostic_ids: _Ids
     required_visual_evidence_ids: _Ids
     reserved_estimator_id: Identity
-    runnable_frame_schema: Literal["runnable-frame-contract.v1"]
 
     @model_validator(mode="after")
     def _treatment_and_outcome_never_imputed(self) -> Self:
@@ -107,12 +117,24 @@ class MethodPackV1(_Row):
             raise ValueError("imputation_forbidden_roles must include treatment and outcome")
         if forbidden & set(self.imputation_eligible_roles):
             raise ValueError("a role cannot be both forbidden and eligible for imputation")
+        ids = {name for field in (
+            "mandatory_assumption_ids", "optional_assumption_ids", "mandatory_risk_ids",
+            "optional_risk_ids", "mandatory_sensitivity_ids", "optional_sensitivity_ids",
+            "invalidation_rule_ids") for name in getattr(self, field)}
+        if ids != set(self.statements):
+            raise ValueError("every registered method statement must be classified exactly once")
         return self
 
 
-class RequirementTemplateV1(_Row):
-    """One §10.1 requirement template; instance fields are added when it is raised."""
+class AcceptedFactContractV1(_Row):
+    """How one validated human answer becomes a typed downstream fact."""
 
+    fact_key: Identity
+    value_type: AcceptedFactType
+    consumer_ids: Annotated[tuple[AcceptedFactConsumer, ...], Field(min_length=1)]
+
+
+class RequirementTemplateV1(_Row):
     requirement_id: Identity
     scope_kind: RequirementScopeKind
     fact_required: str
@@ -124,14 +146,21 @@ class RequirementTemplateV1(_Row):
     missing_action: MissingAction
     expected_answer_schema: Identity
     user_may_know: bool
+    accepted_fact: AcceptedFactContractV1
 
-
-class ToolRegistrationV1(_Row):
-    """One tool's task-kind allowlist and whether a handler is registered (SC §5.4)."""
-
-    tool_id: Identity
-    allowed_task_kinds: tuple[TaskKind, ...]
-    registered: bool
+    @model_validator(mode="after")
+    def _answer_schema_matches_fact_type(self) -> Self:
+        schema = self.expected_answer_schema
+        expected = ("choice" if schema.startswith("choice:") else {
+            "free_text": "text", "free-text.v1": "text", "iso_date": "date",
+            "boolean": "boolean", "number": "number", "column_name": "column",
+            "column-list.v1": "column_list", "duration-window.v1": "duration",
+            "level-map.v1": "mapping", "mapping-list.v1": "mapping",
+            "timing-class.v1": "choice"}.get(schema))
+        if expected != self.accepted_fact.value_type:
+            raise ValueError(
+                f"{schema!r} cannot produce {self.accepted_fact.value_type!r}")
+        return self
 
 
 class _PackFileV1(_Row):
@@ -144,13 +173,7 @@ class _RequirementFileV1(_Row):
     requirements: tuple[RequirementTemplateV1, ...]
 
 
-class _ToolFileV1(_Row):
-    registry_version: Literal["design-tools.v1"]
-    tools: tuple[ToolRegistrationV1, ...]
-
-
 def _check_pack(pack: MethodPackV1) -> None:
-    """Roles must be RoleName values; diagnostics must sit inside the §13 vocabulary."""
     cited = {role for field in _ROLE_FIELDS for role in getattr(pack, field)}
     if unknown_roles := sorted(cited - _KNOWN_ROLES):
         raise PackRegistryError(f"{pack.method_id} unknown roles: {unknown_roles}", UNKNOWN_ROLE)
@@ -164,8 +187,6 @@ def _check_pack(pack: MethodPackV1) -> None:
 
 
 class MethodPackRegistry:
-    """The four validated method packs; a missing, surplus, or repeated pack fails closed."""
-
     registry_version: Final = "method-packs.v1"
 
     def __init__(self, packs: tuple[MethodPackV1, ...]) -> None:
@@ -192,30 +213,6 @@ class MethodPackRegistry:
         return len(self._by_id)
 
 
-class ToolRegistry:
-    """Tool identity to task-kind allowlist; an envelope may narrow it, never widen it."""
-
-    registry_version: Final = "design-tools.v1"
-
-    def __init__(self, tools: tuple[ToolRegistrationV1, ...]) -> None:
-        self._rows = tools
-        self._by_id = {tool.tool_id: tool for tool in tools}
-        if len(self._by_id) != len(tools):
-            raise PackRegistryError("duplicate tool registration", INVALID_REGISTRY_FILE)
-
-    def lookup(self, tool_id: str) -> ToolRegistrationV1 | None:
-        """The registration, or None when the tool is not listed at all."""
-        return self._by_id.get(tool_id)
-
-    def recipient_map(self) -> dict[str, tuple[str, ...]]:
-        """Task kind to allowed tool ids, in registry order (SC §5.4)."""
-        return {kind: tuple(row.tool_id for row in self._rows if kind in row.allowed_task_kinds)
-                for kind in TASK_KINDS}
-
-    def __len__(self) -> int:
-        return len(self._rows)
-
-
 def _parse[Model: BaseModel](path: Path, model: type[Model]) -> Model:
     try:
         return model.model_validate_json(path.read_text(encoding="utf-8"))
@@ -225,29 +222,33 @@ def _parse[Model: BaseModel](path: Path, model: type[Model]) -> Model:
 
 
 def load_method_packs(path: Path) -> MethodPackRegistry:
-    """Load and structurally validate the four method packs (PRD-002 §13)."""
     return MethodPackRegistry(_parse(path, _PackFileV1).packs)
 
 
 def load_requirement_templates(path: Path) -> dict[str, RequirementTemplateV1]:
-    """Load the §10.1 requirement templates, keyed by requirement id."""
     templates = _parse(path, _RequirementFileV1).requirements
     by_id = {template.requirement_id: template for template in templates}
     if len(by_id) != len(templates):
         raise PackRegistryError("duplicate requirement template", INVALID_REGISTRY_FILE)
+    fact_keys = [template.accepted_fact.fact_key for template in templates]
+    if len(fact_keys) != len(set(fact_keys)):
+        raise PackRegistryError("duplicate accepted fact key", INVALID_REGISTRY_FILE)
     return by_id
-
-
-def load_tool_registry(path: Path) -> ToolRegistry:
-    """Load the design tool allowlist (SC §5.4)."""
-    return ToolRegistry(_parse(path, _ToolFileV1).tools)
 
 
 def verify_requirement_references(
     packs: MethodPackRegistry, templates: dict[str, RequirementTemplateV1]
 ) -> None:
-    """Every requirement id a pack cites must resolve into the requirement registry."""
     for pack in packs.all():
-        if missing := sorted(set(pack.required_context_requirement_ids) - set(templates)):
-            raise PackRegistryError(f"{pack.method_id} unknown requirement ids: {missing}",
+        actual = set(pack.required_context_requirement_ids)
+        if unknown := sorted(actual - set(templates)):
+            raise PackRegistryError(f"{pack.method_id} unknown requirement ids: {unknown}",
                                     UNKNOWN_REQUIREMENT)
+        expected = {requirement_id for requirement_id, template in templates.items()
+                    if pack.method_id in template.methods_required_for}
+        if actual != expected:
+            missing = sorted(expected - actual)
+            extra = sorted(actual - expected)
+            raise PackRegistryError(
+                f"{pack.method_id} requirement ids do not match the requirement registry; "
+                f"missing: {missing}; extra: {extra}", REQUIREMENT_MISMATCH)

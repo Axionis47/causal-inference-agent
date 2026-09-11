@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+from types import SimpleNamespace
 from typing import Any
 
 import psycopg
@@ -11,15 +13,17 @@ from causal.design.askgate import (
     AnswerOutcome,
     AskGateError,
     GateRoute,
+    PsycopgAcceptedFactStore,
     PsycopgRequirementStore,
     RequirementState,
+    accepted_answer_value,
     build_packet,
     freeze_requirements,
     gate,
     validate_answers,
 )
 from causal.design.contracts import AnswerItemV1, AnswerKind, UserContextAnswerV1
-from causal.design.packs import RequirementTemplateV1
+from causal.design.packs import AcceptedFactContractV1, RequirementTemplateV1
 from causal.shared.envelope import (
     AttemptedEvidenceV1,
     ContextRequirementV1,
@@ -29,7 +33,7 @@ from causal.shared.envelope import (
     RequirementScopeKind,
     SupportRequirement,
 )
-from tests.conftest import requires_docker
+from tests.infrastructure import requires_docker
 
 COLUMNS = ("re74", "re75", "treat")
 DOC = (("ev:doc/readme.md", "empty"),)
@@ -68,17 +72,20 @@ def template(requirement_id: str, acceptable: tuple[EvidenceClass, ...]) -> Requ
         fact_required="f", why_required="w", criticality=Criticality.BLOCKING,
         acceptable_evidence_types=acceptable, required_support=SupportRequirement.DIRECT,
         methods_required_for=("aipw",), missing_action=MissingAction.ASK_USER,
-        expected_answer_schema="free_text", user_may_know=True)
+        expected_answer_schema="free_text", user_may_know=True,
+        accepted_fact=AcceptedFactContractV1(
+            fact_key=requirement_id, value_type="text",
+            consumer_ids=("method_compiler",)))
 
 
 def route(
     req: ContextRequirementV1,
-    index: dict[str, str] | None = None,
+    accepted: dict[tuple[str, str], Any] | None = None,
     round_number: int = 1,
     templates: dict[str, RequirementTemplateV1] | None = None,
 ) -> tuple[GateRoute, str]:
     """The single requirement's route and reason code."""
-    decision = gate((req,), index or {}, round_number, templates or {})[0]
+    decision = gate((req,), accepted or {}, round_number, templates or {})[0]
     return decision.route, decision.reason
 
 
@@ -101,11 +108,41 @@ def test_freeze_merges_decisions_and_evidence_by_requirement_and_scope() -> None
         ("ev:doc/a", "empty"), ("ev:doc/b", "withheld")]
 
 
-def test_gate_resolves_when_an_evidenced_row_matches_the_template_class() -> None:
+def test_gate_resolves_only_for_an_exact_accepted_fact() -> None:
     req = requirement(attempted=(("ev:doc/protocol.md", "evidenced"),))
     templates = {req.requirement_id: template(req.requirement_id,
                                               (EvidenceClass.SOURCE_STATEMENT,))}
-    assert route(req, templates=templates) == (GateRoute.RESOLVED, "evidence_satisfies_template")
+    accepted = {(req.requirement_id, req.scope_id): SimpleNamespace(
+        requirement_id=req.requirement_id, scope_id=req.scope_id, value="randomized",
+        evidence_class=EvidenceClass.SOURCE_STATEMENT, relation="direct",
+        acceptance_status="accepted", executable=True)}
+    assert route(req, accepted, templates=templates) == (
+        GateRoute.RESOLVED, "accepted_fact_satisfies_requirement")
+
+
+def test_accepted_fact_never_resolves_a_different_scope() -> None:
+    req = requirement(scope_kind=RequirementScopeKind.COLUMN, scope_id="re74")
+    accepted = {(req.requirement_id, "re75"): SimpleNamespace(
+        requirement_id=req.requirement_id, scope_id="re75", value="randomized",
+        evidence_class=EvidenceClass.SOURCE_STATEMENT, relation="direct",
+        acceptance_status="accepted", executable=True)}
+    assert route(req, accepted) == (GateRoute.ASK, "ask_permitted")
+
+
+def test_corroborating_fact_cannot_satisfy_a_direct_requirement() -> None:
+    req = requirement()
+    accepted = {(req.requirement_id, req.scope_id): SimpleNamespace(
+        requirement_id=req.requirement_id, scope_id=req.scope_id, value="randomized",
+        evidence_class=EvidenceClass.SOURCE_STATEMENT, relation="corroborating",
+        acceptance_status="accepted", executable=True)}
+    assert route(req, accepted) == (GateRoute.ASK, "ask_permitted")
+
+
+def test_gate_never_accepts_a_model_authored_evidenced_status_as_verification() -> None:
+    req = requirement(attempted=(("ev:doc/protocol.md", "evidenced"),))
+    templates = {req.requirement_id: template(req.requirement_id,
+                                              (EvidenceClass.SOURCE_STATEMENT,))}
+    assert route(req, templates=templates) == (GateRoute.ASK, "ask_permitted")
 
 
 def test_gate_asks_when_the_evidenced_class_is_outside_the_template() -> None:
@@ -119,15 +156,14 @@ def test_gate_asks_when_all_five_conditions_hold() -> None:
     assert route(requirement()) == (GateRoute.ASK, "ask_permitted")
 
 
-def test_gate_applies_the_fan_in_availability_index_over_the_recorded_status() -> None:
-    req = requirement(attempted=(("ev:kaggle/column/nsw.csv/treat/description", "evidenced"),))
-    index = {"ev:kaggle/column/nsw.csv/treat/description": "fetch_failed"}
-    assert route(req, index) == (GateRoute.TERMINAL_NEEDS_CONTEXT, "sources_unexhausted")
+def test_gate_blocks_an_ask_when_harness_availability_is_nonterminal() -> None:
+    req = requirement(attempted=(("ev:kaggle/column/nsw.csv/treat/description",
+                                  "fetch_failed"),))
+    assert route(req) == (GateRoute.TERMINAL_NEEDS_CONTEXT, "sources_unexhausted")
 
 
 @pytest.mark.parametrize(("req", "expected"), [
     (requirement(criticality=Criticality.SUPPORTING), "supporting_criticality"),
-    (requirement(attempted=()), "sources_unexhausted"),
     (requirement(attempted=(("ev:doc/a", "fetch_failed"),)), "sources_unexhausted"),
     (requirement(user_may_know=False), "user_cannot_know"),
     (requirement(answer_schema="mystery-schema.v9"), "schema_undeclared"),
@@ -149,13 +185,13 @@ def test_gate_terminates_a_refuse_requirement_before_asking() -> None:
     assert route(req) == (GateRoute.TERMINAL_REFUSED, "refuse_by_registered_action")
 
 
-def test_gate_stops_asking_after_the_second_round() -> None:
-    assert route(requirement(), round_number=2)[0] is GateRoute.ASK
-    assert route(requirement(), round_number=3) == (
+def test_gate_stops_asking_after_the_configured_rounds() -> None:
+    assert route(requirement(), round_number=6)[0] is GateRoute.ASK
+    assert route(requirement(), round_number=7) == (
         GateRoute.TERMINAL_NEEDS_CONTEXT, "round_cap_exhausted")
 
 
-def test_packet_caps_at_five_and_orders_design_then_manifest_columns() -> None:
+def test_packet_orders_design_then_manifest_columns_within_its_bound() -> None:
     asks = [
         requirement("z.design"), requirement("a.design"),
         requirement("col.treat", scope_kind=RequirementScopeKind.COLUMN, scope_id="treat"),
@@ -165,8 +201,8 @@ def test_packet_caps_at_five_and_orders_design_then_manifest_columns() -> None:
         requirement("ds.other", scope_kind=RequirementScopeKind.DATASET, scope_id="nsw"),
     ]
     questions = packet_for(*asks).questions
-    assert [q.question_id for q in questions] == [
-        "q:a.design", "q:z.design", "q:col.re74", "q:col.re75", "q:col.treat"]
+    assert [q.question_id for q in questions] == ["q:a.design", "q:z.design", "q:col.re74",
+        "q:col.re75", "q:col.treat", "q:ds.grain", "q:ds.other"]
     assert questions[0].requirement_ids == ("a.design",)
     assert questions[0].allow_unknown is True
 
@@ -176,8 +212,8 @@ def test_packet_identity_carries_the_revision_and_round() -> None:
     assert (second.packet_id, second.round_number) == ("qp:3:2", 2)
 
 
-@pytest.mark.parametrize("round_number", [0, 3])
-def test_packet_never_builds_outside_the_two_round_bound(round_number: int) -> None:
+@pytest.mark.parametrize("round_number", [0, 7])
+def test_packet_never_builds_outside_the_configured_round_bound(round_number: int) -> None:
     with pytest.raises(AskGateError) as raised:
         packet_for(requirement(), round_number=round_number)
     assert raised.value.code == "round_cap"
@@ -192,6 +228,8 @@ def test_packet_rejects_an_empty_ask_set() -> None:
 @pytest.mark.parametrize(("answer_schema", "value", "valid"), [
     ("free_text", "randomised in 1976", True), ("free_text", "   ", False),
     ("boolean", "true", True), ("boolean", "yes", False),
+    ("number", "0", True), ("number", "-1.25e2", True),
+    ("number", "nan", False), ("number", "infinity", False),
     ("iso_date", "1976-04-01", True), ("iso_date", "01/04/1976", False),
     ("column_name", "re74", True), ("column_name", "earnings", False),
     ("choice:itt|att", "att", True), ("choice:itt|att", "late", False),
@@ -211,6 +249,13 @@ def test_every_answer_schema_branch(answer_schema: str, value: str, valid: bool)
     with pytest.raises(AskGateError) as raised:
         validate_answers(packet, submitted, requirements, COLUMNS)
     assert raised.value.code == "schema_invalid"
+
+
+def test_numeric_and_mapping_answers_materialize_typed_exact_scope_values() -> None:
+    assert accepted_answer_value("number", "-1.25", "design") == -1.25
+    assert accepted_answer_value(
+        "mapping-list.v1", "age=pre_treatment,earnings=post_treatment", "earnings"
+    ) == "post_treatment"
 
 
 @pytest.mark.parametrize(("missing_action", "state"), [
@@ -274,11 +319,54 @@ def test_requirement_store_round_trip(conn: psycopg.Connection[Any]) -> None:
         ("design.causal_question", "design", "ask_user", "open",
          [{"evidence_id": "ev:doc/a", "availability_status": "empty"}]),
     ]
-    store.set_state("an-1", 1, "design.causal_question", "design", RequirementState.RESOLVED, None)
+    store.set_state("an-1", 1, "design.causal_question", "design",
+                    RequirementState.UNKNOWN_ACCEPTED, None)
     store.upsert(rows, "an-1", 1)  # a later freeze never reopens a settled row
     assert conn.execute(
         "SELECT state, resolving_answer_artifact_id FROM design.context_requirements"
-        " WHERE requirement_id = 'design.causal_question'").fetchone() == ("resolved", None)
+        " WHERE requirement_id = 'design.causal_question'").fetchone() == (
+            "unknown_accepted", None)
+
+
+@requires_docker
+def test_accepted_fact_is_exact_idempotent_and_inherited(conn: psycopg.Connection[Any]) -> None:
+    store = PsycopgAcceptedFactStore(conn)
+    kwargs = {
+        "analysis_id": "an-1", "design_revision": 1,
+        "requirement_id": "design.table_grain", "scope_id": "design",
+        "value": "one_row_per_unit",
+        "value_schema": "choice:one_row_per_unit|one_row_per_unit_period",
+        "source_kind": "user", "evidence_ids": ("ua:answer-1",),
+        "evidence_class": EvidenceClass.USER_CONFIRMATION, "relation": "direct",
+        "origin_reference_id": "answer-1", "origin_reference_hash": "a" * 64,
+        "created_at": datetime(2026, 8, 25, tzinfo=UTC)}
+    first = store.accept(**kwargs)
+    assert store.accept(**kwargs) == first
+    copied = store.inherit("an-1", 1, 2, kwargs["created_at"])[0]
+    assert copied.value == first.value
+    assert copied.origin_revision == 1
+    assert copied.inherited_from_fact_id == first.accepted_fact_id
+
+
+@requires_docker
+def test_accepted_fact_conflict_needs_an_explicit_resolution(conn: psycopg.Connection[Any]) -> None:
+    store = PsycopgAcceptedFactStore(conn)
+    base = {
+        "analysis_id": "an-1", "design_revision": 1,
+        "requirement_id": "design.assignment_mechanism", "scope_id": "design",
+        "value_schema": "choice:randomized|self_selected", "source_kind": "document",
+        "evidence_ids": ("ev:doc/study",),
+        "evidence_class": EvidenceClass.SOURCE_STATEMENT, "relation": "direct",
+        "origin_reference_id": "ev:doc/study", "origin_reference_hash": "b" * 64,
+        "created_at": datetime(2026, 8, 25, tzinfo=UTC)}
+    first = store.accept(value="randomized", **base)
+    with pytest.raises(AskGateError) as raised:
+        store.accept(value="self_selected", **base)
+    assert raised.value.code == "accepted_fact_conflict"
+    assert store.mark_conflicting("an-1", 1, base["requirement_id"], "design") == (
+        first.accepted_fact_id)
+    replacement = store.accept(value="self_selected", **base)
+    assert replacement.supersedes_fact_id == first.accepted_fact_id
 
 
 def column_asks(requirement_id: str, schema: str) -> tuple[ContextRequirementV1, ...]:

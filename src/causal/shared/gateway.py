@@ -2,24 +2,30 @@
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
-from collections.abc import Callable
+import time
+from collections.abc import Callable, Mapping
 from datetime import datetime
-from typing import Annotated, Any, Final, Literal, Protocol
+from typing import Annotated, Final, Literal, Protocol
 
 from google import genai
 from google.genai import errors, types
-from langsmith import traceable
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from causal.shared.canonical import content_hash
 from causal.shared.envelope import AgentTaskEnvelopeV1
 from causal.shared.events import EventEmitter, Severity, Stage, build_event
+from causal.shared.tracing import TracerProtocol, TraceSpanProtocol
 
 __all__ = [
     "GATEWAY_ERROR_CODES",
+    "MODEL_OUTPUT_TRUNCATED",
+    "UNSUPPORTED_IMAGE_INPUT",
     "VERTEX_PROFILE_V1",
     "GatewayError",
+    "GatewayImage",
     "GatewayResultV1",
     "GenAiTransport",
     "GenerationSettingsV1",
@@ -43,11 +49,14 @@ INVALID_AUTHENTICATION: Final = "invalid_authentication"
 PERMISSION_DENIED: Final = "permission_denied"
 QUOTA_EXHAUSTED: Final = "quota_exhausted"
 UNSUPPORTED_STRUCTURED_OUTPUT: Final = "unsupported_structured_output"
+MODEL_OUTPUT_TRUNCATED: Final = "model_output_truncated"
+UNSUPPORTED_IMAGE_INPUT: Final = "unsupported_image_input"
 TRANSIENT_EXHAUSTED: Final = "transient_exhausted"
 
 GATEWAY_ERROR_CODES: Final[frozenset[str]] = frozenset({
     PROVIDER_SAFETY_REJECTION, MODEL_UNAVAILABLE, INVALID_AUTHENTICATION,
-    PERMISSION_DENIED, QUOTA_EXHAUSTED, UNSUPPORTED_STRUCTURED_OUTPUT, TRANSIENT_EXHAUSTED,
+    PERMISSION_DENIED, QUOTA_EXHAUSTED, UNSUPPORTED_STRUCTURED_OUTPUT,
+    MODEL_OUTPUT_TRUNCATED, UNSUPPORTED_IMAGE_INPUT, TRANSIENT_EXHAUSTED,
 })
 
 _STATUS_CODES: Final[dict[str, str]] = {
@@ -67,8 +76,6 @@ _SAFETY_FINISH_REASONS: Final[frozenset[str]] = frozenset(
 
 
 class VertexModelProfileV1(BaseModel):
-    """The frozen V1 model profile; every call is made with exactly these knobs."""
-
     model_config = _MODEL_CONFIG
 
     profile_version: Literal["vertex-model-profile.v1"] = "vertex-model-profile.v1"
@@ -79,7 +86,7 @@ class VertexModelProfileV1(BaseModel):
     authentication: str = "adc"
     temperature: float = 0.0
     candidate_count: int = 1
-    thinking_budget_tokens: int = 8192
+    thinking_budget_tokens: int = 4096
     max_output_tokens: int = 16384
     response_mime_type: str = "application/json"
     automatic_function_calling: bool = False
@@ -99,8 +106,6 @@ def derive_seed(task_id: str) -> int:
 
 
 class GenerationSettingsV1(BaseModel):
-    """The exact per-call knobs a transport must apply, with nothing implied."""
-
     model_config = _MODEL_CONFIG
 
     temperature: float
@@ -114,8 +119,6 @@ class GenerationSettingsV1(BaseModel):
 
 
 class TransportResponse(BaseModel):
-    """One provider response, already reduced to the fields the gateway uses."""
-
     model_config = _MODEL_CONFIG
 
     text: str
@@ -124,9 +127,16 @@ class TransportResponse(BaseModel):
     finish_reason: str
 
 
-class TransportError(Exception):
-    """A provider failure already translated to a stable code and a retry verdict."""
+class GatewayImage(BaseModel):
+    """The exact image bytes sent alongside the rendered textual prompt."""
 
+    model_config = _MODEL_CONFIG
+
+    mime_type: Annotated[str, Field(pattern=r"^image/[A-Za-z0-9.+-]+$")]
+    data: Annotated[bytes, Field(min_length=1)]
+
+
+class TransportError(Exception):
     def __init__(self, message: str, code: str, *, retryable: bool) -> None:
         super().__init__(message)
         self.code = code
@@ -134,24 +144,18 @@ class TransportError(Exception):
 
 
 class GatewayError(Exception):
-    """A terminal model-call failure; `code` is one of GATEWAY_ERROR_CODES."""
-
     def __init__(self, message: str, code: str) -> None:
         super().__init__(message)
         self.code = code
 
 
 class ModelTransportProtocol(Protocol):
-    """The only surface the gateway calls; provider types never leak past it."""
-
     def generate(
         self, model_id: str, prompt: str, settings: GenerationSettingsV1
     ) -> TransportResponse: ...
 
 
 class GatewayResultV1(BaseModel):
-    """What one completed model call yields; schema conformance is the harness's job."""
-
     model_config = _MODEL_CONFIG
 
     text: str
@@ -160,10 +164,10 @@ class GatewayResultV1(BaseModel):
     token_usage: dict[str, Annotated[int, Field(ge=0)]]
     attempts: Annotated[int, Field(ge=1)]
     seed: Annotated[int, Field(ge=0, lt=2**31)]
+    finish_reason: str = "UNKNOWN"
 
 
 def _parse_json(text: str) -> dict[str, object] | None:
-    """json.loads of the response text, or None when it is not a JSON object."""
     try:
         value: object = json.loads(text)
     except ValueError:
@@ -172,47 +176,107 @@ def _parse_json(text: str) -> dict[str, object] | None:
 
 
 class VertexGateway:
-    """Applies the frozen profile, derives the seed, and owns the transient retry rule."""
-
     def __init__(
         self,
         transport: ModelTransportProtocol,
         profile: VertexModelProfileV1,
         emitter: EventEmitter,
         clock: Callable[[], datetime],
+        tracer: TracerProtocol | None = None,
     ) -> None:
         self._transport = transport
         self._profile = profile
         self._emitter = emitter
         self._clock = clock
+        self._tracer = tracer
 
     def invoke(
-        self, envelope: AgentTaskEnvelopeV1, prompt: str, response_schema: dict[str, object]
+        self, envelope: AgentTaskEnvelopeV1, prompt: str, response_schema: dict[str, object], *,
+        images: tuple[GatewayImage, ...] = (),
     ) -> GatewayResultV1:
-        """One model call with up to the envelope's transient attempt budget of physical tries."""
-        seed = derive_seed(envelope.task_id)
+        evaluation = envelope.payload.get("evaluation")
+        seed_key = evaluation.get("seed_key") if isinstance(evaluation, Mapping) else None
+        seed = derive_seed(str(seed_key or envelope.task_id))
         settings = self._settings(seed, response_schema)
-        budget = max(1, envelope.budgets.transient_attempt_budget)
+        span = self._span(envelope, prompt, response_schema, seed, images)
+        image_transport = getattr(self._transport, "generate_with_images", None)
+        if images and not callable(image_transport):
+            if span:
+                span.finish({"physical_attempts": 0}, UNSUPPORTED_IMAGE_INPUT)
+            raise GatewayError("model transport does not support images", UNSUPPORTED_IMAGE_INPUT)
+        budget = min(3, max(1, envelope.budgets.transient_attempt_budget))
         attempt = 0
         while True:
             attempt += 1
             try:
-                response = self._transport.generate(self._profile.model_id, prompt, settings)
+                if images:
+                    assert callable(image_transport)
+                    response = image_transport(self._profile.model_id, prompt, settings, images)
+                else:
+                    response = self._transport.generate(self._profile.model_id, prompt, settings)
             except TransportError as error:
                 if not error.retryable:
+                    if span:
+                        span.finish({"physical_attempts": attempt}, error.code)
                     raise GatewayError(str(error), error.code) from error
                 if attempt >= budget:
                     self._emit(envelope, "retry.exhausted", attempt, error, Severity.ERROR)
+                    if span:
+                        span.finish({"physical_attempts": attempt}, TRANSIENT_EXHAUSTED)
                     raise GatewayError(
                         f"transient attempt budget of {budget} exhausted: {error}",
                         TRANSIENT_EXHAUSTED,
                     ) from error
                 self._emit(envelope, "retry.scheduled", attempt, error, Severity.WARNING)
+                time.sleep(min(2 ** (attempt - 1), 2))
                 continue
+            except Exception as error:
+                if span:
+                    span.finish({"physical_attempts": attempt}, type(error).__name__)
+                raise
+            if span:
+                usage = response.token_usage
+                span.finish({
+                    "physical_attempts": attempt, "input_tokens": usage.get("input", 0),
+                    "output_tokens": usage.get("output", 0),
+                    "thinking_tokens": usage.get("thinking", 0),
+                    "total_tokens": usage.get("total", 0),
+                    "finish_reason": response.finish_reason,
+                    "model_output": response.text,
+                    "provider_summary": response.reasoning})
             return GatewayResultV1(
                 text=response.text, reasoning=response.reasoning,
                 parsed=_parse_json(response.text),
-                token_usage=dict(response.token_usage), attempts=attempt, seed=seed)
+                token_usage=dict(response.token_usage), attempts=attempt, seed=seed,
+                finish_reason=response.finish_reason)
+
+    def _span(self, envelope: AgentTaskEnvelopeV1, prompt: str,
+              schema: Mapping[str, object], seed: int,
+              images: tuple[GatewayImage, ...] = ()) -> TraceSpanProtocol | None:
+        if self._tracer is None:
+            return None
+        evaluation = envelope.payload.get("evaluation")
+        ids = dict(evaluation) if isinstance(evaluation, Mapping) else {}
+        return self._tracer.start_gateway_span({
+            "analysis_id": envelope.analysis_id, "stage_run_id": envelope.stage_run_id,
+            "task_id": envelope.task_id, "attempt_id": envelope.attempt_id,
+            "correction_attempt_count": int(envelope.attempt_id.rsplit(":", 1)[-1])
+            if envelope.attempt_id.rsplit(":", 1)[-1].isdigit() else 0,
+            "envelope_id": envelope.envelope_id,
+            "envelope_hash": content_hash(envelope.canonical_payload()),
+            "prompt_hash": hashlib.sha256(prompt.encode()).hexdigest(),
+            "prompt_characters": len(prompt),
+            "prompt": prompt, "response_schema": dict(schema),
+            "images": [{"mime_type": image.mime_type,
+                        "base64": base64.b64encode(image.data).decode("ascii"),
+                        "sha256": hashlib.sha256(image.data).hexdigest(),
+                        "byte_length": len(image.data)} for image in images],
+            "response_schema_hash": content_hash(dict(schema)),
+            "model_profile_version": self._profile.profile_version,
+            "model_id": self._profile.model_id, "seed": seed,
+            "evaluation_run_id": ids.get("run_id", ""),
+            "evaluation_case_id": ids.get("case_id", ""),
+            "evaluation_mode": ids.get("mode", "")})
 
     def _settings(self, seed: int, response_schema: dict[str, object]) -> GenerationSettingsV1:
         profile = self._profile
@@ -240,16 +304,21 @@ class VertexGateway:
 
 
 def _classify(error: errors.APIError) -> tuple[str, bool]:
-    """Provider exception to (stable code, retryable); only 5xx responses are retryable."""
     code = int(error.code or 0)
     if code >= 500:
+        return MODEL_UNAVAILABLE, True
+    # Google's documented PayGo capacity signal is transient, unlike quota denial.
+    # Any structured details (including QuotaFailure) keep the conservative denial path.
+    body = error.details.get("error", error.details) if isinstance(error.details, Mapping) else {}
+    if (code == 429 and str(error.status or "").upper() == "RESOURCE_EXHAUSTED"
+            and error.message == "Resource exhausted, please try again later."
+            and isinstance(body, Mapping) and not body.get("details")):
         return MODEL_UNAVAILABLE, True
     mapped = _STATUS_CODES.get(str(error.status or "").upper())
     return mapped or _HTTP_CODES.get(code, MODEL_UNAVAILABLE), False
 
 
 def _token_usage(usage: types.GenerateContentResponseUsageMetadata | None) -> dict[str, int]:
-    """The D-015 token keys; counters the provider omits read as zero."""
     if usage is None:
         return {"input": 0, "output": 0, "thinking": 0, "total": 0}
     return {
@@ -260,23 +329,12 @@ def _token_usage(usage: types.GenerateContentResponseUsageMetadata | None) -> di
     }
 
 
-def _traced_inputs(inputs: dict[str, Any]) -> dict[str, Any]:
-    """Span inputs for one model call: drop the bound transport, keep prompt and settings."""
-    settings = inputs.get("settings")
-    return {
-        "model_id": inputs.get("model_id"), "prompt": inputs.get("prompt"),
-        "settings": settings.model_dump(mode="json") if settings is not None else None}
-
-
 class GenAiTransport:
-    """Live google-genai 2.19.0 adapter; the project comes from ADC and is never logged."""
-
     def __init__(self, profile: VertexModelProfileV1 = VERTEX_PROFILE_V1) -> None:
         self._profile = profile
         self._client: genai.Client | None = None
 
     def client(self) -> genai.Client:
-        """The lazily built Vertex-mode client; project and credentials resolve from ADC."""
         if self._client is None:
             self._client = genai.Client(
                 vertexai=True, location=self._profile.location,
@@ -286,25 +344,40 @@ class GenAiTransport:
                     retry_options=types.HttpRetryOptions(attempts=1)))
         return self._client
 
-    @traceable(run_type="llm", name="vertex.generate", process_inputs=_traced_inputs)
     def generate(
         self, model_id: str, prompt: str, settings: GenerationSettingsV1
     ) -> TransportResponse:
-        """One structured-output generate_content call with every settings knob applied."""
-        config = types.GenerateContentConfig(
-            temperature=settings.temperature,
-            candidate_count=settings.candidate_count,
-            seed=settings.seed,
-            max_output_tokens=settings.max_output_tokens,
-            thinking_config=types.ThinkingConfig(
-                thinking_budget=settings.thinking_budget_tokens, include_thoughts=True),
-            response_mime_type=settings.response_mime_type,
-            response_schema=dict(settings.response_schema),
-            automatic_function_calling=types.AutomaticFunctionCallingConfig(
-                disable=not settings.automatic_function_calling, maximum_remote_calls=None))
+        return self._generate(model_id, prompt, settings)
+
+    def generate_with_images(
+        self, model_id: str, prompt: str, settings: GenerationSettingsV1,
+        images: tuple[GatewayImage, ...],
+    ) -> TransportResponse:
+        content = types.Content(role="user", parts=[types.Part.from_text(text=prompt), *(
+            types.Part.from_bytes(data=image.data, mime_type=image.mime_type) for image in images)])
+        return self._generate(model_id, content, settings)
+
+    def _generate(
+        self, model_id: str, contents: str | types.Content, settings: GenerationSettingsV1,
+    ) -> TransportResponse:
         try:
+            config = types.GenerateContentConfig(
+                temperature=settings.temperature,
+                candidate_count=settings.candidate_count,
+                seed=settings.seed,
+                max_output_tokens=settings.max_output_tokens,
+                thinking_config=types.ThinkingConfig(
+                    thinking_budget=settings.thinking_budget_tokens, include_thoughts=True),
+                response_mime_type=settings.response_mime_type,
+                response_schema=_provider_schema(settings.response_schema),
+                automatic_function_calling=types.AutomaticFunctionCallingConfig(
+                    disable=not settings.automatic_function_calling,
+                    maximum_remote_calls=None))
             response = self.client().models.generate_content(
-                model=model_id, contents=prompt, config=config)
+                model=model_id, contents=contents, config=config)
+        except ValidationError as error:
+            raise TransportError(
+                str(error), UNSUPPORTED_STRUCTURED_OUTPUT, retryable=False) from error
         except errors.APIError as error:
             code, retryable = _classify(error)
             raise TransportError(str(error), code, retryable=retryable) from error
@@ -313,8 +386,36 @@ class GenAiTransport:
         return _to_transport_response(response)
 
 
+def _provider_schema(value: dict[str, object], *, _reference: bool = False) -> dict[str, object]:
+    """Lower decoder complexity, without mutating the application's strict schema.
+
+    Vertex expands reused definitions. Repeated string matchers can exceed its
+    serving-state limit. Keep shape, required fields, types, nullability, decision enums,
+    numeric ranges, array bounds and compact reference catalogs. Local walls enforce
+    string limits and long evidence/artifact catalogs repeated across semantic slots.
+    """
+    local_only = {"title", "default", "minLength", "maxLength", "pattern"}
+    reference = _reference or (value.get("x-causal-reference-role") == "reference"
+                              and value.get("x-causal-reference-kind") in {"evidence", "artifact"})
+    lowered: dict[str, object] = {}
+    for key, item in value.items():
+        if key.startswith("x-causal-") or key in local_only or (reference and key == "enum"):
+            continue
+        if key in {"properties", "$defs", "definitions"} and isinstance(item, dict):
+            lowered[key] = {name: _provider_schema(child) for name, child in item.items()}
+        elif key in {"anyOf", "oneOf", "allOf", "prefixItems"} and isinstance(item, list):
+            lowered[key] = [_provider_schema(child, _reference=reference) for child in item]
+        elif isinstance(item, dict):
+            lowered[key] = _provider_schema(item, _reference=reference)
+        else:
+            lowered[key] = item
+    return lowered
+
+
 def _split_parts(response: types.GenerateContentResponse) -> tuple[str, str]:
-    """Answer text and reasoning text. `include_thoughts` puts both in `parts`, and
+    """Answer text and the provider's exposed thought summary, not private reasoning.
+
+    `include_thoughts` puts both in `parts`, and
     `response.text` concatenates them, so the thought parts must be separated here or they
     reach the JSON parser (SC §10.4, D-097)."""
     candidates = response.candidates or ()
@@ -326,13 +427,16 @@ def _split_parts(response: types.GenerateContentResponse) -> tuple[str, str]:
 
 
 def _to_transport_response(response: types.GenerateContentResponse) -> TransportResponse:
-    """Reduce an SDK response, raising on a provider safety stop before any text is read."""
     candidates = response.candidates or ()
     finish = candidates[0].finish_reason if candidates else None
     reason = finish.value if finish is not None else "FINISH_REASON_UNSPECIFIED"
     if reason in _SAFETY_FINISH_REASONS:
         raise TransportError(
             f"provider stopped generation: {reason}", PROVIDER_SAFETY_REJECTION, retryable=False)
+    if reason == "MAX_TOKENS":
+        raise TransportError(
+            "provider stopped generation at the output-token limit",
+            MODEL_OUTPUT_TRUNCATED, retryable=False)
     answer, reasoning = _split_parts(response)
     return TransportResponse(
         text=answer, reasoning=reasoning, token_usage=_token_usage(response.usage_metadata),

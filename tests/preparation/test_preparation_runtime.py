@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from io import StringIO
 from typing import Any
 
@@ -12,7 +13,7 @@ from causal.cli.main import CliResultV1, main
 from causal.design.contracts import ApprovalDecision
 from causal.preparation import nodes
 from causal.runtime import composition, failures
-from tests.conftest import requires_docker
+from tests.infrastructure import requires_docker
 from tests.runtime.test_composition import binding, runtime, start  # noqa: F401
 
 PREPARATION_ROW = "SELECT state FROM preparation.preparation_runs WHERE analysis_id = %s"
@@ -38,13 +39,17 @@ def test_run_after_approval_dispatches_preparation_and_status_follows(
     done = runtime.run(analysis_id, expected_stage_run=stage_run, idempotency_key="k-prepare")
     started = failures.latest_preparation_run(conn, analysis_id)
     assert started is not None and started.stage_run_id == f"pr:{analysis_id}:1"
+    assert started.outcome_artifact_id is not None, (
+        started.state, done, [json.loads(line).get("safe_dimensions")
+                              for line in runtime.config.event_log.read_text().splitlines()
+                              if analysis_id in line and "entry_validation_failed" in line])
     # T-013 Amendment 9 (D-077): a live design now binds its capacity check and parents its
     # pre-repair report, so the §4 gate admits the handoff and PRD-003 reaches its own terminal.
-    outcome = failures.payload(runtime.deps, str(started.outcome_artifact_id))
+    outcome = failures.payload(runtime.deps, started.outcome_artifact_id)
     assert (started.state, outcome["status"]) == ("completed", "prepared")
     # T-029: one `run` does not stop at `prepared` — the same command opens PRD-004's revision.
-    assert done.stage_run_id == f"es:{analysis_id}:1"
-    assert runtime.status(analysis_id).stage == "estimation"
+    assert done.stage_run_id == f"ps:{analysis_id}:1"
+    assert runtime.status(analysis_id).stage == "presentation"
     # D-090: PRD-003 now persists its prepared-stage post-repair reports, so PRD-004's §4
     # condition 7 reads real statuses. The four pack diagnostics PRD-003 has no V1
     # implementation for are `not_computable`, which D-091 admits at entry alone.
@@ -52,9 +57,9 @@ def test_run_after_approval_dispatches_preparation_and_status_follows(
     assert {row["status"] for row in bundle["postrepair_diagnostics"]} == {"pass",
                                                                           "not_computable"}
     # The five-row fixture cannot refit `leave_one_cluster_out`; §15 preserves that visible typed
-    # failure. The run then reaches claim judgment and honors its independent invalidating ceiling.
+    # failure. Post-analysis reports that outcome without manufacturing a sensitivity result.
     assert done.error_code != "entry_validation_failed"
-    assert (done.status, done.error_code) == ("invalidated", "not_reportable")
+    assert (done.status, done.error_code) == ("complete", None)
     estimated = failures.latest_estimation_run(conn, analysis_id)
     assert estimated is not None
     rows = conn.execute("SELECT payload_locator FROM causal.artifacts WHERE analysis_id = %s"

@@ -15,7 +15,6 @@ from causal.shared.envelope import (
     AgentTaskResultV1,
     AttemptedEvidenceV1,
     CausalFrameV1,
-    ClaimV1,
     ContextRequirementV1,
     Criticality,
     EpistemicStatus,
@@ -26,8 +25,6 @@ from causal.shared.envelope import (
     SupportRequirement,
     TaskBudgets,
     TaskStatus,
-    ToolCallStatus,
-    ToolReceiptV1,
 )
 
 Model = type[AgentTaskEnvelopeV1] | type[AgentTaskResultV1]
@@ -37,9 +34,6 @@ HASH = "a" * 64
 REF = ArtifactRef(artifact_id="art-1", content_hash=HASH)
 FRAME = CausalFrameV1(treatment="promo", outcome="revenue", population="stores", timeframe="2024")
 BUDGETS = TaskBudgets(token_budget=8000, tool_call_budget=4)
-RECEIPT = ToolReceiptV1(
-    tool_id="column-profile", call_index=0, status=ToolCallStatus.COMPLETED, error_code=None
-)
 REQUIREMENT = ContextRequirementV1(
     requirement_id="req-1",
     registry_version="requirements.v1",
@@ -57,24 +51,6 @@ REQUIREMENT = ContextRequirementV1(
     expected_answer_schema="free-text.v1",
     missing_action=MissingAction.ASK_USER,
 )
-
-
-def claim_kwargs(**overrides: object) -> dict[str, object]:
-    base: dict[str, object] = {
-        "claim_id": "claim-1",
-        "subject_kind": "column",
-        "subject_id": "stores.promo_flag",
-        "predicate": "measures",
-        "value": "treatment assignment",
-        "epistemic_status": EpistemicStatus.EVIDENCED,
-        "supporting_evidence_ids": ("ev-1",),
-        "contrary_evidence_ids": (),
-        "support_class": SupportClass.DIRECT_SOURCE_STATEMENT,
-        "alternatives": (),
-        "causal_frame": FRAME,
-    }
-    base.update(overrides)
-    return base
 
 
 def envelope_kwargs(**overrides: object) -> dict[str, object]:
@@ -118,13 +94,9 @@ def result_kwargs(**overrides: object) -> dict[str, object]:
         "artifact_schema_version": "column-semantic-card.v1",
         "parent_artifact_ids": ("art-1",),
         "payload": {"column_name": "promo_flag"},
-        "claims": (ClaimV1(**claim_kwargs()),),  # type: ignore[arg-type]
         "missing_requirements": (REQUIREMENT,),
         "conflicts": (),
         "warnings": ("timing slot left unknown",),
-        "evidence_ids": ("ev-1",),
-        "tool_receipts": (RECEIPT,),
-        "output_hash": HASH,
         "validation_target": "column-semantic-card.v1",
     }
     base.update(overrides)
@@ -155,13 +127,6 @@ def test_result_carries_full_requirement() -> None:
     assert requirement.missing_action is MissingAction.ASK_USER
     assert requirement.attempted_evidence[0].availability_status == "empty"
     assert result.canonical_payload()["missing_requirements"][0]["scope_kind"] == "column"
-
-
-class TestClaim:
-    @pytest.mark.parametrize("field", ["supporting_evidence_ids", "contrary_evidence_ids"])
-    def test_self_citation_rejected(self, field: str) -> None:
-        with pytest.raises(ValidationError, match="cannot cite itself"):
-            ClaimV1(**claim_kwargs(**{field: ("ev-1", "claim-1")}))  # type: ignore[arg-type]
 
 
 class TestBudgets:

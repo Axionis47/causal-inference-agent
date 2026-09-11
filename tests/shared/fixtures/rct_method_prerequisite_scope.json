@@ -1,0 +1,2471 @@
+{
+  "request_sha256": "4df73e2d5b7cb5cd221062f27a45062c14d5a1d631fe26820844b73e909f5ab3",
+  "response_sha256": "0f7ec6e394dd35b753c5a13c1dd8a4171d27dd37188a2e4e6c396c78d460f4ac",
+  "captured_decision": {
+    "status": "needs_context",
+    "payload": {
+      "schema_version": "agent-design-proposal.v2",
+      "assignment_mechanism": "randomized",
+      "requested_estimand": "itt",
+      "comparator": "0",
+      "ranked_method_ids": [
+        "randomized_experiment",
+        "aipw",
+        "did",
+        "sharp_rdd"
+      ],
+      "method_facts": [],
+      "optional_assumption_ids": [],
+      "optional_risk_ids": [
+        "rct.noncompliance_risk"
+      ],
+      "optional_sensitivity_ids": [],
+      "requested_diagnostic_ids": [
+        "arm_counts",
+        "assignment_unit_uniqueness"
+      ],
+      "diagnostic_assessments": [],
+      "source_interpretations": [
+        {
+          "fact_key": "estimand",
+          "value": "itt",
+          "evidence_id": "ua:question/text",
+          "verbatim_excerpt": "What is the intention-to-treat effect",
+          "relation": "direct"
+        },
+        {
+          "fact_key": "comparator",
+          "value": "0",
+          "evidence_id": "ua:context/text",
+          "verbatim_excerpt": "treatment=1 versus treatment=0",
+          "relation": "direct"
+        }
+      ]
+    },
+    "missing_requirements": [
+      {
+        "requirement_id": "design.unit_identity",
+        "registry_version": "design.v1",
+        "scope_kind": "design",
+        "scope_id": "design",
+        "fact_required": "unit_identity",
+        "why_required": "The unit of analysis must be clearly defined to ensure correct aggregation and interpretation of results.",
+        "decisions_blocked": [
+          "method_selection",
+          "estimand_definition"
+        ],
+        "criticality": "blocking",
+        "acceptable_evidence_types": [
+          "user_confirmation",
+          "data_dictionary",
+          "study_protocol",
+          "source_statement"
+        ],
+        "required_support": "direct_or_corroborated",
+        "methods_required_for": [
+          "randomized_experiment"
+        ],
+        "attempted_evidence": [],
+        "user_may_know": true,
+        "expected_answer_schema": "string",
+        "missing_action": "ask_user"
+      },
+      {
+        "requirement_id": "design.population_comparator",
+        "registry_version": "design.v1",
+        "scope_kind": "design",
+        "scope_id": "design",
+        "fact_required": "population_comparator",
+        "why_required": "The population comparator defines the group against which the treatment effect is measured, which is essential for defining the estimand.",
+        "decisions_blocked": [
+          "estimand_definition"
+        ],
+        "criticality": "blocking",
+        "acceptable_evidence_types": [
+          "user_confirmation",
+          "study_protocol",
+          "source_statement"
+        ],
+        "required_support": "direct_or_corroborated",
+        "methods_required_for": [
+          "randomized_experiment"
+        ],
+        "attempted_evidence": [],
+        "user_may_know": true,
+        "expected_answer_schema": "string",
+        "missing_action": "ask_user"
+      },
+      {
+        "requirement_id": "design.cutoff",
+        "registry_version": "design.v1",
+        "scope_kind": "design",
+        "scope_id": "design",
+        "fact_required": "cutoff",
+        "why_required": "For policy-cutoff designs, the exact cutoff value is critical for defining treatment assignment and the local estimand.",
+        "decisions_blocked": [
+          "method_selection",
+          "estimand_definition"
+        ],
+        "criticality": "blocking",
+        "acceptable_evidence_types": [
+          "user_confirmation",
+          "study_protocol",
+          "source_statement"
+        ],
+        "required_support": "direct_or_corroborated",
+        "methods_required_for": [
+          "sharp_rdd"
+        ],
+        "attempted_evidence": [],
+        "user_may_know": true,
+        "expected_answer_schema": "number",
+        "missing_action": "ask_user"
+      },
+      {
+        "requirement_id": "design.sharp_assignment",
+        "registry_version": "design.v1",
+        "scope_kind": "design",
+        "scope_id": "design",
+        "fact_required": "sharp_assignment",
+        "why_required": "For policy-cutoff designs, knowing if assignment is sharp (deterministic) or fuzzy (probabilistic) at the cutoff is essential for method selection.",
+        "decisions_blocked": [
+          "method_selection",
+          "estimand_definition"
+        ],
+        "criticality": "blocking",
+        "acceptable_evidence_types": [
+          "user_confirmation",
+          "study_protocol",
+          "source_statement"
+        ],
+        "required_support": "direct_or_corroborated",
+        "methods_required_for": [
+          "sharp_rdd"
+        ],
+        "attempted_evidence": [],
+        "user_may_know": true,
+        "expected_answer_schema": "boolean",
+        "missing_action": "ask_user"
+      },
+      {
+        "requirement_id": "design.adoption_time",
+        "registry_version": "design.v1",
+        "scope_kind": "design",
+        "scope_id": "design",
+        "fact_required": "adoption_time",
+        "why_required": "For time-of-adoption designs, the adoption time defines when units receive treatment, which is critical for defining treatment groups and periods.",
+        "decisions_blocked": [
+          "method_selection",
+          "estimand_definition"
+        ],
+        "criticality": "blocking",
+        "acceptable_evidence_types": [
+          "user_confirmation",
+          "study_protocol",
+          "source_statement"
+        ],
+        "required_support": "direct_or_corroborated",
+        "methods_required_for": [
+          "did"
+        ],
+        "attempted_evidence": [],
+        "user_may_know": true,
+        "expected_answer_schema": "string",
+        "missing_action": "ask_user"
+      }
+    ],
+    "conflicts": [],
+    "warnings": []
+  },
+  "captured_request": {
+    "schema_version": "four-analysis-model-request.v1",
+    "task_id": "dt:dr:an-82bd653613239d1c:1:method_design:4a818f597c18",
+    "attempt_id": "dt:dr:an-82bd653613239d1c:1:method_design:4a818f597c18:1",
+    "task_kind": "method_design",
+    "scope_ids": [
+      "agent_design_proposal"
+    ],
+    "capture_id": "938e3c5aefc0443c82699397dcfd271b",
+    "prompt": "Design proposal agent \u2014 design-proposal-prompt.v2\n\nObjective: investigate the empirical support for the causal design, rank the registered methods,\nand state the causal semantics that a deterministic compiler will attempt to bind. Your output is\nadvice and bounded diagnostic requests, not executable configuration.\n\nResponsibilities:\n- identify the assignment mechanism and explicitly interpret the exact source span bearing on it;\n- state the requested estimand, with an explicit source interpretation, without silently changing\n  ATT to ATE or any other estimand;\n- state only the control/reference condition as the comparator, with explicit source support: an\n  exact observed treatment level for experiments/AIPW, the comparison group for DiD, or the\n  below-cutoff side for sharp RDD. Never return a concept id or a full `A vs B` contrast; the\n  compiler derives the full contrast and unit identity;\n- rank every method in `method_contracts` exactly once;\n- on the first turn, request one or more useful diagnostics from the preferred compatible method;\n- after `diagnostic_results` are supplied, assess every observed result and revise the ranking,\n  facts, risks, or sensitivities when its result warrants a change;\n- request another diagnostic only when it answers a remaining design question, and return no\n  requests when the proposal is ready for compilation;\n- include `cutoff` and `sharp_assignment` facts for a policy-cutoff design, and `adoption_time`\n  for a time-of-adoption design; use null with no supporting interpretation when a fact is unknown;\n- select only registered optional assumption, risk, and sensitivity ids from the preferred\n  compatible method pack. Mandatory method assumptions are compiler-owned and always included.\n\nThe compiler decides eligibility, binds each requested diagnostic to validated role columns and\nfacts, executes it read-only, and returns its result to you. It also creates preparation and\nestimator policies and checks delivery capacity.\n\nForbidden:\n- inventing a column, fact, evidence id, graph id, method id, diagnostic, or estimator parameter;\n- putting a parent artifact id, registered diagnostic id, or diagnostic-result id in any evidence\n  array; those reference classes are not interchangeable;\n- requesting a diagnostic outside `available_diagnostics`, repeating one already observed, or\n  exceeding `remaining_tool_calls`;\n- treating an id or quote alone as evidence, or relabeling a negated, hypothetical,\n  counterexample, or unrelated statement as direct/corroborating support;\n- changing data, running an estimator, seeing an estimate, or approving the design; and\n- returning executable design or preparation contracts.\n\nOutput contract:\n- return one JSON object and nothing else, matching the forced response schema exactly;\n- the harness stamps identity, lineage, hashes, evidence summaries, and tool receipts; do not\n  return those administrative fields;\n- for every claimed source-supported fact, add a `source_interpretations` row containing its exact\n  fact key and proposed value, an id listed under `allowed_evidence`, a short verbatim span, and\n  one relation: `direct`, `corroborating`, `conflicting`, or `irrelevant`;\n- only `direct` and `corroborating` interpretations authorize compilation. Preserve conflicting\n  and irrelevant interpretations for review, but do not treat them as support;\n- do not add a source interpretation when an exact persisted accepted fact already establishes\n  the value;\n- `requested_diagnostic_ids` contains only registered diagnostic ids from\n  `available_diagnostics`;\n- `diagnostic_assessments[].diagnostic_result_id` copies the exact\n  `diagnostic_result_id` beside the supplied observation. It never contains the registered\n  diagnostic id, a parent artifact id, or an evidence id;\n- rank all registered methods once, even when most are plainly ineligible;\n- use only diagnostic ids listed for the preferred method under `available_diagnostics`;\n- make `diagnostic_assessments` cover every supplied diagnostic-result id exactly once;\n- when a correction concerns a reference, revise only the affected reference fields and preserve\n  the otherwise valid semantic decision;\n- use `unknown` and null explicitly when context is absent; and\n- raise only registered context requirements and set `attempted_evidence` to `[]`; the harness owns\n  and replaces the bounded evidence-availability ledger after validation.\n\nStopping conditions:\n- `complete` when the semantic proposal is fully represented, including explicit unknowns;\n- `needs_context` when source evidence cannot establish an assignment, comparator, cutoff,\n  sharp-assignment rule, or adoption time that would change computability.\n\n\n## agent_loop\n{\n \"must_investigate\": true,\n \"remaining_tool_calls\": 4,\n \"turn\": 1\n}\n\n## available_diagnostics\n{\n \"aipw\": [\n  \"treatment_prevalence\",\n  \"covariate_availability\",\n  \"missingness\",\n  \"rough_overlap\",\n  \"level_sparsity\",\n  \"effective_sample_feasibility\",\n  \"cross_fitting_feasibility\"\n ],\n \"did\": [\n  \"unit_period_uniqueness\",\n  \"group_time_counts\",\n  \"panel_completeness\",\n  \"adoption_cohorts\",\n  \"missingness_by_group_time\",\n  \"pre_period_availability\",\n  \"composition\",\n  \"clustering_feasibility\"\n ],\n \"randomized_experiment\": [\n  \"arm_counts\",\n  \"assignment_unit_uniqueness\",\n  \"cluster_sizes\",\n  \"baseline_availability\",\n  \"outcome_missingness\",\n  \"compliance_availability\",\n  \"power_precision_feasibility\"\n ],\n \"sharp_rdd\": [\n  \"cutoff_side_counts\",\n  \"distance_to_cutoff_support\",\n  \"missingness_by_side_and_distance\",\n  \"mass_points\",\n  \"duplicates\",\n  \"density_manipulation_warnings\",\n  \"covariate_availability\",\n  \"bandwidth_feasibility\"\n ]\n}\n\n## diagnostic_results\n[]\n\n## method_contracts\n[\n {\n  \"allowed_prerepair_diagnostic_ids\": [\n   \"arm_counts\",\n   \"assignment_unit_uniqueness\",\n   \"cluster_sizes\",\n   \"baseline_availability\",\n   \"outcome_missingness\",\n   \"compliance_availability\",\n   \"power_precision_feasibility\"\n  ],\n  \"compatible_assignment_mechanisms\": [\n   \"randomized\"\n  ],\n  \"deletion_impact_dimensions\": [\n   \"overall\",\n   \"arm\",\n   \"cluster\",\n   \"stratum\",\n   \"subgroup\",\n   \"effective_sample_size\",\n   \"target_population\"\n  ],\n  \"display_name\": \"Randomized experiment\",\n  \"eligibility_rule_vocabulary\": [\n   \"pre_randomization_eligibility\",\n   \"randomization_window\",\n   \"arm_membership\",\n   \"followup_window\"\n  ],\n  \"forbidden_adjustment_roles\": [\n   \"mediator\",\n   \"collider\"\n  ],\n  \"imputation_eligible_roles\": [\n   \"precision_covariate\",\n   \"confounder_candidate\",\n   \"effect_modifier\"\n  ],\n  \"imputation_forbidden_roles\": [\n   \"treatment\",\n   \"outcome\",\n   \"assignment_variable\",\n   \"stratum\",\n   \"cluster\"\n  ],\n  \"invalidation_rule_ids\": [\n   \"rct.exclusion_rule\",\n   \"rct.post_treatment_rule\"\n  ],\n  \"mandatory_assumption_ids\": [\n   \"rct.random_assignment\",\n   \"rct.no_interference\"\n  ],\n  \"mandatory_risk_ids\": [\n   \"rct.attrition_risk\"\n  ],\n  \"mandatory_sensitivity_ids\": [\n   \"rct.attrition_bounds\"\n  ],\n  \"method_id\": \"randomized_experiment\",\n  \"optional_assumption_ids\": [],\n  \"optional_risk_ids\": [\n   \"rct.noncompliance_risk\"\n  ],\n  \"optional_roles\": [\n   \"assignment_variable\",\n   \"stratum\",\n   \"cluster\",\n   \"time\",\n   \"precision_covariate\",\n   \"effect_modifier\",\n   \"selection_variable\"\n  ],\n  \"optional_sensitivity_ids\": [],\n  \"pack_version\": \"randomized-experiment-pack.v1\",\n  \"required_context_requirement_ids\": [\n   \"design.causal_question\",\n   \"design.estimand\",\n   \"design.treatment_meaning\",\n   \"design.outcome_window\",\n   \"design.population_comparator\",\n   \"design.unit_identity\",\n   \"design.table_grain\",\n   \"dataset.sampling_mechanism\",\n   \"design.assignment_mechanism\",\n   \"column.meaning\",\n   \"column.encoding\",\n   \"column.missing_meaning\",\n   \"column.measurement_timing\",\n   \"column.source_process\",\n   \"design.concept_mapping\",\n   \"design.treatment_descendants\",\n   \"design.selection_variables\",\n   \"design.conflict_resolution\"\n  ],\n  \"required_postrepair_diagnostic_ids\": [\n   \"arm_counts\",\n   \"assignment_unit_uniqueness\",\n   \"baseline_availability\",\n   \"outcome_missingness\"\n  ],\n  \"required_roles\": [\n   \"treatment\",\n   \"outcome\",\n   \"unit_identifier\"\n  ],\n  \"required_visual_evidence_ids\": [\n   \"assignment_attrition_flow\",\n   \"primary_contrast_estimates\",\n   \"balance_overview\",\n   \"required_sensitivities\"\n  ],\n  \"reserved_estimator_id\": \"randomized-experiment-estimator.v1\",\n  \"statements\": {\n   \"rct.attrition_bounds\": \"Report sensitivity to outcome attrition by assignment arm.\",\n   \"rct.attrition_risk\": \"Missing outcomes can break the randomized comparison and must remain visible.\",\n   \"rct.exclusion_rule\": \"Excluding a randomized unit after assignment requires design revision.\",\n   \"rct.no_interference\": \"One unit's assignment does not change another unit's outcome.\",\n   \"rct.noncompliance_risk\": \"Noncompliance can separate assignment effects from treatment-received effects.\",\n   \"rct.post_treatment_rule\": \"Post-treatment variables cannot be used as baseline adjusters.\",\n   \"rct.random_assignment\": \"Treatment assignment is randomized at the approved unit.\"\n  },\n  \"structural_requirements\": [\n   \"one_row_per_randomization_unit\",\n   \"arms_ge_2\",\n   \"defined_comparator\"\n  ],\n  \"supported_estimands\": [\n   \"itt\"\n  ],\n  \"unusable_row_rule_ids\": [\n   \"missing_randomization_unit\",\n   \"missing_treatment_assignment\",\n   \"randomization_unit_collision\"\n  ]\n },\n {\n  \"allowed_prerepair_diagnostic_ids\": [\n   \"treatment_prevalence\",\n   \"covariate_availability\",\n   \"missingness\",\n   \"rough_overlap\",\n   \"level_sparsity\",\n   \"effective_sample_feasibility\",\n   \"cross_fitting_feasibility\"\n  ],\n  \"compatible_assignment_mechanisms\": [\n   \"self_selected\"\n  ],\n  \"deletion_impact_dimensions\": [\n   \"overall\",\n   \"treatment_group\",\n   \"subgroup\",\n   \"overlap_region\",\n   \"effective_sample_size\",\n   \"target_population\"\n  ],\n  \"display_name\": \"Observational AIPW\",\n  \"eligibility_rule_vocabulary\": [\n   \"pre_treatment_eligibility\",\n   \"target_population_filter\",\n   \"propensity_trimming\",\n   \"observation_window\"\n  ],\n  \"forbidden_adjustment_roles\": [\n   \"mediator\",\n   \"collider\"\n  ],\n  \"imputation_eligible_roles\": [\n   \"confounder_candidate\",\n   \"precision_covariate\",\n   \"effect_modifier\"\n  ],\n  \"imputation_forbidden_roles\": [\n   \"treatment\",\n   \"outcome\"\n  ],\n  \"invalidation_rule_ids\": [\n   \"aipw.trimming_rule\",\n   \"aipw.adjustment_rule\"\n  ],\n  \"mandatory_assumption_ids\": [\n   \"aipw.exchangeability\",\n   \"aipw.positivity\",\n   \"aipw.consistency\"\n  ],\n  \"mandatory_risk_ids\": [\n   \"aipw.overlap_risk\",\n   \"aipw.unmeasured_confounding\"\n  ],\n  \"mandatory_sensitivity_ids\": [\n   \"aipw.confounding_sensitivity\"\n  ],\n  \"method_id\": \"aipw\",\n  \"optional_assumption_ids\": [],\n  \"optional_risk_ids\": [],\n  \"optional_roles\": [\n   \"effect_modifier\",\n   \"precision_covariate\",\n   \"instrument_candidate\",\n   \"selection_variable\",\n   \"stratum\",\n   \"cluster\",\n   \"time\"\n  ],\n  \"optional_sensitivity_ids\": [],\n  \"pack_version\": \"aipw-pack.v1\",\n  \"required_context_requirement_ids\": [\n   \"design.causal_question\",\n   \"design.estimand\",\n   \"design.treatment_meaning\",\n   \"design.outcome_window\",\n   \"design.population_comparator\",\n   \"design.unit_identity\",\n   \"design.table_grain\",\n   \"dataset.sampling_mechanism\",\n   \"design.assignment_mechanism\",\n   \"column.meaning\",\n   \"column.encoding\",\n   \"column.missing_meaning\",\n   \"column.measurement_timing\",\n   \"column.source_process\",\n   \"design.concept_mapping\",\n   \"design.treatment_descendants\",\n   \"design.selection_variables\",\n   \"design.conflict_resolution\"\n  ],\n  \"required_postrepair_diagnostic_ids\": [\n   \"treatment_prevalence\",\n   \"covariate_availability\",\n   \"missingness\",\n   \"rough_overlap\"\n  ],\n  \"required_roles\": [\n   \"treatment\",\n   \"outcome\",\n   \"unit_identifier\",\n   \"confounder_candidate\"\n  ],\n  \"required_visual_evidence_ids\": [\n   \"overlap\",\n   \"weights_support\",\n   \"balance_overview\",\n   \"primary_estimate\",\n   \"required_sensitivities\"\n  ],\n  \"reserved_estimator_id\": \"aipw-estimator.v1\",\n  \"statements\": {\n   \"aipw.adjustment_rule\": \"Mediators, colliders, and treatment descendants cannot enter the adjustment set.\",\n   \"aipw.confounding_sensitivity\": \"Report sensitivity to plausible unmeasured confounding.\",\n   \"aipw.consistency\": \"Observed outcomes equal the potential outcome under the treatment actually received.\",\n   \"aipw.exchangeability\": \"Conditional on the approved pre-treatment adjustment set, treatment assignment is exchangeable.\",\n   \"aipw.overlap_risk\": \"Weak overlap can make the estimate unstable or change the supported target population.\",\n   \"aipw.positivity\": \"Every target-population covariate pattern has positive probability of each treatment level.\",\n   \"aipw.trimming_rule\": \"Propensity trimming changes the target population and requires design revision.\",\n   \"aipw.unmeasured_confounding\": \"Unmeasured common causes of treatment and outcome can bias the estimate.\"\n  },\n  \"structural_requirements\": [\n   \"one_row_per_unit\",\n   \"treatment_binary\",\n   \"defined_comparator\",\n   \"treatment_and_outcome_observed\"\n  ],\n  \"supported_estimands\": [\n   \"ate\",\n   \"att\"\n  ],\n  \"unusable_row_rule_ids\": [\n   \"missing_unit_identifier\",\n   \"missing_observed_treatment\",\n   \"missing_observed_outcome\",\n   \"unit_grain_collision\"\n  ]\n },\n {\n  \"allowed_prerepair_diagnostic_ids\": [\n   \"unit_period_uniqueness\",\n   \"group_time_counts\",\n   \"panel_completeness\",\n   \"adoption_cohorts\",\n   \"missingness_by_group_time\",\n   \"pre_period_availability\",\n   \"composition\",\n   \"clustering_feasibility\"\n  ],\n  \"compatible_assignment_mechanisms\": [\n   \"time_of_adoption\"\n  ],\n  \"deletion_impact_dimensions\": [\n   \"overall\",\n   \"group\",\n   \"time\",\n   \"cohort\",\n   \"cluster\",\n   \"effective_sample_size\",\n   \"target_population\"\n  ],\n  \"display_name\": \"Difference-in-differences\",\n  \"eligibility_rule_vocabulary\": [\n   \"unit_eligibility\",\n   \"group_membership\",\n   \"period_window\",\n   \"cohort_inclusion\"\n  ],\n  \"forbidden_adjustment_roles\": [\n   \"mediator\",\n   \"collider\"\n  ],\n  \"imputation_eligible_roles\": [\n   \"confounder_candidate\",\n   \"precision_covariate\",\n   \"effect_modifier\"\n  ],\n  \"imputation_forbidden_roles\": [\n   \"treatment\",\n   \"outcome\",\n   \"group\",\n   \"time\"\n  ],\n  \"invalidation_rule_ids\": [\n   \"did.period_removal_rule\",\n   \"did.synthetic_panel_rule\"\n  ],\n  \"mandatory_assumption_ids\": [\n   \"did.parallel_trends\",\n   \"did.no_anticipation\",\n   \"did.stable_composition\"\n  ],\n  \"mandatory_risk_ids\": [\n   \"did.differential_trends_risk\",\n   \"did.composition_risk\"\n  ],\n  \"mandatory_sensitivity_ids\": [\n   \"did.pretrend_sensitivity\"\n  ],\n  \"method_id\": \"did\",\n  \"optional_assumption_ids\": [],\n  \"optional_risk_ids\": [],\n  \"optional_roles\": [\n   \"cluster\",\n   \"confounder_candidate\",\n   \"precision_covariate\",\n   \"effect_modifier\",\n   \"selection_variable\",\n   \"stratum\"\n  ],\n  \"optional_sensitivity_ids\": [],\n  \"pack_version\": \"did-pack.v1\",\n  \"required_context_requirement_ids\": [\n   \"design.causal_question\",\n   \"design.estimand\",\n   \"design.treatment_meaning\",\n   \"design.outcome_window\",\n   \"design.population_comparator\",\n   \"design.unit_identity\",\n   \"design.table_grain\",\n   \"dataset.sampling_mechanism\",\n   \"design.assignment_mechanism\",\n   \"design.adoption_time\",\n   \"column.meaning\",\n   \"column.encoding\",\n   \"column.missing_meaning\",\n   \"column.measurement_timing\",\n   \"column.source_process\",\n   \"design.concept_mapping\",\n   \"design.treatment_descendants\",\n   \"design.selection_variables\",\n   \"design.conflict_resolution\"\n  ],\n  \"required_postrepair_diagnostic_ids\": [\n   \"unit_period_uniqueness\",\n   \"group_time_counts\",\n   \"panel_completeness\",\n   \"missingness_by_group_time\"\n  ],\n  \"required_roles\": [\n   \"treatment\",\n   \"outcome\",\n   \"group\",\n   \"time\",\n   \"unit_identifier\"\n  ],\n  \"required_visual_evidence_ids\": [\n   \"trends\",\n   \"event_time_evidence\",\n   \"support_composition\",\n   \"primary_aggregate\"\n  ],\n  \"reserved_estimator_id\": \"did-estimator.v1\",\n  \"statements\": {\n   \"did.composition_risk\": \"Changing group composition can mimic a treatment effect.\",\n   \"did.differential_trends_risk\": \"Differential pre-treatment trends weaken the causal interpretation.\",\n   \"did.no_anticipation\": \"Units do not change outcomes in anticipation of treatment.\",\n   \"did.parallel_trends\": \"Absent treatment, treated and comparison groups would have followed parallel outcome trends.\",\n   \"did.period_removal_rule\": \"Removing a period, group, or cohort requires design revision.\",\n   \"did.pretrend_sensitivity\": \"Report event-time and pre-period evidence without treating it as proof of parallel trends.\",\n   \"did.stable_composition\": \"Group composition is comparable across the approved periods.\",\n   \"did.synthetic_panel_rule\": \"Synthetic panel rows and interpolated outcomes are forbidden.\"\n  },\n  \"structural_requirements\": [\n   \"unit_time_or_group_time_rows\",\n   \"treated_and_comparison_groups\",\n   \"adoption_time_defined\",\n   \"pre_and_post_periods\"\n  ],\n  \"supported_estimands\": [\n   \"att_group_time_aggregate\"\n  ],\n  \"unusable_row_rule_ids\": [\n   \"missing_unit_or_time_key\",\n   \"missing_group_membership\",\n   \"unit_period_collision\"\n  ]\n },\n {\n  \"allowed_prerepair_diagnostic_ids\": [\n   \"cutoff_side_counts\",\n   \"distance_to_cutoff_support\",\n   \"missingness_by_side_and_distance\",\n   \"mass_points\",\n   \"duplicates\",\n   \"density_manipulation_warnings\",\n   \"covariate_availability\",\n   \"bandwidth_feasibility\"\n  ],\n  \"compatible_assignment_mechanisms\": [\n   \"policy_cutoff\"\n  ],\n  \"deletion_impact_dimensions\": [\n   \"overall\",\n   \"cutoff_side\",\n   \"distance_band\",\n   \"mass_point\",\n   \"effective_sample_size\",\n   \"target_population\"\n  ],\n  \"display_name\": \"Sharp regression discontinuity\",\n  \"eligibility_rule_vocabulary\": [\n   \"pre_assignment_eligibility\",\n   \"running_variable_support\",\n   \"cutoff_side_membership\",\n   \"bandwidth_window\"\n  ],\n  \"forbidden_adjustment_roles\": [\n   \"mediator\",\n   \"collider\"\n  ],\n  \"imputation_eligible_roles\": [\n   \"confounder_candidate\",\n   \"precision_covariate\",\n   \"effect_modifier\"\n  ],\n  \"imputation_forbidden_roles\": [\n   \"treatment\",\n   \"outcome\",\n   \"running_variable\"\n  ],\n  \"invalidation_rule_ids\": [\n   \"rdd.manipulation_rule\",\n   \"rdd.asymmetric_deletion_rule\"\n  ],\n  \"mandatory_assumption_ids\": [\n   \"rdd.continuity\",\n   \"rdd.no_precise_manipulation\",\n   \"rdd.local_assignment\"\n  ],\n  \"mandatory_risk_ids\": [\n   \"rdd.support_risk\",\n   \"rdd.manipulation_risk\"\n  ],\n  \"mandatory_sensitivity_ids\": [\n   \"rdd.bandwidth_sensitivity\"\n  ],\n  \"method_id\": \"sharp_rdd\",\n  \"optional_assumption_ids\": [],\n  \"optional_risk_ids\": [],\n  \"optional_roles\": [\n   \"assignment_variable\",\n   \"confounder_candidate\",\n   \"precision_covariate\",\n   \"effect_modifier\",\n   \"selection_variable\",\n   \"cluster\",\n   \"time\"\n  ],\n  \"optional_sensitivity_ids\": [],\n  \"pack_version\": \"sharp-rdd-pack.v1\",\n  \"required_context_requirement_ids\": [\n   \"design.causal_question\",\n   \"design.estimand\",\n   \"design.treatment_meaning\",\n   \"design.outcome_window\",\n   \"design.population_comparator\",\n   \"design.unit_identity\",\n   \"design.table_grain\",\n   \"dataset.sampling_mechanism\",\n   \"design.assignment_mechanism\",\n   \"design.cutoff\",\n   \"design.sharp_assignment\",\n   \"column.meaning\",\n   \"column.encoding\",\n   \"column.missing_meaning\",\n   \"column.measurement_timing\",\n   \"column.source_process\",\n   \"design.concept_mapping\",\n   \"design.treatment_descendants\",\n   \"design.selection_variables\",\n   \"design.conflict_resolution\"\n  ],\n  \"required_postrepair_diagnostic_ids\": [\n   \"cutoff_side_counts\",\n   \"distance_to_cutoff_support\",\n   \"mass_points\",\n   \"density_manipulation_warnings\"\n  ],\n  \"required_roles\": [\n   \"treatment\",\n   \"outcome\",\n   \"running_variable\",\n   \"unit_identifier\"\n  ],\n  \"required_visual_evidence_ids\": [\n   \"binned_outcome_fit\",\n   \"cutoff_bandwidth\",\n   \"density_continuity\",\n   \"primary_local_estimate\"\n  ],\n  \"reserved_estimator_id\": \"sharp-rdd-estimator.v1\",\n  \"statements\": {\n   \"rdd.asymmetric_deletion_rule\": \"Outcome-based or asymmetric cutoff deletion is forbidden.\",\n   \"rdd.bandwidth_sensitivity\": \"Report sensitivity to registered bandwidth and polynomial choices.\",\n   \"rdd.continuity\": \"Potential outcomes are continuous at the approved cutoff.\",\n   \"rdd.local_assignment\": \"Treatment changes sharply at the cutoff and the estimand is local to it.\",\n   \"rdd.manipulation_risk\": \"Sorting or bunching near the cutoff weakens identification.\",\n   \"rdd.manipulation_rule\": \"Suspected manipulation is reported and never repaired away.\",\n   \"rdd.no_precise_manipulation\": \"Units cannot precisely manipulate the running variable around the cutoff.\",\n   \"rdd.support_risk\": \"Sparse local support can make the cutoff estimate unstable.\"\n  },\n  \"structural_requirements\": [\n   \"one_row_per_unit\",\n   \"running_variable_with_cutoff\",\n   \"fixed_cutoff\",\n   \"sharp_assignment_at_cutoff\",\n   \"support_on_both_sides_of_cutoff\"\n  ],\n  \"supported_estimands\": [\n   \"late_at_cutoff\"\n  ],\n  \"unusable_row_rule_ids\": [\n   \"missing_unit_identifier\",\n   \"missing_running_variable\",\n   \"missing_observed_outcome\",\n   \"unit_grain_collision\"\n  ]\n }\n]\n\n## parents\n{\n \"CausalContext\": {\n  \"artifact_id\": \"causalcontext:an-82bd653613239d1c:b8dab1ce560a455b\",\n  \"content_hash\": \"b8dab1ce560a455bd54b929363d0b97c7f5c027969a4f62fe538bfa252a25878\"\n },\n \"MeasurementMap\": {\n  \"artifact_id\": \"measurementmap:an-82bd653613239d1c:db1af16efdc9bee3\",\n  \"content_hash\": \"db1af16efdc9bee347728998d587686a02f4a9d90f31e9f5ec86c6d5065e3638\"\n },\n \"RoleLedger\": {\n  \"artifact_id\": \"roleledger:an-82bd653613239d1c:d0553eca6744a0fd\",\n  \"content_hash\": \"d0553eca6744a0fd93392651b117dc2e563dd4368c693b9dd343240455236dfc\"\n },\n \"TableSelection\": {\n  \"artifact_id\": \"tableselection:an-82bd653613239d1c:a34fb09a3f85936f\",\n  \"content_hash\": \"a34fb09a3f85936fe725a8cc2d73144396a9def5472015232b72c11f362d40f6\"\n }\n}\n\n## prerequisite_context\n{\n \"accepted_answer_evidence_ids\": [\n  \"ua:usercontextanswer:an-82bd653613239d1c:59ddc3c9a4b0dc6e\"\n ],\n \"accepted_facts\": [\n  {\n   \"accepted_fact_id\": \"af:f8b0f25f69d98e183760ae3274be\",\n   \"evidence_class\": \"user_confirmation\",\n   \"requirement_id\": \"design.assignment_mechanism\",\n   \"scope_id\": \"design\",\n   \"support_relation\": \"direct\",\n   \"value\": \"randomized\",\n   \"value_schema\": \"choice:randomized|self_selected|policy_cutoff|time_of_adoption\"\n  },\n  {\n   \"accepted_fact_id\": \"af:bd19e2a6a562bead6080fc6ed5e0\",\n   \"evidence_class\": \"measured_observation\",\n   \"requirement_id\": \"design.table_grain\",\n   \"scope_id\": \"design\",\n   \"support_relation\": \"direct\",\n   \"value\": \"one_row_per_unit\",\n   \"value_schema\": \"choice:one_row_per_unit|one_row_per_unit_period|one_row_per_group_time|repeated_rows_per_unit\"\n  }\n ],\n \"contract\": \"Accepted facts are authoritative for their exact requirement and scope. Use their cited answer evidence and do not silently replace their values or raise the same requirement again.\",\n \"settled_requirements\": [\n  {\n   \"accepted_fact_id\": null,\n   \"answer_evidence_id\": null,\n   \"requirement_id\": \"dataset.sampling_mechanism\",\n   \"scope_id\": \"kaggle:evaluation/rock_the_vote_rct@Rdatasets@1dcc2bf5f955cc1224a3e1307256e1fe86b68dae\",\n   \"state\": \"unknown_accepted\"\n  },\n  {\n   \"accepted_fact_id\": \"af:f8b0f25f69d98e183760ae3274be\",\n   \"answer_evidence_id\": \"ua:usercontextanswer:an-82bd653613239d1c:59ddc3c9a4b0dc6e\",\n   \"requirement_id\": \"design.assignment_mechanism\",\n   \"scope_id\": \"design\",\n   \"state\": \"resolved\"\n  },\n  {\n   \"accepted_fact_id\": null,\n   \"answer_evidence_id\": null,\n   \"requirement_id\": \"design.conflict_resolution\",\n   \"scope_id\": \"design\",\n   \"state\": \"unknown_accepted\"\n  },\n  {\n   \"accepted_fact_id\": null,\n   \"answer_evidence_id\": null,\n   \"requirement_id\": \"design.outcome_window\",\n   \"scope_id\": \"design\",\n   \"state\": \"unknown_accepted\"\n  }\n ]\n}\n\n## role_ledger\n{\n \"claims\": [\n  {\n   \"alternatives\": [],\n   \"column_refs\": [\n    \"treatment\"\n   ],\n   \"concept_id\": \"c:rock_the_vote_television_advertising\",\n   \"evidence_ids\": [\n    \"ua:context/text\",\n    \"ev:doc/README.md\",\n    \"ev:kaggle/column/rock_the_vote.csv/treatment/description\",\n    \"ev:kaggle/dataset/description\",\n    \"ev:kaggle/file/rock_the_vote.csv/description\",\n    \"ua:question/text\"\n   ],\n   \"graph_edge_ids\": [\n    \"e:randomization_stratum_to_rock_the_vote_television_advertising\",\n    \"e:cable_system_to_treatment_assignment\",\n    \"e:rock_the_vote_television_advertising->turnout_rate_of_registered_18__and_19_year_olds\"\n   ],\n   \"methods\": [\n    \"randomized_experiment\"\n   ],\n   \"role\": \"treatment\",\n   \"status\": \"evidenced\",\n   \"support_class\": \"direct_source_statement\",\n   \"timing\": \"concurrent\"\n  },\n  {\n   \"alternatives\": [],\n   \"column_refs\": [\n    \"turnout_rate\"\n   ],\n   \"concept_id\": \"c:turnout_rate_of_registered_18__and_19_year_olds\",\n   \"evidence_ids\": [\n    \"ua:context/text\",\n    \"ev:doc/README.md\",\n    \"ev:kaggle/column/rock_the_vote.csv/turnout_rate/description\"\n   ],\n   \"graph_edge_ids\": [\n    \"e:rock_the_vote_television_advertising->turnout_rate_of_registered_18__and_19_year_olds\",\n    \"e:randomization_stratum->turnout_rate_of_registered_18__and_19_year_olds\"\n   ],\n   \"methods\": [\n    \"randomized_experiment\"\n   ],\n   \"role\": \"outcome\",\n   \"status\": \"evidenced\",\n   \"support_class\": \"direct_source_statement\",\n   \"timing\": \"post_treatment\"\n  },\n  {\n   \"alternatives\": [],\n   \"column_refs\": [\n    \"cable_system_id\"\n   ],\n   \"concept_id\": \"c:cable_system\",\n   \"evidence_ids\": [\n    \"ua:context/text\",\n    \"ev:doc/README.md\",\n    \"ev:kaggle/column/rock_the_vote.csv/cable_system_id/description\",\n    \"ev:kaggle/dataset/description\",\n    \"ev:kaggle/file/rock_the_vote.csv/description\"\n   ],\n   \"graph_edge_ids\": [],\n   \"methods\": [],\n   \"role\": \"unit_identifier\",\n   \"status\": \"evidenced\",\n   \"support_class\": \"direct_source_statement\",\n   \"timing\": \"pre_treatment\"\n  },\n  {\n   \"alternatives\": [],\n   \"column_refs\": [\n    \"cable_system_id\"\n   ],\n   \"concept_id\": \"c:cable_system\",\n   \"evidence_ids\": [\n    \"ua:context/text\",\n    \"ev:doc/README.md\",\n    \"ev:kaggle/column/rock_the_vote.csv/cable_system_id/description\",\n    \"ev:kaggle/dataset/description\",\n    \"ev:kaggle/file/rock_the_vote.csv/description\"\n   ],\n   \"graph_edge_ids\": [],\n   \"methods\": [],\n   \"role\": \"cluster\",\n   \"status\": \"evidenced\",\n   \"support_class\": \"direct_source_statement\",\n   \"timing\": \"pre_treatment\"\n  },\n  {\n   \"alternatives\": [],\n   \"column_refs\": [\n    \"treatment\"\n   ],\n   \"concept_id\": \"c:control_group\",\n   \"evidence_ids\": [\n    \"ua:context/text\",\n    \"ev:doc/README.md\",\n    \"ev:kaggle/column/rock_the_vote.csv/treatment/description\",\n    \"ev:kaggle/dataset/description\",\n    \"ev:kaggle/file/rock_the_vote.csv/description\",\n    \"ua:question/text\"\n   ],\n   \"graph_edge_ids\": [\n    \"e:randomization_stratum_to_control_group\",\n    \"e:cable_system_to_control_group\",\n    \"e:control_group_to_turnout_rate_of_registered_18__and_19_year_olds\"\n   ],\n   \"methods\": [\n    \"randomized_experiment\"\n   ],\n   \"role\": \"group\",\n   \"status\": \"evidenced\",\n   \"support_class\": \"direct_source_statement\",\n   \"timing\": \"pre_treatment\"\n  },\n  {\n   \"alternatives\": [],\n   \"column_refs\": [\n    \"randomization_stratum\"\n   ],\n   \"concept_id\": \"c:randomization_stratum\",\n   \"evidence_ids\": [\n    \"ev:kaggle/column/rock_the_vote.csv/randomization_stratum/description\",\n    \"ua:context/text\"\n   ],\n   \"graph_edge_ids\": [\n    \"e:randomization_stratum_to_rock_the_vote_television_advertising\",\n    \"e:randomization_stratum->turnout_rate_of_registered_18__and_19_year_olds\"\n   ],\n   \"methods\": [\n    \"randomized_experiment\"\n   ],\n   \"role\": \"stratum\",\n   \"status\": \"evidenced\",\n   \"support_class\": \"direct_source_statement\",\n   \"timing\": \"pre_treatment\"\n  }\n ],\n \"frame\": {\n  \"outcome\": \"c:turnout_rate_of_registered_18__and_19_year_olds\",\n  \"population\": \"Experimental cable systems\",\n  \"timeframe\": \"Post-assignment period\",\n  \"treatment\": \"c:rock_the_vote_television_advertising\"\n },\n \"schema_version\": \"role-ledger.v1\"\n}\n\n## prerequisite_rule\nSettled requirements are authoritative. Use cited evidence for `resolved`; preserve uncertainty without asking again for `unknown_accepted`; never return a settled id and canonical scope in `missing_requirements`.\n\n## reference_catalog\n{\n \"diagnostic_result_ids\": [],\n \"evidence_availability\": {\n  \"ev:doc/README.md\": \"evidenced\",\n  \"ev:kaggle/dataset/description\": \"evidenced\",\n  \"ev:kaggle/dataset/title\": \"evidenced\",\n  \"ev:kaggle/file/rock_the_vote.csv/description\": \"evidenced\",\n  \"ua:context/text\": \"evidenced\",\n  \"ua:question/text\": \"evidenced\",\n  \"ua:usercontextanswer:an-82bd653613239d1c:59ddc3c9a4b0dc6e\": \"evidenced\"\n },\n \"parent_artifact_ids\": [\n  \"roleledger:an-82bd653613239d1c:d0553eca6744a0fd\"\n ],\n \"registered_diagnostic_ids\": [\n  \"adoption_cohorts\",\n  \"arm_counts\",\n  \"assignment_unit_uniqueness\",\n  \"bandwidth_feasibility\",\n  \"baseline_availability\",\n  \"cluster_sizes\",\n  \"clustering_feasibility\",\n  \"compliance_availability\",\n  \"composition\",\n  \"covariate_availability\",\n  \"cross_fitting_feasibility\",\n  \"cutoff_side_counts\",\n  \"density_manipulation_warnings\",\n  \"distance_to_cutoff_support\",\n  \"duplicates\",\n  \"effective_sample_feasibility\",\n  \"group_time_counts\",\n  \"level_sparsity\",\n  \"mass_points\",\n  \"missingness\",\n  \"missingness_by_group_time\",\n  \"missingness_by_side_and_distance\",\n  \"outcome_missingness\",\n  \"panel_completeness\",\n  \"power_precision_feasibility\",\n  \"pre_period_availability\",\n  \"rough_overlap\",\n  \"treatment_prevalence\",\n  \"unit_period_uniqueness\"\n ],\n \"source_evidence_ids\": [\n  \"ev:doc/README.md\",\n  \"ev:kaggle/dataset/description\",\n  \"ev:kaggle/dataset/title\",\n  \"ev:kaggle/file/rock_the_vote.csv/description\",\n  \"ua:context/text\",\n  \"ua:question/text\",\n  \"ua:usercontextanswer:an-82bd653613239d1c:59ddc3c9a4b0dc6e\"\n ]\n}\n\n## allowed_evidence\nua:context/text:\n  This is a randomized experiment: 85 cable television systems were assigned within 40 pre-randomization strata to Rock the Vote advertising (treatment=1) or control (treatment=0). cable_system_id identifies the randomized cable system, and each row is one complete cable-system aggregate, not an individual voter. turnout_rate is the post-assignment proportion of registered 18- and 19-year-olds who voted. randomization_stratum records the matched randomization stratum and should enter as stratum fixed effects. Estimate the cluster-level ITT for treatment=1 versus treatment=0 using one unweighted cable-system outcome per row; the contrast is on the turnout-proportion scale. The same cable_system_id may serve as the cluster role because each randomized cluster contributes exactly one row. Do not expand rows into individual voters or weight them by voter counts. The target is the experimental cable systems, with no unsupported claim of a nationwide individual-level effect. Original source fields r and n are turnout numerator and voter denominator, and p is the supplied proportion; the projection retains p without recomputing outcomes. User-requested purpose: demonstrate and verify this public-data causal analysis end to end, including reproducibility, diagnostics and interpretable reporting.\nua:question/text:\n  What is the intention-to-treat effect of randomized Rock the Vote television advertising on the turnout rate of registered 18- and 19-year-olds across the experimental cable systems?\nua:usercontextanswer:an-82bd653613239d1c:59ddc3c9a4b0dc6e:\n  {\"answers\": [{\"answer_kind\": \"value\", \"question_id\": \"q:design.assignment_mechanism\", \"value\": \"randomized\"}], \"packet_id\": \"qp:1:1\", \"provenance\": \"user\", \"schema_version\": \"user-context-answer.v1\"}\nev:doc/README.md:\n  This is a randomized experiment: 85 cable television systems were assigned within 40 pre-randomization strata to Rock the Vote advertising (treatment=1) or control (treatment=0). cable_system_id identifies the randomized cable system, and each row is one complete cable-system aggregate, not an individual voter. turnout_rate is the post-assignment proportion of registered 18- and 19-year-olds who voted. randomization_stratum records the matched randomization stratum and should enter as stratum fixed effects. Estimate the cluster-level ITT for treatment=1 versus treatment=0 using one unweighted cable-system outcome per row; the contrast is on the turnout-proportion scale. The same cable_system_id may serve as the cluster role because each randomized cluster contributes exactly one row. Do not expand rows into individual voters or weight them by voter counts. The target is the experimental cable systems, with no unsupported claim of a nationwide individual-level effect. Original source fields r and n are turnout numerator and voter denominator, and p is the supplied proportion; the projection retains p without recomputing outcomes. User-requested purpose: demonstrate and verify this public-data causal analysis end to end, including reproducibility, diagnostics and interpretable reporting.\nev:kaggle/dataset/description:\n  This is a randomized experiment: 85 cable television systems were assigned within 40 pre-randomization strata to Rock the Vote advertising (treatment=1) or control (treatment=0). cable_system_id identifies the randomized cable system, and each row is one complete cable-system aggregate, not an individual voter. turnout_rate is the post-assignment proportion of registered 18- and 19-year-olds who voted. randomization_stratum records the matched randomization stratum and should enter as stratum fixed effects. Estimate the cluster-level ITT for treatment=1 versus treatment=0 using one unweighted cable-system outcome per row; the contrast is on the turnout-proportion scale. The same cable_system_id may serve as the cluster role because each randomized cluster contributes exactly one row. Do not expand rows into individual voters or weight them by voter counts. The target is the experimental cable systems, with no unsupported claim of a nationwide individual-level effect. Original source fields r and n are turnout numerator and voter denominator, and p is the supplied proportion; the projection retains p without recomputing outcomes. User-requested purpose: demonstrate and verify this public-data causal analysis end to end, including reproducibility, diagnostics and interpretable reporting.\nev:kaggle/dataset/title:\n  rock_the_vote_rct\nev:kaggle/file/rock_the_vote.csv/description:\n  This is a randomized experiment: 85 cable television systems were assigned within 40 pre-randomization strata to Rock the Vote advertising (treatment=1) or control (treatment=0). cable_system_id identifies the randomized cable system, and each row is one complete cable-system aggregate, not an individual voter. turnout_rate is the post-assignment proportion of registered 18- and 19-year-olds who voted. randomization_stratum records the matched randomization stratum and should enter as stratum fixed effects. Estimate the cluster-level ITT for treatment=1 versus treatment=0 using one unweighted cable-system outcome per row; the contrast is on the turnout-proportion scale. The same cable_system_id may serve as the cluster role because each randomized cluster contributes exactly one row. Do not expand rows into individual voters or weight them by voter counts. The target is the experimental cable systems, with no unsupported claim of a nationwide individual-level effect. Original source fields r and n are turnout numerator and voter denominator, and p is the supplied proportion; the projection retains p without recomputing outcomes. User-requested purpose: demonstrate and verify this public-data causal analysis end to end, including reproducibility, diagnostics and interpretable reporting.\n\n## parent_artifacts\nroleledger:an-82bd653613239d1c:d0553eca6744a0fd\n\n## registered_requirement_ids\ndesign.adoption_time\ndesign.assignment_mechanism\ndesign.cutoff\ndesign.estimand\ndesign.population_comparator\ndesign.sharp_assignment\ndesign.unit_identity",
+    "prompt_hash": "bdb2eb2abe49eec9d8a6bc5248df78cca8579aa7a404062b3af8228267f4cf81",
+    "response_schema": {
+      "$defs": {
+        "AttemptedEvidenceV1": {
+          "additionalProperties": false,
+          "description": "One searched source; the coordinator replaces its status before persistence.",
+          "properties": {
+            "evidence_id": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Evidence Id",
+              "type": "string",
+              "x-causal-reference-kind": "evidence",
+              "x-causal-reference-role": "reference",
+              "enum": [
+                "ev:doc/README.md",
+                "ev:kaggle/dataset/description",
+                "ev:kaggle/dataset/title",
+                "ev:kaggle/file/rock_the_vote.csv/description",
+                "ua:context/text",
+                "ua:question/text",
+                "ua:usercontextanswer:an-82bd653613239d1c:59ddc3c9a4b0dc6e"
+              ]
+            },
+            "availability_status": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Availability Status",
+              "type": "string"
+            }
+          },
+          "required": [
+            "evidence_id",
+            "availability_status"
+          ],
+          "title": "AttemptedEvidenceV1",
+          "type": "object"
+        },
+        "ContextRequirementV1": {
+          "additionalProperties": false,
+          "description": "One missing fact, what it blocks, and what may satisfy it (SYSTEM-CONTRACT \u00a76.1).",
+          "properties": {
+            "requirement_id": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Requirement Id",
+              "type": "string",
+              "x-causal-reference-kind": "requirement",
+              "x-causal-reference-role": "reference",
+              "enum": [
+                "design.adoption_time",
+                "design.assignment_mechanism",
+                "design.cutoff",
+                "design.estimand",
+                "design.population_comparator",
+                "design.sharp_assignment",
+                "design.unit_identity"
+              ]
+            },
+            "registry_version": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Registry Version",
+              "type": "string"
+            },
+            "scope_kind": {
+              "$ref": "#/$defs/RequirementScopeKind"
+            },
+            "scope_id": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Scope Id",
+              "type": "string"
+            },
+            "fact_required": {
+              "title": "Fact Required",
+              "type": "string"
+            },
+            "why_required": {
+              "title": "Why Required",
+              "type": "string"
+            },
+            "decisions_blocked": {
+              "items": {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              "title": "Decisions Blocked",
+              "type": "array"
+            },
+            "criticality": {
+              "$ref": "#/$defs/Criticality"
+            },
+            "acceptable_evidence_types": {
+              "items": {
+                "$ref": "#/$defs/EvidenceClass"
+              },
+              "title": "Acceptable Evidence Types",
+              "type": "array"
+            },
+            "required_support": {
+              "$ref": "#/$defs/SupportRequirement"
+            },
+            "methods_required_for": {
+              "items": {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              "title": "Methods Required For",
+              "type": "array"
+            },
+            "attempted_evidence": {
+              "items": {
+                "$ref": "#/$defs/AttemptedEvidenceV1"
+              },
+              "title": "Attempted Evidence",
+              "type": "array",
+              "maxItems": 0
+            },
+            "user_may_know": {
+              "title": "User May Know",
+              "type": "boolean"
+            },
+            "expected_answer_schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Expected Answer Schema",
+              "type": "string"
+            },
+            "missing_action": {
+              "$ref": "#/$defs/MissingAction"
+            }
+          },
+          "required": [
+            "requirement_id",
+            "registry_version",
+            "scope_kind",
+            "scope_id",
+            "fact_required",
+            "why_required",
+            "decisions_blocked",
+            "criticality",
+            "acceptable_evidence_types",
+            "required_support",
+            "methods_required_for",
+            "attempted_evidence",
+            "user_may_know",
+            "expected_answer_schema",
+            "missing_action"
+          ],
+          "title": "ContextRequirementV1",
+          "type": "object"
+        },
+        "Criticality": {
+          "enum": [
+            "blocking",
+            "supporting"
+          ],
+          "title": "Criticality",
+          "type": "string"
+        },
+        "EvidenceClass": {
+          "enum": [
+            "user_confirmation",
+            "data_dictionary",
+            "study_protocol",
+            "source_statement",
+            "timestamp_relationship",
+            "measured_observation"
+          ],
+          "title": "EvidenceClass",
+          "type": "string"
+        },
+        "MissingAction": {
+          "enum": [
+            "ask_user",
+            "retain_as_sensitivity",
+            "refuse"
+          ],
+          "title": "MissingAction",
+          "type": "string"
+        },
+        "RequirementScopeKind": {
+          "enum": [
+            "dataset",
+            "table",
+            "column",
+            "concept",
+            "relationship",
+            "design"
+          ],
+          "title": "RequirementScopeKind",
+          "type": "string"
+        },
+        "SupportRequirement": {
+          "enum": [
+            "direct",
+            "direct_or_corroborated",
+            "any_acceptable"
+          ],
+          "title": "SupportRequirement",
+          "type": "string"
+        },
+        "TaskStatus": {
+          "enum": [
+            "complete",
+            "needs_context",
+            "conflict",
+            "refused"
+          ],
+          "title": "TaskStatus",
+          "type": "string"
+        },
+        "AgentFactProposalV2": {
+          "additionalProperties": false,
+          "properties": {
+            "fact_id": {
+              "enum": [
+                "cutoff",
+                "sharp_assignment",
+                "adoption_time"
+              ],
+              "title": "Fact Id",
+              "type": "string"
+            },
+            "value": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Value"
+            }
+          },
+          "required": [
+            "fact_id",
+            "value"
+          ],
+          "title": "AgentFactProposalV2",
+          "type": "object"
+        },
+        "DiagnosticAssessmentV2": {
+          "additionalProperties": false,
+          "properties": {
+            "diagnostic_result_id": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Diagnostic Result Id",
+              "type": "string",
+              "x-causal-reference-kind": "diagnostic_result",
+              "x-causal-reference-role": "reference"
+            },
+            "judgment": {
+              "enum": [
+                "supports",
+                "cautions",
+                "rules_out",
+                "not_decisive"
+              ],
+              "title": "Judgment",
+              "type": "string"
+            }
+          },
+          "required": [
+            "diagnostic_result_id",
+            "judgment"
+          ],
+          "title": "DiagnosticAssessmentV2",
+          "type": "object"
+        },
+        "SourceInterpretationV1": {
+          "additionalProperties": false,
+          "description": "A reviewable model judgment about what one exact source span says about one fact.",
+          "properties": {
+            "fact_key": {
+              "enum": [
+                "assignment_mechanism",
+                "estimand",
+                "comparator",
+                "grain",
+                "cutoff",
+                "sharp_assignment",
+                "adoption_time"
+              ],
+              "title": "Fact Key",
+              "type": "string"
+            },
+            "value": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                }
+              ],
+              "title": "Value"
+            },
+            "evidence_id": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Evidence Id",
+              "type": "string",
+              "x-causal-reference-kind": "evidence",
+              "x-causal-reference-role": "reference",
+              "enum": [
+                "ev:doc/README.md",
+                "ev:kaggle/dataset/description",
+                "ev:kaggle/dataset/title",
+                "ev:kaggle/file/rock_the_vote.csv/description",
+                "ua:context/text",
+                "ua:question/text",
+                "ua:usercontextanswer:an-82bd653613239d1c:59ddc3c9a4b0dc6e"
+              ]
+            },
+            "verbatim_excerpt": {
+              "maxLength": 500,
+              "minLength": 1,
+              "title": "Verbatim Excerpt",
+              "type": "string"
+            },
+            "relation": {
+              "enum": [
+                "direct",
+                "corroborating",
+                "conflicting",
+                "irrelevant"
+              ],
+              "title": "Relation",
+              "type": "string"
+            }
+          },
+          "required": [
+            "fact_key",
+            "value",
+            "evidence_id",
+            "verbatim_excerpt",
+            "relation"
+          ],
+          "title": "SourceInterpretationV1",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Only fields that require model judgment; the harness owns the result envelope.",
+      "properties": {
+        "status": {
+          "$ref": "#/$defs/TaskStatus"
+        },
+        "payload": {
+          "additionalProperties": false,
+          "properties": {
+            "schema_version": {
+              "const": "agent-design-proposal.v2",
+              "default": "agent-design-proposal.v2",
+              "title": "Schema Version",
+              "type": "string"
+            },
+            "assignment_mechanism": {
+              "enum": [
+                "randomized",
+                "self_selected",
+                "policy_cutoff",
+                "time_of_adoption",
+                "unknown"
+              ],
+              "title": "Assignment Mechanism",
+              "type": "string"
+            },
+            "requested_estimand": {
+              "enum": [
+                "itt",
+                "ate",
+                "att",
+                "att_group_time_aggregate",
+                "late_at_cutoff",
+                "unknown"
+              ],
+              "title": "Requested Estimand",
+              "type": "string"
+            },
+            "comparator": {
+              "title": "Comparator",
+              "type": "string"
+            },
+            "ranked_method_ids": {
+              "items": {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string",
+                "enum": [
+                  "aipw",
+                  "did",
+                  "randomized_experiment",
+                  "sharp_rdd"
+                ]
+              },
+              "minItems": 1,
+              "title": "Ranked Method Ids",
+              "type": "array",
+              "x-causal-reference-kind": "method",
+              "x-causal-reference-role": "reference"
+            },
+            "method_facts": {
+              "items": {
+                "$ref": "#/$defs/AgentFactProposalV2"
+              },
+              "title": "Method Facts",
+              "type": "array"
+            },
+            "optional_assumption_ids": {
+              "items": {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              "title": "Optional Assumption Ids",
+              "type": "array"
+            },
+            "optional_risk_ids": {
+              "items": {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              "title": "Optional Risk Ids",
+              "type": "array"
+            },
+            "optional_sensitivity_ids": {
+              "items": {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              "title": "Optional Sensitivity Ids",
+              "type": "array"
+            },
+            "requested_diagnostic_ids": {
+              "default": [],
+              "items": {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string",
+                "enum": [
+                  "adoption_cohorts",
+                  "arm_counts",
+                  "assignment_unit_uniqueness",
+                  "bandwidth_feasibility",
+                  "baseline_availability",
+                  "cluster_sizes",
+                  "clustering_feasibility",
+                  "compliance_availability",
+                  "composition",
+                  "covariate_availability",
+                  "cross_fitting_feasibility",
+                  "cutoff_side_counts",
+                  "density_manipulation_warnings",
+                  "distance_to_cutoff_support",
+                  "duplicates",
+                  "effective_sample_feasibility",
+                  "group_time_counts",
+                  "level_sparsity",
+                  "mass_points",
+                  "missingness",
+                  "missingness_by_group_time",
+                  "missingness_by_side_and_distance",
+                  "outcome_missingness",
+                  "panel_completeness",
+                  "power_precision_feasibility",
+                  "pre_period_availability",
+                  "rough_overlap",
+                  "treatment_prevalence",
+                  "unit_period_uniqueness"
+                ]
+              },
+              "maxItems": 4,
+              "title": "Requested Diagnostic Ids",
+              "type": "array",
+              "x-causal-reference-kind": "diagnostic",
+              "x-causal-reference-role": "reference"
+            },
+            "diagnostic_assessments": {
+              "default": [],
+              "items": {
+                "$ref": "#/$defs/DiagnosticAssessmentV2"
+              },
+              "title": "Diagnostic Assessments",
+              "type": "array"
+            },
+            "source_interpretations": {
+              "default": [],
+              "items": {
+                "$ref": "#/$defs/SourceInterpretationV1"
+              },
+              "title": "Source Interpretations",
+              "type": "array"
+            }
+          },
+          "required": [
+            "assignment_mechanism",
+            "requested_estimand",
+            "comparator",
+            "ranked_method_ids",
+            "method_facts",
+            "optional_assumption_ids",
+            "optional_risk_ids",
+            "optional_sensitivity_ids"
+          ],
+          "title": "AgentDesignProposalV2",
+          "type": "object"
+        },
+        "missing_requirements": {
+          "items": {
+            "$ref": "#/$defs/ContextRequirementV1"
+          },
+          "title": "Missing Requirements",
+          "type": "array"
+        },
+        "conflicts": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 16,
+          "title": "Conflicts",
+          "type": "array"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 16,
+          "title": "Warnings",
+          "type": "array"
+        }
+      },
+      "required": [
+        "status",
+        "payload",
+        "missing_requirements",
+        "conflicts",
+        "warnings"
+      ],
+      "title": "_ModelTaskDecisionV1",
+      "type": "object"
+    }
+  },
+  "artifacts": [
+    {
+      "artifact_id": "tableprofile:an-82bd653613239d1c:0548be1486238151",
+      "artifact_type": "TableProfile",
+      "content_hash": "0548be148623815154e5097f33110bb12a838fa0be4f2d7406fdb4ca58bc2bcb",
+      "path": "artifacts/0003-TableProfile.json",
+      "payload": {
+        "column_count": 4,
+        "columns": {
+          "cable_system_id": {
+            "all_null": false,
+            "cardinality": 85,
+            "constant": false,
+            "dtype": "Int64",
+            "hypotheses": [
+              {
+                "detail": "every value is unique; may be an identifier",
+                "kind": "identifier"
+              }
+            ],
+            "null_count": 0,
+            "null_rate": 0.0,
+            "numeric": {
+              "max": 85.0,
+              "mean": 43.0,
+              "min": 1.0,
+              "non_finite_count": 0,
+              "quantiles": {
+                "0.25": 22.0,
+                "0.5": 43.0,
+                "0.75": 64.0
+              },
+              "std": 24.681301964577692
+            }
+          },
+          "randomization_stratum": {
+            "all_null": false,
+            "cardinality": 40,
+            "constant": false,
+            "dtype": "Int64",
+            "hypotheses": [],
+            "null_count": 0,
+            "null_rate": 0.0,
+            "numeric": {
+              "max": 40.0,
+              "mean": 20.023529411764706,
+              "min": 1.0,
+              "non_finite_count": 0,
+              "quantiles": {
+                "0.25": 10.0,
+                "0.5": 20.0,
+                "0.75": 30.0
+              },
+              "std": 11.615851721009605
+            }
+          },
+          "treatment": {
+            "all_null": false,
+            "cardinality": 2,
+            "constant": false,
+            "dtype": "Int64",
+            "hypotheses": [],
+            "null_count": 0,
+            "null_rate": 0.0,
+            "numeric": {
+              "max": 1.0,
+              "mean": 0.49411764705882355,
+              "min": 0.0,
+              "non_finite_count": 0,
+              "quantiles": {
+                "0.25": 0.0,
+                "0.5": 0.0,
+                "0.75": 1.0
+              },
+              "std": 0.5029325764658601
+            }
+          },
+          "turnout_rate": {
+            "all_null": false,
+            "cardinality": 84,
+            "constant": false,
+            "dtype": "Float64",
+            "hypotheses": [],
+            "null_count": 0,
+            "null_rate": 0.0,
+            "numeric": {
+              "max": 0.780373831775701,
+              "mean": 0.5304270183234059,
+              "min": 0.25696594427244585,
+              "non_finite_count": 0,
+              "quantiles": {
+                "0.25": 0.4752475247524752,
+                "0.5": 0.5324232081911263,
+                "0.75": 0.5945945945945946
+              },
+              "std": 0.09952416988470919
+            }
+          }
+        },
+        "duplicate_row_count": 0,
+        "input_sha256": "a5b1bd8807476c1afd1ba57fd61bec2d3c949b5e6f0b6a096593f95ae74efb60",
+        "logical_name": "rock_the_vote.csv",
+        "media_type": "csv",
+        "profiler_version": "profiler.v1",
+        "row_count": 85,
+        "schema_version": "table-profile.v1",
+        "unique_single_columns": [
+          "cable_system_id"
+        ]
+      }
+    },
+    {
+      "artifact_id": "evidencebundle:an-82bd653613239d1c:0954a1146dd1ff39",
+      "artifact_type": "EvidenceBundle",
+      "content_hash": "0954a1146dd1ff39c775ae5361540f3f0b989192e4dccee768bf415b898fa84d",
+      "path": "artifacts/0004-EvidenceBundle.json",
+      "payload": {
+        "items": [
+          {
+            "column_name": null,
+            "evidence_id": "ev:kaggle/dataset/title",
+            "scope_kind": "dataset",
+            "source_field": "title",
+            "table_name": null,
+            "value": "rock_the_vote_rct"
+          },
+          {
+            "column_name": null,
+            "evidence_id": "ev:kaggle/dataset/description",
+            "scope_kind": "dataset",
+            "source_field": "description",
+            "table_name": null,
+            "value": "This is a randomized experiment: 85 cable television systems were assigned within 40 pre-randomization strata to Rock the Vote advertising (treatment=1) or control (treatment=0). cable_system_id identifies the randomized cable system, and each row is one complete cable-system aggregate, not an individual voter. turnout_rate is the post-assignment proportion of registered 18- and 19-year-olds who voted. randomization_stratum records the matched randomization stratum and should enter as stratum fixed effects. Estimate the cluster-level ITT for treatment=1 versus treatment=0 using one unweighted cable-system outcome per row; the contrast is on the turnout-proportion scale. The same cable_system_id may serve as the cluster role because each randomized cluster contributes exactly one row. Do not expand rows into individual voters or weight them by voter counts. The target is the experimental cable systems, with no unsupported claim of a nationwide individual-level effect. Original source fields r and n are turnout numerator and voter denominator, and p is the supplied proportion; the projection retains p without recomputing outcomes. User-requested purpose: demonstrate and verify this public-data causal analysis end to end, including reproducibility, diagnostics and interpretable reporting."
+          },
+          {
+            "column_name": null,
+            "evidence_id": "ev:kaggle/file/rock_the_vote.csv/description",
+            "scope_kind": "table",
+            "source_field": "description",
+            "table_name": "rock_the_vote.csv",
+            "value": "This is a randomized experiment: 85 cable television systems were assigned within 40 pre-randomization strata to Rock the Vote advertising (treatment=1) or control (treatment=0). cable_system_id identifies the randomized cable system, and each row is one complete cable-system aggregate, not an individual voter. turnout_rate is the post-assignment proportion of registered 18- and 19-year-olds who voted. randomization_stratum records the matched randomization stratum and should enter as stratum fixed effects. Estimate the cluster-level ITT for treatment=1 versus treatment=0 using one unweighted cable-system outcome per row; the contrast is on the turnout-proportion scale. The same cable_system_id may serve as the cluster role because each randomized cluster contributes exactly one row. Do not expand rows into individual voters or weight them by voter counts. The target is the experimental cable systems, with no unsupported claim of a nationwide individual-level effect. Original source fields r and n are turnout numerator and voter denominator, and p is the supplied proportion; the projection retains p without recomputing outcomes. User-requested purpose: demonstrate and verify this public-data causal analysis end to end, including reproducibility, diagnostics and interpretable reporting."
+          },
+          {
+            "column_name": "cable_system_id",
+            "evidence_id": "ev:kaggle/column/rock_the_vote.csv/cable_system_id/description",
+            "scope_kind": "column",
+            "source_field": "description",
+            "table_name": "rock_the_vote.csv",
+            "value": "This is a randomized experiment: 85 cable television systems were assigned within 40 pre-randomization strata to Rock the Vote advertising (treatment=1) or control (treatment=0). cable_system_id identifies the randomized cable system, and each row is one complete cable-system aggregate, not an individual voter. turnout_rate is the post-assignment proportion of registered 18- and 19-year-olds who voted. randomization_stratum records the matched randomization stratum and should enter as stratum fixed effects. Estimate the cluster-level ITT for treatment=1 versus treatment=0 using one unweighted cable-system outcome per row; the contrast is on the turnout-proportion scale. The same cable_system_id may serve as the cluster role because each randomized cluster contributes exactly one row. Do not expand rows into individual voters or weight them by voter counts. The target is the experimental cable systems, with no unsupported claim of a nationwide individual-level effect. Original source fields r and n are turnout numerator and voter denominator, and p is the supplied proportion; the projection retains p without recomputing outcomes. User-requested purpose: demonstrate and verify this public-data causal analysis end to end, including reproducibility, diagnostics and interpretable reporting."
+          },
+          {
+            "column_name": "randomization_stratum",
+            "evidence_id": "ev:kaggle/column/rock_the_vote.csv/randomization_stratum/description",
+            "scope_kind": "column",
+            "source_field": "description",
+            "table_name": "rock_the_vote.csv",
+            "value": "This is a randomized experiment: 85 cable television systems were assigned within 40 pre-randomization strata to Rock the Vote advertising (treatment=1) or control (treatment=0). cable_system_id identifies the randomized cable system, and each row is one complete cable-system aggregate, not an individual voter. turnout_rate is the post-assignment proportion of registered 18- and 19-year-olds who voted. randomization_stratum records the matched randomization stratum and should enter as stratum fixed effects. Estimate the cluster-level ITT for treatment=1 versus treatment=0 using one unweighted cable-system outcome per row; the contrast is on the turnout-proportion scale. The same cable_system_id may serve as the cluster role because each randomized cluster contributes exactly one row. Do not expand rows into individual voters or weight them by voter counts. The target is the experimental cable systems, with no unsupported claim of a nationwide individual-level effect. Original source fields r and n are turnout numerator and voter denominator, and p is the supplied proportion; the projection retains p without recomputing outcomes. User-requested purpose: demonstrate and verify this public-data causal analysis end to end, including reproducibility, diagnostics and interpretable reporting."
+          },
+          {
+            "column_name": "treatment",
+            "evidence_id": "ev:kaggle/column/rock_the_vote.csv/treatment/description",
+            "scope_kind": "column",
+            "source_field": "description",
+            "table_name": "rock_the_vote.csv",
+            "value": "This is a randomized experiment: 85 cable television systems were assigned within 40 pre-randomization strata to Rock the Vote advertising (treatment=1) or control (treatment=0). cable_system_id identifies the randomized cable system, and each row is one complete cable-system aggregate, not an individual voter. turnout_rate is the post-assignment proportion of registered 18- and 19-year-olds who voted. randomization_stratum records the matched randomization stratum and should enter as stratum fixed effects. Estimate the cluster-level ITT for treatment=1 versus treatment=0 using one unweighted cable-system outcome per row; the contrast is on the turnout-proportion scale. The same cable_system_id may serve as the cluster role because each randomized cluster contributes exactly one row. Do not expand rows into individual voters or weight them by voter counts. The target is the experimental cable systems, with no unsupported claim of a nationwide individual-level effect. Original source fields r and n are turnout numerator and voter denominator, and p is the supplied proportion; the projection retains p without recomputing outcomes. User-requested purpose: demonstrate and verify this public-data causal analysis end to end, including reproducibility, diagnostics and interpretable reporting."
+          },
+          {
+            "column_name": "turnout_rate",
+            "evidence_id": "ev:kaggle/column/rock_the_vote.csv/turnout_rate/description",
+            "scope_kind": "column",
+            "source_field": "description",
+            "table_name": "rock_the_vote.csv",
+            "value": "This is a randomized experiment: 85 cable television systems were assigned within 40 pre-randomization strata to Rock the Vote advertising (treatment=1) or control (treatment=0). cable_system_id identifies the randomized cable system, and each row is one complete cable-system aggregate, not an individual voter. turnout_rate is the post-assignment proportion of registered 18- and 19-year-olds who voted. randomization_stratum records the matched randomization stratum and should enter as stratum fixed effects. Estimate the cluster-level ITT for treatment=1 versus treatment=0 using one unweighted cable-system outcome per row; the contrast is on the turnout-proportion scale. The same cable_system_id may serve as the cluster role because each randomized cluster contributes exactly one row. Do not expand rows into individual voters or weight them by voter counts. The target is the experimental cable systems, with no unsupported claim of a nationwide individual-level effect. Original source fields r and n are turnout numerator and voter denominator, and p is the supplied proportion; the projection retains p without recomputing outcomes. User-requested purpose: demonstrate and verify this public-data causal analysis end to end, including reproducibility, diagnostics and interpretable reporting."
+          },
+          {
+            "column_name": null,
+            "evidence_id": "ev:doc/README.md",
+            "scope_kind": "dataset",
+            "source_field": "README.md",
+            "table_name": null,
+            "value": "This is a randomized experiment: 85 cable television systems were assigned within 40 pre-randomization strata to Rock the Vote advertising (treatment=1) or control (treatment=0). cable_system_id identifies the randomized cable system, and each row is one complete cable-system aggregate, not an individual voter. turnout_rate is the post-assignment proportion of registered 18- and 19-year-olds who voted. randomization_stratum records the matched randomization stratum and should enter as stratum fixed effects. Estimate the cluster-level ITT for treatment=1 versus treatment=0 using one unweighted cable-system outcome per row; the contrast is on the turnout-proportion scale. The same cable_system_id may serve as the cluster role because each randomized cluster contributes exactly one row. Do not expand rows into individual voters or weight them by voter counts. The target is the experimental cable systems, with no unsupported claim of a nationwide individual-level effect. Original source fields r and n are turnout numerator and voter denominator, and p is the supplied proportion; the projection retains p without recomputing outcomes. User-requested purpose: demonstrate and verify this public-data causal analysis end to end, including reproducibility, diagnostics and interpretable reporting."
+          },
+          {
+            "column_name": null,
+            "evidence_id": "ua:question/text",
+            "scope_kind": "dataset",
+            "source_field": "question_text",
+            "table_name": null,
+            "value": "What is the intention-to-treat effect of randomized Rock the Vote television advertising on the turnout rate of registered 18- and 19-year-olds across the experimental cable systems?"
+          },
+          {
+            "column_name": null,
+            "evidence_id": "ua:context/text",
+            "scope_kind": "dataset",
+            "source_field": "context_text",
+            "table_name": null,
+            "value": "This is a randomized experiment: 85 cable television systems were assigned within 40 pre-randomization strata to Rock the Vote advertising (treatment=1) or control (treatment=0). cable_system_id identifies the randomized cable system, and each row is one complete cable-system aggregate, not an individual voter. turnout_rate is the post-assignment proportion of registered 18- and 19-year-olds who voted. randomization_stratum records the matched randomization stratum and should enter as stratum fixed effects. Estimate the cluster-level ITT for treatment=1 versus treatment=0 using one unweighted cable-system outcome per row; the contrast is on the turnout-proportion scale. The same cable_system_id may serve as the cluster role because each randomized cluster contributes exactly one row. Do not expand rows into individual voters or weight them by voter counts. The target is the experimental cable systems, with no unsupported claim of a nationwide individual-level effect. Original source fields r and n are turnout numerator and voter denominator, and p is the supplied proportion; the projection retains p without recomputing outcomes. User-requested purpose: demonstrate and verify this public-data causal analysis end to end, including reproducibility, diagnostics and interpretable reporting."
+          }
+        ],
+        "schema_version": "evidence-bundle.v1"
+      }
+    },
+    {
+      "artifact_id": "tableselection:an-82bd653613239d1c:a34fb09a3f85936f",
+      "artifact_type": "TableSelection",
+      "content_hash": "a34fb09a3f85936fe725a8cc2d73144396a9def5472015232b72c11f362d40f6",
+      "path": "artifacts/0007-TableSelection.json",
+      "payload": {
+        "candidate_count": 1,
+        "dataset_id": "kaggle:evaluation/rock_the_vote_rct@Rdatasets@1dcc2bf5f955cc1224a3e1307256e1fe86b68dae",
+        "decision_artifact_id": null,
+        "logical_name": "rock_the_vote.csv",
+        "media_type": "text/csv",
+        "resource_object_locator": "objects/a5b1bd8807476c1afd1ba57fd61bec2d3c949b5e6f0b6a096593f95ae74efb60",
+        "resource_sha256": "a5b1bd8807476c1afd1ba57fd61bec2d3c949b5e6f0b6a096593f95ae74efb60",
+        "schema_version": "table-selection.v1",
+        "selection_source": "only_candidate"
+      }
+    },
+    {
+      "artifact_id": "designcontextmanifest:an-82bd653613239d1c:2e3fba1776e2d81f",
+      "artifact_type": "DesignContextManifest",
+      "content_hash": "2e3fba1776e2d81f478e1e04bf3382462c27270eb5e31702f465720417741fff",
+      "path": "artifacts/0008-DesignContextManifest.json",
+      "payload": {
+        "design_revision": 1,
+        "intake_outcome_artifact": {
+          "artifact_id": "intakeoutcome:an-82bd653613239d1c:ab7c0646c924187e",
+          "content_hash": "ab7c0646c924187e0f08e487528434bdf131e28ab4d33623c97ebdbf8f16b1bc"
+        },
+        "measured_surface": [
+          {
+            "column_name": "cable_system_id",
+            "evidence_count": 0,
+            "field_or_slot_name": "profile",
+            "json_pointer": "tableprofile:an-82bd653613239d1c:0548be1486238151#/columns/cable_system_id",
+            "scope_kind": "column",
+            "status": "evidenced",
+            "table_name": "rock_the_vote.csv"
+          },
+          {
+            "column_name": "randomization_stratum",
+            "evidence_count": 0,
+            "field_or_slot_name": "profile",
+            "json_pointer": "tableprofile:an-82bd653613239d1c:0548be1486238151#/columns/randomization_stratum",
+            "scope_kind": "column",
+            "status": "evidenced",
+            "table_name": "rock_the_vote.csv"
+          },
+          {
+            "column_name": "treatment",
+            "evidence_count": 0,
+            "field_or_slot_name": "profile",
+            "json_pointer": "tableprofile:an-82bd653613239d1c:0548be1486238151#/columns/treatment",
+            "scope_kind": "column",
+            "status": "evidenced",
+            "table_name": "rock_the_vote.csv"
+          },
+          {
+            "column_name": "turnout_rate",
+            "evidence_count": 0,
+            "field_or_slot_name": "profile",
+            "json_pointer": "tableprofile:an-82bd653613239d1c:0548be1486238151#/columns/turnout_rate",
+            "scope_kind": "column",
+            "status": "evidenced",
+            "table_name": "rock_the_vote.csv"
+          }
+        ],
+        "provenance_surface": [
+          {
+            "column_name": null,
+            "evidence_count": 0,
+            "field_or_slot_name": "licenseName",
+            "json_pointer": "/metadata_response/licenseName",
+            "scope_kind": "dataset",
+            "status": "evidenced",
+            "table_name": null
+          }
+        ],
+        "question_artifact": {
+          "artifact_id": "questionrecord:an-82bd653613239d1c:68fe49f04814aa14",
+          "content_hash": "68fe49f04814aa148cf0c367ed06ff04f6fe50401296bfbecfa8640e35afabb3"
+        },
+        "registry_versions": {
+          "artifact_types": "artifact-types.v1",
+          "capacity": "delivery-capacity.v1",
+          "field_classes": "kaggle-field-classes.v1",
+          "graph": "design-harness.v2",
+          "method_packs": "method-packs.v1",
+          "requirements": "context-requirements.v1",
+          "schema": "design-tasks.v1",
+          "validators": "design-validators.v1"
+        },
+        "retrieval_surfaces": [
+          "structural_manifest",
+          "semantic_available",
+          "semantic_missing",
+          "measured_fact_manifest",
+          "provenance_manifest"
+        ],
+        "schema_version": "design-context-manifest.v1",
+        "selected_table": "rock_the_vote.csv",
+        "semantic_available": [
+          {
+            "column_name": null,
+            "evidence_count": 1,
+            "field_or_slot_name": "description",
+            "json_pointer": "/metadata_response/description",
+            "scope_kind": "dataset",
+            "status": "evidenced",
+            "table_name": null
+          },
+          {
+            "column_name": null,
+            "evidence_count": 1,
+            "field_or_slot_name": "title",
+            "json_pointer": "/metadata_response/title",
+            "scope_kind": "dataset",
+            "status": "evidenced",
+            "table_name": null
+          },
+          {
+            "column_name": null,
+            "evidence_count": 1,
+            "field_or_slot_name": "description",
+            "json_pointer": "/files_response/files/0/description",
+            "scope_kind": "table",
+            "status": "evidenced",
+            "table_name": "rock_the_vote.csv"
+          },
+          {
+            "column_name": "cable_system_id",
+            "evidence_count": 1,
+            "field_or_slot_name": "description",
+            "json_pointer": "/files_response/files/0/columns/0/description",
+            "scope_kind": "column",
+            "status": "evidenced",
+            "table_name": "rock_the_vote.csv"
+          },
+          {
+            "column_name": "cable_system_id",
+            "evidence_count": 0,
+            "field_or_slot_name": "kind",
+            "json_pointer": "/columns/0/slots/kind",
+            "scope_kind": "column",
+            "status": "hypothesis",
+            "table_name": "rock_the_vote.csv"
+          },
+          {
+            "column_name": "cable_system_id",
+            "evidence_count": 1,
+            "field_or_slot_name": "meaning",
+            "json_pointer": "/columns/0/slots/meaning",
+            "scope_kind": "column",
+            "status": "evidenced",
+            "table_name": "rock_the_vote.csv"
+          },
+          {
+            "column_name": "randomization_stratum",
+            "evidence_count": 1,
+            "field_or_slot_name": "description",
+            "json_pointer": "/files_response/files/0/columns/3/description",
+            "scope_kind": "column",
+            "status": "evidenced",
+            "table_name": "rock_the_vote.csv"
+          },
+          {
+            "column_name": "randomization_stratum",
+            "evidence_count": 1,
+            "field_or_slot_name": "meaning",
+            "json_pointer": "/columns/3/slots/meaning",
+            "scope_kind": "column",
+            "status": "evidenced",
+            "table_name": "rock_the_vote.csv"
+          },
+          {
+            "column_name": "treatment",
+            "evidence_count": 1,
+            "field_or_slot_name": "description",
+            "json_pointer": "/files_response/files/0/columns/1/description",
+            "scope_kind": "column",
+            "status": "evidenced",
+            "table_name": "rock_the_vote.csv"
+          },
+          {
+            "column_name": "treatment",
+            "evidence_count": 1,
+            "field_or_slot_name": "meaning",
+            "json_pointer": "/columns/1/slots/meaning",
+            "scope_kind": "column",
+            "status": "evidenced",
+            "table_name": "rock_the_vote.csv"
+          },
+          {
+            "column_name": "turnout_rate",
+            "evidence_count": 1,
+            "field_or_slot_name": "description",
+            "json_pointer": "/files_response/files/0/columns/2/description",
+            "scope_kind": "column",
+            "status": "evidenced",
+            "table_name": "rock_the_vote.csv"
+          },
+          {
+            "column_name": "turnout_rate",
+            "evidence_count": 1,
+            "field_or_slot_name": "meaning",
+            "json_pointer": "/columns/2/slots/meaning",
+            "scope_kind": "column",
+            "status": "evidenced",
+            "table_name": "rock_the_vote.csv"
+          }
+        ],
+        "semantic_missing": [
+          {
+            "column_name": null,
+            "evidence_count": 0,
+            "field_or_slot_name": "analysis_table",
+            "json_pointer": "",
+            "scope_kind": "dataset",
+            "status": "not_offered",
+            "table_name": null
+          },
+          {
+            "column_name": null,
+            "evidence_count": 0,
+            "field_or_slot_name": "assignment_mechanism",
+            "json_pointer": "",
+            "scope_kind": "dataset",
+            "status": "not_offered",
+            "table_name": null
+          },
+          {
+            "column_name": null,
+            "evidence_count": 0,
+            "field_or_slot_name": "population",
+            "json_pointer": "",
+            "scope_kind": "dataset",
+            "status": "not_offered",
+            "table_name": null
+          },
+          {
+            "column_name": null,
+            "evidence_count": 0,
+            "field_or_slot_name": "sampling_rule",
+            "json_pointer": "",
+            "scope_kind": "dataset",
+            "status": "not_offered",
+            "table_name": null
+          },
+          {
+            "column_name": null,
+            "evidence_count": 0,
+            "field_or_slot_name": "table_relationships",
+            "json_pointer": "",
+            "scope_kind": "dataset",
+            "status": "not_offered",
+            "table_name": null
+          },
+          {
+            "column_name": null,
+            "evidence_count": 0,
+            "field_or_slot_name": "time_span",
+            "json_pointer": "",
+            "scope_kind": "dataset",
+            "status": "not_offered",
+            "table_name": null
+          },
+          {
+            "column_name": null,
+            "evidence_count": 0,
+            "field_or_slot_name": "unit_of_observation",
+            "json_pointer": "",
+            "scope_kind": "dataset",
+            "status": "not_offered",
+            "table_name": null
+          },
+          {
+            "column_name": "cable_system_id",
+            "evidence_count": 0,
+            "field_or_slot_name": "levels",
+            "json_pointer": "",
+            "scope_kind": "column",
+            "status": "not_offered",
+            "table_name": "rock_the_vote.csv"
+          },
+          {
+            "column_name": "cable_system_id",
+            "evidence_count": 0,
+            "field_or_slot_name": "measurement_window",
+            "json_pointer": "",
+            "scope_kind": "column",
+            "status": "not_offered",
+            "table_name": "rock_the_vote.csv"
+          },
+          {
+            "column_name": "cable_system_id",
+            "evidence_count": 0,
+            "field_or_slot_name": "missing_sentinel",
+            "json_pointer": "",
+            "scope_kind": "column",
+            "status": "not_offered",
+            "table_name": "rock_the_vote.csv"
+          },
+          {
+            "column_name": "cable_system_id",
+            "evidence_count": 0,
+            "field_or_slot_name": "provenance",
+            "json_pointer": "",
+            "scope_kind": "column",
+            "status": "not_offered",
+            "table_name": "rock_the_vote.csv"
+          },
+          {
+            "column_name": "cable_system_id",
+            "evidence_count": 0,
+            "field_or_slot_name": "timing",
+            "json_pointer": "",
+            "scope_kind": "column",
+            "status": "not_offered",
+            "table_name": "rock_the_vote.csv"
+          },
+          {
+            "column_name": "cable_system_id",
+            "evidence_count": 0,
+            "field_or_slot_name": "units",
+            "json_pointer": "",
+            "scope_kind": "column",
+            "status": "not_offered",
+            "table_name": "rock_the_vote.csv"
+          },
+          {
+            "column_name": "randomization_stratum",
+            "evidence_count": 0,
+            "field_or_slot_name": "kind",
+            "json_pointer": "",
+            "scope_kind": "column",
+            "status": "not_offered",
+            "table_name": "rock_the_vote.csv"
+          },
+          {
+            "column_name": "randomization_stratum",
+            "evidence_count": 0,
+            "field_or_slot_name": "levels",
+            "json_pointer": "",
+            "scope_kind": "column",
+            "status": "not_offered",
+            "table_name": "rock_the_vote.csv"
+          },
+          {
+            "column_name": "randomization_stratum",
+            "evidence_count": 0,
+            "field_or_slot_name": "measurement_window",
+            "json_pointer": "",
+            "scope_kind": "column",
+            "status": "not_offered",
+            "table_name": "rock_the_vote.csv"
+          },
+          {
+            "column_name": "randomization_stratum",
+            "evidence_count": 0,
+            "field_or_slot_name": "missing_sentinel",
+            "json_pointer": "",
+            "scope_kind": "column",
+            "status": "not_offered",
+            "table_name": "rock_the_vote.csv"
+          },
+          {
+            "column_name": "randomization_stratum",
+            "evidence_count": 0,
+            "field_or_slot_name": "provenance",
+            "json_pointer": "",
+            "scope_kind": "column",
+            "status": "not_offered",
+            "table_name": "rock_the_vote.csv"
+          },
+          {
+            "column_name": "randomization_stratum",
+            "evidence_count": 0,
+            "field_or_slot_name": "timing",
+            "json_pointer": "",
+            "scope_kind": "column",
+            "status": "not_offered",
+            "table_name": "rock_the_vote.csv"
+          },
+          {
+            "column_name": "randomization_stratum",
+            "evidence_count": 0,
+            "field_or_slot_name": "units",
+            "json_pointer": "",
+            "scope_kind": "column",
+            "status": "not_offered",
+            "table_name": "rock_the_vote.csv"
+          },
+          {
+            "column_name": "treatment",
+            "evidence_count": 0,
+            "field_or_slot_name": "kind",
+            "json_pointer": "",
+            "scope_kind": "column",
+            "status": "not_offered",
+            "table_name": "rock_the_vote.csv"
+          },
+          {
+            "column_name": "treatment",
+            "evidence_count": 0,
+            "field_or_slot_name": "levels",
+            "json_pointer": "",
+            "scope_kind": "column",
+            "status": "not_offered",
+            "table_name": "rock_the_vote.csv"
+          },
+          {
+            "column_name": "treatment",
+            "evidence_count": 0,
+            "field_or_slot_name": "measurement_window",
+            "json_pointer": "",
+            "scope_kind": "column",
+            "status": "not_offered",
+            "table_name": "rock_the_vote.csv"
+          },
+          {
+            "column_name": "treatment",
+            "evidence_count": 0,
+            "field_or_slot_name": "missing_sentinel",
+            "json_pointer": "",
+            "scope_kind": "column",
+            "status": "not_offered",
+            "table_name": "rock_the_vote.csv"
+          },
+          {
+            "column_name": "treatment",
+            "evidence_count": 0,
+            "field_or_slot_name": "provenance",
+            "json_pointer": "",
+            "scope_kind": "column",
+            "status": "not_offered",
+            "table_name": "rock_the_vote.csv"
+          },
+          {
+            "column_name": "treatment",
+            "evidence_count": 0,
+            "field_or_slot_name": "timing",
+            "json_pointer": "",
+            "scope_kind": "column",
+            "status": "not_offered",
+            "table_name": "rock_the_vote.csv"
+          },
+          {
+            "column_name": "treatment",
+            "evidence_count": 0,
+            "field_or_slot_name": "units",
+            "json_pointer": "",
+            "scope_kind": "column",
+            "status": "not_offered",
+            "table_name": "rock_the_vote.csv"
+          },
+          {
+            "column_name": "turnout_rate",
+            "evidence_count": 0,
+            "field_or_slot_name": "kind",
+            "json_pointer": "",
+            "scope_kind": "column",
+            "status": "not_offered",
+            "table_name": "rock_the_vote.csv"
+          },
+          {
+            "column_name": "turnout_rate",
+            "evidence_count": 0,
+            "field_or_slot_name": "levels",
+            "json_pointer": "",
+            "scope_kind": "column",
+            "status": "not_offered",
+            "table_name": "rock_the_vote.csv"
+          },
+          {
+            "column_name": "turnout_rate",
+            "evidence_count": 0,
+            "field_or_slot_name": "measurement_window",
+            "json_pointer": "",
+            "scope_kind": "column",
+            "status": "not_offered",
+            "table_name": "rock_the_vote.csv"
+          },
+          {
+            "column_name": "turnout_rate",
+            "evidence_count": 0,
+            "field_or_slot_name": "missing_sentinel",
+            "json_pointer": "",
+            "scope_kind": "column",
+            "status": "not_offered",
+            "table_name": "rock_the_vote.csv"
+          },
+          {
+            "column_name": "turnout_rate",
+            "evidence_count": 0,
+            "field_or_slot_name": "provenance",
+            "json_pointer": "",
+            "scope_kind": "column",
+            "status": "not_offered",
+            "table_name": "rock_the_vote.csv"
+          },
+          {
+            "column_name": "turnout_rate",
+            "evidence_count": 0,
+            "field_or_slot_name": "timing",
+            "json_pointer": "",
+            "scope_kind": "column",
+            "status": "not_offered",
+            "table_name": "rock_the_vote.csv"
+          },
+          {
+            "column_name": "turnout_rate",
+            "evidence_count": 0,
+            "field_or_slot_name": "units",
+            "json_pointer": "",
+            "scope_kind": "column",
+            "status": "not_offered",
+            "table_name": "rock_the_vote.csv"
+          }
+        ],
+        "structural_inventory": [
+          {
+            "column_name": "cable_system_id",
+            "dtype": "undeclared",
+            "ordinal": 0,
+            "table_name": "rock_the_vote.csv"
+          },
+          {
+            "column_name": "randomization_stratum",
+            "dtype": "undeclared",
+            "ordinal": 1,
+            "table_name": "rock_the_vote.csv"
+          },
+          {
+            "column_name": "treatment",
+            "dtype": "undeclared",
+            "ordinal": 2,
+            "table_name": "rock_the_vote.csv"
+          },
+          {
+            "column_name": "turnout_rate",
+            "dtype": "undeclared",
+            "ordinal": 3,
+            "table_name": "rock_the_vote.csv"
+          }
+        ],
+        "table_selection_artifact": {
+          "artifact_id": "tableselection:an-82bd653613239d1c:a34fb09a3f85936f",
+          "content_hash": "a34fb09a3f85936fe725a8cc2d73144396a9def5472015232b72c11f362d40f6"
+        }
+      }
+    },
+    {
+      "artifact_id": "designintent:an-82bd653613239d1c:946014a58dee536c",
+      "artifact_type": "DesignIntent",
+      "content_hash": "946014a58dee536ca301c029910a770411afced1033a18cb9c074f81ff450075",
+      "path": "artifacts/0009-DesignIntent.json",
+      "payload": {
+        "candidate_grain": "one_row_per_unit",
+        "causal_claim": "Randomized Rock the Vote television advertising affects the turnout rate of registered 18- and 19-year-olds across experimental cable systems.",
+        "comparator": {
+          "candidate_columns": [
+            "treatment"
+          ],
+          "description": "Assignment to control (treatment=0)",
+          "name": "Control group"
+        },
+        "intended_decision": "Demonstrate and verify this public-data causal analysis end to end, including reproducibility, diagnostics and interpretable reporting.",
+        "mandatory_concepts": [
+          {
+            "candidate_columns": [
+              "randomization_stratum"
+            ],
+            "description": "The pre-randomization stratum used for matching, to be included as stratum fixed effects.",
+            "name": "Randomization stratum"
+          }
+        ],
+        "outcome": {
+          "candidate_columns": [
+            "turnout_rate"
+          ],
+          "description": "The post-assignment proportion of registered 18- and 19-year-olds who voted.",
+          "name": "Turnout rate of registered 18- and 19-year-olds"
+        },
+        "population": {
+          "candidate_columns": [
+            "cable_system_id"
+          ],
+          "description": "85 cable television systems that were part of the randomized experiment.",
+          "name": "Experimental cable systems"
+        },
+        "question_kind": "causal",
+        "schema_version": "design-intent.v1",
+        "source_interpretations": [
+          {
+            "evidence_id": "ua:context/text",
+            "fact_key": "grain",
+            "relation": "direct",
+            "value": "one_row_per_unit",
+            "verbatim_excerpt": "each row is one complete cable-system aggregate"
+          }
+        ],
+        "timeframe": {
+          "candidate_columns": [],
+          "description": "The period after treatment assignment during which the turnout rate was measured.",
+          "name": "Post-assignment period"
+        },
+        "treatment": {
+          "candidate_columns": [
+            "treatment"
+          ],
+          "description": "Assignment to Rock the Vote advertising (treatment=1)",
+          "name": "Rock the Vote television advertising"
+        },
+        "unit": {
+          "candidate_columns": [
+            "cable_system_id"
+          ],
+          "description": "The randomized cable system, where each row represents one complete cable-system aggregate.",
+          "name": "Cable system"
+        }
+      }
+    },
+    {
+      "artifact_id": "measurementmap:an-82bd653613239d1c:db1af16efdc9bee3",
+      "artifact_type": "MeasurementMap",
+      "content_hash": "db1af16efdc9bee347728998d587686a02f4a9d90f31e9f5ec86c6d5065e3638",
+      "path": "artifacts/0015-MeasurementMap.json",
+      "payload": {
+        "concepts": [
+          {
+            "concept_id": "c:cable_system",
+            "description": "The randomized cable system, where each row represents one complete cable-system aggregate.",
+            "name": "Cable system",
+            "status": "proxy_measured"
+          },
+          {
+            "concept_id": "c:control_group",
+            "description": "Assignment to control (treatment=0)",
+            "name": "Control group",
+            "status": "proxy_measured"
+          },
+          {
+            "concept_id": "c:experimental_cable_systems",
+            "description": "85 cable television systems that were part of the randomized experiment.",
+            "name": "Experimental cable systems",
+            "status": "proxy_measured"
+          },
+          {
+            "concept_id": "c:post_assignment_period",
+            "description": "The period after treatment assignment during which the turnout rate was measured.",
+            "name": "Post-assignment period",
+            "status": "unmeasured"
+          },
+          {
+            "concept_id": "c:randomization_stratum",
+            "description": "The pre-randomization stratum used for matching, to be included as stratum fixed effects.",
+            "name": "Randomization stratum",
+            "status": "proxy_measured"
+          },
+          {
+            "concept_id": "c:rock_the_vote_television_advertising",
+            "description": "Assignment to Rock the Vote advertising (treatment=1)",
+            "name": "Rock the Vote television advertising",
+            "status": "proxy_measured"
+          },
+          {
+            "concept_id": "c:turnout_rate_of_registered_18__and_19_year_olds",
+            "description": "The post-assignment proportion of registered 18- and 19-year-olds who voted.",
+            "name": "Turnout rate of registered 18- and 19-year-olds",
+            "status": "proxy_measured"
+          }
+        ],
+        "links": [
+          {
+            "column_name": "cable_system_id",
+            "concept_id": "c:cable_system",
+            "notes": "proxy",
+            "relation": "proxies",
+            "table_name": "rock_the_vote.csv",
+            "timing": "pre_treatment"
+          },
+          {
+            "column_name": "treatment",
+            "concept_id": "c:control_group",
+            "notes": "proxy",
+            "relation": "proxies",
+            "table_name": "rock_the_vote.csv",
+            "timing": "pre_treatment"
+          },
+          {
+            "column_name": "cable_system_id",
+            "concept_id": "c:experimental_cable_systems",
+            "notes": "proxy",
+            "relation": "proxies",
+            "table_name": "rock_the_vote.csv",
+            "timing": "pre_treatment"
+          },
+          {
+            "column_name": "randomization_stratum",
+            "concept_id": "c:randomization_stratum",
+            "notes": "proxy",
+            "relation": "proxies",
+            "table_name": "rock_the_vote.csv",
+            "timing": "pre_treatment"
+          },
+          {
+            "column_name": "treatment",
+            "concept_id": "c:rock_the_vote_television_advertising",
+            "notes": "proxy",
+            "relation": "proxies",
+            "table_name": "rock_the_vote.csv",
+            "timing": "pre_treatment"
+          },
+          {
+            "column_name": "turnout_rate",
+            "concept_id": "c:turnout_rate_of_registered_18__and_19_year_olds",
+            "notes": "proxy",
+            "relation": "proxies",
+            "table_name": "rock_the_vote.csv",
+            "timing": "post_treatment"
+          }
+        ],
+        "schema_version": "measurement-map.v1"
+      }
+    },
+    {
+      "artifact_id": "causalcontext:an-82bd653613239d1c:8cd3d840c46f210b",
+      "artifact_type": "CausalContext",
+      "content_hash": "8cd3d840c46f210b1aea390fef546fbfdcd21c501c0e0ed4f1c87761bb3b82e6",
+      "path": "artifacts/0020-CausalContext.json",
+      "payload": {
+        "alternatives": [
+          {
+            "alternative_id": "alt:treatment_causes_stratum",
+            "edges": [
+              {
+                "contrary_evidence_ids": [
+                  "ev:kaggle/column/rock_the_vote.csv/randomization_stratum/description"
+                ],
+                "differing_alternative_ids": [],
+                "edge_id": "e:treatment_to_randomization_stratum",
+                "mechanism_summary": "The randomization stratum was defined and assigned pre-treatment, therefore it cannot be caused by the post-assignment treatment.",
+                "source_concept_id": "c:rock_the_vote_television_advertising",
+                "status": "disputed",
+                "supporting_evidence_ids": [],
+                "target_concept_id": "c:randomization_stratum",
+                "timeframe": "not applicable"
+              }
+            ],
+            "label": "Treatment causes randomization stratum"
+          }
+        ],
+        "concept_ids": [
+          "c:cable_system",
+          "c:control_group",
+          "c:experimental_cable_systems",
+          "c:post_assignment_period",
+          "c:randomization_stratum",
+          "c:rock_the_vote_television_advertising",
+          "c:turnout_rate_of_registered_18__and_19_year_olds"
+        ],
+        "edges": [
+          {
+            "contrary_evidence_ids": [],
+            "differing_alternative_ids": [],
+            "edge_id": "e:cable_system_to_treatment_assignment",
+            "mechanism_summary": "The cable system is the unit to which the treatment (Rock the Vote television advertising) was assigned during the randomization process.",
+            "source_concept_id": "c:cable_system",
+            "status": "evidenced",
+            "supporting_evidence_ids": [
+              "ua:context/text",
+              "ev:doc/README.md",
+              "ev:kaggle/column/rock_the_vote.csv/cable_system_id/description",
+              "ev:kaggle/dataset/description",
+              "ev:kaggle/file/rock_the_vote.csv/description"
+            ],
+            "target_concept_id": "c:rock_the_vote_television_advertising",
+            "timeframe": "pre_treatment"
+          },
+          {
+            "contrary_evidence_ids": [],
+            "differing_alternative_ids": [],
+            "edge_id": "e:cable_system_to_outcome_measurement",
+            "mechanism_summary": "The turnout rate is measured as an aggregate for each cable system after treatment assignment.",
+            "source_concept_id": "c:cable_system",
+            "status": "evidenced",
+            "supporting_evidence_ids": [
+              "ua:context/text",
+              "ev:doc/README.md",
+              "ev:kaggle/column/rock_the_vote.csv/cable_system_id/description",
+              "ev:kaggle/dataset/description",
+              "ev:kaggle/file/rock_the_vote.csv/description"
+            ],
+            "target_concept_id": "c:turnout_rate_of_registered_18__and_19_year_olds",
+            "timeframe": "post_treatment"
+          },
+          {
+            "contrary_evidence_ids": [],
+            "differing_alternative_ids": [],
+            "edge_id": "e:experimental_systems_to_treatment",
+            "mechanism_summary": "The experimental cable systems constitute the population that received the Rock the Vote television advertising treatment.",
+            "source_concept_id": "c:experimental_cable_systems",
+            "status": "evidenced",
+            "supporting_evidence_ids": [
+              "ua:context/text",
+              "ev:doc/README.md",
+              "ev:kaggle/column/rock_the_vote.csv/cable_system_id/description",
+              "ev:kaggle/dataset/description",
+              "ev:kaggle/file/rock_the_vote.csv/description"
+            ],
+            "target_concept_id": "c:rock_the_vote_television_advertising",
+            "timeframe": "pre_treatment"
+          },
+          {
+            "contrary_evidence_ids": [],
+            "differing_alternative_ids": [],
+            "edge_id": "e:experimental_systems_to_outcome",
+            "mechanism_summary": "The turnout rate is measured within the population of experimental cable systems.",
+            "source_concept_id": "c:experimental_cable_systems",
+            "status": "evidenced",
+            "supporting_evidence_ids": [
+              "ua:context/text",
+              "ev:doc/README.md",
+              "ev:kaggle/column/rock_the_vote.csv/cable_system_id/description",
+              "ev:kaggle/dataset/description",
+              "ev:kaggle/file/rock_the_vote.csv/description"
+            ],
+            "target_concept_id": "c:turnout_rate_of_registered_18__and_19_year_olds",
+            "timeframe": "post_treatment"
+          },
+          {
+            "contrary_evidence_ids": [],
+            "differing_alternative_ids": [
+              "alt:treatment_causes_stratum"
+            ],
+            "edge_id": "e:randomization_stratum_to_rock_the_vote_television_advertising",
+            "mechanism_summary": "Treatment assignment (Rock the Vote advertising) is randomized within defined strata to ensure balance of covariates.",
+            "source_concept_id": "c:randomization_stratum",
+            "status": "evidenced",
+            "supporting_evidence_ids": [
+              "ua:context/text",
+              "ev:doc/README.md",
+              "ev:kaggle/dataset/description",
+              "ev:kaggle/file/rock_the_vote.csv/description",
+              "ev:kaggle/column/rock_the_vote.csv/treatment/description"
+            ],
+            "target_concept_id": "c:rock_the_vote_television_advertising",
+            "timeframe": "pre_treatment"
+          },
+          {
+            "contrary_evidence_ids": [],
+            "differing_alternative_ids": [],
+            "edge_id": "e:randomization_stratum->turnout_rate_of_registered_18__and_19_year_olds",
+            "mechanism_summary": "Pre-randomization strata may contain characteristics that independently influence turnout rates, and are used to balance unobserved confounders.",
+            "source_concept_id": "c:randomization_stratum",
+            "status": "evidenced",
+            "supporting_evidence_ids": [
+              "ua:context/text",
+              "ev:doc/README.md"
+            ],
+            "target_concept_id": "c:turnout_rate_of_registered_18__and_19_year_olds",
+            "timeframe": "pre_treatment"
+          },
+          {
+            "contrary_evidence_ids": [],
+            "differing_alternative_ids": [],
+            "edge_id": "e:rock_the_vote_television_advertising->turnout_rate_of_registered_18__and_19_year_olds",
+            "mechanism_summary": "Rock the Vote television advertising is intended to increase the turnout rate of registered 18- and 19-year-olds.",
+            "source_concept_id": "c:rock_the_vote_television_advertising",
+            "status": "evidenced",
+            "supporting_evidence_ids": [
+              "ua:context/text",
+              "ua:question/text",
+              "ev:doc/README.md",
+              "ev:kaggle/dataset/description"
+            ],
+            "target_concept_id": "c:turnout_rate_of_registered_18__and_19_year_olds",
+            "timeframe": "post_assignment_period"
+          },
+          {
+            "contrary_evidence_ids": [],
+            "differing_alternative_ids": [],
+            "edge_id": "e:randomization_stratum_to_control_group",
+            "mechanism_summary": "Control assignment is randomized within defined strata.",
+            "source_concept_id": "c:randomization_stratum",
+            "status": "evidenced",
+            "supporting_evidence_ids": [
+              "ua:context/text",
+              "ev:doc/README.md",
+              "ev:kaggle/dataset/description",
+              "ev:kaggle/file/rock_the_vote.csv/description",
+              "ev:kaggle/column/rock_the_vote.csv/treatment/description"
+            ],
+            "target_concept_id": "c:control_group",
+            "timeframe": "pre_treatment"
+          },
+          {
+            "contrary_evidence_ids": [],
+            "differing_alternative_ids": [],
+            "edge_id": "e:cable_system_to_control_group",
+            "mechanism_summary": "The cable system is the unit to which the control assignment is made.",
+            "source_concept_id": "c:cable_system",
+            "status": "evidenced",
+            "supporting_evidence_ids": [
+              "ua:context/text",
+              "ev:doc/README.md",
+              "ev:kaggle/dataset/description",
+              "ev:kaggle/file/rock_the_vote.csv/description",
+              "ev:kaggle/column/rock_the_vote.csv/treatment/description"
+            ],
+            "target_concept_id": "c:control_group",
+            "timeframe": "pre_treatment"
+          },
+          {
+            "contrary_evidence_ids": [],
+            "differing_alternative_ids": [],
+            "edge_id": "e:control_group_to_turnout_rate_of_registered_18__and_19_year_olds",
+            "mechanism_summary": "The control group's turnout rate serves as the baseline for comparison with the treatment group, representing turnout in the absence of the specific advertising intervention.",
+            "source_concept_id": "c:control_group",
+            "status": "evidenced",
+            "supporting_evidence_ids": [
+              "ua:question/text",
+              "ua:context/text",
+              "ev:doc/README.md",
+              "ev:kaggle/dataset/description",
+              "ev:kaggle/file/rock_the_vote.csv/description",
+              "ev:kaggle/column/rock_the_vote.csv/treatment/description"
+            ],
+            "target_concept_id": "c:turnout_rate_of_registered_18__and_19_year_olds",
+            "timeframe": "c:post_assignment_period"
+          }
+        ],
+        "frame": {
+          "outcome": "c:turnout_rate_of_registered_18__and_19_year_olds",
+          "population": "Experimental cable systems",
+          "timeframe": "Post-assignment period",
+          "treatment": "c:rock_the_vote_television_advertising"
+        },
+        "schema_version": "causal-context.v1",
+        "selection_notes": "The causal graph reflects the randomized experiment design, with randomization stratum influencing treatment assignment and potentially the outcome. The primary causal link from treatment to outcome is included as evidenced by the study's intent. A disputed alternative is included for the reverse relationship between treatment and randomization stratum, as it represents a clear identification threat if true, but is contradicted by evidence of pre-treatment assignment."
+      }
+    },
+    {
+      "artifact_id": "userquestionpacket:an-82bd653613239d1c:b00a2da387230e2b",
+      "artifact_type": "UserQuestionPacket",
+      "content_hash": "b00a2da387230e2bfd66586fb1d822217b26a71744465949ae2975ff3fcfb94f",
+      "path": "artifacts/0021-UserQuestionPacket.json",
+      "payload": {
+        "design_revision": 1,
+        "packet_id": "qp:1:1",
+        "questions": [
+          {
+            "allow_unknown": true,
+            "blocked_decisions": [],
+            "expected_answer_schema": "choice:randomized|self_selected|policy_cutoff|time_of_adoption",
+            "question_id": "q:design.assignment_mechanism",
+            "question_text": "How units came to receive the treatment rather than the comparator. \u2014 for: design",
+            "requirement_ids": [
+              "design.assignment_mechanism"
+            ],
+            "why_it_matters": "Decides which method packs are admissible at all."
+          }
+        ],
+        "round_number": 1,
+        "schema_version": "user-question-packet.v1"
+      }
+    },
+    {
+      "artifact_id": "usercontextanswer:an-82bd653613239d1c:59ddc3c9a4b0dc6e",
+      "artifact_type": "UserContextAnswer",
+      "content_hash": "59ddc3c9a4b0dc6e9821b5edd5ab3a5ad29e658bdf7aa08e9cd894926205e3ce",
+      "path": "artifacts/0022-UserContextAnswer.json",
+      "payload": {
+        "answers": [
+          {
+            "answer_kind": "value",
+            "question_id": "q:design.assignment_mechanism",
+            "value": "randomized"
+          }
+        ],
+        "packet_id": "qp:1:1",
+        "provenance": "user",
+        "schema_version": "user-context-answer.v1"
+      }
+    },
+    {
+      "artifact_id": "causalcontext:an-82bd653613239d1c:b8dab1ce560a455b",
+      "artifact_type": "CausalContext",
+      "content_hash": "b8dab1ce560a455bd54b929363d0b97c7f5c027969a4f62fe538bfa252a25878",
+      "path": "artifacts/0023-CausalContext.json",
+      "payload": {
+        "alternatives": [],
+        "concept_ids": [
+          "c:cable_system",
+          "c:control_group",
+          "c:experimental_cable_systems",
+          "c:post_assignment_period",
+          "c:randomization_stratum",
+          "c:rock_the_vote_television_advertising",
+          "c:turnout_rate_of_registered_18__and_19_year_olds"
+        ],
+        "edges": [
+          {
+            "contrary_evidence_ids": [],
+            "differing_alternative_ids": [],
+            "edge_id": "e:cable_system_to_treatment_assignment",
+            "mechanism_summary": "The cable system is the unit to which the treatment was assigned.",
+            "source_concept_id": "c:cable_system",
+            "status": "evidenced",
+            "supporting_evidence_ids": [
+              "ua:context/text",
+              "ev:doc/README.md",
+              "ev:kaggle/column/rock_the_vote.csv/cable_system_id/description",
+              "ev:kaggle/dataset/description",
+              "ev:kaggle/file/rock_the_vote.csv/description",
+              "ev:kaggle/column/rock_the_vote.csv/treatment/description"
+            ],
+            "target_concept_id": "c:rock_the_vote_television_advertising",
+            "timeframe": "pre_treatment"
+          },
+          {
+            "contrary_evidence_ids": [],
+            "differing_alternative_ids": [],
+            "edge_id": "e:cable_system_to_outcome_measurement",
+            "mechanism_summary": "The turnout rate is measured as an aggregate for each cable system.",
+            "source_concept_id": "c:cable_system",
+            "status": "evidenced",
+            "supporting_evidence_ids": [
+              "ua:context/text",
+              "ev:doc/README.md",
+              "ev:kaggle/column/rock_the_vote.csv/cable_system_id/description",
+              "ev:kaggle/dataset/description",
+              "ev:kaggle/file/rock_the_vote.csv/description"
+            ],
+            "target_concept_id": "c:turnout_rate_of_registered_18__and_19_year_olds",
+            "timeframe": "post_treatment"
+          },
+          {
+            "contrary_evidence_ids": [],
+            "differing_alternative_ids": [],
+            "edge_id": "e:experimental_systems_to_treatment",
+            "mechanism_summary": "Experimental cable systems received the Rock the Vote television advertising treatment.",
+            "source_concept_id": "c:experimental_cable_systems",
+            "status": "evidenced",
+            "supporting_evidence_ids": [
+              "ua:context/text",
+              "ev:doc/README.md",
+              "ev:kaggle/column/rock_the_vote.csv/cable_system_id/description",
+              "ev:kaggle/dataset/description",
+              "ev:kaggle/file/rock_the_vote.csv/description"
+            ],
+            "target_concept_id": "c:rock_the_vote_television_advertising",
+            "timeframe": "pre_treatment"
+          },
+          {
+            "contrary_evidence_ids": [],
+            "differing_alternative_ids": [],
+            "edge_id": "e:experimental_systems_to_outcome",
+            "mechanism_summary": "The turnout rate is measured within the population of experimental cable systems.",
+            "source_concept_id": "c:experimental_cable_systems",
+            "status": "evidenced",
+            "supporting_evidence_ids": [
+              "ua:context/text",
+              "ev:doc/README.md",
+              "ev:kaggle/column/rock_the_vote.csv/cable_system_id/description",
+              "ev:kaggle/dataset/description",
+              "ev:kaggle/file/rock_the_vote.csv/description"
+            ],
+            "target_concept_id": "c:turnout_rate_of_registered_18__and_19_year_olds",
+            "timeframe": "post_treatment"
+          },
+          {
+            "contrary_evidence_ids": [],
+            "differing_alternative_ids": [],
+            "edge_id": "e:randomization_stratum_to_rock_the_vote_television_advertising",
+            "mechanism_summary": "Treatment assignment is randomized within defined strata.",
+            "source_concept_id": "c:randomization_stratum",
+            "status": "evidenced",
+            "supporting_evidence_ids": [
+              "ev:kaggle/column/rock_the_vote.csv/randomization_stratum/description",
+              "ua:context/text",
+              "ev:doc/README.md",
+              "ev:kaggle/dataset/description",
+              "ev:kaggle/file/rock_the_vote.csv/description",
+              "ev:kaggle/column/rock_the_vote.csv/treatment/description"
+            ],
+            "target_concept_id": "c:rock_the_vote_television_advertising",
+            "timeframe": "pre_treatment"
+          },
+          {
+            "contrary_evidence_ids": [],
+            "differing_alternative_ids": [],
+            "edge_id": "e:randomization_stratum->turnout_rate_of_registered_18__and_19_year_olds",
+            "mechanism_summary": "Pre-randomization strata may contain characteristics that independently influence turnout rates.",
+            "source_concept_id": "c:randomization_stratum",
+            "status": "evidenced",
+            "supporting_evidence_ids": [
+              "ev:kaggle/column/rock_the_vote.csv/randomization_stratum/description",
+              "ua:context/text",
+              "ev:doc/README.md"
+            ],
+            "target_concept_id": "c:turnout_rate_of_registered_18__and_19_year_olds",
+            "timeframe": "pre_treatment_to_post_treatment"
+          },
+          {
+            "contrary_evidence_ids": [],
+            "differing_alternative_ids": [],
+            "edge_id": "e:rock_the_vote_television_advertising->turnout_rate_of_registered_18__and_19_year_olds",
+            "mechanism_summary": "Rock the Vote television advertising is intended to increase the turnout rate.",
+            "source_concept_id": "c:rock_the_vote_television_advertising",
+            "status": "evidenced",
+            "supporting_evidence_ids": [
+              "ua:question/text",
+              "ua:context/text",
+              "ev:doc/README.md",
+              "ev:kaggle/dataset/description",
+              "ev:kaggle/file/rock_the_vote.csv/description",
+              "ev:kaggle/column/rock_the_vote.csv/treatment/description"
+            ],
+            "target_concept_id": "c:turnout_rate_of_registered_18__and_19_year_olds",
+            "timeframe": "c:post_assignment_period"
+          },
+          {
+            "contrary_evidence_ids": [],
+            "differing_alternative_ids": [],
+            "edge_id": "e:randomization_stratum_to_control_group",
+            "mechanism_summary": "Control assignment is randomized within defined strata.",
+            "source_concept_id": "c:randomization_stratum",
+            "status": "evidenced",
+            "supporting_evidence_ids": [
+              "ua:context/text",
+              "ev:doc/README.md",
+              "ev:kaggle/dataset/description",
+              "ev:kaggle/file/rock_the_vote.csv/description",
+              "ev:kaggle/column/rock_the_vote.csv/treatment/description"
+            ],
+            "target_concept_id": "c:control_group",
+            "timeframe": "pre_treatment"
+          },
+          {
+            "contrary_evidence_ids": [],
+            "differing_alternative_ids": [],
+            "edge_id": "e:cable_system_to_control_group",
+            "mechanism_summary": "The cable system is the unit to which the control assignment is made.",
+            "source_concept_id": "c:cable_system",
+            "status": "evidenced",
+            "supporting_evidence_ids": [
+              "ua:context/text",
+              "ev:doc/README.md",
+              "ev:kaggle/dataset/description",
+              "ev:kaggle/file/rock_the_vote.csv/description",
+              "ev:kaggle/column/rock_the_vote.csv/treatment/description"
+            ],
+            "target_concept_id": "c:control_group",
+            "timeframe": "pre_treatment"
+          },
+          {
+            "contrary_evidence_ids": [],
+            "differing_alternative_ids": [],
+            "edge_id": "e:control_group_to_turnout_rate_of_registered_18__and_19_year_olds",
+            "mechanism_summary": "The control group's turnout rate serves as the baseline for comparison.",
+            "source_concept_id": "c:control_group",
+            "status": "evidenced",
+            "supporting_evidence_ids": [
+              "ua:question/text",
+              "ua:context/text",
+              "ev:doc/README.md",
+              "ev:kaggle/dataset/description",
+              "ev:kaggle/file/rock_the_vote.csv/description",
+              "ev:kaggle/column/rock_the_vote.csv/treatment/description"
+            ],
+            "target_concept_id": "c:turnout_rate_of_registered_18__and_19_year_olds",
+            "timeframe": "c:post_assignment_period"
+          }
+        ],
+        "frame": {
+          "outcome": "c:turnout_rate_of_registered_18__and_19_year_olds",
+          "population": "Experimental cable systems",
+          "timeframe": "Post-assignment period",
+          "treatment": "c:rock_the_vote_television_advertising"
+        },
+        "schema_version": "causal-context.v1",
+        "selection_notes": "The causal graph includes all evidenced and hypothesized edges that contribute to the causal claim or represent structural elements of the randomized experiment. Duplicate edge hypotheses for the same directed relation were merged, retaining the strongest status and combining supporting evidence. The disputed edge 'e:treatment_to_randomization_stratum' was rejected as it represents a causal direction contrary to the established pre-treatment timing of randomization strata, and thus does not constitute a competing causal structure."
+      }
+    },
+    {
+      "artifact_id": "roleledger:an-82bd653613239d1c:d0553eca6744a0fd",
+      "artifact_type": "RoleLedger",
+      "content_hash": "d0553eca6744a0fd93392651b117dc2e563dd4368c693b9dd343240455236dfc",
+      "path": "artifacts/0024-RoleLedger.json",
+      "payload": {
+        "claims": [
+          {
+            "alternatives": [],
+            "column_refs": [
+              "treatment"
+            ],
+            "concept_id": "c:rock_the_vote_television_advertising",
+            "evidence_ids": [
+              "ua:context/text",
+              "ev:doc/README.md",
+              "ev:kaggle/column/rock_the_vote.csv/treatment/description",
+              "ev:kaggle/dataset/description",
+              "ev:kaggle/file/rock_the_vote.csv/description",
+              "ua:question/text"
+            ],
+            "graph_edge_ids": [
+              "e:randomization_stratum_to_rock_the_vote_television_advertising",
+              "e:cable_system_to_treatment_assignment",
+              "e:rock_the_vote_television_advertising->turnout_rate_of_registered_18__and_19_year_olds"
+            ],
+            "methods": [
+              "randomized_experiment"
+            ],
+            "role": "treatment",
+            "status": "evidenced",
+            "support_class": "direct_source_statement",
+            "timing": "concurrent"
+          },
+          {
+            "alternatives": [],
+            "column_refs": [
+              "turnout_rate"
+            ],
+            "concept_id": "c:turnout_rate_of_registered_18__and_19_year_olds",
+            "evidence_ids": [
+              "ua:context/text",
+              "ev:doc/README.md",
+              "ev:kaggle/column/rock_the_vote.csv/turnout_rate/description"
+            ],
+            "graph_edge_ids": [
+              "e:rock_the_vote_television_advertising->turnout_rate_of_registered_18__and_19_year_olds",
+              "e:randomization_stratum->turnout_rate_of_registered_18__and_19_year_olds"
+            ],
+            "methods": [
+              "randomized_experiment"
+            ],
+            "role": "outcome",
+            "status": "evidenced",
+            "support_class": "direct_source_statement",
+            "timing": "post_treatment"
+          },
+          {
+            "alternatives": [],
+            "column_refs": [
+              "cable_system_id"
+            ],
+            "concept_id": "c:cable_system",
+            "evidence_ids": [
+              "ua:context/text",
+              "ev:doc/README.md",
+              "ev:kaggle/column/rock_the_vote.csv/cable_system_id/description",
+              "ev:kaggle/dataset/description",
+              "ev:kaggle/file/rock_the_vote.csv/description"
+            ],
+            "graph_edge_ids": [],
+            "methods": [],
+            "role": "unit_identifier",
+            "status": "evidenced",
+            "support_class": "direct_source_statement",
+            "timing": "pre_treatment"
+          },
+          {
+            "alternatives": [],
+            "column_refs": [
+              "cable_system_id"
+            ],
+            "concept_id": "c:cable_system",
+            "evidence_ids": [
+              "ua:context/text",
+              "ev:doc/README.md",
+              "ev:kaggle/column/rock_the_vote.csv/cable_system_id/description",
+              "ev:kaggle/dataset/description",
+              "ev:kaggle/file/rock_the_vote.csv/description"
+            ],
+            "graph_edge_ids": [],
+            "methods": [],
+            "role": "cluster",
+            "status": "evidenced",
+            "support_class": "direct_source_statement",
+            "timing": "pre_treatment"
+          },
+          {
+            "alternatives": [],
+            "column_refs": [
+              "treatment"
+            ],
+            "concept_id": "c:control_group",
+            "evidence_ids": [
+              "ua:context/text",
+              "ev:doc/README.md",
+              "ev:kaggle/column/rock_the_vote.csv/treatment/description",
+              "ev:kaggle/dataset/description",
+              "ev:kaggle/file/rock_the_vote.csv/description",
+              "ua:question/text"
+            ],
+            "graph_edge_ids": [
+              "e:randomization_stratum_to_control_group",
+              "e:cable_system_to_control_group",
+              "e:control_group_to_turnout_rate_of_registered_18__and_19_year_olds"
+            ],
+            "methods": [
+              "randomized_experiment"
+            ],
+            "role": "group",
+            "status": "evidenced",
+            "support_class": "direct_source_statement",
+            "timing": "pre_treatment"
+          },
+          {
+            "alternatives": [],
+            "column_refs": [
+              "randomization_stratum"
+            ],
+            "concept_id": "c:randomization_stratum",
+            "evidence_ids": [
+              "ev:kaggle/column/rock_the_vote.csv/randomization_stratum/description",
+              "ua:context/text"
+            ],
+            "graph_edge_ids": [
+              "e:randomization_stratum_to_rock_the_vote_television_advertising",
+              "e:randomization_stratum->turnout_rate_of_registered_18__and_19_year_olds"
+            ],
+            "methods": [
+              "randomized_experiment"
+            ],
+            "role": "stratum",
+            "status": "evidenced",
+            "support_class": "direct_source_statement",
+            "timing": "pre_treatment"
+          }
+        ],
+        "frame": {
+          "outcome": "c:turnout_rate_of_registered_18__and_19_year_olds",
+          "population": "Experimental cable systems",
+          "timeframe": "Post-assignment period",
+          "treatment": "c:rock_the_vote_television_advertising"
+        },
+        "schema_version": "role-ledger.v1"
+      }
+    },
+    {
+      "artifact_id": "agentdesignproposal:an-82bd653613239d1c:96fc89bc4a6c0a07",
+      "artifact_type": "AgentDesignProposal",
+      "content_hash": "96fc89bc4a6c0a074cb1125c47ffde5ba7ff069fac47d0cfe4e0e8539569a76e",
+      "path": "artifacts/0025-AgentDesignProposal.json",
+      "payload": {
+        "assignment_mechanism": "randomized",
+        "comparator": "0",
+        "diagnostic_assessments": [],
+        "method_facts": [],
+        "optional_assumption_ids": [],
+        "optional_risk_ids": [
+          "rct.noncompliance_risk"
+        ],
+        "optional_sensitivity_ids": [],
+        "ranked_method_ids": [
+          "randomized_experiment",
+          "aipw",
+          "did",
+          "sharp_rdd"
+        ],
+        "requested_diagnostic_ids": [
+          "arm_counts",
+          "assignment_unit_uniqueness"
+        ],
+        "requested_estimand": "itt",
+        "schema_version": "agent-design-proposal.v2",
+        "source_interpretations": [
+          {
+            "evidence_id": "ua:question/text",
+            "fact_key": "estimand",
+            "relation": "direct",
+            "value": "itt",
+            "verbatim_excerpt": "What is the intention-to-treat effect"
+          },
+          {
+            "evidence_id": "ua:context/text",
+            "fact_key": "comparator",
+            "relation": "direct",
+            "value": "0",
+            "verbatim_excerpt": "treatment=1 versus treatment=0"
+          }
+        ]
+      }
+    },
+    {
+      "artifact_id": "userquestionpacket:an-82bd653613239d1c:1ae50cf00bf699ea",
+      "artifact_type": "UserQuestionPacket",
+      "content_hash": "1ae50cf00bf699eadc48255c0a2bf89ac2fbfb221f38f99b2d2d5b1b491ef2cb",
+      "path": "artifacts/0026-UserQuestionPacket.json",
+      "payload": {
+        "design_revision": 1,
+        "packet_id": "qp:1:2",
+        "questions": [
+          {
+            "allow_unknown": true,
+            "blocked_decisions": [],
+            "expected_answer_schema": "free-text.v1",
+            "question_id": "q:design.adoption_time",
+            "question_text": "Which date, period, or column defines treatment adoption for each group. \u2014 for: design",
+            "requirement_ids": [
+              "design.adoption_time"
+            ],
+            "why_it_matters": "Difference-in-differences needs treatment timing to construct pre, post, and comparison cells."
+          },
+          {
+            "allow_unknown": true,
+            "blocked_decisions": [],
+            "expected_answer_schema": "number",
+            "question_id": "q:design.cutoff",
+            "question_text": "What fixed running-variable cutoff assigned treatment. \u2014 for: design",
+            "requirement_ids": [
+              "design.cutoff"
+            ],
+            "why_it_matters": "A regression discontinuity diagnostic cannot partition support without the prespecified cutoff."
+          },
+          {
+            "allow_unknown": true,
+            "blocked_decisions": [],
+            "expected_answer_schema": "free-text.v1",
+            "question_id": "q:design.population_comparator",
+            "question_text": "Which exact observed value is the control/reference condition? For an experiment or AIPW, reply with only the treatment-column value (for example, 0), without population prose. For DiD name the comparison group; for sharp RDD use below cutoff. \u2014 for: design",
+            "requirement_ids": [
+              "design.population_comparator"
+            ],
+            "why_it_matters": "The answer binds the executable comparator. Population details are recorded separately in the study intent; a paragraph cannot be used as an observed treatment value."
+          },
+          {
+            "allow_unknown": true,
+            "blocked_decisions": [],
+            "expected_answer_schema": "boolean",
+            "question_id": "q:design.sharp_assignment",
+            "question_text": "Whether crossing the fixed cutoff deterministically changes treatment assignment. \u2014 for: design",
+            "requirement_ids": [
+              "design.sharp_assignment"
+            ],
+            "why_it_matters": "The supported RDD implementation is sharp; fuzzy assignment requires a different estimator."
+          }
+        ],
+        "round_number": 2,
+        "schema_version": "user-question-packet.v1"
+      }
+    },
+    {
+      "artifact_id": "usercontextanswer:an-82bd653613239d1c:aec873a12bd0deb3",
+      "artifact_type": "UserContextAnswer",
+      "content_hash": "aec873a12bd0deb3ae2a906d0a3e6a3e0c5b9c92b87b2a2101e89a70033917e1",
+      "path": "artifacts/0027-UserContextAnswer.json",
+      "payload": {
+        "answers": [
+          {
+            "answer_kind": "value",
+            "question_id": "q:design.adoption_time",
+            "value": "Advertising was assigned to treated cable systems for the final eight days of the 2004 U.S. presidential election campaign. This is a stratified randomized experiment with one post-election turnout observation per cable system, not staggered adoption; no date, period, or adoption-time column is present."
+          },
+          {
+            "answer_kind": "unknown",
+            "question_id": "q:design.cutoff",
+            "value": null
+          },
+          {
+            "answer_kind": "value",
+            "question_id": "q:design.population_comparator",
+            "value": "0"
+          },
+          {
+            "answer_kind": "value",
+            "question_id": "q:design.sharp_assignment",
+            "value": "false"
+          }
+        ],
+        "packet_id": "qp:1:2",
+        "provenance": "user",
+        "schema_version": "user-context-answer.v1"
+      }
+    },
+    {
+      "artifact_id": "designoutcome:an-82bd653613239d1c:9ceba5130c35df4f",
+      "artifact_type": "DesignOutcome",
+      "content_hash": "9ceba5130c35df4f0c8811b19de8d6907d538aed49462b9ab54a4d411faa4f2c",
+      "path": "artifacts/0028-DesignOutcome.json",
+      "payload": {
+        "approval": null,
+        "capacity_report": null,
+        "compiled_design": null,
+        "design_revision": 1,
+        "diagnostic_report": null,
+        "issues": [
+          {
+            "allowed_actions": [
+              "request_context"
+            ],
+            "candidate_values": [],
+            "category": "human_input",
+            "code": "user_answer_unknown",
+            "expected_constraint": "an explicit recoverable or terminal state",
+            "fingerprint": "5f81f4b4a8c14780001ad2520cd7225e0a3977d18fc31b8b3458c4e85c5fa744",
+            "json_path": "/status",
+            "required_input_ids": [
+              "design.cutoff"
+            ],
+            "responsible_actor": "user",
+            "rule_id": "coordinator.terminal_status",
+            "safe_actual_summary": "needs_context",
+            "why_blocking": "the design did not reach an approved handoff"
+          }
+        ],
+        "review_bundle": null,
+        "schema_version": "design-outcome.v2",
+        "status": "needs_context"
+      }
+    }
+  ]
+}

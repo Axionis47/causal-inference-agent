@@ -1,8 +1,4 @@
-"""Intake contracts: context classes, semantic slots, availability, submission.
-
-PRD-001 §5.7 (classification), §7 (slots), §8 (availability), §3.1
-(submission boundary); decisions D-023, D-024.
-"""
+"""Typed submission, source-field classes, and explicit semantic availability."""
 
 from __future__ import annotations
 
@@ -95,12 +91,11 @@ class SemanticSlotV1(BaseModel):
 
 def _require_exact_slots(
     slots: dict[str, SemanticSlotV1], expected: tuple[str, ...]
-) -> dict[str, SemanticSlotV1]:
+) -> None:
     if set(slots) != set(expected):
         missing = sorted(set(expected) - set(slots))
         extra = sorted(set(slots) - set(expected))
         raise ValueError(f"slot set mismatch: missing={missing} extra={extra}")
-    return slots
 
 
 class DatasetSemanticsV1(BaseModel):

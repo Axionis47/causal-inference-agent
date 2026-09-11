@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+import hashlib
 import io
+import json
+import math
 
 import polars as pl
 import pytest
 
 from causal.intake.profiler import profile_table
-from causal.shared.canonical import content_hash
+from causal.shared.canonical import canonical_bytes, content_hash
 
 CSV = (
     b"unit_id,earnings,group,visit_date,notes\n"
@@ -41,6 +44,7 @@ class TestTableFacts:
         assert isinstance(columns, dict)
         assert columns["earnings"]["null_count"] == 1
         assert columns["earnings"]["null_rate"] == pytest.approx(0.2)
+        assert columns["earnings"]["cardinality"] == 3
 
     def test_numeric_stats(self, profile: dict[str, object]) -> None:
         numeric = profile["columns"]["earnings"]["numeric"]  # type: ignore[index]
@@ -83,9 +87,66 @@ class TestDeterminismAndFormats:
         assert content_hash(first) == content_hash(second)
 
     def test_input_hash_recorded(self, profile: dict[str, object]) -> None:
-        import hashlib
-
         assert profile["input_sha256"] == hashlib.sha256(CSV).hexdigest()
+
+    @pytest.mark.parametrize("media_type", ["csv", "tsv", "parquet"])
+    def test_non_finite_values_preserve_evidence_and_canonical_roundtrip(
+        self, media_type: str,
+    ) -> None:
+        data = (
+            b"mixed,nonfinite,finite\n"
+            b"NaN,NaN,1\ninf,inf,2\n-inf,-inf,3\n"
+            b"1,NaN,4\n3,inf,5\n,-inf,6\n"
+        )
+        if media_type == "tsv":
+            data = data.replace(b",", b"\t")
+        elif media_type == "parquet":
+            buffer = io.BytesIO()
+            pl.read_csv(io.BytesIO(data)).write_parquet(buffer)
+            data = buffer.getvalue()
+
+        result = profile_table(data, media_type, "profiler.v1")
+        columns = result["columns"]
+        assert isinstance(columns, dict)
+        assert result["input_sha256"] == hashlib.sha256(data).hexdigest()
+        assert result["row_count"] == 6
+        assert columns["mixed"]["null_count"] == 1
+        assert columns["mixed"]["cardinality"] == 5
+        assert columns["mixed"]["numeric"] == {
+            "min": 1.0, "max": 3.0, "mean": 2.0,
+            "std": pytest.approx(math.sqrt(2)),
+            "quantiles": {"0.25": 1.5, "0.5": 2.0, "0.75": 2.5},
+            "non_finite_count": 3,
+        }
+        assert columns["nonfinite"]["null_count"] == 0
+        assert columns["nonfinite"]["all_null"] is False
+        assert columns["nonfinite"]["numeric"] == {
+            "min": None, "max": None, "mean": None, "std": None,
+            "quantiles": {"0.25": None, "0.5": None, "0.75": None},
+            "non_finite_count": 6,
+        }
+        assert columns["finite"]["numeric"] == {
+            "min": 1.0, "max": 6.0, "mean": 3.5,
+            "std": pytest.approx(math.sqrt(3.5)),
+            "quantiles": {"0.25": 2.25, "0.5": 3.5, "0.75": 4.75},
+            "non_finite_count": 0,
+        }
+        encoded = canonical_bytes(result)
+        assert json.loads(encoded) == result
+        assert canonical_bytes(json.loads(encoded)) == encoded
+        assert content_hash(result) == hashlib.sha256(encoded).hexdigest()
+        assert content_hash(result) == content_hash(
+            profile_table(data, media_type, "profiler.v1")
+        )
+
+    def test_finite_values_with_overflowed_statistics_are_canonical(self) -> None:
+        result = profile_table(b"x\n1e308\n1e308\n", "csv", "profiler.v1")
+        numeric = result["columns"]["x"]["numeric"]  # type: ignore[index]
+        assert numeric["min"] == numeric["max"] == 1e308
+        assert numeric["non_finite_count"] == 0
+        assert numeric["mean"] is None
+        assert numeric["std"] is None
+        assert json.loads(canonical_bytes(result)) == result
 
     def test_tsv(self) -> None:
         tsv = CSV.replace(b",", b"\t")
@@ -106,4 +167,5 @@ class TestDeterminismAndFormats:
         data = b"a,b\n,x\n,x\n"
         columns = profile_table(data, "csv", "profiler.v1")["columns"]
         assert columns["a"]["all_null"] is True  # type: ignore[index]
+        assert columns["a"]["cardinality"] == 0  # type: ignore[index]
         assert columns["b"]["constant"] is True  # type: ignore[index]

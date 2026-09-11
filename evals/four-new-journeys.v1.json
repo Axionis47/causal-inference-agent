@@ -1,0 +1,93 @@
+{
+  "schema_version": "four-new-journeys.v1",
+  "cases": [
+    {
+      "case_id": "rock_the_vote_rct",
+      "family": "randomized_experiment",
+      "context_variants": [
+        "rich",
+        "sparse"
+      ],
+      "eval_id": "EV-NEW-001",
+      "source": {
+        "kind": "url",
+        "url": "https://raw.githubusercontent.com/vincentarelbundock/Rdatasets/1dcc2bf5f955cc1224a3e1307256e1fe86b68dae/csv/pscl/RockTheVote.csv",
+        "version": "Rdatasets@1dcc2bf5f955cc1224a3e1307256e1fe86b68dae",
+        "sha256": "1281dab15dd01905096947e4495a4a342ca7e8654b0b613deeade923fc94eca4",
+        "provenance": "Green-Vavreck (2008) Rock the Vote cable-system randomized experiment; pscl snapshot. All 85 randomized cable systems retained as one row per assignment cluster; 42 treated and 43 control within 40 randomization strata."
+      },
+      "file_name": "rock_the_vote.csv",
+      "question": "What is the intention-to-treat effect of randomized Rock the Vote television advertising on the turnout rate of registered 18- and 19-year-olds across the experimental cable systems?",
+      "context": "This is a randomized experiment: 85 cable television systems were assigned within 40 pre-randomization strata to Rock the Vote advertising (treatment=1) or control (treatment=0). cable_system_id identifies the randomized cable system, and each row is one complete cable-system aggregate, not an individual voter. turnout_rate is the post-assignment proportion of registered 18- and 19-year-olds who voted. randomization_stratum records the matched randomization stratum and should enter as stratum fixed effects. Estimate the cluster-level ITT for treatment=1 versus treatment=0 using one unweighted cable-system outcome per row; the contrast is on the turnout-proportion scale. The same cable_system_id may serve as the cluster role because each randomized cluster contributes exactly one row. Do not expand rows into individual voters or weight them by voter counts. The target is the experimental cable systems, with no unsupported claim of a nationwide individual-level effect. Original source fields r and n are turnout numerator and voter denominator, and p is the supplied proportion; the projection retains p without recomputing outcomes. User-requested purpose: demonstrate and verify this public-data causal analysis end to end, including reproducibility, diagnostics and interpretable reporting.",
+      "expected_initial_question_ids": [],
+      "answers": {},
+      "transform": "rock_the_vote_projection_v1"
+    },
+    {
+      "case_id": "nhefs_aipw",
+      "family": "aipw",
+      "context_variants": [
+        "rich",
+        "sparse"
+      ],
+      "eval_id": "EV-STRESS-002",
+      "source": {
+        "kind": "url",
+        "url": "https://raw.githubusercontent.com/vincentarelbundock/Rdatasets/1dcc2bf5f955cc1224a3e1307256e1fe86b68dae/csv/causaldata/nhefs_complete.csv",
+        "version": "Rdatasets@1dcc2bf5f955cc1224a3e1307256e1fe86b68dae",
+        "sha256": "e29d98d35265a96e17793449434ea37a690507885be91b5ca676d8289aae612d",
+        "provenance": "NHEFS complete-case observational smoking-cessation cohort from causaldata"
+      },
+      "file_name": "nhefs.csv",
+      "question": "What is the ATE of quitting smoking by 1982 on weight change from 1971 to 1982?",
+      "context": "This is an observational cohort, not randomized. treatment is qsmk recoded as 1 for quitting and 0 for not quitting; weight_change is wt82_71 in kilograms; participant_id identifies a person. The approved pre-exposure adjustment set is age, sex, race, education, smokeintensity, smokeyrs, exercise, active, and wt71. Estimate ATE for treatment=1 versus treatment=0 in the frozen complete-case cohort. Positivity, consistency, and no unmeasured confounding remain assumptions. User-requested purpose: demonstrate and verify this public-data causal analysis end to end, including reproducibility, diagnostics and interpretable reporting.",
+      "expected_initial_question_ids": [],
+      "answers": {},
+      "transform": "nhefs_projection_v1"
+    },
+    {
+      "case_id": "castle_doctrine_did",
+      "family": "did",
+      "context_variants": [
+        "rich",
+        "sparse"
+      ],
+      "eval_id": "EV-NEW-003",
+      "source": {
+        "kind": "url",
+        "url": "https://raw.githubusercontent.com/vincentarelbundock/Rdatasets/1dcc2bf5f955cc1224a3e1307256e1fe86b68dae/csv/causaldata/castle.csv",
+        "version": "Rdatasets@1dcc2bf5f955cc1224a3e1307256e1fe86b68dae",
+        "sha256": "968835273bec489fe26836b575ee99a7637d42f229622296701758e6c463cd40",
+        "provenance": "Cheng-Hoekstra (2013) Castle Doctrine state-year panel, causaldata snapshot. The fixed transform selects the 13 states whose source post first equals 1 in 2007 and the 29 never-treated states, then excludes transition year 2006 for both groups. These 13 states are independently verified as effyear=2006 in Mixtape castle.dta commit9471dd0c45477386bf208516882895af340f3d33. Retained-year to period mapping: 2000:0, 2001:1, 2002:2, 2003:3, 2004:4, 2005:5, 2007:6, 2008:7, 2009:8, 2010:9. This is schedule-based selection with all outcome values retained."
+      },
+      "file_name": "castle_doctrine.csv",
+      "question": "What is the DiD ATT on log homicide rates in 2007-2010 for states that adopted Castle Doctrine in 2006, compared with states that never adopted during the source panel?",
+      "context": "This is an observational simultaneous-adoption difference-in-differences panel restricted before estimation to the 13 states that enacted Castle Doctrine in 2006 and the 29 states that never adopted in 2000-2010. The transition year 2006 is omitted for every state because adoption-year exposure is partial. state_id is the state unit and clustering unit; period is the ordered retained-wave index 0 through 9 for years 2000,2001,2002,2003,2004,2005,2007,2008,2009,2010. The fixed adoption_time is period 6, which is the first full calendar year after enactment (2007), not the legal enactment date. treated_group is 1 for the 2006 adopting states and 0 for never-treated states. treatment is active full-year exposure, equal to 1 only for the treated_group in period >=6 and 0 otherwise. log_homicide is the source l_homicide, the natural log of homicide rate per 100,000 population. Use state_id plus period grain, treated_group as group, period as time, and state_id clustering. Estimate ATT for the fully exposed 2007-2010 post periods against never-treated states, with no outcome-dependent selection and no population weighting. Event-time is measured in retained observation waves: reference -1 is 2005 and event 0 is 2007. Their gap spans two calendar years; event offsets must never be described as elapsed years. Parallel trends, no spillovers and no anticipation before enactment remain assumptions; pre-trend tests do not prove them. This is a restricted-cohort analysis, not a reproduction of the original all-cohort paper. User-requested purpose: demonstrate and verify this public-data causal analysis end to end, including reproducibility, diagnostics and interpretable reporting.",
+      "expected_initial_question_ids": [],
+      "answers": {},
+      "transform": "castle_2007_cohort_projection_v1"
+    },
+    {
+      "case_id": "head_start_rdd",
+      "family": "sharp_rdd",
+      "context_variants": [
+        "rich",
+        "sparse"
+      ],
+      "eval_id": "EV-STRESS-004",
+      "source": {
+        "kind": "url",
+        "url": "https://raw.githubusercontent.com/rdpackages-replication/CCF_2020_ECTJ/a6e699a5b7937ce72f3c5229ba265816c776b4fc/headstart.csv",
+        "version": "CCF_2020_ECTJ@a6e699a5b7937ce72f3c5229ba265816c776b4fc",
+        "sha256": "5af1328bfd53087adaa115cac0ace8e8c09c664469f437fdb2864e946376650e",
+        "provenance": "Ludwig-Miller Head Start county RDD data in the Calonico-Cattaneo-Farrell replication"
+      },
+      "file_name": "head_start.csv",
+      "question": "What is the local reduced-form effect at the Head Start poverty cutoff of grant-writing assistance eligibility on child mortality related to Head Start services?",
+      "context": "poverty_rate_1960 is the running variable, the fixed cutoff is exactly 59.1984, eligibility is assigned sharply at poverty_rate_1960 greater than or equal to 59.1984, treatment is that binary eligibility indicator, and child_mortality is the post-program outcome. county_id identifies a county and each row is one county. Estimate only the local sharp-RDD reduced-form effect of grant-writing assistance eligibility above versus below the cutoff, not the effect of funding, participation, or service receipt. Source measurement documentation: poverty_rate_1960 is povrate60, the 1960 county poverty rate measured in percent. child_mortality is mort_age59_related_postHS, the average annual mortality rate per 100,000 children ages 5-9 during 1973-1983 for causes addressed by Head Start health services. The replication dictionary https://users.ssc.wisc.edu/~bhansen/econometrics/LM2007_description.pdf identifies these exact variables and years; https://search.r-project.org/CRAN/refmans/RDHonest/html/headst.html documents the same Ludwig-Miller outcome unit. The four-column projection contains no baseline covariates, so baseline covariate continuity and covariate-adjusted sensitivity cannot be assessed from these data. User-requested purpose: demonstrate and verify this public-data causal analysis end to end, including reproducibility, diagnostics and interpretable reporting.",
+      "expected_initial_question_ids": [],
+      "answers": {},
+      "transform": "head_start_projection_v1"
+    }
+  ]
+}

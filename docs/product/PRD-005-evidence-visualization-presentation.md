@@ -1,5 +1,14 @@
 # PRD-005 — Evidence visualization and final presentation
 
+**T-039 amendment (2026-09-10):** The [system boundary amendment](SYSTEM-CONTRACT.md#t-039-boundary-amendment--2026-09-10)
+and [post-analysis contract](../post_analysis/contract.md) replace the historical
+curator/template/coordinator design below for live execution. One LangGraph authoring
+loop uses validated visualization/report tools; a separate read-only LLM reviews the
+evidence and actual final page images. Only code releases the exact reviewed bundle.
+The implemented outcomes are complete, blocked and incomplete. See the maintained
+[graph and recovery rules](../post_analysis/graph.md) and [removal map](../post_analysis/refactor.md).
+Historical artifact definitions below describe compatibility, not a second live path.
+
 Status: final for implementation  
 Product stage: post-judgment evidence communication  
 Depends on: `SYSTEM-CONTRACT.md`; PRD-002 — causal design harness; PRD-004 — estimation,
@@ -55,7 +64,8 @@ maintainer. They do not reopen estimation and they never cause PRD-005 to ask th
 6. One immutable, validated `VisualizationCatalog` JSON artifact contains the four method
    profiles, template definitions, capacity limits, display profile, theme, and shared
    visual-honesty rules. V1 has no plugin loader or runtime registration framework.
-7. The curator returns one typed `FigurePlanDraft`; it returns no chart code.
+7. The curator returns one typed `FigurePlanDecisionV2` containing registered IDs and layout
+   choices only; it returns no wording or chart code.
 8. One deterministic validator checks the draft and returns stable errors.
 9. One deterministic compiler turns an accepted plan into declarative Vega-Lite specifications.
 10. One local renderer produces SVG and PNG from the same frozen specification and figure data.
@@ -79,9 +89,9 @@ maintainer. They do not reopen estimation and they never cause PRD-005 to ask th
 | Component | Owns | Does not own |
 |---|---|---|
 | PRD-002 causal-graph renderer | approved concept graph, uncertainty styling, SVG, and node-edge alternative | statistical-result figures or final evidence order |
-| PRD-004 figure-data builder | statistical values, aggregations, bins, intervals, denominators, labels, and provenance | chart type, axes, layout, caption wording |
+| PRD-004 figure-data builder | statistical values, aggregations, bins, intervals, denominators, labels, and provenance | chart type, axes, layout, or presentation wording |
 | Presentation context builder | exact bounded context sent to the curator | visual judgment or statistical computation |
-| Visualization curator | template choice, evidence order, panel grouping, label placement, and evidence-linked wording | data changes, statistics, free-form code, approval |
+| Visualization curator | template choice, evidence order, panel grouping, and registered layout choices | data changes, statistics, wording, free-form code, or approval |
 | Deterministic validator | integrity, evidence coverage, units, axes, uncertainty, qualifications, and accessibility requirements | choosing the substantive story |
 | Deterministic compiler | mapping an accepted plan and frozen fields into a declarative specification | template selection or new values |
 | Local renderer | converting one frozen specification into SVG and PNG | data access beyond the referenced figure artifact |
@@ -98,7 +108,7 @@ These are responsibilities inside one presentation stage. They are not separate 
 - compiling one frozen `PresentationContextManifest`;
 - planning the whole presentation with one initial curator call and at most two targeted schema
   corrections;
-- optionally resolving one bounded set of layout facts;
+- hydrating bounded layout facts deterministically before the curator call;
 - validating one typed figure plan;
 - compiling declarative figure specifications;
 - rendering static SVG and PNG figures;
@@ -132,8 +142,8 @@ PRD-005 opens with exactly:
 - `estimation_bundle_artifact_id`;
 - `claim_judgment_artifact_id`;
 - `figure_data_bundle_artifact_id`;
-- `experiment_design_artifact_id`; and
-- `pre_estimation_capacity_check_artifact_id` for the exact passing pre-estimation recheck.
+- `compiled_design_artifact_id`; and
+- `capacity_report_artifact_id` for the design report that survived the exact plan recheck.
 
 The opening `HandoffManifestV1` supplies the inherited `analysis_id`, producing PRD-004
 `stage_run_id`, exact IDs and hashes, schema and implementation versions, originating outcome,
@@ -154,12 +164,11 @@ Entry requires:
 8. Figure data contain quantities, units, labels, denominators, uncertainty, suppression status,
    and provenance.
 9. Figure data contain no unrestricted raw observations or unapproved computed statistics.
-10. The approved `CausalGraphView` referenced by the experiment design exists and matches its
+10. The approved `CausalGraphView` referenced by the compiled design exists and matches its
     approved hash. PRD-005 may place it but may not revise or rerender it.
 11. One supported visualization-catalog version and one standard display profile resolve.
-12. The explicit pre-estimation `DeliveryCapacityCheck` has status `pass`, matches its handoff ID
-    and hash, is valid for the exact frozen result cardinalities, and maps to the selected catalog
-    version.
+12. The bound design `CapacityReport` has status `pass`, matches its handoff ID and hash, survived
+    PRD-004's exact frozen-plan recheck, and maps to the selected catalog version.
 13. The PRD-004 handoff trace acknowledgement is present and the PRD-005 LangSmith health and
     authorization preflight succeeds before any stage work.
 
@@ -173,10 +182,8 @@ flowchart TD
     A["PRD-004 HandoffManifestV1: five artifact IDs"] --> O["LangSmith preflight"]
     O --> B["Validate status, hashes, parents, capacity, and required evidence"]
     B --> C["Freeze PresentationContextManifest"]
-    C -->|"claim, qualifications, evidence schemas, compatible templates"| D["One visualization-curator call"]
-    D -->|"optional one bounded request"| E["Resolve registered layout facts"]
-    E --> D
-    D -->|"bundle-level FigurePlanDraft"| F["Validate plan"]
+    C -->|"claims, qualifications, evidence schemas, templates, layout facts"| D["One visualization-curator call"]
+    D -->|"FigurePlanDecisionV2"| F["Validate and compile plan text"]
     F -->|"valid"| G["Freeze FigurePlan"]
     G --> H["Compile one FigureSpec per figure"]
     H -->|"maximum eight"| I["Render SVG and PNG per accepted figure"]
@@ -216,14 +223,15 @@ thread, model messages, prompts, checkpoints, scratch context, or memory. PRD-00
 - approved question, estimand, method, claim status, statement IDs, and qualification IDs;
 - required visual-evidence IDs and figure-data schemas;
 - compatible template IDs from the selected method profile;
-- quantities, units, field descriptions, cardinalities, label bounds, and suppression states;
+- quantities, units, field descriptions, cardinalities, label bounds, suppression states, and
+  compiler-measured layout facts;
 - the standard display profile;
 - curator, compiler, renderer, validator, and delivery allowlists; and
 - catalog, prompt, model-profile, schema, compiler, renderer, and validator versions.
 
 The model receives `AgentTaskEnvelopeV1<PresentationCuratorContext>`. Its shared header binds the
-manifest ID and hash, task scope, exact parent artifacts, evidence and tool allowlists, required
-`FigurePlanDraft` schema, token/tool/retry/correction budgets, and stable stopping states. The
+manifest ID and hash, task scope, exact parent artifacts, evidence allowlist, empty tool allowlist,
+required `FigurePlanDecisionV2` schema, token/retry/correction budgets, and stable stopping states. The
 presentation-specific payload contains only the approved claims, qualification references,
 figure-data schemas and safe bounded facts, compatible catalog entries, and display constraints.
 
@@ -234,8 +242,7 @@ or executable specification.
 
 | Receiver | Receives | May retrieve | Returns | Next destination |
 |---|---|---|---|---|
-| Curator | `AgentTaskEnvelopeV1<PresentationCuratorContext>` | at most one bounded layout-fact response for named evidence IDs | `AgentTaskResultV1<FigurePlanDraft>` or typed inability | plan validator |
-| Layout resolver tool `resolve_registered_layout_facts` | enumerated evidence IDs and registered fact names | bounded frozen figure-data summaries | cardinality, label, density, domain, and collision facts | same curator task only |
+| Curator | `AgentTaskEnvelopeV1<PresentationCuratorContext>` | nothing; layout facts are already hydrated | `AgentTaskResultV1<FigurePlanDecisionV2>` or typed inability | plan validator and text compiler |
 | Plan validator | draft plan, manifest, catalog, and exact parent hashes | no open-ended context | accepted plan or stable validation errors | compiler or targeted correction |
 | Compiler | accepted plan, templates, and figure-data references | exact frozen fields referenced by the plan | declarative `FigureSpec` artifacts | renderer |
 | Renderer | one frozen spec, local theme assets, and referenced figure data | no other context | SVG and PNG artifacts | final validator |
@@ -302,7 +309,7 @@ Each template declares all of the following; absent or unbounded capacity is inv
 
 The catalog-wide V1 bounds are at most six figures in one bundle, at most three panels in one
 figure, and at most eight simultaneous compile or render tasks. A template may declare smaller
-bounds. Exact bounds live in the versioned catalog and are checked by `DeliveryCapacityCheck`, the
+bounds. Exact bounds live in the versioned catalog and are checked by `CapacityReport`, the
 plan validator, the compiler, and the final validator.
 
 The application loads exactly one catalog version per run. The curator cannot add to or edit it.
@@ -319,10 +326,8 @@ The curator may:
 - order primary, diagnostic, sensitivity, and support evidence within catalog constraints;
 - place directly comparable evidence in one panel or aligned small multiples;
 - choose label and legend positions from enumerated options;
-- request registered optional annotations;
-- draft one concise evidence-linked caption per figure;
-- draft one accessible description per figure; and
-- draft a concise presentation summary using approved statements and qualifications.
+- select registered optional annotation IDs; and
+- attach registered qualification IDs to the primary evidence figure.
 
 ### 9.2 Forbidden decisions
 
@@ -342,14 +347,13 @@ The curator may not:
 
 ### 9.3 Output and correction
 
-The curator returns one schema-valid `FigurePlanDraft` from one initial invocation. If it cannot
+The curator returns one schema-valid `FigurePlanDecisionV2` from one initial invocation. If it cannot
 find an honest compatible template or arrangement, it returns the implicated evidence IDs and a
 typed reason.
 
 A failed validator may request at most two targeted corrections for the same stable error code
 and task identity. Each correction contains only the invalid fragment, error code, implicated
-IDs, and enumerated legal choices. The optional bounded layout-fact lookup is one allowlisted tool
-operation within that same task; it is not a second agent or a new planning call. Repeated failure
+IDs, and enumerated legal choices. The task has no tool loop. Repeated failure
 becomes `needs_template`, `needs_layout_revision`, or `failed`; permissions never widen.
 
 ## 10. Figure plan contract
@@ -364,7 +368,7 @@ The accepted `FigurePlan` contains:
 - selected figure-data artifact IDs and hashes;
 - panel grouping and scale-sharing choices;
 - enumerated label, legend, and annotation choices;
-- caption and accessible-description drafts with evidence references;
+- compiler-authored captions and accessible descriptions derived from registered evidence;
 - qualification placement; and
 - prompt, model-profile, schema, and validator versions.
 
@@ -524,7 +528,7 @@ or frozen result artifact. Generic connective text contains no numerical or caus
 Artifacts pass in this order:
 
 1. **Input integrity:** the PRD-004 handoff, hashes, claim status, evidence IDs, and catalog
-   version match; the exact delivery-capacity check and LangSmith preflight pass.
+   version match; the exact capacity report and LangSmith preflight pass.
 2. **Plan honesty:** every required evidence item and qualification is present; templates,
    quantities, units, denominators, axes, scales, and references are compatible.
 3. **Compilation integrity:** every visual field resolves to frozen figure data and the spec adds
@@ -631,7 +635,7 @@ Rendered figure or summary statement
       → VisualizationCatalog + PresentationContextManifest
       → FigureDataArtifact + ClaimJudgment
       → frozen estimate / diagnostic / sensitivity result
-      → EstimationPlan + PreparedFrameBundle + approved ExperimentDesign
+      → EstimationPlan + PreparedFrameBundle + approved CompiledDesign
 ```
 
 The curator draft is never the source of a number or causal claim.
@@ -644,14 +648,11 @@ flushed at the boundary of context construction, curator invocation, validation,
 render task, final fan-in, artifact commit, and handoff. It is debugging evidence only;
 PostgreSQL and immutable artifacts remain product authority.
 
-After deterministic task-envelope allowlisting and a second trace-redaction pass, LangSmith
-receives the complete prompt and response text actually seen and returned by the curator,
-including the bounded approved statements, qualifications, safe figure-data facts, and catalog
-choices required for replay. Credentials, connection values, signed URLs, raw provider captures,
-unrestricted rows, dataframes, predictions, weights, residuals, replicate arrays, unrestricted
-statistical payloads, binary renders, and object contents are forbidden. Platform JSON logs
-contain only allowlisted scalar metadata and never contain prompt or response text, figure-data
-values, claims, captions, descriptions, specifications, SVG, or PNG.
+The explicit gateway span sends LangSmith only allowlisted scalar identities, prompt/schema/
+envelope hashes, model profile, seed, correction count, evaluation IDs, attempts, token usage,
+and terminal error code. Prompt text, response text, reasoning, credentials, connection values,
+signed URLs, rows, statistical payloads, gold labels, binary renders, and object contents are
+forbidden from traces and platform logs.
 
 On a LangSmith health, authorization, emission, flush, or acknowledgement failure, PRD-005:
 
@@ -670,7 +671,6 @@ execution mode. The failure event diagnoses the stop; it does not satisfy the tr
 |---|---|---|
 | Stage | `stage.started`, `stage.completed`, `stage.failed` | one terminal stage status |
 | Curator | `agent.started`, `agent.schema_failed`, `agent.correction_requested`, `task.completed`, `task.failed` | task and attempt identities stay stable across targeted correction |
-| Layout lookup | `tool.started`, `tool.completed`, `tool.denied`, `tool.failed` | only registered fact names and evidence IDs |
 | Validation and artifact commit | `artifact.validation_failed`, `artifact.committed` | schema/validator versions and artifact lineage |
 | Compile/render fan-out | `task.started`, `task.completed`, `task.failed`, `retry.scheduled`, `retry.exhausted` | maximum eight concurrent tasks and three total transient attempts |
 | Handoff | `handoff.accepted`, `handoff.rejected` | exact bundle and manifest identities |
@@ -766,14 +766,14 @@ interactive dashboards, or publishing.
    checkpoints, scratch context, or memory.
 4. A new PRD-005 `stage_run_id` is created and no `graph_thread_id` is created.
 5. Exactly one `PresentationContextManifest` is frozen before the curator call.
-6. The curator receives exactly one `AgentTaskEnvelopeV1<PresentationCuratorContext>` with a
-   tool allowlist, required schema, budgets, stopping states, and exact parent IDs and hashes.
+6. The curator receives exactly one `AgentTaskEnvelopeV1<PresentationCuratorContext>` with an
+   empty tool allowlist, required schema, budgets, stopping states, and exact parent IDs and hashes.
 7. Exactly one curator plans the complete bundle; no agent is created per figure, panel, caption,
    format, or accessibility alternative.
 8. The curator receives no raw row, prepared frame, unrestricted analytical tool, or executable
    code capability.
-9. The curator has one initial call, may make one bounded layout-fact request, and receives at
-   most two targeted schema corrections for the same task and stable validation code.
+9. The curator has one initial call, zero tool calls, and at most two targeted schema corrections
+   for the same task and stable validation code.
 10. Every model output passes deterministic plan validation and artifact commit before the
     compiler can receive its ID.
 11. Every required visual-evidence ID and mandatory qualification is presented.
@@ -814,8 +814,8 @@ interactive dashboards, or publishing.
     renderer fingerprint.
 31. Required LangSmith preflight and every operation-boundary flush are acknowledged before
     progression.
-32. LangSmith contains the complete deterministically sanitized curator prompt and response and
-    none of the forbidden payload classes.
+32. LangSmith contains only the allowlisted gateway span metadata and hashes, never curator
+    prompt/response text, reasoning, rows, credentials, object payloads, or evaluator gold labels.
 33. A LangSmith outage before work, after the curator, during compile/render, or before handoff
     produces `failed_observability`, preserves committed artifacts, and exposes no delivery.
 34. Every registered operation emits valid `OperationalEventV1` JSON mirrored into its LangSmith

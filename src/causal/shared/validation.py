@@ -4,20 +4,51 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterable, Iterator, Mapping, Sequence
+from copy import deepcopy
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Annotated, Any, Final
+from typing import Annotated, Any, Final, cast
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from causal.shared.contracts import Identity
+from causal.shared.contracts import (
+    REFERENCE_KIND_SCHEMA_KEY,
+    REFERENCE_ROLE_SCHEMA_KEY,
+    Identity,
+    ReferenceKind,
+    ReferenceRole,
+)
 from causal.shared.envelope import AgentTaskResultV1, EvidenceClass
 from causal.shared.registry import RegistryError
 
 __all__ = [
-    "ACTIONS", "ASK_ACTIONS", "DROP_ACTIONS", "EVIDENCE_ACTIONS", "EVIDENCE_CLASS_PREFIXES",
-    "FIX_ACTIONS", "ValidationIssueV1", "ValidationReport", "ValidationRuleV1", "as_tuple",
-    "collect_ids", "evidence_class", "has_cycle", "load_rules", "make_issue", "parse_strict",
-    "self_citation_issues", "shape_report", "unresolved_issues",
+    "ACTIONS",
+    "ASK_ACTIONS",
+    "DROP_ACTIONS",
+    "EVIDENCE_ACTIONS",
+    "EVIDENCE_CLASS_PREFIXES",
+    "FIX_ACTIONS",
+    "ReferenceField",
+    "ReferenceKind",
+    "ReferenceRole",
+    "ValidationIssueV1",
+    "ValidationReport",
+    "ValidationRuleV1",
+    "as_tuple",
+    "collect_ids",
+    "constrain_reference_schema",
+    "evidence_class",
+    "has_cycle",
+    "load_rules",
+    "make_issue",
+    "parse_strict",
+    "reference_projection",
+    "reference_snapshot",
+    "rewrite_references",
+    "shape_report",
+    "unresolved_issues",
+    "validate_references",
+    "walk_reference_fields",
 ]
 
 # The §16.4 correction actions, offered as four bundles.
@@ -33,6 +64,95 @@ EVIDENCE_CLASS_PREFIXES: Final = (
     ("ev:kaggle/dataset/", EvidenceClass.SOURCE_STATEMENT))
 
 _MODEL_CONFIG = ConfigDict(frozen=True, extra="forbid", strict=True)
+
+
+@dataclass(frozen=True)
+class ReferenceField:
+    """One metadata-declared reference field reached through a model's JSON schema."""
+
+    kind: ReferenceKind
+    role: ReferenceRole
+    path: str
+    schema: dict[str, Any]
+    value: Any
+
+    def values(self) -> tuple[tuple[str, str], ...]:
+        """String values with exact JSON-pointer paths, including sequence indexes."""
+        if isinstance(self.value, str):
+            return ((self.path, self.value),)
+        if isinstance(self.value, list | tuple):
+            return tuple(
+                (f"{self.path}/{index}", value)
+                for index, value in enumerate(self.value)
+                if isinstance(value, str)
+            )
+        return ()
+
+
+_MISSING: Final = object()
+
+
+def _pointer(parts: tuple[str, ...]) -> str:
+    encoded = (part.replace("~", "~0").replace("/", "~1") for part in parts)
+    return "/" + "/".join(encoded) if parts else ""
+
+
+def _resolve_schema(schema: Mapping[str, Any], root: Mapping[str, Any]) -> Mapping[str, Any]:
+    reference = schema.get("$ref")
+    if not isinstance(reference, str) or not reference.startswith("#/"):
+        return schema
+    target: Any = root
+    for token in reference[2:].split("/"):
+        target = target[token.replace("~1", "/").replace("~0", "~")]
+    return cast(Mapping[str, Any], target)
+
+
+def walk_reference_fields(
+    model_or_schema: type[BaseModel] | Mapping[str, Any], value: Any = _MISSING,
+    *, prefix: str = "",
+) -> tuple[ReferenceField, ...]:
+    """Walk every typed reference/declaration in one schema, optionally paired with a value."""
+    root = (model_or_schema.model_json_schema()
+            if isinstance(model_or_schema, type) and issubclass(model_or_schema, BaseModel)
+            else dict(model_or_schema))
+    found: list[ReferenceField] = []
+
+    def visit(schema: Mapping[str, Any], held: Any, parts: tuple[str, ...]) -> None:
+        kind_value = schema.get(REFERENCE_KIND_SCHEMA_KEY)
+        if isinstance(kind_value, str):
+            found.append(ReferenceField(
+                kind=ReferenceKind(kind_value),
+                role=ReferenceRole(str(schema.get(
+                    REFERENCE_ROLE_SCHEMA_KEY, ReferenceRole.REFERENCE.value))),
+                path=prefix + _pointer(parts), schema=cast(dict[str, Any], schema),
+                value=None if held is _MISSING else held,
+            ))
+            return
+        resolved = _resolve_schema(schema, root)
+        if resolved is not schema:
+            visit(resolved, held, parts)
+            return
+        for choice in schema.get("anyOf", ()):
+            if isinstance(choice, Mapping):
+                visit(choice, held, parts)
+        properties = schema.get("properties")
+        if isinstance(properties, Mapping):
+            values = held if isinstance(held, Mapping) else {}
+            for name, child in properties.items():
+                if isinstance(child, Mapping):
+                    visit(child, values.get(name, _MISSING), (*parts, str(name)))
+        items = schema.get("items")
+        if isinstance(items, Mapping):
+            if isinstance(held, list | tuple):
+                for index, item in enumerate(held):
+                    visit(items, item, (*parts, str(index)))
+            elif held is _MISSING:
+                visit(items, _MISSING, (*parts, "*"))
+
+    visit(root, value, ())
+    unique = {(row.kind, row.role, row.path): row for row in found}
+    return tuple(unique[key] for key in sorted(
+        unique, key=lambda item: (item[2], item[0].value, item[1].value)))
 
 
 class ValidationIssueV1(BaseModel):
@@ -134,29 +254,147 @@ def collect_ids(node: Any, keys: tuple[str, ...]) -> set[str]:
     return set()
 
 
+def _catalogs_with_declarations(
+    fields: Sequence[ReferenceField], catalogs: Mapping[ReferenceKind, Sequence[str]],
+) -> dict[ReferenceKind, frozenset[str]]:
+    declared = {
+        kind: frozenset(value for field in fields
+                        if field.kind is kind and field.role is ReferenceRole.DECLARATION
+                        for _, value in field.values())
+        for kind in ReferenceKind
+    }
+    return {
+        kind: frozenset(catalogs.get(kind, ())) | declared[kind]
+        for kind in ReferenceKind
+    }
+
+
+def constrain_reference_schema(
+    schema: dict[str, Any], catalogs: Mapping[ReferenceKind, Sequence[str]],
+) -> None:
+    """Close metadata-declared references in a response schema to task-owned catalogs."""
+    fields = walk_reference_fields(schema)
+    declaration_kinds = {field.kind for field in fields
+                         if field.role is ReferenceRole.DECLARATION}
+    for field in fields:
+        if field.kind not in catalogs:
+            continue
+        legal = tuple(dict.fromkeys(str(item) for item in catalogs[field.kind]))
+        target = cast(dict[str, Any], field.schema.get("items")
+                      if field.schema.get("type") == "array" else field.schema)
+        if legal:
+            target["enum"] = list(legal)
+        elif field.kind not in declaration_kinds and field.schema.get("type") == "array":
+            field.schema["maxItems"] = 0
+
+
+def validate_references(
+    model_or_schema: type[BaseModel] | Mapping[str, Any], value: Any,
+    catalogs: Mapping[ReferenceKind, Sequence[str]], *, prefix: str = "",
+) -> tuple[ValidationIssueV1, ...]:
+    """Reject every typed reference outside its exact external or local-declaration catalog."""
+    fields = walk_reference_fields(model_or_schema, value, prefix=prefix)
+    legal = _catalogs_with_declarations(fields, catalogs)
+    issues: list[ValidationIssueV1] = []
+    for field in fields:
+        allowed = frozenset(catalogs.get(field.kind, ()))
+        # A declaration is locally authoritative unless an upstream catalog explicitly closes it.
+        if field.role is ReferenceRole.DECLARATION and field.kind not in catalogs:
+            continue
+        accepted = allowed if field.role is ReferenceRole.DECLARATION else legal[field.kind]
+        for path, item in field.values():
+            if item in accepted:
+                continue
+            choices = f"; allowed: {', '.join(sorted(accepted))}" if accepted else ""
+            issues.append(make_issue(
+                f"unresolved_{field.kind.value}", path, "wall2.typed_reference",
+                FIX_ACTIONS, False, (item,),
+                f"{item!r} is not a task-local {field.kind.value} reference{choices}",
+            ))
+    return tuple(issues)
+
+
+def _path_tokens(path: str) -> tuple[str, ...]:
+    if not path:
+        return ()
+    return tuple(token.replace("~1", "/").replace("~0", "~")
+                 for token in path.removeprefix("/").split("/"))
+
+
+def _delete_path(node: Any, path: str) -> None:
+    tokens = _path_tokens(path)
+    if not tokens:
+        return
+    parent = node
+    for token in tokens[:-1]:
+        parent = parent[int(token)] if isinstance(parent, list) else parent[token]
+    if isinstance(parent, list):
+        parent.pop(int(tokens[-1]))
+    else:
+        parent.pop(tokens[-1], None)
+
+
+def _set_path(node: Any, path: str, value: str) -> None:
+    tokens = _path_tokens(path)
+    parent = node
+    for token in tokens[:-1]:
+        parent = parent[int(token)] if isinstance(parent, list) else parent[token]
+    if isinstance(parent, list):
+        parent[int(tokens[-1])] = value
+    else:
+        parent[tokens[-1]] = value
+
+
+def reference_projection(model_or_schema: type[BaseModel] | Mapping[str, Any], value: Any) -> Any:
+    """Return the semantic decision with only typed reference fields removed."""
+    projected = deepcopy(value)
+    paths = {field.path for field in walk_reference_fields(model_or_schema, value)
+             if field.role is ReferenceRole.REFERENCE}
+    for path in sorted(paths, key=lambda item: item.count("/"), reverse=True):
+        _delete_path(projected, path)
+    return projected
+
+
+def reference_snapshot(
+    model_or_schema: type[BaseModel] | Mapping[str, Any], value: Any, *, prefix: str = "",
+) -> dict[str, str]:
+    """Return exact paths and values for every typed reference in a model decision."""
+    return {
+        path: item
+        for field in walk_reference_fields(model_or_schema, value, prefix=prefix)
+        if field.role is ReferenceRole.REFERENCE
+        for path, item in field.values()
+    }
+
+
+def rewrite_references(
+    model_or_schema: type[BaseModel] | Mapping[str, Any], value: Any,
+    rewrite: Any,
+) -> Any:
+    """Apply a deterministic normalizer only at metadata-declared reference value paths."""
+    rewritten = deepcopy(value)
+    for field in walk_reference_fields(model_or_schema, value):
+        if field.role is not ReferenceRole.REFERENCE:
+            continue
+        for path, item in field.values():
+            replacement = rewrite(field.kind, item)
+            if isinstance(replacement, str) and replacement != item:
+                _set_path(rewritten, path, replacement)
+    return rewritten
+
+
 def unresolved_issues(ids: set[str], code: str, prefix: str,
                       actions: tuple[str, ...] = ASK_ACTIONS,
-                      legal: Sequence[str] = ()) -> Iterator[ValidationIssueV1]:
+                      legal: Sequence[str] = (), user_resolvable: bool = True) -> Iterator[ValidationIssueV1]:
     """One issue per unresolved id, each naming the offending value and the legal set (D-103).
 
     The correction budget is two attempts, and `detail` used to be empty on every issue: a
     worker was told a code and a path and had to guess what the harness would accept.
     """
     allowed = f"; allowed: {', '.join(sorted(legal))}" if legal else ""
-    return (make_issue(code, f"{prefix}/{i}", f"wall2.{code}", actions, True, (i,),
+    return (make_issue(code, f"{prefix}/{i}", f"wall2.{code}", actions, user_resolvable, (i,),
                        f"{i!r} is not a known {prefix.strip('/')} value{allowed}")
             for i in sorted(ids))
-
-
-def self_citation_issues(raw: Mapping[str, Any],
-                         actions: tuple[str, ...] = DROP_ACTIONS) -> Iterator[ValidationIssueV1]:
-    """A claim citing itself as evidence is never acceptable (SC §16.2)."""
-    for claim in (item for item in raw.get("claims") or () if isinstance(item, Mapping)):
-        cited = (*(claim.get("supporting_evidence_ids") or ()),
-                 *(claim.get("contrary_evidence_ids") or ()))
-        if claim.get("claim_id") in cited:
-            yield make_issue("claim_cites_itself", f"/claims/{claim['claim_id']}", "wall2.self",
-                             actions)
 
 
 def shape_report(model_cls: type[BaseModel], result: AgentTaskResultV1,

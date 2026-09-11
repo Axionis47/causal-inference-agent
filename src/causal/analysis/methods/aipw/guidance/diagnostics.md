@@ -1,0 +1,3 @@
+Overlap, weight concentration and effective sample size reveal whether the requested population is supported by the observed treatment groups. Calibration and balance concern the fitted nuisance models and measured covariates. Neither establishes exchangeability with respect to unmeasured causes.
+
+Cross-fitting integrity is a computational prerequisite. A failed nuisance fit or unavailable diagnostic must remain visible, even when a primary estimate exists. Sensitivity to a different fold assignment or numerical bound describes instability; it does not authorize selecting a favorable estimate or silently changing the target population.

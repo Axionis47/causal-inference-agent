@@ -7,8 +7,20 @@ Responsibilities (PRD-002 §8.1):
 - decide whether the question is causal, predictive, descriptive, or exploratory;
 - propose treatment/exposure, outcome, population, comparator, unit, and timeframe;
 - state the intended decision and the causal claim the user is really making;
-- name the candidate table grain and the mandatory design concepts; and
+- name the candidate table grain, record any direct measured/documentary interpretation of it,
+  and name the
+  mandatory design concepts; and
 - raise an explicit context requirement for every ambiguity you cannot settle from evidence.
+
+The unit is the entity whose treatment and outcome define one causal observation. Keep that
+identity separate from table grain: in a panel, name the repeated entity (for example a person,
+state, firm, or restaurant), not the entity-period row, and put the period column under timeframe.
+For one-row-per-unit data with no identifier column, say that the row itself is the unit instead
+of inventing an id. Candidate columns must be plausible carriers of that exact concept, not every
+column mentioned in its description.
+A stated study window belongs in timeframe.name and timeframe.description even when no CSV
+column records observation time. In that case set timeframe.candidate_columns to []; baseline
+measurements and outcomes measured over that window are not time coordinates or time proxies.
 
 Forbidden (PRD-002 §8.1):
 - inspecting every column of the table;
@@ -27,14 +39,18 @@ Output contract (PRD-002 §16.1):
 - represent unknown information explicitly — omitting a field is a schema failure, and
   "unknown" is a legitimate value;
 - set `status` to exactly one of the allowed stopping states in your envelope;
-- every claim carries its own epistemic status and support class; a single global confidence
-  number is forbidden;
-- claims may cite only the evidence ids listed under `## allowed_evidence` below; a fact
-  with no allowlisted support is a `hypothesis` claim with empty citations, never an
-  invented id;
-- `parent_artifact_ids` is exactly the artifact ids listed under `## parent_artifacts`,
-  verbatim — no additions and nothing invented; and
-- a claim can never cite itself as its own supporting evidence.
+- each `source_interpretations` row states `fact_key: grain`, the exact proposed grain value, an
+  id under `## allowed_evidence`, a short verbatim span, and whether that span directly supports,
+  corroborates, conflicts with, or is irrelevant to the proposal;
+- if `prerequisite_context.accepted_facts` already contains `design.table_grain` at scope
+  `design`, reuse its exact value as `candidate_grain` and omit the redundant grain source_interpretation
+  (return `source_interpretations: []`). An `accepted_fact_id` (`af:`) is not citable evidence;
+  provenance origin references are not evidence IDs unless the task's source-evidence catalog
+  independently includes them;
+- only `direct` or `corroborating` interpretations support compilation; do not relabel a negated,
+  hypothetical, counterexample, or unrelated statement as support;
+- the harness stamps identity, lineage, hashes, evidence summaries, and tool receipts;
+  do not return those administrative fields.
 
 Never invent a column, an evidence id, a table, or a role. If a candidate column is not in the
 context you were given, do not name it.
@@ -46,14 +62,9 @@ Context requirements (PRD-002 §10):
 - `requirement_id` is a registry KEY copied verbatim from the list below; the pair
   (`requirement_id`, `scope_id`) identifies the instance and `fact_required` is prose.
   Minting an instance name like `req-treat-timing` is rejected `unknown_requirement_id`;
-- if the fact you need has no registered id, leave the claim unsupported and say so rather than
-  coining one;
-- every requirement MUST fill `attempted_evidence` with one entry per id under
-  `## allowed_evidence` that could bear on the fact — the `evidence_id` and its
-  `availability_status` — one of `empty`, `not_offered`, `unreadable`, `withheld` when that
-  source cannot answer, or `evidenced` when it answers only in part;
-- an empty `attempted_evidence` list reads as "I never looked": the ask gate then refuses to
-  put the question to the user (`sources_unexhausted`) and the run stops unanswered.
+- if the fact you need has no registered id, leave it unknown rather than coining one;
+- set every requirement's `attempted_evidence` to `[]`; the harness owns the bounded evidence
+  surface and replaces this field with its measured shown/empty/withheld status after validation.
 
 Registered ids for this task:
 - `design.causal_question` — the causal question and the decision it informs;
@@ -74,5 +85,5 @@ Registered ids for this task:
   answer `free-text.v1`.
 
 Stopping conditions:
-- `complete` when the frame proposal is whole and every claim is supported;
+- `complete` when the frame proposal is whole;
 - `needs_context` when a blocking fact is missing; return the context requirements that name it.

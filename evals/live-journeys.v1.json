@@ -1,0 +1,85 @@
+{
+  "schema_version": "live-journey-fixtures.v1",
+  "cases": [
+    {
+      "case_id": "lalonde_nsw_rct",
+      "family": "randomized_experiment",
+      "context_variants": ["rich", "sparse"],
+      "eval_id": "EV-E2E-001",
+      "source": {
+        "kind": "s3",
+        "bucket": "causal-pilot",
+        "key": "objects/cccb6599e60995cf49e44d91fa2d0687481eff26344d6c2a41942344fe3b6705",
+        "version": "frozen-pilot-2026-09-02",
+        "sha256": "cccb6599e60995cf49e44d91fa2d0687481eff26344d6c2a41942344fe3b6705",
+        "provenance": "Lalonde/NSW randomized job-training sample"
+      },
+      "file_name": "lalonde_nsw.csv",
+      "question": "What is the intention-to-treat effect of randomized NSW assignment on 1978 earnings?",
+      "context": "Randomized NSW assignment is in treat (1 assigned, 0 control). re78 is post-assignment 1978 earnings. Each row is one participant and the row itself is the unit; there is no participant-id column. Estimate ITT for treat=1 versus treat=0. age, educ, black, hisp, marr, nodegree, re74, and re75 are baseline variables.",
+      "expected_initial_question_ids": [],
+      "answers": {},
+      "transform": "identity"
+    },
+    {
+      "case_id": "groupon_aipw",
+      "family": "aipw",
+      "context_variants": ["rich", "sparse"],
+      "eval_id": "EV-E2E-002",
+      "source": {
+        "kind": "s3",
+        "bucket": "causal-pilot",
+        "key": "objects/d43e8df497dc607cf650cfbc7dd01d16d3569793038aa66c3cd232e81e883ac2",
+        "version": "frozen-pilot-2026-09-02",
+        "sha256": "d43e8df497dc607cf650cfbc7dd01d16d3569793038aa66c3cd232e81e883ac2",
+        "provenance": "Groupon deal-level observational sample"
+      },
+      "file_name": "groupon.csv",
+      "question": "Among listed deals, what is the ATT of self-selecting into Groupon exposure on quantity sold?",
+      "context": "This is observational, self-selected exposure. treatment is binary exposure, quantity_sold is the outcome, unit_id identifies a deal, and price is the approved pre-exposure adjustment covariate. Estimate ATT for treatment=1 versus 0. Positivity and no unmeasured confounding remain assumptions.",
+      "expected_initial_question_ids": [],
+      "answers": {},
+      "transform": "identity"
+    },
+    {
+      "case_id": "minimum_wage_did",
+      "family": "did",
+      "context_variants": ["rich", "sparse"],
+      "eval_id": "EV-E2E-003",
+      "source": {
+        "kind": "s3",
+        "bucket": "causal-pilot",
+        "key": "objects/5d5361a305988a3e66e2f920edc4aaf050de545f174ff7b2fb27be4a7668d8cb",
+        "version": "frozen-pilot-2026-09-02",
+        "sha256": "5d5361a305988a3e66e2f920edc4aaf050de545f174ff7b2fb27be4a7668d8cb",
+        "provenance": "US state-year minimum-wage and poverty panel, 2005-2011"
+      },
+      "file_name": "minimum_wage.csv",
+      "question": "What is the simultaneous-adoption DiD ATT of 2009 federal minimum-wage exposure on state poverty rates?",
+      "context": "Rows are state-years. unit_id identifies state, period identifies year, treatment is active exposure, adoption is 2009 for treated states, federal_exposed identifies the treated group, and poverty_rate is the outcome. Use unit_id plus period grain and compare exposed with comparison states. Parallel trends is required and never proven by a pre-trend test.",
+      "expected_initial_question_ids": [],
+      "answers": {},
+      "transform": "identity"
+    },
+    {
+      "case_id": "rd_senate_sharp",
+      "family": "sharp_rdd",
+      "context_variants": ["rich", "sparse"],
+      "eval_id": "EV-E2E-005",
+      "source": {
+        "kind": "python_package",
+        "package": "rdrobust",
+        "path": "data/rdrobust_RDsenate.csv",
+        "version": "rdrobust==2.0.0",
+        "sha256": "2ce48a5b13499a6ed9c949f5ea64657ff6c131ded582fc7f7f58c92e924f90cd",
+        "provenance": "rdrobust RD Senate reference data"
+      },
+      "file_name": "rd_senate.csv",
+      "question": "What is the local effect at zero of barely winning the prior Senate election on the next Democratic vote share?",
+      "context": "margin is the running variable, the cutoff is exactly 0, assignment is sharp at margin >= 0, and vote is the outcome. Each row is one Senate race and the row itself is the unit. Estimate the local sharp-RDD effect above versus below the cutoff. The source is the pinned rdrobust 2.0.0 RD Senate data.",
+      "expected_initial_question_ids": [],
+      "answers": {},
+      "transform": "rd_senate_projection_v1"
+    }
+  ]
+}

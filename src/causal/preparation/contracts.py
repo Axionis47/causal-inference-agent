@@ -95,9 +95,6 @@ class PreparationContextManifestV1(_Payload):
     estimand_id: Identity
     method_id: Identity
     method_pack_version: Identity
-    measurement_map: ArtifactRef
-    role_ledger: ArtifactRef
-    column_concepts: dict[str, Identity]
     column_roles: dict[str, Identity]
     protected_columns: tuple[Identity, ...]
     permitted_repair_columns: tuple[Identity, ...]
@@ -273,9 +270,9 @@ class PreparedFrameV1(_FrameV1):
 class PreparedFrameBundleV1(_Payload):
     schema_version: Literal["prepared-frame-bundle.v1"] = "prepared-frame-bundle.v1"
     selected_table: ArtifactRef
-    experiment_design: ArtifactRef
-    runnable_frame_contract: ArtifactRef
-    capacity_check: ArtifactRef
+    compiled_design: ArtifactRef
+    capacity_report: ArtifactRef
+    design_approval: ArtifactRef
     stabilization_record: ArtifactRef
     stabilized_frame: ArtifactRef
     prepared_frame: ArtifactRef

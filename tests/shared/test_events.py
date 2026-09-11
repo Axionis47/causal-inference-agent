@@ -65,8 +65,8 @@ def make_event(**overrides: object) -> OperationalEventV1:
 
 
 class TestModel:
-    def test_registry_has_28_names(self) -> None:
-        assert len(EVENT_NAMES_V1) == 28
+    def test_registry_has_32_names(self) -> None:
+        assert len(EVENT_NAMES_V1) == 32
 
     def test_valid_event_roundtrip(self) -> None:
         event = make_event()
@@ -124,7 +124,7 @@ class TestEmitter:
         emitter.emit(make_event(event_name="custom.thing"))
 
     @pytest.mark.parametrize(
-        "name", ["task.started", "agent.started", "tool.denied", "handoff.accepted"]
+        "name", ["task.started", "agent.started", "diagnostic.completed", "tool.denied", "handoff.accepted"]
     )
     def test_eval_ids_required_for_gated_prefixes(self, name: str) -> None:
         with pytest.raises(EventEmitterError) as excinfo:

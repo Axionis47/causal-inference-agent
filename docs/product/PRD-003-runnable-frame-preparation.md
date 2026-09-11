@@ -3,7 +3,7 @@
 Status: final for implementation  
 Product stage: post-design data preparation  
 Depends on: `SYSTEM-CONTRACT.md`; PRD-001 — Kaggle intake, semantic availability, and storage; PRD-002 — causal
-design harness and runnable-frame contract  
+design harness and compiled preparation policy
 Unlocks: PRD-004 — estimation, post-estimation diagnostics, and claim judgment
 
 Shared identities, envelopes, context isolation, persistence, retries, required LangSmith
@@ -14,7 +14,7 @@ behavior, operational events, and ask-user ownership are governed by `SYSTEM-CON
 Given the exact handoff approved in PRD-002, this stage produces either:
 
 - a dimension-stable, lineage-complete `PreparedFrameBundle` that satisfies the approved
-  `RunnableFrameContract`;
+  `CompiledDesign.preparation`;
 - a `DesignConflict` explaining why the approved design cannot be implemented without changing
   its population, method, estimand, roles, eligibility, or structural requirements; or
 - a specific observability or technical failure that leaves every source and prior artifact
@@ -39,7 +39,7 @@ Imputation is considered only after the row dimension has passed its own validat
 3. Rows outside the approved target population or timeframe are `not_eligible`; they are not
    described as data-quality failures.
 4. An eligible row is `unusable` only when a registered rule proves that it cannot satisfy a
-   required, non-imputable part of the approved runnable-frame contract.
+   required, non-imputable part of the approved compiled preparation policy.
 5. Statistical inconvenience is never an unusable-row reason. Outliers, poor overlap, imbalance,
    failed pre-trend checks, mass points, manipulation warnings, rare arms, or an undesirable
    estimate cannot justify deletion.
@@ -142,16 +142,18 @@ Imputation is considered only after the row dimension has passed its own validat
 The preparation workflow opens with exactly:
 
 - `selected_csv_artifact_id`;
-- `experiment_design_artifact_id`;
-- `runnable_frame_contract_artifact_id`; and
-- `design_approval_capacity_check_artifact_id` for the exact passing design-approval check.
+- `compiled_design_artifact_id`;
+- `diagnostic_report_artifact_id`;
+- `capacity_report_artifact_id`;
+- `design_review_bundle_artifact_id`; and
+- `design_approval_artifact_id`.
 
 Entry requires:
 
 1. The PRD-002 `DesignOutcome.status` is `approved`.
-2. All four artifacts and their parents exist and match their hashes.
-3. The runnable-frame contract references the exact approved experiment-design hash, and the
-   PRD-002 approval still binds the corresponding causal-graph view.
+2. All six artifacts and their parents exist and match their hashes.
+3. The capacity report and review bundle reference the exact compiled-design and diagnostic-report
+   hashes, and the PRD-002 approval binds the exact review-bundle hash.
 4. The selected CSV hash matches the PRD-001 artifact.
 5. The selected method-pack, preparation-graph, task-envelope, prompt, model-profile, tool,
    schema, validator, repair-operation, diagnostic, and imputation registry versions are
@@ -173,8 +175,8 @@ An invalid or unsupported handoff fails closed. PRD-003 never guesses a missing 
 `PreparedFrameBundle` contains identifiers and hashes for:
 
 - the selected immutable source CSV;
-- the approved experiment design and runnable-frame contract;
-- the exact passing design-approval `DeliveryCapacityCheck`;
+- the approved compiled design and compiled preparation policy;
+- the exact passing design-approval `CapacityReport`;
 - `PreparationContextManifest`, `PreparationTaskGraph`, and all `AgentTaskEnvelopeV1`
   preparation-task artifacts;
 - `SourceRowIndex`;
@@ -266,7 +268,7 @@ classified as unusable:
 
 ```mermaid
 flowchart TD
-    A["Approved PRD-002 handoff: four artifact IDs"] --> B["Validate approval, parents, hashes, and versions"]
+    A["Approved PRD-002 handoff: six artifact IDs"] --> B["Validate approval, parents, hashes, and versions"]
     B --> C["Create new preparation run and PreparationContextManifest"]
     C --> D["Parse source and assign source_row_id"]
     D --> E["Run table-wide schema, grain, key, and method-structure inspection"]
@@ -293,12 +295,12 @@ flowchart TD
     P --> Q["Compile, preview, and validate one PreparationPlan"]
     Q --> R["Execute registered steps in dependency order"]
     R --> S["Verify every receipt, output hash, lineage, and postcondition"]
-    S --> T["Run final diagnostics and RunnableFrameContract validation"]
+    S --> T["Run final diagnostics and CompiledDesign.preparation validation"]
     T --> U{"All requirements satisfied?"}
     U -- "Targeted repairable issue" --> N
     U -- "Design change required" --> X
     U -- "Yes" --> V["Materialize and commit PreparedFrameBundle"]
-    V --> W["Open PRD-004 with exact four-artifact handoff"]
+    V --> W["Open PRD-004 with exact three-artifact handoff"]
 ```
 
 The row-set freeze is a hard gate. Post-freeze repair and imputation planning does not begin until
@@ -307,13 +309,15 @@ limit from Section 17 still applies.
 
 ### 7.1 Connection to PRD-002
 
-PRD-003 starts a new preparation run from exactly the four PRD-002 handoff identifiers:
+PRD-003 starts a new preparation run from exactly the six PRD-002 handoff identifiers:
 
 ```text
 selected_csv_artifact_id
-experiment_design_artifact_id
-runnable_frame_contract_artifact_id
-design_approval_capacity_check_artifact_id
+compiled_design_artifact_id
+diagnostic_report_artifact_id
+capacity_report_artifact_id
+design_review_bundle_artifact_id
+design_approval_artifact_id
 ```
 
 The new preparation `graph_thread_id` records those IDs and their hashes as immutable parents. It
@@ -329,7 +333,7 @@ boundary:
 PRD-003 inherits artifacts, not conversation memory. It does not inherit PRD-002 prompts,
 agent messages, chain-of-thought, scratchpads, checkpoints, or the rendered causal-graph SVG. It
 uses the approved structured causal-context, measurement-map, role-ledger, and graph references
-reachable from `ExperimentDesign` when a preparation restriction depends on them.
+reachable from `CompiledDesign` when a preparation restriction depends on them.
 
 ### 7.2 Preparation context manifest
 
@@ -461,7 +465,7 @@ flowchart TD
 
 | Receiver | Receives | May retrieve | Returns | Next destination |
 |---|---|---|---|---|
-| Handoff validator | four PRD-002 IDs, hashes, approval and registry versions | referenced approved parents | accepted handoff or integrity failure | manifest compiler |
+| Handoff validator | six PRD-002 IDs, hashes, approval and registry versions | referenced approved parents | accepted handoff or integrity failure | manifest compiler |
 | Deterministic table inspector | selected CSV ID, parser profile, runnable-frame requirements | source bytes through the storage boundary | structural reports and stable gap codes | preparation harness |
 | Phase A preparation invocation | only table-wide mismatch codes, approved rule IDs, aggregate impact facts, and permitted tools | named inspection and preview artifacts | typed stabilization proposal or `DesignConflict` proposal | deterministic compiler |
 | Post-freeze preparation task | `AgentTaskEnvelopeV1` with one `PreparationTaskContext` for a column, coupled group, recipe group, or table-wide gap | only envelope-allowlisted profiles, contract fragments, and registry entries | `AgentTaskResultV1` containing typed plan items, dependency request, conflict, or failure | harness fan-in |
@@ -519,7 +523,7 @@ reasons.
 
 ### 9.2 Eligibility is not repair
 
-Population and timeframe filters are copied verbatim from the approved runnable-frame contract.
+Population and timeframe filters are copied verbatim from the approved compiled preparation policy.
 PRD-003 may evaluate them but cannot broaden, narrow, or reinterpret them.
 
 Rows failing these rules are reported separately from unusable rows. This separation prevents a
@@ -593,7 +597,7 @@ After the freeze:
 
 The bounded `PreparationAgent` receives:
 
-- the approved runnable-frame contract and selected method-pack preparation manifest;
+- the approved compiled preparation policy and selected method-pack preparation manifest;
 - the stabilized-frame schema and typed structural profiles;
 - stable validator and diagnostic codes;
 - the repair and imputation registries; and
@@ -1275,7 +1279,7 @@ For a row absent from the prepared frame:
 ```text
 source_row_id
       → terminal disposition and registered rule
-      → approved RunnableFrameContract rule
+      → approved CompiledDesign.preparation rule
       → DimensionImpactReport
       → selected CSV artifact
 ```
@@ -1285,15 +1289,14 @@ source_row_id
 PRD-004 opens with exactly:
 
 - `prepared_frame_bundle_artifact_id`;
-- `experiment_design_artifact_id`;
-- `runnable_frame_contract_artifact_id`; and
-- `design_approval_capacity_check_artifact_id` for the unchanged design-approval check.
+- `compiled_design_artifact_id`; and
+- `capacity_report_artifact_id` for the unchanged design-approval report.
 
 The handoff is readable only when:
 
 1. `PreparationOutcome.status` is `prepared`.
 2. All artifacts and parents exist and match their hashes.
-3. The prepared bundle references the exact approved design and runnable-frame contract hashes.
+3. The prepared bundle references the exact approved design and compiled preparation policy hashes.
 4. The stabilized and prepared frames share the same row-set hash.
 5. Every source row has a terminal disposition.
 6. Every changed cell and derived column has recoverable lineage.
@@ -1303,7 +1306,7 @@ The handoff is readable only when:
 9. The prepared-frame schema matches the selected method pack.
 10. Any estimator-scoped imputation recipe is versioned and permitted by the method pack.
 11. No preparation artifact contains an estimate or post-estimation judgment.
-12. The explicit delivery-capacity check remains `pass` and its design, method, catalog,
+12. The explicit capacity report remains `pass` and its design, method, catalog,
     capacity-registry, and version hashes match the handoff.
 13. All required preparation and handoff LangSmith spans were acknowledged.
 
@@ -1339,7 +1342,7 @@ The consolidated stack in `SYSTEM-CONTRACT.md` is authoritative.
 
 ## 22. Acceptance criteria
 
-1. PRD-003 opens only from the four artifact IDs approved by PRD-002, creates a new preparation
+1. PRD-003 opens only from the six artifact IDs approved by PRD-002, creates a new preparation
    thread, and inherits no PRD-002 messages, checkpoints, scratchpads, or model memory.
 2. The source CSV is never modified or overwritten.
 3. Every physical source row receives a stable, reproducible source row ID.
@@ -1483,7 +1486,7 @@ Task envelopes, task outputs, previews, and attempt state are operational rows i
 1. entry/handoff (walls 1); 2. rows: parse + eligibility + disposition (walls 2–4);
 3. impact + method structure + row freeze (walls 5–7); 4. plan (wall 8);
 5. execution: receipt + output hash + postcondition + row invariance + lineage (walls 9–11);
-6. final: diagnostics + runnable-frame contract (walls 12–13). Ordering and the
+6. final: diagnostics + compiled preparation policy (walls 12–13). Ordering and the
 no-later-wall-waiver rule are unchanged.
 
 ### 24.4 Row identity
@@ -1517,7 +1520,7 @@ bounded agent may return only through a future user-approved amendment backed by
 evidence (the same clause structure as Amendment 1's deferred tool loop).
 
 The ground: every V1 contract gap already carries its full resolution from the approved
-runnable-frame contract, so the plan compiler maps gaps to plan items directly:
+compiled preparation policy, so the plan compiler maps gaps to plan items directly:
 
 | Gap | Resolution | Registered operation |
 |---|---|---|

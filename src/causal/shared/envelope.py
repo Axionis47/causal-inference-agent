@@ -3,18 +3,17 @@
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Annotated, Any, Literal, Self
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field
 
-from causal.shared.contracts import ArtifactRef, Identity, Sha256Hex
+from causal.shared.contracts import ArtifactRef, Identity, ReferenceKind, reference_field
 
 __all__ = [
     "AgentTaskEnvelopeV1",
     "AgentTaskResultV1",
     "AttemptedEvidenceV1",
     "CausalFrameV1",
-    "ClaimV1",
     "ContextRequirementV1",
     "Criticality",
     "EpistemicStatus",
@@ -25,14 +24,9 @@ __all__ = [
     "SupportRequirement",
     "TaskBudgets",
     "TaskStatus",
-    "ToolCallStatus",
-    "ToolReceiptV1",
 ]
 
 _MODEL_CONFIG = ConfigDict(frozen=True, extra="forbid", strict=True)
-
-JsonScalar = str | int | float | bool | None
-
 
 class TaskStatus(StrEnum):
     COMPLETE = "complete"
@@ -93,54 +87,23 @@ class SupportRequirement(StrEnum):
     ANY_ACCEPTABLE = "any_acceptable"
 
 
-class ToolCallStatus(StrEnum):
-    COMPLETED = "completed"
-    DENIED = "denied"
-    FAILED = "failed"
-
-
 class CausalFrameV1(BaseModel):
     """The four frame anchors every causal claim is stated against."""
 
     model_config = _MODEL_CONFIG
 
-    treatment: Identity
-    outcome: Identity
+    treatment: Annotated[Identity, reference_field(ReferenceKind.CONCEPT)]
+    outcome: Annotated[Identity, reference_field(ReferenceKind.CONCEPT)]
     population: Identity
     timeframe: Identity
 
 
-class ClaimV1(BaseModel):
-    """One typed assertion with its own support; no global confidence number."""
-
-    model_config = _MODEL_CONFIG
-
-    claim_id: Identity
-    subject_kind: Identity
-    subject_id: Identity
-    predicate: Identity
-    value: JsonScalar
-    epistemic_status: EpistemicStatus
-    supporting_evidence_ids: tuple[Identity, ...]
-    contrary_evidence_ids: tuple[Identity, ...]
-    support_class: SupportClass
-    alternatives: tuple[str, ...]
-    causal_frame: CausalFrameV1 | None
-
-    @model_validator(mode="after")
-    def _no_self_citation(self) -> Self:
-        cited = set(self.supporting_evidence_ids) | set(self.contrary_evidence_ids)
-        if self.claim_id in cited:
-            raise ValueError("an inference cannot cite itself as evidence")
-        return self
-
-
 class AttemptedEvidenceV1(BaseModel):
-    """One evidence source already tried; intake statuses pass through verbatim."""
+    """One searched source; the coordinator replaces its status before persistence."""
 
     model_config = _MODEL_CONFIG
 
-    evidence_id: Identity
+    evidence_id: Annotated[Identity, reference_field(ReferenceKind.EVIDENCE)]
     availability_status: Identity
 
 
@@ -149,7 +112,7 @@ class ContextRequirementV1(BaseModel):
 
     model_config = _MODEL_CONFIG
 
-    requirement_id: Identity
+    requirement_id: Annotated[Identity, reference_field(ReferenceKind.REQUIREMENT)]
     registry_version: Identity
     scope_kind: RequirementScopeKind
     scope_id: Identity
@@ -175,17 +138,6 @@ class TaskBudgets(BaseModel):
     tool_call_budget: Annotated[int, Field(ge=0)]
     transient_attempt_budget: Annotated[int, Field(ge=0)] = 3
     correction_budget: Annotated[int, Field(ge=0)] = 2
-
-
-class ToolReceiptV1(BaseModel):
-    """One tool call as the agent saw it end."""
-
-    model_config = _MODEL_CONFIG
-
-    tool_id: Identity
-    call_index: Annotated[int, Field(ge=0)]
-    status: ToolCallStatus
-    error_code: Identity | None
 
 
 class AgentTaskEnvelopeV1(BaseModel):
@@ -236,13 +188,9 @@ class AgentTaskResultV1(BaseModel):
     artifact_schema_version: Identity
     parent_artifact_ids: tuple[Identity, ...]
     payload: dict[str, object]
-    claims: tuple[ClaimV1, ...]
     missing_requirements: tuple[ContextRequirementV1, ...]
     conflicts: tuple[str, ...]
     warnings: tuple[str, ...]
-    evidence_ids: tuple[Identity, ...]
-    tool_receipts: tuple[ToolReceiptV1, ...]
-    output_hash: Sha256Hex | None
     validation_target: Identity
 
     def canonical_payload(self) -> dict[str, Any]:

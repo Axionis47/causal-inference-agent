@@ -50,6 +50,20 @@ class TestClassification:
 
 
 class TestSafety:
+    def test_duplicate_member_names_refused(self) -> None:
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w") as archive:
+            archive.writestr("data.csv", b"a\n1\n")
+            with pytest.warns(UserWarning, match="Duplicate name"):
+                archive.writestr("data.csv", b"a\n999\n")
+        safety = ArchiveSafety()
+        admission = safety.admit(buffer.getvalue())
+        assert not admission.safe
+        assert len(admission.decisions) == 2
+        assert all(decision.reason == "duplicate member name" for decision in admission.decisions)
+        with pytest.raises(ValueError, match="failed admission"):
+            safety.extract_admitted(buffer.getvalue(), admission)
+
     @pytest.mark.parametrize(
         ("name", "reason_fragment"),
         [("../evil.csv", "traversal"), ("/abs.csv", "absolute")],

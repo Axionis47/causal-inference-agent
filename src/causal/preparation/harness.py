@@ -81,8 +81,6 @@ PreparationState = TypedDict("PreparationState", {
 
 @dataclass(frozen=True)
 class PreparationRunResult:
-    """What one `causal run` step of a preparation revision returns (PRD-003 §5.2)."""
-
     status: str
     analysis_id: str
     stage_run_id: str
@@ -97,8 +95,6 @@ class PreparationRunResult:
 
 @dataclass(frozen=True)
 class PreparationDeps:
-    """Everything the harness needs; nothing here is discovered at run time."""
-
     conn: Connection[Any]
     products: persistence.ProductStore
     objects: persistence.ObjectStore
@@ -224,6 +220,10 @@ class HarnessBase:
     def conflict(self, state: PreparationState,
                  draft: pc.DesignConflictDraftV1) -> dict[str, Any]:
         """Commit the §16 conflict PRD-003 returns to PRD-002 and stop; nothing is resolved."""
+        self.emit(state, "blocker.raised", EVAL_STAGE, severity=ERROR,
+                  error_code=draft.conflict_code, safe_dimensions={
+                      "failed_rule_id": draft.failed_rule_id,
+                      "recommended_action": draft.recommended_action.value})
         held = self.ref(state, "PreparationContextManifest")
         self.commit(state, "DesignConflict", pc.DesignConflictV1(
             **dict(draft) | {"evidence_artifact_ids": (held.artifact_id,)},
@@ -236,13 +236,14 @@ class HarnessBase:
 
     def design_handoff(self, state: PreparationState,
                        outcome: ArtifactEnvelopeV1) -> HandoffManifestV1:
-        """Rebuild the PRD-002 §23 handoff from committed payloads; never import PRD-002."""
+        """Rebuild the exact Design V2 handoff from committed payloads."""
         body = self.payload(outcome.artifact_id)
-        design = self.payload(str(body["experiment_design"]["artifact_id"]))
+        design = self.payload(str(body["compiled_design"]["artifact_id"]))
         return build_handoff(
             state["analysis_id"], outcome, state["stage_run_id"],
-            (design["selected_csv"], body["experiment_design"], body["runnable_frame_contract"],
-             body["capacity_check"]), str(body["status"]),
+            (design["selected_csv"], body["compiled_design"], body["diagnostic_report"],
+             body["capacity_report"], body["review_bundle"], body["approval"]),
+            str(body["status"]),
             (str(body["approval"]["artifact_id"]),), self.deps.clock())
 
     # -- frames, diagnostics, and the registry compilers -------------------
@@ -304,13 +305,13 @@ class HarnessBase:
         receipts = self.payload(state["artifacts"]["ExecutionReceiptBundle"])
         plan = parse_strict(pp.PreparationPlanV1,
                             self.payload(state["artifacts"]["PreparationPlan"]))
-        entries = self.entry_body(state, "ExperimentDesign")
+        entries = self.entry_body(state, "CompiledDesign")
         return {
             "outcome_prepared": True,
             "artifacts_and_parents_match": all(kind in state["artifacts"] for kind in (
                 "StabilizationRecord", "StabilizedFrame", "PreparedFrame")),
-            "bundle_binds_design": bundle.experiment_design.content_hash == self.entry_ref(
-                state, "ExperimentDesign").content_hash and bool(entries),
+            "bundle_binds_design": bundle.compiled_design.content_hash == self.entry_ref(
+                state, "CompiledDesign").content_hash and bool(entries),
             "row_set_hash_shared": bundle.stabilized_frame_row_set_hash == (
                 bundle.prepared_frame_row_set_hash),
             "dispositions_terminal": sum(
@@ -327,7 +328,7 @@ class HarnessBase:
             "no_estimate_content": all(item.phase is not pp.ItemPhase.DIAGNOSTIC
                                        for item in plan.items),
             "capacity_still_pass": self.entry_body(
-                state, "DeliveryCapacityCheck").get("status") == "pass",
+                state, "CapacityReport").get("status") == "pass",
             "spans_acknowledged": self.deps.committer.spans_acknowledged}
 
     def postcondition(self, state: PreparationState, item: pp.PlanItemV1, before: pl.DataFrame,
@@ -352,25 +353,19 @@ class HarnessBase:
             stabilized_frame=self.ref(state, "StabilizedFrame")
             if "StabilizedFrame" in state["artifacts"] else None)
 
-    def policy(self, pack: pp.PreparationPackV1, design: ArtifactEnvelopeV1) -> entry.EntryPolicy:
-        """The §4 policy the composition supplies: vocabulary, strategies, statuses (D-075)."""
-        computed = {str(row["diagnostic_id"]): "computed"
-                    for parent in design.parent_artifacts
-                    for row in self.payload(parent.artifact_id).get("results") or ()}
+    def policy(self, pack: pp.PreparationPackV1) -> entry.EntryPolicy:
         return entry.EntryPolicy(
-            pack=pack, registry_versions=REGISTRY_VERSIONS, prerepair_statuses=computed,
+            pack=pack, registry_versions=REGISTRY_VERSIONS,
             eligibility_vocabulary=pp.eligibility_vocabulary(
                 self.deps.method_packs_path, pack.method_id),
             imputation_strategy_ids=tuple(sorted(
-                target.strategy_id for target in pack.permitted_imputation_targets)),
-            approved_handling=APPROVED_HANDLING)
+                target.strategy_id for target in pack.permitted_imputation_targets)))
 
     def structure(self, book: pc.PreparationContextManifestV1,
-                  contract: Mapping[str, Any]) -> impact.MethodStructureSpecV1:
-        """The role columns and the boundary the §12 structure gates read."""
+                  preparation: Mapping[str, Any]) -> impact.MethodStructureSpecV1:
         roles = operations.by_role(book.column_roles)
         held = {str(key): str(value)
-                for key, value in (contract.get("method_structure") or {}).items()}
+                for key, value in (preparation.get("method_structure") or {}).items()}
         units = tuple(column for column in (roles.get("unit_identifier"), roles.get("time"))
                       if column is not None)
         return impact.MethodStructureSpecV1(
@@ -378,7 +373,7 @@ class HarnessBase:
             treatment_column=roles.get("treatment"), outcome_column=roles.get("outcome"),
             group_column=roles.get("group"), time_column=roles.get("time"),
             running_variable_column=roles.get("running_variable"),
-            threshold=held.get("cutoff") or held.get("adoption_time"), minimum_cell_rows=1)
+            threshold=held["cutoff"] if "cutoff" in held else held.get("adoption_time"), minimum_cell_rows=1)
 
     def parse_specs(self, data: bytes,
                     book: pc.PreparationContextManifestV1) -> tuple[Any, ...]:

@@ -6,19 +6,24 @@ import io
 import json
 import os
 from datetime import UTC, datetime
+from typing import Any
 
 import pytest
+from google.genai import types
 
 from causal.shared.contracts import ArtifactRef
 from causal.shared.envelope import AgentTaskEnvelopeV1, TaskBudgets, TaskStatus
 from causal.shared.events import EventEmitter
 from causal.shared.gateway import (
+    MODEL_OUTPUT_TRUNCATED,
     VERTEX_PROFILE_V1,
     GatewayError,
     GenerationSettingsV1,
     TransportError,
     TransportResponse,
     VertexGateway,
+    _provider_schema,
+    _to_transport_response,
     derive_seed,
 )
 
@@ -61,6 +66,27 @@ class FakeTransport:
         return outcome
 
 
+class Span:
+    def __init__(self) -> None:
+        self.finished: list[tuple[dict[str, object], str | None]] = []
+
+    def finish(self, outputs: Any = None, error_code: str | None = None) -> None:
+        self.finished.append((dict(outputs or {}), error_code))
+
+
+class Tracer:
+    def __init__(self) -> None:
+        self.metadata: dict[str, object] = {}
+        self.span = Span()
+
+    def preflight(self) -> None: pass
+    def flush(self) -> None: pass
+
+    def start_gateway_span(self, metadata: Any) -> Span:
+        self.metadata = dict(metadata)
+        return self.span
+
+
 def ok(text: str = '{"answer": "yes"}') -> TransportResponse:
     return TransportResponse(text=text, token_usage=dict(USAGE), finish_reason="STOP")
 
@@ -90,7 +116,7 @@ class TestProfileKnobs:
         assert transport.calls[0][0] == "gemini-2.5-flash"
         assert settings.temperature == 0.0
         assert settings.candidate_count == 1
-        assert settings.thinking_budget_tokens == 8192
+        assert settings.thinking_budget_tokens == 4096
         assert settings.max_output_tokens == 16384
         assert settings.response_mime_type == "application/json"
         assert settings.automatic_function_calling is False
@@ -128,6 +154,15 @@ class TestSeed:
         gateway, transport, _ = build([ok()])
         result = gateway.invoke(make_envelope(), "hello", SCHEMA)
         assert result.seed == derive_seed("task-1") == transport.calls[0][2].seed
+
+    def test_evaluation_seed_key_stabilizes_runs_with_different_task_ids(self) -> None:
+        gateway, transport, _ = build([ok(), ok()])
+        for task_id in ("random-task-1", "random-task-2"):
+            envelope = make_envelope(task_id).model_copy(update={"payload": {
+                "evaluation": {"seed_key": "fixed-case:intent:scope"}}})
+            assert gateway.invoke(envelope, "hello", SCHEMA).seed == derive_seed(
+                "fixed-case:intent:scope")
+        assert transport.calls[0][2].seed == transport.calls[1][2].seed
 
 
 class TestRetries:
@@ -178,6 +213,7 @@ class TestResult:
         result = gateway.invoke(make_envelope(), "hello", SCHEMA)
         assert result.parsed == {"answer": "yes"}
         assert result.attempts == 1
+        assert result.finish_reason == "STOP"
 
     @pytest.mark.parametrize("text", ["not json at all", "", "[1, 2]", '"answer"', "{"])
     def test_non_object_text_parses_to_none(self, text: str) -> None:
@@ -197,6 +233,66 @@ class TestResult:
             result.attempts = 9
 
 
+def test_max_tokens_is_a_clear_nonretryable_transport_failure() -> None:
+    response = types.GenerateContentResponse(candidates=[types.Candidate(
+        finish_reason=types.FinishReason.MAX_TOKENS,
+        content=types.Content(parts=[types.Part(text="{")]))])
+    with pytest.raises(TransportError) as excinfo:
+        _to_transport_response(response)
+    assert excinfo.value.code == MODEL_OUTPUT_TRUNCATED
+    assert excinfo.value.retryable is False
+
+
+def test_provider_schema_preserves_compact_reference_enums() -> None:
+    schema = {"type": "object", "x-causal-reference-kind": "column", "properties": {
+        "value": {"type": "string", "enum": ["margin"],
+                  "x-causal-reference-role": "reference"}}}
+    assert _provider_schema(schema) == {"type": "object", "properties": {
+        "value": {"type": "string", "enum": ["margin"]}}}
+
+
+def test_provider_lowering_keeps_names_shape_and_enums_and_never_mutates_local_schema() -> None:
+    schema = {"type": "object", "additionalProperties": False,
+              "required": ["maximum", "title", "values"], "properties": {
+        "maximum": {"type": "number", "minimum": 0, "maximum": 1},
+        "title": {"type": "string", "minLength": 1, "maxLength": 200,
+                  "pattern": "^[a-z]+$", "enum": ["a", "b"]},
+        "values": {"type": "array", "minItems": 1, "maxItems": 12,
+                   "items": {"anyOf": [{"type": "string", "format": "date-time"},
+                                       {"type": "null"}]}},
+        "forbidden": {"type": "array", "maxItems": 0, "items": {"type": "string"}}}}
+    original = json.dumps(schema, sort_keys=True)
+    lowered = _provider_schema(schema)
+    assert json.dumps(schema, sort_keys=True) == original
+    assert lowered["required"] == schema["required"]
+    assert lowered["additionalProperties"] is False
+    assert lowered["properties"] == {
+        "maximum": {"type": "number", "minimum": 0, "maximum": 1},
+        "title": {"type": "string", "enum": ["a", "b"]},
+        "values": {"type": "array", "minItems": 1, "maxItems": 12, "items": {"anyOf": [
+            {"type": "string", "format": "date-time"}, {"type": "null"}]}},
+        "forbidden": {"type": "array", "maxItems": 0, "items": {"type": "string"}}}
+
+
+def test_gateway_span_captures_rendered_prompt_response_and_exposed_provider_summary() -> None:
+    response = ok().model_copy(update={"reasoning": "The evidence supports a qualified answer."})
+    transport, sink, tracer = FakeTransport([response]), io.StringIO(), Tracer()
+    gateway = VertexGateway(transport, VERTEX_PROFILE_V1, EventEmitter(sink), lambda: NOW, tracer)
+    envelope = make_envelope().model_copy(update={"payload": {
+        "column_name": "promo_flag", "evaluation": {
+            "run_id": "eval-1", "case_id": "case-1", "mode": "gate"}}})
+    gateway.invoke(envelope, "Complete rendered application prompt", SCHEMA)
+    assert tracer.metadata["evaluation_case_id"] == "case-1"
+    assert {"prompt_hash", "envelope_hash", "response_schema_hash"} <= set(tracer.metadata)
+    assert tracer.metadata["prompt"] == transport.calls[0][1]
+    assert tracer.metadata["response_schema"] == SCHEMA
+    assert tracer.span.finished == [({"physical_attempts": 1, "input_tokens": 11,
+                                      "output_tokens": 22, "thinking_tokens": 33,
+                                      "total_tokens": 66, "finish_reason": "STOP",
+                                      "model_output": response.text,
+                                      "provider_summary": response.reasoning}, None)]
+
+
 def test_emitted_events_carry_the_gateway_identity() -> None:
     gateway, _, sink = build([transient(), ok()])
     gateway.invoke(make_envelope(), "hello", SCHEMA)
@@ -210,6 +306,20 @@ def test_emitted_events_carry_the_gateway_identity() -> None:
         and e["safe_dimensions"] == {"operation": "vertex.generate"}
         for e in emitted
     )
+
+
+def test_unexpected_transport_failure_closes_the_trace_without_changing_exception() -> None:
+    class BrokenTransport:
+        def generate(self, model_id: str, prompt: str,
+                     settings: GenerationSettingsV1) -> TransportResponse:
+            raise RuntimeError("unexpected adapter failure")
+
+    tracer = Tracer()
+    gateway = VertexGateway(BrokenTransport(), VERTEX_PROFILE_V1, EventEmitter(io.StringIO()),
+                            lambda: NOW, tracer)
+    with pytest.raises(RuntimeError, match="unexpected adapter failure"):
+        gateway.invoke(make_envelope(), "Review", SCHEMA)
+    assert tracer.span.finished == [({"physical_attempts": 1}, "RuntimeError")]
 
 
 @pytest.mark.skipif(not os.environ.get("RUN_LIVE_VERTEX"), reason="RUN_LIVE_VERTEX is unset")

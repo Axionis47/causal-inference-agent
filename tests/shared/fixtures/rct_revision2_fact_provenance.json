@@ -1,0 +1,328 @@
+{
+  "scope": "Actual revision2 fact provenance, read-only snapshot",
+  "analysis_id": "an-82bd653613239d1c",
+  "design_revision": 2,
+  "facts": [
+    {
+      "accepted_fact_id": "af:9f9417da486fbe3c2be8a50e36a4",
+      "analysis_id": "an-82bd653613239d1c",
+      "design_revision": 2,
+      "requirement_id": "design.assignment_mechanism",
+      "scope_id": "design",
+      "value": "randomized",
+      "value_schema": "choice:randomized|self_selected|policy_cutoff|time_of_adoption",
+      "source_kind": "user",
+      "evidence_ids": [
+        "ua:usercontextanswer:an-82bd653613239d1c:59ddc3c9a4b0dc6e"
+      ],
+      "evidence_class": "user_confirmation",
+      "relation": "direct",
+      "acceptance_status": "accepted",
+      "executable": true,
+      "origin_revision": 1,
+      "origin_reference_id": "usercontextanswer:an-82bd653613239d1c:59ddc3c9a4b0dc6e",
+      "origin_reference_hash": "59ddc3c9a4b0dc6e9821b5edd5ab3a5ad29e658bdf7aa08e9cd894926205e3ce",
+      "inherited_from_fact_id": "af:f8b0f25f69d98e183760ae3274be",
+      "supersedes_fact_id": null
+    },
+    {
+      "accepted_fact_id": "af:0edec611ad0c10474d801e568c01",
+      "analysis_id": "an-82bd653613239d1c",
+      "design_revision": 2,
+      "requirement_id": "design.estimand",
+      "scope_id": "design",
+      "value": "itt",
+      "value_schema": "choice:itt|ate|att|att_group_time_aggregate|late_at_cutoff",
+      "source_kind": "interpretation",
+      "evidence_ids": [
+        "ua:question/text",
+        "ev:doc/README.md"
+      ],
+      "evidence_class": "user_confirmation",
+      "relation": "direct",
+      "acceptance_status": "accepted",
+      "executable": true,
+      "origin_revision": 1,
+      "origin_reference_id": "agentdesignproposal:an-82bd653613239d1c:40bea94725ed1724",
+      "origin_reference_hash": "40bea94725ed172460be57a04329d8c38b3f7cb7c5f8b551806c70ece4764fbf",
+      "inherited_from_fact_id": "af:1b35e6bfc8cc01a4bffca9f3e311",
+      "supersedes_fact_id": null
+    },
+    {
+      "accepted_fact_id": "af:f3eb5b8dcba531f55a51c2a21b10",
+      "analysis_id": "an-82bd653613239d1c",
+      "design_revision": 2,
+      "requirement_id": "design.population_comparator",
+      "scope_id": "design",
+      "value": "0",
+      "value_schema": "free-text.v1",
+      "source_kind": "interpretation",
+      "evidence_ids": [
+        "ua:context/text",
+        "ev:doc/README.md"
+      ],
+      "evidence_class": "user_confirmation",
+      "relation": "direct",
+      "acceptance_status": "accepted",
+      "executable": true,
+      "origin_revision": 1,
+      "origin_reference_id": "agentdesignproposal:an-82bd653613239d1c:40bea94725ed1724",
+      "origin_reference_hash": "40bea94725ed172460be57a04329d8c38b3f7cb7c5f8b551806c70ece4764fbf",
+      "inherited_from_fact_id": "af:f2903673155dfba61b1bb0b6d67d",
+      "supersedes_fact_id": null
+    },
+    {
+      "accepted_fact_id": "af:c60ea0b8db9888b152abe50d24d3",
+      "analysis_id": "an-82bd653613239d1c",
+      "design_revision": 2,
+      "requirement_id": "design.table_grain",
+      "scope_id": "design",
+      "value": "one_row_per_unit",
+      "value_schema": "choice:one_row_per_unit|one_row_per_unit_period|one_row_per_group_time|repeated_rows_per_unit",
+      "source_kind": "measurement",
+      "evidence_ids": [],
+      "evidence_class": "measured_observation",
+      "relation": "direct",
+      "acceptance_status": "accepted",
+      "executable": true,
+      "origin_revision": 1,
+      "origin_reference_id": "tableprofile:an-82bd653613239d1c:0548be1486238151",
+      "origin_reference_hash": "bcd22b63c828e00b4579f89f824f71463a167ffc41ba920b483e1a3a48c9a20a",
+      "inherited_from_fact_id": "af:bd19e2a6a562bead6080fc6ed5e0",
+      "supersedes_fact_id": null
+    },
+    {
+      "accepted_fact_id": "af:606f93dbb838e4a5ab746c9e1886",
+      "analysis_id": "an-82bd653613239d1c",
+      "design_revision": 2,
+      "requirement_id": "design.unit_identity",
+      "scope_id": "design",
+      "value": "c:cable_system",
+      "value_schema": "free-text.v1",
+      "source_kind": "derived",
+      "evidence_ids": [],
+      "evidence_class": "measured_observation",
+      "relation": "direct",
+      "acceptance_status": "accepted",
+      "executable": true,
+      "origin_revision": 1,
+      "origin_reference_id": "roleledger:an-82bd653613239d1c:38edcae9c9f9c5e4",
+      "origin_reference_hash": "38edcae9c9f9c5e4703e3d59775ae450217fdc16ac7b27608f4a6ffa6a63a1b0",
+      "inherited_from_fact_id": "af:2e80e2b1610be55ea7077677e811",
+      "supersedes_fact_id": null
+    }
+  ],
+  "original_prerequisite_context": {
+    "accepted_answer_evidence_ids": [],
+    "accepted_facts": [
+      {
+        "accepted_fact_id": "af:9f9417da486fbe3c2be8a50e36a4",
+        "evidence_class": "user_confirmation",
+        "requirement_id": "design.assignment_mechanism",
+        "scope_id": "design",
+        "support_relation": "direct",
+        "value": "randomized",
+        "value_schema": "choice:randomized|self_selected|policy_cutoff|time_of_adoption"
+      },
+      {
+        "accepted_fact_id": "af:0edec611ad0c10474d801e568c01",
+        "evidence_class": "user_confirmation",
+        "requirement_id": "design.estimand",
+        "scope_id": "design",
+        "support_relation": "direct",
+        "value": "itt",
+        "value_schema": "choice:itt|ate|att|att_group_time_aggregate|late_at_cutoff"
+      },
+      {
+        "accepted_fact_id": "af:f3eb5b8dcba531f55a51c2a21b10",
+        "evidence_class": "user_confirmation",
+        "requirement_id": "design.population_comparator",
+        "scope_id": "design",
+        "support_relation": "direct",
+        "value": "0",
+        "value_schema": "free-text.v1"
+      },
+      {
+        "accepted_fact_id": "af:c60ea0b8db9888b152abe50d24d3",
+        "evidence_class": "measured_observation",
+        "requirement_id": "design.table_grain",
+        "scope_id": "design",
+        "support_relation": "direct",
+        "value": "one_row_per_unit",
+        "value_schema": "choice:one_row_per_unit|one_row_per_unit_period|one_row_per_group_time|repeated_rows_per_unit"
+      },
+      {
+        "accepted_fact_id": "af:606f93dbb838e4a5ab746c9e1886",
+        "evidence_class": "measured_observation",
+        "requirement_id": "design.unit_identity",
+        "scope_id": "design",
+        "support_relation": "direct",
+        "value": "c:cable_system",
+        "value_schema": "free-text.v1"
+      }
+    ],
+    "contract": "Accepted facts are authoritative for their exact requirement and scope. Use their cited answer evidence and do not silently replace their values or raise the same requirement again.",
+    "settled_requirements": []
+  },
+  "offered_evidence": {
+    "ua:context/text": "This is a randomized experiment: 85 cable television systems were assigned within 40 pre-randomization strata to Rock the Vote advertising (treatment=1) or control (treatment=0). cable_system_id identifies the randomized cable system, and each row is one complete cable-system aggregate, not an individual voter. turnout_rate is the post-assignment proportion of registered 18- and 19-year-olds who voted. randomization_stratum records the matched randomization stratum and should enter as stratum fixed effects. Estimate the cluster-level ITT for treatment=1 versus treatment=0 using one unweighted cable-system outcome per row; the contrast is on the turnout-proportion scale. The same cable_system_id may serve as the cluster role because each randomized cluster contributes exactly one row. Do not expand rows into individual voters or weight them by voter counts. The target is the experimental cable systems, with no unsupported claim of a nationwide individual-level effect. Original source fields r and n are turnout numerator and voter denominator, and p is the supplied proportion; the projection retains p without recomputing outcomes. User-requested purpose: demonstrate and verify this public-data causal analysis end to end, including reproducibility, diagnostics and interpretable reporting.",
+    "ua:question/text": "What is the intention-to-treat effect of randomized Rock the Vote television advertising on the turnout rate of registered 18- and 19-year-olds across the experimental cable systems?",
+    "ua:usercontextanswer:an-82bd653613239d1c:59ddc3c9a4b0dc6e": "{\"answers\": [{\"answer_kind\": \"value\", \"question_id\": \"q:design.assignment_mechanism\", \"value\": \"randomized\"}], \"packet_id\": \"qp:1:1\", \"provenance\": \"user\", \"schema_version\": \"user-context-answer.v1\"}",
+    "ev:doc/README.md": "This is a randomized experiment: 85 cable television systems were assigned within 40 pre-randomization strata to Rock the Vote advertising (treatment=1) or control (treatment=0). cable_system_id identifies the randomized cable system, and each row is one complete cable-system aggregate, not an individual voter. turnout_rate is the post-assignment proportion of registered 18- and 19-year-olds who voted. randomization_stratum records the matched randomization stratum and should enter as stratum fixed effects. Estimate the cluster-level ITT for treatment=1 versus treatment=0 using one unweighted cable-system outcome per row; the contrast is on the turnout-proportion scale. The same cable_system_id may serve as the cluster role because each randomized cluster contributes exactly one row. Do not expand rows into individual voters or weight them by voter counts. The target is the experimental cable systems, with no unsupported claim of a nationwide individual-level effect. Original source fields r and n are turnout numerator and voter denominator, and p is the supplied proportion; the projection retains p without recomputing outcomes. User-requested purpose: demonstrate and verify this public-data causal analysis end to end, including reproducibility, diagnostics and interpretable reporting.",
+    "ev:kaggle/column/rock_the_vote.csv/cable_system_id/description": "This is a randomized experiment: 85 cable television systems were assigned within 40 pre-randomization strata to Rock the Vote advertising (treatment=1) or control (treatment=0). cable_system_id identifies the randomized cable system, and each row is one complete cable-system aggregate, not an individual voter. turnout_rate is the post-assignment proportion of registered 18- and 19-year-olds who voted. randomization_stratum records the matched randomization stratum and should enter as stratum fixed effects. Estimate the cluster-level ITT for treatment=1 versus treatment=0 using one unweighted cable-system outcome per row; the contrast is on the turnout-proportion scale. The same cable_system_id may serve as the cluster role because each randomized cluster contributes exactly one row. Do not expand rows into individual voters or weight them by voter counts. The target is the experimental cable systems, with no unsupported claim of a nationwide individual-level effect. Original source fields r and n are turnout numerator and voter denominator, and p is the supplied proportion; the projection retains p without recomputing outcomes. User-requested purpose: demonstrate and verify this public-data causal analysis end to end, including reproducibility, diagnostics and interpretable reporting.",
+    "ev:kaggle/column/rock_the_vote.csv/randomization_stratum/description": "This is a randomized experiment: 85 cable television systems were assigned within 40 pre-randomization strata to Rock the Vote advertising (treatment=1) or control (treatment=0). cable_system_id identifies the randomized cable system, and each row is one complete cable-system aggregate, not an individual voter. turnout_rate is the post-assignment proportion of registered 18- and 19-year-olds who voted. randomization_stratum records the matched randomization stratum and should enter as stratum fixed effects. Estimate the cluster-level ITT for treatment=1 versus treatment=0 using one unweighted cable-system outcome per row; the contrast is on the turnout-proportion scale. The same cable_system_id may serve as the cluster role because each randomized cluster contributes exactly one row. Do not expand rows into individual voters or weight them by voter counts. The target is the experimental cable systems, with no unsupported claim of a nationwide individual-level effect. Original source fields r and n are turnout numerator and voter denominator, and p is the supplied proportion; the projection retains p without recomputing outcomes. User-requested purpose: demonstrate and verify this public-data causal analysis end to end, including reproducibility, diagnostics and interpretable reporting.",
+    "ev:kaggle/column/rock_the_vote.csv/treatment/description": "This is a randomized experiment: 85 cable television systems were assigned within 40 pre-randomization strata to Rock the Vote advertising (treatment=1) or control (treatment=0). cable_system_id identifies the randomized cable system, and each row is one complete cable-system aggregate, not an individual voter. turnout_rate is the post-assignment proportion of registered 18- and 19-year-olds who voted. randomization_stratum records the matched randomization stratum and should enter as stratum fixed effects. Estimate the cluster-level ITT for treatment=1 versus treatment=0 using one unweighted cable-system outcome per row; the contrast is on the turnout-proportion scale. The same cable_system_id may serve as the cluster role because each randomized cluster contributes exactly one row. Do not expand rows into individual voters or weight them by voter counts. The target is the experimental cable systems, with no unsupported claim of a nationwide individual-level effect. Original source fields r and n are turnout numerator and voter denominator, and p is the supplied proportion; the projection retains p without recomputing outcomes. User-requested purpose: demonstrate and verify this public-data causal analysis end to end, including reproducibility, diagnostics and interpretable reporting.",
+    "ev:kaggle/column/rock_the_vote.csv/turnout_rate/description": "This is a randomized experiment: 85 cable television systems were assigned within 40 pre-randomization strata to Rock the Vote advertising (treatment=1) or control (treatment=0). cable_system_id identifies the randomized cable system, and each row is one complete cable-system aggregate, not an individual voter. turnout_rate is the post-assignment proportion of registered 18- and 19-year-olds who voted. randomization_stratum records the matched randomization stratum and should enter as stratum fixed effects. Estimate the cluster-level ITT for treatment=1 versus treatment=0 using one unweighted cable-system outcome per row; the contrast is on the turnout-proportion scale. The same cable_system_id may serve as the cluster role because each randomized cluster contributes exactly one row. Do not expand rows into individual voters or weight them by voter counts. The target is the experimental cable systems, with no unsupported claim of a nationwide individual-level effect. Original source fields r and n are turnout numerator and voter denominator, and p is the supplied proportion; the projection retains p without recomputing outcomes. User-requested purpose: demonstrate and verify this public-data causal analysis end to end, including reproducibility, diagnostics and interpretable reporting.",
+    "ev:kaggle/dataset/description": "This is a randomized experiment: 85 cable television systems were assigned within 40 pre-randomization strata to Rock the Vote advertising (treatment=1) or control (treatment=0). cable_system_id identifies the randomized cable system, and each row is one complete cable-system aggregate, not an individual voter. turnout_rate is the post-assignment proportion of registered 18- and 19-year-olds who voted. randomization_stratum records the matched randomization stratum and should enter as stratum fixed effects. Estimate the cluster-level ITT for treatment=1 versus treatment=0 using one unweighted cable-system outcome per row; the contrast is on the turnout-proportion scale. The same cable_system_id may serve as the cluster role because each randomized cluster contributes exactly one row. Do not expand rows into individual voters or weight them by voter counts. The target is the experimental cable systems, with no unsupported claim of a nationwide individual-level effect. Original source fields r and n are turnout numerator and voter denominator, and p is the supplied proportion; the projection retains p without recomputing outcomes. User-requested purpose: demonstrate and verify this public-data causal analysis end to end, including reproducibility, diagnostics and interpretable reporting.",
+    "ev:kaggle/dataset/title": "rock_the_vote_rct",
+    "ev:kaggle/file/rock_the_vote.csv/description": "This is a randomized experiment: 85 cable television systems were assigned within 40 pre-randomization strata to Rock the Vote advertising (treatment=1) or control (treatment=0). cable_system_id identifies the randomized cable system, and each row is one complete cable-system aggregate, not an individual voter. turnout_rate is the post-assignment proportion of registered 18- and 19-year-olds who voted. randomization_stratum records the matched randomization stratum and should enter as stratum fixed effects. Estimate the cluster-level ITT for treatment=1 versus treatment=0 using one unweighted cable-system outcome per row; the contrast is on the turnout-proportion scale. The same cable_system_id may serve as the cluster role because each randomized cluster contributes exactly one row. Do not expand rows into individual voters or weight them by voter counts. The target is the experimental cable systems, with no unsupported claim of a nationwide individual-level effect. Original source fields r and n are turnout numerator and voter denominator, and p is the supplied proportion; the projection retains p without recomputing outcomes. User-requested purpose: demonstrate and verify this public-data causal analysis end to end, including reproducibility, diagnostics and interpretable reporting.",
+    "tableprofile:an-82bd653613239d1c:0548be1486238151#/columns/cable_system_id": "{\"all_null\": false, \"cardinality\": 85, \"constant\": false, \"dtype\": \"Int64\", \"hypotheses\": [{\"detail\": \"every value is unique; may be an identifier\", \"kind\": \"identifier\"}], \"null_count\": 0, \"null_rate\": 0.0, \"numeric\": {\"max\": 85.0, \"mean\": 43.0, \"min\": 1.0, \"non_finite_count\": 0, \"quantiles\": {\"0.25\": 22.0, \"0.5\": 43.0, \"0.75\": 64.0}, \"std\": 24.681301964577692}}",
+    "tableprofile:an-82bd653613239d1c:0548be1486238151#/columns/randomization_stratum": "{\"all_null\": false, \"cardinality\": 40, \"constant\": false, \"dtype\": \"Int64\", \"hypotheses\": [], \"null_count\": 0, \"null_rate\": 0.0, \"numeric\": {\"max\": 40.0, \"mean\": 20.023529411764706, \"min\": 1.0, \"non_finite_count\": 0, \"quantiles\": {\"0.25\": 10.0, \"0.5\": 20.0, \"0.75\": 30.0}, \"std\": 11.615851721009605}}",
+    "tableprofile:an-82bd653613239d1c:0548be1486238151#/columns/treatment": "{\"all_null\": false, \"cardinality\": 2, \"constant\": false, \"dtype\": \"Int64\", \"hypotheses\": [], \"null_count\": 0, \"null_rate\": 0.0, \"numeric\": {\"max\": 1.0, \"mean\": 0.49411764705882355, \"min\": 0.0, \"non_finite_count\": 0, \"quantiles\": {\"0.25\": 0.0, \"0.5\": 0.0, \"0.75\": 1.0}, \"std\": 0.5029325764658601}}",
+    "tableprofile:an-82bd653613239d1c:0548be1486238151#/columns/turnout_rate": "{\"all_null\": false, \"cardinality\": 84, \"constant\": false, \"dtype\": \"Float64\", \"hypotheses\": [], \"null_count\": 0, \"null_rate\": 0.0, \"numeric\": {\"max\": 0.780373831775701, \"mean\": 0.5304270183234059, \"min\": 0.25696594427244585, \"non_finite_count\": 0, \"quantiles\": {\"0.25\": 0.4752475247524752, \"0.5\": 0.5324232081911263, \"0.75\": 0.5945945945945946}, \"std\": 0.09952416988470919}}"
+  },
+  "original_task_id": "dt:dr:an-82bd653613239d1c:2:intent:cb18d118fb7c",
+  "original_request_capture_id": "f2027506652b4896812693b7b7257772",
+  "intent_payload": {
+    "schema_version": "design-intent.v1",
+    "question_kind": "causal",
+    "causal_claim": "Rock the Vote television advertising affects the turnout rate of registered 18- and 19-year-olds.",
+    "intended_decision": "To understand the causal impact of Rock the Vote television advertising on voter turnout to inform future campaign strategies and verify the reproducibility of this public-data causal analysis.",
+    "treatment": {
+      "name": "Rock the Vote television advertising",
+      "description": "Assignment to receive Rock the Vote television advertising (treatment=1) versus control (treatment=0).",
+      "candidate_columns": [
+        "treatment"
+      ]
+    },
+    "outcome": {
+      "name": "Turnout rate",
+      "description": "The post-assignment proportion of registered 18- and 19-year-olds who voted.",
+      "candidate_columns": [
+        "turnout_rate"
+      ]
+    },
+    "population": {
+      "name": "Experimental cable systems",
+      "description": "The 85 cable television systems that were part of the randomized experiment, focusing on the turnout of registered 18- and 19-year-olds within them.",
+      "candidate_columns": [
+        "cable_system_id"
+      ]
+    },
+    "comparator": {
+      "name": "Control group",
+      "description": "Cable television systems assigned to the control condition (treatment=0), receiving no Rock the Vote television advertising.",
+      "candidate_columns": [
+        "treatment"
+      ]
+    },
+    "unit": {
+      "name": "Cable television system",
+      "description": "An individual cable television system, which is the unit of randomization and observation.",
+      "candidate_columns": [
+        "cable_system_id"
+      ]
+    },
+    "timeframe": {
+      "name": "Post-assignment period",
+      "description": "The period after the cable systems were assigned to treatment or control, during which the turnout rate was measured.",
+      "candidate_columns": []
+    },
+    "candidate_grain": "one_row_per_unit",
+    "source_interpretations": [
+      {
+        "fact_key": "grain",
+        "value": "one_row_per_unit",
+        "evidence_id": "af:c60ea0b8db9888b152abe50d24d3",
+        "verbatim_excerpt": "one_row_per_unit",
+        "relation": "direct"
+      }
+    ],
+    "mandatory_concepts": [
+      {
+        "name": "Randomization stratum",
+        "description": "The pre-randomization strata within which cable television systems were assigned to treatment or control.",
+        "candidate_columns": [
+          "randomization_stratum"
+        ]
+      }
+    ]
+  },
+  "proposal_payload": {
+    "assignment_mechanism": "randomized",
+    "comparator": "0",
+    "diagnostic_assessments": [
+      {
+        "diagnostic_result_id": "dr:arm_counts:bf089261ecfdebbc66010112",
+        "judgment": "supports"
+      },
+      {
+        "diagnostic_result_id": "dr:assignment_unit_uniqueness:d70546f49664e747caffa7c2",
+        "judgment": "supports"
+      },
+      {
+        "diagnostic_result_id": "dr:cluster_sizes:d8ea0c71568fdf17861a75e1",
+        "judgment": "supports"
+      }
+    ],
+    "method_facts": [],
+    "optional_assumption_ids": [],
+    "optional_risk_ids": [
+      "rct.noncompliance_risk"
+    ],
+    "optional_sensitivity_ids": [],
+    "ranked_method_ids": [
+      "randomized_experiment",
+      "aipw",
+      "did",
+      "sharp_rdd"
+    ],
+    "requested_diagnostic_ids": [],
+    "requested_estimand": "itt",
+    "schema_version": "agent-design-proposal.v2",
+    "source_interpretations": [
+      {
+        "evidence_id": "ua:context/text",
+        "fact_key": "assignment_mechanism",
+        "relation": "direct",
+        "value": "randomized",
+        "verbatim_excerpt": "This is a randomized experiment: 85 cable television systems were assigned within 40 pre-randomization strata to Rock the Vote advertising (treatment=1) or control (treatment=0)."
+      },
+      {
+        "evidence_id": "ev:doc/README.md",
+        "fact_key": "assignment_mechanism",
+        "relation": "direct",
+        "value": "randomized",
+        "verbatim_excerpt": "This is a randomized experiment: 85 cable television systems were assigned within 40 pre-randomization strata to Rock the Vote advertising (treatment=1) or control (treatment=0)."
+      },
+      {
+        "evidence_id": "ua:question/text",
+        "fact_key": "estimand",
+        "relation": "direct",
+        "value": "itt",
+        "verbatim_excerpt": "What is the intention-to-treat effect of randomized Rock the Vote television advertising on the turnout rate of registered 18- and 19-year-olds across the experimental cable systems?"
+      },
+      {
+        "evidence_id": "ev:doc/README.md",
+        "fact_key": "estimand",
+        "relation": "direct",
+        "value": "itt",
+        "verbatim_excerpt": "Estimate the cluster-level ITT for treatment=1 versus treatment=0 using one unweighted cable-system outcome per row;"
+      },
+      {
+        "evidence_id": "ua:context/text",
+        "fact_key": "comparator",
+        "relation": "direct",
+        "value": "0",
+        "verbatim_excerpt": "Rock the Vote advertising (treatment=1) or control (treatment=0)."
+      },
+      {
+        "evidence_id": "ev:doc/README.md",
+        "fact_key": "comparator",
+        "relation": "direct",
+        "value": "0",
+        "verbatim_excerpt": "Estimate the cluster-level ITT for treatment=1 versus treatment=0 using one unweighted cable-system outcome per row;"
+      }
+    ]
+  }
+}

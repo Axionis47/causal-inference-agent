@@ -12,7 +12,30 @@
       "methods_required_for": ["randomized_experiment", "aipw", "did", "sharp_rdd"],
       "missing_action": "ask_user",
       "expected_answer_schema": "free-text.v1",
-      "user_may_know": true
+      "user_may_know": true,
+      "accepted_fact": {
+        "fact_key": "causal_question",
+        "value_type": "text",
+        "consumer_ids": ["design_intent", "causal_context", "method_compiler", "claim_compiler"]
+      }
+    },
+    {
+      "requirement_id": "design.estimand",
+      "scope_kind": "design",
+      "fact_required": "Which causal quantity the analysis must estimate.",
+      "why_required": "ATT, ATE, ITT, group-time ATT, and a cutoff-local effect answer different decisions and cannot be exchanged by the model.",
+      "criticality": "blocking",
+      "acceptable_evidence_types": ["user_confirmation", "study_protocol", "source_statement"],
+      "required_support": "direct",
+      "methods_required_for": ["randomized_experiment", "aipw", "did", "sharp_rdd"],
+      "missing_action": "ask_user",
+      "expected_answer_schema": "choice:itt|ate|att|att_group_time_aggregate|late_at_cutoff",
+      "user_may_know": true,
+      "accepted_fact": {
+        "fact_key": "estimand",
+        "value_type": "choice",
+        "consumer_ids": ["method_compiler", "claim_compiler"]
+      }
     },
     {
       "requirement_id": "design.treatment_meaning",
@@ -25,7 +48,12 @@
       "methods_required_for": ["randomized_experiment", "aipw", "did", "sharp_rdd"],
       "missing_action": "ask_user",
       "expected_answer_schema": "free-text.v1",
-      "user_may_know": true
+      "user_may_know": true,
+      "accepted_fact": {
+        "fact_key": "treatment_meaning",
+        "value_type": "text",
+        "consumer_ids": ["design_intent", "semantic_compiler", "role_ledger", "method_compiler", "claim_compiler"]
+      }
     },
     {
       "requirement_id": "design.outcome_window",
@@ -38,20 +66,30 @@
       "methods_required_for": ["randomized_experiment", "aipw", "did", "sharp_rdd"],
       "missing_action": "retain_as_sensitivity",
       "expected_answer_schema": "duration-window.v1",
-      "user_may_know": true
+      "user_may_know": true,
+      "accepted_fact": {
+        "fact_key": "outcome_window",
+        "value_type": "duration",
+        "consumer_ids": ["semantic_compiler", "role_ledger", "claim_compiler", "presentation_compiler"]
+      }
     },
     {
       "requirement_id": "design.population_comparator",
       "scope_kind": "design",
-      "fact_required": "Which population is studied and what the comparator condition is.",
-      "why_required": "An estimate without a stated comparator carries no causal contrast.",
-      "criticality": "supporting",
+      "fact_required": "Which exact observed value is the control/reference condition? For an experiment or AIPW, reply with only the treatment-column value (for example, 0), without population prose. For DiD name the comparison group; for sharp RDD use below cutoff.",
+      "why_required": "The answer binds the executable comparator. Population details are recorded separately in the study intent; a paragraph cannot be used as an observed treatment value.",
+      "criticality": "blocking",
       "acceptable_evidence_types": ["user_confirmation", "study_protocol", "source_statement"],
       "required_support": "direct_or_corroborated",
       "methods_required_for": ["randomized_experiment", "aipw", "did", "sharp_rdd"],
-      "missing_action": "retain_as_sensitivity",
+      "missing_action": "ask_user",
       "expected_answer_schema": "free-text.v1",
-      "user_may_know": true
+      "user_may_know": true,
+      "accepted_fact": {
+        "fact_key": "comparator",
+        "value_type": "text",
+        "consumer_ids": ["causal_context", "method_compiler", "claim_compiler"]
+      }
     },
     {
       "requirement_id": "design.unit_identity",
@@ -64,7 +102,12 @@
       "methods_required_for": ["randomized_experiment", "aipw", "did", "sharp_rdd"],
       "missing_action": "retain_as_sensitivity",
       "expected_answer_schema": "free-text.v1",
-      "user_may_know": true
+      "user_may_know": true,
+      "accepted_fact": {
+        "fact_key": "unit_identity",
+        "value_type": "text",
+        "consumer_ids": ["role_ledger", "method_compiler", "preparation_compiler"]
+      }
     },
     {
       "requirement_id": "design.table_grain",
@@ -77,7 +120,12 @@
       "methods_required_for": ["randomized_experiment", "aipw", "did", "sharp_rdd"],
       "missing_action": "ask_user",
       "expected_answer_schema": "choice:one_row_per_unit|one_row_per_unit_period|one_row_per_group_time|repeated_rows_per_unit",
-      "user_may_know": true
+      "user_may_know": true,
+      "accepted_fact": {
+        "fact_key": "grain",
+        "value_type": "choice",
+        "consumer_ids": ["method_compiler", "preparation_compiler"]
+      }
     },
     {
       "requirement_id": "dataset.sampling_mechanism",
@@ -90,7 +138,12 @@
       "methods_required_for": ["randomized_experiment", "aipw", "did", "sharp_rdd"],
       "missing_action": "retain_as_sensitivity",
       "expected_answer_schema": "free-text.v1",
-      "user_may_know": true
+      "user_may_know": true,
+      "accepted_fact": {
+        "fact_key": "sampling_mechanism",
+        "value_type": "text",
+        "consumer_ids": ["causal_context", "claim_compiler"]
+      }
     },
     {
       "requirement_id": "design.assignment_mechanism",
@@ -103,7 +156,66 @@
       "methods_required_for": ["randomized_experiment", "aipw", "did", "sharp_rdd"],
       "missing_action": "ask_user",
       "expected_answer_schema": "choice:randomized|self_selected|policy_cutoff|time_of_adoption",
-      "user_may_know": true
+      "user_may_know": true,
+      "accepted_fact": {
+        "fact_key": "assignment_mechanism",
+        "value_type": "choice",
+        "consumer_ids": ["causal_context", "method_compiler", "claim_compiler"]
+      }
+    },
+    {
+      "requirement_id": "design.cutoff",
+      "scope_kind": "design",
+      "fact_required": "What fixed running-variable cutoff assigned treatment.",
+      "why_required": "A regression discontinuity diagnostic cannot partition support without the prespecified cutoff.",
+      "criticality": "blocking",
+      "acceptable_evidence_types": ["user_confirmation", "study_protocol", "source_statement"],
+      "required_support": "direct",
+      "methods_required_for": ["sharp_rdd"],
+      "missing_action": "ask_user",
+      "expected_answer_schema": "number",
+      "user_may_know": true,
+      "accepted_fact": {
+        "fact_key": "cutoff",
+        "value_type": "number",
+        "consumer_ids": ["method_compiler", "claim_compiler"]
+      }
+    },
+    {
+      "requirement_id": "design.sharp_assignment",
+      "scope_kind": "design",
+      "fact_required": "Whether crossing the fixed cutoff deterministically changes treatment assignment.",
+      "why_required": "The supported RDD implementation is sharp; fuzzy assignment requires a different estimator.",
+      "criticality": "blocking",
+      "acceptable_evidence_types": ["user_confirmation", "study_protocol", "source_statement"],
+      "required_support": "direct",
+      "methods_required_for": ["sharp_rdd"],
+      "missing_action": "ask_user",
+      "expected_answer_schema": "boolean",
+      "user_may_know": true,
+      "accepted_fact": {
+        "fact_key": "sharp_assignment",
+        "value_type": "boolean",
+        "consumer_ids": ["method_compiler", "claim_compiler"]
+      }
+    },
+    {
+      "requirement_id": "design.adoption_time",
+      "scope_kind": "design",
+      "fact_required": "Which date, period, or column defines treatment adoption for each group.",
+      "why_required": "Difference-in-differences needs treatment timing to construct pre, post, and comparison cells.",
+      "criticality": "blocking",
+      "acceptable_evidence_types": ["user_confirmation", "study_protocol", "source_statement", "timestamp_relationship"],
+      "required_support": "direct_or_corroborated",
+      "methods_required_for": ["did"],
+      "missing_action": "ask_user",
+      "expected_answer_schema": "free-text.v1",
+      "user_may_know": true,
+      "accepted_fact": {
+        "fact_key": "adoption_time",
+        "value_type": "text",
+        "consumer_ids": ["method_compiler", "claim_compiler"]
+      }
     },
     {
       "requirement_id": "column.meaning",
@@ -116,7 +228,12 @@
       "methods_required_for": ["randomized_experiment", "aipw", "did", "sharp_rdd"],
       "missing_action": "retain_as_sensitivity",
       "expected_answer_schema": "free-text.v1",
-      "user_may_know": true
+      "user_may_know": true,
+      "accepted_fact": {
+        "fact_key": "column_meaning",
+        "value_type": "text",
+        "consumer_ids": ["semantic_compiler", "role_ledger"]
+      }
     },
     {
       "requirement_id": "column.encoding",
@@ -129,7 +246,12 @@
       "methods_required_for": ["randomized_experiment", "aipw", "did", "sharp_rdd"],
       "missing_action": "retain_as_sensitivity",
       "expected_answer_schema": "mapping-list.v1",
-      "user_may_know": true
+      "user_may_know": true,
+      "accepted_fact": {
+        "fact_key": "column_encoding",
+        "value_type": "mapping",
+        "consumer_ids": ["semantic_compiler", "preparation_compiler"]
+      }
     },
     {
       "requirement_id": "column.missing_meaning",
@@ -142,7 +264,12 @@
       "methods_required_for": ["randomized_experiment", "aipw", "did", "sharp_rdd"],
       "missing_action": "retain_as_sensitivity",
       "expected_answer_schema": "choice:no_missing_values|not_applicable|not_recorded|zero_is_not_missing|censored|unknown_reason",
-      "user_may_know": true
+      "user_may_know": true,
+      "accepted_fact": {
+        "fact_key": "column_missing_meaning",
+        "value_type": "choice",
+        "consumer_ids": ["semantic_compiler", "preparation_compiler"]
+      }
     },
     {
       "requirement_id": "column.measurement_timing",
@@ -155,7 +282,12 @@
       "methods_required_for": ["randomized_experiment", "aipw", "did", "sharp_rdd"],
       "missing_action": "ask_user",
       "expected_answer_schema": "mapping-list.v1",
-      "user_may_know": true
+      "user_may_know": true,
+      "accepted_fact": {
+        "fact_key": "column_measurement_timing",
+        "value_type": "mapping",
+        "consumer_ids": ["semantic_compiler", "role_ledger", "preparation_compiler"]
+      }
     },
     {
       "requirement_id": "column.source_process",
@@ -168,7 +300,12 @@
       "methods_required_for": ["randomized_experiment", "aipw", "did", "sharp_rdd"],
       "missing_action": "retain_as_sensitivity",
       "expected_answer_schema": "free-text.v1",
-      "user_may_know": true
+      "user_may_know": true,
+      "accepted_fact": {
+        "fact_key": "column_source_process",
+        "value_type": "text",
+        "consumer_ids": ["semantic_compiler", "claim_compiler"]
+      }
     },
     {
       "requirement_id": "design.concept_mapping",
@@ -181,7 +318,12 @@
       "methods_required_for": ["randomized_experiment", "aipw", "did", "sharp_rdd"],
       "missing_action": "retain_as_sensitivity",
       "expected_answer_schema": "mapping-list.v1",
-      "user_may_know": true
+      "user_may_know": true,
+      "accepted_fact": {
+        "fact_key": "concept_mapping",
+        "value_type": "mapping",
+        "consumer_ids": ["semantic_compiler", "role_ledger", "causal_context"]
+      }
     },
     {
       "requirement_id": "design.treatment_descendants",
@@ -194,7 +336,12 @@
       "methods_required_for": ["randomized_experiment", "aipw", "did", "sharp_rdd"],
       "missing_action": "retain_as_sensitivity",
       "expected_answer_schema": "column-list.v1",
-      "user_may_know": true
+      "user_may_know": true,
+      "accepted_fact": {
+        "fact_key": "treatment_descendants",
+        "value_type": "column_list",
+        "consumer_ids": ["causal_context", "role_ledger", "preparation_compiler", "claim_compiler"]
+      }
     },
     {
       "requirement_id": "design.selection_variables",
@@ -207,7 +354,12 @@
       "methods_required_for": ["randomized_experiment", "aipw", "did", "sharp_rdd"],
       "missing_action": "retain_as_sensitivity",
       "expected_answer_schema": "column-list.v1",
-      "user_may_know": true
+      "user_may_know": true,
+      "accepted_fact": {
+        "fact_key": "selection_variables",
+        "value_type": "column_list",
+        "consumer_ids": ["causal_context", "role_ledger", "preparation_compiler", "claim_compiler"]
+      }
     },
     {
       "requirement_id": "design.conflict_resolution",
@@ -220,7 +372,12 @@
       "methods_required_for": ["randomized_experiment", "aipw", "did", "sharp_rdd"],
       "missing_action": "retain_as_sensitivity",
       "expected_answer_schema": "free-text.v1",
-      "user_may_know": true
+      "user_may_know": true,
+      "accepted_fact": {
+        "fact_key": "conflict_resolution",
+        "value_type": "text",
+        "consumer_ids": ["causal_context", "role_ledger", "claim_compiler"]
+      }
     }
   ]
 }

@@ -1,0 +1,129 @@
+{
+  "randomized": {
+    "configuration": {
+      "treatment_column": "arm",
+      "unit_column": "id",
+      "treated_value": "treated",
+      "comparator_value": "control",
+      "estimator": "difference_in_means"
+    },
+    "settings": [
+      {
+        "treatment": "arm",
+        "unit_identifier": "id",
+        "outcome": "y"
+      },
+      {
+        "specification": "difference_in_means",
+        "outcome_scale": "difference",
+        "stratum_handling": "fixed_effects",
+        "cluster_covariance": "cluster_robust_cr1",
+        "minimum_clusters": 8,
+        "mask_rule_id": "outcome_observed",
+        "multiplicity_policy_id": "holm_step_down.v1"
+      },
+      "treated_vs_control"
+    ]
+  },
+  "aipw": {
+    "configuration": {
+      "treatment_column": "arm",
+      "unit_column": "id",
+      "treated_value": "treated",
+      "comparator_value": "control",
+      "estimand": "ate",
+      "covariate_columns": [
+        "x"
+      ]
+    },
+    "settings": [
+      {
+        "treatment": "arm",
+        "unit_identifier": "id",
+        "outcome": "y",
+        "adjustment_covariate__0": "x"
+      },
+      {
+        "estimand": "ate",
+        "propensity_bound": 0.01,
+        "aggregation": "cross_fit_influence_mean",
+        "nuisance_profile_id": "regularized_glm",
+        "fold_count": 5,
+        "seed_offset": 0,
+        "mask_rule_id": "cross_fit_predicted",
+        "fold_assignment_rule_id": "stratified_by_treatment_and_unit"
+      },
+      "treated_vs_control"
+    ]
+  },
+  "did": {
+    "configuration": {
+      "treatment_column": "treated",
+      "unit_column": "id",
+      "time_column": "period",
+      "profile": "simultaneous",
+      "adoption_time": 4.0
+    },
+    "settings": [
+      {
+        "treatment": "treated",
+        "unit_identifier": "id",
+        "outcome": "y",
+        "time": "period"
+      },
+      {
+        "adoption_profile_id": "simultaneous",
+        "adoption_time": 4.0,
+        "comparison_cohort": "never_treated",
+        "anticipation_periods": 0,
+        "reference_period": -1,
+        "event_window_leads": 3,
+        "event_window_lags": 3,
+        "fixed_effects": "unit_and_time",
+        "weighting": "cell_size",
+        "aggregation": "cohort_weighted_overall",
+        "mask_rule_id": "group_time_cell",
+        "cluster_level": "unit",
+        "placebo_shift_periods": 0,
+        "influence_summary": "none"
+      },
+      "treated_vs_never_treated"
+    ]
+  },
+  "rdd": {
+    "configuration": {
+      "treatment_column": "arm",
+      "unit_column": "id",
+      "treated_value": "treated",
+      "comparator_value": "control",
+      "running_column": "running",
+      "running_units": "points",
+      "cutoff": 0.0
+    },
+    "settings": [
+      {
+        "treatment": "arm",
+        "unit_identifier": "id",
+        "outcome": "y",
+        "running_variable": "running"
+      },
+      {
+        "cutoff": 0.0,
+        "assignment_direction": "above",
+        "treated_value": "treated",
+        "comparator_value": "control",
+        "polynomial_order": 1,
+        "kernel": "triangular",
+        "bandwidth_selector": "mserd",
+        "primary_quantity": "robust_bias_corrected",
+        "mass_point_handling": "checked",
+        "mask_rule_id": "selected_bandwidth",
+        "bandwidth_multiplier": 1.0,
+        "donut_radius": 0.0,
+        "placebo_cutoff_offset": 0.0,
+        "covariate_adjustment": false
+      },
+      "treated_vs_control"
+    ]
+  }
+}
