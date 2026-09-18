@@ -1,0 +1,306 @@
+kinds:
+  assignment:
+    fields:
+      kind:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      rule:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      depends_on:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      treatment_column:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      treated_level:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      score_column:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      cutoff:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      treated_side:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      cutoff_value_treated:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      movable:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      level_column:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+    status: empty
+    source: null
+    check_detail: null
+    asked: 0
+    refutations: 0
+  change:
+    fields:
+      what:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      to_whom:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      when:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      date_column:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      period_value:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+    status: empty
+    source: null
+    check_detail: null
+    asked: 0
+    refutations: 0
+  grain:
+    fields:
+      row_is:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      key_columns:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      panel:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      nesting:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+    status: empty
+    source: null
+    check_detail: null
+    asked: 0
+    refutations: 0
+  sampling:
+    fields:
+      how:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      detail:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+    status: empty
+    source: null
+    check_detail: null
+    asked: 0
+    refutations: 0
+  missing:
+    fields:
+      why:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+    status: empty
+    source: null
+    check_detail: null
+    asked: 0
+    refutations: 0
+  unobserved:
+    fields:
+      exists:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      what:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      why_believed:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+    status: empty
+    source: null
+    check_detail: null
+    asked: 0
+    refutations: 0
+  exclusion:
+    fields:
+      exists:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      column:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      why:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+    status: empty
+    source: null
+    check_detail: null
+    asked: 0
+    refutations: 0
+  spillover:
+    fields:
+      possible:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      why:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+    status: empty
+    source: null
+    check_detail: null
+    asked: 0
+    refutations: 0
+  trend_continues:
+    fields:
+      believed:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      why:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+    status: empty
+    source: null
+    check_detail: null
+    asked: 0
+    refutations: 0
+  cutoff_only:
+    fields:
+      believed:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      why:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+    status: empty
+    source: null
+    check_detail: null
+    asked: 0
+    refutations: 0
+  mediator:
+    fields:
+      exists:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      column:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      why:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+    status: empty
+    source: null
+    check_detail: null
+    asked: 0
+    refutations: 0

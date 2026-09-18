@@ -1,0 +1,357 @@
+kinds:
+  assignment:
+    fields:
+      kind:
+        value: cutoff_rule
+        status: confirmed
+        source: user:turn:1
+        said: null
+        evidence:
+        - doc:context
+        - user:turn:1
+        - check:assignment.rows_by_side
+      rule:
+        value: A Democrat won if the margin of victory was at or above zero.
+        status: confirmed
+        source: user:turn:1
+        said: null
+        evidence:
+        - doc:context
+        - user:turn:1
+        - check:assignment.rows_by_side
+      depends_on:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      treatment_column:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      treated_level:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      score_column:
+        value: margin
+        status: confirmed
+        source: user:turn:1
+        said: null
+        evidence:
+        - doc:context
+        - user:turn:1
+        - check:assignment.rows_by_side
+      cutoff:
+        value: 0.0
+        status: confirmed
+        source: user:turn:1
+        said: null
+        evidence:
+        - doc:context
+        - user:turn:1
+        - check:assignment.rows_by_side
+      treated_side:
+        value: above
+        status: confirmed
+        source: user:turn:1
+        said: null
+        evidence:
+        - doc:context
+        - user:turn:1
+        - check:assignment.rows_by_side
+      cutoff_value_treated:
+        value: true
+        status: confirmed
+        source: user:turn:1
+        said: null
+        evidence:
+        - doc:context
+        - user:turn:1
+        - check:assignment.rows_by_side
+      movable:
+        value: false
+        status: confirmed
+        source: user:turn:1
+        said: null
+        evidence:
+        - doc:context
+        - user:turn:1
+        - check:assignment.rows_by_side
+      level_column:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+    status: confirmed
+    source: user:turn:1
+    check_detail: 750 rows on the treated side of 0.0 on 'margin', 640 on the other
+    asked: 0
+    refutations: 0
+  change:
+    fields:
+      what:
+        value: holding a Senate seat
+        status: confirmed
+        source: user:turn:1
+        said: null
+        evidence:
+        - doc:context
+        - user:turn:1
+      to_whom:
+        value: a Democrat
+        status: confirmed
+        source: user:turn:1
+        said: null
+        evidence:
+        - doc:context
+        - user:turn:1
+      when:
+        value: for six years after winning an election
+        status: confirmed
+        source: user:turn:1
+        said: null
+        evidence:
+        - doc:context
+        - user:turn:1
+      date_column:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      period_value:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+    status: confirmed
+    source: user:turn:1
+    check_detail: null
+    asked: 0
+    refutations: 0
+  grain:
+    fields:
+      row_is:
+        value: one US Senate election
+        status: confirmed
+        source: user:turn:1
+        said: null
+        evidence:
+        - doc:context
+        - user:turn:1
+        - check:grain.key_unique
+      key_columns:
+        value:
+        - state
+        - year
+        status: confirmed
+        source: user:turn:1
+        said: null
+        evidence:
+        - doc:context
+        - user:turn:1
+        - check:grain.key_unique
+      panel:
+        value: false
+        status: confirmed
+        source: user:turn:1
+        said: null
+        evidence:
+        - doc:context
+        - user:turn:1
+        - check:grain.key_unique
+      nesting:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+    status: confirmed
+    source: user:turn:1
+    check_detail: state + year identifies every row (1390 rows)
+    asked: 0
+    refutations: 0
+  sampling:
+    fields:
+      how:
+        value: whole
+        status: confirmed
+        source: user:turn:1
+        said: null
+        evidence:
+        - doc:context
+        - user:turn:1
+      detail:
+        value: Every US Senate election from 1914 to 2010 with needed returns.
+        status: confirmed
+        source: user:turn:1
+        said: null
+        evidence:
+        - doc:context
+        - user:turn:1
+    status: confirmed
+    source: user:turn:1
+    check_detail: null
+    asked: 0
+    refutations: 0
+  missing:
+    fields:
+      why:
+        value: Values are missing where the next election's returns or the candidate's
+          service record were not available; that has nothing to do with who won.
+        status: confirmed
+        source: user:turn:1
+        said: null
+        evidence:
+        - user:turn:1
+        - check:missing.missing_by_arm
+    status: confirmed
+    source: user:turn:1
+    check_detail: 'columns with gaps: [''vote'', ''termshouse'', ''termssenate'',
+      ''dopen'', ''presdemvoteshlag1'', ''demvoteshlag1'', ''demvoteshlag2'', ''demvoteshfor1'',
+      ''demwinprv1'', ''demwinprv2'']; no treatment column settled yet, so gaps cannot
+      be split by arm'
+    asked: 0
+    refutations: 0
+  unobserved:
+    fields:
+      exists:
+        value: false
+        status: confirmed
+        source: user:turn:2
+        said: null
+        evidence:
+        - user:turn:2
+      what:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      why_believed:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+    status: confirmed
+    source: user:turn:2
+    check_detail: null
+    asked: 0
+    refutations: 0
+  exclusion:
+    fields:
+      exists:
+        value: false
+        status: confirmed
+        source: user:turn:2
+        said: null
+        evidence:
+        - user:turn:2
+      column:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      why:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+    status: confirmed
+    source: user:turn:2
+    check_detail: null
+    asked: 0
+    refutations: 0
+  spillover:
+    fields:
+      possible:
+        value: false
+        status: confirmed
+        source: user:turn:2
+        said: null
+        evidence:
+        - user:turn:2
+      why:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+    status: confirmed
+    source: user:turn:2
+    check_detail: null
+    asked: 0
+    refutations: 0
+  trend_continues:
+    fields:
+      believed:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      why:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+    status: empty
+    source: null
+    check_detail: null
+    asked: 0
+    refutations: 0
+  cutoff_only:
+    fields:
+      believed:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      why:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+    status: empty
+    source: null
+    check_detail: null
+    asked: 0
+    refutations: 0
+  mediator:
+    fields:
+      exists:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      column:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      why:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+    status: empty
+    source: null
+    check_detail: null
+    asked: 0
+    refutations: 0

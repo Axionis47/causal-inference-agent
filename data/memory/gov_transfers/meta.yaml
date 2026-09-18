@@ -1,0 +1,11 @@
+name: gov_transfers
+version: 0
+csv: data/raw/gov-transfers-uruguay/gov_transfers.csv
+dataset_facts:
+  rows: 1948
+  columns: 5
+  duplicate_rows: 21
+  grain: []
+  time_coverage: null
+  entity_summary: null
+  format_issues: []

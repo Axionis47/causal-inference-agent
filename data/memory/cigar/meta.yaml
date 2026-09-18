@@ -1,0 +1,23 @@
+name: cigar
+version: 0
+csv: data/raw/cigarette-sales-prop99/Cigar.csv
+dataset_facts:
+  rows: 1380
+  columns: 10
+  duplicate_rows: 0
+  grain:
+  - 'Unnamed: 0'
+  time_coverage:
+    column: year
+    first: '63'
+    last: '92'
+    inferred_frequency: integer period, step 1
+    gaps: 0
+  entity_summary:
+    columns:
+    - state
+    entities: 46
+    rows_per_entity_min: 30
+    rows_per_entity_median: 30.0
+    rows_per_entity_max: 30
+  format_issues: []

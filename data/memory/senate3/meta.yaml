@@ -1,0 +1,11 @@
+name: senate3
+version: 0
+csv: data/raw/senate-incumbency/senate.csv
+dataset_facts:
+  rows: 1390
+  columns: 17
+  duplicate_rows: 0
+  grain: []
+  time_coverage: null
+  entity_summary: null
+  format_issues: []

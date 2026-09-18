@@ -1,0 +1,900 @@
+unnamed_0:
+  name: 'Unnamed: 0'
+  key: unnamed_0
+  facts:
+    kind: id
+    nulls: 0
+    null_rate: 0.0
+    distinct: 1380
+    constant: false
+    varies_over: both
+    numeric:
+      min: 1.0
+      max: 1380.0
+      mean: 690.5
+      p01: 14.790000000000001
+      p25: 345.75
+      p50: 690.5
+      p75: 1035.25
+      p99: 1366.21
+    top_values: []
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+  fields:
+    meaning:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    stands_for:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    proxy:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    derived_from:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    when:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    set_by:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    feeds_assignment:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    moved_by_change:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    measures_outcome:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    role:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+  status: empty
+  source: null
+  check_detail: null
+  asked: 0
+  refutations: 0
+state:
+  name: state
+  key: state
+  facts:
+    kind: id
+    nulls: 0
+    null_rate: 0.0
+    distinct: 46
+    constant: false
+    varies_over: entity
+    numeric:
+      min: 1.0
+      max: 51.0
+      mean: 26.826087
+      p01: 1.0
+      p25: 15.0
+      p50: 26.5
+      p75: 40.0
+      p99: 51.0
+    top_values: []
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+  fields:
+    meaning:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    stands_for:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    proxy:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    derived_from:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    when:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    set_by:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    feeds_assignment:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    moved_by_change:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    measures_outcome:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    role:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+  status: empty
+  source: null
+  check_detail: null
+  asked: 0
+  refutations: 0
+year:
+  name: year
+  key: year
+  facts:
+    kind: numeric
+    nulls: 0
+    null_rate: 0.0
+    distinct: 30
+    constant: false
+    varies_over: time
+    numeric:
+      min: 63.0
+      max: 92.0
+      mean: 77.5
+      p01: 63.0
+      p25: 70.0
+      p50: 77.5
+      p75: 85.0
+      p99: 92.0
+    top_values: []
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+  fields:
+    meaning:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    stands_for:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    proxy:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    derived_from:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    when:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    set_by:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    feeds_assignment:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    moved_by_change:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    measures_outcome:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    role:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+  status: empty
+  source: null
+  check_detail: null
+  asked: 0
+  refutations: 0
+price:
+  name: price
+  key: price
+  facts:
+    kind: numeric
+    nulls: 0
+    null_rate: 0.0
+    distinct: 767
+    constant: false
+    varies_over: both
+    numeric:
+      min: 23.4
+      max: 201.9
+      mean: 68.699928
+      p01: 24.7
+      p25: 34.775
+      p50: 52.3
+      p75: 98.1
+      p99: 181.57600000000022
+    top_values: []
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+  fields:
+    meaning:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    stands_for:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    proxy:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    derived_from:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    when:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    set_by:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    feeds_assignment:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    moved_by_change:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    measures_outcome:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    role:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+  status: empty
+  source: null
+  check_detail: null
+  asked: 0
+  refutations: 0
+pop:
+  name: pop
+  key: pop
+  facts:
+    kind: numeric
+    nulls: 0
+    null_rate: 0.0
+    distinct: 1247
+    constant: false
+    varies_over: both
+    numeric:
+      min: 319.0
+      max: 30703.3
+      mean: 4537.113188
+      p01: 391.79
+      p25: 1053.0
+      p50: 3174.0
+      p75: 5280.25
+      p99: 22393.800000000014
+    top_values: []
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+  fields:
+    meaning:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    stands_for:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    proxy:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    derived_from:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    when:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    set_by:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    feeds_assignment:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    moved_by_change:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    measures_outcome:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    role:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+  status: empty
+  source: null
+  check_detail: null
+  asked: 0
+  refutations: 0
+pop16:
+  name: pop16
+  key: pop16
+  facts:
+    kind: numeric
+    nulls: 0
+    null_rate: 0.0
+    distinct: 1341
+    constant: false
+    varies_over: both
+    numeric:
+      min: 215.2
+      max: 22920.0
+      mean: 3366.616087
+      p01: 271.791
+      p25: 781.175
+      p50: 2315.3
+      p75: 3914.3250000000003
+      p99: 17193.724000000013
+    top_values: []
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+  fields:
+    meaning:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    stands_for:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    proxy:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    derived_from:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    when:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    set_by:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    feeds_assignment:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    moved_by_change:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    measures_outcome:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    role:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+  status: empty
+  source: null
+  check_detail: null
+  asked: 0
+  refutations: 0
+cpi:
+  name: cpi
+  key: cpi
+  facts:
+    kind: numeric
+    nulls: 0
+    null_rate: 0.0
+    distinct: 30
+    constant: false
+    varies_over: time
+    numeric:
+      min: 30.6
+      max: 140.3
+      mean: 73.596667
+      p01: 30.6
+      p25: 38.8
+      p50: 62.900000000000006
+      p75: 107.6
+      p99: 140.3
+    top_values: []
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+  fields:
+    meaning:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    stands_for:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    proxy:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    derived_from:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    when:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    set_by:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    feeds_assignment:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    moved_by_change:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    measures_outcome:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    role:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+  status: empty
+  source: null
+  check_detail: null
+  asked: 0
+  refutations: 0
+ndi:
+  name: ndi
+  key: ndi
+  facts:
+    kind: numeric
+    nulls: 0
+    null_rate: 0.0
+    distinct: 1376
+    constant: false
+    varies_over: both
+    numeric:
+      min: 1322.5729775
+      max: 23074.0
+      mean: 7525.023022
+      p01: 1719.151851245
+      p25: 3327.8691327
+      p50: 6281.2008085
+      p75: 11024.109942
+      p99: 19786.110000000008
+    top_values: []
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+  fields:
+    meaning:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    stands_for:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    proxy:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    derived_from:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    when:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    set_by:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    feeds_assignment:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    moved_by_change:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    measures_outcome:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    role:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+  status: empty
+  source: null
+  check_detail: null
+  asked: 0
+  refutations: 0
+sales:
+  name: sales
+  key: sales
+  facts:
+    kind: numeric
+    nulls: 0
+    null_rate: 0.0
+    distinct: 689
+    constant: false
+    varies_over: both
+    numeric:
+      min: 53.4
+      max: 297.9
+      mean: 123.95087
+      p01: 66.458
+      p25: 107.9
+      p50: 121.2
+      p75: 133.2
+      p99: 250.8080000000002
+    top_values: []
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+  fields:
+    meaning:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    stands_for:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    proxy:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    derived_from:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    when:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    set_by:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    feeds_assignment:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    moved_by_change:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    measures_outcome:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    role:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+  status: empty
+  source: null
+  check_detail: null
+  asked: 0
+  refutations: 0
+pimin:
+  name: pimin
+  key: pimin
+  facts:
+    kind: numeric
+    nulls: 0
+    null_rate: 0.0
+    distinct: 466
+    constant: false
+    varies_over: both
+    numeric:
+      min: 23.4
+      max: 178.5
+      mean: 62.899275
+      p01: 24.1
+      p25: 31.975
+      p50: 46.4
+      p75: 90.5
+      p99: 164.4
+    top_values: []
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+  fields:
+    meaning:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    stands_for:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    proxy:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    derived_from:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    when:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    set_by:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    feeds_assignment:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    moved_by_change:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    measures_outcome:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    role:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+  status: empty
+  source: null
+  check_detail: null
+  asked: 0
+  refutations: 0

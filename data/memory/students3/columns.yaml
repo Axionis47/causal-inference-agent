@@ -1,0 +1,790 @@
+gender:
+  name: gender
+  key: gender
+  facts:
+    kind: categorical
+    nulls: 0
+    null_rate: 0.0
+    distinct: 2
+    constant: false
+    varies_over: unknown
+    numeric: null
+    top_values:
+    - value: female
+      count: 518
+      share: 0.518
+    - value: male
+      count: 482
+      share: 0.482
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+  fields:
+    meaning:
+      value: student's gender
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - col:gender
+      - user:turn:1
+    stands_for:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    proxy:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    derived_from:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    when:
+      value: before
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - col:gender
+      - user:turn:1
+    set_by:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    feeds_assignment:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    moved_by_change:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    measures_outcome:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    role:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+  status: confirmed
+  source: user:turn:1
+  check_detail: null
+  asked: 0
+  refutations: 0
+race_ethnicity:
+  name: race/ethnicity
+  key: race_ethnicity
+  facts:
+    kind: categorical
+    nulls: 0
+    null_rate: 0.0
+    distinct: 5
+    constant: false
+    varies_over: unknown
+    numeric: null
+    top_values:
+    - value: group C
+      count: 319
+      share: 0.319
+    - value: group D
+      count: 262
+      share: 0.262
+    - value: group B
+      count: 190
+      share: 0.19
+    - value: group E
+      count: 140
+      share: 0.14
+    - value: group A
+      count: 89
+      share: 0.089
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+  fields:
+    meaning:
+      value: the school's own grouping of race/ethnicity
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - col:race_ethnicity
+      - user:turn:1
+    stands_for:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    proxy:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    derived_from:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    when:
+      value: before
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - col:race_ethnicity
+      - user:turn:1
+    set_by:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    feeds_assignment:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    moved_by_change:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    measures_outcome:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    role:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+  status: confirmed
+  source: user:turn:1
+  check_detail: null
+  asked: 0
+  refutations: 0
+parental_level_of_education:
+  name: parental level of education
+  key: parental_level_of_education
+  facts:
+    kind: categorical
+    nulls: 0
+    null_rate: 0.0
+    distinct: 6
+    constant: false
+    varies_over: unknown
+    numeric: null
+    top_values:
+    - value: some college
+      count: 226
+      share: 0.226
+    - value: associate's degree
+      count: 222
+      share: 0.222
+    - value: high school
+      count: 196
+      share: 0.196
+    - value: some high school
+      count: 179
+      share: 0.179
+    - value: bachelor's degree
+      count: 118
+      share: 0.118
+    - value: master's degree
+      count: 59
+      share: 0.059
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+  fields:
+    meaning:
+      value: highest qualification held by either parent
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - col:parental_level_of_education
+      - user:turn:1
+    stands_for:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    proxy:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    derived_from:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    when:
+      value: before
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - col:parental_level_of_education
+      - user:turn:1
+    set_by:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    feeds_assignment:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    moved_by_change:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    measures_outcome:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    role:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+  status: confirmed
+  source: user:turn:1
+  check_detail: null
+  asked: 0
+  refutations: 0
+lunch:
+  name: lunch
+  key: lunch
+  facts:
+    kind: categorical
+    nulls: 0
+    null_rate: 0.0
+    distinct: 2
+    constant: false
+    varies_over: unknown
+    numeric: null
+    top_values:
+    - value: standard
+      count: 645
+      share: 0.645
+    - value: free/reduced
+      count: 355
+      share: 0.355
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+  fields:
+    meaning:
+      value: student's lunch status (standard or free/reduced)
+      status: confirmed
+      source: user:turn:4
+      said: null
+      evidence:
+      - doc:context
+      - col:lunch
+      - user:turn:1
+      - user:turn:4
+    stands_for:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    proxy:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    derived_from:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    when:
+      value: after
+      status: confirmed
+      source: user:turn:4
+      said: null
+      evidence:
+      - doc:context
+      - col:lunch
+      - user:turn:1
+      - user:turn:4
+    set_by:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    feeds_assignment:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    moved_by_change:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    measures_outcome:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    role:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+  status: confirmed
+  source: user:turn:4
+  check_detail: null
+  asked: 0
+  refutations: 0
+test_preparation_course:
+  name: test preparation course
+  key: test_preparation_course
+  facts:
+    kind: categorical
+    nulls: 0
+    null_rate: 0.0
+    distinct: 2
+    constant: false
+    varies_over: unknown
+    numeric: null
+    top_values:
+    - value: none
+      count: 642
+      share: 0.642
+    - value: completed
+      count: 358
+      share: 0.358
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+  fields:
+    meaning:
+      value: whether the student completed the test preparation course
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - col:test_preparation_course
+      - user:turn:1
+    stands_for:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    proxy:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    derived_from:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    when:
+      value: at
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - col:test_preparation_course
+      - user:turn:1
+    set_by:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    feeds_assignment:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    moved_by_change:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    measures_outcome:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    role:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+  status: confirmed
+  source: user:turn:1
+  check_detail: null
+  asked: 0
+  refutations: 0
+math_score:
+  name: math score
+  key: math_score
+  facts:
+    kind: numeric
+    nulls: 0
+    null_rate: 0.0
+    distinct: 81
+    constant: false
+    varies_over: unknown
+    numeric:
+      min: 0.0
+      max: 100.0
+      mean: 66.089
+      p01: 27.990000000000002
+      p25: 57.0
+      p50: 66.0
+      p75: 77.0
+      p99: 98.00999999999999
+    top_values: []
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+  fields:
+    meaning:
+      value: student's math exam mark
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - col:math_score
+      - user:turn:1
+    stands_for:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    proxy:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    derived_from:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    when:
+      value: after
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - col:math_score
+      - user:turn:1
+    set_by:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    feeds_assignment:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    moved_by_change:
+      value: true
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - col:math_score
+      - user:turn:1
+    measures_outcome:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    role:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+  status: confirmed
+  source: user:turn:1
+  check_detail: null
+  asked: 0
+  refutations: 0
+reading_score:
+  name: reading score
+  key: reading_score
+  facts:
+    kind: numeric
+    nulls: 0
+    null_rate: 0.0
+    distinct: 72
+    constant: false
+    varies_over: unknown
+    numeric:
+      min: 17.0
+      max: 100.0
+      mean: 69.169
+      p01: 31.990000000000002
+      p25: 59.0
+      p50: 70.0
+      p75: 79.0
+      p99: 100.0
+    top_values: []
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+  fields:
+    meaning:
+      value: student's reading exam mark
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - col:reading_score
+      - user:turn:1
+    stands_for:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    proxy:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    derived_from:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    when:
+      value: after
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - col:reading_score
+      - user:turn:1
+    set_by:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    feeds_assignment:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    moved_by_change:
+      value: true
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - col:reading_score
+      - user:turn:1
+    measures_outcome:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    role:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+  status: confirmed
+  source: user:turn:1
+  check_detail: null
+  asked: 0
+  refutations: 0
+writing_score:
+  name: writing score
+  key: writing_score
+  facts:
+    kind: numeric
+    nulls: 0
+    null_rate: 0.0
+    distinct: 77
+    constant: false
+    varies_over: unknown
+    numeric:
+      min: 10.0
+      max: 100.0
+      mean: 68.054
+      p01: 31.98
+      p25: 57.75
+      p50: 69.0
+      p75: 79.0
+      p99: 100.0
+    top_values: []
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+  fields:
+    meaning:
+      value: student's writing exam mark
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - col:writing_score
+      - user:turn:1
+    stands_for:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    proxy:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    derived_from:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    when:
+      value: after
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - col:writing_score
+      - user:turn:1
+    set_by:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    feeds_assignment:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    moved_by_change:
+      value: true
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - col:writing_score
+      - user:turn:1
+    measures_outcome:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    role:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+  status: confirmed
+  source: user:turn:1
+  check_detail: null
+  asked: 0
+  refutations: 0

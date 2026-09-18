@@ -1,0 +1,652 @@
+marketid:
+  name: MarketID
+  key: marketid
+  facts:
+    kind: categorical
+    nulls: 0
+    null_rate: 0.0
+    distinct: 10
+    constant: false
+    varies_over: entity
+    numeric: null
+    top_values:
+    - value: '3'
+      count: 88
+      share: 0.1606
+    - value: '10'
+      count: 80
+      share: 0.146
+    - value: '5'
+      count: 60
+      share: 0.1095
+    - value: '6'
+      count: 60
+      share: 0.1095
+    - value: '7'
+      count: 60
+      share: 0.1095
+    - value: '1'
+      count: 52
+      share: 0.0949
+    - value: '8'
+      count: 48
+      share: 0.0876
+    - value: '9'
+      count: 40
+      share: 0.073
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+  fields:
+    meaning:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    stands_for:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    proxy:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    derived_from:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    when:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    set_by:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    feeds_assignment:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    moved_by_change:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    measures_outcome:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    role:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+  status: empty
+  source: null
+  check_detail: null
+  asked: 0
+  refutations: 0
+marketsize:
+  name: MarketSize
+  key: marketsize
+  facts:
+    kind: categorical
+    nulls: 0
+    null_rate: 0.0
+    distinct: 3
+    constant: false
+    varies_over: entity
+    numeric: null
+    top_values:
+    - value: Medium
+      count: 320
+      share: 0.5839
+    - value: Large
+      count: 168
+      share: 0.3066
+    - value: Small
+      count: 60
+      share: 0.1095
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+  fields:
+    meaning:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    stands_for:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    proxy:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    derived_from:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    when:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    set_by:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    feeds_assignment:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    moved_by_change:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    measures_outcome:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    role:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+  status: empty
+  source: null
+  check_detail: null
+  asked: 0
+  refutations: 0
+locationid:
+  name: LocationID
+  key: locationid
+  facts:
+    kind: id
+    nulls: 0
+    null_rate: 0.0
+    distinct: 137
+    constant: false
+    varies_over: entity
+    numeric:
+      min: 1.0
+      max: 920.0
+      mean: 479.656934
+      p01: 2.0
+      p25: 216.0
+      p50: 504.0
+      p75: 708.0
+      p99: 919.0
+    top_values: []
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+  fields:
+    meaning:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    stands_for:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    proxy:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    derived_from:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    when:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    set_by:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    feeds_assignment:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    moved_by_change:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    measures_outcome:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    role:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+  status: empty
+  source: null
+  check_detail: null
+  asked: 0
+  refutations: 0
+ageofstore:
+  name: AgeOfStore
+  key: ageofstore
+  facts:
+    kind: numeric
+    nulls: 0
+    null_rate: 0.0
+    distinct: 25
+    constant: false
+    varies_over: entity
+    numeric:
+      min: 1.0
+      max: 28.0
+      mean: 8.50365
+      p01: 1.0
+      p25: 4.0
+      p50: 7.0
+      p75: 12.0
+      p99: 27.0
+    top_values: []
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+  fields:
+    meaning:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    stands_for:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    proxy:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    derived_from:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    when:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    set_by:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    feeds_assignment:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    moved_by_change:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    measures_outcome:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    role:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+  status: empty
+  source: null
+  check_detail: null
+  asked: 0
+  refutations: 0
+promotion:
+  name: Promotion
+  key: promotion
+  facts:
+    kind: categorical
+    nulls: 0
+    null_rate: 0.0
+    distinct: 3
+    constant: false
+    varies_over: entity
+    numeric: null
+    top_values:
+    - value: '3'
+      count: 188
+      share: 0.3431
+    - value: '2'
+      count: 188
+      share: 0.3431
+    - value: '1'
+      count: 172
+      share: 0.3139
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+  fields:
+    meaning:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    stands_for:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    proxy:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    derived_from:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    when:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    set_by:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    feeds_assignment:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    moved_by_change:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    measures_outcome:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    role:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+  status: empty
+  source: null
+  check_detail: null
+  asked: 0
+  refutations: 0
+week:
+  name: week
+  key: week
+  facts:
+    kind: categorical
+    nulls: 0
+    null_rate: 0.0
+    distinct: 4
+    constant: false
+    varies_over: time
+    numeric: null
+    top_values:
+    - value: '1'
+      count: 137
+      share: 0.25
+    - value: '2'
+      count: 137
+      share: 0.25
+    - value: '3'
+      count: 137
+      share: 0.25
+    - value: '4'
+      count: 137
+      share: 0.25
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+  fields:
+    meaning:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    stands_for:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    proxy:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    derived_from:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    when:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    set_by:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    feeds_assignment:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    moved_by_change:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    measures_outcome:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    role:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+  status: empty
+  source: null
+  check_detail: null
+  asked: 0
+  refutations: 0
+salesinthousands:
+  name: SalesInThousands
+  key: salesinthousands
+  facts:
+    kind: numeric
+    nulls: 0
+    null_rate: 0.0
+    distinct: 517
+    constant: false
+    varies_over: both
+    numeric:
+      min: 17.34
+      max: 99.65
+      mean: 53.466204
+      p01: 24.3154
+      p25: 42.545
+      p50: 50.2
+      p75: 60.4775
+      p99: 94.67379999999999
+    top_values: []
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+  fields:
+    meaning:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    stands_for:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    proxy:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    derived_from:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    when:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    set_by:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    feeds_assignment:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    moved_by_change:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    measures_outcome:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    role:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+  status: empty
+  source: null
+  check_detail: null
+  asked: 0
+  refutations: 0

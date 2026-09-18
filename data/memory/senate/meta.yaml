@@ -1,0 +1,17 @@
+name: senate
+version: 0
+csv: data/raw/senate-incumbency/senate.csv
+dataset_facts:
+  rows: 1390
+  columns: 17
+  duplicate_rows: 0
+  grain: []
+  time_coverage: null
+  entity_summary:
+    columns:
+    - state
+    entities: 50
+    rows_per_entity_min: 16
+    rows_per_entity_median: 28.0
+    rows_per_entity_max: 33
+  format_issues: []

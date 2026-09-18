@@ -1,0 +1,365 @@
+kinds:
+  assignment:
+    fields:
+      kind:
+        value: own_choice
+        status: confirmed
+        source: user:turn:1
+        said: null
+        evidence:
+        - doc:context
+        - col:lunch
+        - col:parental_level_of_education
+        - col:test_preparation_course
+        - user:turn:1
+        - check:assignment.treatment_varies
+      rule:
+        value: The counsellor offered places first to students on free or reduced
+          lunch and to those whose parents hold no degree, then to anyone who asked,
+          and each student chose whether to take the course.
+        status: confirmed
+        source: user:turn:1
+        said: null
+        evidence:
+        - doc:context
+        - col:lunch
+        - col:parental_level_of_education
+        - col:test_preparation_course
+        - user:turn:1
+        - check:assignment.treatment_varies
+      depends_on:
+        value:
+        - lunch
+        - parental level of education
+        status: confirmed
+        source: user:turn:1
+        said: null
+        evidence:
+        - doc:context
+        - col:lunch
+        - col:parental_level_of_education
+        - col:test_preparation_course
+        - user:turn:1
+        - check:assignment.treatment_varies
+      treatment_column:
+        value: test preparation course
+        status: confirmed
+        source: user:turn:1
+        said: null
+        evidence:
+        - doc:context
+        - col:lunch
+        - col:parental_level_of_education
+        - col:test_preparation_course
+        - user:turn:1
+        - check:assignment.treatment_varies
+      treated_level:
+        value: completed
+        status: confirmed
+        source: user:turn:1
+        said: null
+        evidence:
+        - doc:context
+        - col:lunch
+        - col:parental_level_of_education
+        - col:test_preparation_course
+        - user:turn:1
+        - check:assignment.treatment_varies
+      score_column:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      cutoff:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      treated_side:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      cutoff_value_treated:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      movable:
+        value: true
+        status: confirmed
+        source: user:turn:1
+        said: null
+        evidence:
+        - doc:context
+        - col:lunch
+        - col:parental_level_of_education
+        - col:test_preparation_course
+        - user:turn:1
+        - check:assignment.treatment_varies
+      level_column:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+    status: confirmed
+    source: user:turn:1
+    check_detail: '''test preparation course'' takes 2 values'
+    asked: 0
+    refutations: 0
+  change:
+    fields:
+      what:
+        value: a six-week test preparation course
+        status: confirmed
+        source: user:turn:1
+        said: null
+        evidence:
+        - doc:context
+        - user:turn:1
+      to_whom:
+        value: students
+        status: confirmed
+        source: user:turn:1
+        said: null
+        evidence:
+        - doc:context
+        - user:turn:1
+      when:
+        value: before the May 2026 exam
+        status: confirmed
+        source: user:turn:1
+        said: null
+        evidence:
+        - doc:context
+        - user:turn:1
+      date_column:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      period_value:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+    status: confirmed
+    source: user:turn:1
+    check_detail: null
+    asked: 0
+    refutations: 0
+  grain:
+    fields:
+      row_is:
+        value: one student's results from the May 2026 exam at one school
+        status: confirmed
+        source: user:turn:1
+        said: null
+        evidence:
+        - doc:context
+        - user:turn:1
+      key_columns:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      panel:
+        value: false
+        status: confirmed
+        source: user:turn:1
+        said: null
+        evidence:
+        - doc:context
+        - user:turn:1
+      nesting:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+    status: confirmed
+    source: user:turn:1
+    check_detail: null
+    asked: 0
+    refutations: 0
+  sampling:
+    fields:
+      how:
+        value: whole
+        status: confirmed
+        source: user:turn:1
+        said: null
+        evidence:
+        - doc:context
+        - user:turn:1
+      detail:
+        value: every student who sat the May 2026 exam at one school
+        status: confirmed
+        source: user:turn:1
+        said: null
+        evidence:
+        - doc:context
+        - user:turn:1
+    status: confirmed
+    source: user:turn:1
+    check_detail: null
+    asked: 0
+    refutations: 0
+  missing:
+    fields:
+      why:
+        value: none
+        status: confirmed
+        source: data
+        said: null
+        evidence:
+        - check:missing.missing_by_arm
+    status: confirmed
+    source: data
+    check_detail: no column has missing values
+    asked: 0
+    refutations: 0
+  unobserved:
+    fields:
+      exists:
+        value: false
+        status: confirmed
+        source: user:turn:3
+        said: null
+        evidence:
+        - user:turn:3
+      what:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      why_believed:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+    status: confirmed
+    source: user:turn:3
+    check_detail: null
+    asked: 0
+    refutations: 0
+  exclusion:
+    fields:
+      exists:
+        value: false
+        status: confirmed
+        source: user:turn:2
+        said: null
+        evidence:
+        - user:turn:2
+      column:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      why:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+    status: confirmed
+    source: user:turn:2
+    check_detail: null
+    asked: 0
+    refutations: 0
+  spillover:
+    fields:
+      possible:
+        value: false
+        status: confirmed
+        source: user:turn:2
+        said: null
+        evidence:
+        - user:turn:2
+      why:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+    status: confirmed
+    source: user:turn:2
+    check_detail: null
+    asked: 0
+    refutations: 0
+  trend_continues:
+    fields:
+      believed:
+        value: true
+        status: confirmed
+        source: user:turn:2
+        said: null
+        evidence:
+        - user:turn:2
+      why:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+    status: confirmed
+    source: user:turn:2
+    check_detail: null
+    asked: 0
+    refutations: 0
+  cutoff_only:
+    fields:
+      believed:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      why:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+    status: empty
+    source: null
+    check_detail: null
+    asked: 0
+    refutations: 0
+  mediator:
+    fields:
+      exists:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      column:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+      why:
+        value: null
+        status: empty
+        source: null
+        said: null
+        evidence: []
+    status: empty
+    source: null
+    check_detail: null
+    asked: 0
+    refutations: 0

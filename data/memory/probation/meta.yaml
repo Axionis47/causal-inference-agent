@@ -1,0 +1,11 @@
+name: probation
+version: 0
+csv: data/raw/academic-probation-gpa/probation.csv
+dataset_facts:
+  rows: 40582
+  columns: 11
+  duplicate_rows: 166
+  grain: []
+  time_coverage: null
+  entity_summary: null
+  format_issues: []

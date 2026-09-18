@@ -1,0 +1,11 @@
+name: students2
+version: 0
+csv: data/raw/students-performance-in-exams/StudentsPerformance.csv
+dataset_facts:
+  rows: 1000
+  columns: 8
+  duplicate_rows: 0
+  grain: []
+  time_coverage: null
+  entity_summary: null
+  format_issues: []

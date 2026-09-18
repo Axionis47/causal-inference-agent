@@ -1,0 +1,1600 @@
+state:
+  name: state
+  key: state
+  facts:
+    kind: id
+    nulls: 0
+    null_rate: 0.0
+    distinct: 50
+    constant: false
+    varies_over: entity
+    numeric: null
+    top_values: []
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+  fields:
+    meaning:
+      value: state name
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - user:turn:1
+    stands_for:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    proxy:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    derived_from:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    when:
+      value: at
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - user:turn:1
+    set_by:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    feeds_assignment:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    moved_by_change:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    measures_outcome:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    role:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+  status: confirmed
+  source: user:turn:1
+  check_detail: null
+  asked: 0
+  refutations: 0
+year:
+  name: year
+  key: year
+  facts:
+    kind: id
+    nulls: 0
+    null_rate: 0.0
+    distinct: 49
+    constant: false
+    varies_over: entity
+    numeric:
+      min: 1914.0
+      max: 2010.0
+      mean: 1964.630216
+      p01: 1914.0
+      p25: 1940.5
+      p50: 1966.0
+      p75: 1988.0
+      p99: 2010.0
+    top_values: []
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+  fields:
+    meaning:
+      value: year of the election
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - user:turn:1
+    stands_for:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    proxy:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    derived_from:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    when:
+      value: at
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - user:turn:1
+    set_by:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    feeds_assignment:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    moved_by_change:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    measures_outcome:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    role:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+  status: confirmed
+  source: user:turn:1
+  check_detail: null
+  asked: 0
+  refutations: 0
+margin:
+  name: margin
+  key: margin
+  facts:
+    kind: numeric
+    nulls: 0
+    null_rate: 0.0
+    distinct: 1352
+    constant: false
+    varies_over: entity
+    numeric:
+      min: -100.0
+      max: 100.0
+      mean: 7.171159
+      p01: -67.70837304999999
+      p25: -12.205825749999999
+      p50: 2.16564845
+      p75: 22.76606725
+      p99: 100.0
+    top_values: []
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+  fields:
+    meaning:
+      value: Democratic margin of victory at the election, in percentage points
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - user:turn:1
+    stands_for:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    proxy:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    derived_from:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    when:
+      value: at
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - user:turn:1
+    set_by:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    feeds_assignment:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    moved_by_change:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    measures_outcome:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    role:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+  status: confirmed
+  source: user:turn:1
+  check_detail: null
+  asked: 0
+  refutations: 0
+vote:
+  name: vote
+  key: vote
+  facts:
+    kind: numeric
+    nulls: 93
+    null_rate: 0.066906
+    distinct: 1251
+    constant: false
+    varies_over: entity
+    numeric:
+      min: 0.0
+      max: 100.0
+      mean: 52.666268
+      p01: 0.0
+      p25: 42.671333
+      p50: 50.547523
+      p75: 61.348957
+      p99: 100.0
+    top_values: []
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+  fields:
+    meaning:
+      value: Democratic vote share at the next election for the same seat
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - user:turn:1
+    stands_for:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    proxy:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    derived_from:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    when:
+      value: after
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - user:turn:1
+    set_by:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    feeds_assignment:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    moved_by_change:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    measures_outcome:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    role:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+  status: confirmed
+  source: user:turn:1
+  check_detail: null
+  asked: 0
+  refutations: 0
+class:
+  name: class
+  key: class
+  facts:
+    kind: categorical
+    nulls: 0
+    null_rate: 0.0
+    distinct: 3
+    constant: false
+    varies_over: entity
+    numeric: null
+    top_values:
+    - value: '3'
+      count: 487
+      share: 0.3504
+    - value: '1'
+      count: 455
+      share: 0.3273
+    - value: '2'
+      count: 448
+      share: 0.3223
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+  fields:
+    meaning:
+      value: Senate class of the seat
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - user:turn:1
+      - check:col:class.fixed_within_unit
+    stands_for:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    proxy:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    derived_from:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    when:
+      value: before
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - user:turn:1
+      - check:col:class.fixed_within_unit
+    set_by:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    feeds_assignment:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    moved_by_change:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    measures_outcome:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    role:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+  status: confirmed
+  source: user:turn:1
+  check_detail: '''class'' is constant within a unit'
+  asked: 0
+  refutations: 0
+termshouse:
+  name: termshouse
+  key: termshouse
+  facts:
+    kind: numeric
+    nulls: 282
+    null_rate: 0.202878
+    distinct: 12
+    constant: false
+    varies_over: entity
+    numeric:
+      min: 0.0
+      max: 16.0
+      mean: 1.436823
+      p01: 0.0
+      p25: 0.0
+      p50: 0.0
+      p75: 2.0
+      p99: 8.0
+    top_values: []
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+  fields:
+    meaning:
+      value: terms served in the House
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - user:turn:1
+    stands_for:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    proxy:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    derived_from:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    when:
+      value: at
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - user:turn:1
+    set_by:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    feeds_assignment:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    moved_by_change:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    measures_outcome:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    role:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+  status: confirmed
+  source: user:turn:1
+  check_detail: null
+  asked: 0
+  refutations: 0
+termssenate:
+  name: termssenate
+  key: termssenate
+  facts:
+    kind: numeric
+    nulls: 282
+    null_rate: 0.202878
+    distinct: 19
+    constant: false
+    varies_over: entity
+    numeric:
+      min: 1.0
+      max: 20.0
+      mean: 4.555957
+      p01: 1.0
+      p25: 1.0
+      p50: 4.0
+      p75: 7.0
+      p99: 16.0
+    top_values: []
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+  fields:
+    meaning:
+      value: terms served in the Senate
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - user:turn:1
+    stands_for:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    proxy:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    derived_from:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    when:
+      value: at
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - user:turn:1
+    set_by:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    feeds_assignment:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    moved_by_change:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    measures_outcome:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    role:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+  status: confirmed
+  source: user:turn:1
+  check_detail: null
+  asked: 0
+  refutations: 0
+dopen:
+  name: dopen
+  key: dopen
+  facts:
+    kind: numeric
+    nulls: 10
+    null_rate: 0.007194
+    distinct: 2
+    constant: false
+    varies_over: entity
+    numeric:
+      min: 0.0
+      max: 1.0
+      mean: 0.247101
+      p01: 0.0
+      p25: 0.0
+      p50: 0.0
+      p75: 0.0
+      p99: 1.0
+    top_values: []
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+  fields:
+    meaning:
+      value: 1 if the seat was open (no incumbent running)
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - user:turn:1
+    stands_for:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    proxy:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    derived_from:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    when:
+      value: at
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - user:turn:1
+    set_by:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    feeds_assignment:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    moved_by_change:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    measures_outcome:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    role:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+  status: confirmed
+  source: user:turn:1
+  check_detail: null
+  asked: 0
+  refutations: 0
+population:
+  name: population
+  key: population
+  facts:
+    kind: numeric
+    nulls: 0
+    null_rate: 0.0
+    distinct: 1333
+    constant: false
+    varies_over: entity
+    numeric:
+      min: 78000.0
+      max: 37253956.0
+      mean: 3827918.925899
+      p01: 219340.0
+      p25: 997056.0
+      p50: 2554388.5
+      p75: 4663226.0
+      p99: 21230675.59999995
+    top_values: []
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+  fields:
+    meaning:
+      value: state population
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - user:turn:1
+    stands_for:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    proxy:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    derived_from:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    when:
+      value: at
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - user:turn:1
+    set_by:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    feeds_assignment:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    moved_by_change:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    measures_outcome:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    role:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+  status: confirmed
+  source: user:turn:1
+  check_detail: null
+  asked: 0
+  refutations: 0
+presdemvoteshlag1:
+  name: presdemvoteshlag1
+  key: presdemvoteshlag1
+  facts:
+    kind: numeric
+    nulls: 3
+    null_rate: 0.002158
+    distinct: 1090
+    constant: false
+    varies_over: entity
+    numeric:
+      min: 0.0
+      max: 97.034081
+      mean: 46.119746
+      p01: 0.0
+      p25: 38.755337
+      p50: 45.483898
+      p75: 53.0638235
+      p99: 91.392754
+    top_values: []
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+  fields:
+    meaning:
+      value: Democratic vote share in the state at the presidential election
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - user:turn:1
+      - check:col:presdemvoteshlag1.fixed_within_unit
+    stands_for:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    proxy:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    derived_from:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    when:
+      value: before
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - user:turn:1
+      - check:col:presdemvoteshlag1.fixed_within_unit
+    set_by:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    feeds_assignment:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    moved_by_change:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    measures_outcome:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    role:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+  status: confirmed
+  source: user:turn:1
+  check_detail: '''presdemvoteshlag1'' is constant within a unit'
+  asked: 0
+  refutations: 0
+demvoteshlag1:
+  name: demvoteshlag1
+  key: demvoteshlag1
+  facts:
+    kind: numeric
+    nulls: 41
+    null_rate: 0.029496
+    distinct: 1294
+    constant: false
+    varies_over: entity
+    numeric:
+      min: 0.0
+      max: 100.0
+      mean: 52.690476
+      p01: 0.0
+      p25: 42.753513
+      p50: 50.176228
+      p75: 60.609394
+      p99: 100.0
+    top_values: []
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+  fields:
+    meaning:
+      value: Democratic vote share at the state's previous Senate election
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - user:turn:1
+      - check:col:demvoteshlag1.fixed_within_unit
+    stands_for:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    proxy:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    derived_from:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    when:
+      value: before
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - user:turn:1
+      - check:col:demvoteshlag1.fixed_within_unit
+    set_by:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    feeds_assignment:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    moved_by_change:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    measures_outcome:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    role:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+  status: confirmed
+  source: user:turn:1
+  check_detail: '''demvoteshlag1'' is constant within a unit'
+  asked: 0
+  refutations: 0
+demvoteshlag2:
+  name: demvoteshlag2
+  key: demvoteshlag2
+  facts:
+    kind: numeric
+    nulls: 82
+    null_rate: 0.058993
+    distinct: 1259
+    constant: false
+    varies_over: entity
+    numeric:
+      min: 0.0
+      max: 100.0
+      mean: 52.869176
+      p01: 0.0
+      p25: 43.202616
+      p50: 50.191576
+      p75: 60.559329250000005
+      p99: 100.0
+    top_values: []
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+  fields:
+    meaning:
+      value: Democratic vote share at the state's second previous Senate election
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - user:turn:1
+      - check:col:demvoteshlag2.fixed_within_unit
+    stands_for:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    proxy:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    derived_from:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    when:
+      value: before
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - user:turn:1
+      - check:col:demvoteshlag2.fixed_within_unit
+    set_by:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    feeds_assignment:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    moved_by_change:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    measures_outcome:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    role:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+  status: confirmed
+  source: user:turn:1
+  check_detail: '''demvoteshlag2'' is constant within a unit'
+  asked: 0
+  refutations: 0
+demvoteshfor1:
+  name: demvoteshfor1
+  key: demvoteshfor1
+  facts:
+    kind: numeric
+    nulls: 49
+    null_rate: 0.035252
+    distinct: 1288
+    constant: false
+    varies_over: entity
+    numeric:
+      min: 0.0
+      max: 100.0
+      mean: 52.418561
+      p01: 0.0
+      p25: 42.495945
+      p50: 50.206924
+      p75: 60.714085
+      p99: 100.0
+    top_values: []
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+  fields:
+    meaning:
+      value: Democratic vote share at the state's next Senate election for the other
+        seat
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - user:turn:1
+    stands_for:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    proxy:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    derived_from:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    when:
+      value: after
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - user:turn:1
+    set_by:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    feeds_assignment:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    moved_by_change:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    measures_outcome:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    role:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+  status: confirmed
+  source: user:turn:1
+  check_detail: null
+  asked: 0
+  refutations: 0
+demwinprv1:
+  name: demwinprv1
+  key: demwinprv1
+  facts:
+    kind: numeric
+    nulls: 41
+    null_rate: 0.029496
+    distinct: 2
+    constant: false
+    varies_over: entity
+    numeric:
+      min: 0.0
+      max: 1.0
+      mean: 0.544107
+      p01: 0.0
+      p25: 0.0
+      p50: 1.0
+      p75: 1.0
+      p99: 1.0
+    top_values: []
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+  fields:
+    meaning:
+      value: 1 if the Democrat won the previous Senate election
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - user:turn:1
+      - check:col:demwinprv1.fixed_within_unit
+    stands_for:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    proxy:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    derived_from:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    when:
+      value: before
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - user:turn:1
+      - check:col:demwinprv1.fixed_within_unit
+    set_by:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    feeds_assignment:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    moved_by_change:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    measures_outcome:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    role:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+  status: confirmed
+  source: user:turn:1
+  check_detail: '''demwinprv1'' is constant within a unit'
+  asked: 0
+  refutations: 0
+demwinprv2:
+  name: demwinprv2
+  key: demwinprv2
+  facts:
+    kind: numeric
+    nulls: 82
+    null_rate: 0.058993
+    distinct: 2
+    constant: false
+    varies_over: entity
+    numeric:
+      min: 0.0
+      max: 1.0
+      mean: 0.543578
+      p01: 0.0
+      p25: 0.0
+      p50: 1.0
+      p75: 1.0
+      p99: 1.0
+    top_values: []
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+  fields:
+    meaning:
+      value: 1 if the Democrat won the second previous Senate election
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - user:turn:1
+      - check:col:demwinprv2.fixed_within_unit
+    stands_for:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    proxy:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    derived_from:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    when:
+      value: before
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - user:turn:1
+      - check:col:demwinprv2.fixed_within_unit
+    set_by:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    feeds_assignment:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    moved_by_change:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    measures_outcome:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    role:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+  status: confirmed
+  source: user:turn:1
+  check_detail: '''demwinprv2'' is constant within a unit'
+  asked: 0
+  refutations: 0
+dmidterm:
+  name: dmidterm
+  key: dmidterm
+  facts:
+    kind: boolean
+    nulls: 0
+    null_rate: 0.0
+    distinct: 2
+    constant: false
+    varies_over: entity
+    numeric: null
+    top_values:
+    - value: '1'
+      count: 714
+      share: 0.5137
+    - value: '0'
+      count: 676
+      share: 0.4863
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+  fields:
+    meaning:
+      value: 1 if a midterm year
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - user:turn:1
+    stands_for:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    proxy:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    derived_from:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    when:
+      value: at
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - user:turn:1
+    set_by:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    feeds_assignment:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    moved_by_change:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    measures_outcome:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    role:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+  status: confirmed
+  source: user:turn:1
+  check_detail: null
+  asked: 0
+  refutations: 0
+dpresdem:
+  name: dpresdem
+  key: dpresdem
+  facts:
+    kind: boolean
+    nulls: 0
+    null_rate: 0.0
+    distinct: 2
+    constant: false
+    varies_over: entity
+    numeric: null
+    top_values:
+    - value: '0'
+      count: 850
+      share: 0.6115
+    - value: '1'
+      count: 540
+      share: 0.3885
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+  fields:
+    meaning:
+      value: 1 if the sitting president was a Democrat
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - user:turn:1
+    stands_for:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    proxy:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    derived_from:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    when:
+      value: at
+      status: confirmed
+      source: user:turn:1
+      said: null
+      evidence:
+      - doc:context
+      - user:turn:1
+    set_by:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    feeds_assignment:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    moved_by_change:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    measures_outcome:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+    role:
+      value: null
+      status: empty
+      source: null
+      said: null
+      evidence: []
+  status: confirmed
+  source: user:turn:1
+  check_detail: null
+  asked: 0
+  refutations: 0

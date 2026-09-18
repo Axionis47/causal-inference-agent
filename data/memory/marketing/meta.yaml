@@ -1,0 +1,24 @@
+name: marketing
+version: 0
+csv: data/raw/fast-food-marketing-campaign-ab-test/WA_Marketing-Campaign.csv
+dataset_facts:
+  rows: 548
+  columns: 7
+  duplicate_rows: 0
+  grain:
+  - LocationID
+  - week
+  time_coverage:
+    column: week
+    first: '1'
+    last: '4'
+    inferred_frequency: integer period, step 1
+    gaps: 0
+  entity_summary:
+    columns:
+    - LocationID
+    entities: 137
+    rows_per_entity_min: 4
+    rows_per_entity_median: 4.0
+    rows_per_entity_max: 4
+  format_issues: []

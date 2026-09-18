@@ -1,0 +1,11 @@
+name: card_krueger
+version: 0
+csv: data/raw/card-krueger-minimum-wage/employment.csv
+dataset_facts:
+  rows: 384
+  columns: 3
+  duplicate_rows: 18
+  grain: []
+  time_coverage: null
+  entity_summary: null
+  format_issues: []
