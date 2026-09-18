@@ -66,6 +66,7 @@ kinds:
       treated_side: {type: choice, options: [above, below], optional: true}
       cutoff_value_treated: {type: bool, optional: true}
       movable: {type: bool, optional: true}   # could a unit change what decided its assignment after seeing the rule
+      level_column: {type: column, optional: true, hint: "the column naming the group the change was assigned at, when it reached whole groups (a state, a school, a store); the level to cluster at"}
     check: assignment_matches_data
     frame: who decided which units got the change and on what basis, a draw, a line on a score, the unit's own choice, a date set by someone else; which columns the decision or the offer depended on; which column records who got it; could a unit have changed what the rule looked at
     order: 0
@@ -137,6 +138,17 @@ kinds:
     cues: "'no reason they would have moved differently', 'they would have kept moving together' mean believed=true; naming such a reason means believed=false with why"
     order: 10
 
+  cutoff_only:
+    about: whether anything else switches at the same cutoff
+    uncheckable: true
+    fields:
+      believed: {type: bool}
+      why: {type: text, optional: true}
+    check: none
+    frame: apart from the change, does anything else switch for units that cross that same line on the score, another programme, a different rule, a different form
+    cues: "'nothing else changes there', 'only this' mean believed=true; naming another thing that switches at the line means believed=false with why"
+    order: 11
+
 # Which claims each family needs, and for grain and assignment which values fit. A family with a cell that does
 # not fit, or a failed probe, is struck out; the required set is the union over the survivors. Read by code.
 family_needs:
@@ -150,9 +162,10 @@ family_needs:
       grain.panel: [true]
       assignment.kind: [date_by_others, third_party, own_choice]
   discontinuity:
-    requires: [grain, sampling, change, assignment, measured, missing]
+    requires: [grain, sampling, change, assignment, measured, missing, cutoff_only]
     fits:
       assignment.kind: [cutoff_rule]
+      cutoff_only.believed: [true]
   synthetic_control:
     requires: [grain, sampling, change, assignment, measured, missing, spillover]
     fits:

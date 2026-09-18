@@ -33,7 +33,7 @@ def _sentence(s: str | None) -> str:
 
 def render_note(name: str, prof: Profile, table: ClaimTable) -> str:
     g, samp, ch, a, miss = (table.get(k) for k in ("grain", "sampling", "change", "assignment", "missing"))
-    unob, spill, trend, excl = (table.get(k) for k in ("unobserved", "spillover", "trend_continues", "exclusion"))
+    unob, spill, trend, excl, only = (table.get(k) for k in ("unobserved", "spillover", "trend_continues", "exclusion", "cutoff_only"))
     ds = []
     if g and g.fields.get("row_is"):
         ds.append(f"Each row is {g.fields['row_is'].rstrip('.')}. {_src(g)}")
@@ -50,7 +50,8 @@ def render_note(name: str, prof: Profile, table: ClaimTable) -> str:
         ds.append(f"Missing values: {_sentence(miss.fields.get('why'))} {_src(miss)}")
     for c, yes, no in ((unob, "Something not in the file affected both who got the change and the outcome", "Nothing not in the file affected both who got the change and the outcome"),
                        (spill, "A unit that got the change could affect the outcome of one that did not", "Units that got the change could not affect the outcomes of those that did not"),
-                       (trend, "Without the change, the treated group would have kept moving with the others", "Apart from the change, the treated group would have moved differently from the others")):
+                       (trend, "Without the change, the treated group would have kept moving with the others", "Apart from the change, the treated group would have moved differently from the others"),
+                       (only, "Nothing else switches at the cutoff", "Something else also switches at the cutoff")):
         if c and c.status in {"confirmed", "drafted"}:
             flag = c.fields.get("exists", c.fields.get("possible", c.fields.get("believed")))
             body = yes if flag else no

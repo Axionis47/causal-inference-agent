@@ -417,7 +417,7 @@ def test_run_while_drafts_are_open_takes_them_on_the_persons_word(tmp_path):
     assert v["claims"].get("assignment").status == "drafted" and not v["status"].ready
     v = say(g, cfg, "run")  # drafts confirmed; the uncheckable claims are still open, so no hand-off yet
     assert v["claims"].get("assignment").status == "confirmed" and v["claims"].get("assignment").source == "user:turn:1"
-    assert not v["status"].ready and set(v["status"].open) <= {"unobserved", "exclusion", "spillover", "trend_continues"}
+    assert not v["status"].ready and set(v["status"].open) <= {"unobserved", "exclusion", "spillover", "trend_continues", "cutoff_only"}
     assert v.get("written") is None and "still open" in fake.humans[-1]
     fake.script["user:turn:2"] = [U(k, ["user:turn:2"], unknown=True) for k in v["status"].open]
     v = say(g, cfg, "I don't know any of those")
@@ -432,7 +432,7 @@ def test_run_on_drafts_that_settle_everything_hands_off_at_once(tmp_path):
     fake = FakeLLM({"doc:context": ups})
     g, cfg = start(fake, csv, "x", name="cut2")
     v = g.get_state(cfg).values
-    fake.script["user:turn:1"] = [U(k, ["user:turn:1"], unknown=True) for k in ("unobserved", "exclusion", "spillover", "trend_continues")]
+    fake.script["user:turn:1"] = [U(k, ["user:turn:1"], unknown=True) for k in ("unobserved", "exclusion", "spillover", "trend_continues", "cutoff_only")]
     v = say(g, cfg, "no idea about the rest")  # settles the uncheckable ones; drafts remain drafted
     assert not v["status"].ready and all(k.startswith("col:") or k in {"assignment", "change", "grain", "sampling"} for k in v["status"].open)
     v = say(g, cfg, "run")  # drafts confirmed → ready → written in the same turn
@@ -486,14 +486,15 @@ def test_table_cells_and_flag():
         "col:y": Claim(kind="measured", key="col:y", fields={"meaning": "outcome", "when": "after"}, status="confirmed", source="user:turn:1"),
         "unobserved": Claim(kind="unobserved", key="unobserved"), "exclusion": Claim(kind="exclusion", key="exclusion"),
         "spillover": Claim(kind="spillover", key="spillover"), "trend_continues": Claim(kind="trend_continues", key="trend_continues"),
+        "cutoff_only": Claim(kind="cutoff_only", key="cutoff_only"),
     })
     st = T.compute(CAT, table, [])
     assert st.table["diff_in_diff"]["grain"] == "does_not_fit" and st.table["diff_in_diff"]["assignment"] == "does_not_fit"
     assert st.table["discontinuity"]["assignment"] == "fits" and st.table["adjustment"]["unobserved"] == "unknown"
-    assert st.table["discontinuity"]["unobserved"] == "not_needed"
+    assert st.table["discontinuity"]["unobserved"] == "not_needed" and st.table["discontinuity"]["cutoff_only"] == "unknown"
     assert set(st.surviving) == {"discontinuity", "adjustment", "instrument"}
-    assert set(st.open) == {"unobserved", "spillover", "exclusion"} and not st.ready
-    for k in ("unobserved", "spillover", "exclusion"):
+    assert set(st.open) == {"unobserved", "spillover", "exclusion", "cutoff_only"} and not st.ready
+    for k in ("unobserved", "spillover", "exclusion", "cutoff_only"):
         table.claims[k].status = "unknown"
     st = T.compute(CAT, table, [])
     assert st.ready
