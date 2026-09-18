@@ -78,7 +78,7 @@ def _brief(pack: Pack, name: str, role: str, table: ClaimTable) -> ColumnBrief |
     if claim is not None and claim.status != "empty" and claim.fields.get("meaning"):
         f = claim.fields
         return ColumnBrief(name=card.name, key=card.key, role=role, meaning=f.get("meaning"), when=f.get("when") or "unknown", set_by=f.get("set_by"),
-                           affected_by_treatment=f.get("affected_by_treatment"), source=claim.source, facts=facts)
+                           moved_by_change=f.get("moved_by_change", f.get("affected_by_treatment")), source=claim.source, facts=facts)
     when = (claim.fields.get("when") if claim else None) or "unknown"
     return ColumnBrief(name=card.name, key=card.key, role=role, meaning=card.note or None, when=when, source=(f"doc:{card.source}" if card.source else "doc:note") if card.note else None, facts=facts)
 
@@ -93,8 +93,8 @@ def _belief(table: ClaimTable, kind: str) -> Belief | None:
 
 def _adjustment(briefs: list[ColumnBrief], a: dict, beliefs: dict[str, Belief], scope: Scope) -> AdjustmentDesign:
     dep = [key(c) for c in a.get("depends_on") or []]
-    before = [b.key for b in briefs if b.role not in ("outcome", "treatment") and b.when == "before" and b.affected_by_treatment is not True]
-    forbidden = [b.key for b in briefs if b.role not in ("outcome", "treatment", "depends_on") and (b.when in ("after", "at") or b.affected_by_treatment is True)]
+    before = [b.key for b in briefs if b.role not in ("outcome", "treatment") and b.when == "before" and b.moved_by_change is not True]
+    forbidden = [b.key for b in briefs if b.role not in ("outcome", "treatment", "depends_on") and (b.when in ("after", "at") or b.moved_by_change is True)]
     allowed: list = ["backdoor"]
     excl = beliefs.get("exclusion")
     instrument = key(excl.column) if excl and excl.known() and excl.value and excl.column else None
@@ -118,7 +118,7 @@ def _did(briefs: list[ColumnBrief], a: dict, ch: dict, g: dict, beliefs: dict[st
     treated_group = {"column": a["treatment_column"], "level": a["treated_level"]} if a.get("treatment_column") and a.get("treated_level") is not None else \
         ({"column": treatment, "level": a["treated_level"]} if treatment and a.get("treated_level") is not None else {})
     pre = next((p for p in probes if p.family == "diff_in_diff" and p.name == "pre_periods"), None)
-    controls = [b.key for b in briefs if b.role == "candidate" and b.affected_by_treatment is not True and (b.when == "before" or b.facts.varies_over in ("entity", "time", "both"))]
+    controls = [b.key for b in briefs if b.role == "candidate" and b.moved_by_change is not True and (b.when == "before" or b.facts.varies_over in ("entity", "time", "both"))]
     return DidDesign(unit=key(unit) if unit else None, time=tkey, period_kind=period_kind, change_period=str(ch["period_value"]) if ch.get("period_value") is not None else None,
                      treated_group=treated_group, pre_periods=int(pre.value) if pre and pre.value is not None else None, controls_allowed=controls,
                      cluster_level=key(a["level_column"]) if a.get("level_column") else (key(unit) if unit else None),
@@ -129,7 +129,7 @@ def _rd(briefs: list[ColumnBrief], a: dict, samp: dict, beliefs: dict[str, Belie
     score = key(a["score_column"]) if a.get("score_column") else None
     sb = next((b for b in briefs if score and b.key == score), None)
     takeup = {"column": treatment, "level": a.get("treated_level")} if treatment and (not score or key(treatment) != score) and a.get("treated_level") is not None else None
-    covs = [b.key for b in briefs if b.role == "candidate" and b.when == "before" and b.affected_by_treatment is not True]
+    covs = [b.key for b in briefs if b.role == "candidate" and b.when == "before" and b.moved_by_change is not True]
     cluster = a.get("level_column") or (entry.get("entity") or [None])[0]
     return RdDesign(score=score, cutoff=float(a["cutoff"]) if a.get("cutoff") is not None else None, treated_side=a.get("treated_side"), cutoff_value_treated=a.get("cutoff_value_treated"),
                     score_fixed_before=(sb.when == "before") if sb and sb.when != "unknown" else None, movable=a.get("movable"), takeup=takeup, covariates_allowed=covs,

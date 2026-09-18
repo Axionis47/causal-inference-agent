@@ -3,7 +3,7 @@
 A key is the column name with every run of non-alphanumerics folded to one underscore, lowered:
 "test preparation course" -> test_preparation_course, "race/ethnicity" -> race_ethnicity.
 
-Addresses: dataset[.note|.profile.<facet>], change:<n>[.note], col:<key>[.note|.when|.set_by|.affected|.profile.<facet>],
+Addresses: dataset[.note|.profile.<facet>], change:<n>[.note], col:<key>[.note|.when|.set_by|.moved|.profile.<facet>],
 claim:<key>[.<field>|.check], probe:<family>.<name>, check:<contrast>.<name>, figure:<id>[.<series>.<i>].
 """
 

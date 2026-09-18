@@ -10,6 +10,7 @@ kinds:
       row_is: {type: text}
       key_columns: {type: columns, optional: true, hint: "the columns that together pick out exactly one row, when the description names them"}
       panel: {type: bool}   # the same unit appears in more than one period (true), or each unit once (false)
+      nesting: {type: columns, optional: true, hint: "the column naming the group each unit sits inside, when there is one: a school for pupils, a market for stores"}
     check: key_unique
     frame: what does one row stand for, a person, a household, a county, a store in a week; do any columns together pick out exactly one row; does the same unit come back in more than one period
     order: 2
@@ -72,14 +73,19 @@ kinds:
     order: 0
 
   measured:
-    about: one column, what it measures and when it was set relative to the change
+    about: one column, what it measures, when it was set relative to the change, and how it stands to the change and the outcome
     per_column: true
     fields:
       meaning: {type: text}
+      stands_for: {type: text, optional: true, hint: "the thing in the world the column measures, so two columns measuring one thing are known as one: household income, prior ability"}
+      proxy: {type: choice, options: [exact, proxy, derived], optional: true, about: {exact: the column is the thing itself, proxy: the column stands in for the thing, derived: the column is computed from other columns}}
+      derived_from: {type: columns, optional: true}
       when: {type: choice, options: [before, at, after, unknown]}
       set_by: {type: text, optional: true}
-      derived_from: {type: columns, optional: true}
-      affected_by_treatment: {type: bool, optional: true}
+      feeds_assignment: {type: bool, optional: true, hint: "the rule or the offer looked at this column"}
+      moved_by_change: {type: bool, optional: true, hint: "the change could have changed this column's value"}
+      measures_outcome: {type: bool, optional: true, hint: "another measure of the outcome, or a later one; a result, not a cause"}
+      role: {type: choice, options: [outcome, treatment, score, unit, time, group, instrument, mediator, candidate, out_of_play], optional: true}
     check: before_is_fixed
     frame: what the column measures, in what units, and whether it was fixed before the change, set at the change, or measured after it; whether the change could have moved it
     order: 3
@@ -148,6 +154,18 @@ kinds:
     frame: apart from the change, does anything else switch for units that cross that same line on the score, another programme, a different rule, a different form
     cues: "'nothing else changes there', 'only this' mean believed=true; naming another thing that switches at the line means believed=false with why"
     order: 11
+
+  mediator:
+    about: a column the change moved, through which the whole effect on the outcome runs
+    uncheckable: true
+    fields:
+      exists: {type: bool}
+      column: {type: column, optional: true}
+      why: {type: text, optional: true}
+    check: none
+    frame: is there a column the change altered, such that the change reaches the outcome only by altering it; if so which, and why
+    cues: "'it works through', 'only by changing' name a mediator with column; 'no', 'directly' mean exists=false"
+    order: 12
 
 # Which claims each family needs, and for grain and assignment which values fit. A family with a cell that does
 # not fit, or a failed probe, is struck out; the required set is the union over the survivors. Read by code.

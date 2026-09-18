@@ -106,9 +106,9 @@ def render_note(name: str, prof: Profile, table: ClaimTable) -> str:
             bits.append(f"Set by {c.fields['set_by'].rstrip('.')}.")
         if c.fields.get("derived_from"):
             bits.append(f"Derived from {', '.join(c.fields['derived_from'])}.")
-        if c.fields.get("affected_by_treatment") is True:
+        if c.fields.get("moved_by_change") is True:
             bits.append("The change could have moved it.")
-        elif c.fields.get("affected_by_treatment") is False:
+        elif c.fields.get("moved_by_change") is False:
             bits.append("The change could not have moved it.")
         if cp.nulls:
             bits.append(f"Missing for {cp.nulls} rows.")

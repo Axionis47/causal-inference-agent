@@ -138,7 +138,7 @@ class ColumnBrief(BaseModel):
     meaning: str | None = None
     when: When = "unknown"
     set_by: str | None = None
-    affected_by_treatment: bool | None = None
+    moved_by_change: bool | None = None
     source: str | None = Field(default=None, description="where the meaning and timing came from: user:turn:<n>, doc:<name>, or data")
     facts: ColumnFacts = Field(default_factory=ColumnFacts)
 
@@ -167,8 +167,8 @@ class ColumnBrief(BaseModel):
         lines.append(f"  [{a}.when] {_WHEN_WORDS[self.when]}")
         if self.set_by:
             lines.append(f"  [{a}.set_by] set by {self.set_by}")
-        if self.affected_by_treatment is not None:
-            lines.append(f"  [{a}.affected] the change {'could have moved it' if self.affected_by_treatment else 'could not have moved it'}")
+        if self.moved_by_change is not None:
+            lines.append(f"  [{a}.moved] the change {'could have moved it' if self.moved_by_change else 'could not have moved it'}")
         lines.append(f"  [{a}.profile.kind] {f.kind}")
         lines.append(f"  [{a}.profile.nulls] {f.nulls} ({f.null_rate:.1%})")
         lines.append(f"  [{a}.profile.distinct] {f.distinct}{' (constant)' if f.constant else ''}")
@@ -475,7 +475,7 @@ class Handoff(BaseModel):
         out.update(f"dataset.profile.{f}" for f in _DATASET_FACETS)
         for b in self.columns:
             a = b.address
-            out.update({a, f"{a}.note", f"{a}.when", f"{a}.set_by", f"{a}.affected"})
+            out.update({a, f"{a}.note", f"{a}.when", f"{a}.set_by", f"{a}.moved"})
             out.update(f"{a}.profile.{f}" for f in _COLUMN_FACETS)
         for k, c in self.claims.items():
             out.update({f"claim:{k}", f"claim:{k}.check"})
