@@ -1,12 +1,12 @@
-"""The context pack builder. One function makes the Handoff a lane receives: from the question frame, the decision, the
-claim table, the probes, and the profile. The router calls it at run time; the CLI below writes the forced hand-offs the
-specialist evals and tests use. No second copy anywhere.
+"""The context pack builder. One function projects the Handoff a lane receives from a memory: the question frame, the
+decision, the records, the beliefs, the probes, the person's words. The routing calls it at run time; the CLI below writes
+the forced hand-offs the specialist evals and tests use. No second copy anywhere.
 
     uv run python -m causal_agent.desk.handoff students --family adjustment --outcome "math score" \\
         --treatment "test preparation course" --columns "lunch,parental level of education" --question "..." -o handoff.json
 
-Transitional rule, until every dataset has claims: a column with no measured claim takes its meaning from the note card,
-marked source doc:<name>. The lanes never read a note; only this builder does, once.
+A memory that has never been mined or interviewed carries only the file's facts; the briefs then say "(not described)" and
+the lane's own judgements fill what they can. Nothing here reads a note.
 """
 
 from __future__ import annotations
@@ -16,15 +16,12 @@ import json
 from pathlib import Path
 from typing import Any
 
-import yaml
-
 from causal_agent.common.addresses import key
 from causal_agent.common.contracts import (
     AdjustmentDesign,
     Belief,
     Candidate,
     ColumnBrief,
-    ColumnFacts,
     DidDesign,
     FamilyDecision,
     Handoff,
@@ -34,78 +31,84 @@ from causal_agent.common.contracts import (
     Said,
     Scope,
 )
-from causal_agent.profile.datasets import ROOT, dataset_entries, load_dataset_pack
-from causal_agent.memory.claims import Claim, ClaimTable, ProbeResult
-from causal_agent.profile.pack import Pack
 from causal_agent.knowledge import Family, load_registry
+from causal_agent.memory import ops, store
+from causal_agent.memory.claims import ProbeResult
+from causal_agent.memory.records import ColumnRecord, Memory
+from causal_agent.profile import datasets as DS
 
-BELIEF_KINDS = ("unobserved", "exclusion", "spillover", "trend_continues", "cutoff_only")
-_VALUE_FIELD = {"unobserved": "exists", "exclusion": "exists", "spillover": "possible", "trend_continues": "believed", "cutoff_only": "believed"}
-
-
-# ------------------------------------------------------------------ claims on disk
-
-
-def load_claims(path: str | Path) -> tuple[ClaimTable, list[ProbeResult]]:
-    """The claims document the interview writes: {claims: [...], probes: [...]}."""
-    doc = yaml.safe_load(Path(path).read_text()) or {}
-    table = ClaimTable(claims={c["key"]: Claim.model_validate(c) for c in doc.get("claims") or []})
-    probes = [ProbeResult.model_validate(p) for p in doc.get("probes") or []]
-    return table, probes
+BELIEF_KINDS = ("unobserved", "exclusion", "spillover", "trend_continues", "cutoff_only", "mediator")
+_VALUE_FIELD = {"unobserved": "exists", "exclusion": "exists", "spillover": "possible", "trend_continues": "believed", "cutoff_only": "believed", "mediator": "exists"}
 
 
-def claims_for(pack_name: str) -> tuple[ClaimTable | None, list[ProbeResult]]:
-    e = dataset_entries().get(pack_name) or {}
-    if e.get("claims") and (ROOT / e["claims"]).exists():
-        return load_claims(ROOT / e["claims"])
-    return None, []
+# ------------------------------------------------------------------ pieces
 
 
-# ------------------------------------------------------------------ the builder
+def fields_of(memory: Memory, kind: str) -> dict[str, Any]:
+    return {n: f.value for n, f in memory.dataset.kind(kind).fields.items() if f.value is not None}
 
 
-def _fields(table: ClaimTable, k: str) -> dict[str, Any]:
-    c = table.get(k)
-    return {n: v for n, v in (c.fields if c else {}).items() if v is not None}
+def brief_of(rec: ColumnRecord, role: str | None = None) -> ColumnBrief:
+    """A column record as the lane reads it. The role comes from the record unless the caller knows better."""
+    r = role or rec.role() or ("depends_on" if rec.value("feeds_assignment") is True else "candidate")
+    meaning_f = rec.fields.get("meaning")
+    when_f = rec.fields.get("when")
+    src = (meaning_f.source if meaning_f and meaning_f.value else None) or (when_f.source if when_f and when_f.value else None)
+    return ColumnBrief(name=rec.name, key=rec.key, role=r, meaning=rec.value("meaning"), when=rec.value("when") or "unknown", set_by=rec.value("set_by"),
+                       moved_by_change=rec.value("moved_by_change"), source=src, facts=rec.facts)
 
 
-def _brief(pack: Pack, name: str, role: str, table: ClaimTable) -> ColumnBrief | None:
-    card = pack.column(name)
-    if card is None:
+def belief_of(memory: Memory, kind: str) -> Belief | None:
+    kr = memory.dataset.kinds.get(kind)
+    if kr is None:
         return None
-    facts = ColumnFacts.from_profile(card.profile)
-    claim = table.get(f"col:{card.key}")
-    if claim is not None and claim.status != "empty" and claim.fields.get("meaning"):
-        f = claim.fields
-        return ColumnBrief(name=card.name, key=card.key, role=role, meaning=f.get("meaning"), when=f.get("when") or "unknown", set_by=f.get("set_by"),
-                           moved_by_change=f.get("moved_by_change", f.get("affected_by_treatment")), source=claim.source, facts=facts)
-    when = (claim.fields.get("when") if claim else None) or "unknown"
-    return ColumnBrief(name=card.name, key=card.key, role=role, meaning=card.note or None, when=when, source=(f"doc:{card.source}" if card.source else "doc:note") if card.note else None, facts=facts)
-
-
-def _belief(table: ClaimTable, kind: str) -> Belief | None:
-    c = table.get(kind)
-    if c is None or c.status == "empty":
+    vf = kr.fields.get(_VALUE_FIELD[kind])
+    known = {n: f.value for n, f in kr.fields.items() if f.value is not None}
+    if not known and kr.status == "empty":
         return None
-    f = c.fields
-    return Belief(kind=kind, value=f.get(_VALUE_FIELD[kind]), what=f.get("what"), why=f.get("why") or f.get("why_believed"), column=f.get("column"), status=c.status, source=c.source)
+    status = vf.status if vf and vf.status != "empty" else kr.status
+    source = (vf.source if vf and vf.source else None) or kr.source
+    return Belief(kind=kind, value=vf.value if vf else None, what=known.get("what"), why=known.get("why") or known.get("why_believed"),
+                  column=known.get("column"), status=status, source=source, said=vf.said if vf else None)
+
+
+def said_of(memory: Memory) -> list[Said]:
+    """The transcript, plus the sentence each known field rests on when the transcript does not carry it."""
+    out = list(memory.transcript)
+    seen = {(s.turn, s.text) for s in out}
+
+    def add(about: str, f) -> None:
+        if f.said and f.source and f.source.startswith("user:turn:"):
+            turn = int(f.source.rsplit(":", 1)[1])
+            if (turn, f.said) not in seen:
+                out.append(Said(turn=turn, about=about, text=f.said))
+                seen.add((turn, f.said))
+
+    for kind, kr in memory.dataset.kinds.items():
+        for n, f in kr.fields.items():
+            add(f"{kind}.{n}", f)
+    for c in memory.columns.values():
+        for n, f in c.fields.items():
+            add(f"{c.address}.{n}", f)
+    return sorted(out, key=lambda s: s.turn)
+
+
+# ------------------------------------------------------------------ the family blocks (derived by code; never a constraint)
 
 
 def _adjustment(briefs: list[ColumnBrief], a: dict, beliefs: dict[str, Belief], scope: Scope) -> AdjustmentDesign:
     dep = [key(c) for c in a.get("depends_on") or []]
     before = [b.key for b in briefs if b.role not in ("outcome", "treatment") and b.when == "before" and b.moved_by_change is not True]
     forbidden = [b.key for b in briefs if b.role not in ("outcome", "treatment", "depends_on") and (b.when in ("after", "at") or b.moved_by_change is True)]
-    allowed: list = ["backdoor"]
-    excl = beliefs.get("exclusion")
+    excl, med, unob = beliefs.get("exclusion"), beliefs.get("mediator"), beliefs.get("unobserved")
     instrument = key(excl.column) if excl and excl.known() and excl.value and excl.column else None
-    if instrument:
-        allowed.append("instrument")
-    unob = beliefs.get("unobserved")
+    mediator = key(med.column) if med and med.known() and med.value and med.column else None
     kind = a.get("kind")
     voluntary = True if kind == "own_choice" else False if kind in ("cutoff_rule", "date_by_others", "lottery") else (True if a.get("movable") else None)
-    return AdjustmentDesign(adjustment_candidates=list(dict.fromkeys(dep + before)), forbidden=list(dict.fromkeys(forbidden)), identification_allowed=allowed,
-                            instrument=instrument, unobserved_confounding=unob.value if unob and unob.known() else None, voluntary_uptake=voluntary,
-                            target_units=scope.target, contrast=scope.contrast)
+    return AdjustmentDesign(adjustment_candidates=list(dict.fromkeys(dep + before)), forbidden=list(dict.fromkeys(forbidden)),
+                            identification_allowed=["backdoor"] + (["instrument"] if instrument else []) + (["frontdoor"] if mediator else []),
+                            instrument=instrument, mediator=mediator, unobserved_confounding=unob.value if unob and unob.known() else None,
+                            voluntary_uptake=voluntary, target_units=scope.target, contrast=scope.contrast)
 
 
 def _did(briefs: list[ColumnBrief], a: dict, ch: dict, g: dict, beliefs: dict[str, Belief], probes: list[Probe], entry: dict, treatment: str | None) -> DidDesign:
@@ -137,52 +140,35 @@ def _rd(briefs: list[ColumnBrief], a: dict, samp: dict, beliefs: dict[str, Belie
                     cutoff_only=beliefs.get("cutoff_only"))
 
 
-def build(*, question: str, frame: QuestionFrame, decision: FamilyDecision, family: Family, pack: Pack, claims: ClaimTable | None = None,
-          probes: list[ProbeResult] | list[Probe] = (), said: list[Said] = ()) -> Handoff:
-    """The one hand-off. The person's claims win over the frame's reading wherever both speak."""
-    table = claims or ClaimTable()
-    entry = dataset_entries().get(pack.name) or {}
-    a, ch, g, samp, miss = (_fields(table, k) for k in ("assignment", "change", "grain", "sampling", "missing"))
-    if not ch and pack.changes:  # transitional: a shipped note with no change claim
-        c0 = pack.changes[0]
-        ch = {"what": f"{c0.title}. {c0.note}".strip(". ") + "."}
+# ------------------------------------------------------------------ the builder
+
+
+def build(*, question: str, frame: QuestionFrame, decision: FamilyDecision, family: Family, memory: Memory,
+          probes: list[ProbeResult] | list[Probe] = ()) -> Handoff:
+    """The one hand-off, projected from a memory snapshot. The memory is not changed."""
+    m = memory.snapshot()
+    entry = DS.dataset_entries().get(m.name) or {}
+    a, ch, g, samp, miss = (fields_of(m, k) for k in ("assignment", "change", "grain", "sampling", "missing"))
     outcome = frame.outcome or ""
     treatment = a.get("treatment_column") or frame.cause
     if a.get("kind") == "cutoff_rule" and not a.get("treatment_column") and treatment and a.get("score_column") and key(treatment) == key(a["score_column"]):
         treatment = None  # the change is the rule itself; the score is not the treatment
-
-    roles: dict[str, str] = {}
-
-    def role(name: str | None, r: str) -> None:
-        if name:
-            roles.setdefault(key(name), r)
-
-    role(outcome, "outcome")
-    role(treatment, "treatment")
-    for c in a.get("depends_on") or []:
-        role(c, "depends_on")
-    role(a.get("score_column"), "score")
-    role(ch.get("date_column"), "time")
-    if g.get("panel") is True:
-        for c in g.get("key_columns") or []:
-            if key(c) != key(ch.get("date_column") or ""):
-                role(c, "unit")
-    role(a.get("level_column"), "group")
-    role(entry.get("time"), "time")  # the index entry's flags, when the claims do not name them
-    for c in entry.get("entity") or []:
-        role(c, "unit")
-    excl = _fields(table, "exclusion")
-    if excl.get("exists") and excl.get("column"):
-        role(excl["column"], "instrument")
+    ops.roles(m, outcome=outcome, treatment=treatment)
 
     names: list[str] = []
-    for n in [outcome, treatment] + [c.column for c in frame.relevant_columns] + [c for c in (a.get("depends_on") or [])] + \
-            [a.get("score_column"), ch.get("date_column"), a.get("level_column"), excl.get("column")] + list(g.get("key_columns") or []):
-        if n and key(n) not in {key(x) for x in names} and pack.column(n) is not None:
+    for n in [outcome, treatment] + [c.column for c in frame.relevant_columns] + list(a.get("depends_on") or []) + \
+            [a.get("score_column"), ch.get("date_column"), a.get("level_column"), fields_of(m, "exclusion").get("column"), fields_of(m, "mediator").get("column")] + \
+            list(g.get("key_columns") or []) + [entry.get("time")] + list(entry.get("entity") or []):
+        if n and key(n) not in {key(x) for x in names} and m.column(n) is not None:
             names.append(n)
-    briefs = [b for n in names if (b := _brief(pack, n, roles.get(key(n), "candidate"), table)) is not None]
+    briefs = [brief_of(m.column(n)) for n in names]
+    for b in briefs:  # the index entry's flags stand in for roles the memory does not carry yet
+        if b.role == "candidate" and entry.get("time") and b.key == key(entry["time"]):
+            b.role = "time"
+        elif b.role == "candidate" and b.key in {key(x) for x in (entry.get("entity") or [])}:
+            b.role = "unit"
 
-    beliefs = {k: b for k in BELIEF_KINDS if (b := _belief(table, k)) is not None}
+    beliefs = {k: b for k in BELIEF_KINDS if (b := belief_of(m, k)) is not None}
     probe_list = [p if isinstance(p, Probe) else Probe(family=p.family, name=p.name, value=p.value, passed=p.passed, detail=p.detail) for p in probes]
     tb = next((b for b in briefs if b.role == "treatment"), None)
     treated_level = str(a["treated_level"]) if a.get("treated_level") is not None else None
@@ -200,40 +186,42 @@ def build(*, question: str, frame: QuestionFrame, decision: FamilyDecision, fami
     else:
         design = None
 
-    dp = pack.dataset.profile
-    facts = {"rows": dp.rows, "columns": dp.columns, "duplicate_rows": dp.duplicate_rows, "grain": list(dp.grain or []),
-             "time_coverage": dp.time_coverage.model_dump() if dp.time_coverage else None,
-             "entity_summary": dp.entity_summary.model_dump() if dp.entity_summary else None, "format_issues": list(dp.format_issues or [])}
-    docs = {"about": pack.dataset.note} if pack.dataset.note and not g.get("row_is") else {}
+    table = m.to_claims()
+    unknowns = [f"claim:{k}.{n}" for k, kr in m.dataset.kinds.items() for n, f in kr.fields.items() if f.status == "unknown"] + \
+               [f"col:{c.key}.{n}" for c in m.columns.values() for n, f in c.fields.items() if f.status == "unknown"]
     return Handoff(
         family=family.name, specialist=family.specialist, supported_now=family.status == "built",
-        outcome=outcome, treatment=treatment, scope=frame.scope, pack_name=pack.name, relevant_columns=list(frame.relevant_columns),
+        outcome=outcome, treatment=treatment, scope=frame.scope, pack_name=m.name, relevant_columns=list(frame.relevant_columns),
         chosen_assumption=decision.chosen_assumption,
         reasons=[Candidate(column=c.column, reason=c.reason, cites=c.cites) for c in frame.outcome_candidates[:1] + frame.cause_candidates[:1]],
         question=question, intent=frame.intent, why=decision.why_over_alternatives, over={r.family: r.reason for r in decision.rejected},
-        csv=entry.get("csv"), docs=docs, dataset_facts=facts, grain=g, sampling=samp, missing=miss,
+        csv=m.csv or entry.get("csv"), docs={}, dataset_facts=m.dataset_facts, grain=g, sampling=samp, missing=miss,
         treated_level=treated_level, control_level=control_level, columns=briefs,
-        change=ch, assignment=a, beliefs=beliefs, unknowns=[c.key for c in table.claims.values() if c.status == "unknown"], said=list(said),
-        probes=probe_list, claims={c.key: {"kind": c.kind, "fields": {k: v for k, v in c.fields.items() if v is not None}, "status": c.status, "source": c.source}
-                                   for c in table.claims.values() if c.status != "empty"},
+        change=ch, assignment=a, beliefs=beliefs, unknowns=unknowns, said=said_of(m), probes=probe_list,
+        claims={c.key: {"kind": c.kind, "fields": {k: v for k, v in c.fields.items() if v is not None}, "status": c.status, "source": c.source}
+                for c in table.claims.values() if c.status != "empty"},
         design=design,
     )
 
 
 def forced(pack_name: str, question: str, family: str, outcome: str, treatment: str | None, columns: list[str], *,
-           scope: Scope | None = None, assumption: str = "forced hand-off", cite: str | None = None) -> Handoff:
+           scope: Scope | None = None, assumption: str = "forced hand-off", cite: str | None = None, memory: Memory | None = None) -> Handoff:
     """A hand-off without a frame or a decision: the family, the outcome, the treatment, and the columns are given.
-    For tests and evals. Claims on disk, when the dataset has them, still fill the briefs and the family block."""
+    For tests and evals. The memory on disk, when the dataset has one, fills the briefs and the family block."""
+    import pandas as pd
+
     fam = next(f for f in load_registry() if f.name == family)
-    pack = load_dataset_pack(pack_name)
+    m = memory or store.memory_for(pack_name)
     cite_of = lambda c: [cite] if cite else [f"col:{key(c)}.note"]  # noqa: E731
     cands = [Candidate(column=c, reason="named in the forced hand-off", cites=cite_of(c)) for c in columns]
     frame = QuestionFrame(intent="effect_of_change", decision_served="a forced run", outcome_candidates=[Candidate(column=outcome, reason="the outcome the question names", cites=cite_of(outcome))],
                           cause_candidates=[Candidate(column=treatment, reason="the change asked about", cites=cite_of(treatment))] if treatment else [],
                           scope=scope or Scope(), relevant_columns=cands, reasons=[])
     decision = FamilyDecision(admissible=[family], chosen=family, chosen_assumption=assumption, why_over_alternatives="forced", rejected=[])
-    claims, probes = claims_for(pack_name)
-    return build(question=question, frame=frame, decision=decision, family=fam, pack=pack, claims=claims, probes=probes)
+    csv = m.csv or (DS.dataset_entries().get(pack_name) or {}).get("csv")
+    path = Path(csv) if csv and Path(csv).is_absolute() else (Path(DS.ROOT) / csv if csv else None)
+    probes = ops.probe(m, pd.read_csv(path)) if path is not None and path.exists() else []
+    return build(question=question, frame=frame, decision=decision, family=fam, memory=m, probes=probes)
 
 
 # ------------------------------------------------------------------ CLI

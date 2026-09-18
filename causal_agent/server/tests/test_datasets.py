@@ -3,7 +3,6 @@ import json
 import yaml
 
 from causal_agent.common.llm import set_llm
-from causal_agent.router import nodes as RN
 from causal_agent.server.tests.conftest import CT, IT, STUDENTS, create_request, upload, wait_idle
 
 
@@ -64,13 +63,11 @@ def test_create_lists_and_deletes_a_dataset(client, settings):
     mine = next(d for d in listed if d["name"] == "students_web")
     assert mine["shipped"] is False and mine["session"]["stage"] == "waiting" and mine["has_claims"] is False
     # delete: every file, the entry, the meta, the caches
-    RN._pack_cache["students_web"] = object()
     assert client.delete("/api/datasets/students_web").status_code == 204
     assert not (root / "data/raw/students_web").exists()
     for rel in ("data/profiles/students_web.json", "data/context/students_web.md", "data/web/students_web"):
         assert not (root / rel).exists(), rel
     assert "students_web" not in yaml.safe_load((root / "data/datasets.yaml").read_text())
-    assert "students_web" not in RN._pack_cache
     assert client.delete("/api/datasets/students_web").status_code == 404
     assert client.get("/api/sessions/students_web").status_code == 404
 

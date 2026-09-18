@@ -224,7 +224,7 @@ def test_router_wires_the_real_specialist():
 
     assert "freeze_design" in SPECIALISTS["adjustment"].get_graph().nodes
     assert "relate" not in SPECIALISTS["synthetic_control"].get_graph().nodes  # still a stub
-    assert len(router_graph.get_graph().nodes) == 16
+    assert len(router_graph.get_graph().nodes) == 17
 
 
 # ------------------------------------------------------------------ the pack's facts end judgements

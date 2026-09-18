@@ -1,4 +1,4 @@
-"""Router state. Holds the dataset name and each step's artifacts, never the pack payload."""
+"""The routing state: the dataset name and each step's artifacts. The memory itself is loaded by the nodes, never held in state."""
 
 from __future__ import annotations
 
@@ -19,12 +19,14 @@ class Context:
     width_budget: int = 150
 
 
-class RouterState(TypedDict, total=False):
+class RouteState(TypedDict, total=False):
     question: str
     dataset: str
     prefilter_votes: Annotated[list[PrefilterVote], operator.add]
     frame: QuestionFrame | None
-    family_verdicts: Annotated[list[FamilyVerdict], operator.add]
+    family_verdicts: list[FamilyVerdict]   # by code, from the fit over the memory
+    probes: list                           # ProbeResult
+    fit_status: dict | None
     decision: FamilyDecision | None
     gate_errors: list[str]
     decide_attempts: int
@@ -42,17 +44,4 @@ class PrefilterTask(TypedDict):
     column: str
     card: str
 
-
-class FamilyTask(TypedDict):
-    """Input to one family worker. Not the parent state."""
-
-    question: str
-    family: str
-    family_text: str
-    intent: str
-    outcome: str
-    cause: str
-    scope: str
-    relevant: str
-    digest: str
-    cards: str
+RouterState = RouteState  # the older name

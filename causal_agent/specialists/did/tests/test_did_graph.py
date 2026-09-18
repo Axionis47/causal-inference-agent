@@ -223,7 +223,7 @@ def test_router_wires_both_specialists():
 
     assert "shape_table" in SPECIALISTS["diff_in_diff"].get_graph().nodes
     assert "freeze_design" in SPECIALISTS["adjustment"].get_graph().nodes and "shape_table" not in SPECIALISTS["adjustment"].get_graph().nodes
-    assert len(router_graph.get_graph().nodes) == 16
+    assert len(router_graph.get_graph().nodes) == 17
 
 
 # ------------------------------------------------------------------ the pack's facts end judgements
@@ -231,11 +231,15 @@ def test_router_wires_both_specialists():
 
 def test_pack_panel_block_settles_groups_and_periods_without_a_model_call():
     """No shipped dataset carries diff-in-diff claims yet, so the claims are built here and handed to the builder directly."""
+    import json
+
     from causal_agent.common.contracts import Candidate, FamilyDecision, QuestionFrame, Scope
     from causal_agent.desk.handoff import build
-    from causal_agent.profile.datasets import load_dataset_pack
-    from causal_agent.memory.claims import Claim, ClaimTable
     from causal_agent.knowledge import load_registry
+    from causal_agent.memory.claims import Claim, ClaimTable
+    from causal_agent.memory.records import Memory
+    from causal_agent.profile.datasets import ROOT, dataset_entries
+    from causal_agent.profile.profiler import Profile
 
     table = ClaimTable(claims={
         "grain": Claim(kind="grain", key="grain", fields={"row_is": "one state in one year", "key_columns": ["state", "year"], "panel": True}, status="confirmed", source="user:turn:1"),
@@ -249,7 +253,9 @@ def test_pack_panel_block_settles_groups_and_periods_without_a_model_call():
                           relevant_columns=[Candidate(column=c, reason="r", cites=["col:state.note"]) for c in cols], reasons=[])
     decision = FamilyDecision(admissible=["diff_in_diff"], chosen="diff_in_diff", chosen_assumption="parallel movement absent the change", why_over_alternatives="only one", rejected=[])
     fam = next(f for f in load_registry() if f.name == "diff_in_diff")
-    h = build(question="q", frame=frame, decision=decision, family=fam, pack=load_dataset_pack("cigar"), claims=table)
+    e = dataset_entries()["cigar"]
+    memory = Memory.from_claims("cigar", table, profile=Profile.model_validate(json.loads((ROOT / e["profile"]).read_text())), csv=e["csv"])
+    h = build(question="q", frame=frame, decision=decision, family=fam, memory=memory)
     d = h.design
     assert d.kind == "diff_in_diff" and d.unit == "state" and d.time == "year" and d.change_period == "89" and d.treated_group == {"column": "state", "level": "5"}
     assert d.trend_belief is not None and d.trend_belief.value is True

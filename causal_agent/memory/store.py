@@ -19,14 +19,15 @@ from pathlib import Path
 import yaml
 
 from causal_agent.common.contracts import Said
+from causal_agent.memory.claims import Claim, ClaimTable, ProbeResult
 from causal_agent.memory.records import Memory
-from causal_agent.profile.datasets import ROOT, dataset_entries
+from causal_agent.profile import datasets as DS
 
 FILES = ("meta.yaml", "columns.yaml", "dataset.yaml")
 
 
 def home(name: str, root: Path | None = None) -> Path:
-    return Path(root or ROOT) / "data" / "memory" / name
+    return Path(root or DS.ROOT) / "data" / "memory" / name
 
 
 def exists(name: str, root: Path | None = None) -> bool:
@@ -65,6 +66,24 @@ def snapshot(memory: Memory, design_id: int, root: Path | None = None) -> Path:
     return d
 
 
+# ------------------------------------------------------------------ the claims files, and a memory by name
+
+
+def load_claims(path: str | Path) -> tuple[ClaimTable, list[ProbeResult]]:
+    """The claims document the interview writes: {claims: [...], probes: [...]}."""
+    doc = yaml.safe_load(Path(path).read_text()) or {}
+    table = ClaimTable(claims={c["key"]: Claim.model_validate(c) for c in doc.get("claims") or []})
+    probes = [ProbeResult.model_validate(p) for p in doc.get("probes") or []]
+    return table, probes
+
+
+def memory_for(name: str, root: Path | None = None) -> Memory:
+    """The memory on disk, or one made from the dataset's profile and claims files and saved."""
+    if exists(name, root):
+        return load(name, root)
+    return migrate(name, root)
+
+
 # ------------------------------------------------------------------ migration from the claims files
 
 
@@ -87,18 +106,19 @@ def _transcript(name: str, root: Path) -> list[Said]:
 
 def migrate(name: str, root: Path | None = None, *, write: bool = True) -> Memory:
     """A memory from a datasets.yaml entry: the profile for the facts, the claims file for the fields, the transcript for the words."""
-    from causal_agent.desk.handoff import load_claims
-    from causal_agent.memory.claims import ClaimTable
     from causal_agent.profile.profiler import Profile
 
-    root = Path(root or ROOT)
-    entries = dataset_entries(root / "data" / "datasets.yaml")
+    root = Path(root or DS.ROOT)
+    entries = DS.dataset_entries(root / "data" / "datasets.yaml")
     if name not in entries:
         raise KeyError(f"unknown dataset {name!r}; known: {sorted(entries)}")
     e = entries[name]
     prof = Profile.model_validate(json.loads((root / e["profile"]).read_text()))
     table, _ = load_claims(root / e["claims"]) if e.get("claims") and (root / e["claims"]).exists() else (ClaimTable(), [])
     m = Memory.from_claims(name, table, profile=prof, csv=e.get("csv"), transcript=_transcript(name, root))
+    from causal_agent.memory.ops import seed_facts
+
+    seed_facts(m, prof)
     if write:
         save(m, root)
     return m
@@ -114,7 +134,7 @@ def main(argv: list[str] | None = None) -> None:
     sh.add_argument("name")
     args = ap.parse_args(argv)
     if args.cmd == "migrate":
-        names = list(dataset_entries()) if args.all else [args.name]
+        names = list(DS.dataset_entries()) if args.all else [args.name]
         for n in names:
             m = migrate(n)
             print(f"{n}: {len(m.columns)} columns, {sum(1 for k in m.dataset.kinds.values() for f in k.fields.values() if f.value is not None)} dataset fields, {len(m.transcript)} turns")

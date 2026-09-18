@@ -216,14 +216,8 @@ def create_dataset(s: Settings, req: DatasetCreate) -> tuple[DatasetSummary, dic
 
 
 def _invalidate(name: str) -> None:
-    """The process-global pack caches never expire on their own."""
-    for mod in ("causal_agent.router.nodes", "causal_agent.specialists.rd.nodes", "causal_agent.specialists.did.nodes", "causal_agent.specialists.dowhy.nodes"):
-        try:
-            import importlib
-
-            getattr(importlib.import_module(mod), "_pack_cache", {}).pop(name, None)
-        except Exception:
-            pass
+    """The file and profile cache is process-global; the lanes read the hand-off and the routing loads the memory per node, so
+    there is no other cache to clear."""
     D.clear()
 
 
@@ -240,6 +234,7 @@ def delete_dataset(s: Settings, name: str, run_dirs: list[str] | None = None) ->
     for stale in (s.root / "data" / "claims" / f"{name}.yaml", s.root / "data" / "context" / f"{name}.md", s.root / "data" / "profiles" / f"{name}.json"):
         if stale.exists():
             stale.unlink()
+    shutil.rmtree(s.root / "data" / "memory" / name, ignore_errors=True)
     csv_rel = (e or {}).get("csv") or (meta or {}).get("csv")
     others = [n for n, x in es.items() if n != name and x.get("csv") == csv_rel]
     if csv_rel and not others and csv_rel.startswith(f"data/raw/{name}/"):

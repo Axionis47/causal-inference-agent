@@ -8,7 +8,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from causal_agent.desk.handoff import load_claims
+from causal_agent.memory.store import load_claims
 from causal_agent.memory import ops, store
 from causal_agent.memory.catalogue import load_catalogue
 from causal_agent.memory.claims import Claim, ClaimTable

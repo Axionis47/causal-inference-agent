@@ -14,9 +14,8 @@ from langchain_core.messages import AIMessage
 
 from causal_agent.common.contracts import Cited, Handoff, Scope
 from causal_agent.common.llm import set_llm
-from causal_agent.desk import handoff as H
 from causal_agent.desk.handoff import forced
-from causal_agent.profile.pack import load_pack
+from causal_agent.profile import datasets as DS
 from causal_agent.profile.profiler import profile
 from causal_agent.specialists.rd import nodes as N
 from causal_agent.specialists.rd.contracts import CovariateRelation, DesignAssessment, EstimatorPick, RDInterpretation, Score
@@ -134,8 +133,8 @@ def make_pack(tmp_path, monkeypatch, name: str, df: pd.DataFrame, rule: str, col
         entry["entity"] = entity
     monkeypatch.setattr(N, "dataset_entries", lambda: {name: entry})
     monkeypatch.setattr(N, "ROOT", Path("/"))
-    monkeypatch.setattr(H, "dataset_entries", lambda: {name: entry})
-    monkeypatch.setattr(H, "load_dataset_pack", lambda n: load_pack(n, md, prof))
+    monkeypatch.setattr(DS, "dataset_entries", lambda *a, **k: {name: entry})  # the builder and the memory store read the index and the root
+    monkeypatch.setattr(DS, "ROOT", tmp_path)
 
 
 def sharp_below(n=3000, jump=1.0, seed=1) -> pd.DataFrame:
@@ -505,7 +504,7 @@ def test_router_wires_three_specialists():
     assert "score" in SPECIALISTS["discontinuity"].get_graph().nodes
     assert "shape_table" in SPECIALISTS["diff_in_diff"].get_graph().nodes and "score" not in SPECIALISTS["diff_in_diff"].get_graph().nodes
     assert "relate" not in SPECIALISTS["synthetic_control"].get_graph().nodes  # still a stub
-    assert len(router_graph.get_graph().nodes) == 16
+    assert len(router_graph.get_graph().nodes) == 17
 
 
 def test_raw_columns_named_like_canonical_ones_do_not_collide(tmp_path, monkeypatch):

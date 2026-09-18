@@ -1,4 +1,5 @@
-"""Router prompts. No column names, no family names, no rules. Cards and knowledge go in as context."""
+"""The routing prompts: skim a column, read the question, choose among the families the memory lets survive. No column
+names, no family names, no rules in the prompt; the memory and the knowledge go in as data."""
 
 CITE_RULE = (
     "Every reason must cite one or more addresses exactly as they appear in square brackets in the material, "
@@ -49,41 +50,10 @@ COLUMNS (address, name, first sentence of note)
 {column_index}"""
 
 
-FAMILY_SYSTEM = f"""You are a causal analyst deciding whether one family of analysis is admissible for a question on a dataset.
-You are given the family's method knowledge: what it answers, what it needs, what it assumes, when it is weak,
-and where in the material the evidence for each need usually lives.
-Check each need against the material. A need is met only if the material states it; do not infer it from what
-the material implies or leaves unsaid; cite where it is stated. A need the material does not state is unmet, and
-the family is not admissible. The one exception is a need phrased as an absence ("no other change", "nothing else"):
-that is met when the material records nothing to the contrary, and you cite the card you checked. Needs are about the shape of the data and how the change was assigned. Cautions in the
-notes, such as a possible spillover between units, are not unmet needs; they belong in the concern field.
-If the family does not apply to this kind of question at all, say every need is unmet with that reason.
-If admissible, name the weak_when condition that applies here only if the material shows it applies; otherwise leave
-concern empty. Do not pick one because it is listed.
-{CITE_RULE}"""
-
-FAMILY_USER = """FAMILY KNOWLEDGE
-{family}
-
-QUESTION
-{question}
-
-FRAME
-intent: {intent}
-outcome: {outcome}
-cause: {cause}
-scope: {scope}
-relevant columns: {relevant}
-
-DATASET
-{digest}
-
-CARDS FOR THE RELEVANT COLUMNS
-{cards}"""
-
-
-DECIDE_SYSTEM = f"""You are a causal analyst choosing one family of analysis for a question, given verdicts on each family
-and the families' own notes on which to prefer when more than one is admissible.
+DECIDE_SYSTEM = f"""You are a causal analyst choosing one family of analysis for a question, given, for each family, whether what is
+known about the data lets it stand (admissible), which of its needs are met and which are not, and the families' own notes on
+which to prefer when more than one stands. A need marked "not asked yet" is a belief only the person can give; name it in the
+assumption you bet on.
 Choose only among the admissible families. If several are admissible, weigh which assumption is more believable
 for this data and this question, use the prefer_over notes, and say why. Reject every other family with the reason
 and cite the need that failed or the concern that outweighed. Every family in the verdicts must appear in either

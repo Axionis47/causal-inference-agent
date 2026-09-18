@@ -25,19 +25,26 @@ WriteStatus = Literal["drafted", "confirmed", "unknown"]
 # ------------------------------------------------------------------ seed
 
 
+def seed_facts(m: Memory, profile) -> None:
+    """The two dataset fields the profile settles on its own, written only where nothing is known yet."""
+    if not any(cp.nulls for cp in profile.columns) and m.field("claim:missing.why") is not None and m.field("claim:missing.why").value is None:
+        m.set("claim:missing.why", "none", status="confirmed", source="data")
+    es = profile.dataset.entity_summary
+    if es is not None:
+        if (f := m.field("claim:grain.panel")) is not None and f.value is None:
+            m.set("claim:grain.panel", bool(es.rows_per_entity_max > 1), status="confirmed", source="data")
+        if (f := m.field("claim:grain.key_columns")) is not None and f.value is None:
+            m.set("claim:grain.key_columns", list(es.columns) + ([profile.dataset.time_coverage.column] if profile.dataset.time_coverage else []),
+                  status="drafted", source="data")
+
+
 def seed(name: str, profile, csv: str | None = None, cat: Catalogue | None = None) -> Memory:
-    """A memory from the file alone: the facts on every column, and the two dataset fields the profile settles."""
+    """A memory from the file alone: the facts on every column, and the dataset fields the profile settles."""
     from causal_agent.memory.claims import ClaimTable
 
     cat = cat or load_catalogue()
     m = Memory.from_claims(name, ClaimTable(), profile=profile, csv=csv, cat=cat)
-    if not any(cp.nulls for cp in profile.columns):
-        m.set("claim:missing.why", "none", status="confirmed", source="data")
-    es = profile.dataset.entity_summary
-    if es is not None:
-        m.set("claim:grain.panel", bool(es.rows_per_entity_max > 1), status="confirmed", source="data")
-        m.set("claim:grain.key_columns", list(es.columns) + ([profile.dataset.time_coverage.column] if profile.dataset.time_coverage else []),
-              status="drafted", source="data")
+    seed_facts(m, profile)
     return m
 
 

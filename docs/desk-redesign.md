@@ -2,7 +2,9 @@
 
 Status, 18 Sept: stages 0 and 1 landed (the first `Handoff`, the one builder, the lanes reading the pack, two new claims). Stage 2
 landed the same day: `profile/` and `memory/` split out of `intake/`, the field catalogue final, the records with a status and a source
-on every field, the gated write path, the consistency rules, `open`, the store and the migration. Stage 3 next.
+on every field, the gated write path, the consistency rules, `open`, the store and the migration. The router is folded in too:
+routing runs on the memory (`desk/route.py`), the per-family model verdicts are replaced by the fit over the memory, and the pack is
+projected from a memory. Stage 3 (profile facts, the figure contract, the lanes on the renamed fields) next.
 
 ## Context
 

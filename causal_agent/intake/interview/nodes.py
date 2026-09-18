@@ -513,10 +513,10 @@ def write_pack(state: InterviewState) -> dict:
     df, prof = _data(state, table)
     entity, time = _entity_time(table, df)
     written = write_dataset(state["dataset"], state["csv"], prof, table, state.get("probes") or [], entity=entity, time=time)
-    try:
-        from causal_agent.router import nodes as R
+    from causal_agent.common.contracts import Said
+    from causal_agent.memory import store
+    from causal_agent.memory.records import Memory
 
-        R._pack_cache.pop(state["dataset"], None)
-    except Exception:
-        pass
+    said = [Said(turn=int(m["turn"]), about="", text=str(m["text"])) for m in (state.get("messages") or []) if m.get("role") == "user" and m.get("text")]
+    store.save(Memory.from_claims(state["dataset"], table, profile=prof, csv=written["entry"]["csv"], transcript=said))
     return {"written": written, "handoff_ready": True}
