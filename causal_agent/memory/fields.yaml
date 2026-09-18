@@ -82,10 +82,8 @@ kinds:
       derived_from: {type: columns, optional: true}
       when: {type: choice, options: [before, at, after, unknown]}
       set_by: {type: text, optional: true}
-      feeds_assignment: {type: bool, optional: true, hint: "the rule or the offer looked at this column"}
       moved_by_change: {type: bool, optional: true, hint: "the change could have changed this column's value"}
       measures_outcome: {type: bool, optional: true, hint: "another measure of the outcome, or a later one; a result, not a cause"}
-      role: {type: choice, options: [outcome, treatment, score, unit, time, group, instrument, mediator, candidate, out_of_play], optional: true}
     check: before_is_fixed
     frame: what the column measures, in what units, and whether it was fixed before the change, set at the change, or measured after it; whether the change could have moved it
     order: 3

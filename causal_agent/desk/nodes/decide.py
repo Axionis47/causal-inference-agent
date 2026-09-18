@@ -62,8 +62,7 @@ def verdicts_from(memory: Memory, status: Status, probes: list[ProbeResult], reg
             if spec.per_column:
                 cites = [f"claim:{c.key}" for c in memory.to_claims(cat).claims.values() if c.kind == kind and c.status != "empty"][:6]
             else:
-                kr = memory.dataset.kinds.get(kind)
-                cites = [f"claim:{kind}.{n}" for n, f in (kr.fields.items() if kr else []) if f.value is not None][:6]
+                cites = [f"claim:{kind}.{n}" for n in memory.values_of(f"claim:{kind}")][:6]
             if cell == "fits":
                 needs.append(NeedCheck(need=f"{kind} settled and fits", met=True, cites=cites, note=spec.about))
             elif cell == "does_not_fit":

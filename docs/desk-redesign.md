@@ -1,8 +1,8 @@
 # The desk, final design: memory, the frozen context pack, the hand-off point, the run, and the chat after
 
 Status, 18 Sept: stages 0 and 1 landed (the first `Handoff`, the one builder, the lanes reading the pack, two new claims). Stage 2
-landed the same day: `profile/` and `memory/` split out of `intake/`, the field catalogue final, the records with a status and a source
-on every field, the gated write path, the consistency rules, `open`, the store and the migration. The router is folded in too:
+landed the same day: `profile/` and `memory/` split out of `intake/`, the field catalogue final, one map from address to field with a
+status and a source on every entry, roles as a view, the gated write path, the consistency rules, `open`, the store and the migration. The router is folded in too:
 routing runs on the memory (`desk/route.py`), the per-family model verdicts are replaced by the fit over the memory, and the pack is
 projected from a memory. Stage 3 (profile facts, the figure contract, the lanes on the renamed fields) next.
 
@@ -27,54 +27,59 @@ Principles that hold everywhere:
 
 One memory per dataset, persisted under `data/memory/<name>/`, read and written only through `causal_agent/memory/`.
 
-### Column records: `columns.yaml`, one record per column
+### The map: `fields.yaml`, one field per address
 
-Multiple fixed fields, one free-text field. Every field carries its own `status`, `source`, `said`, and `evidence`.
+Everything known, or asked and not known, is one entry keyed by its address. Every entry carries a `value`, a `status`, a `source`,
+the person's sentence it rests on (`said`), and the checks that touched it (`evidence`). Nothing else is stored about it. An
+address absent from the map has not been spoken of: a wide file is a small memory until someone talks about a column.
 
 ```yaml
-lunch:
-  key: lunch                     # common.addresses.key(name); the address is col:lunch
-  facts:                         # the file, code, turn 0, never asked; addresses col:lunch.profile.<facet>
-    kind: categorical; distinct: 2; nulls: 0; values: [standard, free/reduced]; varies_over: unknown
-    binary_like: true; date_like: false; id_like: false
-    by_arm: {standard: 0.71, free/reduced: 0.29}        # once a treatment is known: share of each level per arm
-  identity:
-    means:       {value: "standard or free/reduced; the district's low-income flag", status: confirmed, source: user:turn:2, said: "...verbatim..."}
-    stands_for:  {value: household income, status: drafted, source: model:infer}       # groups columns that measure one thing
-    proxy:       {value: proxy, status: drafted, source: model:infer}                   # exact | proxy | derived; derived_from: [cols]
-  time:
-    when:        {value: before, status: confirmed, source: user:turn:4, evidence: [check:col:lunch.before_is_fixed]}
-    set_by:      {value: the district, status: confirmed, source: user:turn:2}
-  relation:                                                                            # to the change and the outcome only
-    feeds_assignment: {value: true,  status: confirmed, source: code:assignment.depends_on}
-    moved_by_change:  {value: false, status: drafted,   source: model:infer}
-    measures_outcome: {value: false, status: drafted,   source: model:infer}
-    role:             {value: depends_on, status: confirmed, source: code:roles}        # outcome | treatment | score | unit | time | group | instrument | mediator | candidate | out_of_play
+col:lunch.meaning:      {value: "standard or free/reduced; the district's low-income flag", status: confirmed, source: user:turn:2, said: "...verbatim..."}
+col:lunch.stands_for:   {value: household income, status: drafted, source: model:infer}        # groups columns that measure one thing
+col:lunch.proxy:        {value: proxy, status: drafted, source: model:infer}                    # exact | proxy | derived; derived_from: [cols]
+col:lunch.when:         {value: before, status: confirmed, source: user:turn:4, evidence: [check:col:lunch.before_is_fixed]}
+col:lunch.set_by:       {value: the district, status: confirmed, source: user:turn:2}
+col:lunch.moved_by_change:  {value: false, status: drafted, source: model:infer}
+col:lunch.measures_outcome: {value: false, status: drafted, source: model:infer}
+claim:assignment.kind:  {value: own_choice, status: confirmed, source: user:turn:3, said: "..."}
+claim:assignment.depends_on: {value: [lunch, parental level of education], status: confirmed, source: user:turn:3}
+claim:unobserved.exists: {value: false, status: confirmed, source: user:turn:5, said: "the counsellor had nothing else to go on"}
 ```
+
+Column fields: `meaning`, `stands_for`, `proxy`, `derived_from`, `when`, `set_by`, `moved_by_change`, `measures_outcome`. Dataset
+fields: the kinds listed under the dataset record below. The catalogue `memory/fields.yaml` declares every field, its type, its
+options, and which families need it.
 
 Field statuses: `empty`, `drafted` (a model wrote it), `confirmed` (the person's word, judged and accepted), `refuted` (a data check
 contradicts it), `unknown` (the person cannot say), `contradiction` (refuted twice, or two confirmed fields disagree). Sources:
 `data`, `user:turn:<n>`, `doc:<name>`, `model:<node>`, `code:<rule>`.
 
-Cross-column context is a short named list, never every pair: the grain and nesting (dataset record), one concept measured by
-several columns (`stands_for` and `proxy`), the assignment set (dataset record), every column against time (`varies_over`, computed),
-one covariate driving another (optional, drafted from meanings, never asked).
+### The file's facts: `columns.yaml` and `meta.yaml`
 
-### Dataset record: `dataset.yaml`
+The profiler's facts on every column (`kind`, `distinct`, `nulls`, `top_values`, `varies_over`, `numeric`, `switch`) by key, and on the
+dataset (rows, grain, time coverage, entity summary). Code, turn 0, never asked, never written to. Addressed as
+`col:<key>.profile.<facet>` and `dataset.profile.<facet>`.
 
-The claims that are not per column, each field statused the same way: `grain` (row_is, key_columns, panel, nesting: which column sits
-inside which), `sampling`, `missing`, `change` (what, to_whom, when, date_column, period_value), `assignment` (kind, rule, depends_on,
-treatment_column, treated_level, score_column, cutoff, treated_side, cutoff_value_treated, level_column, movable), and the beliefs
-`unobserved`, `exclusion`, `spillover`, `trend_continues`, `cutoff_only`, `mediator` (value, what or column, why).
+### Views, never stored
 
-### The person's words: `transcript.jsonl`
+Roles (outcome, treatment, depends_on, score, unit, time, group, instrument, mediator) are computed from the dataset fields and the
+question every time they are needed. So are what is in play, what is open, the family fit, and the pack. Change the map and every
+view follows; nothing derived is written back to be kept in step.
+
+Cross-column context is a short named list, never every pair: the grain and nesting (dataset fields), one concept measured by
+several columns (`stands_for` and `proxy`), the assignment set (`assignment.depends_on`), every column against time (`varies_over`,
+computed), one covariate driving another (optional, drafted from meanings, never asked).
+
+### Dataset fields
+
+### The person's words: `said.jsonl`
 
 Every turn verbatim with its number. A field's `said` points at the sentence that set it. This is what a lane reads when it weighs
 an inherited claim.
 
 ### Designs: `designs/<n>/`
 
-A design is a frozen snapshot: `memory.json` (columns and dataset as they stood), `frame.json` (the question read), `decision.json`
+A design is a frozen snapshot: `memory.json` (the map and the facts as they stood), `frame.json` (the question read), `decision.json`
 (family, assumption, why, over), `handoff.json` (the pack as sent), and `run/` (the lane's artifacts). Designs are numbered per
 dataset. A what-if forks the memory into design n+1 without touching design n; a correction edits the memory and makes design n+1
 the same way. Then-and-now compares two designs by address.
@@ -83,8 +88,8 @@ the same way. Then-and-now compares two designs by address.
 
 Code, each a function with tests:
 
-- `seed(profile)`: facts for every column, `missing` when there are no gaps, `grain.panel` from the entity summary, candidate roles
-  (binary → treatment candidate, dated → time, id → unit, numeric measure → outcome candidate).
+- `seed(profile)`: facts for every column, `missing` when there are no gaps, `grain.panel` from the entity summary. No field is written
+  until someone speaks; candidate roles (binary → treatment candidate, dated → time, id → unit) are profile facts, stage 3.
 - `apply(memory, updates, gate)`: the one write path. An update names a field, a value, a status, a source, the said. The gate refuses a
   write with no source, a write to a confirmed field not from the person or a data check, a belief not from the person, a value
   outside the field's options, a column not in the file.
@@ -92,11 +97,12 @@ Code, each a function with tests:
   `before`; the outcome is `after`; a column marked `moved_by_change` is not `before`; the treated level appears in the column. A failed
   rule sets `refuted` on the field with the check address as evidence. It never overwrites a value.
 - `probe(memory, df)`: the family probes. `probes.py` as today, plus overlap and by-group-over-time shared with the pre-viz.
+- `roles(memory, outcome, treatment)`: a view, `{key: role}`, from the dataset fields and the frame. Never written.
 - `fit(memory)`: the family grid (`table.py`), `required` per survivor read from `families.yaml`, computed per column only for columns
-  whose `role` is in play.
+  whose role is in play.
 - `open(memory)`: the vague fields a survivor needs, in priority order. This is the question engine's input.
 - `snapshot(memory, n)`, `fork(memory)`, `render(memory)`: the design files and the text every prompt sees.
-- `infer` is the one judgement over memory: given the message, the open fields, and the current records, return updates with
+- `infer` is the one judgement over memory: given the message, the open fields, and the fields in play, return updates with
   reasons and the sentence they rest on. `apply` gates them. It also returns what the answer implies (a lottery implies no hidden
   factor) and what it contradicts.
 
@@ -107,8 +113,8 @@ family needs) and `intake/interview/{contracts,table,checks,probes}.py`. The pro
 
 `common.contracts.Handoff`, projected from one design's snapshot by `desk/handoff.py: build()`. It changes from the stage-1 shape
 in four ways: `identification_allowed` is dropped (the lane finds what identifies); every brief field carries its status, source,
-and said; the column record's new fields are in the brief (`stands_for`, `proxy`, `feeds_assignment`, `measures_outcome`, `role`,
-`moved_by_change` renamed from `affected_by_treatment`); and the pack carries the design number and the memory version.
+and said; the column's new fields are in the brief (`stands_for`, `proxy`, `measures_outcome`, `moved_by_change` renamed from
+`affected_by_treatment`, and `role` from the roles view); and the pack carries the design number and the memory version.
 
 ```
 Handoff
@@ -195,7 +201,7 @@ COLUMNS    (6 in play, 2 out of play: reading score, writing score measure the o
   [col:lunch.stands_for] household income (proxy)                                   drafted · model:infer
   [col:lunch.when] before the change                                                confirmed · user:turn:4 · check:col:lunch.before_is_fixed passed
   [col:lunch.set_by] the district                                                   confirmed · user:turn:4
-  [col:lunch.feeds_assignment] true                                                 confirmed · code:assignment.depends_on
+  role depends_on                                                                    view · claim:assignment.depends_on
   [col:lunch.moved] false                                                           confirmed · code:when=before
   [col:lunch.profile.by_arm] free/reduced 29% of completers, 40% of the rest
 
@@ -262,7 +268,7 @@ Design 1 is untouched. The designs strip shows both with the one field that diff
 
 ```
 infer   → claim:exclusion = true, column offer_rank · user:turn:12 · said:12
-        → col:offer_rank.role = instrument · col:offer_rank.when = before
+        → col:offer_rank.when = before; the roles view now reads offer_rank as the instrument
 fit     → instrument now survives beside adjustment; prefer_over decides, or decide asks one question
 design 3 → the lane sees exclusion with a column; identify returns an instrument estimand; the pick chooses it (stage 9) or, until
            then, backdoor with the instrument noted in the caveat
@@ -294,8 +300,8 @@ Each lane's design changes only as much as it takes to use the pack well:
 - `load` takes the CSV path, the unit, the cluster, and the sample rule from the pack.
 - The judgements that the pack settles become facts with the same checks: the contrast from `treated_level`, the group and the
   period from the panel block, the score and cutoff from the cutoff block. The model is asked only if the fact fails its checks.
-- `relate` drafts only the fields the record left open, and marks them `model:relate`. Where the record says `before` and
-  `feeds_assignment`, the edge is not a judgement.
+- `relate` drafts only the fields the record left open, and marks them `model:relate`. Where the field says `before` and the
+  roles view says `depends_on`, the edge is not a judgement.
 - The beliefs and the said are in the material every assessment and interpretation reads. A lane may decline an inherited field,
   citing the check that contradicts it, and the run record says so.
 - DoWhy: the adapter reads every estimand DoWhy returns (backdoor, frontdoor, instrument); the estimator pick chooses among what
@@ -341,7 +347,7 @@ every turn so a later `said` can point at it.
 causal_agent/
   common/       contracts.py (Handoff, ColumnBrief with statused fields, Belief, Said, Probe, family blocks, lane artifacts), llm.py, addresses.py
   profile/      profiler.py, cards.py, cache.py
-  memory/       fields.yaml, checks.yaml, records.py (ColumnRecord, DatasetRecord, Field, Memory), ops.py (seed, apply, check, probe, fit, open, snapshot, fork, render), checks.py, probes.py, table.py, store.py (data/memory/<name>/ layout), tests/
+  memory/       fields.yaml, checks.yaml, records.py (Field, Column, Memory: the map), ops.py (seed, apply, check, probe, fit, open, roles as a view), checks.py, probes.py, table.py, store.py (data/memory/<name>/ layout), tests/
   desk/         graph.py, state.py, contracts.py, nodes/{intake.py, frame.py, decide.py, after.py}, prompts/, handoff.py, material.py, pipeline.py, evals/, tests/
   viz/          spec.py, graph.py, previz/, postviz/, registry.py, tests/
   knowledge/    families.yaml (needs, fits, convince block, prefer_over), loader

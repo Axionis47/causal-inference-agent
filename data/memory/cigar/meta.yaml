@@ -1,7 +1,7 @@
 name: cigar
-version: 0
+version: 3
 csv: data/raw/cigarette-sales-prop99/Cigar.csv
-dataset_facts:
+facts:
   rows: 1380
   columns: 10
   duplicate_rows: 0

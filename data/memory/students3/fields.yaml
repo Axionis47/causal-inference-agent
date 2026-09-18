@@ -1,0 +1,340 @@
+claim:assignment.kind:
+  value: own_choice
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - col:lunch
+  - col:parental_level_of_education
+  - col:test_preparation_course
+  - user:turn:1
+  - check:assignment.treatment_varies
+claim:assignment.rule:
+  value: The counsellor offered places first to students on free or reduced lunch
+    and to those whose parents hold no degree, then to anyone who asked, and each
+    student chose whether to take the course.
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - col:lunch
+  - col:parental_level_of_education
+  - col:test_preparation_course
+  - user:turn:1
+  - check:assignment.treatment_varies
+claim:assignment.depends_on:
+  value:
+  - lunch
+  - parental level of education
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - col:lunch
+  - col:parental_level_of_education
+  - col:test_preparation_course
+  - user:turn:1
+  - check:assignment.treatment_varies
+claim:assignment.treatment_column:
+  value: test preparation course
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - col:lunch
+  - col:parental_level_of_education
+  - col:test_preparation_course
+  - user:turn:1
+  - check:assignment.treatment_varies
+claim:assignment.treated_level:
+  value: completed
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - col:lunch
+  - col:parental_level_of_education
+  - col:test_preparation_course
+  - user:turn:1
+  - check:assignment.treatment_varies
+claim:assignment.movable:
+  value: true
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - col:lunch
+  - col:parental_level_of_education
+  - col:test_preparation_course
+  - user:turn:1
+  - check:assignment.treatment_varies
+claim:change.what:
+  value: a six-week test preparation course
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+claim:change.to_whom:
+  value: students
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+claim:change.when:
+  value: before the May 2026 exam
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+claim:grain.row_is:
+  value: one student's results from the May 2026 exam at one school
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+claim:grain.panel:
+  value: false
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:gender.meaning:
+  value: student's gender
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - col:gender
+  - user:turn:1
+col:gender.when:
+  value: before
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - col:gender
+  - user:turn:1
+col:race_ethnicity.meaning:
+  value: the school's own grouping of race/ethnicity
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - col:race_ethnicity
+  - user:turn:1
+col:race_ethnicity.when:
+  value: before
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - col:race_ethnicity
+  - user:turn:1
+col:parental_level_of_education.meaning:
+  value: highest qualification held by either parent
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - col:parental_level_of_education
+  - user:turn:1
+col:parental_level_of_education.when:
+  value: before
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - col:parental_level_of_education
+  - user:turn:1
+col:lunch.meaning:
+  value: student's lunch status (standard or free/reduced)
+  status: confirmed
+  source: user:turn:4
+  said: null
+  evidence:
+  - doc:context
+  - col:lunch
+  - user:turn:1
+  - user:turn:4
+col:lunch.when:
+  value: after
+  status: confirmed
+  source: user:turn:4
+  said: null
+  evidence:
+  - doc:context
+  - col:lunch
+  - user:turn:1
+  - user:turn:4
+col:test_preparation_course.meaning:
+  value: whether the student completed the test preparation course
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - col:test_preparation_course
+  - user:turn:1
+col:test_preparation_course.when:
+  value: at
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - col:test_preparation_course
+  - user:turn:1
+col:math_score.meaning:
+  value: student's math exam mark
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - col:math_score
+  - user:turn:1
+col:math_score.when:
+  value: after
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - col:math_score
+  - user:turn:1
+col:math_score.moved_by_change:
+  value: true
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - col:math_score
+  - user:turn:1
+col:reading_score.meaning:
+  value: student's reading exam mark
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - col:reading_score
+  - user:turn:1
+col:reading_score.when:
+  value: after
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - col:reading_score
+  - user:turn:1
+col:reading_score.moved_by_change:
+  value: true
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - col:reading_score
+  - user:turn:1
+col:writing_score.meaning:
+  value: student's writing exam mark
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - col:writing_score
+  - user:turn:1
+col:writing_score.when:
+  value: after
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - col:writing_score
+  - user:turn:1
+col:writing_score.moved_by_change:
+  value: true
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - col:writing_score
+  - user:turn:1
+claim:sampling.how:
+  value: whole
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+claim:sampling.detail:
+  value: every student who sat the May 2026 exam at one school
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+claim:missing.why:
+  value: none
+  status: confirmed
+  source: data
+  said: null
+  evidence:
+  - check:missing.missing_by_arm
+claim:unobserved.exists:
+  value: false
+  status: confirmed
+  source: user:turn:3
+  said: null
+  evidence:
+  - user:turn:3
+claim:exclusion.exists:
+  value: false
+  status: confirmed
+  source: user:turn:2
+  said: null
+  evidence:
+  - user:turn:2
+claim:spillover.possible:
+  value: false
+  status: confirmed
+  source: user:turn:2
+  said: null
+  evidence:
+  - user:turn:2
+claim:trend_continues.believed:
+  value: true
+  status: confirmed
+  source: user:turn:2
+  said: null
+  evidence:
+  - user:turn:2

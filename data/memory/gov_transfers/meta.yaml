@@ -1,7 +1,7 @@
 name: gov_transfers
 version: 0
 csv: data/raw/gov-transfers-uruguay/gov_transfers.csv
-dataset_facts:
+facts:
   rows: 1948
   columns: 5
   duplicate_rows: 21

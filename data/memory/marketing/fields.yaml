@@ -1,0 +1,20 @@
+claim:missing.why:
+  value: none
+  status: confirmed
+  source: data
+  said: null
+  evidence: []
+claim:grain.panel:
+  value: true
+  status: confirmed
+  source: data
+  said: null
+  evidence: []
+claim:grain.key_columns:
+  value:
+  - LocationID
+  - week
+  status: drafted
+  source: data
+  said: null
+  evidence: []

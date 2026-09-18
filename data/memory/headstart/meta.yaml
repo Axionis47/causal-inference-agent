@@ -1,7 +1,7 @@
 name: headstart
 version: 0
 csv: data/raw/head-start-mortality/headstart.csv
-dataset_facts:
+facts:
   rows: 2810
   columns: 28
   duplicate_rows: 0

@@ -55,7 +55,7 @@ def index_records(memory: Memory) -> list:
 
 def context_text(memory: Memory) -> str:
     return "\n\n".join([
-        render_dataset_text(memory.name, memory.dataset_facts, H.fields_of(memory, "grain"), H.fields_of(memory, "sampling"), H.fields_of(memory, "missing")),
+        render_dataset_text(memory.name, memory.facts, H.fields_of(memory, "grain"), H.fields_of(memory, "sampling"), H.fields_of(memory, "missing")),
         render_change_text(H.fields_of(memory, "change"), H.fields_of(memory, "assignment")),
         "BELIEFS\n" + ("\n".join(b.render() for k in H.BELIEF_KINDS if (b := H.belief_of(memory, k)) is not None) or "(none recorded)"),
     ])
@@ -71,8 +71,7 @@ def load(state: RouteState) -> dict:
 
 def _bare(memory: Memory) -> bool:
     """Nothing from a person, a document, or a model yet: only what the file settled on its own."""
-    return not any(f.value is not None and f.source and not f.source.startswith(("data", "code:"))
-                   for kr in memory.dataset.kinds.values() for f in kr.fields.values())
+    return not any(f.value is not None and f.source and not f.source.startswith(("data", "code:")) for f in memory.fields.values())
 
 
 def _doc(memory: Memory) -> tuple[str, str] | None:
@@ -95,7 +94,7 @@ def mine(state: RouteState) -> dict:
 
     name, text = doc
     cat = load_catalogue()
-    cards = "\n".join(H.brief_of(c).line() for c in memory.columns.values())
+    cards = "\n".join(H.brief_of(memory, c).line() for c in memory.columns.values())
     errors = ""
     debug, rejected = [], []
     for _ in range(MINE_ATTEMPTS):
@@ -129,7 +128,7 @@ def fan_out_prefilter(state: RouteState) -> list[Send] | Literal["frame"]:
     if len(recs) <= width_budget():
         return "frame"
     changes = render_change_text(H.fields_of(memory, "change"), H.fields_of(memory, "assignment"))
-    return [Send("prefilter", PrefilterTask(question=state["question"], changes=changes, column=c.name, card=H.brief_of(c).render())) for c in recs]
+    return [Send("prefilter", PrefilterTask(question=state["question"], changes=changes, column=c.name, card=H.brief_of(memory, c).render())) for c in recs]
 
 
 def prefilter(task: PrefilterTask) -> dict:
@@ -145,7 +144,7 @@ def frame(state: RouteState) -> dict:
     votes = {v.column: v.relevant for v in state.get("prefilter_votes", [])}
     if votes:
         recs = [c for c in recs if votes.get(c.name, True)]
-    index = "\n".join(H.brief_of(c).line() for c in recs)
+    index = "\n".join(H.brief_of(memory, c).line() for c in recs)
     fr, thought = structured(QuestionFrame, P.FRAME_SYSTEM, P.FRAME_USER.format(question=state["question"], digest=context_text(memory), column_index=index), node="frame")
     normalise_columns(fr, memory)
     _writer()({"frame": {"intent": fr.intent, "outcome": fr.outcome, "cause": fr.cause, "relevant": [c.column for c in fr.relevant_columns]}})

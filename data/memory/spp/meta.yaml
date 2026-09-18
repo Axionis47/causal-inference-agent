@@ -1,7 +1,7 @@
 name: spp
 version: 0
 csv: data/raw/spp-colombia-financial-aid/spp.csv
-dataset_facts:
+facts:
   rows: 23132
   columns: 9
   duplicate_rows: 362

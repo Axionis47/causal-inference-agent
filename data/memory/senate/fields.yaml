@@ -1,0 +1,13 @@
+claim:grain.panel:
+  value: true
+  status: confirmed
+  source: data
+  said: null
+  evidence: []
+claim:grain.key_columns:
+  value:
+  - state
+  status: drafted
+  source: data
+  said: null
+  evidence: []

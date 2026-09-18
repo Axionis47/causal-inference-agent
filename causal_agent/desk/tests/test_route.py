@@ -127,7 +127,7 @@ def test_students_is_mined_fitted_and_routed_to_adjustment():
     assert unasked and all("not asked yet" in n.note for n in unasked)  # the beliefs: listed, never mined, never blocking here
     memory = store.memory_for("students")
     assert memory.field("claim:assignment.kind").value == "own_choice" and memory.field("claim:assignment.kind").status == "drafted"
-    assert memory.field("claim:unobserved.exists").value is None  # the description's belief was dropped
+    assert memory.field("claim:unobserved.exists") is None  # the description's belief was dropped
     assert out["gate_errors"] == []
     h = out["handoff"]
     assert h.family == "adjustment" and h.specialist == "dowhy" and h.supported_now

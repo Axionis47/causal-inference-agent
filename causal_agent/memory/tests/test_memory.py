@@ -40,8 +40,10 @@ def test_claims_round_trip_through_memory():
         assert want == b.fields, key
     # the renamed field carries over
     assert m.field("col:reading_score.moved_by_change").value is True
-    # every profiled column has a record with facts, even one with no claim
+    # every profiled column carries the file's facts, even one with no claim
     assert m.column("math score").facts.kind == "numeric" and m.column("math score").facts.distinct > 50
+    # the map holds only what was said: no empty field for a column nobody described
+    assert not any(a.startswith("col:math_score.") for a in m.fields) or m.field("col:math_score.meaning") is not None
 
 
 def test_field_addresses_and_raw_set():
@@ -83,9 +85,8 @@ def test_seed_from_the_profile_alone():
     m = ops.seed("students", prof, csv=str(STUDENTS))
     assert len(m.columns) == 8 and m.column("lunch").facts.levels() == ["standard", "free/reduced"]
     assert m.field("claim:missing.why").value == "none" and m.field("claim:missing.why").source == "data"
-    assert m.field("claim:grain.panel").value is None  # no entity declared, so the file cannot say
-    assert all(f.status == "empty" for c in m.columns.values() for f in c.fields.values())
-    assert set(m.dataset.kinds) >= {"grain", "sampling", "change", "assignment", "missing", "unobserved", "exclusion", "spillover", "trend_continues", "cutoff_only", "mediator"}
+    assert m.field("claim:grain.panel") is None  # no entity declared, so the file cannot say
+    assert set(m.fields) == {"claim:missing.why"}  # a wide file is a small memory until someone speaks
 
 
 # ------------------------------------------------------------------ apply: the gate
@@ -119,18 +120,18 @@ def test_apply_gates_source_confirmed_beliefs_and_values():
 # ------------------------------------------------------------------ roles and consistency
 
 
-def test_roles_from_the_dataset_fields():
+def test_roles_are_a_view_of_the_dataset_fields():
     m, _ = students3()
-    ops.roles(m, outcome="math score")
-    assert m.field("col:math_score.role").value == "outcome" and m.field("col:test_preparation_course.role").value == "treatment"
-    assert m.field("col:lunch.feeds_assignment").value is True and m.field("col:lunch.feeds_assignment").source == "code:assignment.depends_on"
-    assert m.field("col:gender.role").value is None
+    v = m.version
+    r = ops.roles(m, outcome="math score")
+    assert r["math_score"] == "outcome" and r["test_preparation_course"] == "treatment" and r["lunch"] == "depends_on"
+    assert "gender" not in r
+    assert m.version == v and not any(a.endswith(".role") for a in m.fields)  # nothing written
 
 
 def test_consistency_refutes_without_overwriting():
     m, _ = students3()  # lunch is 'after' in this session's claims, yet the offer depended on it
-    ops.roles(m, outcome="math score")
-    findings = ops.consistency(m)
+    findings = ops.consistency(m, outcome="math score")
     rules = {(f.address, f.rule) for f in findings}
     assert ("col:lunch.when", "depends_on_before") in rules
     f = m.field("col:lunch.when")
@@ -138,7 +139,7 @@ def test_consistency_refutes_without_overwriting():
     # an outcome marked before, a score marked after, a before-column marked moved
     m.set("col:math_score.when", "before", status="confirmed", source="user:turn:2")
     m.set("col:gender.moved_by_change", True, status="drafted", source="model:infer")
-    rules = {(f.address, f.rule) for f in ops.consistency(m)}
+    rules = {(f.address, f.rule) for f in ops.consistency(m, outcome="math score")}
     assert ("col:math_score.when", "outcome_after") in rules and ("col:gender.moved_by_change", "moved_not_before") in rules
     assert m.field("col:gender.moved_by_change").value is True  # never overwritten
 
@@ -193,6 +194,7 @@ def test_store_round_trip_and_migration(tmp_path):
     back = store.load("students3", root)
     assert back.model_dump() == m.model_dump()
     assert back.field("claim:assignment.kind").value == "own_choice" and back.column("lunch").facts.distinct == 2
+    assert (root / "data/memory/students3/fields.yaml").exists() and (root / "data/memory/students3/said.jsonl").exists()
     d = store.snapshot(back, 1, root)
     assert (d / "memory.json").exists() and Memory.model_validate_json((d / "memory.json").read_text()).name == "students3"
     with pytest.raises(KeyError):

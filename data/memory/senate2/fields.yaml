@@ -1,0 +1,446 @@
+claim:assignment.kind:
+  value: cutoff_rule
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:assignment.rows_by_side
+claim:assignment.rule:
+  value: A Democrat won if the margin of victory was at or above zero.
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:assignment.rows_by_side
+claim:assignment.score_column:
+  value: margin
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:assignment.rows_by_side
+claim:assignment.cutoff:
+  value: 0.0
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:assignment.rows_by_side
+claim:assignment.treated_side:
+  value: above
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:assignment.rows_by_side
+claim:assignment.cutoff_value_treated:
+  value: true
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:assignment.rows_by_side
+claim:assignment.movable:
+  value: false
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:assignment.rows_by_side
+claim:change.what:
+  value: holding a Senate seat
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+claim:change.to_whom:
+  value: a Democrat
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+claim:change.when:
+  value: for six years after winning an election
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+claim:grain.row_is:
+  value: one US Senate election
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:grain.key_unique
+claim:grain.key_columns:
+  value:
+  - state
+  - year
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:grain.key_unique
+claim:grain.panel:
+  value: false
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:grain.key_unique
+col:state.meaning:
+  value: state name
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:state.when:
+  value: at
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:year.meaning:
+  value: year of the election
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:year.when:
+  value: at
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:margin.meaning:
+  value: Democratic margin of victory at the election, in percentage points
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:margin.when:
+  value: at
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:vote.meaning:
+  value: Democratic vote share at the next election for the same seat
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:vote.when:
+  value: after
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:class.meaning:
+  value: Senate class of the seat
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:col:class.fixed_within_unit
+col:class.when:
+  value: before
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:col:class.fixed_within_unit
+col:termshouse.meaning:
+  value: terms served in the House
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:termshouse.when:
+  value: at
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:termssenate.meaning:
+  value: terms served in the Senate
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:termssenate.when:
+  value: at
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:dopen.meaning:
+  value: 1 if the seat was open (no incumbent running)
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:dopen.when:
+  value: at
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:population.meaning:
+  value: state population
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:population.when:
+  value: at
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:presdemvoteshlag1.meaning:
+  value: Democratic vote share in the state at the presidential election
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:col:presdemvoteshlag1.fixed_within_unit
+col:presdemvoteshlag1.when:
+  value: before
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:col:presdemvoteshlag1.fixed_within_unit
+col:demvoteshlag1.meaning:
+  value: Democratic vote share at the state's previous Senate election
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:col:demvoteshlag1.fixed_within_unit
+col:demvoteshlag1.when:
+  value: before
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:col:demvoteshlag1.fixed_within_unit
+col:demvoteshlag2.meaning:
+  value: Democratic vote share at the state's second previous Senate election
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:col:demvoteshlag2.fixed_within_unit
+col:demvoteshlag2.when:
+  value: before
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:col:demvoteshlag2.fixed_within_unit
+col:demvoteshfor1.meaning:
+  value: Democratic vote share at the state's next Senate election for the other seat
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:demvoteshfor1.when:
+  value: after
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:demwinprv1.meaning:
+  value: 1 if the Democrat won the previous Senate election
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:col:demwinprv1.fixed_within_unit
+col:demwinprv1.when:
+  value: before
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:col:demwinprv1.fixed_within_unit
+col:demwinprv2.meaning:
+  value: 1 if the Democrat won the second previous Senate election
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:col:demwinprv2.fixed_within_unit
+col:demwinprv2.when:
+  value: before
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:col:demwinprv2.fixed_within_unit
+col:dmidterm.meaning:
+  value: 1 if a midterm year
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:dmidterm.when:
+  value: at
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:dpresdem.meaning:
+  value: 1 if the sitting president was a Democrat
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:dpresdem.when:
+  value: at
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+claim:sampling.how:
+  value: whole
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+claim:sampling.detail:
+  value: Every US Senate election from 1914 to 2010 with needed returns.
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+claim:missing.why:
+  value: Values are missing where the next election's returns or the candidate's service
+    record were not available; that has nothing to do with who won.
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - user:turn:1
+  - check:missing.missing_by_arm
+claim:unobserved.exists:
+  value: false
+  status: confirmed
+  source: user:turn:2
+  said: null
+  evidence:
+  - user:turn:2
+claim:exclusion.exists:
+  value: false
+  status: confirmed
+  source: user:turn:2
+  said: null
+  evidence:
+  - user:turn:2
+claim:spillover.possible:
+  value: false
+  status: confirmed
+  source: user:turn:2
+  said: null
+  evidence:
+  - user:turn:2

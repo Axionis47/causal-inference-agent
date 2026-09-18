@@ -1,0 +1,256 @@
+claim:assignment.kind:
+  value: own_choice
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:assignment.treatment_varies
+claim:assignment.rule:
+  value: offered first by lunch status and parental education, then open to anyone
+    who asked
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:assignment.treatment_varies
+claim:assignment.treatment_column:
+  value: test preparation course
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:assignment.treatment_varies
+claim:assignment.treated_level:
+  value: completed
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:assignment.treatment_varies
+claim:change.what:
+  value: a six-week test preparation course
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+claim:change.to_whom:
+  value: students at the school
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+claim:change.when:
+  value: the six weeks before the May 2026 exam
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+claim:grain.row_is:
+  value: one student's exam results
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+claim:grain.panel:
+  value: false
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:gender.meaning:
+  value: gender as recorded
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:gender.when:
+  value: before
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:race_ethnicity.meaning:
+  value: race/ethnicity as recorded
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:race_ethnicity.when:
+  value: before
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:parental_level_of_education.meaning:
+  value: parental level of education as recorded
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:parental_level_of_education.when:
+  value: before
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:lunch.meaning:
+  value: lunch as recorded
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:lunch.when:
+  value: before
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:test_preparation_course.meaning:
+  value: test preparation course as recorded
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:test_preparation_course.when:
+  value: at
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:math_score.meaning:
+  value: math score as recorded
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:math_score.when:
+  value: after
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:reading_score.meaning:
+  value: reading score as recorded
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:reading_score.when:
+  value: after
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:writing_score.meaning:
+  value: writing score as recorded
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:writing_score.when:
+  value: after
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+claim:sampling.how:
+  value: whole
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+claim:sampling.detail:
+  value: every student who sat the exam
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+claim:missing.why:
+  value: none
+  status: confirmed
+  source: data
+  said: null
+  evidence:
+  - check:missing.missing_by_arm
+claim:unobserved.exists:
+  value: false
+  status: confirmed
+  source: user:turn:2
+  said: null
+  evidence:
+  - user:turn:2
+claim:unobserved.why_believed:
+  value: places were offered on lunch and parental education, both in the file
+  status: confirmed
+  source: user:turn:2
+  said: null
+  evidence:
+  - user:turn:2
+claim:exclusion.exists:
+  value: false
+  status: confirmed
+  source: user:turn:2
+  said: null
+  evidence:
+  - user:turn:2
+claim:spillover.possible:
+  value: false
+  status: confirmed
+  source: user:turn:2
+  said: null
+  evidence:
+  - user:turn:2

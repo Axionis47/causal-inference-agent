@@ -34,7 +34,7 @@ from causal_agent.common.contracts import (
 from causal_agent.knowledge import Family, load_registry
 from causal_agent.memory import ops, store
 from causal_agent.memory.claims import ProbeResult
-from causal_agent.memory.records import ColumnRecord, Memory
+from causal_agent.memory.records import Column, Memory
 from causal_agent.profile import datasets as DS
 
 BELIEF_KINDS = ("unobserved", "exclusion", "spillover", "trend_continues", "cutoff_only", "mediator")
@@ -45,51 +45,38 @@ _VALUE_FIELD = {"unobserved": "exists", "exclusion": "exists", "spillover": "pos
 
 
 def fields_of(memory: Memory, kind: str) -> dict[str, Any]:
-    return {n: f.value for n, f in memory.dataset.kind(kind).fields.items() if f.value is not None}
+    return memory.values_of(f"claim:{kind}")
 
 
-def brief_of(rec: ColumnRecord, role: str | None = None) -> ColumnBrief:
-    """A column record as the lane reads it. The role comes from the record unless the caller knows better."""
-    r = role or rec.role() or ("depends_on" if rec.value("feeds_assignment") is True else "candidate")
-    meaning_f = rec.fields.get("meaning")
-    when_f = rec.fields.get("when")
-    src = (meaning_f.source if meaning_f and meaning_f.value else None) or (when_f.source if when_f and when_f.value else None)
-    return ColumnBrief(name=rec.name, key=rec.key, role=r, meaning=rec.value("meaning"), when=rec.value("when") or "unknown", set_by=rec.value("set_by"),
-                       moved_by_change=rec.value("moved_by_change"), source=src, facts=rec.facts)
+def brief_of(memory: Memory, col: Column, role: str | None = None) -> ColumnBrief:
+    """A column as the lane reads it: the file's facts beside what is known about it. The role is the caller's view."""
+    fs = memory.fields_of(col.address)
+    v = {n: f.value for n, f in fs.items() if f.value is not None}
+    src = next((fs[n].source for n in ("meaning", "when") if n in v and fs[n].source), None)
+    return ColumnBrief(name=col.name, key=col.key, role=role or "candidate", meaning=v.get("meaning"), when=v.get("when") or "unknown", set_by=v.get("set_by"),
+                       moved_by_change=v.get("moved_by_change"), source=src, facts=col.facts)
 
 
 def belief_of(memory: Memory, kind: str) -> Belief | None:
-    kr = memory.dataset.kinds.get(kind)
-    if kr is None:
+    fs = {n: f for n, f in memory.fields_of(f"claim:{kind}").items() if f.value is not None or f.status != "empty"}
+    if not fs:
         return None
-    vf = kr.fields.get(_VALUE_FIELD[kind])
-    known = {n: f.value for n, f in kr.fields.items() if f.value is not None}
-    if not known and kr.status == "empty":
-        return None
-    status = vf.status if vf and vf.status != "empty" else kr.status
-    source = (vf.source if vf and vf.source else None) or kr.source
-    return Belief(kind=kind, value=vf.value if vf else None, what=known.get("what"), why=known.get("why") or known.get("why_believed"),
-                  column=known.get("column"), status=status, source=source, said=vf.said if vf else None)
+    vf = fs.get(_VALUE_FIELD[kind]) or next(iter(fs.values()))
+    known = {n: f.value for n, f in fs.items() if f.value is not None}
+    return Belief(kind=kind, value=known.get(_VALUE_FIELD[kind]), what=known.get("what"), why=known.get("why") or known.get("why_believed"),
+                  column=known.get("column"), status=vf.status, source=vf.source, said=vf.said)
 
 
 def said_of(memory: Memory) -> list[Said]:
-    """The transcript, plus the sentence each known field rests on when the transcript does not carry it."""
-    out = list(memory.transcript)
+    """The person's words, plus the sentence each known field rests on when the transcript does not carry it."""
+    out = list(memory.said)
     seen = {(s.turn, s.text) for s in out}
-
-    def add(about: str, f) -> None:
+    for address, f in memory.fields.items():
         if f.said and f.source and f.source.startswith("user:turn:"):
             turn = int(f.source.rsplit(":", 1)[1])
             if (turn, f.said) not in seen:
-                out.append(Said(turn=turn, about=about, text=f.said))
+                out.append(Said(turn=turn, about=address, text=f.said))
                 seen.add((turn, f.said))
-
-    for kind, kr in memory.dataset.kinds.items():
-        for n, f in kr.fields.items():
-            add(f"{kind}.{n}", f)
-    for c in memory.columns.values():
-        for n, f in c.fields.items():
-            add(f"{c.address}.{n}", f)
     return sorted(out, key=lambda s: s.turn)
 
 
@@ -145,15 +132,18 @@ def _rd(briefs: list[ColumnBrief], a: dict, samp: dict, beliefs: dict[str, Belie
 
 def build(*, question: str, frame: QuestionFrame, decision: FamilyDecision, family: Family, memory: Memory,
           probes: list[ProbeResult] | list[Probe] = ()) -> Handoff:
-    """The one hand-off, projected from a memory snapshot. The memory is not changed."""
-    m = memory.snapshot()
+    """The one hand-off, projected from the memory. The memory is not changed."""
+    m = memory
     entry = DS.dataset_entries().get(m.name) or {}
     a, ch, g, samp, miss = (fields_of(m, k) for k in ("assignment", "change", "grain", "sampling", "missing"))
     outcome = frame.outcome or ""
     treatment = a.get("treatment_column") or frame.cause
     if a.get("kind") == "cutoff_rule" and not a.get("treatment_column") and treatment and a.get("score_column") and key(treatment) == key(a["score_column"]):
         treatment = None  # the change is the rule itself; the score is not the treatment
-    ops.roles(m, outcome=outcome, treatment=treatment)
+    role = ops.roles(m, outcome=outcome, treatment=treatment)
+    for n in [entry.get("time")] + list(entry.get("entity") or []):  # the index entry's flags stand in for what the memory does not carry yet
+        if n and m.column(n) is not None:
+            role.setdefault(m.column(n).key, "time" if n == entry.get("time") else "unit")
 
     names: list[str] = []
     for n in [outcome, treatment] + [c.column for c in frame.relevant_columns] + list(a.get("depends_on") or []) + \
@@ -161,12 +151,7 @@ def build(*, question: str, frame: QuestionFrame, decision: FamilyDecision, fami
             list(g.get("key_columns") or []) + [entry.get("time")] + list(entry.get("entity") or []):
         if n and key(n) not in {key(x) for x in names} and m.column(n) is not None:
             names.append(n)
-    briefs = [brief_of(m.column(n)) for n in names]
-    for b in briefs:  # the index entry's flags stand in for roles the memory does not carry yet
-        if b.role == "candidate" and entry.get("time") and b.key == key(entry["time"]):
-            b.role = "time"
-        elif b.role == "candidate" and b.key in {key(x) for x in (entry.get("entity") or [])}:
-            b.role = "unit"
+    briefs = [brief_of(m, m.column(n), role.get(key(n))) for n in names]
 
     beliefs = {k: b for k in BELIEF_KINDS if (b := belief_of(m, k)) is not None}
     probe_list = [p if isinstance(p, Probe) else Probe(family=p.family, name=p.name, value=p.value, passed=p.passed, detail=p.detail) for p in probes]
@@ -187,15 +172,14 @@ def build(*, question: str, frame: QuestionFrame, decision: FamilyDecision, fami
         design = None
 
     table = m.to_claims()
-    unknowns = [f"claim:{k}.{n}" for k, kr in m.dataset.kinds.items() for n, f in kr.fields.items() if f.status == "unknown"] + \
-               [f"col:{c.key}.{n}" for c in m.columns.values() for n, f in c.fields.items() if f.status == "unknown"]
+    unknowns = [address for address, f in m.fields.items() if f.status == "unknown"]
     return Handoff(
         family=family.name, specialist=family.specialist, supported_now=family.status == "built",
         outcome=outcome, treatment=treatment, scope=frame.scope, pack_name=m.name, relevant_columns=list(frame.relevant_columns),
         chosen_assumption=decision.chosen_assumption,
         reasons=[Candidate(column=c.column, reason=c.reason, cites=c.cites) for c in frame.outcome_candidates[:1] + frame.cause_candidates[:1]],
         question=question, intent=frame.intent, why=decision.why_over_alternatives, over={r.family: r.reason for r in decision.rejected},
-        csv=m.csv or entry.get("csv"), docs={}, dataset_facts=m.dataset_facts, grain=g, sampling=samp, missing=miss,
+        csv=m.csv or entry.get("csv"), docs={}, dataset_facts=m.facts, grain=g, sampling=samp, missing=miss,
         treated_level=treated_level, control_level=control_level, columns=briefs,
         change=ch, assignment=a, beliefs=beliefs, unknowns=unknowns, said=said_of(m), probes=probe_list,
         claims={c.key: {"kind": c.kind, "fields": {k: v for k, v in c.fields.items() if v is not None}, "status": c.status, "source": c.source}

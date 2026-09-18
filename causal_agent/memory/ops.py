@@ -1,9 +1,10 @@
 """Operations on a memory. Facts, all of them: the model never touches a memory except through `apply`, which gates what
 a judgement returned. `seed` from the profile, `apply` for writes, `check` for the data facts and the consistency rules,
-`probe` and `fit` for the families, `open` for what is still vague, `roles` for what each column is to the question.
+`probe` and `fit` for the families, `open` for what is still vague. `roles` is a view: what each column is to the question,
+computed from the map every time and never written back.
 
 The checks, probes, and family table still run on the claim-table view (`Memory.to_claims`) until the desk is rewritten on
-the memory itself; the consistency rules and `open` run on the memory directly."""
+the memory itself; the consistency rules and `open` run on the map directly."""
 
 from __future__ import annotations
 
@@ -27,23 +28,23 @@ WriteStatus = Literal["drafted", "confirmed", "unknown"]
 
 def seed_facts(m: Memory, profile) -> None:
     """The two dataset fields the profile settles on its own, written only where nothing is known yet."""
-    if not any(cp.nulls for cp in profile.columns) and m.field("claim:missing.why") is not None and m.field("claim:missing.why").value is None:
+    if not any(cp.nulls for cp in profile.columns) and m.value("claim:missing.why") is None:
         m.set("claim:missing.why", "none", status="confirmed", source="data")
     es = profile.dataset.entity_summary
     if es is not None:
-        if (f := m.field("claim:grain.panel")) is not None and f.value is None:
+        if m.value("claim:grain.panel") is None:
             m.set("claim:grain.panel", bool(es.rows_per_entity_max > 1), status="confirmed", source="data")
-        if (f := m.field("claim:grain.key_columns")) is not None and f.value is None:
+        if m.value("claim:grain.key_columns") is None:
             m.set("claim:grain.key_columns", list(es.columns) + ([profile.dataset.time_coverage.column] if profile.dataset.time_coverage else []),
                   status="drafted", source="data")
 
 
 def seed(name: str, profile, csv: str | None = None, cat: Catalogue | None = None) -> Memory:
-    """A memory from the file alone: the facts on every column, and the dataset fields the profile settles."""
+    """A memory from the file alone: the facts on every column, and the dataset fields the profile settles. No field is
+    written until someone says something about it."""
     from causal_agent.memory.claims import ClaimTable
 
-    cat = cat or load_catalogue()
-    m = Memory.from_claims(name, ClaimTable(), profile=profile, csv=csv, cat=cat)
+    m = Memory.from_claims(name, ClaimTable(), profile=profile, csv=csv, cat=cat or load_catalogue())
     seed_facts(m, profile)
     return m
 
@@ -117,22 +118,19 @@ def apply(memory: Memory, updates: list[Update], cat: Catalogue | None = None) -
         from_data = up.source == "data" or up.source.startswith("code:")
         from_model = up.source.startswith("model:")
         if where == "col":
-            rec = memory.column(name)
-            if rec is None:
+            if memory.column(name) is None:
                 rejected.append(f"{up.address}: {name!r} is not a column in the file")
                 continue
             kind = cat.kinds[COLUMN_KIND]
-            current = rec.fields.get(field)
         else:
             kind = cat.kinds.get(name)
             if kind is None:
                 rejected.append(f"{up.address}: unknown claim kind {name!r}")
                 continue
-            current = memory.dataset.kinds.get(name, None)
-            current = current.fields.get(field) if current else None
         if field not in kind.fields:
             rejected.append(f"{up.address}: {kind.name} has no field {field!r}")
             continue
+        current = memory.field(up.address)
         if from_model and up.status != "drafted":
             rejected.append(f"{up.address}: a model may only draft; {up.status!r} needs the person's word")
             continue
@@ -156,22 +154,19 @@ def apply(memory: Memory, updates: list[Update], cat: Catalogue | None = None) -
     return rejected
 
 
-# ------------------------------------------------------------------ roles
+# ------------------------------------------------------------------ roles (a view)
 
 
-def roles(memory: Memory, outcome: str | None = None, treatment: str | None = None) -> None:
-    """What each column is to the question, from the dataset fields. Code; written with source code:roles as confirmed."""
-    ds = memory.dataset
-    a = {n: f.value for n, f in ds.kind("assignment").fields.items() if f.value is not None}
-    ch = {n: f.value for n, f in ds.kind("change").fields.items() if f.value is not None}
-    g = {n: f.value for n, f in ds.kind("grain").fields.items() if f.value is not None}
-    excl = {n: f.value for n, f in ds.kind("exclusion").fields.items() if f.value is not None}
-    med = {n: f.value for n, f in ds.kind("mediator").fields.items() if f.value is not None}
-    wanted: dict[str, str] = {}
+def roles(memory: Memory, outcome: str | None = None, treatment: str | None = None) -> dict[str, str]:
+    """What each column is to the question, by key, from the dataset fields and the frame. A view: computed every time,
+    never written. A column with no entry is a candidate when the frame names it and out of play otherwise."""
+    a, ch, g = memory.values_of("claim:assignment"), memory.values_of("claim:change"), memory.values_of("claim:grain")
+    excl, med = memory.values_of("claim:exclusion"), memory.values_of("claim:mediator")
+    out: dict[str, str] = {}
 
     def put(col: str | None, role: str) -> None:
-        if col:
-            wanted.setdefault(_key(col), role)
+        if col and memory.column(col) is not None:
+            out.setdefault(memory.column(col).key, role)
 
     put(outcome, "outcome")
     put(treatment or a.get("treatment_column"), "treatment")
@@ -186,13 +181,9 @@ def roles(memory: Memory, outcome: str | None = None, treatment: str | None = No
         put(excl["column"], "instrument")
     if med.get("exists") and med.get("column"):
         put(med["column"], "mediator")
-    for c in memory.columns.values():
-        role = wanted.get(c.key)
-        if role:
-            memory.set(f"{c.address}.role", role, status="confirmed", source="code:roles")
-        for d in a.get("depends_on") or []:
-            if _key(d) == c.key:
-                memory.set(f"{c.address}.feeds_assignment", True, status="confirmed", source="code:assignment.depends_on")
+    for d in a.get("depends_on") or []:
+        put(d, "depends_on")
+    return out
 
 
 # ------------------------------------------------------------------ check: data facts and consistency
@@ -225,23 +216,21 @@ def _refute(memory: Memory, address: str, finding: Finding) -> None:
     f.evidence = list(dict.fromkeys(f.evidence + [finding.evidence]))
 
 
-def consistency(memory: Memory) -> list[Finding]:
+def consistency(memory: Memory, outcome: str | None = None, treatment: str | None = None) -> list[Finding]:
     """The rules that hold between fields, never overwriting a value: a failed rule marks the field refuted with the rule as
     evidence, and the desk asks about it next."""
     out: list[Finding] = []
-    ds = memory.dataset
-    a = {n: f.value for n, f in ds.kind("assignment").fields.items() if f.value is not None}
-    depends = {_key(c) for c in (a.get("depends_on") or [])}
-    score = _key(a["score_column"]) if a.get("score_column") else None
+    role = roles(memory, outcome, treatment)
     for c in memory.columns.values():
-        when, role, moved, feeds = c.value("when"), c.value("role"), c.value("moved_by_change"), c.value("feeds_assignment")
-        if (c.key in depends or feeds is True) and when in ("after", "at"):
+        v = memory.values_of(c.address)
+        when, moved, r = v.get("when"), v.get("moved_by_change"), role.get(c.key)
+        if r == "depends_on" and when in ("after", "at"):
             fd = Finding(address=f"{c.address}.when", rule="depends_on_before", passed=False, detail=f"the offer or the rule looked at {c.name!r}, so it was set before the change, not {when}")
             out.append(fd); _refute(memory, fd.address, fd)
-        if score == c.key and when in ("after", "at"):
+        if r == "score" and when in ("after", "at"):
             fd = Finding(address=f"{c.address}.when", rule="score_before", passed=False, detail=f"{c.name!r} is the score the rule was applied to, so it was set before the decision, not {when}")
             out.append(fd); _refute(memory, fd.address, fd)
-        if role == "outcome" and when in ("before", "at"):
+        if r == "outcome" and when in ("before", "at"):
             fd = Finding(address=f"{c.address}.when", rule="outcome_after", passed=False, detail=f"{c.name!r} is the outcome, so it was measured after the change, not {when}")
             out.append(fd); _refute(memory, fd.address, fd)
         if moved is True and when == "before":
@@ -250,7 +239,8 @@ def consistency(memory: Memory) -> list[Finding]:
     return out
 
 
-def check(memory: Memory, df: pd.DataFrame, profile, th: dict | None = None, cat: Catalogue | None = None) -> list[Finding]:
+def check(memory: Memory, df: pd.DataFrame, profile, th: dict | None = None, cat: Catalogue | None = None,
+          outcome: str | None = None, treatment: str | None = None) -> list[Finding]:
     """The data facts on every drafted or confirmed field the file can check, then the consistency rules."""
     cat, th = cat or load_catalogue(), th or load_thresholds()
     table = memory.to_claims(cat)
@@ -263,9 +253,6 @@ def check(memory: Memory, df: pd.DataFrame, profile, th: dict | None = None, cat
         if res is None:
             continue
         where = _CHECK_FIELD.get(res.name)
-        rec = memory.column(claim.key.removeprefix("col:")) if claim.kind == COLUMN_KIND else memory.dataset.kind(claim.kind)
-        if rec is not None:
-            rec.check_detail = res.detail
         address = (f"{claim.key}.{where[1]}" if claim.kind == COLUMN_KIND else f"claim:{where[0]}.{where[1]}") if where else f"claim:{claim.key}"
         fd = Finding(address=address, rule=res.name, passed=res.passed, detail=res.detail)
         out.append(fd)
@@ -274,9 +261,7 @@ def check(memory: Memory, df: pd.DataFrame, profile, th: dict | None = None, cat
             f.evidence = list(dict.fromkeys(f.evidence + [fd.evidence]))
             if res.passed is False:
                 f.status = "refuted"
-                if rec is not None:
-                    rec.refutations += 1
-    out += consistency(memory)
+    out += consistency(memory, outcome, treatment)
     return out
 
 
@@ -324,12 +309,12 @@ def open(memory: Memory, status: Status, cat: Catalogue | None = None) -> list[O
     for key in list(status.open) + [k for k in status.settled if k not in status.open]:
         blocking = key in status.open
         if key.startswith("col:"):
-            rec = memory.column(key[4:])
-            if rec is None:
+            if memory.column(key[4:]) is None:
                 continue
-            kind, fields, prefix = cat.kinds[COLUMN_KIND], rec.fields, key
+            kind, prefix = cat.kinds[COLUMN_KIND], key
         else:
-            kind, fields, prefix = cat.kinds[key], memory.dataset.kind(key).fields, f"claim:{key}"
+            kind, prefix = cat.kinds[key], f"claim:{key}"
+        fields = memory.fields_of(prefix)
         because = [f for f in status.surviving if kind.name in needs.get(f, [])]
         here: list[Open] = []
         for name, spec in kind.fields.items():

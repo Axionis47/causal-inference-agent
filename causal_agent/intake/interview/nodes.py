@@ -518,5 +518,5 @@ def write_pack(state: InterviewState) -> dict:
     from causal_agent.memory.records import Memory
 
     said = [Said(turn=int(m["turn"]), about="", text=str(m["text"])) for m in (state.get("messages") or []) if m.get("role") == "user" and m.get("text")]
-    store.save(Memory.from_claims(state["dataset"], table, profile=prof, csv=written["entry"]["csv"], transcript=said))
+    store.save(Memory.from_claims(state["dataset"], table, profile=prof, csv=written["entry"]["csv"], said=said))
     return {"written": written, "handoff_ready": True}

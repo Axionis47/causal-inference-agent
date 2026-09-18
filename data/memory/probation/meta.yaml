@@ -1,7 +1,7 @@
 name: probation
-version: 0
+version: 1
 csv: data/raw/academic-probation-gpa/probation.csv
-dataset_facts:
+facts:
   rows: 40582
   columns: 11
   duplicate_rows: 166
