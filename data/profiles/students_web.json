@@ -1,0 +1,263 @@
+{
+  "dataset": {
+    "profiler_version": "0.1.0",
+    "file": "/Users/sid47/Desktop/Causal Analysis Agent/data/raw/students_web/StudentsPerformance.csv",
+    "file_hash": "ade5869dba8b2d3e2b96379359fb2f61cb0308e8394d9b1ba37e174cfe3bee69",
+    "rows": 1000,
+    "columns": 8,
+    "duplicate_rows": 0,
+    "candidate_keys": [],
+    "grain": null,
+    "time_coverage": null,
+    "entity_summary": null,
+    "co_missing": [],
+    "format_issues": []
+  },
+  "columns": [
+    {
+      "name": "gender",
+      "key": "gender",
+      "kind": "categorical",
+      "nulls": 0,
+      "null_rate": 0.0,
+      "distinct": 2,
+      "constant": false,
+      "numeric": null,
+      "top_values": [
+        {
+          "value": "female",
+          "count": 518,
+          "share": 0.518
+        },
+        {
+          "value": "male",
+          "count": 482,
+          "share": 0.482
+        }
+      ],
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "unknown",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "race/ethnicity",
+      "key": "race_ethnicity",
+      "kind": "categorical",
+      "nulls": 0,
+      "null_rate": 0.0,
+      "distinct": 5,
+      "constant": false,
+      "numeric": null,
+      "top_values": [
+        {
+          "value": "group C",
+          "count": 319,
+          "share": 0.319
+        },
+        {
+          "value": "group D",
+          "count": 262,
+          "share": 0.262
+        },
+        {
+          "value": "group B",
+          "count": 190,
+          "share": 0.19
+        },
+        {
+          "value": "group E",
+          "count": 140,
+          "share": 0.14
+        },
+        {
+          "value": "group A",
+          "count": 89,
+          "share": 0.089
+        }
+      ],
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "unknown",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "parental level of education",
+      "key": "parental_level_of_education",
+      "kind": "categorical",
+      "nulls": 0,
+      "null_rate": 0.0,
+      "distinct": 6,
+      "constant": false,
+      "numeric": null,
+      "top_values": [
+        {
+          "value": "some college",
+          "count": 226,
+          "share": 0.226
+        },
+        {
+          "value": "associate's degree",
+          "count": 222,
+          "share": 0.222
+        },
+        {
+          "value": "high school",
+          "count": 196,
+          "share": 0.196
+        },
+        {
+          "value": "some high school",
+          "count": 179,
+          "share": 0.179
+        },
+        {
+          "value": "bachelor's degree",
+          "count": 118,
+          "share": 0.118
+        },
+        {
+          "value": "master's degree",
+          "count": 59,
+          "share": 0.059
+        }
+      ],
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "unknown",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "lunch",
+      "key": "lunch",
+      "kind": "categorical",
+      "nulls": 0,
+      "null_rate": 0.0,
+      "distinct": 2,
+      "constant": false,
+      "numeric": null,
+      "top_values": [
+        {
+          "value": "standard",
+          "count": 645,
+          "share": 0.645
+        },
+        {
+          "value": "free/reduced",
+          "count": 355,
+          "share": 0.355
+        }
+      ],
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "unknown",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "test preparation course",
+      "key": "test_preparation_course",
+      "kind": "categorical",
+      "nulls": 0,
+      "null_rate": 0.0,
+      "distinct": 2,
+      "constant": false,
+      "numeric": null,
+      "top_values": [
+        {
+          "value": "none",
+          "count": 642,
+          "share": 0.642
+        },
+        {
+          "value": "completed",
+          "count": 358,
+          "share": 0.358
+        }
+      ],
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "unknown",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "math score",
+      "key": "math_score",
+      "kind": "numeric",
+      "nulls": 0,
+      "null_rate": 0.0,
+      "distinct": 81,
+      "constant": false,
+      "numeric": {
+        "min": 0.0,
+        "max": 100.0,
+        "mean": 66.089,
+        "p01": 27.990000000000002,
+        "p25": 57.0,
+        "p50": 66.0,
+        "p75": 77.0,
+        "p99": 98.00999999999999
+      },
+      "top_values": null,
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "unknown",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "reading score",
+      "key": "reading_score",
+      "kind": "numeric",
+      "nulls": 0,
+      "null_rate": 0.0,
+      "distinct": 72,
+      "constant": false,
+      "numeric": {
+        "min": 17.0,
+        "max": 100.0,
+        "mean": 69.169,
+        "p01": 31.990000000000002,
+        "p25": 59.0,
+        "p50": 70.0,
+        "p75": 79.0,
+        "p99": 100.0
+      },
+      "top_values": null,
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "unknown",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "writing score",
+      "key": "writing_score",
+      "kind": "numeric",
+      "nulls": 0,
+      "null_rate": 0.0,
+      "distinct": 77,
+      "constant": false,
+      "numeric": {
+        "min": 10.0,
+        "max": 100.0,
+        "mean": 68.054,
+        "p01": 31.98,
+        "p25": 57.75,
+        "p50": 69.0,
+        "p75": 79.0,
+        "p99": 100.0
+      },
+      "top_values": null,
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "unknown",
+      "switch": null,
+      "format_issues": []
+    }
+  ]
+}

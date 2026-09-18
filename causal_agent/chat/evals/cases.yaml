@@ -1,0 +1,44 @@
+# Desk evals. Each case is a scripted conversation: the description, the question, the person's turns in order
+# (interview turns, `run`, after-run questions, revisions, `done`), and what must hold at the end.
+
+- id: students_desk
+  csv: data/raw/students-performance-in-exams/StudentsPerformance.csv
+  context: contexts/students_short.md
+  question: Did completing the prep course raise math scores?
+  turns:
+    - "Not a date. The counsellor offered places first to students on free or reduced lunch and to those whose parents hold no degree, then to anyone who asked, and each student chose whether to take the course, so it was the student's own choice after an offer that depended on lunch and parental education. There is no date or period column; the course ran in the six weeks before the exam. No column identifies a row and each student appears exactly once, so it is not a panel. Everything else you read is right: gender, race/ethnicity, parental education and lunch were all fixed before the course, and the three scores were measured after it."
+    - "Nothing outside the file decided who took the course beyond lunch status and parental education, which are both in the file. Students sit alone, so one student's course cannot affect another's marks. There is no separate column that nudged students toward the course. And no, there is no reason the students who took the course would have moved differently apart from the course itself."
+    - "Yes, all of that is right."
+    - run
+    - "What did you find, in plain words?"
+    - "Why not a before-and-after comparison across groups?"
+    - "What would change your mind about this result?"
+    - "Actually, lunch status was assigned after the course ended, not before."
+    - "Yes, that is right."
+    - run
+    - "Did the effect change between the two runs?"
+    - done
+  expected:
+    runs: 2
+    revision_reran: true
+    then_and_now: true
+    kinds_contain: [answer, revise]
+    family: adjustment
+
+- id: senate_desk
+  csv: data/raw/senate-incumbency/senate.csv
+  context: contexts/senate_short.md
+  question: Does winning a Senate seat narrowly raise the Democratic vote share at the next election?
+  turns:
+    - "All of that is right, except that no column records receipt: winning is the change itself, so there is no treatment column. Rows are identified by state and year together. A state comes back many times, but each row is a different election, so each row is its own unit, not the same unit measured again: not a panel. No column records receipt separately: a margin at or above zero means the Democrat won and holds the seat, the cutoff is zero on margin, treated side above, and a row exactly at zero counts as a win. Nobody could move the margin after the count. Values are missing where the next election's returns or the candidate's service record were not available; that has nothing to do with who won."
+    - "Nothing outside the file decided who won beyond the votes cast. One state's result does not affect another state's next election. There is no separate column that nudged an election toward a Democratic win."
+    - "Yes, all of that is right."
+    - run
+    - "What does the density check mean here and did it pass?"
+    - "Which falsifications were run and did any fail?"
+    - "Now run the same question for demvoteshfor1 as the outcome instead of vote."
+    - done
+  expected:
+    runs: 2
+    kinds_contain: [answer, requestion]
+    family: discontinuity

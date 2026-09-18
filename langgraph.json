@@ -1,0 +1,10 @@
+{
+  "dependencies": ["."],
+  "graphs": {
+    "router": "./causal_agent/router/graph.py:graph",
+    "intake": "./causal_agent/intake/interview/graph.py:graph",
+    "chat": "./causal_agent/chat/graph.py:graph"
+  },
+  "env": "./.env",
+  "python_version": "3.12"
+}

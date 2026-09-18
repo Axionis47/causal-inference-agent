@@ -1,0 +1,93 @@
+# Specs over the canonical table: y, x (the score recentred on the cutoff and flipped so the treated side is
+# positive; the cutoff is 0 everywhere), t (take-up, 0/1, when a take-up column exists), and covariates.
+# Every parameter is a declaration; no judgement sets one. Defaults follow Cattaneo, Idrobo and Titiunik,
+# "A Practical Introduction to RD Designs: Foundations" (2020) chapter 4: local linear, triangular kernel,
+# MSE-optimal common bandwidth (mserd), bias order p+1, nearest-neighbour variance, mass points adjusted.
+# The bandwidth is always the library's choice.
+# applies_when is keyed on facts from the shape and check steps. rank orders the filtered list, lowest first.
+# estimand is the label the interpreter must state; it lives here because it follows the estimator picked.
+# pickable: false marks a secondary that runs beside the primary (runs_when) and is never offered to the model.
+
+local_linear:
+  in_words: local linear fit on each side of the cutoff within the MSE-optimal bandwidth, triangular weights; the jump at the cutoff is the effect for units at the cutoff
+  params: {p: 1, kernel: tri, bwselect: mserd, masspoints: adjust, level: 95}
+  fuzzy: false
+  covs: false
+  pickable: true
+  applies_when: {kind: [sharp]}
+  estimand: effect_at_cutoff
+  assumes: units just either side of the cutoff are alike in everything except the change; the score's density and every predetermined characteristic are continuous at the cutoff
+  weak_when: few rows near the cutoff, so the bandwidth is wide or the interval is long; or the score takes few distinct values
+  prefer_over:
+    local_quadratic: the Foundations recommend p=1 as the default; p=2 is a robustness check, not a first choice
+  rank: 1
+  also_run: [local_quadratic]
+
+local_quadratic:
+  in_words: the same local fit with a quadratic on each side; a robustness check on the polynomial order
+  params: {p: 2, kernel: tri, bwselect: mserd, masspoints: adjust, level: 95}
+  fuzzy: false
+  covs: false
+  pickable: true
+  applies_when: {kind: [sharp]}
+  estimand: effect_at_cutoff
+  assumes: as local_linear
+  weak_when: the quadratic fits noise near the boundary; the Foundations warn against higher orders as a default
+  prefer_over: {}
+  rank: 2
+
+local_linear_adjusted:
+  in_words: local linear fit with the adjusted covariates partialled out; a precision check that should barely move the estimate (Foundations 4.4)
+  params: {p: 1, kernel: tri, bwselect: mserd, masspoints: adjust, level: 95}
+  fuzzy: inherit          # follows the primary: fuzzy when the primary is fuzzy
+  covs: true
+  pickable: false
+  runs_when: {adjusted_covariates: true}
+  estimand: effect_at_cutoff
+  assumes: as the primary
+  weak_when: the estimate moves a lot when covariates enter, which means units differ at the cutoff and adjustment cannot repair that
+  prefer_over: {}
+  rank: 99
+
+local_linear_fuzzy:
+  in_words: the jump in the outcome divided by the jump in take-up at the cutoff, both local linear; the effect for units at the cutoff who took up the change because they crossed it
+  params: {p: 1, kernel: tri, bwselect: mserd, masspoints: adjust, level: 95}
+  fuzzy: true
+  covs: false
+  pickable: true
+  applies_when: {kind: [fuzzy], first_stage: [strong]}
+  estimand: complier_effect_at_cutoff
+  assumes: as local_linear, plus that crossing the cutoff only affects the outcome through take-up and moves take-up in one direction
+  weak_when: the first stage is small, so the ratio is noisy
+  prefer_over:
+    local_linear_itt: when the first stage is strong the ratio answers the question about the change received, not merely about eligibility
+  rank: 1
+  also_run: [local_linear_itt]
+
+local_linear_itt:
+  in_words: the jump in the outcome at the cutoff regardless of take-up; the effect of crossing the cutoff, which is what eligibility alone did
+  params: {p: 1, kernel: tri, bwselect: mserd, masspoints: adjust, level: 95}
+  fuzzy: false
+  covs: false
+  pickable: true
+  applies_when: {kind: [fuzzy], first_stage: [strong, weak]}
+  estimand: itt_at_cutoff
+  assumes: as local_linear
+  weak_when: take-up barely moves at the cutoff, so the jump says little about the change itself; the Extensions say to report only this quantity then
+  prefer_over: {}
+  rank: 2
+
+# Declared for scores with very few support points, where bandwidth selection has nothing to work with
+# (Extensions chapter 4). No verified Python port of rdlocrand exists, so the entry is not runnable.
+local_randomisation:
+  in_words: treat the units in a small window around the cutoff as if assigned at random and compare their means with randomisation inference
+  params: {}
+  fuzzy: false
+  covs: false
+  pickable: false
+  applies_when: {distinct_scores_max: 10}
+  estimand: effect_at_cutoff
+  assumes: within the window, the score is as good as random
+  weak_when: the window must be chosen by covariate balance, which needs predetermined covariates
+  prefer_over: {}
+  rank: 1

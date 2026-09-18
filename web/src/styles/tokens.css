@@ -1,0 +1,54 @@
+/* The project's visual language, shared with docs/design.html. */
+:root {
+  --paper: #f3f5f7;
+  --ink: #1b2430;
+  --ink-2: #4a5563;
+  --ink-3: #7b8593;
+  --rule: #d5dbe2;
+  --panel: #ffffff;
+  --panel-2: #e9edf1;
+  --accent: #0f6e74;
+  --accent-ink: #0b5257;
+  --accent-soft: #d9eeef;
+  --declared: #b9791c;
+  --declared-soft: #f6e9d2;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --display: "Bricolage Grotesque", "IBM Plex Sans", system-ui, sans-serif;
+  --shadow: 0 1px 0 rgba(27, 36, 48, 0.04);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #12171d;
+    --ink: #e6eaee;
+    --ink-2: #b4bcc6;
+    --ink-3: #7f8995;
+    --rule: #2a323c;
+    --panel: #1a2029;
+    --panel-2: #222a34;
+    --accent: #4fb3b9;
+    --accent-ink: #8ed3d7;
+    --accent-soft: #173b3e;
+    --declared: #d9a24a;
+    --declared-soft: #3a2e17;
+    --shadow: none;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #12171d;
+  --ink: #e6eaee;
+  --ink-2: #b4bcc6;
+  --ink-3: #7f8995;
+  --rule: #2a323c;
+  --panel: #1a2029;
+  --panel-2: #222a34;
+  --accent: #4fb3b9;
+  --accent-ink: #8ed3d7;
+  --accent-soft: #173b3e;
+  --declared: #d9a24a;
+  --declared-soft: #3a2e17;
+  --shadow: none;
+  color-scheme: dark;
+}

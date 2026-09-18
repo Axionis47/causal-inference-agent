@@ -1,0 +1,376 @@
+claims:
+- kind: assignment
+  key: assignment
+  fields:
+    kind: cutoff_rule
+    rule: A Democrat won if the margin of victory was at or above zero.
+    score_column: margin
+    cutoff: 0.0
+    treated_side: above
+    cutoff_value_treated: true
+    movable: false
+  status: confirmed
+  source: user:turn:1
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:assignment.rows_by_side
+  check_detail: 750 rows on the treated side of 0.0 on 'margin', 640 on the other
+  asked: 0
+  refutations: 0
+- kind: change
+  key: change
+  fields:
+    what: holding a Senate seat
+    to_whom: a Democrat
+    when: for six years after winning an election
+  status: confirmed
+  source: user:turn:1
+  evidence:
+  - doc:context
+  - user:turn:1
+  check_detail: null
+  asked: 0
+  refutations: 0
+- kind: grain
+  key: grain
+  fields:
+    row_is: one US Senate election
+    key_columns:
+    - state
+    - year
+    panel: false
+  status: confirmed
+  source: user:turn:1
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:grain.key_unique
+  check_detail: state + year identifies every row (1390 rows)
+  asked: 0
+  refutations: 0
+- kind: measured
+  key: col:state
+  fields:
+    meaning: state name
+    when: at
+  status: confirmed
+  source: user:turn:1
+  evidence:
+  - doc:context
+  - user:turn:1
+  check_detail: null
+  asked: 0
+  refutations: 0
+- kind: measured
+  key: col:year
+  fields:
+    meaning: year of the election
+    when: at
+  status: confirmed
+  source: user:turn:1
+  evidence:
+  - doc:context
+  - user:turn:1
+  check_detail: null
+  asked: 0
+  refutations: 0
+- kind: measured
+  key: col:margin
+  fields:
+    meaning: Democratic margin of victory at the election, in percentage points
+    when: at
+  status: confirmed
+  source: user:turn:1
+  evidence:
+  - doc:context
+  - user:turn:1
+  check_detail: null
+  asked: 0
+  refutations: 0
+- kind: measured
+  key: col:vote
+  fields:
+    meaning: Democratic vote share at the next election for the same seat
+    when: after
+  status: confirmed
+  source: user:turn:1
+  evidence:
+  - doc:context
+  - user:turn:1
+  check_detail: null
+  asked: 0
+  refutations: 0
+- kind: measured
+  key: col:class
+  fields:
+    meaning: Senate class of the seat
+    when: before
+  status: confirmed
+  source: user:turn:1
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:col:class.fixed_within_unit
+  check_detail: '''class'' is constant within a unit'
+  asked: 0
+  refutations: 0
+- kind: measured
+  key: col:termshouse
+  fields:
+    meaning: terms served in the House
+    when: at
+  status: confirmed
+  source: user:turn:1
+  evidence:
+  - doc:context
+  - user:turn:1
+  check_detail: null
+  asked: 0
+  refutations: 0
+- kind: measured
+  key: col:termssenate
+  fields:
+    meaning: terms served in the Senate
+    when: at
+  status: confirmed
+  source: user:turn:1
+  evidence:
+  - doc:context
+  - user:turn:1
+  check_detail: null
+  asked: 0
+  refutations: 0
+- kind: measured
+  key: col:dopen
+  fields:
+    meaning: 1 if the seat was open (no incumbent running)
+    when: at
+  status: confirmed
+  source: user:turn:1
+  evidence:
+  - doc:context
+  - user:turn:1
+  check_detail: null
+  asked: 0
+  refutations: 0
+- kind: measured
+  key: col:population
+  fields:
+    meaning: state population
+    when: at
+  status: confirmed
+  source: user:turn:1
+  evidence:
+  - doc:context
+  - user:turn:1
+  check_detail: null
+  asked: 0
+  refutations: 0
+- kind: measured
+  key: col:presdemvoteshlag1
+  fields:
+    meaning: Democratic vote share in the state at the presidential election
+    when: before
+  status: confirmed
+  source: user:turn:1
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:col:presdemvoteshlag1.fixed_within_unit
+  check_detail: '''presdemvoteshlag1'' is constant within a unit'
+  asked: 0
+  refutations: 0
+- kind: measured
+  key: col:demvoteshlag1
+  fields:
+    meaning: Democratic vote share at the state's previous Senate election
+    when: before
+  status: confirmed
+  source: user:turn:1
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:col:demvoteshlag1.fixed_within_unit
+  check_detail: '''demvoteshlag1'' is constant within a unit'
+  asked: 0
+  refutations: 0
+- kind: measured
+  key: col:demvoteshlag2
+  fields:
+    meaning: Democratic vote share at the state's second previous Senate election
+    when: before
+  status: confirmed
+  source: user:turn:1
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:col:demvoteshlag2.fixed_within_unit
+  check_detail: '''demvoteshlag2'' is constant within a unit'
+  asked: 0
+  refutations: 0
+- kind: measured
+  key: col:demvoteshfor1
+  fields:
+    meaning: Democratic vote share at the state's next Senate election for the other
+      seat
+    when: after
+  status: confirmed
+  source: user:turn:1
+  evidence:
+  - doc:context
+  - user:turn:1
+  check_detail: null
+  asked: 0
+  refutations: 0
+- kind: measured
+  key: col:demwinprv1
+  fields:
+    meaning: 1 if the Democrat won the previous Senate election
+    when: before
+  status: confirmed
+  source: user:turn:1
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:col:demwinprv1.fixed_within_unit
+  check_detail: '''demwinprv1'' is constant within a unit'
+  asked: 0
+  refutations: 0
+- kind: measured
+  key: col:demwinprv2
+  fields:
+    meaning: 1 if the Democrat won the second previous Senate election
+    when: before
+  status: confirmed
+  source: user:turn:1
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:col:demwinprv2.fixed_within_unit
+  check_detail: '''demwinprv2'' is constant within a unit'
+  asked: 0
+  refutations: 0
+- kind: measured
+  key: col:dmidterm
+  fields:
+    meaning: 1 if a midterm year
+    when: at
+  status: confirmed
+  source: user:turn:1
+  evidence:
+  - doc:context
+  - user:turn:1
+  check_detail: null
+  asked: 0
+  refutations: 0
+- kind: measured
+  key: col:dpresdem
+  fields:
+    meaning: 1 if the sitting president was a Democrat
+    when: at
+  status: confirmed
+  source: user:turn:1
+  evidence:
+  - doc:context
+  - user:turn:1
+  check_detail: null
+  asked: 0
+  refutations: 0
+- kind: sampling
+  key: sampling
+  fields:
+    how: whole
+    detail: Every US Senate election from 1914 to 2010 with needed returns.
+  status: confirmed
+  source: user:turn:1
+  evidence:
+  - doc:context
+  - user:turn:1
+  check_detail: null
+  asked: 0
+  refutations: 0
+- kind: missing
+  key: missing
+  fields:
+    why: Values are missing where the next election's returns or the candidate's service
+      record were not available; that has nothing to do with who won.
+  status: confirmed
+  source: user:turn:1
+  evidence:
+  - user:turn:1
+  - check:missing.missing_by_arm
+  check_detail: 'columns with gaps: [''vote'', ''termshouse'', ''termssenate'', ''dopen'',
+    ''presdemvoteshlag1'', ''demvoteshlag1'', ''demvoteshlag2'', ''demvoteshfor1'',
+    ''demwinprv1'', ''demwinprv2'']; no treatment column settled yet, so gaps cannot
+    be split by arm'
+  asked: 0
+  refutations: 0
+- kind: unobserved
+  key: unobserved
+  fields:
+    exists: false
+  status: confirmed
+  source: user:turn:2
+  evidence:
+  - user:turn:2
+  check_detail: null
+  asked: 0
+  refutations: 0
+- kind: exclusion
+  key: exclusion
+  fields:
+    exists: false
+  status: confirmed
+  source: user:turn:2
+  evidence:
+  - user:turn:2
+  check_detail: null
+  asked: 0
+  refutations: 0
+- kind: spillover
+  key: spillover
+  fields:
+    possible: false
+  status: confirmed
+  source: user:turn:2
+  evidence:
+  - user:turn:2
+  check_detail: null
+  asked: 0
+  refutations: 0
+- kind: trend_continues
+  key: trend_continues
+  fields: {}
+  status: empty
+  source: null
+  evidence: []
+  check_detail: null
+  asked: 0
+  refutations: 0
+probes:
+- family: adjustment
+  name: arms
+  value: null
+  passed: null
+  detail: treatment column not settled
+- family: diff_in_diff
+  name: pre_periods
+  value: null
+  passed: null
+  detail: period column or change period not settled
+- family: discontinuity
+  name: rows_by_side
+  value: 640.0
+  passed: true
+  detail: 640 rows below 0.0 and 750 above on 'margin'; floor 20 a side
+- family: synthetic_control
+  name: pre_periods
+  value: null
+  passed: null
+  detail: period column or change period not settled
+- family: interrupted_series
+  name: pre_periods
+  value: null
+  passed: null
+  detail: period column or change period not settled

@@ -1,0 +1,145 @@
+{
+  "dataset": {
+    "profiler_version": "0.1.0",
+    "file": "data/raw/gov-transfers-uruguay/gov_transfers.csv",
+    "file_hash": "c1f1699a0f9d2d3182aa4373c18830e0eefa5d32862b265fa5e642a9ad97d116",
+    "rows": 1948,
+    "columns": 5,
+    "duplicate_rows": 21,
+    "candidate_keys": [],
+    "grain": null,
+    "time_coverage": null,
+    "entity_summary": null,
+    "co_missing": [],
+    "format_issues": []
+  },
+  "columns": [
+    {
+      "name": "Income_Centered",
+      "key": "income_centered",
+      "kind": "numeric",
+      "nulls": 0,
+      "null_rate": 0.0,
+      "distinct": 1480,
+      "constant": false,
+      "numeric": {
+        "min": -0.019990994,
+        "max": 0.019892002,
+        "mean": -0.00158,
+        "p01": -0.019603996,
+        "p25": -0.01171399775,
+        "p50": -0.00279550035,
+        "p75": 0.0084470008,
+        "p99": 0.019061441
+      },
+      "top_values": null,
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "unknown",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "Education",
+      "key": "education",
+      "kind": "numeric",
+      "nulls": 51,
+      "null_rate": 0.026181,
+      "distinct": 38,
+      "constant": false,
+      "numeric": {
+        "min": 0.0,
+        "max": 6.5,
+        "mean": 4.070623,
+        "p01": 1.0,
+        "p25": 3.0,
+        "p50": 4.0,
+        "p75": 5.5,
+        "p99": 6.0
+      },
+      "top_values": null,
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "unknown",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "Age",
+      "key": "age",
+      "kind": "numeric",
+      "nulls": 0,
+      "null_rate": 0.0,
+      "distinct": 439,
+      "constant": false,
+      "numeric": {
+        "min": 6.5,
+        "max": 73.0,
+        "mean": 29.124287,
+        "p01": 9.223499894,
+        "p25": 18.3833335,
+        "p50": 25.666666,
+        "p75": 36.0,
+        "p99": 68.0
+      },
+      "top_values": null,
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "unknown",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "Participation",
+      "key": "participation",
+      "kind": "boolean",
+      "nulls": 0,
+      "null_rate": 0.0,
+      "distinct": 2,
+      "constant": false,
+      "numeric": null,
+      "top_values": [
+        {
+          "value": "1",
+          "count": 1127,
+          "share": 0.5785
+        },
+        {
+          "value": "0",
+          "count": 821,
+          "share": 0.4215
+        }
+      ],
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "unknown",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "Support",
+      "key": "support",
+      "kind": "numeric",
+      "nulls": 0,
+      "null_rate": 0.0,
+      "distinct": 3,
+      "constant": false,
+      "numeric": {
+        "min": 0.0,
+        "max": 1.0,
+        "mean": 0.796201,
+        "p01": 0.0,
+        "p25": 0.5,
+        "p50": 1.0,
+        "p75": 1.0,
+        "p99": 1.0
+      },
+      "top_values": null,
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "unknown",
+      "switch": null,
+      "format_issues": []
+    }
+  ]
+}

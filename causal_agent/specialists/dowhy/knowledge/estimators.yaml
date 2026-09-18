@@ -1,0 +1,60 @@
+# Estimators the adjustment lane may run. Method knowledge, written for the model to choose from.
+# The harness filters by applies_when before the model sees the list, and rejects any pick outside it.
+# `params` are declarations passed straight to DoWhy; the model never sees or sets them.
+# num_simulations is the bootstrap budget for confidence intervals, a cost setting, not a judgement.
+# `rank` orders the filtered list, lowest first. `also_run` names one secondary estimator run beside
+# the primary so the report shows the effect under two methods.
+
+linear_regression:
+  dowhy: backdoor.linear_regression
+  applies_when: {estimand: backdoor, treatment: [binary], outcome: [continuous], adjustment_set: [empty, nonempty]}
+  in_words: fit a straight-line model of the outcome on the treatment and the adjustment set, and read the treatment's coefficient
+  assumes: the outcome moves linearly with each adjustment variable and the treatment effect is the same for everyone
+  weak_when: the adjustment set has strong nonlinear effects, or the two arms differ a lot on the adjustment set so the line is extrapolating
+  prefer_over: {}
+  params: {}
+  rank: 3
+
+propensity_score_stratification:
+  dowhy: backdoor.propensity_score_stratification
+  applies_when: {estimand: backdoor, treatment: [binary], outcome: [continuous, binary], adjustment_set: [nonempty]}
+  in_words: score each row's chance of treatment from the adjustment set, cut rows into strata of similar score, compare arms within each stratum, and average
+  assumes: the score model is roughly right and every stratum holds rows from both arms
+  weak_when: an arm is small so strata run thin; or overlap is poor so some strata hold one arm only
+  prefer_over:
+    linear_regression: when the adjustment set is large or categorical and a linear outcome model would be a stretch; stratification makes no assumption about the outcome's shape
+  params: {num_strata: auto, clipping_threshold: 10, num_simulations: 100}
+  rank: 1
+  also_run: linear_regression
+
+propensity_score_weighting:
+  dowhy: backdoor.propensity_score_weighting
+  applies_when: {estimand: backdoor, treatment: [binary], outcome: [continuous, binary], adjustment_set: [nonempty]}
+  in_words: score each row's chance of treatment from the adjustment set and reweight rows so the two arms look alike on it, then compare
+  assumes: the score model is roughly right and no score sits near zero or one
+  weak_when: overlap is thin at the edges, so a few rows carry huge weights
+  prefer_over:
+    propensity_score_stratification: when the sample is large and scores are spread evenly, weighting uses every row instead of coarse strata
+  params: {weighting_scheme: ips_weight, min_ps_score: 0.05, max_ps_score: 0.95, num_simulations: 100}
+  rank: 2
+  also_run: linear_regression
+
+propensity_score_matching:
+  dowhy: backdoor.propensity_score_matching
+  applies_when: {estimand: backdoor, treatment: [binary], outcome: [continuous, binary], adjustment_set: [nonempty]}
+  in_words: pair each treated row with the untreated row of closest score and compare the pairs
+  assumes: close scores mean comparable rows and enough untreated rows exist to pair with
+  weak_when: the treated arm is a large share of the data so good matches run out; or the adjustment set is coarse so many rows share a score and matches are arbitrary
+  prefer_over: {}
+  params: {num_simulations: 100}
+  rank: 4
+
+generalized_linear_model:
+  dowhy: backdoor.generalized_linear_model
+  applies_when: {estimand: backdoor, treatment: [binary], outcome: [binary], adjustment_set: [empty, nonempty]}
+  in_words: fit a logistic model of a yes/no outcome on the treatment and the adjustment set
+  assumes: the log-odds of the outcome move linearly with each adjustment variable
+  weak_when: the outcome is rare so the fit is unstable
+  prefer_over: {}
+  params: {glm_family: binomial}
+  rank: 2

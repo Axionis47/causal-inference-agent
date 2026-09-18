@@ -1,0 +1,41 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "langgraph-dev",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": [
+        "run",
+        "langgraph",
+        "dev",
+        "--no-browser",
+        "--port",
+        "2024"
+      ],
+      "port": 2024
+    },
+    {
+      "name": "api",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": [
+        "run",
+        "python",
+        "-m",
+        "causal_agent.server"
+      ],
+      "port": 8000,
+      "autoPort": true
+    },
+    {
+      "name": "web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--prefix",
+        "web"
+      ],
+      "port": 5173
+    }
+  ]
+}

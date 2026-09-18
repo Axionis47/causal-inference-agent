@@ -1,0 +1,87 @@
+# Discontinuity lane evals. Five real datasets run end to end through the router. The two forced cases run the
+# specialist alone from a stored hand-off (handoffs/) so a routing change cannot mask them.
+# Expected values grade the design, the flags, the citations, and the stop; a sign only where the literature
+# gives one and the file supports it.
+
+- id: gov_transfers_rdd
+  dataset: gov_transfers
+  question: Did receiving the transfer raise support for the government?
+  expected:
+    status_in: [done, infeasible]     # the file's local-linear answer is null and both covariates jump; a stop at assess is a fair reading
+    stopped_at_in: [assess]           # graded only when infeasible
+    score_column: Income_Centered
+    cutoff: 0
+    treated_side: below
+    kind: sharp
+    checks_ran: [covariate_continuity, mass_points, density, first_stage]
+    assess_cites_contain: [covariate_continuity]
+    placebo_ran_if_done: [placebo_cutoffs, bandwidth_grid, donut]
+
+- id: senate_incumbency_rdd
+  dataset: senate
+  question: Does winning a Senate seat narrowly raise the Democratic vote share at the next election?
+  expected:
+    status: done
+    score_column: margin
+    cutoff: 0
+    treated_side: above
+    kind: sharp
+    cluster: state
+    estimator_in: [local_linear, local_quadratic]
+    effect_sign: positive             # Cattaneo, Frandsen and Titiunik 2015: about 7 points
+    placebo_ran: [placebo_cutoffs, bandwidth_grid, donut]
+
+- id: headstart_rdd
+  dataset: headstart
+  question: Did Head Start funding reduce child mortality in the poorest counties?
+  expected:
+    status: done
+    score_column: povrate60
+    cutoff: 59.1984
+    treated_side: above
+    kind: sharp
+    estimator_in: [local_linear, local_quadratic]
+    effect_sign: negative             # Ludwig and Miller 2007; Cattaneo, Titiunik and Vazquez-Bare 2017: about -2.4 deaths per 100,000
+
+- id: spp_fuzzy_rdd
+  dataset: spp
+  question: Did eligibility for the SPP scholarship raise immediate enrolment in higher education?
+  expected:
+    status: done
+    score_column: X1
+    cutoff: 0
+    treated_side: above
+    kind: fuzzy
+    estimator_in: [local_linear_fuzzy]
+    secondaries_contain: [local_linear_itt, first_stage]
+    effect_sign: positive             # Londoño-Vélez, Rodríguez and Sánchez 2020
+
+- id: probation_rdd
+  dataset: probation
+  question: Did being placed on academic probation change students' next-term GPA?
+  expected:
+    status_in: [done, infeasible]     # a first-year credits covariate jumps at the cutoff (robust p about 0.001); stopping on it is a fair reading
+    stopped_at_in: [assess]           # graded only when infeasible
+    score_column: X
+    cutoff: 0
+    treated_side: above
+    kind: sharp
+    flags_contain: [mass_points]
+    assess_cites_contain: [covariate_continuity]
+    effect_sign_if_done: positive     # Lindo, Sanders and Oreopoulos 2010: the GPA of those who return rises
+
+- id: card_krueger_forced_rd
+  dataset: card_krueger
+  handoff: handoffs/card_krueger_forced.json
+  question: Did New Jersey's 1992 minimum wage rise reduce fast food employment?
+  expected:
+    status: infeasible
+    stopped_at_in: [score, assess]    # no numeric cutoff in the notes, or no first stage at an invented one
+
+- id: students_forced_rd
+  dataset: students
+  handoff: handoffs/students_forced.json
+  question: Did completing the prep course raise math scores?
+  expected:
+    status: infeasible
+    stopped_at_in: [score, assess]    # numeric scores exist but no note states a cutoff rule

@@ -1,0 +1,258 @@
+{
+  "dataset": {
+    "profiler_version": "0.1.0",
+    "file": "data/raw/spp-colombia-financial-aid/spp.csv",
+    "file_hash": "84c2ef47fae58cb6ec0db7f7fccf2f7120fed6d075d26b03c9b1d8539ff0f996",
+    "rows": 23132,
+    "columns": 9,
+    "duplicate_rows": 362,
+    "candidate_keys": [],
+    "grain": null,
+    "time_coverage": null,
+    "entity_summary": null,
+    "co_missing": [
+      [
+        "icfes_stratum",
+        "icfes_famsize"
+      ]
+    ],
+    "format_issues": []
+  },
+  "columns": [
+    {
+      "name": "X1",
+      "key": "x1",
+      "kind": "numeric",
+      "nulls": 0,
+      "null_rate": 0.0,
+      "distinct": 12918,
+      "constant": false,
+      "numeric": {
+        "min": -43.48000335693359,
+        "max": 56.23,
+        "mean": 10.314949,
+        "p01": -25.7344987487793,
+        "p25": -4.269999694824218,
+        "p50": 8.939999999999998,
+        "p75": 24.93000061035156,
+        "p99": 50.12000013160705
+      },
+      "top_values": null,
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "unknown",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "T",
+      "key": "t",
+      "kind": "boolean",
+      "nulls": 0,
+      "null_rate": 0.0,
+      "distinct": 2,
+      "constant": false,
+      "numeric": null,
+      "top_values": [
+        {
+          "value": "1",
+          "count": 15423,
+          "share": 0.6667
+        },
+        {
+          "value": "0",
+          "count": 7709,
+          "share": 0.3333
+        }
+      ],
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "unknown",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "D",
+      "key": "d",
+      "kind": "boolean",
+      "nulls": 0,
+      "null_rate": 0.0,
+      "distinct": 2,
+      "constant": false,
+      "numeric": null,
+      "top_values": [
+        {
+          "value": "0",
+          "count": 13967,
+          "share": 0.6038
+        },
+        {
+          "value": "1",
+          "count": 9165,
+          "share": 0.3962
+        }
+      ],
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "unknown",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "Y",
+      "key": "y",
+      "kind": "boolean",
+      "nulls": 0,
+      "null_rate": 0.0,
+      "distinct": 2,
+      "constant": false,
+      "numeric": null,
+      "top_values": [
+        {
+          "value": "1",
+          "count": 15421,
+          "share": 0.6667
+        },
+        {
+          "value": "0",
+          "count": 7711,
+          "share": 0.3333
+        }
+      ],
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "unknown",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "icfes_female",
+      "key": "icfes_female",
+      "kind": "boolean",
+      "nulls": 0,
+      "null_rate": 0.0,
+      "distinct": 2,
+      "constant": false,
+      "numeric": null,
+      "top_values": [
+        {
+          "value": "0",
+          "count": 13152,
+          "share": 0.5686
+        },
+        {
+          "value": "1",
+          "count": 9980,
+          "share": 0.4314
+        }
+      ],
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "unknown",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "icfes_age",
+      "key": "icfes_age",
+      "kind": "numeric",
+      "nulls": 60,
+      "null_rate": 0.002594,
+      "distinct": 50,
+      "constant": false,
+      "numeric": {
+        "min": 1.0,
+        "max": 59.0,
+        "mean": 16.613081,
+        "p01": 15.0,
+        "p25": 16.0,
+        "p50": 16.0,
+        "p75": 17.0,
+        "p99": 28.0
+      },
+      "top_values": null,
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "unknown",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "icfes_urm",
+      "key": "icfes_urm",
+      "kind": "boolean",
+      "nulls": 0,
+      "null_rate": 0.0,
+      "distinct": 2,
+      "constant": false,
+      "numeric": null,
+      "top_values": [
+        {
+          "value": "0",
+          "count": 21575,
+          "share": 0.9327
+        },
+        {
+          "value": "1",
+          "count": 1557,
+          "share": 0.0673
+        }
+      ],
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "unknown",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "icfes_stratum",
+      "key": "icfes_stratum",
+      "kind": "numeric",
+      "nulls": 59,
+      "null_rate": 0.002551,
+      "distinct": 6,
+      "constant": false,
+      "numeric": {
+        "min": 1.0,
+        "max": 6.0,
+        "mean": 2.117627,
+        "p01": 1.0,
+        "p25": 2.0,
+        "p50": 2.0,
+        "p75": 3.0,
+        "p99": 4.0
+      },
+      "top_values": null,
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "unknown",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "icfes_famsize",
+      "key": "icfes_famsize",
+      "kind": "numeric",
+      "nulls": 59,
+      "null_rate": 0.002551,
+      "distinct": 12,
+      "constant": false,
+      "numeric": {
+        "min": 1.0,
+        "max": 12.0,
+        "mean": 4.40892,
+        "p01": 2.0,
+        "p25": 4.0,
+        "p50": 4.0,
+        "p75": 5.0,
+        "p99": 10.0
+      },
+      "top_values": null,
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "unknown",
+      "switch": null,
+      "format_issues": []
+    }
+  ]
+}

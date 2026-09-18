@@ -1,0 +1,34 @@
+# Diff-in-diff lane evals. Card and Krueger runs end to end through the router. The two forced cases run
+# the specialist alone from a stored hand-off (handoffs/) so a routing change cannot mask them.
+# Expected values grade the design and the stop, not the exact effect size.
+
+- id: card_krueger_minimum_wage
+  dataset: card_krueger
+  question: Did New Jersey's 1992 minimum wage rise reduce fast food employment?
+  expected:
+    status: done
+    shape: wide
+    estimator_in: [twfe_static]
+    effect_sign: positive          # employment in New Jersey did not fall relative to Pennsylvania; the published figure is about +2.75
+    flags_contain: [parallel_untestable]
+    placebo_ran: [placebo_group]
+
+- id: cigar_forced_did
+  dataset: cigar
+  handoff: handoffs/cigar_forced.json
+  question: What did California's 1989 tobacco tax do to cigarette sales?
+  expected:
+    status: infeasible             # California's sales were already falling faster than the other states' before 1989
+    stopped_at: assess
+    shape: long
+    periods_pre: 26
+    controls_exclude: [price, cpi]  # price carries the tax itself; cpi is the same for every state in a year
+    hard_flags_contain: [pre_trends]
+
+- id: marketing_forced_did
+  dataset: marketing
+  handoff: handoffs/marketing_forced.json
+  question: Which of the three promotions produced the highest weekly sales?
+  expected:
+    status: infeasible
+    stopped_at: shape_table         # no period before the change

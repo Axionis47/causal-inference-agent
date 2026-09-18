@@ -1,0 +1,19 @@
+{
+  "question": "Did receiving the transfer raise support for the government?",
+  "family": "adjustment",
+  "specialist": "dowhy",
+  "supported_now": true,
+  "outcome": "Support",
+  "treatment": "Participation",
+  "scope": {"population_filter": null, "window": null, "contrast": "switch", "target": "average"},
+  "pack_name": "gov_transfers",
+  "relevant_columns": [
+    {"column": "Support", "reason": "the outcome the question names", "cites": ["col:support.note"]},
+    {"column": "Participation", "reason": "whether the household received the transfer", "cites": ["col:participation.note"]},
+    {"column": "Income_Centered", "reason": "the note says participation was decided by this score at zero", "cites": ["col:income_centered.note"]},
+    {"column": "Education", "reason": "background of the household head", "cites": ["col:education.note"]},
+    {"column": "Age", "reason": "background of the household head", "cites": ["col:age.note"]}
+  ],
+  "chosen_assumption": "forced into the adjustment lane as the negative case: the router would route this to discontinuity",
+  "reasons": [{"reason": "negative eval case", "cites": ["col:participation.note"]}]
+}

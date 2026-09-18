@@ -1,0 +1,29 @@
+# Refuters run after every estimate. No choice is made here: every refuter whose applies_when
+# matches the design runs. Two kinds:
+#   falsification  moves something that should not matter (or should) and tests whether the estimate reacts;
+#                  passes when the declared pass_when holds
+#   sensitivity    asks how the estimate moves if an unobserved confounder existed; reports a range, no verdict
+# `params` go straight to DoWhy. Simulation counts are budgets, not judgements.
+# No random_state here: DoWhy reseeds every simulation with it, so all draws come out identical and the
+# test degenerates (p=0 on any estimate). The adapter seeds numpy once per refuter run instead.
+
+placebo_treatment_refuter:
+  kind: falsification
+  in_words: replace the treatment with a shuffled copy; the estimated effect should collapse to about zero
+  applies_when: {estimand: [backdoor]}
+  params: {placebo_type: permute, num_simulations: 100}
+  pass_when: {new_effect_near_zero: true, p_value_gt: 0.05}
+
+random_common_cause:
+  kind: falsification
+  in_words: add a random column to the adjustment set; the estimate should not move
+  applies_when: {estimand: [backdoor], adjustment_set: [nonempty]}
+  params: {num_simulations: 100}
+  pass_when: {p_value_gt: 0.05, or_relative_change_lt: 0.10}
+
+data_subset_refuter:
+  kind: falsification
+  in_words: re-estimate on random subsets of the rows; the estimate should hold
+  applies_when: {estimand: [backdoor]}
+  params: {subset_fraction: 0.8, num_simulations: 100}
+  pass_when: {p_value_gt: 0.05, or_relative_change_lt: 0.10}

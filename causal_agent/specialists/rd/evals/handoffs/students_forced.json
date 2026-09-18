@@ -1,0 +1,20 @@
+{
+  "question": "Did completing the prep course raise math scores?",
+  "family": "discontinuity",
+  "specialist": "rdrobust",
+  "supported_now": true,
+  "outcome": "math score",
+  "treatment": "test preparation course",
+  "scope": {"population_filter": null, "window": null, "contrast": "switch", "target": "average"},
+  "pack_name": "students",
+  "relevant_columns": [
+    {"column": "math score", "reason": "the outcome the question names", "cites": ["col:math_score.note"]},
+    {"column": "test preparation course", "reason": "who completed the course", "cites": ["col:test_preparation_course.note"]},
+    {"column": "reading score", "reason": "another exam score", "cites": ["col:reading_score.note"]},
+    {"column": "writing score", "reason": "another exam score", "cites": ["col:writing_score.note"]},
+    {"column": "lunch", "reason": "household background", "cites": ["col:lunch.note"]},
+    {"column": "parental level of education", "reason": "household background", "cites": ["col:parental_level_of_education.note"]}
+  ],
+  "chosen_assumption": "forced into the discontinuity lane as the negative case: numeric scores exist but no note states a cutoff rule",
+  "reasons": [{"reason": "negative eval case", "cites": ["col:test_preparation_course.note"]}]
+}

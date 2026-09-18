@@ -1,0 +1,108 @@
+# What is available downstairs. One entry per analysis family.
+# Written as method knowledge the router reads and judges the data against.
+# Never written as rules the harness evaluates.
+
+adjustment:
+  applies_to: [effect_of_change]
+  answers: effect of a change on an outcome when the things that drove the change are measured in the data
+  needs:
+    - the change is recorded as a column that differs across rows
+    - the note says what the decision to make the change depended on, and those things are columns; or the note says the change was assigned at random, in which case it depended on nothing and this is met
+    - the outcome is measured at or after the change, not before
+    - overlap exists, meaning among rows with the same values of the things the decision depended on, some got the change and some did not; met by construction if assignment was random; unmet if the change is a strict function of those things, or the thing it depended on is the same label as the change itself
+  look_for: a column note saying the value was a decision and naming what it depended on, and whether uptake was voluntary after that; a change card describing who was offered it; profile top_values showing both arms present
+  assumes: nothing unmeasured drove both the change and the outcome
+  weak_when: the notes say the change was assigned by a strict mechanical rule with no voluntary element, so nobody with the same inputs went the other way; or the change reached whole groups at once and what separates the groups is not in the data. If the notes describe voluntary uptake after an offer, neither applies.
+  prefer_over: {}
+  specialist: dowhy
+  status: built
+
+diff_in_diff:
+  applies_to: [effect_of_change]
+  answers: effect of a change that reached some units and not others, comparing how outcomes moved over time in each group
+  needs:
+    - rows are units observed at more than one time, or the same units measured before and after
+    - some units got the change and some never did
+    - the outcome is measured at least once before the change and once after
+    - which units got the change was not decided by how their outcome was already moving
+  look_for: a time column or two dated measures of the outcome in the column notes; a change card naming who got it and who did not
+  assumes: without the change, the treated and untreated groups would have moved in parallel, and units do not affect each other's outcomes
+  weak_when: there is only one treated unit; or the treated group was chosen because its outcome was trending differently; or there is no observation before the change; or the dataset note says units can affect each other's outcomes
+  prefer_over:
+    adjustment: when the change was given to whole groups by a group label such as a state or region, adjusting for that label leaves nothing to compare, because every unit with the label got the change; a measure of the outcome from before the change lets diff_in_diff difference the group gap away instead
+  specialist: pyfixest
+  status: built
+
+discontinuity:
+  applies_to: [effect_of_change]
+  answers: effect of a change that was assigned by a strict cutoff on one measured score, comparing rows just above and just below the cutoff
+  needs:
+    - the note says the change was given to rows on one side of a cutoff value on a specific numeric score, and not on the other; a group label such as a state, region, or store is not a score and does not meet this
+    - that score was fixed before the decision and could not be adjusted to get across the cutoff
+    - rows exist close to the cutoff on both sides, meaning the score takes values just below and just above it
+    - the outcome is measured after the decision
+  look_for: a change card or column note naming a cutoff and the column it applies to; the score column's note on when it was fixed; the score column's profile range around the cutoff
+  assumes: rows just either side of the cutoff are alike in everything except the change
+  weak_when: rows bunch up on one side of the cutoff; or other things also switch at the same cutoff
+  prefer_over:
+    adjustment: when the change is a strict function of the score, no two rows with the same score differ in the change, so adjustment has nothing to compare; the cutoff is the only comparison; and when eligibility is decided by the cutoff but take-up is voluntary, the cutoff still identifies the effect for those who took it up because they crossed it, without assuming the take-up decision was fully measured
+  specialist: rdrobust
+  status: built
+
+interrupted_series:
+  applies_to: [effect_of_change]
+  answers: effect of a change at one point in time on a single unit, comparing the unit's outcome after the change against what its own history predicted
+  needs:
+    - one unit, or one series, observed repeatedly over time
+    - a change that happened on a known date and applied to that unit
+    - many observations before the change and some after
+    - the notes record no other change to the outcome's definition or to the unit around the same date; this is an absence, met when the notes mention none
+  look_for: dataset profile time coverage; a change card with a single date and one unit; column notes on definition changes
+  assumes: the outcome's pre-change trend would have continued without the change
+  weak_when: other similar units were not affected and could serve as a comparison; or the series is short before the change
+  prefer_over: {}
+  specialist: causalpy
+  status: declared
+
+synthetic_control:
+  applies_to: [effect_of_change]
+  answers: effect of a change on one unit, comparing it against a weighted mix of untreated units built to match its history before the change
+  needs:
+    - many units observed over many periods
+    - exactly one unit, or very few, got the change and the rest did not
+    - a long stretch of periods before the change to match on
+  look_for: dataset profile entity summary and time coverage; a change card naming one unit and a date
+  assumes: a weighted combination of untreated units reproduces what the treated unit would have done without the change, and the change did not reach the donors
+  weak_when: no combination of donors matches the treated unit's pre-period; or the dataset or change note says the change may have spilled over to the donors
+  prefer_over:
+    diff_in_diff: with one treated unit, diff_in_diff has no way to gauge uncertainty from the treated side and rests on parallel trends with the average of all others; synthetic control matches the pre-period explicitly
+    interrupted_series: when many untreated units exist, ignoring them throws away the comparison that protects against a common shock at the change date
+  specialist: causalpy
+  status: declared
+
+instrument:
+  applies_to: [effect_of_change]
+  answers: effect of a change when something nudged who got the change without touching the outcome any other way
+  needs:
+    - the note describes a separate column that influenced whether a row got the change
+    - the note states, in so many words, that the nudge column touches the outcome only through the change; this is a positive statement the note must make, not an absence, and a background attribute such as income, region, or education never meets it
+    - the change itself is recorded separately from the nudge
+  look_for: a column note describing a random or unrelated push toward the change; a separate column recording the change itself
+  assumes: the nudge affects the outcome only through the change
+  weak_when: the nudge is weak, or plausibly affects the outcome directly
+  prefer_over: {}
+  specialist: none
+  status: declared
+
+root_cause:
+  applies_to: [root_cause, driver_search]
+  answers: which upstream variable explains an unusual value of the outcome, when no single change is in question
+  needs:
+    - the notes describe how columns are set from other columns, so a chain of mechanisms can be traced
+    - an outcome and a period or rows where it is unusual
+  look_for: column notes that say a value is set from other columns; the question naming an unusual outcome rather than a change
+  assumes: the described mechanisms are the real ones
+  weak_when: mechanisms are unknown for most columns
+  prefer_over: {}
+  specialist: none
+  status: declared

@@ -1,0 +1,288 @@
+{
+  "dataset": {
+    "profiler_version": "0.1.0",
+    "file": "data/raw/cigarette-sales-prop99/Cigar.csv",
+    "file_hash": "7c417c7783303ea97ca709c2f3058f99aa1918cca21bc5d5d1b162c82d545902",
+    "rows": 1380,
+    "columns": 10,
+    "duplicate_rows": 0,
+    "candidate_keys": [
+      [
+        "Unnamed: 0"
+      ]
+    ],
+    "grain": [
+      "Unnamed: 0"
+    ],
+    "time_coverage": {
+      "column": "year",
+      "first": "63",
+      "last": "92",
+      "inferred_frequency": "integer period, step 1",
+      "gaps": 0
+    },
+    "entity_summary": {
+      "columns": [
+        "state"
+      ],
+      "entities": 46,
+      "rows_per_entity_min": 30,
+      "rows_per_entity_median": 30.0,
+      "rows_per_entity_max": 30
+    },
+    "co_missing": [],
+    "format_issues": []
+  },
+  "columns": [
+    {
+      "name": "Unnamed: 0",
+      "key": "unnamed_0",
+      "kind": "id",
+      "nulls": 0,
+      "null_rate": 0.0,
+      "distinct": 1380,
+      "constant": false,
+      "numeric": {
+        "min": 1.0,
+        "max": 1380.0,
+        "mean": 690.5,
+        "p01": 14.790000000000001,
+        "p25": 345.75,
+        "p50": 690.5,
+        "p75": 1035.25,
+        "p99": 1366.21
+      },
+      "top_values": null,
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "both",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "state",
+      "key": "state",
+      "kind": "id",
+      "nulls": 0,
+      "null_rate": 0.0,
+      "distinct": 46,
+      "constant": false,
+      "numeric": {
+        "min": 1.0,
+        "max": 51.0,
+        "mean": 26.826087,
+        "p01": 1.0,
+        "p25": 15.0,
+        "p50": 26.5,
+        "p75": 40.0,
+        "p99": 51.0
+      },
+      "top_values": null,
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "entity",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "year",
+      "key": "year",
+      "kind": "numeric",
+      "nulls": 0,
+      "null_rate": 0.0,
+      "distinct": 30,
+      "constant": false,
+      "numeric": {
+        "min": 63.0,
+        "max": 92.0,
+        "mean": 77.5,
+        "p01": 63.0,
+        "p25": 70.0,
+        "p50": 77.5,
+        "p75": 85.0,
+        "p99": 92.0
+      },
+      "top_values": null,
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "time",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "price",
+      "key": "price",
+      "kind": "numeric",
+      "nulls": 0,
+      "null_rate": 0.0,
+      "distinct": 767,
+      "constant": false,
+      "numeric": {
+        "min": 23.4,
+        "max": 201.9,
+        "mean": 68.699928,
+        "p01": 24.7,
+        "p25": 34.775,
+        "p50": 52.3,
+        "p75": 98.1,
+        "p99": 181.57600000000022
+      },
+      "top_values": null,
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "both",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "pop",
+      "key": "pop",
+      "kind": "numeric",
+      "nulls": 0,
+      "null_rate": 0.0,
+      "distinct": 1247,
+      "constant": false,
+      "numeric": {
+        "min": 319.0,
+        "max": 30703.3,
+        "mean": 4537.113188,
+        "p01": 391.79,
+        "p25": 1053.0,
+        "p50": 3174.0,
+        "p75": 5280.25,
+        "p99": 22393.800000000014
+      },
+      "top_values": null,
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "both",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "pop16",
+      "key": "pop16",
+      "kind": "numeric",
+      "nulls": 0,
+      "null_rate": 0.0,
+      "distinct": 1341,
+      "constant": false,
+      "numeric": {
+        "min": 215.2,
+        "max": 22920.0,
+        "mean": 3366.616087,
+        "p01": 271.791,
+        "p25": 781.175,
+        "p50": 2315.3,
+        "p75": 3914.3250000000003,
+        "p99": 17193.724000000013
+      },
+      "top_values": null,
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "both",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "cpi",
+      "key": "cpi",
+      "kind": "numeric",
+      "nulls": 0,
+      "null_rate": 0.0,
+      "distinct": 30,
+      "constant": false,
+      "numeric": {
+        "min": 30.6,
+        "max": 140.3,
+        "mean": 73.596667,
+        "p01": 30.6,
+        "p25": 38.8,
+        "p50": 62.900000000000006,
+        "p75": 107.6,
+        "p99": 140.3
+      },
+      "top_values": null,
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "time",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "ndi",
+      "key": "ndi",
+      "kind": "numeric",
+      "nulls": 0,
+      "null_rate": 0.0,
+      "distinct": 1376,
+      "constant": false,
+      "numeric": {
+        "min": 1322.5729775,
+        "max": 23074.0,
+        "mean": 7525.023022,
+        "p01": 1719.151851245,
+        "p25": 3327.8691327,
+        "p50": 6281.2008085,
+        "p75": 11024.109942,
+        "p99": 19786.110000000008
+      },
+      "top_values": null,
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "both",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "sales",
+      "key": "sales",
+      "kind": "numeric",
+      "nulls": 0,
+      "null_rate": 0.0,
+      "distinct": 689,
+      "constant": false,
+      "numeric": {
+        "min": 53.4,
+        "max": 297.9,
+        "mean": 123.95087,
+        "p01": 66.458,
+        "p25": 107.9,
+        "p50": 121.2,
+        "p75": 133.2,
+        "p99": 250.8080000000002
+      },
+      "top_values": null,
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "both",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "pimin",
+      "key": "pimin",
+      "kind": "numeric",
+      "nulls": 0,
+      "null_rate": 0.0,
+      "distinct": 466,
+      "constant": false,
+      "numeric": {
+        "min": 23.4,
+        "max": 178.5,
+        "mean": 62.899275,
+        "p01": 24.1,
+        "p25": 31.975,
+        "p50": 46.4,
+        "p75": 90.5,
+        "p99": 164.4
+      },
+      "top_values": null,
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "both",
+      "switch": null,
+      "format_issues": []
+    }
+  ]
+}

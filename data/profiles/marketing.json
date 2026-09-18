@@ -1,0 +1,273 @@
+{
+  "dataset": {
+    "profiler_version": "0.1.0",
+    "file": "data/raw/fast-food-marketing-campaign-ab-test/WA_Marketing-Campaign.csv",
+    "file_hash": "4caaf6f222d364f5a88ce3876521edc7c7a725e19b93c59b701fab981565fd24",
+    "rows": 548,
+    "columns": 7,
+    "duplicate_rows": 0,
+    "candidate_keys": [
+      [
+        "LocationID",
+        "week"
+      ]
+    ],
+    "grain": [
+      "LocationID",
+      "week"
+    ],
+    "time_coverage": {
+      "column": "week",
+      "first": "1",
+      "last": "4",
+      "inferred_frequency": "integer period, step 1",
+      "gaps": 0
+    },
+    "entity_summary": {
+      "columns": [
+        "LocationID"
+      ],
+      "entities": 137,
+      "rows_per_entity_min": 4,
+      "rows_per_entity_median": 4.0,
+      "rows_per_entity_max": 4
+    },
+    "co_missing": [],
+    "format_issues": []
+  },
+  "columns": [
+    {
+      "name": "MarketID",
+      "key": "marketid",
+      "kind": "categorical",
+      "nulls": 0,
+      "null_rate": 0.0,
+      "distinct": 10,
+      "constant": false,
+      "numeric": null,
+      "top_values": [
+        {
+          "value": "3",
+          "count": 88,
+          "share": 0.1606
+        },
+        {
+          "value": "10",
+          "count": 80,
+          "share": 0.146
+        },
+        {
+          "value": "5",
+          "count": 60,
+          "share": 0.1095
+        },
+        {
+          "value": "6",
+          "count": 60,
+          "share": 0.1095
+        },
+        {
+          "value": "7",
+          "count": 60,
+          "share": 0.1095
+        },
+        {
+          "value": "1",
+          "count": 52,
+          "share": 0.0949
+        },
+        {
+          "value": "8",
+          "count": 48,
+          "share": 0.0876
+        },
+        {
+          "value": "9",
+          "count": 40,
+          "share": 0.073
+        }
+      ],
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "entity",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "MarketSize",
+      "key": "marketsize",
+      "kind": "categorical",
+      "nulls": 0,
+      "null_rate": 0.0,
+      "distinct": 3,
+      "constant": false,
+      "numeric": null,
+      "top_values": [
+        {
+          "value": "Medium",
+          "count": 320,
+          "share": 0.5839
+        },
+        {
+          "value": "Large",
+          "count": 168,
+          "share": 0.3066
+        },
+        {
+          "value": "Small",
+          "count": 60,
+          "share": 0.1095
+        }
+      ],
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "entity",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "LocationID",
+      "key": "locationid",
+      "kind": "id",
+      "nulls": 0,
+      "null_rate": 0.0,
+      "distinct": 137,
+      "constant": false,
+      "numeric": {
+        "min": 1.0,
+        "max": 920.0,
+        "mean": 479.656934,
+        "p01": 2.0,
+        "p25": 216.0,
+        "p50": 504.0,
+        "p75": 708.0,
+        "p99": 919.0
+      },
+      "top_values": null,
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "entity",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "AgeOfStore",
+      "key": "ageofstore",
+      "kind": "numeric",
+      "nulls": 0,
+      "null_rate": 0.0,
+      "distinct": 25,
+      "constant": false,
+      "numeric": {
+        "min": 1.0,
+        "max": 28.0,
+        "mean": 8.50365,
+        "p01": 1.0,
+        "p25": 4.0,
+        "p50": 7.0,
+        "p75": 12.0,
+        "p99": 27.0
+      },
+      "top_values": null,
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "entity",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "Promotion",
+      "key": "promotion",
+      "kind": "categorical",
+      "nulls": 0,
+      "null_rate": 0.0,
+      "distinct": 3,
+      "constant": false,
+      "numeric": null,
+      "top_values": [
+        {
+          "value": "3",
+          "count": 188,
+          "share": 0.3431
+        },
+        {
+          "value": "2",
+          "count": 188,
+          "share": 0.3431
+        },
+        {
+          "value": "1",
+          "count": 172,
+          "share": 0.3139
+        }
+      ],
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "entity",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "week",
+      "key": "week",
+      "kind": "categorical",
+      "nulls": 0,
+      "null_rate": 0.0,
+      "distinct": 4,
+      "constant": false,
+      "numeric": null,
+      "top_values": [
+        {
+          "value": "1",
+          "count": 137,
+          "share": 0.25
+        },
+        {
+          "value": "2",
+          "count": 137,
+          "share": 0.25
+        },
+        {
+          "value": "3",
+          "count": 137,
+          "share": 0.25
+        },
+        {
+          "value": "4",
+          "count": 137,
+          "share": 0.25
+        }
+      ],
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "time",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "SalesInThousands",
+      "key": "salesinthousands",
+      "kind": "numeric",
+      "nulls": 0,
+      "null_rate": 0.0,
+      "distinct": 517,
+      "constant": false,
+      "numeric": {
+        "min": 17.34,
+        "max": 99.65,
+        "mean": 53.466204,
+        "p01": 24.3154,
+        "p25": 42.545,
+        "p50": 50.2,
+        "p75": 60.4775,
+        "p99": 94.67379999999999
+      },
+      "top_values": null,
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "both",
+      "switch": null,
+      "format_issues": []
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+# Design checks run after the canonical table exists, before any estimate. Numbers are declarations.
+# Every number carries its source. "ours" means the literature gives no number and this one is the lane's;
+# no source line names a dataset, and a test enforces that.
+# hard: the design cannot proceed as it stands.  soft: proceed is allowed, the model must cite the flag.
+
+sides:
+  # rows on each side of the cutoff among the primary rows
+  min_rows: {hard: 20, soft: 50}
+  source: ours; rdrobust's own guard is a total of 20 rows, and a fit can still fail inside the library when the selected bandwidth holds no rows on a side, which the adapter records as a typed fit error
+
+effective_rows:
+  # rows the primary fit actually uses on each side (within the MSE bandwidth); the same floor marks a falsification uninformative
+  min: {soft: 50}
+  source: ours; the Foundations report the effective rows on every table
+
+density:
+  # rddensity on every row with a finite score, recentred on the cutoff in the score's recorded orientation (with
+  # mass points the library's statistic is not symmetric under a sign flip, so the orientation the file records is
+  # used and stated); the test asks whether the score's density is continuous at the cutoff for the assigned population
+  p_value: {soft: 0.10}
+  never_hard: true
+  library_floor_rows_per_side: 23
+  source: Foundations 5.2; the Extensions read p = 0.082 as "possible density imbalance", so 0.10 is soft; never hard because a density jump is evidence to argue against from what the notes say about how the score was set; 23 is rddensity's own regularisation floor (20 + p + 1), below which its bandwidth covers a whole side and the test is no longer local
+  # a dataset whose rows were drawn by side of the cutoff (declared in datasets.yaml as sampled_by_side) gets the
+  # flag with no verdict: the test cannot say anything there
+
+mass_points:
+  duplicate_share: {soft: 0.20}
+  source: rdrobust's own trigger for "mass points detected", 20 percent or more duplicated scores on a side
+
+support:
+  distinct_min: {soft: 30}
+  # below distinct_min the library's bandwidth selector is not used: h is the distance that keeps this many
+  # distinct score values on each side of the cutoff, and b is twice h; the Design records the rule
+  bandwidth_support_points: 3
+  source: ours; Extensions 4.2 says bandwidth selection is inappropriate when the number of mass points is very small and gives no number; three support points a side is the least a local linear fit with a quadratic bias term can use
+
+compliance:
+  # kind is sharp when take-up is 1.0 on the treated side and 0.0 on the other (or there is no take-up column); anything less is fuzzy
+  sharp_when: {treated_side_min: 1.0, other_side_max: 0.0}
+  source: Extensions figure 3.1, sharp means take-up jumps from 0 to 1
+
+first_stage:
+  # for any design with a take-up column: the jump in take-up at the cutoff, sharp local linear
+  no_first_stage_is_hard: true
+  f_min: 20
+  source: Extensions chapter 3; proceed only with a strong first stage, a minimum F of 20; F is the square of the Robust row's z, which row to use is ours; a first stage whose robust interval covers zero means the cutoff moved nothing, a hard stop
+
+covariate_continuity:
+  # each balance-tested covariate as the outcome, sharp local linear, coverage-error bandwidth; one check, soft if any fails
+  p_value: {soft: 0.05}
+  bwselect: cerrd
+  source: Foundations 5.1, which suggests the CER bandwidth for falsification and reads the robust p at the conventional level
+
+argue_from_notes: [density, covariate_continuity]
+
+# hand-off scope target -> accepted; the estimand label itself comes from the estimator picked
+target_units:
+  average: effect_at_cutoff
+  on_treated: effect_at_cutoff
+
+# interpretation gate: stated numbers must match the estimate within this relative tolerance
+effect_tolerance: 0.01

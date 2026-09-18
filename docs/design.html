@@ -1,0 +1,687 @@
+<title>Causal Agent Design</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --paper:#F3F5F7; --ink:#1B2430; --ink-2:#4A5563; --ink-3:#7B8593;
+  --rule:#D5DBE2; --panel:#FFFFFF; --panel-2:#E9EDF1;
+  --accent:#0F6E74; --accent-ink:#0B5257; --accent-soft:#D9EEEF;
+  --declared:#B9791C; --declared-soft:#F6E9D2;
+  --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --sans:'IBM Plex Sans',system-ui,-apple-system,Segoe UI,sans-serif;
+  --display:'Bricolage Grotesque','IBM Plex Sans',system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#12171D; --ink:#E6EAEE; --ink-2:#B4BCC6; --ink-3:#7F8995;
+    --rule:#2A323C; --panel:#1A2029; --panel-2:#222A34;
+    --accent:#4FB3B9; --accent-ink:#8ED3D7; --accent-soft:#173B3E;
+    --declared:#D9A24A; --declared-soft:#3A2E17;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#12171D; --ink:#E6EAEE; --ink-2:#B4BCC6; --ink-3:#7F8995;
+  --rule:#2A323C; --panel:#1A2029; --panel-2:#222A34;
+  --accent:#4FB3B9; --accent-ink:#8ED3D7; --accent-soft:#173B3E;
+  --declared:#D9A24A; --declared-soft:#3A2E17;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15.5px;line-height:1.55}
+a{color:var(--accent-ink)}
+.wrap{display:grid;grid-template-columns:230px minmax(0,1fr);gap:48px;max-width:1120px;margin:0 auto;padding:40px 28px 96px}
+@media (max-width:820px){.wrap{grid-template-columns:1fr;gap:24px}.rail{position:static}}
+.rail{position:sticky;top:24px;align-self:start;font-size:13px}
+.rail .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin:0 0 10px}
+.rail ol{list-style:none;margin:0;padding:0;border-left:1px solid var(--rule)}
+.rail li a{display:block;padding:6px 0 6px 14px;color:var(--ink-2);text-decoration:none;border-left:2px solid transparent;margin-left:-1px}
+.rail li a:hover,.rail li a:focus-visible{color:var(--ink);border-left-color:var(--accent);outline:none}
+.rail li a .n{font-family:var(--mono);color:var(--ink-3);margin-right:8px}
+.rail .meta{margin-top:18px;color:var(--ink-3);font-family:var(--mono);font-size:11px;line-height:1.6}
+header.top{margin-bottom:40px}
+header.top .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent-ink);margin:0 0 10px}
+h1{font-family:var(--display);font-weight:700;font-size:40px;line-height:1.05;margin:0 0 14px;text-wrap:balance;letter-spacing:-.01em}
+.lede{font-size:17px;color:var(--ink-2);max-width:62ch;margin:0}
+section.level{padding:36px 0;border-top:1px solid var(--rule)}
+section.level h2{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.15;margin:0 0 6px;text-wrap:balance}
+section.level h2 .n{font-family:var(--mono);font-weight:500;font-size:13px;color:var(--ink-3);display:block;margin-bottom:6px;letter-spacing:.06em}
+.summary{max-width:66ch;color:var(--ink);margin:0 0 18px}
+.summary p{margin:0 0 10px}
+.key{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:18px 0}
+.key div{background:var(--panel);border:1px solid var(--rule);padding:12px 14px;border-radius:4px}
+.key b{display:block;font-size:12px;font-family:var(--mono);letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);margin-bottom:6px;font-weight:500}
+details.spec{margin-top:14px;border:1px solid var(--rule);border-radius:4px;background:var(--panel)}
+details.spec>summary{cursor:pointer;padding:12px 16px;font-family:var(--mono);font-size:13px;color:var(--accent-ink);list-style:none;display:flex;align-items:center;gap:10px}
+details.spec>summary::-webkit-details-marker{display:none}
+details.spec>summary::before{content:"+";display:inline-block;width:14px;color:var(--ink-3)}
+details.spec[open]>summary::before{content:"–"}
+details.spec>summary:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.spec-body{padding:4px 18px 18px;border-top:1px solid var(--rule);max-width:none}
+.spec-body h4{font-family:var(--sans);font-weight:600;font-size:14px;margin:18px 0 8px;color:var(--ink)}
+.spec-body p{max-width:66ch;margin:0 0 10px}
+.spec-body ul{margin:0 0 10px;padding-left:20px;max-width:66ch}
+.spec-body li{margin:3px 0}
+code,.mono{font-family:var(--mono);font-size:.92em}
+code{background:var(--panel-2);padding:1px 5px;border-radius:3px}
+pre{font-family:var(--mono);font-size:12.5px;line-height:1.5;background:var(--panel-2);border:1px solid var(--rule);padding:14px 16px;border-radius:4px;overflow-x:auto;margin:10px 0 14px}
+table{border-collapse:collapse;width:100%;font-size:13.5px;margin:8px 0 14px}
+th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--rule);vertical-align:top}
+th{font-family:var(--mono);font-weight:500;font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3)}
+td code{white-space:nowrap}
+.tbl{overflow-x:auto}
+figure{margin:22px 0;background:var(--panel);border:1px solid var(--rule);border-radius:4px;padding:18px 18px 12px}
+figure svg{max-width:100%;height:auto;display:block;color:var(--ink)}
+figcaption{font-size:13px;color:var(--ink-2);margin-top:10px;max-width:70ch}
+.pill{display:inline-block;font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:3px;vertical-align:middle;letter-spacing:.03em}
+.pill.built{background:var(--accent-soft);color:var(--accent-ink)}
+.pill.declared{background:var(--declared-soft);color:var(--declared)}
+.log{list-style:none;margin:0;padding:0}
+.log li{display:grid;grid-template-columns:96px 1fr;gap:14px;padding:9px 0;border-bottom:1px solid var(--rule);font-size:14px}
+.log li .d{font-family:var(--mono);font-size:12px;color:var(--ink-3);padding-top:2px}
+.open li{margin:4px 0}
+@media (prefers-reduced-motion: no-preference){details.spec>summary{transition:color .15s}}
+</style>
+
+<div class="wrap">
+  <nav class="rail" aria-label="Levels">
+    <p class="eyebrow">Levels</p>
+    <ol>
+      <li><a href="#l0"><span class="n">L0</span>Principles</a></li>
+      <li><a href="#l1"><span class="n">L1</span>System</a></li>
+      <li><a href="#l2"><span class="n">L2</span>Context pack</a></li>
+      <li><a href="#l3"><span class="n">L3</span>Design agent</a></li>
+      <li><a href="#l4"><span class="n">L4</span>Specialists</a></li>
+      <li><a href="#l5"><span class="n">L5</span>Artifacts &amp; gates</a></li>
+      <li><a href="#l6"><span class="n">L6</span>Observability</a></li>
+      <li><a href="#l7"><span class="n">L7</span>Stack &amp; phases</a></li>
+      <li><a href="#log"><span class="n">—</span>Decision log</a></li>
+      <li><a href="#open"><span class="n">—</span>Open</a></li>
+    </ol>
+    <p class="meta">v0.1 · 2026-09-14<br>working draft, no code yet</p>
+  </nav>
+
+  <main>
+    <header class="top">
+      <p class="eyebrow">Design document</p>
+      <h1>Causal Agent Design</h1>
+      <p class="lede">A general causal analysis agent. It takes a complete context pack and a question, reasons about which family of analysis the data supports, hands off to a library specialist, and returns a report where every claim points at an artifact. High level first, detail spec under each level.</p>
+    </header>
+
+    <!-- L0 -->
+    <section class="level" id="l0">
+      <h2><span class="n">L0</span>Principles</h2>
+      <div class="summary">
+        <p>Five rules that every level below obeys. If a later decision breaks one of these, the decision is wrong.</p>
+      </div>
+      <div class="key">
+        <div><b>Model decides, harness verifies</b>Reasoning is the model's. The harness checks citations and consistency, never routes by if-else.</div>
+        <div><b>No human after the pack</b>The context pack is complete on hand-over. Downstream agents reason from it alone.</div>
+        <div><b>Pack is method-free</b>It describes what the data is and how it came to be. No treatment, outcome, confounder vocabulary.</div>
+        <div><b>Family before library</b>A library-free agent decides the analysis family. Specialists never decide whether they apply.</div>
+        <div><b>Artifacts are the contract</b>Every agent reads and writes typed, lineage-tracked artifacts. Head and tail are designed against them.</div>
+      </div>
+      <details class="spec"><summary>Detail spec</summary><div class="spec-body">
+        <h4>What "verify, not route" means</h4>
+        <p>When an agent claims "difference-in-differences is possible because <code>banner_flag</code> switched inside users after 14 May," the harness checks that the cited pack fields exist and say that. It does not compute whether DiD is possible. Preconditions are method knowledge stated in the method ontology, read by the model, not evaluated as booleans.</p>
+        <h4>What stays structural</h4>
+        <ul>
+          <li>Artifact schemas and lineage, so reasoning is inspectable and reusable.</li>
+          <li>Gates as verifiers: a DAG has no cycle, an adjustment set has no descendant of the cause, every citation resolves.</li>
+          <li>Bounds on autonomy: the revision cap and the lane lock.</li>
+          <li>Ontologies as data, not prompt text, so knowledge is versioned and citable.</li>
+        </ul>
+        <h4>How it gets smarter</h4>
+        <ul>
+          <li>The method ontology is extensible by the model; new knowledge is proposed with a source and reviewed in.</li>
+          <li>Thresholds are proposed per design with a justification, stored before the estimate runs, and calibrated by evals.</li>
+          <li>Rulings become facts the model reasons over next time, not new code paths.</li>
+        </ul>
+      </div></details>
+    </section>
+
+    <!-- L1 -->
+    <section class="level" id="l1">
+      <h2><span class="n">L1</span>System</h2>
+      <div class="summary">
+        <p>Pack and question in. A design agent works out the family. A branch sends the decision to one specialist. Only the DoWhy specialist is built in phase 0; the others are declared so the branch is honest from day one.</p>
+      </div>
+      <figure>
+        <svg viewBox="0 0 960 330" role="img" aria-label="Flow from context pack and question through the design agent, a family branch, one built specialist and four declared specialists, into the report, with the artifact store and observability running underneath.">
+          <defs>
+            <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+          </defs>
+          <g font-family="IBM Plex Sans, system-ui, sans-serif" font-size="12.5" fill="currentColor">
+            <!-- inputs -->
+            <rect x="20" y="70" width="130" height="46" rx="3" fill="none" stroke="currentColor" stroke-width="1.2"/>
+            <text x="85" y="89" text-anchor="middle" font-weight="600">Context pack</text>
+            <text x="85" y="106" text-anchor="middle" font-size="11" opacity=".7">complete, method-free</text>
+            <rect x="20" y="140" width="130" height="46" rx="3" fill="none" stroke="currentColor" stroke-width="1.2"/>
+            <text x="85" y="159" text-anchor="middle" font-weight="600">Question</text>
+            <text x="85" y="176" text-anchor="middle" font-size="11" opacity=".7">plain language</text>
+            <!-- design agent -->
+            <rect x="215" y="95" width="150" height="66" rx="3" fill="none" stroke="currentColor" stroke-width="1.2"/>
+            <text x="290" y="120" text-anchor="middle" font-weight="600">Design agent</text>
+            <text x="290" y="137" text-anchor="middle" font-size="11" opacity=".7">frames question,</text>
+            <text x="290" y="151" text-anchor="middle" font-size="11" opacity=".7">picks family, library-free</text>
+            <line x1="150" y1="93" x2="213" y2="118" stroke="currentColor" stroke-width="1.2" marker-end="url(#arr)"/>
+            <line x1="150" y1="163" x2="213" y2="138" stroke="currentColor" stroke-width="1.2" marker-end="url(#arr)"/>
+            <!-- branch -->
+            <polygon points="440,128 475,96 510,128 475,160" fill="none" stroke="currentColor" stroke-width="1.2"/>
+            <text x="475" y="132" text-anchor="middle" font-size="11" font-weight="600">family</text>
+            <line x1="365" y1="128" x2="438" y2="128" stroke="currentColor" stroke-width="1.2" marker-end="url(#arr)"/>
+            <text x="402" y="120" text-anchor="middle" font-size="10.5" opacity=".75">FAMILY_DECISION</text>
+            <!-- specialists -->
+            <rect x="580" y="22" width="180" height="40" rx="3" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.4"/>
+            <text x="670" y="41" text-anchor="middle" font-weight="600" fill="var(--accent-ink)">DoWhy specialist</text>
+            <text x="670" y="55" text-anchor="middle" font-size="10.5" fill="var(--accent-ink)">adjustment · built</text>
+            <rect x="580" y="76" width="180" height="34" rx="3" fill="none" stroke="var(--declared)" stroke-width="1.2" stroke-dasharray="4 3"/>
+            <text x="670" y="97" text-anchor="middle" fill="var(--declared)">pyfixest · diff-in-diff</text>
+            <rect x="580" y="124" width="180" height="34" rx="3" fill="none" stroke="var(--declared)" stroke-width="1.2" stroke-dasharray="4 3"/>
+            <text x="670" y="145" text-anchor="middle" fill="var(--declared)">CausalPy · discontinuity</text>
+            <rect x="580" y="172" width="180" height="34" rx="3" fill="none" stroke="var(--declared)" stroke-width="1.2" stroke-dasharray="4 3"/>
+            <text x="670" y="193" text-anchor="middle" fill="var(--declared)">CausalPy · series</text>
+            <rect x="580" y="220" width="180" height="34" rx="3" fill="none" stroke="var(--declared)" stroke-width="1.2" stroke-dasharray="4 3"/>
+            <text x="670" y="241" text-anchor="middle" fill="var(--declared)">DoWhy GCM · root cause</text>
+            <line x1="510" y1="128" x2="578" y2="44" stroke="var(--accent)" stroke-width="1.4" marker-end="url(#arr)"/>
+            <line x1="510" y1="128" x2="578" y2="93" stroke="var(--declared)" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+            <line x1="510" y1="128" x2="578" y2="141" stroke="var(--declared)" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+            <line x1="510" y1="128" x2="578" y2="189" stroke="var(--declared)" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+            <line x1="510" y1="128" x2="578" y2="237" stroke="var(--declared)" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+            <!-- report -->
+            <rect x="820" y="105" width="120" height="46" rx="3" fill="none" stroke="currentColor" stroke-width="1.2"/>
+            <text x="880" y="124" text-anchor="middle" font-weight="600">Report</text>
+            <text x="880" y="141" text-anchor="middle" font-size="11" opacity=".7">cites artifact ids</text>
+            <line x1="760" y1="42" x2="818" y2="118" stroke="var(--accent)" stroke-width="1.4" marker-end="url(#arr)"/>
+            <line x1="760" y1="93" x2="818" y2="124" stroke="var(--declared)" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+            <line x1="760" y1="141" x2="818" y2="130" stroke="var(--declared)" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+            <line x1="760" y1="189" x2="818" y2="135" stroke="var(--declared)" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+            <line x1="760" y1="237" x2="818" y2="140" stroke="var(--declared)" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+            <text x="700" y="278" text-anchor="middle" font-size="10.5" opacity=".7">dashed = declared, returns "not yet supported" with reasons kept</text>
+            <!-- rails -->
+            <rect x="20" y="292" width="920" height="16" fill="var(--panel-2)" stroke="var(--rule)"/>
+            <text x="480" y="304" text-anchor="middle" font-size="10.5">artifact store · every box reads and writes typed, lineage-tracked artifacts · local now, Cloud Storage later</text>
+            <rect x="20" y="312" width="920" height="16" fill="var(--panel-2)" stroke="var(--rule)"/>
+            <text x="480" y="324" text-anchor="middle" font-size="10.5">observability · LangSmith traces per agent step · Logfire for everything around them · one trace id links both</text>
+          </g>
+        </svg>
+        <figcaption>The branch is the design agent's output, not any specialist's. Adding a capability adds a family to the design agent's vocabulary and one specialist under the branch. Nothing else changes.</figcaption>
+      </figure>
+      <details class="spec"><summary>Detail spec</summary><div class="spec-body">
+        <h4>Two agents, one hand-off</h4>
+        <p>The design agent stops when it can write the hand-off and nothing more. The specialist receives the hand-off, the pack, and its own library skill. It never sees the design agent's alternatives or other specialists.</p>
+<pre>HANDOFF
+  family        adjustment | diff_in_diff | discontinuity | instrument | series | root_cause
+  outcome       column name
+  treatment     column name        (absent for root_cause)
+  time_window   from the question, or full coverage
+  pack_ref      dataset id + version
+  frame_ref     QUESTION_FRAME artifact id
+  reasons[]     each with pack field citations</pre>
+        <h4>What the specialist may and may not change</h4>
+        <ul>
+          <li>May: graph, column roles, adjustment set, estimator, refuters, thresholds, target population.</li>
+          <li>May not: family, treatment, outcome, time window, dataset. If it concludes one is wrong, it hands back with a reason and the design agent re-frames.</li>
+        </ul>
+        <h4>In LangGraph</h4>
+        <p>Parent graph: design agent, conditional edge on <code>family</code>, one node per specialist, report. Each specialist is a subgraph with its own state and checkpointer scope, so its inner loop and context stay inside the box. Studio shows the parent, and a box opens to the specialist.</p>
+      </div></details>
+    </section>
+
+    <!-- L2 -->
+    <section class="level" id="l2">
+      <h2><span class="n">L2</span>Context pack</h2>
+      <div class="summary">
+        <p>The input payload. Independent of any question and any method. It answers five things about a dataset: what a row is, what each column means and whether it was measured or set, what rule set it, what changed and who got the change, and what the odd values mean.</p>
+        <p>An organiser agent, built later, turns messy inputs into this. Downstream agents assume it is complete.</p>
+      </div>
+      <figure>
+        <svg viewBox="0 0 960 250" role="img" aria-label="Three card types, dataset, column and change, compile into one fact store queried by key lookup with a semantic search only for orientation.">
+          <defs><marker id="arr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs>
+          <g font-family="IBM Plex Sans, system-ui, sans-serif" font-size="12.5" fill="currentColor">
+            <rect x="20" y="20" width="270" height="120" rx="3" fill="none" stroke="currentColor" stroke-width="1.2"/>
+            <text x="34" y="42" font-weight="600">Dataset card · 1</text>
+            <text x="34" y="64" font-size="11.5" opacity=".8">row definition · entity + time columns</text>
+            <text x="34" y="82" font-size="11.5" opacity=".8">who is in, who was excluded, by what rule</text>
+            <text x="34" y="100" font-size="11.5" opacity=".8">do entities affect each other</text>
+            <text x="34" y="118" font-size="11.5" opacity=".8">candidate keys, grain, coverage  <tspan font-family="IBM Plex Mono, monospace" font-size="10.5">computed</tspan></text>
+
+            <rect x="345" y="20" width="270" height="120" rx="3" fill="none" stroke="currentColor" stroke-width="1.2"/>
+            <rect x="351" y="26" width="270" height="120" rx="3" fill="none" stroke="currentColor" stroke-width=".8" opacity=".45"/>
+            <text x="359" y="42" font-weight="600">Column card · one per column</text>
+            <text x="359" y="64" font-size="11.5" opacity=".8">meaning, unit, type · measured or set</text>
+            <text x="359" y="82" font-size="11.5" opacity=".8">set by what rule, using which columns</text>
+            <text x="359" y="100" font-size="11.5" opacity=".8">captured before / at / after row time</text>
+            <text x="359" y="118" font-size="11.5" opacity=".8">definition changes · sentinels · missing why</text>
+
+            <rect x="670" y="20" width="270" height="120" rx="3" fill="none" stroke="currentColor" stroke-width="1.2"/>
+            <rect x="676" y="26" width="270" height="120" rx="3" fill="none" stroke="currentColor" stroke-width=".8" opacity=".45"/>
+            <text x="684" y="42" font-weight="600">Change card · one per change</text>
+            <text x="684" y="64" font-size="11.5" opacity=".8">when, until · what · who decided</text>
+            <text x="684" y="82" font-size="11.5" opacity=".8">who got it, and the rule that picked them</text>
+            <text x="684" y="100" font-size="11.5" opacity=".8">rollout: all at once · staggered · threshold · random</text>
+            <text x="684" y="118" font-size="11.5" opacity=".8">columns and entities touched</text>
+
+            <line x1="155" y1="146" x2="400" y2="188" stroke="currentColor" stroke-width="1" marker-end="url(#arr2)"/>
+            <line x1="486" y1="146" x2="486" y2="188" stroke="currentColor" stroke-width="1" marker-end="url(#arr2)"/>
+            <line x1="811" y1="146" x2="572" y2="188" stroke="currentColor" stroke-width="1" marker-end="url(#arr2)"/>
+            <text x="300" y="176" font-size="10.5" opacity=".7">every stated line has a source</text>
+
+            <rect x="300" y="190" width="372" height="44" rx="3" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.4"/>
+            <text x="486" y="208" text-anchor="middle" font-weight="600" fill="var(--accent-ink)">Fact store</text>
+            <text x="486" y="224" text-anchor="middle" font-size="11" fill="var(--accent-ink)">subject · field · value · source · valid period</text>
+            <text x="760" y="204" font-size="11.5" font-weight="600">lookup(subject, field)  ← primary</text>
+            <text x="760" y="222" font-size="11.5" opacity=".8">search(text) ← orientation only</text>
+          </g>
+        </svg>
+        <figcaption>Three card types compile into one flat fact store. Agents pull by key. Search only finds which card to read; the cited thing is always a field.</figcaption>
+      </figure>
+      <details class="spec"><summary>Detail spec · fields</summary><div class="spec-body">
+        <h4>Dataset card</h4>
+        <div class="tbl"><table>
+          <tr><th>field</th><th>origin</th><th>meaning</th></tr>
+          <tr><td><code>row_definition</code></td><td>stated</td><td>what one row is</td></tr>
+          <tr><td><code>entity_columns</code>, <code>entity_nesting</code></td><td>stated</td><td>what identifies a unit, how units nest</td></tr>
+          <tr><td><code>time_column</code>, <code>time_coverage</code></td><td>stated + computed</td><td>whether time reasoning is possible; range, frequency, gaps</td></tr>
+          <tr><td><code>population_rule</code></td><td>stated</td><td>who is in, who was excluded, the criterion</td></tr>
+          <tr><td><code>entity_interaction</code></td><td>stated</td><td>none, or how units affect each other</td></tr>
+          <tr><td><code>attrition</code></td><td>stated</td><td>none, or why units leave over time</td></tr>
+          <tr><td><code>candidate_keys</code>, <code>grain</code>, <code>rows</code>, <code>duplicates</code></td><td>computed</td><td>unique column sets; the smallest is the grain</td></tr>
+          <tr><td><code>extraction</code></td><td>stated</td><td>query, system, extracted at</td></tr>
+        </table></div>
+        <h4>Column card</h4>
+        <div class="tbl"><table>
+          <tr><th>field</th><th>origin</th><th>meaning</th></tr>
+          <tr><td><code>meaning</code>, <code>unit</code></td><td>stated</td><td>plain definition</td></tr>
+          <tr><td><code>kind</code></td><td>computed</td><td>id · numeric · categorical · boolean · datetime · text</td></tr>
+          <tr><td><code>obtained_by</code></td><td>stated</td><td>measured · derived · set_by_system · set_by_person · external</td></tr>
+          <tr><td><code>set_by</code></td><td>stated</td><td>actor or rule, and its input columns. Required when set or derived. This is where mechanism lives.</td></tr>
+          <tr><td><code>captured_when</code></td><td>stated</td><td>before · at · after the row's own time</td></tr>
+          <tr><td><code>varies_over</code></td><td>computed</td><td>entity · time · both · neither</td></tr>
+          <tr><td><code>definition_changes[]</code></td><td>stated</td><td>dated, with before and after</td></tr>
+          <tr><td><code>allowed_values</code>, <code>sentinels[]</code></td><td>stated + computed</td><td>sentinel meaning is stated, count is computed</td></tr>
+          <tr><td><code>missingness_reason</code></td><td>stated</td><td>why nulls occur</td></tr>
+          <tr><td><code>nulls</code>, <code>cardinality</code>, <code>stats</code>, <code>first_active</code>, <code>last_active</code></td><td>computed</td><td>from the profiler</td></tr>
+        </table></div>
+        <h4>Change card</h4>
+        <div class="tbl"><table>
+          <tr><th>field</th><th>meaning</th></tr>
+          <tr><td><code>when</code>, <code>until</code></td><td>start, and end if it ended</td></tr>
+          <tr><td><code>what</code></td><td>the change in words</td></tr>
+          <tr><td><code>decided_by</code></td><td>actor or rule</td></tr>
+          <tr><td><code>who_got_it</code>, <code>criterion</code></td><td>recipients and the rule that picked them</td></tr>
+          <tr><td><code>rollout_shape</code></td><td>all_at_once · staggered · threshold · random</td></tr>
+          <tr><td><code>affects_columns</code>, <code>affects_entities</code></td><td>what it touched</td></tr>
+        </table></div>
+        <h4>Completeness</h4>
+        <p>Every required field on the dataset card. Every CSV column has a card with every required field. <code>set_by</code> present wherever <code>obtained_by</code> demands it. Every observed sentinel has a meaning. Every change in the time span has all fields. Every stated line has a source. The organiser verifies this itself.</p>
+      </div></details>
+      <details class="spec"><summary>Detail spec · querying</summary><div class="spec-body">
+        <p>Key-based is primary and, for a typical dataset, sufficient. Ten to fifty columns and a handful of changes is a few hundred facts, which fits in context whole. The design agent reads the pack up front and pulls by key when it needs a fact to cite.</p>
+<pre>get(subject, field)            one fact                "what sets banner_flag"
+about(subject)                 every fact on a card
+where(field, value)            subjects matching        "which columns are set_by_system"
+uses(column)                   columns whose set_by inputs include it
+between(start, end)            changes in a window
+as_of(subject, field, date)    value valid on a date, for changed definitions
+find(text)                     semantic, returns card ids to read, never cited
+digest()                       one page of prose, first read</pre>
+        <p>Semantic search is less reliable for exactly the facts that matter most. "What sets banner_flag" must return the one rule or nothing. A near-miss is not an answer. So search finds cards; lookup reads fields; only fields are cited.</p>
+        <h4>Why it serves every family without method words</h4>
+        <ul>
+          <li>Adjustment reads <code>set_by</code> chains and <code>captured_when</code>.</li>
+          <li>Difference-in-differences reads <code>rollout_shape</code>, <code>who_got_it</code>, <code>time_coverage</code>, <code>entity_interaction</code>.</li>
+          <li>Discontinuity reads <code>rollout_shape = threshold</code> and the <code>criterion</code>, which names the running column and cutoff.</li>
+          <li>Instrument reads <code>rollout_shape = random</code> or a <code>decided_by</code> unrelated to the outcome mechanism.</li>
+          <li>Series reads <code>rollout_shape = all_at_once</code>, dense <code>time_coverage</code>, <code>definition_changes</code>.</li>
+          <li>Root cause reads <code>set_by</code> across all columns, chained, which is a dependency graph in mechanism form.</li>
+        </ul>
+      </div></details>
+    </section>
+
+    <!-- L3 -->
+    <section class="level" id="l3">
+      <h2><span class="n">L3</span>Design agent</h2>
+      <div class="summary">
+        <p>Reads the pack and the question. Works out what the question is really asking, what the outcome column is, what could count as the cause, and which family of analysis the data supports. Writes the decision with reasons that cite pack fields. Owns no library and never will.</p>
+      </div>
+      <details class="spec"><summary>Detail spec</summary><div class="spec-body">
+        <h4>Step 1 · frame the question</h4>
+        <p>Treatment and outcome columns are not named in the question. The agent proposes them.</p>
+        <ul>
+          <li>Intent: effect of a change · driver search · root cause. A question with no identifiable change routes to driver search, whose output is candidate causes for a second, linked run.</li>
+          <li>Outcome: the question names a metric in words. Match against column meanings and the glossary; pick the top if the margin is clear.</li>
+          <li>Cause candidates, from four sources: change words in the question, change cards in the window, columns with <code>obtained_by = set_by_*</code>, and structural signals from the profile. Score by how many sources name it, never by correlation with the outcome.</li>
+        </ul>
+<pre>QUESTION_FRAME
+  intent               effect_of_change | driver_search | root_cause
+  outcome              converted            cites column:converted.meaning, glossary
+  cause_candidates[]   {column, sources[], score}
+  time_window
+  reasons[]            each with fact ids</pre>
+        <h4>Step 2 · decide the family</h4>
+        <p>The agent reasons over the pack's fields directly. What it reads and what it implies:</p>
+        <div class="tbl"><table>
+          <tr><th>reads</th><th>bears on</th></tr>
+          <tr><td>change card <code>rollout_shape</code>, <code>who_got_it</code></td><td>staggered points to diff-in-diff, threshold to discontinuity, random to instrument, all-at-once on one unit to series</td></tr>
+          <tr><td><code>set_by</code> inputs of the cause column</td><td>where confounding lives; whether adjustment is on the table</td></tr>
+          <tr><td><code>captured_when</code> on every column</td><td>what must be excluded as downstream</td></tr>
+          <tr><td><code>time_coverage</code> before and after the change</td><td>whether time-based families are possible</td></tr>
+          <tr><td><code>entity_interaction</code></td><td>whether cross-entity comparisons are clean</td></tr>
+        </table></div>
+<pre>FAMILY_DECISION
+  family               adjustment | diff_in_diff | discontinuity | instrument | series | root_cause
+  admissible[]         every family the data supports, with reasons and fact ids
+  chosen               one of admissible, with the assumption it bets on
+  rejected[]           each with the pack field that ruled it out
+  supported_now        true | false     (false → report says so, reasons preserved)</pre>
+        <h4>Verification, not routing</h4>
+        <p>The harness checks every cited fact id exists and that the field's value is consistent with the claim. It does not recompute the decision. A decision with a broken citation is rejected and the agent retries.</p>
+        <h4>Where specialist thinking shows here</h4>
+        <ul>
+          <li>Recognising "why did conversion drop" has no change and needs driver search.</li>
+          <li>Noticing "the new pricing" is three change cards and picking the one whose window matches.</li>
+          <li>Rejecting a candidate because its <code>first_active</code> is after the drop.</li>
+          <li>Weighing parallel trends against measured confounding when both families are admissible, and writing which assumption it finds more believable for this system.</li>
+        </ul>
+      </div></details>
+    </section>
+
+    <!-- L4 -->
+    <section class="level" id="l4">
+      <h2><span class="n">L4</span>Specialists</h2>
+      <div class="summary">
+        <p>One specialist per family. Each speaks only its library's terms, receives only the hand-off and the pack, and turns the decision into a runnable experiment. Phase 0 builds the DoWhy specialist for the adjustment family. The rest are declared.</p>
+      </div>
+      <div class="key">
+        <div><b>adjustment <span class="pill built">built · phase 0</span></b>DoWhy. Model, identify, estimate, refute.</div>
+        <div><b>diff_in_diff <span class="pill declared">declared</span></b>pyfixest. Two-way fixed effects, staggered, event study.</div>
+        <div><b>discontinuity · series <span class="pill declared">declared</span></b>CausalPy. Regression discontinuity, synthetic control, interrupted series.</div>
+        <div><b>heterogeneity <span class="pill declared">declared</span></b>EconML. Double ML, causal forests, policy trees. Last, because it is deepest.</div>
+        <div><b>root_cause <span class="pill declared">declared</span></b>DoWhy GCM. Mechanism per node, attribution.</div>
+      </div>
+      <figure>
+        <svg viewBox="0 0 960 200" role="img" aria-label="The DoWhy specialist's inner loop: design, identify, estimate, diagnose; pass goes to report, a failed pre-registered check goes back to design within the lane, capped at three revisions.">
+          <defs><marker id="arr3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs>
+          <g font-family="IBM Plex Sans, system-ui, sans-serif" font-size="12.5" fill="currentColor">
+            <rect x="20" y="60" width="150" height="56" rx="3" fill="none" stroke="currentColor" stroke-width="1.2"/>
+            <text x="95" y="83" text-anchor="middle" font-weight="600">Design</text>
+            <text x="95" y="100" text-anchor="middle" font-size="11" opacity=".75">graph, roles, estimator, checks + thresholds</text>
+            <rect x="230" y="60" width="130" height="56" rx="3" fill="none" stroke="currentColor" stroke-width="1.2"/>
+            <text x="295" y="83" text-anchor="middle" font-weight="600">Identify</text>
+            <text x="295" y="100" text-anchor="middle" font-size="11" opacity=".75">DoWhy finds the set</text>
+            <rect x="420" y="60" width="130" height="56" rx="3" fill="none" stroke="currentColor" stroke-width="1.2"/>
+            <text x="485" y="83" text-anchor="middle" font-weight="600">Estimate</text>
+            <text x="485" y="100" text-anchor="middle" font-size="11" opacity=".75">the form's method</text>
+            <rect x="610" y="60" width="130" height="56" rx="3" fill="none" stroke="currentColor" stroke-width="1.2"/>
+            <text x="675" y="83" text-anchor="middle" font-weight="600">Diagnose</text>
+            <text x="675" y="100" text-anchor="middle" font-size="11" opacity=".75">checks vs thresholds</text>
+            <rect x="820" y="60" width="120" height="56" rx="3" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.4"/>
+            <text x="880" y="92" text-anchor="middle" font-weight="600" fill="var(--accent-ink)">Report</text>
+            <line x1="170" y1="88" x2="228" y2="88" stroke="currentColor" stroke-width="1.2" marker-end="url(#arr3)"/>
+            <line x1="360" y1="88" x2="418" y2="88" stroke="currentColor" stroke-width="1.2" marker-end="url(#arr3)"/>
+            <line x1="550" y1="88" x2="608" y2="88" stroke="currentColor" stroke-width="1.2" marker-end="url(#arr3)"/>
+            <line x1="740" y1="88" x2="818" y2="88" stroke="var(--accent)" stroke-width="1.4" marker-end="url(#arr3)"/>
+            <text x="779" y="80" text-anchor="middle" font-size="10.5" fill="var(--accent-ink)">pass</text>
+            <path d="M675,116 L675,160 L95,160 L95,118" fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="5 4" marker-end="url(#arr3)"/>
+            <text x="385" y="152" text-anchor="middle" font-size="11">fail on a pre-registered check → revise inside the lane · max 3 · every version kept</text>
+            <text x="385" y="185" text-anchor="middle" font-size="10.5" opacity=".7">the estimate's value is never a trigger · lane, treatment, outcome, window are frozen · out of budget → honest partial report</text>
+          </g>
+        </svg>
+        <figcaption>The loop exists so a suspicious result gets a second honest attempt at the same estimand, not a hunt for a nicer number. Triggers are named checks written down before the estimate ran.</figcaption>
+      </figure>
+      <details class="spec"><summary>Detail spec · DoWhy specialist</summary><div class="spec-body">
+        <h4>Pre-flight, before any reasoning</h4>
+        <p>Deterministic checks on the data the moment the hand-off arrives: cause and outcome columns exist and are not all null, the cause takes at least two values with a minimum count each, sample size above a floor, every column in the cause's <code>set_by</code> chain exists, rough overlap between arms. Writes FEASIBILITY. <code>runnable = false</code> hands back at once with named blockers. Seconds, no model call.</p>
+        <h4>When "not runnable" is discovered</h4>
+        <ul>
+          <li>Design agent, from the pack alone: cause does not vary, its inputs are not in the data, outcome captured before cause. Rejected before hand-off.</li>
+          <li>Pre-flight: the data checks above.</li>
+          <li>Model: every candidate confounder is post-treatment, or the cause's inputs are all unmeasured.</li>
+          <li>Identify: DoWhy returns no set after one in-lane revision.</li>
+          <li>Estimate and diagnose gates: non-finite value, interval does not bracket, pre-registered checks fail after the revision budget.</li>
+        </ul>
+        <p>Every case produces a partial report with the reasons. Library errors become FAILURE artifacts, never silent skips.</p>
+        <h4>Model</h4>
+        <p>Build the graph from the pack. Every <code>set_by</code> input edge becomes a candidate edge tagged <code>mechanism</code>. Assign each column a role in DoWhy's vocabulary: confounder, mediator, collider, effect modifier, post-treatment, ignore. <code>captured_when = after</code> forces post-treatment. The graph is built with NetworkX, gated (acyclic, contains cause and outcome, every edge sourced), and only then serialised to GML for DoWhy.</p>
+        <h4>Identify</h4>
+        <p>Call <code>identify_effect</code> with <code>proceed_when_unidentifiable=False</code>. DoWhy searches for a set that blocks every path into the cause and contains no descendant of it. Gate: the returned set agrees with the roles assigned and every variable exists in the data. No set → revise within the lane, or hand back "not identifiable as adjustment."</p>
+        <h4>Estimate</h4>
+        <p>Choose from the lane's list in fallback order: regression adjustment, propensity weighting, double ML. Choice cites outcome type and sample size. Target population stated. Thresholds for every planned check are written now.</p>
+        <h4>Refute</h4>
+        <p>Placebo treatment, random common cause, data subset, sensitivity to a hidden confounder. Each compared to its pre-registered threshold. Balance and overlap computed alongside.</p>
+        <h4>Revisions allowed inside the lane</h4>
+        <ul>
+          <li>Add a measured confounder from the pack's <code>set_by</code> chain.</li>
+          <li>Next estimator in the list.</li>
+          <li>Trim to common support.</li>
+          <li>Change target population.</li>
+          <li>Change outcome model form.</li>
+        </ul>
+        <h4>Hand-back conditions</h4>
+        <ul>
+          <li>An effect appears before the change in time, which the adjustment lane cannot fix.</li>
+          <li>The sensitivity bound says a hidden confounder weaker than any measured one erases the effect, and no more variables are available.</li>
+        </ul>
+        <h4>Mapping the form to DoWhy</h4>
+        <div class="tbl"><table>
+          <tr><th>form field</th><th>call</th></tr>
+          <tr><td>graph, treatment, outcome</td><td><code>CausalModel(data, treatment, outcome, graph=gml)</code></td></tr>
+          <tr><td>target = average</td><td><code>identify_effect(estimand_type="nonparametric-ate")</code></td></tr>
+          <tr><td>estimator = regression_adjustment</td><td><code>estimate_effect(..., method_name="backdoor.linear_regression", confidence_intervals=True)</code></td></tr>
+          <tr><td>estimator = propensity_weighting</td><td><code>method_name="backdoor.propensity_score_weighting"</code></td></tr>
+          <tr><td>each planned check</td><td>one <code>refute_estimate(..., method_name=...)</code>, result vs threshold</td></tr>
+          <tr><td>sensitivity</td><td><code>method_name="add_unobserved_common_cause", simulation_method="linear-partial-R2"</code></td></tr>
+        </table></div>
+      </div></details>
+      <details class="spec"><summary>Detail spec · what a lane declares</summary><div class="spec-body">
+        <p>Lanes are configuration. The loop, the lock, and the generic identify, estimate, diagnose nodes are written once. A lane file says:</p>
+        <ul>
+          <li>identification mode: graph-based or rule-based, and the rule</li>
+          <li>what it needs from the pack, as method knowledge the model reads</li>
+          <li>estimators in fallback order, each mapped to an adapter</li>
+          <li>checks required, each mapped to an adapter</li>
+          <li>revisions allowed inside the lane</li>
+          <li>hand-back conditions</li>
+        </ul>
+        <p>Adding a lane costs one file, one or two adapters, and an eval set. The fifth lane should be a day.</p>
+        <h4>Scope rule for any library</h4>
+        <p>A capability node must be something you would write in a report's methods section. Everything else is an adapter default. EconML's thirty estimators become four actions with two or three enums each.</p>
+      </div></details>
+    </section>
+
+    <!-- L5 -->
+    <section class="level" id="l5">
+      <h2><span class="n">L5</span>Artifacts &amp; gates</h2>
+      <div class="summary">
+        <p>The stable middle. Every agent reads and writes typed artifacts with lineage. Gates are verifiers that run before an artifact is usable: schema, invariants, and agreement with parents. A failed artifact becomes a failure record; nothing downstream can consume it.</p>
+      </div>
+      <details class="spec"><summary>Detail spec</summary><div class="spec-body">
+        <h4>Every artifact carries</h4>
+        <p>id · kind · schema version · run id · producer · parent ids · content hash · created at · trace id · store uri</p>
+        <h4>Kinds</h4>
+        <div class="tbl"><table>
+          <tr><th>kind</th><th>producer</th><th>gate checks</th></tr>
+          <tr><td>DATASET_SNAPSHOT</td><td>ingest</td><td>hash matches pack version</td></tr>
+          <tr><td>QUESTION_FRAME</td><td>design agent</td><td>outcome is a column; every reason cites a fact id that resolves</td></tr>
+          <tr><td>FAMILY_DECISION</td><td>design agent</td><td>chosen ∈ admissible; citations resolve and agree</td></tr>
+          <tr><td>HANDOFF</td><td>design agent</td><td>complete; family has a specialist, built or declared</td></tr>
+          <tr><td>FEASIBILITY</td><td>specialist pre-flight</td><td>every check ran; runnable is false if any blocker</td></tr>
+          <tr><td>ANALYSIS_DESIGN</td><td>specialist</td><td>lane fixed; thresholds present before estimate; versioned with parent</td></tr>
+          <tr><td>CAUSAL_GRAPH</td><td>specialist</td><td>acyclic; contains cause and outcome; every edge sourced</td></tr>
+          <tr><td>IDENTIFICATION</td><td>specialist</td><td>set has no descendant of cause; every variable exists</td></tr>
+          <tr><td>ESTIMATE</td><td>specialist</td><td>finite; interval brackets value; method matches design</td></tr>
+          <tr><td>REFUTATION</td><td>specialist</td><td>every planned check ran; none silently skipped</td></tr>
+          <tr><td>REPORT</td><td>report</td><td>every claim cites an artifact; every design version listed</td></tr>
+          <tr><td>FAILURE</td><td>any</td><td>rule, offending values, producer</td></tr>
+        </table></div>
+        <h4>Full contracts, every field</h4>
+        <p>Common header on all kinds: <code>id, kind, schema_version, run_id, producer, parents[], content_hash, created_at, trace_id, uri</code>. Below are the body fields. Nothing else is permitted; extras fail the schema gate.</p>
+<pre>DATASET_SNAPSHOT
+  pack_id, pack_version, file_hash, rows, columns[]
+
+QUESTION_FRAME
+  question_text
+  intent               effect_of_change | driver_search | root_cause
+  outcome              {column, reasons[]}
+  cause_candidates[]   {column, sources[] ⊂ {question, change_card, set_by, profile}, score, reasons[]}
+  time_window          {start, end} | full_coverage
+  reasons[]            {claim, fact_ids[]}
+
+FAMILY_DECISION
+  frame_ref
+  admissible[]         {family, assumption, reasons[] with fact_ids}
+  chosen               family
+  chosen_assumption    text
+  rejected[]           {family, ruled_out_by_fact_id, reason}
+  supported_now        bool
+
+HANDOFF
+  family, outcome, treatment | null, time_window
+  pack_ref             {id, version}
+  frame_ref, decision_ref
+  reasons[]            {claim, fact_ids[]}
+
+FEASIBILITY                            specialist pre-flight, deterministic
+  handoff_ref
+  checks[]             {check, value, threshold, passed}
+  runnable             bool
+  blockers[]           {check, detail}
+
+ANALYSIS_DESIGN                        versioned; parent = previous version or FEASIBILITY
+  lane                 = family, frozen
+  version, revision_reason | null
+  roles                {column → confounder | mediator | collider | effect_modifier | post_treatment | ignore, fact_ids[]}
+  graph_ref
+  identification       {strategy, expected_set[] | instrument | rule}
+  estimator            {name, params{enum values only}, fallback_order[], reasons[]}
+  target_population    average | on_treated
+  planned_checks[]     {check, threshold, justification}       written before estimate
+  stop_rule            {max_revisions: 3, hand_back_conditions[]}
+
+CAUSAL_GRAPH
+  nodes[]              column names
+  edges[]              {from, to, source: mechanism | stated | proposed | learned, fact_ids[] | method}
+  treatment, outcome
+  serialisation        gml string
+
+IDENTIFICATION
+  design_ref
+  strategy             backdoor | frontdoor | instrument | rule
+  estimand_expr        text
+  adjustment_set[] | instrument | rule_evidence
+  assumptions[]        {text, rests_on_edges[]}
+  identified           bool
+
+ESTIMATE
+  design_ref, identification_ref
+  method, engine, params
+  value, interval{low, high, level}, p_value | null
+  target_population
+  n_used, n_dropped_reason | null
+
+REFUTATION
+  estimate_ref
+  checks[]             {check, engine, statistic, threshold, passed: bool, detail}
+  balance              {column → smd_before, smd_after} | null
+  overlap              {score, trimmed_share}
+  all_planned_ran      bool
+
+REPORT
+  design_versions[]    every ANALYSIS_DESIGN id in order, with revision_reason
+  claims[]             {text, artifact_id, field}
+  assumptions[]        {text, source: fact_id | edge}
+  confidence           {grade, reasons[]}
+  narrative            markdown
+  not_supported        {family, reasons[]} | null
+
+FAILURE
+  producer, rule, offending{field, value}, artifact_kind_attempted</pre>
+        <h4>Storage</h4>
+        <p>One prefix per run, one folder per producer, a run manifest listing every artifact and its parents. Local filesystem now; Cloud Storage with the same layout by flipping one setting. Graph state holds references only, never payloads.</p>
+        <h4>Failure isolation</h4>
+        <p>A node that fails writes a FAILURE record and raises. LangGraph checkpoints the state before it, so upstream artifacts survive and a retry reuses them by hash.</p>
+      </div></details>
+    </section>
+
+    <!-- L6 -->
+    <section class="level" id="l6">
+      <h2><span class="n">L6</span>Observability &amp; evals</h2>
+      <div class="summary">
+        <p>Every agent step is a LangSmith span with the artifact ids it read and wrote. Everything around the agents, the store, the adapters, the API, goes to Logfire. One trace id links both. Golden questions with planted effects on synthetic data are the tail specification made executable.</p>
+      </div>
+      <details class="spec"><summary>Detail spec</summary><div class="spec-body">
+        <h4>Traces</h4>
+        <ul>
+          <li>Span per node, tagged with run id, artifact ids in and out, lane.</li>
+          <li>LLM calls carry the artifact ids they cited, so a bad citation is findable from the trace.</li>
+          <li>Logfire auto-instruments FastAPI, httpx, and the storage client. OpenTelemetry on both sides.</li>
+        </ul>
+        <h4>Evals</h4>
+        <ul>
+          <li>Framing: did the design agent pick the outcome and cause a specialist would, on ten golden questions across three or four domains.</li>
+          <li>Family: did it choose the admitted family and cite the right fields.</li>
+          <li>End to end: did the report recover the planted effect within tolerance, and did diagnostics flag the planted violations.</li>
+          <li>Any change to the ontology, a prompt, or a lane runs the set. A drop fails the change.</li>
+        </ul>
+      </div></details>
+    </section>
+
+    <!-- L7 -->
+    <section class="level" id="l7">
+      <h2><span class="n">L7</span>Stack &amp; phases</h2>
+      <div class="summary">
+        <p>LangGraph for the graph, LangSmith for agent traces, Logfire for the rest, Gemini on Vertex AI as the model, Cloud Storage for artifacts. Local first. Four libraries, one per phase.</p>
+      </div>
+      <details class="spec"><summary>Detail spec</summary><div class="spec-body">
+        <div class="tbl"><table>
+          <tr><th>need</th><th>pick</th><th>status</th></tr>
+          <tr><td>agent runtime</td><td>LangGraph</td><td>installed, skills loaded</td></tr>
+          <tr><td>agent tracing, evals</td><td>LangSmith</td><td>installed; key needed for Studio UI</td></tr>
+          <tr><td>app and infra logging</td><td>Logfire</td><td>plugin installed; one-time login pending</td></tr>
+          <tr><td>model</td><td>Gemini on Vertex AI via ChatVertexAI</td><td>ADC works on the machine</td></tr>
+          <tr><td>object store</td><td>local → Cloud Storage</td><td>plugin installed; GCP project not confirmed</td></tr>
+          <tr><td>tool contracts</td><td>mcp-server-dev</td><td>installed</td></tr>
+          <tr><td>dev workflow</td><td>feature-dev</td><td>installed</td></tr>
+        </table></div>
+        <h4>Phases</h4>
+        <div class="tbl"><table>
+          <tr><th>phase</th><th>adds</th><th>library</th></tr>
+          <tr><td>0</td><td>pack schema, profiler, fact store, design agent with family branch, DoWhy specialist, artifacts, gates, golden questions</td><td>DoWhy</td></tr>
+          <tr><td>1</td><td>diff-in-diff and event study lane; panels are the common shape</td><td>pyfixest</td></tr>
+          <tr><td>2</td><td>discontinuity, synthetic control, interrupted series; structure discovery as a proposal step</td><td>CausalPy, causal-learn</td></tr>
+          <tr><td>3</td><td>heterogeneity, double ML, policy; root cause on the mechanism graph</td><td>EconML, DoWhy GCM</td></tr>
+          <tr><td>later</td><td>organiser agent: messy inputs → complete pack</td><td>—</td></tr>
+        </table></div>
+        <h4>Not supported, deliberately</h4>
+        <p>CausalML (overlaps EconML), pgmpy and probabilistic programming (heavy, estimand-last), R via rpy2 (extra runtime), PyWhy-LLM (a second reasoner we cannot gate), EconML's automated CausalAnalysis (hides the design).</p>
+      </div></details>
+    </section>
+
+    <!-- log -->
+    <section class="level" id="log">
+      <h2><span class="n">Log</span>Decisions</h2>
+      <ul class="log">
+        <li><span class="d">2026-09-14</span><span>Stack pinned: LangGraph, LangSmith, Logfire, mcp-server-dev, feature-dev. Gemini on Vertex is the default model. GCP, local first.</span></li>
+        <li><span class="d">2026-09-14</span><span>Artifacts are the contract between head and tail. Gates verify, never route.</span></li>
+        <li><span class="d">2026-09-14</span><span>Four-library core: DoWhy, pyfixest, CausalPy, EconML, one per phase. Single-purpose libraries absorbed.</span></li>
+        <li><span class="d">2026-09-14</span><span>Family decided by a library-free design agent; specialists never decide whether they apply.</span></li>
+        <li><span class="d">2026-09-14</span><span>One bounded loop inside the lane, triggered only by pre-registered checks, capped at three. Lane switch is a hand-back.</span></li>
+        <li><span class="d">2026-09-14</span><span>Column roles are assigned by the specialist after the family is chosen, in that library's vocabulary.</span></li>
+        <li><span class="d">2026-09-14</span><span>Context pack is dataset-level, question-free, method-free, complete on hand-over. No human after the pack.</span></li>
+        <li><span class="d">2026-09-14</span><span>Pack querying is key-based. Semantic search only finds which card to read.</span></li>
+        <li><span class="d">2026-09-14</span><span>An organiser agent that turns messy inputs into a complete pack is built later, not in phase 0.</span></li>
+        <li><span class="d">2026-09-14</span><span>Specialists open with a deterministic pre-flight that writes FEASIBILITY. "Not runnable" is found from the pack, then pre-flight, then model, identify, and gates, in that order, never later than the information allows.</span></li>
+        <li><span class="d">2026-09-14</span><span>Contract-first: models in one package, frozen JSON Schema snapshots with a drift test, fixtures per contract, a machine-readable status registry with dependency checks, docs generated from both.</span></li>
+      </ul>
+    </section>
+
+    <section class="level" id="open">
+      <h2><span class="n">Open</span>Still to decide</h2>
+      <ul class="open">
+        <li>The ten golden questions and their domains.</li>
+        <li>The report template and its claim-to-artifact map, which fixes the artifact schemas.</li>
+        <li>GCP project id for when local storage flips to Cloud Storage.</li>
+        <li>Whether the design agent runs the family exploration for every cause candidate or only the top one, and the cap.</li>
+        <li>The method ontology's format and who reviews proposed additions.</li>
+      </ul>
+    </section>
+  </main>
+</div>

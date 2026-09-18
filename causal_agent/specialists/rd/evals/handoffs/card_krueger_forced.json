@@ -1,0 +1,17 @@
+{
+  "question": "Did New Jersey's 1992 minimum wage rise reduce fast food employment?",
+  "family": "discontinuity",
+  "specialist": "rdrobust",
+  "supported_now": true,
+  "outcome": "total_emp_nov",
+  "treatment": "state",
+  "scope": {"population_filter": null, "window": null, "contrast": "switch", "target": "on_treated"},
+  "pack_name": "card_krueger",
+  "relevant_columns": [
+    {"column": "total_emp_nov", "reason": "the outcome the question names", "cites": ["col:total_emp_nov.note"]},
+    {"column": "state", "reason": "which restaurants were in New Jersey", "cites": ["col:state.note"]},
+    {"column": "total_emp_feb", "reason": "employment before the rise", "cites": ["col:total_emp_feb.note"]}
+  ],
+  "chosen_assumption": "forced into the discontinuity lane as the negative case: the notes name a state, not a score with a cutoff",
+  "reasons": [{"reason": "negative eval case", "cites": ["col:state.note"]}]
+}

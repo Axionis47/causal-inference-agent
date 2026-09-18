@@ -1,0 +1,52 @@
+{
+  "estimates": [
+    {
+      "contrast": "1_vs_0",
+      "method": "twfe_static",
+      "value": 2.7499999999999996,
+      "ci_low": 0.11977317953661082,
+      "ci_high": 5.380226820463388,
+      "n_treated": 309,
+      "n_control": 75,
+      "target_units": "att",
+      "error": null,
+      "secondary": false
+    }
+  ],
+  "refutations": [
+    {
+      "contrast": "1_vs_0",
+      "refuter": "placebo_group",
+      "kind": "falsification",
+      "new_effect": -0.011490226537217136,
+      "range_low": null,
+      "range_high": null,
+      "p_value": 0.01,
+      "passed": true,
+      "detail": "200 reassignments; share with an effect at least as large: 0.01 (pass)"
+    }
+  ],
+  "dynamic": {},
+  "interpretations": [
+    {
+      "contrast": "1_vs_0",
+      "answer": "The analysis estimates that New Jersey's 1992 minimum wage rise increased fast food employment by 2.75 employees per restaurant [estimate:1_vs_0.value]. This effect is statistically significant, with a 95% confidence interval ranging from 0.1198 to 5.38 employees [estimate:1_vs_0.ci].",
+      "effect_stated": 2.75,
+      "caveats": [
+        "The design relies on the assumption that, without the minimum wage change, employment trends in New Jersey and Pennsylvania fast food restaurants would have been parallel [design.assumption].",
+        "The parallel-trends assumption could not be tested due to the presence of only one pre-period [check:1_vs_0.parallel_untestable].",
+        "A placebo test, reassigning treatment, passed [placebo:1_vs_0.placebo_group.passed], showing a new effect of -0.011490226537217136 with a p-value of 0.01 [placebo:1_vs_0.placebo_group.new_effect, placebo:1_vs_0.placebo_group.p_value]."
+      ],
+      "cites": [
+        "estimate:1_vs_0.value",
+        "estimate:1_vs_0.ci",
+        "design.assumption",
+        "check:1_vs_0.parallel_untestable",
+        "placebo:1_vs_0.placebo_group.passed",
+        "placebo:1_vs_0.placebo_group.new_effect",
+        "placebo:1_vs_0.placebo_group.p_value"
+      ]
+    }
+  ],
+  "feasibility": null
+}

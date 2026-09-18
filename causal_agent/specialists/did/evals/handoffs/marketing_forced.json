@@ -1,0 +1,19 @@
+{
+  "question": "Which of the three promotions produced the highest weekly sales?",
+  "family": "diff_in_diff",
+  "specialist": "pyfixest",
+  "supported_now": true,
+  "outcome": "SalesInThousands",
+  "treatment": "Promotion",
+  "scope": {"population_filter": null, "window": null, "contrast": "level_vs_level", "target": "average"},
+  "pack_name": "marketing",
+  "relevant_columns": [
+    {"column": "SalesInThousands", "reason": "the outcome", "cites": ["col:salesinthousands.note"]},
+    {"column": "Promotion", "reason": "which promotion the store ran", "cites": ["col:promotion.note"]},
+    {"column": "week", "reason": "test week 1 to 4", "cites": ["col:week.note"]},
+    {"column": "MarketSize", "reason": "the chain's market classification", "cites": ["col:marketsize.note"]},
+    {"column": "LocationID", "reason": "store id", "cites": ["col:locationid.note"]}
+  ],
+  "chosen_assumption": "forced into the diff-in-diff lane: the note says there is no week before the promotions began",
+  "reasons": [{"reason": "negative eval case", "cites": ["change:1.note"]}]
+}

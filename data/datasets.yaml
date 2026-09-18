@@ -1,0 +1,71 @@
+# The eval datasets. Name → files and the profiler flags used to build the profile.
+students:
+  csv: data/raw/students-performance-in-exams/StudentsPerformance.csv
+  note: data/context/students.md
+  profile: data/profiles/students.json
+marketing:
+  csv: data/raw/fast-food-marketing-campaign-ab-test/WA_Marketing-Campaign.csv
+  note: data/context/marketing.md
+  profile: data/profiles/marketing.json
+  entity:
+  - LocationID
+  time: week
+card_krueger:
+  csv: data/raw/card-krueger-minimum-wage/employment.csv
+  note: data/context/card_krueger.md
+  profile: data/profiles/card_krueger.json
+gov_transfers:
+  csv: data/raw/gov-transfers-uruguay/gov_transfers.csv
+  note: data/context/gov_transfers.md
+  profile: data/profiles/gov_transfers.json
+  sampled_by_side: true
+cigar:
+  csv: data/raw/cigarette-sales-prop99/Cigar.csv
+  note: data/context/cigar.md
+  profile: data/profiles/cigar.json
+  entity:
+  - state
+  time: year
+senate:
+  csv: data/raw/senate-incumbency/senate.csv
+  note: data/context/senate.md
+  profile: data/profiles/senate.json
+  entity:
+  - state
+headstart:
+  csv: data/raw/head-start-mortality/headstart.csv
+  note: data/context/headstart.md
+  profile: data/profiles/headstart.json
+spp:
+  csv: data/raw/spp-colombia-financial-aid/spp.csv
+  note: data/context/spp.md
+  profile: data/profiles/spp.json
+probation:
+  csv: data/raw/academic-probation-gpa/probation.csv
+  note: data/context/probation.md
+  profile: data/profiles/probation.json
+students2:
+  csv: data/raw/students-performance-in-exams/StudentsPerformance.csv
+  note: data/context/students2.md
+  profile: data/profiles/students2.json
+  claims: data/claims/students2.yaml
+senate2:
+  csv: data/raw/senate-incumbency/senate.csv
+  note: data/context/senate2.md
+  profile: data/profiles/senate2.json
+  claims: data/claims/senate2.yaml
+students3:
+  csv: data/raw/students-performance-in-exams/StudentsPerformance.csv
+  note: data/context/students3.md
+  profile: data/profiles/students3.json
+  claims: data/claims/students3.yaml
+senate3:
+  csv: data/raw/senate-incumbency/senate.csv
+  note: data/context/senate3.md
+  profile: data/profiles/senate3.json
+  claims: data/claims/senate3.yaml
+students_web:
+  csv: data/raw/students_web/StudentsPerformance.csv
+  note: data/context/students_web.md
+  profile: data/profiles/students_web.json
+  claims: data/claims/students_web.yaml

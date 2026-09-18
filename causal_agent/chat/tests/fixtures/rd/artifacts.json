@@ -1,0 +1,297 @@
+{
+  "estimates": [
+    {
+      "contrast": "above_cutoff_vs_below_cutoff",
+      "method": "local_linear",
+      "value": 7.3948378625855185,
+      "ci_low": 3.9849696818846976,
+      "ci_high": 11.024943131801715,
+      "n_treated": 325,
+      "n_control": 366,
+      "target_units": "effect_at_cutoff",
+      "error": null,
+      "secondary": false
+    },
+    {
+      "contrast": "above_cutoff_vs_below_cutoff",
+      "method": "local_quadratic",
+      "value": 8.054262665814008,
+      "ci_low": 4.117645105056301,
+      "ci_high": 12.531916928023673,
+      "n_treated": 365,
+      "n_control": 399,
+      "target_units": "effect_at_cutoff",
+      "error": null,
+      "secondary": true
+    },
+    {
+      "contrast": "above_cutoff_vs_below_cutoff",
+      "method": "local_linear_adjusted",
+      "value": 6.9590045037110855,
+      "ci_low": 3.5182656219570623,
+      "ci_high": 10.643468257674897,
+      "n_treated": 293,
+      "n_control": 318,
+      "target_units": "effect_at_cutoff",
+      "error": null,
+      "secondary": true
+    }
+  ],
+  "refutations": [
+    {
+      "contrast": "above_cutoff_vs_below_cutoff",
+      "refuter": "placebo_cutoffs",
+      "kind": "falsification",
+      "new_effect": -1.6105162339227306,
+      "range_low": null,
+      "range_high": null,
+      "p_value": null,
+      "passed": true,
+      "detail": "control side at -13.3: -2.57 [-11.4, 6.63], 71/85 rows; sign differs from the primary; treated side at 20.53: -0.647 [-10.1, 11.1], 65/67 rows; sign differs from the primary (pass)"
+    },
+    {
+      "contrast": "above_cutoff_vs_below_cutoff",
+      "refuter": "bandwidth_grid",
+      "kind": "falsification",
+      "new_effect": 7.325741495263443,
+      "range_low": null,
+      "range_high": null,
+      "p_value": null,
+      "passed": true,
+      "detail": "h_cer = 14.36: +7.52 [3.97, 11.2], 310/278 rows; h_mse = 18.08: +7.39 [3.98, 11], 366/325 rows; 2h_cer = 28.73: +7.27 [3.94, 11], 468/442 rows; 2h_mse = 36.17: +7.12 [3.42, 11.4], 516/504 rows (pass)"
+    },
+    {
+      "contrast": "above_cutoff_vs_below_cutoff",
+      "refuter": "donut",
+      "kind": "falsification",
+      "new_effect": 5.647370945132465,
+      "range_low": null,
+      "range_high": null,
+      "p_value": null,
+      "passed": true,
+      "detail": "radius 5% of h (41 rows dropped): +6.47 [2.23, 10.3], 366/317 rows; radius 10% of h (87 rows dropped): +4.82 [0.304, 9.23], 348/310 rows (pass)"
+    }
+  ],
+  "primary": {
+    "value": 7.3948378625855185,
+    "ci_low": 3.9849696818846976,
+    "ci_high": 11.024943131801715,
+    "p": 2.9300596303078114e-05,
+    "h": 18.084287963686414,
+    "b": 27.650683342976706,
+    "n_h_left": 366,
+    "n_h_right": 325,
+    "n_left": 595,
+    "n_right": 702,
+    "vce": "CR1",
+    "model": "Sharp RD estimates using local polynomial regression. Std. errors are clustered (50 clusters).",
+    "notes": []
+  },
+  "check_facts": {
+    "bandwidth_plan": {
+      "rule": "mse",
+      "h": 18.084287963686414,
+      "b": 27.650683342976706,
+      "h_cer": 14.3648605344406,
+      "n_h_left": 366,
+      "n_h_right": 325,
+      "notes": [],
+      "table": {
+        "mserd": [
+          18.084287963686414,
+          18.084287963686414,
+          27.650683342976706,
+          27.650683342976706
+        ],
+        "msetwo": [
+          16.023904883929305,
+          19.047013842515668,
+          25.945867863358615,
+          30.67425317473323
+        ],
+        "msesum": [
+          18.924791650655877,
+          18.924791650655877,
+          31.090202983313556,
+          31.090202983313556
+        ],
+        "msecomb1": [
+          18.084287963686414,
+          18.084287963686414,
+          27.650683342976706,
+          27.650683342976706
+        ],
+        "msecomb2": [
+          18.084287963686414,
+          18.924791650655877,
+          27.650683342976706,
+          30.67425317473323
+        ],
+        "cerrd": [
+          14.3648605344406,
+          14.3648605344406,
+          27.650683342976706,
+          27.650683342976706
+        ],
+        "certwo": [
+          12.728240079841358,
+          15.129580882294423,
+          25.945867863358615,
+          30.67425317473323
+        ],
+        "cersum": [
+          15.032496344390303,
+          15.032496344390303,
+          31.090202983313556,
+          31.090202983313556
+        ],
+        "cercomb1": [
+          14.3648605344406,
+          14.3648605344406,
+          27.650683342976706,
+          27.650683342976706
+        ],
+        "cercomb2": [
+          14.3648605344406,
+          15.032496344390303,
+          27.650683342976706,
+          30.67425317473323
+        ]
+      }
+    },
+    "density": {
+      "computable": true,
+      "reason": "",
+      "t": -0.8752730140661923,
+      "p": 0.3814253737661,
+      "h_left": 19.84110843639942,
+      "h_right": 27.118786663661556,
+      "range_left": 100.0,
+      "range_right": 100.0,
+      "eff_left": 408,
+      "eff_right": 460,
+      "hat_left": 0.021685914653305233,
+      "hat_right": 0.018137707252817815,
+      "mass_points": true,
+      "notes": [],
+      "n_left": 640,
+      "n_right": 750,
+      "floor": 23
+    },
+    "first_stage_status": null,
+    "continuity": {
+      "dopen": {
+        "jump": -0.13614503801791095,
+        "ci_low": -0.298471464051438,
+        "ci_high": 0.030240658314519303,
+        "p": 0.10974489178522605,
+        "n_h_left": 336,
+        "n_h_right": 305,
+        "h": 16.44129286207533
+      },
+      "demvoteshlag1": {
+        "jump": 3.927391406693914,
+        "ci_low": -0.7433193257919521,
+        "ci_high": 9.221306596095097,
+        "p": 0.09540433821653582,
+        "n_h_left": 309,
+        "n_h_right": 279,
+        "h": 15.103085303926314
+      },
+      "demvoteshlag2": {
+        "jump": 1.6826476113221815,
+        "ci_low": -2.3297482686342716,
+        "ci_high": 6.5821443868962985,
+        "p": 0.3496770732364516,
+        "n_h_left": 286,
+        "n_h_right": 259,
+        "h": 14.248194309666504
+      },
+      "presdemvoteshlag1": {
+        "jump": -0.8292932917126876,
+        "ci_low": -4.256159692101653,
+        "ci_high": 3.0270149852767982,
+        "p": 0.7408157680923344,
+        "n_h_left": 313,
+        "n_h_right": 279,
+        "h": 14.528086170056573
+      },
+      "demwinprv1": {
+        "jump": 0.09687026397943344,
+        "ci_low": -0.0850000893009431,
+        "ci_high": 0.2838827145988883,
+        "p": 0.29064317382041427,
+        "n_h_left": 348,
+        "n_h_right": 311,
+        "h": 17.888660292936436
+      },
+      "demwinprv2": {
+        "jump": -0.009730992770180524,
+        "ci_low": -0.17595254376493047,
+        "ci_high": 0.13759194010784442,
+        "p": 0.8104916507800205,
+        "n_h_left": 368,
+        "n_h_right": 342,
+        "h": 21.57495166831898
+      },
+      "dmidterm": {
+        "jump": 0.11132611213703392,
+        "ci_low": -0.02788774257661239,
+        "ci_high": 0.2746247395742978,
+        "p": 0.10991011697748615,
+        "n_h_left": 369,
+        "n_h_right": 328,
+        "h": 18.256267078933455
+      },
+      "dpresdem": {
+        "jump": -0.0754422831639473,
+        "ci_low": -0.22427961152034773,
+        "ci_high": 0.07361023168780015,
+        "p": 0.32152541945379387,
+        "n_h_left": 360,
+        "n_h_right": 323,
+        "h": 17.77027657792032
+      }
+    }
+  },
+  "interpretations": [
+    {
+      "contrast": "above_cutoff_vs_below_cutoff",
+      "answer": "Winning a Senate seat narrowly raises the Democratic vote share at the next election by 7.395 percentage points, with a 95% robust interval from 3.985 to 11.02 percentage points. This is the effect for units at the cutoff (a sharp design). The effect is local to units at the cutoff, in the score's units, and does not speak to units far from it.",
+      "effect_stated": 7.395,
+      "caveats": [
+        "The design bets on the assumption that units just either side of the cutoff are alike in everything except the change; the score's density and every predetermined characteristic are continuous at the cutoff [design.assumption].",
+        "The density check passed [check:above_cutoff_vs_below_cutoff.density].",
+        "All predetermined covariates (dopen, demvoteshlag1, demvoteshlag2, presdemvoteshlag1, demwinprv1, demwinprv2, dmidterm, dpresdem) passed the covariate continuity check, indicating they are continuous at the cutoff [check:above_cutoff_vs_below_cutoff.covariate_continuity].",
+        "Placebo cutoffs passed [placebo:above_cutoff_vs_below_cutoff.placebo_cutoffs.passed].",
+        "The estimate remained stable across different bandwidths, as indicated by the passed bandwidth grid check [placebo:above_cutoff_vs_below_cutoff.bandwidth_grid.passed].",
+        "The estimate remained stable when excluding observations very close to the cutoff, as indicated by the passed donut check [placebo:above_cutoff_vs_below_cutoff.donut.passed].",
+        "When changing the polynomial order to local quadratic, the effect was 8.054 percentage points [estimate:above_cutoff_vs_below_cutoff.local_quadratic.value] with a 95% robust interval from 4.118 to 12.53 percentage points [estimate:above_cutoff_vs_below_cutoff.local_quadratic.ci].",
+        "When adjusting for covariates, the effect was 6.959 percentage points [estimate:above_cutoff_vs_below_cutoff.local_linear_adjusted.value] with a 95% robust interval from 3.518 to 10.64 percentage points [estimate:above_cutoff_vs_below_cutoff.local_linear_adjusted.ci]."
+      ],
+      "cites": [
+        "estimate:above_cutoff_vs_below_cutoff.value",
+        "estimate:above_cutoff_vs_below_cutoff.ci",
+        "design.bandwidth",
+        "estimate:above_cutoff_vs_below_cutoff.n",
+        "design.assumption",
+        "check:above_cutoff_vs_below_cutoff.density",
+        "check:above_cutoff_vs_below_cutoff.covariate_continuity",
+        "placebo:above_cutoff_vs_below_cutoff.placebo_cutoffs.passed",
+        "placebo:above_cutoff_vs_below_cutoff.bandwidth_grid.passed",
+        "placebo:above_cutoff_vs_below_cutoff.donut.passed",
+        "estimate:above_cutoff_vs_below_cutoff.local_quadratic.value",
+        "estimate:above_cutoff_vs_below_cutoff.local_quadratic.ci",
+        "estimate:above_cutoff_vs_below_cutoff.local_linear_adjusted.value",
+        "estimate:above_cutoff_vs_below_cutoff.local_linear_adjusted.ci"
+      ],
+      "estimand": "effect_at_cutoff",
+      "bandwidth_stated": 18.08,
+      "n_left_stated": 366,
+      "n_right_stated": 325,
+      "ci_low_stated": 3.985,
+      "ci_high_stated": 11.02
+    }
+  ],
+  "feasibility": null
+}

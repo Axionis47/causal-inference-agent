@@ -1,0 +1,40 @@
+[project]
+name = "causal-agent"
+version = "0.1.0"
+description = "Causal analysis agent: context pack, router, library specialists"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "pandas>=2.2",
+    "numpy>=1.26,<3",
+    "pydantic>=2.8",
+    "pyyaml>=6",
+    "langgraph>=1.0",
+    "langgraph-cli[inmem]>=0.4",
+    "langchain-core>=1.0",
+    "langchain-google-vertexai>=2.0",
+    "python-dotenv>=1.0",
+    "langsmith>=0.4",
+    "dowhy>=0.14",
+    "pyfixest>=0.60",
+    "wildboottest>=0.3.2",
+    "rdrobust>=2.0",
+    "rddensity>=3.0",
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "python-multipart>=0.0.9",
+    "langgraph-checkpoint-sqlite>=2.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["causal_agent"]
+
+[tool.pytest.ini_options]
+testpaths = ["causal_agent"]
+python_files = ["test_*.py"]

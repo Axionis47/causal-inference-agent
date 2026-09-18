@@ -1,0 +1,499 @@
+{
+  "dataset": {
+    "profiler_version": "0.1.0",
+    "file": "/Users/sid47/Desktop/Causal Analysis Agent/data/raw/senate-incumbency/senate.csv",
+    "file_hash": "b4945c5cb7ddad6c74829bc01954d95ff889ab0491a6d9bedc7ff4d27c84ab35",
+    "rows": 1390,
+    "columns": 17,
+    "duplicate_rows": 0,
+    "candidate_keys": [],
+    "grain": null,
+    "time_coverage": null,
+    "entity_summary": null,
+    "co_missing": [
+      [
+        "termshouse",
+        "termssenate"
+      ],
+      [
+        "demvoteshlag1",
+        "demwinprv1"
+      ],
+      [
+        "demvoteshlag2",
+        "demwinprv2"
+      ]
+    ],
+    "format_issues": []
+  },
+  "columns": [
+    {
+      "name": "state",
+      "key": "state",
+      "kind": "categorical",
+      "nulls": 0,
+      "null_rate": 0.0,
+      "distinct": 50,
+      "constant": false,
+      "numeric": null,
+      "top_values": [
+        {
+          "value": "Maryland",
+          "count": 33,
+          "share": 0.0237
+        },
+        {
+          "value": "Arizona",
+          "count": 33,
+          "share": 0.0237
+        },
+        {
+          "value": "Utah",
+          "count": 33,
+          "share": 0.0237
+        },
+        {
+          "value": "Oklahoma",
+          "count": 32,
+          "share": 0.023
+        },
+        {
+          "value": "Wisconsin",
+          "count": 30,
+          "share": 0.0216
+        },
+        {
+          "value": "South Dakota",
+          "count": 30,
+          "share": 0.0216
+        },
+        {
+          "value": "Montana",
+          "count": 30,
+          "share": 0.0216
+        },
+        {
+          "value": "Connecticut",
+          "count": 29,
+          "share": 0.0209
+        }
+      ],
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "unknown",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "year",
+      "key": "year",
+      "kind": "numeric",
+      "nulls": 0,
+      "null_rate": 0.0,
+      "distinct": 49,
+      "constant": false,
+      "numeric": {
+        "min": 1914.0,
+        "max": 2010.0,
+        "mean": 1964.630216,
+        "p01": 1914.0,
+        "p25": 1940.5,
+        "p50": 1966.0,
+        "p75": 1988.0,
+        "p99": 2010.0
+      },
+      "top_values": null,
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "unknown",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "margin",
+      "key": "margin",
+      "kind": "numeric",
+      "nulls": 0,
+      "null_rate": 0.0,
+      "distinct": 1352,
+      "constant": false,
+      "numeric": {
+        "min": -100.0,
+        "max": 100.0,
+        "mean": 7.171159,
+        "p01": -67.70837304999999,
+        "p25": -12.205825749999999,
+        "p50": 2.16564845,
+        "p75": 22.76606725,
+        "p99": 100.0
+      },
+      "top_values": null,
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "unknown",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "vote",
+      "key": "vote",
+      "kind": "numeric",
+      "nulls": 93,
+      "null_rate": 0.066906,
+      "distinct": 1251,
+      "constant": false,
+      "numeric": {
+        "min": 0.0,
+        "max": 100.0,
+        "mean": 52.666268,
+        "p01": 0.0,
+        "p25": 42.671333,
+        "p50": 50.547523,
+        "p75": 61.348957,
+        "p99": 100.0
+      },
+      "top_values": null,
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "unknown",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "class",
+      "key": "class",
+      "kind": "categorical",
+      "nulls": 0,
+      "null_rate": 0.0,
+      "distinct": 3,
+      "constant": false,
+      "numeric": null,
+      "top_values": [
+        {
+          "value": "3",
+          "count": 487,
+          "share": 0.3504
+        },
+        {
+          "value": "1",
+          "count": 455,
+          "share": 0.3273
+        },
+        {
+          "value": "2",
+          "count": 448,
+          "share": 0.3223
+        }
+      ],
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "unknown",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "termshouse",
+      "key": "termshouse",
+      "kind": "numeric",
+      "nulls": 282,
+      "null_rate": 0.202878,
+      "distinct": 12,
+      "constant": false,
+      "numeric": {
+        "min": 0.0,
+        "max": 16.0,
+        "mean": 1.436823,
+        "p01": 0.0,
+        "p25": 0.0,
+        "p50": 0.0,
+        "p75": 2.0,
+        "p99": 8.0
+      },
+      "top_values": null,
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "unknown",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "termssenate",
+      "key": "termssenate",
+      "kind": "numeric",
+      "nulls": 282,
+      "null_rate": 0.202878,
+      "distinct": 19,
+      "constant": false,
+      "numeric": {
+        "min": 1.0,
+        "max": 20.0,
+        "mean": 4.555957,
+        "p01": 1.0,
+        "p25": 1.0,
+        "p50": 4.0,
+        "p75": 7.0,
+        "p99": 16.0
+      },
+      "top_values": null,
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "unknown",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "dopen",
+      "key": "dopen",
+      "kind": "numeric",
+      "nulls": 10,
+      "null_rate": 0.007194,
+      "distinct": 2,
+      "constant": false,
+      "numeric": {
+        "min": 0.0,
+        "max": 1.0,
+        "mean": 0.247101,
+        "p01": 0.0,
+        "p25": 0.0,
+        "p50": 0.0,
+        "p75": 0.0,
+        "p99": 1.0
+      },
+      "top_values": null,
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "unknown",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "population",
+      "key": "population",
+      "kind": "numeric",
+      "nulls": 0,
+      "null_rate": 0.0,
+      "distinct": 1333,
+      "constant": false,
+      "numeric": {
+        "min": 78000.0,
+        "max": 37253956.0,
+        "mean": 3827918.925899,
+        "p01": 219340.0,
+        "p25": 997056.0,
+        "p50": 2554388.5,
+        "p75": 4663226.0,
+        "p99": 21230675.59999995
+      },
+      "top_values": null,
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "unknown",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "presdemvoteshlag1",
+      "key": "presdemvoteshlag1",
+      "kind": "numeric",
+      "nulls": 3,
+      "null_rate": 0.002158,
+      "distinct": 1090,
+      "constant": false,
+      "numeric": {
+        "min": 0.0,
+        "max": 97.034081,
+        "mean": 46.119746,
+        "p01": 0.0,
+        "p25": 38.755337,
+        "p50": 45.483898,
+        "p75": 53.0638235,
+        "p99": 91.392754
+      },
+      "top_values": null,
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "unknown",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "demvoteshlag1",
+      "key": "demvoteshlag1",
+      "kind": "numeric",
+      "nulls": 41,
+      "null_rate": 0.029496,
+      "distinct": 1294,
+      "constant": false,
+      "numeric": {
+        "min": 0.0,
+        "max": 100.0,
+        "mean": 52.690476,
+        "p01": 0.0,
+        "p25": 42.753513,
+        "p50": 50.176228,
+        "p75": 60.609394,
+        "p99": 100.0
+      },
+      "top_values": null,
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "unknown",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "demvoteshlag2",
+      "key": "demvoteshlag2",
+      "kind": "numeric",
+      "nulls": 82,
+      "null_rate": 0.058993,
+      "distinct": 1259,
+      "constant": false,
+      "numeric": {
+        "min": 0.0,
+        "max": 100.0,
+        "mean": 52.869176,
+        "p01": 0.0,
+        "p25": 43.202616,
+        "p50": 50.191576,
+        "p75": 60.559329250000005,
+        "p99": 100.0
+      },
+      "top_values": null,
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "unknown",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "demvoteshfor1",
+      "key": "demvoteshfor1",
+      "kind": "numeric",
+      "nulls": 49,
+      "null_rate": 0.035252,
+      "distinct": 1288,
+      "constant": false,
+      "numeric": {
+        "min": 0.0,
+        "max": 100.0,
+        "mean": 52.418561,
+        "p01": 0.0,
+        "p25": 42.495945,
+        "p50": 50.206924,
+        "p75": 60.714085,
+        "p99": 100.0
+      },
+      "top_values": null,
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "unknown",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "demwinprv1",
+      "key": "demwinprv1",
+      "kind": "numeric",
+      "nulls": 41,
+      "null_rate": 0.029496,
+      "distinct": 2,
+      "constant": false,
+      "numeric": {
+        "min": 0.0,
+        "max": 1.0,
+        "mean": 0.544107,
+        "p01": 0.0,
+        "p25": 0.0,
+        "p50": 1.0,
+        "p75": 1.0,
+        "p99": 1.0
+      },
+      "top_values": null,
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "unknown",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "demwinprv2",
+      "key": "demwinprv2",
+      "kind": "numeric",
+      "nulls": 82,
+      "null_rate": 0.058993,
+      "distinct": 2,
+      "constant": false,
+      "numeric": {
+        "min": 0.0,
+        "max": 1.0,
+        "mean": 0.543578,
+        "p01": 0.0,
+        "p25": 0.0,
+        "p50": 1.0,
+        "p75": 1.0,
+        "p99": 1.0
+      },
+      "top_values": null,
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "unknown",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "dmidterm",
+      "key": "dmidterm",
+      "kind": "boolean",
+      "nulls": 0,
+      "null_rate": 0.0,
+      "distinct": 2,
+      "constant": false,
+      "numeric": null,
+      "top_values": [
+        {
+          "value": "1",
+          "count": 714,
+          "share": 0.5137
+        },
+        {
+          "value": "0",
+          "count": 676,
+          "share": 0.4863
+        }
+      ],
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "unknown",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "dpresdem",
+      "key": "dpresdem",
+      "kind": "boolean",
+      "nulls": 0,
+      "null_rate": 0.0,
+      "distinct": 2,
+      "constant": false,
+      "numeric": null,
+      "top_values": [
+        {
+          "value": "0",
+          "count": 850,
+          "share": 0.6115
+        },
+        {
+          "value": "1",
+          "count": 540,
+          "share": 0.3885
+        }
+      ],
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "unknown",
+      "switch": null,
+      "format_issues": []
+    }
+  ]
+}

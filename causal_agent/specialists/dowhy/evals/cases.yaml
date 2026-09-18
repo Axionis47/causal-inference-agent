@@ -1,0 +1,35 @@
+# Adjustment-lane evals. Two positive cases run end to end through the router; the negative case
+# runs the specialist alone from a stored hand-off (handoffs/) so a routing change cannot mask it.
+# Expected values grade the design and the stop, not the exact effect size.
+
+- id: students_prep_course
+  dataset: students
+  question: Did completing the prep course raise math scores?
+  expected:
+    status: done
+    adjustment_set_contains: [lunch, parental_level_of_education]
+    not_in_graph: [reading_score, writing_score]   # other outcome measures: excluded by the specialist, or never handed over by the router
+    estimator_in: [propensity_score_stratification, propensity_score_weighting, propensity_score_matching, linear_regression]
+    effect_sign: {completed_vs_none: positive}
+    placebo_passes: true
+
+- id: marketing_three_promotions
+  dataset: marketing
+  question: Which of the three promotions produced the highest weekly sales?
+  expected:
+    status: done
+    contrasts: 3
+    adjustment_set_subset_of: [marketsize, ageofstore, marketid, week]
+    estimator_in: [linear_regression, propensity_score_stratification, propensity_score_weighting, propensity_score_matching]
+    # promotion 2 sells less than 1 and 3 in this file
+    effect_sign: {"2_vs_1": negative, "3_vs_2": positive}
+    placebo_passes: true
+
+- id: gov_transfers_forced_adjustment
+  dataset: gov_transfers
+  handoff: handoffs/gov_transfers_forced.json
+  question: Did receiving the transfer raise support for the government?
+  expected:
+    status: infeasible
+    stopped_at: assess
+    hard_flags_contain: [overlap, separation]

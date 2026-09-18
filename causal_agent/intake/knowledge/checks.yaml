@@ -1,0 +1,20 @@
+# Thresholds for the interview's claim checks and family probes. Numbers are declarations with a source line.
+# No dataset name appears here.
+
+missing:
+  share_gap: 0.05            # ours: a missing share that differs by more than this across arms is flagged
+takeup:
+  side_gap: 0.10             # ours: take-up must differ by at least this across the cutoff for a cutoff rule to hold
+  strict_share: 0.95         # ours: a rule described as strict is refuted when take-up on the treated side is below this
+cutoff:
+  min_rows_side: 20          # matches specialists/rd/knowledge/checks.yaml sides.min_rows.hard
+arms:
+  min_rows_arm: 20           # matches specialists/dowhy/knowledge/checks.yaml arms.min_per_arm.hard
+probe:
+  min_pre_periods: 2         # matches specialists/did/knowledge/checks.yaml periods (one lead needs two pre-periods)
+  max_treated_units_single: 3   # ours: synthetic control and interrupted series need one or very few treated units
+interview:
+  max_asks: 2                # ours: a claim refuted twice becomes a contradiction and stops being asked
+  group_measured_above: 8    # ours: when more columns than this are open, timing questions are grouped into at most three
+  extract_attempts: 3
+  respond_attempts: 3

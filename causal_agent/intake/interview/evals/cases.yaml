@@ -1,0 +1,60 @@
+# Intake interview evals. Each case is a scripted conversation: the description, then the person's turns in order,
+# and what must hold at the end. The turns are written to answer the frames, not the model's exact wording, so a
+# reply that asks something the turns do not answer shows up as an unsettled claim.
+
+- id: students_two_turns
+  csv: data/raw/students-performance-in-exams/StudentsPerformance.csv
+  context: contexts/students_short.md
+  turns:
+    - "Not a date. The counsellor offered places and each student chose whether to take the course, so it was the student's own choice after an offer. There is no date or period column; the course ran in the six weeks before the exam. No column identifies a row and each student appears exactly once, so it is not a panel. Everything else you read is right: gender, race/ethnicity, parental education and lunch were all fixed before the course, and the three scores were measured after it."
+    - "Nothing outside the file decided who took the course beyond lunch status and parental education, which are both in the file. Students sit alone, so one student's course cannot affect another's marks. There is no separate column that nudged students toward the course. And no, there is no reason the students who took the course would have moved differently apart from the course itself."
+    - "Yes, all of that is right. Nothing outside the file, no nudge column, no spillover."
+  expected:
+    ready: true
+    ready_within_turns: 4
+    claims:
+      assignment.kind: own_choice
+      grain.panel: false
+      col:lunch.when: before
+      col:math_score.when: after
+      unobserved.exists: false
+    surviving_contains: [adjustment]
+    struck_contains: [discontinuity]
+
+- id: senate_cutoff
+  csv: data/raw/senate-incumbency/senate.csv
+  context: contexts/senate_short.md
+  turns:
+    - "All of that is right. Rows are identified by state and year together. A state comes back many times, but each row is a different election, so each row is its own unit, not the same unit measured again: not a panel. No column records receipt separately: a margin at or above zero means the Democrat won and holds the seat, the cutoff is zero on margin, treated side above, and a row exactly at zero counts as a win. Nobody could move the margin after the count. Values are missing where the next election's returns or the candidate's service record were not available; that has nothing to do with who won."
+    - "Nothing outside the file decided who won beyond the votes cast. One state's result does not affect another state's next election. There is no separate column that nudged an election toward a Democratic win."
+    - "Yes, all of that is right. Nothing outside the file, no nudge column, no spillover."
+  expected:
+    ready: true
+    ready_within_turns: 4
+    claims:
+      assignment.kind: cutoff_rule
+      assignment.score_column: margin
+      assignment.cutoff: 0
+      assignment.treated_side: above
+      col:vote.when: after
+    surviving_contains: [discontinuity]
+    struck_contains: [diff_in_diff]
+
+- id: transfers_wrong_side_refuted
+  csv: data/raw/gov-transfers-uruguay/gov_transfers.csv
+  context: contexts/gov_transfers_wrong_side.md
+  turns:
+    - "You are right, I had it backwards: households with a score below zero were eligible and received the transfer, so the treated side is below, and a household exactly at zero did not get it. Everything else you read is right: one row per household, drawn two to one by side of the cutoff, Education and Age fixed before the programme, Participation records receipt, Support measured after. Education is missing for a few households because the survey answer was blank; that has nothing to do with the transfer."
+    - "The score was computed from earlier records and households could not change it. Nothing outside the file decided eligibility beyond the score. One household's transfer does not affect another's answer. There is no separate nudge column."
+    - "Yes, all of that is right."
+  expected:
+    ready: true
+    ready_within_turns: 4
+    refuted_at_turn0: [assignment]
+    refutation_shown: true
+    claims:
+      assignment.kind: cutoff_rule
+      assignment.treated_side: below
+      assignment.treatment_column: Participation
+      sampling.how: by_side
+    surviving_contains: [discontinuity]

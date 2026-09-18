@@ -1,0 +1,23 @@
+# Design checks run after the canonical table exists, before any estimate. Numbers are declarations.
+# hard: the design cannot proceed as it stands.  soft: proceed is allowed, the model must acknowledge it.
+
+units:
+  min_per_group: {hard: 1, soft: 10}      # treated or control units below soft is thin; below hard is no comparison
+
+periods:
+  parallel_untestable_when_pre: 1         # one pre period: the parallel-trends assumption cannot be checked (soft)
+
+pre_trends:
+  # joint test that every pre-period coefficient of the dynamic model is zero; computed when pre >= 2
+  p_value: {soft: 0.10, hard: 0.01}
+
+adoption:
+  staggered_is_hard: true                 # more than one first-treated period stops the built path until staggered entries are wired
+
+# hand-off scope target -> what diff-in-diff identifies
+target_units:
+  average: att
+  on_treated: att
+
+# interpretation gate: the stated effect must match the estimate within this relative tolerance
+effect_tolerance: 0.01

@@ -1,0 +1,25 @@
+# Design checks run after identification, before any estimate. Numbers are declarations.
+# Each check reports a value; the harness flags it soft or hard against these thresholds.
+# hard: the design cannot proceed as it stands.  soft: proceed is allowed, the model must acknowledge it.
+
+arms:
+  min_per_arm: {hard: 20}                 # rows in the smaller arm
+
+overlap:
+  # share of rows whose propensity score lies inside the range both arms cover
+  common_support_share: {soft: 0.95, hard: 0.80}
+  # a score model that separates the arms almost perfectly means treatment is a function of the adjustment set
+  max_auc: {hard: 0.95}
+
+balance:
+  # standardised mean difference between arms, per adjustment variable, before any adjustment
+  smd: {soft: 0.10, hard: 0.25}
+
+# hand-off scope target -> DoWhy target_units
+target_units:
+  average: ate
+  on_treated: att
+  on_untreated: atc
+
+# interpretation gate: the stated effect must match the estimate within this relative tolerance
+effect_tolerance: 0.01

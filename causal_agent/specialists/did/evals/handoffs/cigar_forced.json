@@ -1,0 +1,22 @@
+{
+  "question": "What did California's 1989 tobacco tax do to cigarette sales?",
+  "family": "diff_in_diff",
+  "specialist": "pyfixest",
+  "supported_now": true,
+  "outcome": "sales",
+  "treatment": "state",
+  "scope": {"population_filter": null, "window": "1989 to 1992 against the years before", "contrast": "switch", "target": "on_treated"},
+  "pack_name": "cigar",
+  "relevant_columns": [
+    {"column": "sales", "reason": "the outcome the question names", "cites": ["col:sales.note"]},
+    {"column": "state", "reason": "identifies which state got Proposition 99", "cites": ["change:1.note"]},
+    {"column": "year", "reason": "when; the change took effect in January 1989", "cites": ["change:1.note"]},
+    {"column": "price", "reason": "retail price including the tax the change raised", "cites": ["col:price.note"]},
+    {"column": "pimin", "reason": "cross-border price, a known leak", "cites": ["col:pimin.note"]},
+    {"column": "ndi", "reason": "income in the state and year", "cites": ["col:ndi.note"]},
+    {"column": "pop", "reason": "population", "cites": ["col:pop.note"]},
+    {"column": "cpi", "reason": "national price index, the same for every state in a year", "cites": ["col:cpi.note"]}
+  ],
+  "chosen_assumption": "forced into the diff-in-diff lane: the router would route this to synthetic control because one state got the change",
+  "reasons": [{"reason": "negative eval case", "cites": ["change:1.note"]}]
+}

@@ -1,0 +1,95 @@
+{
+  "dataset": {
+    "profiler_version": "0.1.0",
+    "file": "data/raw/card-krueger-minimum-wage/employment.csv",
+    "file_hash": "83e0bb08dfab7707cd01db8ece557f083ca086382ada78b8325cb2067c1225ca",
+    "rows": 384,
+    "columns": 3,
+    "duplicate_rows": 18,
+    "candidate_keys": [],
+    "grain": null,
+    "time_coverage": null,
+    "entity_summary": null,
+    "co_missing": [],
+    "format_issues": []
+  },
+  "columns": [
+    {
+      "name": "state",
+      "key": "state",
+      "kind": "boolean",
+      "nulls": 0,
+      "null_rate": 0.0,
+      "distinct": 2,
+      "constant": false,
+      "numeric": null,
+      "top_values": [
+        {
+          "value": "1",
+          "count": 309,
+          "share": 0.8047
+        },
+        {
+          "value": "0",
+          "count": 75,
+          "share": 0.1953
+        }
+      ],
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "unknown",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "total_emp_feb",
+      "key": "total_emp_feb",
+      "kind": "numeric",
+      "nulls": 0,
+      "null_rate": 0.0,
+      "distinct": 101,
+      "constant": false,
+      "numeric": {
+        "min": 5.0,
+        "max": 85.0,
+        "mean": 21.006641,
+        "p01": 6.415,
+        "p25": 14.5,
+        "p50": 19.5,
+        "p75": 24.5,
+        "p99": 52.58500000000001
+      },
+      "top_values": null,
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "unknown",
+      "switch": null,
+      "format_issues": []
+    },
+    {
+      "name": "total_emp_nov",
+      "key": "total_emp_nov",
+      "kind": "numeric",
+      "nulls": 0,
+      "null_rate": 0.0,
+      "distinct": 90,
+      "constant": false,
+      "numeric": {
+        "min": 0.0,
+        "max": 60.5,
+        "mean": 20.936198,
+        "p01": 0.0,
+        "p25": 14.25,
+        "p50": 20.0,
+        "p75": 26.5,
+        "p99": 46.670000000000016
+      },
+      "top_values": null,
+      "datetime": null,
+      "observed_sentinels": [],
+      "varies_over": "unknown",
+      "switch": null,
+      "format_issues": []
+    }
+  ]
+}

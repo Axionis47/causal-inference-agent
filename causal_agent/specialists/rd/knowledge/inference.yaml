@@ -1,0 +1,21 @@
+# How uncertainty is computed. Chosen by facts from the shape step, never by the model.
+# Order matters: the first entry whose applies_when holds is used.
+# The point estimate comes from the library's Conventional row and the interval and p-value from its Robust
+# row (bias-corrected estimate with the robust standard error), which is the convention of Calonico, Cattaneo
+# and Titiunik (2014) and of the Foundations chapter 4.3. The library's final vce string is read back and recorded.
+
+cluster_entity:
+  in_words: the dataset declares an entity observed more than once (a state with many elections, a school with many students); errors cluster within it, and the library switches its variance to cluster-robust
+  applies_when: {cluster_column: true}
+  vce: nn
+  cluster: entity
+  point_row: Conventional
+  interval_row: Robust
+
+robust_bc:
+  in_words: independent rows; nearest-neighbour variance with three matches, robust bias-corrected interval
+  applies_when: {cluster_column: false}
+  vce: nn
+  cluster: null
+  point_row: Conventional
+  interval_row: Robust

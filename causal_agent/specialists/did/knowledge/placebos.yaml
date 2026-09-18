@@ -1,0 +1,15 @@
+# Falsification runs after the estimate. Every placebo whose applies_when holds runs; no choice is made.
+# Draw counts are budgets, not judgements. Seeds are set once in the adapter.
+
+placebo_group:
+  in_words: reassign the treated label at random across units and refit; the p-value is the share of reassignments whose effect is at least as large as the observed one
+  applies_when: {units_min: 5}
+  params: {draws: 200}
+  pass_when: {p_value_lt: 0.05}
+  note: with one treated unit this is also the inference method; with many it is a check that the design is not producing effects by chance
+
+placebo_timing:
+  in_words: pretend the change happened in the middle of the pre period, fit on pre-period rows only; the effect should be about zero
+  applies_when: {periods_pre_min: 3}
+  params: {}
+  pass_when: {interval_covers_zero: true}

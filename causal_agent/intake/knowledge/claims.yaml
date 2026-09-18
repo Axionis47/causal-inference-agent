@@ -1,0 +1,190 @@
+# Claims about the world that an analysis rests on. The interview fills them; code checks the ones the data can
+# check; the families read them. Kinds, their fields, the check that can refute each, and the question frame the
+# model writes questions from. Hints describe the world, never a method: no family or method word appears in a
+# hint. Family names appear only under family_needs, which is read by code to build the table.
+
+kinds:
+  grain:
+    about: what one row of the file stands for, and which columns identify it
+    fields:
+      row_is: {type: text}
+      key_columns: {type: columns, optional: true, hint: "the columns that together pick out exactly one row, when the description names them"}
+      panel: {type: bool}   # the same unit appears in more than one period (true), or each unit once (false)
+    check: key_unique
+    frame: what does one row stand for, a person, a household, a county, a store in a week; do any columns together pick out exactly one row; does the same unit come back in more than one period
+    order: 2
+
+  sampling:
+    about: how the rows in the file were chosen
+    fields:
+      how:
+        type: choice
+        options: [whole, by_side, by_arm, by_group, by_period, by_outcome, unknown]
+        about:
+          whole: every unit in the population is in the file
+          by_side: rows were drawn according to which side of a line on a score they fell
+          by_arm: rows were drawn according to whether the unit got the change
+          by_group: rows were drawn by group, region, or type
+          by_period: rows were drawn by period
+          by_outcome: rows were drawn according to how the outcome turned out
+          unknown: the person does not know
+      detail: {type: text, optional: true}
+    check: none
+    frame: were all units kept, or were rows picked by which side of a line they fell on, by whether they got the change, by group, by period, or by how the outcome turned out; show the row count as evidence
+    order: 5
+
+  change:
+    about: what happened, to whom, and when
+    fields:
+      what: {type: text}
+      to_whom: {type: text}
+      when: {type: text}
+      date_column: {type: column, optional: true, hint: "a column of dates or period numbers, only when the file has one"}
+      period_value: {type: text, optional: true}   # the value in date_column at which the change took effect
+    check: date_column_exists
+    frame: what was the change, which units could it reach, and when did it happen; if a column records the period, which value marks when it took effect
+    order: 1
+
+  assignment:
+    about: the rule that decided which units got the change
+    fields:
+      kind:
+        type: choice
+        options: [lottery, cutoff_rule, own_choice, date_by_others, third_party]
+        about:
+          lottery: a random draw decided who got it
+          cutoff_rule: a line on a measured score decided who got it
+          own_choice: the unit decided whether to take it, with or without an offer
+          date_by_others: it reached some units on a date, by a decision made above them, such as a law or a policy for a region
+          third_party: someone else picked the units one by one, not by a draw, a score, or a date
+      rule: {type: text}
+      depends_on: {type: columns, optional: true}   # the columns the decision to give or offer the change depended on, when the person names them
+      treatment_column: {type: column, optional: true, hint: "the column that records who actually got the change or sits in the treated group; name it whenever the description says a column records receipt, even when receipt follows the rule exactly"}
+      treated_level: {type: text, optional: true, hint: "the value in that column that means the unit got the change, exactly as it appears in the file"}
+      score_column: {type: column, optional: true, hint: "for a cutoff rule, the column holding the score the line was drawn on"}
+      cutoff: {type: number, optional: true, hint: "for a cutoff rule, the value of the line in the score's own units"}
+      treated_side: {type: choice, options: [above, below], optional: true}
+      cutoff_value_treated: {type: bool, optional: true}
+      movable: {type: bool, optional: true}   # could a unit change what decided its assignment after seeing the rule
+    check: assignment_matches_data
+    frame: who decided which units got the change and on what basis, a draw, a line on a score, the unit's own choice, a date set by someone else; which columns the decision or the offer depended on; which column records who got it; could a unit have changed what the rule looked at
+    order: 0
+
+  measured:
+    about: one column, what it measures and when it was set relative to the change
+    per_column: true
+    fields:
+      meaning: {type: text}
+      when: {type: choice, options: [before, at, after, unknown]}
+      set_by: {type: text, optional: true}
+      derived_from: {type: columns, optional: true}
+      affected_by_treatment: {type: bool, optional: true}
+    check: before_is_fixed
+    frame: what the column measures, in what units, and whether it was fixed before the change, set at the change, or measured after it; whether the change could have moved it
+    order: 3
+
+  missing:
+    about: why values are missing where they are missing
+    fields:
+      why: {type: text, hint: "why values are missing where they are, in the person's words; 'none' when no column has gaps"}
+    check: missing_by_arm
+    frame: for the columns with gaps, why are values missing, and could the change have affected who has a gap
+    order: 6
+
+  unobserved:
+    about: something that drove both who got the change and the outcome, and is not a column
+    uncheckable: true
+    fields:
+      exists: {type: bool}
+      what: {type: text, optional: true}
+      why_believed: {type: text, optional: true}
+    check: none
+    frame: is there anything not in the file that affected both who got the change and how the outcome turned out; if so what, and why do you think so
+    cues: "'nothing outside the file', 'nothing hidden', 'only what is in the data decided it' mean exists=false; naming a factor not in the file means exists=true with what"
+    order: 7
+
+  exclusion:
+    about: a column that moved who got the change and touches the outcome only through it
+    uncheckable: true
+    fields:
+      exists: {type: bool}
+      column: {type: column, optional: true}
+      why: {type: text, optional: true}
+    check: none
+    frame: is there a column that pushed units toward the change but could not have affected the outcome any other way; if so which, and why
+    cues: "'no nudge', 'no separate column', 'nothing pushed them' mean exists=false; naming such a column means exists=true with column and why"
+    order: 8
+
+  spillover:
+    about: whether treated units could affect untreated ones
+    uncheckable: true
+    fields:
+      possible: {type: bool}
+      why: {type: text, optional: true}
+    check: none
+    frame: could a unit that got the change have affected the outcome of a unit that did not
+    cues: "'units sit alone', 'one does not affect another', 'no spillover' mean possible=false"
+    order: 9
+
+  trend_continues:
+    about: whether, without the change, the groups would have kept moving as they did before it
+    uncheckable: true
+    fields:
+      believed: {type: bool}
+      why: {type: text, optional: true}
+    check: none
+    frame: apart from the change, is there a reason the treated group would have moved differently from the others after that date
+    cues: "'no reason they would have moved differently', 'they would have kept moving together' mean believed=true; naming such a reason means believed=false with why"
+    order: 10
+
+# Which claims each family needs, and for grain and assignment which values fit. A family with a cell that does
+# not fit, or a failed probe, is struck out; the required set is the union over the survivors. Read by code.
+family_needs:
+  adjustment:
+    requires: [grain, sampling, change, assignment, measured, missing, unobserved, spillover]
+    fits:
+      assignment.kind: [lottery, own_choice, third_party, cutoff_rule, date_by_others]
+  diff_in_diff:
+    requires: [grain, sampling, change, assignment, measured, missing, spillover, trend_continues]
+    fits:
+      grain.panel: [true]
+      assignment.kind: [date_by_others, third_party, own_choice]
+  discontinuity:
+    requires: [grain, sampling, change, assignment, measured, missing]
+    fits:
+      assignment.kind: [cutoff_rule]
+  synthetic_control:
+    requires: [grain, sampling, change, assignment, measured, missing, spillover]
+    fits:
+      grain.panel: [true]
+      assignment.kind: [date_by_others, third_party]
+  interrupted_series:
+    requires: [grain, sampling, change, assignment, measured, missing, trend_continues]
+    fits:
+      grain.panel: [true]
+      assignment.kind: [date_by_others, third_party]
+  instrument:
+    requires: [grain, sampling, change, assignment, measured, missing, unobserved, exclusion]
+    fits:
+      assignment.kind: [lottery, own_choice, third_party, cutoff_rule]
+      exclusion.exists: [true]
+
+# Words the reply gate refuses in a question. Family names from the registry are added by code.
+method_words:
+  - regression
+  - difference-in-differences
+  - difference in differences
+  - diff-in-diff
+  - discontinuity
+  - instrumental
+  - instrument variable
+  - propensity
+  - matching
+  - synthetic control
+  - interrupted time series
+  - estimator
+  - confounder
+  - backdoor
+  - identification
+  - causal inference
+  - treatment effect

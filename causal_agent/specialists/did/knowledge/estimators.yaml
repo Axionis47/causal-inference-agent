@@ -1,0 +1,49 @@
+# Estimators are formula shapes over the canonical panel: y, unit, time, treated, post, treat, rel_time.
+# {controls} is filled by the adapter from the Design's control list; never a raw column name here.
+# Fixed effects are written without spaces (unit+time): pyfixest 0.60 splits the fixed-effects string on
+# "+" without stripping, and a spaced spelling breaks its randomisation-inference path.
+# applies_when is keyed on facts from the shape step. rank orders the filtered list, lowest first.
+# also_run names a second shape run beside the primary for the report.
+
+twfe_static:
+  in_words: two-way fixed effects; the treated-times-post indicator's coefficient is the effect on the treated, net of everything fixed within a unit and everything common to a period
+  formula: "y ~ treat{controls} | unit+time"
+  controls_mode: csw0        # each control added cumulatively; the report shows the effect with none, then with each
+  applies_when: {cohorts: [1], periods_pre_min: 1, periods_post_min: 1}
+  assumes: without the change, the treated units would have moved like the control units
+  weak_when: there is one pre period, so that assumption cannot be checked; or one treated unit, so ordinary standard errors mean little
+  prefer_over: {}
+  rank: 1
+  also_run: twfe_dynamic
+
+twfe_dynamic:
+  in_words: the same two-way fixed effects model with one coefficient per period relative to the change, so the pre-period coefficients test parallel trends and the post-period ones show the effect over time
+  formula: "y ~ i(rel_time, treated, ref=-1){controls} | unit+time"
+  controls_mode: plain
+  applies_when: {cohorts: [1], periods_pre_min: 2, periods_post_min: 1}
+  assumes: as twfe_static
+  weak_when: few units, so each period coefficient is noisy
+  prefer_over: {}
+  rank: 2
+
+# Declared for staggered adoption (more than one first-treated period). Not runnable on the five eval
+# datasets, none of which is staggered; exercised in tests on a synthetic staggered panel.
+did2s:
+  in_words: Gardner's two-stage estimator; fits unit and period effects on untreated observations only, then regresses the residual on treatment, which avoids the bias of two-way fixed effects under staggered adoption
+  formula: "did2s"
+  controls_mode: none
+  applies_when: {cohorts_min: 2, periods_pre_min: 1, periods_post_min: 1}
+  assumes: parallel trends across cohorts and no anticipation
+  weak_when: few never-treated units
+  prefer_over: {}
+  rank: 1
+
+lpdid:
+  in_words: local projections; one regression per horizon on clean comparisons, robust to staggered adoption
+  formula: "lpdid"
+  controls_mode: none
+  applies_when: {cohorts_min: 2, periods_pre_min: 2, periods_post_min: 1}
+  assumes: parallel trends across cohorts and no anticipation
+  weak_when: short panels, since each horizon uses fewer rows
+  prefer_over: {}
+  rank: 2

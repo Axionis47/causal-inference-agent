@@ -1,0 +1,261 @@
+claims:
+- kind: assignment
+  key: assignment
+  fields:
+    kind: own_choice
+    rule: The counsellor offered places first to students on free or reduced lunch
+      and to those whose parents hold no degree, then to anyone who asked, and each
+      student chose whether to take the course.
+    depends_on:
+    - lunch
+    - parental level of education
+    treatment_column: test preparation course
+    treated_level: completed
+    movable: true
+  status: confirmed
+  source: user:turn:1
+  evidence:
+  - doc:context
+  - col:lunch
+  - col:parental_level_of_education
+  - col:test_preparation_course
+  - user:turn:1
+  - check:assignment.treatment_varies
+  check_detail: '''test preparation course'' takes 2 values'
+  asked: 0
+  refutations: 0
+- kind: change
+  key: change
+  fields:
+    what: a six-week test preparation course
+    to_whom: students
+    when: before the May 2026 exam
+    date_column: null
+    period_value: null
+  status: confirmed
+  source: user:turn:1
+  evidence:
+  - doc:context
+  - user:turn:1
+  check_detail: null
+  asked: 0
+  refutations: 0
+- kind: grain
+  key: grain
+  fields:
+    row_is: one student's results from the May 2026 exam at one school
+    panel: false
+    key_columns: null
+  status: confirmed
+  source: user:turn:1
+  evidence:
+  - doc:context
+  - user:turn:1
+  check_detail: null
+  asked: 0
+  refutations: 0
+- kind: measured
+  key: col:gender
+  fields:
+    meaning: student's gender
+    when: before
+  status: confirmed
+  source: user:turn:1
+  evidence:
+  - doc:context
+  - col:gender
+  - user:turn:1
+  check_detail: null
+  asked: 0
+  refutations: 0
+- kind: measured
+  key: col:race_ethnicity
+  fields:
+    meaning: the school's own grouping of race/ethnicity
+    when: before
+  status: confirmed
+  source: user:turn:1
+  evidence:
+  - doc:context
+  - col:race_ethnicity
+  - user:turn:1
+  check_detail: null
+  asked: 0
+  refutations: 0
+- kind: measured
+  key: col:parental_level_of_education
+  fields:
+    meaning: highest qualification held by either parent
+    when: before
+  status: confirmed
+  source: user:turn:1
+  evidence:
+  - doc:context
+  - col:parental_level_of_education
+  - user:turn:1
+  check_detail: null
+  asked: 0
+  refutations: 0
+- kind: measured
+  key: col:lunch
+  fields:
+    meaning: student's lunch status (standard or free/reduced)
+    when: after
+  status: confirmed
+  source: user:turn:4
+  evidence:
+  - doc:context
+  - col:lunch
+  - user:turn:1
+  - user:turn:4
+  check_detail: null
+  asked: 0
+  refutations: 0
+- kind: measured
+  key: col:test_preparation_course
+  fields:
+    meaning: whether the student completed the test preparation course
+    when: at
+  status: confirmed
+  source: user:turn:1
+  evidence:
+  - doc:context
+  - col:test_preparation_course
+  - user:turn:1
+  check_detail: null
+  asked: 0
+  refutations: 0
+- kind: measured
+  key: col:math_score
+  fields:
+    meaning: student's math exam mark
+    when: after
+    affected_by_treatment: true
+  status: confirmed
+  source: user:turn:1
+  evidence:
+  - doc:context
+  - col:math_score
+  - user:turn:1
+  check_detail: null
+  asked: 0
+  refutations: 0
+- kind: measured
+  key: col:reading_score
+  fields:
+    meaning: student's reading exam mark
+    when: after
+    affected_by_treatment: true
+  status: confirmed
+  source: user:turn:1
+  evidence:
+  - doc:context
+  - col:reading_score
+  - user:turn:1
+  check_detail: null
+  asked: 0
+  refutations: 0
+- kind: measured
+  key: col:writing_score
+  fields:
+    meaning: student's writing exam mark
+    when: after
+    affected_by_treatment: true
+  status: confirmed
+  source: user:turn:1
+  evidence:
+  - doc:context
+  - col:writing_score
+  - user:turn:1
+  check_detail: null
+  asked: 0
+  refutations: 0
+- kind: sampling
+  key: sampling
+  fields:
+    how: whole
+    detail: every student who sat the May 2026 exam at one school
+  status: confirmed
+  source: user:turn:1
+  evidence:
+  - doc:context
+  - user:turn:1
+  check_detail: null
+  asked: 0
+  refutations: 0
+- kind: missing
+  key: missing
+  fields:
+    why: none
+  status: confirmed
+  source: data
+  evidence:
+  - check:missing.missing_by_arm
+  check_detail: no column has missing values
+  asked: 0
+  refutations: 0
+- kind: unobserved
+  key: unobserved
+  fields:
+    exists: false
+  status: confirmed
+  source: user:turn:3
+  evidence:
+  - user:turn:3
+  check_detail: null
+  asked: 0
+  refutations: 0
+- kind: exclusion
+  key: exclusion
+  fields:
+    exists: false
+  status: confirmed
+  source: user:turn:2
+  evidence:
+  - user:turn:2
+  check_detail: null
+  asked: 0
+  refutations: 0
+- kind: spillover
+  key: spillover
+  fields:
+    possible: false
+  status: confirmed
+  source: user:turn:2
+  evidence:
+  - user:turn:2
+  check_detail: null
+  asked: 0
+  refutations: 0
+- kind: trend_continues
+  key: trend_continues
+  fields:
+    believed: true
+  status: confirmed
+  source: user:turn:2
+  evidence:
+  - user:turn:2
+  check_detail: null
+  asked: 0
+  refutations: 0
+probes:
+- family: adjustment
+  name: arms
+  value: 358.0
+  passed: true
+  detail: 358 treated rows and 642 others; floor 20 an arm
+- family: diff_in_diff
+  name: pre_periods
+  value: null
+  passed: null
+  detail: period column or change period not settled
+- family: synthetic_control
+  name: pre_periods
+  value: null
+  passed: null
+  detail: period column or change period not settled
+- family: interrupted_series
+  name: pre_periods
+  value: null
+  passed: null
+  detail: period column or change period not settled

@@ -1,0 +1,31 @@
+# Falsification runs after the estimate. Every placebo whose applies_when holds runs; no choice is made.
+# Every run reports its effective rows on each side and the rows it dropped. A run with fewer effective
+# rows than checks.yaml effective_rows.min on either side, or whose cutoff is not strictly inside its rows'
+# score range, or a donut that dropped no rows, is uninformative: passed is null, never a failure.
+# Pass rules are written so that a true null effect can pass: an interval rule, and a sign rule only when the
+# primary's own interval excludes zero.
+
+placebo_cutoffs:
+  in_words: an artificial cutoff on each side, at that side's median score, fitted on that side's rows only, where no jump should exist
+  source: Foundations 5.3 (artificial cutoffs above the real one use only treated observations, and below it only control observations)
+  spec: sharp_reduced_form     # always the sharp local linear on assignment, whatever the primary; falsification tests continuity of the outcome, not the ratio, and a fuzzy refit fails on a side where take-up never varies
+  placement: side_median
+  applies_when: {}
+  pass_when: {interval_covers_zero: true}
+
+bandwidth_grid:
+  in_words: the primary refit at the coverage-error bandwidth, the MSE bandwidth, and twice each; the conclusion should not depend on the bandwidth
+  source: Foundations 5.5 (h_CER, h_MSE, 2h_CER, 2h_MSE); holding the bias bandwidth b at the primary's value is ours, because a manual h makes the library reset b = h
+  spec: primary
+  grid: [h_cer, h_mse, 2h_cer, 2h_mse]
+  hold_b: true
+  applies_when: {}
+  pass_when: {interval_overlaps_primary: true, sign_stable_when_primary_excludes_zero: true}
+
+donut:
+  in_words: the primary refit with the rows closest to the cutoff removed; the estimate should not rest on the rows right at the line
+  source: Foundations 5.4; the radii as shares of the bandwidth are ours (the Foundations use radii in score units, which differ by dataset)
+  spec: primary
+  radii_share_of_h: [0.05, 0.10]
+  applies_when: {}
+  pass_when: {interval_overlaps_primary: true, sign_stable_when_primary_excludes_zero: true}

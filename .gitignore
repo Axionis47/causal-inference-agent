@@ -1,0 +1,12 @@
+.env
+.venv/
+.artifacts/
+.langgraph_api/
+__pycache__/
+*.pyc
+.pytest_cache/
+data/generated/
+data/raw/
+data/web/
+web/node_modules/
+web/dist/

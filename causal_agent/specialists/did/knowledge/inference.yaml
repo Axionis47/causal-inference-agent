@@ -1,0 +1,27 @@
+# How uncertainty is computed. Chosen by facts from the shape step, never by the model.
+# Order matters: the first entry whose applies_when holds is used.
+# vcov strings and dicts go straight to pyfixest.
+
+randomisation:
+  in_words: one treated unit; ordinary standard errors mean nothing, so the only honest p-value is how unusual the observed effect is when the treated label is reassigned at random across units
+  applies_when: {units_treated_max: 1}
+  vcov: {CRV1: unit}
+  resample: placebo_group
+  note: report the placebo p-value, not the clustered one
+
+wild_bootstrap:
+  in_words: few treated clusters; a wild cluster bootstrap gives better-sized tests than the clustered formula
+  applies_when: {units_treated_min: 2, units_treated_max: 9, kind: [long]}
+  vcov: {CRV1: unit}
+  resample: wild_bootstrap
+  params: {reps: 999, seed: 7}
+
+cluster_unit:
+  in_words: many units observed over time; errors cluster within a unit
+  applies_when: {units_treated_min: 10, kind: [long]}
+  vcov: {CRV1: unit}
+
+robust_rows:
+  in_words: two measures per row with a synthetic unit id; each row is its own cluster, so heteroskedasticity-robust errors are the same thing
+  applies_when: {kind: [wide]}
+  vcov: hetero
