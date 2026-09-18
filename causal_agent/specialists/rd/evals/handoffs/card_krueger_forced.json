@@ -1,17 +1,200 @@
 {
-  "question": "Did New Jersey's 1992 minimum wage rise reduce fast food employment?",
   "family": "discontinuity",
   "specialist": "rdrobust",
   "supported_now": true,
   "outcome": "total_emp_nov",
   "treatment": "state",
-  "scope": {"population_filter": null, "window": null, "contrast": "switch", "target": "on_treated"},
+  "scope": {
+    "population_filter": null,
+    "window": null,
+    "contrast": "switch",
+    "target": "on_treated"
+  },
   "pack_name": "card_krueger",
   "relevant_columns": [
-    {"column": "total_emp_nov", "reason": "the outcome the question names", "cites": ["col:total_emp_nov.note"]},
-    {"column": "state", "reason": "which restaurants were in New Jersey", "cites": ["col:state.note"]},
-    {"column": "total_emp_feb", "reason": "employment before the rise", "cites": ["col:total_emp_feb.note"]}
+    {
+      "reason": "named in the forced hand-off",
+      "cites": [
+        "col:total_emp_nov.note"
+      ],
+      "column": "total_emp_nov"
+    },
+    {
+      "reason": "named in the forced hand-off",
+      "cites": [
+        "col:state.note"
+      ],
+      "column": "state"
+    },
+    {
+      "reason": "named in the forced hand-off",
+      "cites": [
+        "col:total_emp_feb.note"
+      ],
+      "column": "total_emp_feb"
+    }
   ],
   "chosen_assumption": "forced into the discontinuity lane as the negative case: the notes name a state, not a score with a cutoff",
-  "reasons": [{"reason": "negative eval case", "cites": ["col:state.note"]}]
+  "reasons": [
+    {
+      "reason": "the outcome the question names",
+      "cites": [
+        "col:total_emp_nov.note"
+      ]
+    },
+    {
+      "reason": "the change asked about",
+      "cites": [
+        "col:state.note"
+      ]
+    }
+  ],
+  "question": "Did New Jersey's 1992 minimum wage rise reduce fast food employment?",
+  "intent": "effect_of_change",
+  "why": "forced",
+  "over": {},
+  "csv": "data/raw/card-krueger-minimum-wage/employment.csv",
+  "docs": {
+    "about": "Each row is one fast food restaurant surveyed twice in 1992: once in February and March, before New Jersey raised its minimum wage, and once in November and December, after. Restaurants are Burger King, KFC, Wendy's, and Roy Rogers outlets in New Jersey and in eastern Pennsylvania just across the border. This file is a trimmed version of the original survey, 384 restaurants with the two employment counts and the state. There is no restaurant identifier, and 18 rows repeat exactly, which is plausible with only three columns but means individual restaurants cannot be told apart. Restaurants compete locally but the study treats each as its own unit."
+  },
+  "dataset_facts": {
+    "rows": 384,
+    "columns": 3,
+    "duplicate_rows": 18,
+    "grain": [],
+    "time_coverage": null,
+    "entity_summary": null,
+    "format_issues": []
+  },
+  "grain": {},
+  "sampling": {},
+  "missing": {},
+  "treated_level": null,
+  "control_level": null,
+  "columns": [
+    {
+      "name": "total_emp_nov",
+      "key": "total_emp_nov",
+      "role": "outcome",
+      "meaning": "The same count in November and December 1992, after the change.",
+      "when": "unknown",
+      "set_by": null,
+      "affected_by_treatment": null,
+      "source": "doc:readme.md",
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 90,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": {
+          "min": 0.0,
+          "max": 60.5,
+          "mean": 20.936198,
+          "p01": 0.0,
+          "p25": 14.25,
+          "p50": 20.0,
+          "p75": 26.5,
+          "p99": 46.670000000000016
+        },
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": []
+      }
+    },
+    {
+      "name": "state",
+      "key": "state",
+      "role": "treatment",
+      "meaning": "1 for New Jersey, 0 for Pennsylvania. Where the restaurant is, and therefore whether the wage rise applied to it. Fixed. About 80 percent of rows are New Jersey.",
+      "when": "unknown",
+      "set_by": null,
+      "affected_by_treatment": null,
+      "source": "doc:readme.md",
+      "facts": {
+        "kind": "boolean",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 2,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": null,
+        "top_values": [
+          {
+            "value": "1",
+            "count": 309,
+            "share": 0.8047
+          },
+          {
+            "value": "0",
+            "count": 75,
+            "share": 0.1953
+          }
+        ],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": []
+      }
+    },
+    {
+      "name": "total_emp_feb",
+      "key": "total_emp_feb",
+      "role": "candidate",
+      "meaning": "Full-time equivalent employment in February and March 1992, before the change. Counted as full-time staff plus managers plus half of part-time staff.",
+      "when": "unknown",
+      "set_by": null,
+      "affected_by_treatment": null,
+      "source": "doc:readme.md",
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 101,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": {
+          "min": 5.0,
+          "max": 85.0,
+          "mean": 21.006641,
+          "p01": 6.415,
+          "p25": 14.5,
+          "p50": 19.5,
+          "p75": 24.5,
+          "p99": 52.58500000000001
+        },
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": []
+      }
+    }
+  ],
+  "change": {
+    "what": "New Jersey minimum wage rise, 1 April 1992. New Jersey raised its state minimum wage from 4.25 to 5.05 dollars an hour. Every employer in New Jersey was covered, and none in Pennsylvania, where the minimum stayed at 4.25. The change was a state law, decided by the legislature; which restaurants got it was decided entirely by which side of the state line they sat on. Both waves of the survey bracket the change."
+  },
+  "assignment": {},
+  "beliefs": {},
+  "unknowns": [],
+  "said": [],
+  "probes": [],
+  "claims": {},
+  "design": {
+    "kind": "discontinuity",
+    "score": null,
+    "cutoff": null,
+    "treated_side": null,
+    "cutoff_value_treated": null,
+    "score_fixed_before": null,
+    "movable": null,
+    "takeup": null,
+    "covariates_allowed": [],
+    "cluster": null,
+    "sampled_by_side": false,
+    "cutoff_only": null
+  }
 }

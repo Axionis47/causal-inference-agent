@@ -17,10 +17,10 @@ import pandas as pd
 from langgraph.config import get_stream_writer
 from langgraph.types import Command, Send
 
-from causal_agent.common.contracts import CheckResult, Checks, Contrast, Estimate, Feasibility, Refutation
+from causal_agent.common.addresses import key as _key
+from causal_agent.common.contracts import CheckResult, Checks, Contrast, Estimate, Feasibility, Handoff, RdDesign, Refutation
 from causal_agent.common.llm import structured
-from causal_agent.intake.datasets import ROOT, dataset_entries, load_dataset_pack
-from causal_agent.intake.pack import Pack, _key
+from causal_agent.intake.datasets import ROOT, dataset_entries
 from causal_agent.specialists.rd import adapter, checks as CK, prompts as P, shape as SH
 from causal_agent.specialists.rd.contracts import (
     Bandwidths,
@@ -51,16 +51,6 @@ MAX_PICK_ATTEMPTS = 2
 
 # ------------------------------------------------------------------ helpers
 
-_pack_cache: dict[str, Pack] = {}
-
-
-def _pack(state: SpecialistState) -> Pack:
-    name = state["handoff"].pack_name
-    if name not in _pack_cache:
-        _pack_cache[name] = load_dataset_pack(name)
-    return _pack_cache[name]
-
-
 def _writer():
     try:
         return get_stream_writer()
@@ -77,9 +67,18 @@ def _stop(stage: str, reason: str, facts: list[str], fix: str, extra: dict | Non
     return Command(goto="feasibility", update={"feasibility": f, **(extra or {})})
 
 
-def _card(pack: Pack, key: str) -> str:
-    c = pack.column(key)
-    return c.render() if c else f"[col:{key}] (no card)"
+def _card(h: Handoff, key: str) -> str:
+    return h.brief_text(key)
+
+
+def _block(h: Handoff) -> RdDesign | None:
+    return h.design if isinstance(h.design, RdDesign) else None
+
+
+def _cites(h: Handoff, *addresses: str) -> list[str]:
+    """The claim addresses that resolve in the pack, else the change card."""
+    ok = [a for a in addresses if h.resolve(a)]
+    return ok or ["change:1.note"]
 
 
 def _frame_text(state: SpecialistState) -> str:
@@ -88,6 +87,8 @@ def _frame_text(state: SpecialistState) -> str:
     lines = [f"family: {h.family}; outcome: {h.outcome}; treatment: {h.treatment or 'none named (the change may be the cutoff rule itself)'}; "
              f"filter={s.population_filter or 'none'}; window={s.window or 'none'}; target={s.target}",
              f"assumption the router bet on: {h.chosen_assumption}"]
+    if _block(h):
+        lines.append("what the pack settled:\n" + h.design.render())
     sc = state.get("score")
     if sc and sc.column:
         rule = f"{'at or ' if sc.cutoff_value_treated else ''}{sc.treated_side} {sc.cutoff:g}"
@@ -147,10 +148,11 @@ def _side_rule_identical(col: pd.Series, x_raw: pd.Series, cutoff: float, above:
 def load(state: SpecialistState) -> Command:
     h = state["handoff"]
     entry = dataset_entries()[h.pack_name]
-    raw = pd.read_csv(ROOT / entry["csv"])
+    raw = pd.read_csv(ROOT / (h.csv or entry["csv"]))
     columns = {_key(c): c for c in raw.columns}
     raw.columns = [_key(c) for c in raw.columns]
     t, y = (_key(h.treatment) if h.treatment else None), _key(h.outcome)
+    b = _block(h)
     named = [k for k in dict.fromkeys([y] + ([t] if t else []) + [_key(c.column) for c in h.relevant_columns]) if k]
     missing = [k for k in named if k not in raw.columns]
     if missing:
@@ -160,7 +162,7 @@ def load(state: SpecialistState) -> Command:
     target = _cfg()["target_units"].get(h.scope.target)
     if target is None:
         return _stop("load", f"target '{h.scope.target}' is not supported by this lane", [], "a question asking for the average effect, or the effect on the treated")
-    cluster = _key(entry["entity"][0]) if entry.get("entity") else None
+    cluster = _key(b.cluster) if b and b.cluster else (_key(entry["entity"][0]) if entry.get("entity") else None)
     if cluster and cluster not in raw.columns:
         cluster = None
     run_dir = Path(os.getenv("RUN_DIR", ".artifacts/runs")) / f"{h.pack_name}-rd-{uuid.uuid4().hex[:8]}"
@@ -170,7 +172,7 @@ def load(state: SpecialistState) -> Command:
     _writer()({"load": {"rows": len(raw), "columns": list(raw.columns), "target_units": target, "cluster_column": cluster, "run_dir": str(run_dir)}})
     return Command(goto="score", update={
         "run_dir": str(run_dir), "table_path": str(table_path), "columns": columns, "cluster_column": cluster,
-        "sampled_by_side": bool(entry.get("sampled_by_side", False)), "target_units": target,
+        "sampled_by_side": bool(b.sampled_by_side) if b else bool(entry.get("sampled_by_side", False)), "target_units": target,
         "relate_attempts": 0, "pick_attempts": 0, "relate_errors": {}, "excluded_estimators": [], "check_facts": {},
     })
 
@@ -178,19 +180,34 @@ def load(state: SpecialistState) -> Command:
 # ------------------------------------------------------------------ score (judgement)
 
 
+def _block_score(h: Handoff) -> Score | None:
+    b = _block(h)
+    if not (b and b.score and b.cutoff is not None and b.treated_side):
+        return None
+    tk = b.takeup or {}
+    return Score(column=_key(b.score), cutoff=float(b.cutoff), treated_side=b.treated_side, cutoff_value_treated=True if b.cutoff_value_treated is None else bool(b.cutoff_value_treated),
+                 takeup_column=_key(tk["column"]) if tk.get("column") else None, takeup_level=str(tk["level"]) if tk.get("column") and tk.get("level") is not None else None,
+                 reason="the pack names the score, the cutoff, the treated side, and who took the change up",
+                 cites=_cites(h, "claim:assignment.score_column", "claim:assignment.cutoff", "claim:assignment.treated_side", "claim:assignment.treatment_column"))
+
+
 def score(state: SpecialistState) -> Command:
-    pack = _pack(state)
+    h = state["handoff"]
     t, y, _ = _keys(state)
     table = _table(state)
-    cards = "\n\n".join(c.render() for c in pack.columns)
-    treatment_card = _card(pack, t) if t else "(the hand-off names no treatment column: the change may be the cutoff rule itself)"
+    cards = h.render_columns()
+    treatment_card = _card(h, t) if t else "(the hand-off names no treatment column: the change may be the cutoff rule itself)"
     errors: list[str] = []
     debug = []
-    for _ in range(MAX_MODEL_RETRIES):
-        user = P.SCORE_USER.format(question=_question(state), frame=_frame_text(state), dataset_card=pack.dataset.render(), changes=pack.render_changes(),
-                                   treatment_card=treatment_card, cards=cards, errors=_rejected(errors))
-        parsed, th = structured(Score, P.SCORE_SYSTEM, user, node="score")
-        debug.append(th)
+    block = _block_score(h)
+    for attempt in range(MAX_MODEL_RETRIES + (1 if block else 0)):
+        if block is not None and attempt == 0:  # a fact from the pack; the same checks apply, and the model is asked only if they fail
+            parsed = block
+        else:
+            user = P.SCORE_USER.format(question=_question(state), frame=_frame_text(state), dataset_card=h.render_dataset(), changes=h.render_change(),
+                                       treatment_card=treatment_card, cards=cards, errors=_rejected(errors))
+            parsed, th = structured(Score, P.SCORE_SYSTEM, user, node="score")
+            debug.append(th)
         errors = []
         if parsed.column is None or str(parsed.column).strip().lower() in ("", "null", "none"):
             _writer()({"score": {"column": None, "reason": parsed.reason}})
@@ -204,7 +221,7 @@ def score(state: SpecialistState) -> Command:
         if parsed.takeup_column and parsed.column and parsed.takeup_column == _key(parsed.column):
             parsed.takeup_column, parsed.takeup_level = None, None  # the score cannot record its own take-up: the rule is the change
         for c in parsed.cites:
-            if not pack.resolve(c):
+            if not h.resolve(c):
                 errors.append(f"{c} is not a pack address")
         if parsed.column not in table.columns:
             errors.append(f"{parsed.column!r} is not a column in the file")
@@ -238,6 +255,9 @@ def score(state: SpecialistState) -> Command:
             if not identical and parsed.takeup_column != t:
                 errors.append(f"the hand-off names {t!r} as the treatment and it is not a function of the cutoff; name it as the take-up column with its treated level, or name the score differently")
         if errors:
+            if parsed is block:
+                _writer()({"score": {"pack_block_rejected": errors}})
+                errors = []
             continue
         # facts that end the judgement rather than retry it
         if parsed.takeup_column:
@@ -297,10 +317,10 @@ def shape_table(state: SpecialistState) -> Command:
 
 
 def _relate_sends(state: SpecialistState, candidates: list[str], errors: dict[str, list[str]] | None = None) -> list[Send]:
-    pack = _pack(state)
+    h = state["handoff"]
     errs = errors or {}
     targets = [k for k in candidates if k in errs] if errs else candidates
-    return [Send("relate", RelateTask(question=_question(state), frame=_frame_text(state), column=k, card=_card(pack, k), errors=_rejected(errs.get(k, []))))
+    return [Send("relate", RelateTask(question=_question(state), frame=_frame_text(state), column=k, card=_card(h, k), errors=_rejected(errs.get(k, []))))
             for k in targets]
 
 
@@ -323,13 +343,13 @@ def merge_covariates(state: SpecialistState) -> dict:
     latest: dict[str, CovariateRelation] = {r.column: r for r in state.get("relations") or []}
     tested: list[str] = []
     excluded: list[Excluded] = []
-    pack = _pack(state)
+    h = state["handoff"]
     for k in state.get("candidates") or []:
         r = latest.get(k)
         if r is None:
             continue
-        card = pack.column(k)
-        if card is not None and card.profile.kind == "id":
+        card = h.brief(k)
+        if card is not None and card.facts.kind == "id":
             excluded.append(Excluded(column=k, why="an identifier names a unit; it is not a characteristic that could be continuous or jump at the cutoff"))
             continue
         if r.is_outcome_measure:
@@ -349,7 +369,7 @@ def merge_covariates(state: SpecialistState) -> dict:
 
 
 def verify(state: SpecialistState) -> Command:
-    pack = _pack(state)
+    h = state["handoff"]
     latest: dict[str, CovariateRelation] = {r.column: r for r in state.get("relations") or []}
     errs: dict[str, list[str]] = {}
     for k in state.get("candidates") or []:
@@ -365,7 +385,7 @@ def verify(state: SpecialistState) -> Command:
             if not reason.cites:
                 errs.setdefault(k, []).append("a reason has no citation")
             for c in reason.cites:
-                if not pack.resolve(c):
+                if not h.resolve(c):
                     errs.setdefault(k, []).append(f"{c} is not a pack address")
     attempts = state.get("relate_attempts", 0) + 1
     if errs:
@@ -408,14 +428,14 @@ def _design_text(state: SpecialistState) -> str:
 
 
 def assess(state: SpecialistState) -> Command:
-    pack = _pack(state)
+    h = state["handoff"]
     sc: Score = state["score"]
     checks = Checks(results=state["checks"])
     flags, hard = checks.flags, checks.hard
     argue = set(_cfg().get("argue_from_notes") or [])
     flag_text = "\n".join(f"[{r.address}] {r.level.upper()}: {r.detail}" for r in flags)
     covs: Covariates = state["covariates"]
-    cards = "\n\n".join([_card(pack, sc.column), pack.dataset.render()] + [_card(pack, k) for k in covs.balance_tested])
+    cards = "\n\n".join([_card(h, sc.column), h.render_dataset()] + [_card(h, k) for k in covs.balance_tested])
     check_addresses = {r.address for r in state["checks"]}
     errors: list[str] = []
     debug = []
@@ -423,14 +443,14 @@ def assess(state: SpecialistState) -> Command:
         user = P.ASSESS_USER.format(question=_question(state), design=_design_text(state), flags=flag_text, cards=cards, errors=_rejected(errors))
         parsed, th = structured(DesignAssessment, P.ASSESS_SYSTEM, user, node="assess")
         debug.append(th)
-        errors = [f"{c} is not a check or pack address" for c in parsed.cites if not (c in check_addresses or pack.resolve(c))]
+        errors = [f"{c} is not a check or pack address" for c in parsed.cites if not (c in check_addresses or h.resolve(c))]
         if parsed.action == "proceed":
             if hard:
                 errors.append("proceed is not allowed while a hard flag stands: " + ", ".join(r.address for r in hard))
             missing = [r.address for r in flags if r.address not in parsed.cites]
             if missing:
                 errors.append("proceed does not address: " + ", ".join(missing))
-            if any(r.name in argue for r in flags) and not any(pack.resolve(c) for c in parsed.cites):
+            if any(r.name in argue for r in flags) and not any(h.resolve(c) for c in parsed.cites):
                 errors.append("no note cited for the argument about " + ", ".join(sorted({r.name for r in flags if r.name in argue})) + "; cite the card that says how the score was set or that the covariate was fixed before the change")
         if errors:
             continue
@@ -479,7 +499,7 @@ def pick_estimator(state: SpecialistState) -> Command:
         if parsed.name not in names:
             errors.append(f"{parsed.name!r} is not one of {names}")
         for c in parsed.cites:
-            if not (c in check_addresses or _pack(state).resolve(c)):
+            if not (c in check_addresses or state["handoff"].resolve(c)):
                 errors.append(f"{c} is not a check or pack address")
         if not errors:
             _writer()({"estimator": parsed.model_dump()})
@@ -662,7 +682,7 @@ def placebo(task: PlaceboTask) -> dict:
 def _addresses(state: SpecialistState) -> list[str]:
     d: Design = state["design"]
     c = d.contrast.key
-    out = ["design.assumption", "design.score", "design.bandwidth"] + [r.address for r in d.checks.results]
+    out = ["design.assumption", "design.score", "design.bandwidth"] + [b.address for b in state["handoff"].beliefs.values() if b.known() or b.status == "unknown"] + [r.address for r in d.checks.results]
     for e in state.get("estimates") or []:
         if e.error is None:
             tag = f"estimate:{c}" if e.method == d.estimator else f"estimate:{c}.{e.method}"
@@ -690,6 +710,7 @@ def _material(state: SpecialistState) -> str:
     rule = f"{'at or ' if sc.cutoff_value_treated else ''}{sc.treated_side} {sc.cutoff:g}"
     lines = [
         f"[design.assumption] the design bets on: units just either side of the cutoff are alike in everything except the change; the score's density and every predetermined characteristic are continuous at the cutoff; router's reading: {state['handoff'].chosen_assumption}",
+        *[b.render() for b in state["handoff"].beliefs.values() if b.known() or b.status == "unknown"],
         f"[design.score] score {names.get(sc.column, sc.column)}, treated when {rule}" + (f"; take-up recorded in {names.get(sc.takeup_column, sc.takeup_column)}" if sc.takeup_column else "; treatment is the cutoff rule itself")
         + f"; {d.shape.kind} design; scores run from {d.shape.score_min:.4g} to {d.shape.score_max:.4g}",
         f"[design.bandwidth] estimation bandwidth h = {d.bandwidths.h:.4g} in the score's units (bias bandwidth b = {d.bandwidths.b:.4g}); the effect is estimated from rows within h of the cutoff",

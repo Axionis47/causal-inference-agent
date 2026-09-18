@@ -12,8 +12,10 @@ import pandas as pd
 import pytest
 from langchain_core.messages import AIMessage
 
-from causal_agent.common.contracts import Candidate, Cited, Handoff, Scope
+from causal_agent.common.contracts import Cited, Handoff, Scope
 from causal_agent.common.llm import set_llm
+from causal_agent.desk import handoff as H
+from causal_agent.desk.handoff import forced
 from causal_agent.intake.pack import load_pack
 from causal_agent.intake.profiler import profile
 from causal_agent.specialists.rd import nodes as N
@@ -22,9 +24,8 @@ from causal_agent.specialists.rd.graph import compile_local
 
 
 def handoff(pack: str, outcome: str, treatment: str | None, cols: list[str], cite: str, target: str = "average") -> Handoff:
-    return Handoff(family="discontinuity", specialist="rdrobust", supported_now=True, outcome=outcome, treatment=treatment, scope=Scope(target=target),
-                   pack_name=pack, relevant_columns=[Candidate(column=c, reason="r", cites=[cite]) for c in cols],
-                   chosen_assumption="units just either side of the cutoff are alike", reasons=[Cited(reason="r", cites=[cite])])
+    return forced(pack, "Did crossing the cutoff change the outcome?", "discontinuity", outcome, treatment, cols, scope=Scope(target=target),
+                  assumption="units just either side of the cutoff are alike", cite=cite)
 
 
 URUGUAY = dict(pack="gov_transfers", outcome="Support", treatment="Participation", cols=["Support", "Participation", "Income_Centered", "Education", "Age"], cite="col:income_centered.note")
@@ -99,7 +100,6 @@ def _restore(tmp_path, monkeypatch):
     monkeypatch.setenv("RUN_DIR", str(tmp_path / "runs"))
     yield
     set_llm(None)
-    N._pack_cache.clear()
 
 
 def _run(fake, h, question="Did crossing the cutoff change the outcome?"):
@@ -133,9 +133,9 @@ def make_pack(tmp_path, monkeypatch, name: str, df: pd.DataFrame, rule: str, col
     if entity:
         entry["entity"] = entity
     monkeypatch.setattr(N, "dataset_entries", lambda: {name: entry})
-    monkeypatch.setattr(N, "load_dataset_pack", lambda n: load_pack(n, md, prof))
     monkeypatch.setattr(N, "ROOT", Path("/"))
-    N._pack_cache.clear()
+    monkeypatch.setattr(H, "dataset_entries", lambda: {name: entry})
+    monkeypatch.setattr(H, "load_dataset_pack", lambda n: load_pack(n, md, prof))
 
 
 def sharp_below(n=3000, jump=1.0, seed=1) -> pd.DataFrame:
@@ -518,3 +518,19 @@ def test_raw_columns_named_like_canonical_ones_do_not_collide(tmp_path, monkeypa
     out = _run(fake, handoff("collide", "y", "t", ["x", "y", "t", "received"], "col:x.note"))
     assert out["shape"].kind == "fuzzy" and 0.6 < out["shape"].takeup_right < 0.8
     assert out["specialist_result"]["status"] == "done" and out["design"].estimator == "local_linear_fuzzy"
+
+
+# ------------------------------------------------------------------ the pack's facts end judgements
+
+
+def test_pack_cutoff_block_settles_the_score_without_a_model_call():
+    """senate3 carries claims: margin above zero decides who won, so the lane never asks the model for the score."""
+    h = handoff("senate3", "vote", None, ["vote", "margin", "state", "year"], "col:margin.note")
+    d = h.design
+    assert d.kind == "discontinuity" and d.score == "margin" and d.cutoff == 0.0 and d.treated_side == "above" and d.cutoff_value_treated is True and d.takeup is None
+    assert h.treatment is None and h.assignment["kind"] == "cutoff_rule"
+    fake = FakeLLM(URUGUAY_SCORE, {}, "col:margin.note")
+    out = _run(fake, h)
+    assert fake.calls.count("Score") == 0
+    assert out["score"].column == "margin" and out["score"].cutoff == 0.0 and out["score"].treated_side == "above"
+    assert out["score"].cites[0].startswith("claim:assignment.")

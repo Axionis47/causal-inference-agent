@@ -289,18 +289,10 @@ def handoff(state: RouterState, runtime: Runtime[Context]) -> dict:
         record = _decision_record(state, None)
         _writer()({"handoff": None, "decision_record": record})
         return {"handoff": None, "decision_record": record}
-    h = Handoff(
-        family=d.chosen,
-        specialist=fam.specialist,
-        supported_now=fam.status == "built",
-        outcome=fr.outcome or "",
-        treatment=fr.cause,
-        scope=fr.scope,
-        pack_name=pack.name,
-        relevant_columns=fr.relevant_columns,
-        chosen_assumption=d.chosen_assumption,
-        reasons=[Candidate(column=c.column, reason=c.reason, cites=c.cites) for c in fr.outcome_candidates[:1] + fr.cause_candidates[:1]],
-    )
+    from causal_agent.desk.handoff import build, claims_for
+
+    table, probes = claims_for(pack.name)
+    h = build(question=state["question"], frame=fr, decision=d, family=fam, pack=pack, claims=table, probes=probes)
     record = _decision_record(state, h)
     _writer()({"handoff": h.model_dump(), "decision_record": record})
     return {"handoff": h, "decision_record": record}

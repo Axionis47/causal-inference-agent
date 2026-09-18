@@ -9,8 +9,9 @@ import uuid
 import pytest
 from langchain_core.messages import AIMessage
 
-from causal_agent.common.contracts import Candidate, Cited, Contrast, Handoff, Interpretation, Scope
+from causal_agent.common.contracts import Cited, Contrast, Handoff, Interpretation
 from causal_agent.common.llm import set_llm
+from causal_agent.desk.handoff import forced
 from causal_agent.specialists.dowhy.contracts import Contrasts, DesignAssessment, EstimatorPick, Relation, Revision
 from causal_agent.specialists.dowhy.graph import compile_local
 
@@ -19,24 +20,14 @@ CITE = "col:test_preparation_course.note"
 
 def students_handoff() -> Handoff:
     cols = ["math score", "test preparation course", "lunch", "parental level of education", "gender", "race/ethnicity", "reading score", "writing score"]
-    return Handoff(
-        family="adjustment", specialist="dowhy", supported_now=True, outcome="math score", treatment="test preparation course",
-        scope=Scope(), pack_name="students",
-        relevant_columns=[Candidate(column=c, reason="r", cites=[CITE]) for c in cols],
-        chosen_assumption="nothing beyond lunch and parental education drove both",
-        reasons=[Cited(reason="r", cites=[CITE])],
-    )
+    return forced("students", "Did completing the prep course raise math scores?", "adjustment", "math score", "test preparation course", cols,
+                  assumption="nothing beyond lunch and parental education drove both", cite=CITE)
 
 
 def uruguay_handoff() -> Handoff:
     cols = ["Support", "Participation", "Income_Centered", "Education", "Age"]
-    return Handoff(
-        family="adjustment", specialist="dowhy", supported_now=True, outcome="Support", treatment="Participation",
-        scope=Scope(), pack_name="gov_transfers",
-        relevant_columns=[Candidate(column=c, reason="r", cites=["col:participation.note"]) for c in cols],
-        chosen_assumption="forced into the adjustment lane for the negative case",
-        reasons=[Cited(reason="r", cites=["col:participation.note"])],
-    )
+    return forced("gov_transfers", "Did receiving the transfer raise support for the government?", "adjustment", "Support", "Participation", cols,
+                  assumption="forced into the adjustment lane for the negative case", cite="col:participation.note")
 
 
 # students: how each column relates (what a careful reader of the note would answer)
@@ -234,3 +225,24 @@ def test_router_wires_the_real_specialist():
     assert "freeze_design" in SPECIALISTS["adjustment"].get_graph().nodes
     assert "relate" not in SPECIALISTS["synthetic_control"].get_graph().nodes  # still a stub
     assert len(router_graph.get_graph().nodes) == 16
+
+
+# ------------------------------------------------------------------ the pack's facts end judgements
+
+
+def test_pack_treated_level_settles_the_contrast_without_a_model_call():
+    """students3 carries claims: the assignment names 'completed' as the treated level, so the lane never asks the model for the contrast."""
+    cols = ["math score", "test preparation course", "lunch", "parental level of education", "gender", "race/ethnicity", "reading score", "writing score"]
+    h = forced("students3", "Did completing the prep course raise math scores?", "adjustment", "math score", "test preparation course", cols, cite=CITE)
+    assert h.treated_level == "completed" and h.control_level == "none" and h.design.kind == "adjustment"
+    assert "lunch" in h.design.adjustment_candidates and h.design.unobserved_confounding is False and h.design.voluntary_uptake is True
+    fake = FakeLLM()
+    out = _run(fake, h)
+    assert fake.calls.count("Contrasts") == 0
+    c = out["contrasts"][0]
+    assert c.treated == "completed" and c.control == "none" and "claim:assignment.treated_level" in c.cites
+    assert out["specialist_result"]["status"] == "done", out["specialist_result"].get("feasibility")
+    from causal_agent.specialists.dowhy import nodes as N
+
+    material = N._material(out, c.key)  # the beliefs are in what the interpretation reads, with addresses it may cite
+    assert "[claim:unobserved] nothing outside the file" in material and "claim:unobserved" in N._addresses(out, c.key)

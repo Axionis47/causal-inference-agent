@@ -9,16 +9,15 @@ import pandas as pd
 import pytest
 from langchain_core.messages import AIMessage
 
-from causal_agent.common.contracts import Candidate, Cited, Handoff, Interpretation, Scope
+from causal_agent.common.contracts import Cited, Handoff, Interpretation
 from causal_agent.common.llm import set_llm
+from causal_agent.desk.handoff import forced
 from causal_agent.specialists.did.contracts import ControlRelation, DesignAssessment, EstimatorPick, Groups, Periods, Revision
 from causal_agent.specialists.did.graph import compile_local
 
 
 def handoff(pack: str, outcome: str, treatment: str, cols: list[str], cite: str) -> Handoff:
-    return Handoff(family="diff_in_diff", specialist="pyfixest", supported_now=True, outcome=outcome, treatment=treatment, scope=Scope(),
-                   pack_name=pack, relevant_columns=[Candidate(column=c, reason="r", cites=[cite]) for c in cols],
-                   chosen_assumption="parallel movement absent the change", reasons=[Cited(reason="r", cites=[cite])])
+    return forced(pack, "q", "diff_in_diff", outcome, treatment, cols, assumption="parallel movement absent the change", cite=cite)
 
 
 CK = dict(pack="card_krueger", outcome="total_emp_nov", treatment="state", cols=["state", "total_emp_feb", "total_emp_nov"], cite="col:state.note")
@@ -225,3 +224,38 @@ def test_router_wires_both_specialists():
     assert "shape_table" in SPECIALISTS["diff_in_diff"].get_graph().nodes
     assert "freeze_design" in SPECIALISTS["adjustment"].get_graph().nodes and "shape_table" not in SPECIALISTS["adjustment"].get_graph().nodes
     assert len(router_graph.get_graph().nodes) == 16
+
+
+# ------------------------------------------------------------------ the pack's facts end judgements
+
+
+def test_pack_panel_block_settles_groups_and_periods_without_a_model_call():
+    """No shipped dataset carries diff-in-diff claims yet, so the claims are built here and handed to the builder directly."""
+    from causal_agent.common.contracts import Candidate, FamilyDecision, QuestionFrame, Scope
+    from causal_agent.desk.handoff import build
+    from causal_agent.intake.datasets import load_dataset_pack
+    from causal_agent.intake.interview.contracts import Claim, ClaimTable
+    from causal_agent.knowledge import load_registry
+
+    table = ClaimTable(claims={
+        "grain": Claim(kind="grain", key="grain", fields={"row_is": "one state in one year", "key_columns": ["state", "year"], "panel": True}, status="confirmed", source="user:turn:1"),
+        "change": Claim(kind="change", key="change", fields={"what": "Proposition 99", "to_whom": "California", "when": "January 1989", "date_column": "year", "period_value": "89"}, status="confirmed", source="user:turn:1"),
+        "assignment": Claim(kind="assignment", key="assignment", fields={"kind": "date_by_others", "rule": "a ballot vote in one state", "treatment_column": "state", "treated_level": "5"}, status="confirmed", source="user:turn:1"),
+        "trend_continues": Claim(kind="trend_continues", key="trend_continues", fields={"believed": True, "why": "sales moved together before 1989"}, status="confirmed", source="user:turn:2"),
+    })
+    cols = ["sales", "state", "year", "price", "pimin", "ndi", "pop", "cpi"]
+    frame = QuestionFrame(intent="effect_of_change", decision_served="", outcome_candidates=[Candidate(column="sales", reason="r", cites=["col:sales.note"])],
+                          cause_candidates=[Candidate(column="state", reason="r", cites=["col:state.note"])], scope=Scope(target="on_treated"),
+                          relevant_columns=[Candidate(column=c, reason="r", cites=["col:state.note"]) for c in cols], reasons=[])
+    decision = FamilyDecision(admissible=["diff_in_diff"], chosen="diff_in_diff", chosen_assumption="parallel movement absent the change", why_over_alternatives="only one", rejected=[])
+    fam = next(f for f in load_registry() if f.name == "diff_in_diff")
+    h = build(question="q", frame=frame, decision=decision, family=fam, pack=load_dataset_pack("cigar"), claims=table)
+    d = h.design
+    assert d.kind == "diff_in_diff" and d.unit == "state" and d.time == "year" and d.change_period == "89" and d.treated_group == {"column": "state", "level": "5"}
+    assert d.trend_belief is not None and d.trend_belief.value is True
+    assert h.resolve("claim:change.period_value") and h.resolve("claim:trend_continues")
+    fake = FakeLLM(SCRIPT["cigar"], CIGAR["cite"], assess_script=[DesignAssessment(action="stop", reason="pre-trends", cites=[])])
+    out = _run(fake, h)
+    assert fake.calls.count("Groups") == 0 and fake.calls.count("Periods") == 0
+    assert out["groups"].column == "state" and out["groups"].treated_level == "5" and out["periods"].first_post == "89"
+    assert out["groups"].cites == ["claim:assignment.treatment_column", "claim:assignment.treated_level"]

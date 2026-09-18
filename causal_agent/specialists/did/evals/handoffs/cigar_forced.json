@@ -1,22 +1,422 @@
 {
-  "question": "What did California's 1989 tobacco tax do to cigarette sales?",
   "family": "diff_in_diff",
   "specialist": "pyfixest",
   "supported_now": true,
   "outcome": "sales",
   "treatment": "state",
-  "scope": {"population_filter": null, "window": "1989 to 1992 against the years before", "contrast": "switch", "target": "on_treated"},
+  "scope": {
+    "population_filter": null,
+    "window": "1989 to 1992 against the years before",
+    "contrast": "switch",
+    "target": "on_treated"
+  },
   "pack_name": "cigar",
   "relevant_columns": [
-    {"column": "sales", "reason": "the outcome the question names", "cites": ["col:sales.note"]},
-    {"column": "state", "reason": "identifies which state got Proposition 99", "cites": ["change:1.note"]},
-    {"column": "year", "reason": "when; the change took effect in January 1989", "cites": ["change:1.note"]},
-    {"column": "price", "reason": "retail price including the tax the change raised", "cites": ["col:price.note"]},
-    {"column": "pimin", "reason": "cross-border price, a known leak", "cites": ["col:pimin.note"]},
-    {"column": "ndi", "reason": "income in the state and year", "cites": ["col:ndi.note"]},
-    {"column": "pop", "reason": "population", "cites": ["col:pop.note"]},
-    {"column": "cpi", "reason": "national price index, the same for every state in a year", "cites": ["col:cpi.note"]}
+    {
+      "reason": "named in the forced hand-off",
+      "cites": [
+        "col:sales.note"
+      ],
+      "column": "sales"
+    },
+    {
+      "reason": "named in the forced hand-off",
+      "cites": [
+        "col:state.note"
+      ],
+      "column": "state"
+    },
+    {
+      "reason": "named in the forced hand-off",
+      "cites": [
+        "col:year.note"
+      ],
+      "column": "year"
+    },
+    {
+      "reason": "named in the forced hand-off",
+      "cites": [
+        "col:price.note"
+      ],
+      "column": "price"
+    },
+    {
+      "reason": "named in the forced hand-off",
+      "cites": [
+        "col:pimin.note"
+      ],
+      "column": "pimin"
+    },
+    {
+      "reason": "named in the forced hand-off",
+      "cites": [
+        "col:ndi.note"
+      ],
+      "column": "ndi"
+    },
+    {
+      "reason": "named in the forced hand-off",
+      "cites": [
+        "col:pop.note"
+      ],
+      "column": "pop"
+    },
+    {
+      "reason": "named in the forced hand-off",
+      "cites": [
+        "col:cpi.note"
+      ],
+      "column": "cpi"
+    }
   ],
   "chosen_assumption": "forced into the diff-in-diff lane: the router would route this to synthetic control because one state got the change",
-  "reasons": [{"reason": "negative eval case", "cites": ["change:1.note"]}]
+  "reasons": [
+    {
+      "reason": "the outcome the question names",
+      "cites": [
+        "col:sales.note"
+      ]
+    },
+    {
+      "reason": "the change asked about",
+      "cites": [
+        "col:state.note"
+      ]
+    }
+  ],
+  "question": "What did California's 1989 tobacco tax do to cigarette sales?",
+  "intent": "effect_of_change",
+  "why": "forced",
+  "over": {},
+  "csv": "data/raw/cigarette-sales-prop99/Cigar.csv",
+  "docs": {
+    "about": "Each row is one US state in one year. 46 states are observed every year from 1963 to 1992, 1,380 rows, no gaps. Years are written as two digits, 63 to 92. States are numbered 1 to 51 in alphabetical order of the standard state list with five states missing, so the numbers are not contiguous; state 5 is California. The first column is an unnamed row index left over from an R export and carries no information. States are treated as separate markets, though cigarettes bought in a neighbouring state with lower prices are a known leak, which is why the minimum neighbouring price is included. Data are Baltagi and Levin's panel, distributed in the Ecdat package."
+  },
+  "dataset_facts": {
+    "rows": 1380,
+    "columns": 10,
+    "duplicate_rows": 0,
+    "grain": [
+      "Unnamed: 0"
+    ],
+    "time_coverage": {
+      "column": "year",
+      "first": "63",
+      "last": "92",
+      "inferred_frequency": "integer period, step 1",
+      "gaps": 0
+    },
+    "entity_summary": {
+      "columns": [
+        "state"
+      ],
+      "entities": 46,
+      "rows_per_entity_min": 30,
+      "rows_per_entity_median": 30.0,
+      "rows_per_entity_max": 30
+    },
+    "format_issues": []
+  },
+  "grain": {},
+  "sampling": {},
+  "missing": {},
+  "treated_level": null,
+  "control_level": null,
+  "columns": [
+    {
+      "name": "sales",
+      "key": "sales",
+      "role": "outcome",
+      "meaning": "Packs sold per capita in the state that year, from tax-paid sales. The year's result.",
+      "when": "unknown",
+      "set_by": null,
+      "affected_by_treatment": null,
+      "source": "doc:readme.md",
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 689,
+        "constant": false,
+        "varies_over": "both",
+        "numeric": {
+          "min": 53.4,
+          "max": 297.9,
+          "mean": 123.95087,
+          "p01": 66.458,
+          "p25": 107.9,
+          "p50": 121.2,
+          "p75": 133.2,
+          "p99": 250.8080000000002
+        },
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": []
+      }
+    },
+    {
+      "name": "state",
+      "key": "state",
+      "role": "treatment",
+      "meaning": "State number, see above. Fixed.",
+      "when": "unknown",
+      "set_by": null,
+      "affected_by_treatment": null,
+      "source": "doc:readme.md",
+      "facts": {
+        "kind": "id",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 46,
+        "constant": false,
+        "varies_over": "entity",
+        "numeric": {
+          "min": 1.0,
+          "max": 51.0,
+          "mean": 26.826087,
+          "p01": 1.0,
+          "p25": 15.0,
+          "p50": 26.5,
+          "p75": 40.0,
+          "p99": 51.0
+        },
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": []
+      }
+    },
+    {
+      "name": "year",
+      "key": "year",
+      "role": "time",
+      "meaning": "Two-digit year, 63 to 92.",
+      "when": "unknown",
+      "set_by": null,
+      "affected_by_treatment": null,
+      "source": "doc:readme.md",
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 30,
+        "constant": false,
+        "varies_over": "time",
+        "numeric": {
+          "min": 63.0,
+          "max": 92.0,
+          "mean": 77.5,
+          "p01": 63.0,
+          "p25": 70.0,
+          "p50": 77.5,
+          "p75": 85.0,
+          "p99": 92.0
+        },
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": []
+      }
+    },
+    {
+      "name": "price",
+      "key": "price",
+      "role": "candidate",
+      "meaning": "Average retail price of a pack in that state and year, in cents, including taxes. Set by manufacturers, retailers, and state tax, and moves with them.",
+      "when": "unknown",
+      "set_by": null,
+      "affected_by_treatment": null,
+      "source": "doc:readme.md",
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 767,
+        "constant": false,
+        "varies_over": "both",
+        "numeric": {
+          "min": 23.4,
+          "max": 201.9,
+          "mean": 68.699928,
+          "p01": 24.7,
+          "p25": 34.775,
+          "p50": 52.3,
+          "p75": 98.1,
+          "p99": 181.57600000000022
+        },
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": []
+      }
+    },
+    {
+      "name": "pimin",
+      "key": "pimin",
+      "role": "candidate",
+      "meaning": "Lowest average price among the state's neighbouring states, in cents. A measure of how cheap it is to buy across the border.",
+      "when": "unknown",
+      "set_by": null,
+      "affected_by_treatment": null,
+      "source": "doc:readme.md",
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 466,
+        "constant": false,
+        "varies_over": "both",
+        "numeric": {
+          "min": 23.4,
+          "max": 178.5,
+          "mean": 62.899275,
+          "p01": 24.1,
+          "p25": 31.975,
+          "p50": 46.4,
+          "p75": 90.5,
+          "p99": 164.4
+        },
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": []
+      }
+    },
+    {
+      "name": "ndi",
+      "key": "ndi",
+      "role": "candidate",
+      "meaning": "Per capita disposable income in the state, in current dollars.",
+      "when": "unknown",
+      "set_by": null,
+      "affected_by_treatment": null,
+      "source": "doc:readme.md",
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 1376,
+        "constant": false,
+        "varies_over": "both",
+        "numeric": {
+          "min": 1322.5729775,
+          "max": 23074.0,
+          "mean": 7525.023022,
+          "p01": 1719.151851245,
+          "p25": 3327.8691327,
+          "p50": 6281.2008085,
+          "p75": 11024.109942,
+          "p99": 19786.110000000008
+        },
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": []
+      }
+    },
+    {
+      "name": "pop",
+      "key": "pop",
+      "role": "candidate",
+      "meaning": "State population in thousands.",
+      "when": "unknown",
+      "set_by": null,
+      "affected_by_treatment": null,
+      "source": "doc:readme.md",
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 1247,
+        "constant": false,
+        "varies_over": "both",
+        "numeric": {
+          "min": 319.0,
+          "max": 30703.3,
+          "mean": 4537.113188,
+          "p01": 391.79,
+          "p25": 1053.0,
+          "p50": 3174.0,
+          "p75": 5280.25,
+          "p99": 22393.800000000014
+        },
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": []
+      }
+    },
+    {
+      "name": "cpi",
+      "key": "cpi",
+      "role": "candidate",
+      "meaning": "National consumer price index, 1983 equals 100. Same for every state in a year.",
+      "when": "unknown",
+      "set_by": null,
+      "affected_by_treatment": null,
+      "source": "doc:readme.md",
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 30,
+        "constant": false,
+        "varies_over": "time",
+        "numeric": {
+          "min": 30.6,
+          "max": 140.3,
+          "mean": 73.596667,
+          "p01": 30.6,
+          "p25": 38.8,
+          "p50": 62.900000000000006,
+          "p75": 107.6,
+          "p99": 140.3
+        },
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": []
+      }
+    }
+  ],
+  "change": {
+    "what": "California Proposition 99, effective January 1989. California voters passed a 25 cent per pack tax increase, with the revenue funding an anti-smoking campaign. It applied to the whole state and no other state adopted anything comparable in the period. It was decided by a ballot vote, and which state got it was simply California. The file has 26 years before the change and 4 after. Other states raised their own taxes by smaller amounts at various times, which shows up in the price column."
+  },
+  "assignment": {},
+  "beliefs": {},
+  "unknowns": [],
+  "said": [],
+  "probes": [],
+  "claims": {},
+  "design": {
+    "kind": "diff_in_diff",
+    "unit": "state",
+    "time": "year",
+    "period_kind": "integer",
+    "change_period": null,
+    "treated_group": {},
+    "staggered": null,
+    "never_treated_exists": null,
+    "pre_periods": null,
+    "post_periods": null,
+    "controls_allowed": [
+      "price",
+      "pimin",
+      "ndi",
+      "pop",
+      "cpi"
+    ],
+    "cluster_level": "state",
+    "trend_belief": null,
+    "spillover": null
+  }
 }

@@ -16,10 +16,10 @@ import pandas as pd
 from langgraph.config import get_stream_writer
 from langgraph.types import Command, Send
 
-from causal_agent.common.contracts import CheckResult, Checks, Contrast, Estimate, Feasibility, Interpretation, Refutation
+from causal_agent.common.addresses import key as _key
+from causal_agent.common.contracts import CheckResult, Checks, Contrast, DidDesign, Estimate, Feasibility, Handoff, Interpretation, Refutation
 from causal_agent.common.llm import structured
-from causal_agent.intake.datasets import ROOT, dataset_entries, load_dataset_pack
-from causal_agent.intake.pack import Pack, _key
+from causal_agent.intake.datasets import ROOT, dataset_entries
 from causal_agent.specialists.did import adapter, checks as CK, prompts as P, shape as SH
 from causal_agent.specialists.did.contracts import (
     ControlRelation,
@@ -51,16 +51,6 @@ MAX_LEVELS = 100  # levels shown to the model; a level list cut short once hid C
 
 # ------------------------------------------------------------------ helpers
 
-_pack_cache: dict[str, Pack] = {}
-
-
-def _pack(state: SpecialistState) -> Pack:
-    name = state["handoff"].pack_name
-    if name not in _pack_cache:
-        _pack_cache[name] = load_dataset_pack(name)
-    return _pack_cache[name]
-
-
 def _writer():
     try:
         return get_stream_writer()
@@ -81,9 +71,18 @@ def _feas(stage: str, reason: str, facts: list[str], fix: str) -> Feasibility:
     return Feasibility(stage=stage, reason=reason, facts=facts, what_would_fix=fix)
 
 
-def _card(pack: Pack, key: str) -> str:
-    c = pack.column(key)
-    return c.render() if c else f"[col:{key}] (no card)"
+def _card(h: Handoff, key: str) -> str:
+    return h.brief_text(key)
+
+
+def _block(h: Handoff) -> DidDesign | None:
+    return h.design if isinstance(h.design, DidDesign) else None
+
+
+def _cites(h: Handoff, *addresses: str) -> list[str]:
+    """The claim addresses that resolve in the pack, else the change card."""
+    ok = [a for a in addresses if h.resolve(a)]
+    return ok or ["change:1.note"]
 
 
 def _frame_text(state: SpecialistState) -> str:
@@ -92,6 +91,8 @@ def _frame_text(state: SpecialistState) -> str:
     g, p = state.get("groups"), state.get("periods")
     lines = [f"family: {h.family}; outcome: {h.outcome}; treatment: {h.treatment}; filter={s.population_filter or 'none'}; window={s.window or 'none'}; target={s.target}",
              f"assumption the router bet on: {h.chosen_assumption}"]
+    if _block(h):
+        lines.append("what the pack settled:\n" + h.design.render())
     if g:
         lines.append(f"groups: {g.column} = {g.treated_level!r} treated, other levels control")
     if p:
@@ -124,12 +125,13 @@ def _sorted_levels(col: pd.Series) -> list:
 def load(state: SpecialistState) -> Command:
     h = state["handoff"]
     entry = dataset_entries()[h.pack_name]
-    raw = pd.read_csv(ROOT / entry["csv"])
+    raw = pd.read_csv(ROOT / (h.csv or entry["csv"]))
     columns = {_key(c): c for c in raw.columns}
     raw.columns = [_key(c) for c in raw.columns]
     t, y = _key(h.treatment or ""), _key(h.outcome)
     wanted = [k for k in dict.fromkeys([t, y] + [_key(c.column) for c in h.relevant_columns]) if k]
-    unit_col = _key(entry["entity"][0]) if entry.get("entity") else None
+    b = _block(h)
+    unit_col = _key(b.unit) if b and b.unit else (_key(entry["entity"][0]) if entry.get("entity") else None)
     if unit_col and unit_col in raw.columns and unit_col not in wanted:
         wanted.append(unit_col)
     missing = [k for k in wanted if k not in raw.columns]
@@ -158,17 +160,30 @@ def load(state: SpecialistState) -> Command:
 # ------------------------------------------------------------------ groups (judgement)
 
 
+def _block_groups(h: Handoff) -> Groups | None:
+    b = _block(h)
+    tg = b.treated_group if b else {}
+    if not (tg.get("column") and tg.get("level") is not None):
+        return None
+    return Groups(column=_key(tg["column"]), treated_level=str(tg["level"]), reason="the pack names the column and the level that mean the unit got the change",
+                  cites=_cites(h, "claim:assignment.treatment_column", "claim:assignment.treated_level"))
+
+
 def groups(state: SpecialistState) -> dict:
-    pack = _pack(state)
+    h = state["handoff"]
     t, _, _ = _keys(state)
     table_cols = set(pd.read_csv(state["table_path"], nrows=0).columns)
     errors: list[str] = []
     debug = []
-    for _ in range(MAX_MODEL_RETRIES):
-        user = P.GROUPS_USER.format(question=_question(state), frame=_frame_text(state), dataset_card=pack.dataset.render(), changes=pack.render_changes(),
-                                    treatment_card=_card(pack, t), levels=", ".join(repr(v) for v in state["group_levels"])) + _rejected(errors)
-        parsed, th = structured(Groups, P.GROUPS_SYSTEM, user, node="groups")
-        debug.append(th)
+    block = _block_groups(h)
+    for attempt in range(MAX_MODEL_RETRIES + (1 if block else 0)):
+        if block is not None and attempt == 0:  # a fact from the pack; the same checks apply, and the model is asked only if they fail
+            parsed = block
+        else:
+            user = P.GROUPS_USER.format(question=_question(state), frame=_frame_text(state), dataset_card=h.render_dataset(), changes=h.render_change(),
+                                        treatment_card=_card(h, t), levels=", ".join(repr(v) for v in state["group_levels"])) + _rejected(errors)
+            parsed, th = structured(Groups, P.GROUPS_SYSTEM, user, node="groups")
+            debug.append(th)
         parsed.column = _key(parsed.column)
         errors = []
         if parsed.column not in table_cols:
@@ -181,11 +196,14 @@ def groups(state: SpecialistState) -> dict:
             elif len(observed) < 2:
                 errors.append(f"{parsed.column!r} has a single level; nothing to compare")
         for c in parsed.cites:
-            if not pack.resolve(c):
+            if not h.resolve(c):
                 errors.append(f"{c} is not a pack address")
         if not errors:
             _writer()({"groups": parsed.model_dump()})
             return {"groups": parsed, "debug": debug}
+        if parsed is block:
+            _writer()({"groups": {"pack_block_rejected": errors}})
+            errors = []
     return {"feasibility": _feas("groups", "could not name who got the change", errors, "a column and level the notes tie to the change"), "debug": debug}
 
 
@@ -196,19 +214,32 @@ def after_groups(state: SpecialistState) -> str:
 # ------------------------------------------------------------------ periods (judgement)
 
 
+def _block_periods(h: Handoff) -> Periods | None:
+    b = _block(h)
+    if not (b and b.time and b.change_period):
+        return None
+    return Periods(kind="long", time_column=_key(b.time), first_post=str(b.change_period), window_start=None, window_end=None,
+                   reason="the pack names the period column and the first period at or after the change",
+                   cites=_cites(h, "claim:change.date_column", "claim:change.period_value"))
+
+
 def periods(state: SpecialistState) -> dict:
-    pack = _pack(state)
+    h = state["handoff"]
     g: Groups = state["groups"]
     _, y, rel = _keys(state)
-    time_cards = "\n\n".join(_card(pack, k) for k in rel if k not in (g.column,))
+    time_cards = "\n\n".join(_card(h, k) for k in rel if k not in (g.column,))
     errors: list[str] = []
     debug = []
     table_cols = set(pd.read_csv(state["table_path"], nrows=0).columns)
-    for _ in range(MAX_MODEL_RETRIES):
-        user = P.PERIODS_USER.format(question=_question(state), changes=pack.render_changes(), dataset_card=pack.dataset.render(),
-                                     outcome_card=_card(pack, y), time_cards=time_cards or "(none besides the outcome)") + _rejected(errors)
-        parsed, th = structured(Periods, P.PERIODS_SYSTEM, user, node="periods")
-        debug.append(th)
+    block = _block_periods(h)
+    for attempt in range(MAX_MODEL_RETRIES + (1 if block else 0)):
+        if block is not None and attempt == 0:
+            parsed = block
+        else:
+            user = P.PERIODS_USER.format(question=_question(state), changes=h.render_change(), dataset_card=h.render_dataset(),
+                                         outcome_card=_card(h, y), time_cards=time_cards or "(none besides the outcome)") + _rejected(errors)
+            parsed, th = structured(Periods, P.PERIODS_SYSTEM, user, node="periods")
+            debug.append(th)
         errors = []
         if parsed.kind == "long":
             parsed.time_column = _key(parsed.time_column or "")
@@ -222,11 +253,14 @@ def periods(state: SpecialistState) -> dict:
                 if c not in table_cols:
                     errors.append(f"{c!r} is not in the table")
         for c in parsed.cites:
-            if not pack.resolve(c):
+            if not h.resolve(c):
                 errors.append(f"{c} is not a pack address")
         if not errors:
             _writer()({"periods": parsed.model_dump(exclude_none=True)})
             return {"periods": parsed, "debug": debug}
+        if parsed is block:
+            _writer()({"periods": {"pack_block_rejected": errors}})
+            errors = []
     return {"feasibility": _feas("periods", "could not locate before and after", errors, "a time column or a before and an after measure the notes describe"), "debug": debug}
 
 
@@ -259,10 +293,10 @@ def shape_table(state: SpecialistState) -> Command:
 
 
 def _relate_sends(state: SpecialistState, candidates: list[str], errors: dict[str, list[str]] | None = None) -> list[Send]:
-    pack = _pack(state)
+    h = state["handoff"]
     errs = errors or {}
     targets = [k for k in candidates if k in errs] if errs else candidates
-    return [Send("relate", RelateTask(question=_question(state), frame=_frame_text(state), column=k, card=_card(pack, k), errors=_rejected(errs.get(k, []))))
+    return [Send("relate", RelateTask(question=_question(state), frame=_frame_text(state), column=k, card=_card(h, k), errors=_rejected(errs.get(k, []))))
             for k in targets]
 
 
@@ -287,7 +321,7 @@ def relate(task: RelateTask) -> dict:
 
 
 def merge_controls(state: SpecialistState) -> dict:
-    pack = _pack(state)
+    h = state["handoff"]
     shape = state["shape"]
     latest: dict[str, ControlRelation] = {r.column: r for r in state.get("relations") or []}
     included: list[str] = []
@@ -297,8 +331,8 @@ def merge_controls(state: SpecialistState) -> dict:
         r = latest.get(k)
         if r is None:
             continue
-        card = pack.column(k)
-        varies = card.profile.varies_over if card else None
+        card = h.brief(k)
+        varies = card.facts.varies_over if card else None
         # facts first: a column the fixed effects absorb is never a control, whatever the model said
         if shape.kind == "wide":
             dropped.append(Excluded(column=k, why="one row per unit in a two-period table; absorbed by the unit effects"))
@@ -331,7 +365,7 @@ def merge_controls(state: SpecialistState) -> dict:
 
 
 def verify(state: SpecialistState) -> Command:
-    pack = _pack(state)
+    h = state["handoff"]
     latest: dict[str, ControlRelation] = {r.column: r for r in state.get("relations") or []}
     errs: dict[str, list[str]] = {}
     for k in _candidates(state):
@@ -347,7 +381,7 @@ def verify(state: SpecialistState) -> Command:
             if not reason.cites:
                 errs.setdefault(k, []).append("a reason has no citation")
             for c in reason.cites:
-                if not pack.resolve(c):
+                if not h.resolve(c):
                     errs.setdefault(k, []).append(f"{c} is not a pack address")
     attempts = state.get("relate_attempts", 0) + 1
     if errs:
@@ -403,7 +437,7 @@ def assess(state: SpecialistState) -> Command:
                 if rv.column not in candidates:
                     errors.append(f"revision names {rv.column!r}, which is not a candidate control; candidates: {sorted(candidates)}")
         for c in parsed.cites:
-            if not (any(c == r.address for r in state["checks"]) or _pack(state).resolve(c)):
+            if not (any(c == r.address for r in state["checks"]) or state["handoff"].resolve(c)):
                 errors.append(f"{c} is not a check or pack address")
         if errors:
             continue
@@ -451,7 +485,7 @@ def pick_estimator(state: SpecialistState) -> Command:
         if parsed.name not in names:
             errors.append(f"{parsed.name!r} is not one of {names}")
         for c in parsed.cites:
-            if not (any(c == r.address for r in state["checks"]) or _pack(state).resolve(c)):
+            if not (any(c == r.address for r in state["checks"]) or state["handoff"].resolve(c)):
                 errors.append(f"{c} is not a check or pack address")
         if not errors:
             _writer()({"estimator": parsed.model_dump()})
@@ -536,7 +570,7 @@ def placebo(task: PlaceboTask) -> dict:
 def _addresses(state: SpecialistState) -> list[str]:
     d: Design = state["design"]
     c = d.contrast.key
-    out = ["design.assumption", "design.periods", "design.controls"] + [r.address for r in d.checks.results]
+    out = ["design.assumption", "design.periods", "design.controls"] + [b.address for b in state["handoff"].beliefs.values() if b.known() or b.status == "unknown"] + [r.address for r in d.checks.results]
     for e in state.get("estimates") or []:
         if e.error is None:
             tag = f"estimate:{c}" if e.method == d.estimator else f"estimate:{c}.{e.method}"
@@ -551,8 +585,9 @@ def _material(state: SpecialistState) -> str:
     names = state.get("columns") or {}
     c = d.contrast.key
     p = d.periods
-    lines = [f"[design.assumption] the design bets on: without the change, the treated units would have moved like the control units; router's reading: {state['handoff'].chosen_assumption}",
-             f"[design.periods] " + (f"before {names.get(p.before_column, p.before_column)}, after {names.get(p.after_column, p.after_column)}" if p.kind == "wide"
+    lines = [f"[design.assumption] the design bets on: without the change, the treated units would have moved like the control units; router's reading: {state['handoff'].chosen_assumption}"]
+    lines += [b.render() for b in state["handoff"].beliefs.values() if b.known() or b.status == "unknown"]
+    lines += [f"[design.periods] " + (f"before {names.get(p.before_column, p.before_column)}, after {names.get(p.after_column, p.after_column)}" if p.kind == "wide"
                                      else f"time {names.get(p.time_column, p.time_column)}, first post {p.first_post}; {d.shape.periods_pre} pre periods, {d.shape.periods_post} post"),
              f"[design.controls] {', '.join(names.get(k, k) for k in d.controls.included) or 'none'}",
              f"comparison: {names.get(d.groups.column, d.groups.column)} = {d.contrast.treated!r} versus {d.contrast.control!r}; outcome: {state['handoff'].outcome}; "

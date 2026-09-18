@@ -1,19 +1,325 @@
 {
-  "question": "Which of the three promotions produced the highest weekly sales?",
   "family": "diff_in_diff",
   "specialist": "pyfixest",
   "supported_now": true,
   "outcome": "SalesInThousands",
   "treatment": "Promotion",
-  "scope": {"population_filter": null, "window": null, "contrast": "level_vs_level", "target": "average"},
+  "scope": {
+    "population_filter": null,
+    "window": null,
+    "contrast": "level_vs_level",
+    "target": "average"
+  },
   "pack_name": "marketing",
   "relevant_columns": [
-    {"column": "SalesInThousands", "reason": "the outcome", "cites": ["col:salesinthousands.note"]},
-    {"column": "Promotion", "reason": "which promotion the store ran", "cites": ["col:promotion.note"]},
-    {"column": "week", "reason": "test week 1 to 4", "cites": ["col:week.note"]},
-    {"column": "MarketSize", "reason": "the chain's market classification", "cites": ["col:marketsize.note"]},
-    {"column": "LocationID", "reason": "store id", "cites": ["col:locationid.note"]}
+    {
+      "reason": "named in the forced hand-off",
+      "cites": [
+        "col:salesinthousands.note"
+      ],
+      "column": "SalesInThousands"
+    },
+    {
+      "reason": "named in the forced hand-off",
+      "cites": [
+        "col:promotion.note"
+      ],
+      "column": "Promotion"
+    },
+    {
+      "reason": "named in the forced hand-off",
+      "cites": [
+        "col:week.note"
+      ],
+      "column": "week"
+    },
+    {
+      "reason": "named in the forced hand-off",
+      "cites": [
+        "col:marketsize.note"
+      ],
+      "column": "MarketSize"
+    },
+    {
+      "reason": "named in the forced hand-off",
+      "cites": [
+        "col:locationid.note"
+      ],
+      "column": "LocationID"
+    }
   ],
   "chosen_assumption": "forced into the diff-in-diff lane: the note says there is no week before the promotions began",
-  "reasons": [{"reason": "negative eval case", "cites": ["change:1.note"]}]
+  "reasons": [
+    {
+      "reason": "the outcome the question names",
+      "cites": [
+        "col:salesinthousands.note"
+      ]
+    },
+    {
+      "reason": "the change asked about",
+      "cites": [
+        "col:promotion.note"
+      ]
+    }
+  ],
+  "question": "Which of the three promotions produced the highest weekly sales?",
+  "intent": "effect_of_change",
+  "why": "forced",
+  "over": {},
+  "csv": "data/raw/fast-food-marketing-campaign-ab-test/WA_Marketing-Campaign.csv",
+  "docs": {
+    "about": "Each row is one store's sales for one week. A fast food chain tested three promotions for a new menu item across 137 stores in 10 markets over four weeks. Every store appears in all four weeks, so there are 548 rows and each store plus week identifies a row. Stores are in separate locations and do not share customers or stock. Sales are in thousands of dollars. Source is the IBM Watson Analytics sample used for this test."
+  },
+  "dataset_facts": {
+    "rows": 548,
+    "columns": 7,
+    "duplicate_rows": 0,
+    "grain": [
+      "LocationID",
+      "week"
+    ],
+    "time_coverage": {
+      "column": "week",
+      "first": "1",
+      "last": "4",
+      "inferred_frequency": "integer period, step 1",
+      "gaps": 0
+    },
+    "entity_summary": {
+      "columns": [
+        "LocationID"
+      ],
+      "entities": 137,
+      "rows_per_entity_min": 4,
+      "rows_per_entity_median": 4.0,
+      "rows_per_entity_max": 4
+    },
+    "format_issues": []
+  },
+  "grain": {},
+  "sampling": {},
+  "missing": {},
+  "treated_level": null,
+  "control_level": null,
+  "columns": [
+    {
+      "name": "SalesInThousands",
+      "key": "salesinthousands",
+      "role": "outcome",
+      "meaning": "Sales of the new item in that store in that week, in thousands of dollars. The week's result.",
+      "when": "unknown",
+      "set_by": null,
+      "affected_by_treatment": null,
+      "source": "doc:readme.md",
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 517,
+        "constant": false,
+        "varies_over": "both",
+        "numeric": {
+          "min": 17.34,
+          "max": 99.65,
+          "mean": 53.466204,
+          "p01": 24.3154,
+          "p25": 42.545,
+          "p50": 50.2,
+          "p75": 60.4775,
+          "p99": 94.67379999999999
+        },
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": []
+      }
+    },
+    {
+      "name": "Promotion",
+      "key": "promotion",
+      "role": "treatment",
+      "meaning": "1, 2, or 3. Which promotion the store ran. Assigned at random by the marketing team before week 1 and held constant for all four weeks. A decision, and one that did not depend on anything else in the file.",
+      "when": "unknown",
+      "set_by": null,
+      "affected_by_treatment": null,
+      "source": "doc:test_plan.md",
+      "facts": {
+        "kind": "categorical",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 3,
+        "constant": false,
+        "varies_over": "entity",
+        "numeric": null,
+        "top_values": [
+          {
+            "value": "3",
+            "count": 188,
+            "share": 0.3431
+          },
+          {
+            "value": "2",
+            "count": 188,
+            "share": 0.3431
+          },
+          {
+            "value": "1",
+            "count": 172,
+            "share": 0.3139
+          }
+        ],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": []
+      }
+    },
+    {
+      "name": "week",
+      "key": "week",
+      "role": "time",
+      "meaning": "Test week, 1 to 4.",
+      "when": "unknown",
+      "set_by": null,
+      "affected_by_treatment": null,
+      "source": "doc:readme.md",
+      "facts": {
+        "kind": "categorical",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 4,
+        "constant": false,
+        "varies_over": "time",
+        "numeric": null,
+        "top_values": [
+          {
+            "value": "1",
+            "count": 137,
+            "share": 0.25
+          },
+          {
+            "value": "2",
+            "count": 137,
+            "share": 0.25
+          },
+          {
+            "value": "3",
+            "count": 137,
+            "share": 0.25
+          },
+          {
+            "value": "4",
+            "count": 137,
+            "share": 0.25
+          }
+        ],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": []
+      }
+    },
+    {
+      "name": "MarketSize",
+      "key": "marketsize",
+      "role": "candidate",
+      "meaning": "Small, medium, or large, the chain's classification of the market. Fixed per store and set before the test.",
+      "when": "unknown",
+      "set_by": null,
+      "affected_by_treatment": null,
+      "source": "doc:readme.md",
+      "facts": {
+        "kind": "categorical",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 3,
+        "constant": false,
+        "varies_over": "entity",
+        "numeric": null,
+        "top_values": [
+          {
+            "value": "Medium",
+            "count": 320,
+            "share": 0.5839
+          },
+          {
+            "value": "Large",
+            "count": 168,
+            "share": 0.3066
+          },
+          {
+            "value": "Small",
+            "count": 60,
+            "share": 0.1095
+          }
+        ],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": []
+      }
+    },
+    {
+      "name": "LocationID",
+      "key": "locationid",
+      "role": "unit",
+      "meaning": "Store number. Fixed.",
+      "when": "unknown",
+      "set_by": null,
+      "affected_by_treatment": null,
+      "source": "doc:readme.md",
+      "facts": {
+        "kind": "id",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 137,
+        "constant": false,
+        "varies_over": "entity",
+        "numeric": {
+          "min": 1.0,
+          "max": 920.0,
+          "mean": 479.656934,
+          "p01": 2.0,
+          "p25": 216.0,
+          "p50": 504.0,
+          "p75": 708.0,
+          "p99": 919.0
+        },
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": []
+      }
+    }
+  ],
+  "change": {
+    "what": "Promotion test, weeks 1 to 4. Each store ran one of three promotions for the new item from the first week of the test, and kept the same promotion for all four weeks. Which promotion a store got was assigned at random by the chain's marketing team; it did not depend on the store's market, size, or age. There is no week before the test in the file, so every row is under a promotion."
+  },
+  "assignment": {},
+  "beliefs": {},
+  "unknowns": [],
+  "said": [],
+  "probes": [],
+  "claims": {},
+  "design": {
+    "kind": "diff_in_diff",
+    "unit": "locationid",
+    "time": "week",
+    "period_kind": "integer",
+    "change_period": null,
+    "treated_group": {},
+    "staggered": null,
+    "never_treated_exists": null,
+    "pre_periods": null,
+    "post_periods": null,
+    "controls_allowed": [
+      "marketsize"
+    ],
+    "cluster_level": "locationid",
+    "trend_belief": null,
+    "spillover": null
+  }
 }

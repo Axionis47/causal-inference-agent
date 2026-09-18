@@ -7,7 +7,7 @@ load_pack ─ [prefilter × N, wide tables only] ─ frame ─ [test_family × F
 ```
 
 - `state.py` — RouterState, worker task schemas, runtime Context.
-- `nodes.py` — the nodes. Deterministic ones (load_pack, gate, handoff) never call a model. Model ones (prefilter, frame, test_family, decide) call `structured()` once.
+- `nodes.py` — the nodes. Deterministic ones (load_pack, gate, handoff) never call a model. Model ones (prefilter, frame, test_family, decide) call `structured()` once. `handoff` builds the context pack through `causal_agent.desk.handoff.build`, the one builder, from the frame, the decision, and the dataset's claims when it has them.
 - `prompts.py` — no column names, no family names, no rules. Cards and knowledge go in as context.
 - `graph.py` — the StateGraph. `graph` for `langgraph dev`, `compile_local()` for tests and scripts.
 - `run.py` — CLI: `uv run python -m causal_agent.router.run <dataset> "<question>" [--json]`. Prints the decision record.

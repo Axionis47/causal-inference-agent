@@ -1,20 +1,344 @@
 {
-  "question": "Did completing the prep course raise math scores?",
   "family": "discontinuity",
   "specialist": "rdrobust",
   "supported_now": true,
   "outcome": "math score",
   "treatment": "test preparation course",
-  "scope": {"population_filter": null, "window": null, "contrast": "switch", "target": "average"},
+  "scope": {
+    "population_filter": null,
+    "window": null,
+    "contrast": "switch",
+    "target": "average"
+  },
   "pack_name": "students",
   "relevant_columns": [
-    {"column": "math score", "reason": "the outcome the question names", "cites": ["col:math_score.note"]},
-    {"column": "test preparation course", "reason": "who completed the course", "cites": ["col:test_preparation_course.note"]},
-    {"column": "reading score", "reason": "another exam score", "cites": ["col:reading_score.note"]},
-    {"column": "writing score", "reason": "another exam score", "cites": ["col:writing_score.note"]},
-    {"column": "lunch", "reason": "household background", "cites": ["col:lunch.note"]},
-    {"column": "parental level of education", "reason": "household background", "cites": ["col:parental_level_of_education.note"]}
+    {
+      "reason": "named in the forced hand-off",
+      "cites": [
+        "col:math_score.note"
+      ],
+      "column": "math score"
+    },
+    {
+      "reason": "named in the forced hand-off",
+      "cites": [
+        "col:test_preparation_course.note"
+      ],
+      "column": "test preparation course"
+    },
+    {
+      "reason": "named in the forced hand-off",
+      "cites": [
+        "col:reading_score.note"
+      ],
+      "column": "reading score"
+    },
+    {
+      "reason": "named in the forced hand-off",
+      "cites": [
+        "col:writing_score.note"
+      ],
+      "column": "writing score"
+    },
+    {
+      "reason": "named in the forced hand-off",
+      "cites": [
+        "col:lunch.note"
+      ],
+      "column": "lunch"
+    },
+    {
+      "reason": "named in the forced hand-off",
+      "cites": [
+        "col:parental_level_of_education.note"
+      ],
+      "column": "parental level of education"
+    }
   ],
   "chosen_assumption": "forced into the discontinuity lane as the negative case: numeric scores exist but no note states a cutoff rule",
-  "reasons": [{"reason": "negative eval case", "cites": ["col:test_preparation_course.note"]}]
+  "reasons": [
+    {
+      "reason": "the outcome the question names",
+      "cites": [
+        "col:math_score.note"
+      ]
+    },
+    {
+      "reason": "the change asked about",
+      "cites": [
+        "col:test_preparation_course.note"
+      ]
+    }
+  ],
+  "question": "Did completing the prep course raise math scores?",
+  "intent": "effect_of_change",
+  "why": "forced",
+  "over": {},
+  "csv": "data/raw/students-performance-in-exams/StudentsPerformance.csv",
+  "docs": {
+    "about": "Each row is one student's results from the May 2026 exam at one school. Every enrolled student who sat the exam is included; absentees are not. There is no student identifier in the file, so rows cannot be tied back to a person. Students sit individually, so one student's result does not affect another's. Exported from the school register on 1 June 2026."
+  },
+  "dataset_facts": {
+    "rows": 1000,
+    "columns": 8,
+    "duplicate_rows": 0,
+    "grain": [],
+    "time_coverage": null,
+    "entity_summary": null,
+    "format_issues": []
+  },
+  "grain": {},
+  "sampling": {},
+  "missing": {},
+  "treated_level": null,
+  "control_level": null,
+  "columns": [
+    {
+      "name": "math score",
+      "key": "math_score",
+      "role": "outcome",
+      "meaning": "The exam marks, 0 to 100, recorded at the sitting. No missing values.",
+      "when": "unknown",
+      "set_by": null,
+      "affected_by_treatment": null,
+      "source": "doc:readme.md",
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 81,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": {
+          "min": 0.0,
+          "max": 100.0,
+          "mean": 66.089,
+          "p01": 27.990000000000002,
+          "p25": 57.0,
+          "p50": 66.0,
+          "p75": 77.0,
+          "p99": 98.00999999999999
+        },
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": []
+      }
+    },
+    {
+      "name": "test preparation course",
+      "key": "test_preparation_course",
+      "role": "treatment",
+      "meaning": "Whether the student completed the prep course. Who got a place depended on lunch status and parental education, per the counsellor's offering rule above; after that, uptake was voluntary. So this column is a decision, not a measurement, and it was shaped by lunch and parental education. Fixed before the exam.",
+      "when": "unknown",
+      "set_by": null,
+      "affected_by_treatment": null,
+      "source": "doc:prep_course_memo.md",
+      "facts": {
+        "kind": "categorical",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 2,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": null,
+        "top_values": [
+          {
+            "value": "none",
+            "count": 642,
+            "share": 0.642
+          },
+          {
+            "value": "completed",
+            "count": 358,
+            "share": 0.358
+          }
+        ],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": []
+      }
+    },
+    {
+      "name": "reading score",
+      "key": "reading_score",
+      "role": "candidate",
+      "meaning": "The exam marks, 0 to 100, recorded at the sitting. No missing values.",
+      "when": "unknown",
+      "set_by": null,
+      "affected_by_treatment": null,
+      "source": "doc:readme.md",
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 72,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": {
+          "min": 17.0,
+          "max": 100.0,
+          "mean": 69.169,
+          "p01": 31.990000000000002,
+          "p25": 59.0,
+          "p50": 70.0,
+          "p75": 79.0,
+          "p99": 100.0
+        },
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": []
+      }
+    },
+    {
+      "name": "writing score",
+      "key": "writing_score",
+      "role": "candidate",
+      "meaning": "The exam marks, 0 to 100, recorded at the sitting. No missing values.",
+      "when": "unknown",
+      "set_by": null,
+      "affected_by_treatment": null,
+      "source": "doc:readme.md",
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 77,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": {
+          "min": 10.0,
+          "max": 100.0,
+          "mean": 68.054,
+          "p01": 31.98,
+          "p25": 57.75,
+          "p50": 69.0,
+          "p75": 79.0,
+          "p99": 100.0
+        },
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": []
+      }
+    },
+    {
+      "name": "lunch",
+      "key": "lunch",
+      "role": "candidate",
+      "meaning": "Standard or free/reduced. Free/reduced is assigned by the district when household income is below the federal threshold, so it is the school's low-income indicator. Set before the exam and not by the school.",
+      "when": "unknown",
+      "set_by": null,
+      "affected_by_treatment": null,
+      "source": "doc:lunch_policy.md",
+      "facts": {
+        "kind": "categorical",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 2,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": null,
+        "top_values": [
+          {
+            "value": "standard",
+            "count": 645,
+            "share": 0.645
+          },
+          {
+            "value": "free/reduced",
+            "count": 355,
+            "share": 0.355
+          }
+        ],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": []
+      }
+    },
+    {
+      "name": "parental level of education",
+      "key": "parental_level_of_education",
+      "role": "candidate",
+      "meaning": "Highest qualification held by either parent, as declared at enrolment. Six levels from some high school to master's degree. Known before the exam.",
+      "when": "unknown",
+      "set_by": null,
+      "affected_by_treatment": null,
+      "source": "doc:readme.md",
+      "facts": {
+        "kind": "categorical",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 6,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": null,
+        "top_values": [
+          {
+            "value": "some college",
+            "count": 226,
+            "share": 0.226
+          },
+          {
+            "value": "associate's degree",
+            "count": 222,
+            "share": 0.222
+          },
+          {
+            "value": "high school",
+            "count": 196,
+            "share": 0.196
+          },
+          {
+            "value": "some high school",
+            "count": 179,
+            "share": 0.179
+          },
+          {
+            "value": "bachelor's degree",
+            "count": 118,
+            "share": 0.118
+          },
+          {
+            "value": "master's degree",
+            "count": 59,
+            "share": 0.059
+          }
+        ],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": []
+      }
+    }
+  ],
+  "change": {
+    "what": "Prep course, 1 March to 12 April 2026. The school ran a six-week test preparation course before the exam. The counsellor offered places first to students on free or reduced lunch and to students whose parents hold no degree; remaining places were open to anyone who asked. Completion was recorded by the counsellor."
+  },
+  "assignment": {},
+  "beliefs": {},
+  "unknowns": [],
+  "said": [],
+  "probes": [],
+  "claims": {},
+  "design": {
+    "kind": "discontinuity",
+    "score": null,
+    "cutoff": null,
+    "treated_side": null,
+    "cutoff_value_treated": null,
+    "score_fixed_before": null,
+    "movable": null,
+    "takeup": null,
+    "covariates_allowed": [],
+    "cluster": null,
+    "sampled_by_side": false,
+    "cutoff_only": null
+  }
 }

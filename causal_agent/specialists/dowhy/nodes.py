@@ -16,10 +16,10 @@ import pandas as pd
 from langgraph.config import get_stream_writer
 from langgraph.types import Command, Send
 
-from causal_agent.common.contracts import CheckResult, Checks, Contrast, Estimate, Feasibility, Interpretation, Refutation
+from causal_agent.common.addresses import key as _key
+from causal_agent.common.contracts import AdjustmentDesign, CheckResult, Checks, Contrast, Estimate, Feasibility, Handoff, Interpretation, Refutation
 from causal_agent.common.llm import structured
-from causal_agent.intake.datasets import ROOT, dataset_entries, load_dataset_pack
-from causal_agent.intake.pack import Pack, _key
+from causal_agent.intake.datasets import ROOT, dataset_entries
 from causal_agent.specialists.dowhy import adapter, checks as CK
 from causal_agent.specialists.dowhy import prompts as P
 from causal_agent.specialists.dowhy.contracts import (
@@ -52,16 +52,6 @@ MAX_DOSE_LEVELS = 12
 
 # ------------------------------------------------------------------ helpers
 
-_pack_cache: dict[str, Pack] = {}
-
-
-def _pack(state: SpecialistState) -> Pack:
-    name = state["handoff"].pack_name
-    if name not in _pack_cache:
-        _pack_cache[name] = load_dataset_pack(name)
-    return _pack_cache[name]
-
-
 def _writer():
     try:
         return get_stream_writer()
@@ -85,9 +75,18 @@ def _stop(stage: str, reason: str, facts: list[str], fix: str, extra: dict | Non
     return Command(goto="feasibility", update={"feasibility": f, **(extra or {})})
 
 
-def _card(pack: Pack, key: str) -> str:
-    c = pack.column(key)
-    return c.render() if c else f"[col:{key}] (no card)"
+def _card(h: Handoff, key: str) -> str:
+    return h.brief_text(key)
+
+
+def _block(h: Handoff) -> AdjustmentDesign | None:
+    return h.design if isinstance(h.design, AdjustmentDesign) else None
+
+
+def _cites(h: Handoff, *addresses: str) -> list[str]:
+    """The claim addresses that resolve in the pack, else the change card."""
+    ok = [a for a in addresses if h.resolve(a)]
+    return ok or ["change:1.note"]
 
 
 def _frame_text(state: SpecialistState) -> str:
@@ -97,6 +96,7 @@ def _frame_text(state: SpecialistState) -> str:
         f"family: {h.family}; outcome: {h.outcome}; treatment: {h.treatment}; "
         f"filter={s.population_filter or 'none'}; window={s.window or 'none'}; contrast={s.contrast}; target={s.target}\n"
         f"assumption the router bet on: {h.chosen_assumption}"
+        + (f"\nwhat the pack settled:\n{h.design.render()}" if _block(h) else "")
     )
 
 
@@ -110,9 +110,8 @@ def _thought(t, node: str):
 
 def load(state: SpecialistState) -> Command:
     h = state["handoff"]
-    pack = _pack(state)
     entry = dataset_entries()[h.pack_name]
-    raw = pd.read_csv(ROOT / entry["csv"])
+    raw = pd.read_csv(ROOT / (h.csv or entry["csv"]))
     columns = {_key(c): c for c in raw.columns}
     raw.columns = [_key(c) for c in raw.columns]
 
@@ -161,16 +160,21 @@ def load(state: SpecialistState) -> Command:
 
 def contrast(state: SpecialistState) -> dict:
     h = state["handoff"]
-    pack = _pack(state)
     t, _, _ = _keys(state)
     levels = state["treatment_levels"]
+    if h.treated_level is not None and len(levels) == 2 and str(h.treated_level) in levels:  # the pack says which level means treated: a fact
+        other = next(v for v in levels if v != str(h.treated_level))
+        c = Contrast(control=other, treated=str(h.treated_level), reason="the pack names the level that means the unit got the change",
+                     cites=_cites(h, "claim:assignment.treated_level", "claim:assignment.treatment_column"))
+        _writer()({"contrasts": [c.model_dump()]})
+        return {"contrasts": [c], "debug": []}
     s = h.scope
     scope = f"filter={s.population_filter or 'none'}; window={s.window or 'none'}; contrast={s.contrast}; target={s.target}"
     errors: list[str] = []
     debug = []
     for _ in range(MAX_MODEL_RETRIES):
         user = P.CONTRAST_USER.format(question=_question(state), scope=scope,
-                                      treatment_card=_card(pack, t), levels=", ".join(repr(v) for v in levels))
+                                      treatment_card=_card(h, t), levels=", ".join(repr(v) for v in levels))
         if errors:
             user += "\nPREVIOUS ANSWER WAS REJECTED\n" + "\n".join(f"- {e}" for e in errors) + "\n"
         parsed, th = structured(Contrasts, P.CONTRAST_SYSTEM, user, node="contrast")
@@ -210,16 +214,16 @@ def _question(state: SpecialistState) -> str:
 def fan_out_relate(state: SpecialistState):
     if state.get("feasibility"):
         return "feasibility"
-    pack = _pack(state)
+    h = state["handoff"]
     t, y, others = _keys(state)
     errs = state.get("relate_errors") or {}
     targets = [k for k in others if k in errs] if errs else others
     if not targets:
         return "merge_graph"
     q, frame = _question(state), _frame_text(state)
-    tc, yc = _card(pack, t), _card(pack, y)
+    tc, yc = _card(h, t), _card(h, y)
     return [
-        Send("relate", RelateTask(question=q, frame=frame, treatment_card=tc, outcome_card=yc, column=k, card=_card(pack, k),
+        Send("relate", RelateTask(question=q, frame=frame, treatment_card=tc, outcome_card=yc, column=k, card=_card(h, k),
                                   errors=("\nPREVIOUS ANSWER WAS REJECTED\n" + "\n".join(f"- {e}" for e in errs[k]) + "\n") if k in errs else ""))
         for k in targets
     ]
@@ -279,7 +283,7 @@ def merge_graph(state: SpecialistState) -> dict:
 
 
 def verify_graph(state: SpecialistState) -> Command:
-    pack = _pack(state)
+    h = state["handoff"]
     g: Graph = state["graph"]
     t, y, others = _keys(state)
     table_cols = set(pd.read_csv(state["table_path"], nrows=0).columns)
@@ -306,7 +310,7 @@ def verify_graph(state: SpecialistState) -> Command:
             if not reason.cites:
                 errs.setdefault(k, []).append("a reason has no citation")
             for c in reason.cites:
-                if not pack.resolve(c):
+                if not h.resolve(c):
                     errs.setdefault(k, []).append(f"{c} is not a pack address")
         if r.affects_treatment and r.affected_by_treatment:
             errs.setdefault(k, []).append("cannot both feed the treatment and be changed by it")
@@ -317,10 +321,9 @@ def verify_graph(state: SpecialistState) -> Command:
                          general + [f"{k}: {'; '.join(v)}" for k, v in errs.items()], "clearer column notes about what fed the decision",
                          {"relate_attempts": attempts})
         _writer()({"verify_graph": {"attempt": attempts, "errors": errs}})
-        pack_ = pack
         return Command(
-            goto=[Send("relate", RelateTask(question=_question(state), frame=_frame_text(state), treatment_card=_card(pack_, t), outcome_card=_card(pack_, y),
-                                            column=k, card=_card(pack_, k), errors="\nPREVIOUS ANSWER WAS REJECTED\n" + "\n".join(f"- {e}" for e in v) + "\n"))
+            goto=[Send("relate", RelateTask(question=_question(state), frame=_frame_text(state), treatment_card=_card(h, t), outcome_card=_card(h, y),
+                                            column=k, card=_card(h, k), errors="\nPREVIOUS ANSWER WAS REJECTED\n" + "\n".join(f"- {e}" for e in v) + "\n"))
                   for k, v in errs.items()],
             update={"relate_errors": errs, "relate_attempts": attempts},
         )
@@ -392,10 +395,10 @@ def assess(state: SpecialistState) -> Command:
                 if rv.column not in flagged_cols:
                     errors.append(f"revision names {rv.column!r}, which no flag mentions; flagged: {sorted(flagged_cols)}")
                 for c in rv.cites:
-                    if not _pack(state).resolve(c):
+                    if not state["handoff"].resolve(c):
                         errors.append(f"{c} is not a pack address")
         for c in parsed.cites:
-            if not (c.startswith("check:") and any(c == r.address for r in state["checks"])) and not _pack(state).resolve(c):
+            if not (c.startswith("check:") and any(c == r.address for r in state["checks"])) and not state["handoff"].resolve(c):
                 errors.append(f"{c} is not a check or pack address")
         if errors:
             continue
@@ -421,6 +424,7 @@ def _design_facts(state: SpecialistState) -> dict[str, Any]:
     est: Estimand = state["estimand"]
     checks: list[CheckResult] = state["checks"]
     arms = [r for r in checks if r.name == "arms"]
+    b = _block(state["handoff"])
     return {
         "estimand": est.kind,
         "treatment": "binary",
@@ -429,6 +433,10 @@ def _design_facts(state: SpecialistState) -> dict[str, Any]:
         "adjustment_columns": est.adjustment_set,
         "contrasts": len(state["contrasts"]),
         "smallest_arm": min((int(r.value) for r in arms if r.value is not None), default=0),
+        # from the pack: what the person said, so the pick is not made by habit
+        "identification_allowed": b.identification_allowed if b else ["backdoor"],
+        "hidden_confounding_per_person": b.unobserved_confounding if b else None,
+        "voluntary_uptake": b.voluntary_uptake if b else None,
     }
 
 
@@ -455,7 +463,7 @@ def pick_estimator(state: SpecialistState) -> Command:
         if parsed.name not in names:
             errors.append(f"{parsed.name!r} is not one of {names}")
         for c in parsed.cites:
-            if not (any(c == r.address for r in state["checks"]) or _pack(state).resolve(c)):
+            if not (any(c == r.address for r in state["checks"]) or state["handoff"].resolve(c)):
                 errors.append(f"{c} is not a check or pack address")
         if not errors:
             _writer()({"estimator": parsed.model_dump()})
@@ -537,7 +545,7 @@ def after_analyse(state: SpecialistState) -> Command:
 
 def _addresses(state: SpecialistState, contrast_key: str) -> list[str]:
     d: Design = state["design"]
-    out = ["design.estimand.adjustment_set", "design.assumption"]
+    out = ["design.estimand.adjustment_set", "design.assumption"] + [b.address for b in state["handoff"].beliefs.values() if b.known() or b.status == "unknown"]
     out += [r.address for r in d.checks.results if r.contrast in (contrast_key, "all")]
     for e in state.get("estimates") or []:
         if e.contrast == contrast_key and e.error is None:
@@ -553,8 +561,9 @@ def _material(state: SpecialistState, contrast_key: str) -> str:
     d: Design = state["design"]
     c = next(x for x in d.contrasts if x.key == contrast_key)
     names = state.get("columns") or {}
-    lines = [f"[design.assumption] the design bets on: {state['handoff'].chosen_assumption}",
-             f"[design.estimand.adjustment_set] adjusted for: {', '.join(names.get(k, k) for k in d.estimand.adjustment_set) or 'nothing (no confounders in the graph)'}",
+    lines = [f"[design.assumption] the design bets on: {state['handoff'].chosen_assumption}"]
+    lines += [b.render() for b in state["handoff"].beliefs.values() if b.known() or b.status == "unknown"]
+    lines += [             f"[design.estimand.adjustment_set] adjusted for: {', '.join(names.get(k, k) for k in d.estimand.adjustment_set) or 'nothing (no confounders in the graph)'}",
              f"comparison: {names.get(d.graph.treatment, d.graph.treatment)} = {c.treated!r} versus {c.control!r}; outcome: {names.get(d.graph.outcome, d.graph.outcome)}"]
     for r in d.checks.results:
         if r.contrast in (contrast_key, "all"):

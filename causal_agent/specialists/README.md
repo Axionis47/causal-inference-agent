@@ -1,6 +1,6 @@
 # specialists
 
-One subgraph per family. Each receives a hand-off (family, outcome, treatment, scope, relevant columns) and turns it into a runnable analysis in its own library's vocabulary. A specialist never decides whether it applies; the router did.
+One subgraph per family. Each receives the context pack (`common.contracts.Handoff`: the question, the decision, one brief per column with the person's word and the profiler's facts, how the change happened, the beliefs, the probes, and its family block) and turns it into a runnable analysis in its own library's vocabulary. A lane reads nothing else about the data: no note, no pack file. Where the family block settles a judgement (the treated level, the group and the period, the score and the cutoff), the lane takes the fact, runs the same checks, and asks the model only if the fact fails them. A specialist never decides whether it applies; the desk did.
 
 - `dowhy/` — the adjustment family, built. Contrasts, a cited graph, DoWhy identification, design checks, a frozen Design, estimate, refute, interpret. See its README.
 - `did/` — the diff_in_diff family, built on pyfixest. Groups, periods, a canonical panel, controls, pre-trend and placebo checks, a frozen Design, fit, interpret. See its README.
