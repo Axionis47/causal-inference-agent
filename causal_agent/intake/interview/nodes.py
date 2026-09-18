@@ -10,16 +10,16 @@ from langgraph.types import Command, interrupt
 
 from causal_agent.common.contracts import Thought
 from causal_agent.common.llm import structured
-from causal_agent.intake.interview import checks as C
-from causal_agent.intake.interview import data as D
+from causal_agent.memory import checks as C
+from causal_agent.profile import data as D
 from causal_agent.intake.interview import prompts as P
-from causal_agent.intake.interview import table as T
-from causal_agent.intake.interview.contracts import Claim, ClaimTable, ClaimUpdate, Extraction, Question, Reply, Status
-from causal_agent.intake.interview.probes import run_probes
+from causal_agent.memory import table as T
+from causal_agent.memory.claims import Claim, ClaimTable, ClaimUpdate, Extraction, Question, Reply, Status
+from causal_agent.memory.probes import run_probes
 from causal_agent.intake.interview.state import InterviewState
 from causal_agent.intake.interview.writer import write_dataset
-from causal_agent.intake.knowledge import Catalogue, ClaimKind, load_catalogue, load_thresholds
-from causal_agent.intake.pack import _key
+from causal_agent.memory.catalogue import Catalogue, ClaimKind, load_catalogue, load_thresholds
+from causal_agent.common.addresses import key as _key
 from causal_agent.knowledge import load_registry
 
 CAT: Catalogue = load_catalogue()

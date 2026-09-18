@@ -14,15 +14,15 @@ from langchain_core.messages import AIMessage
 from langgraph.types import Command
 
 from causal_agent.common.llm import set_llm
-from causal_agent.intake.interview import data as D
+from causal_agent.profile import data as D
 from causal_agent.intake.interview import nodes as N
-from causal_agent.intake.interview import table as T
+from causal_agent.memory import table as T
 from causal_agent.intake.interview import writer as W
-from causal_agent.intake.interview.contracts import Claim, ClaimTable, ClaimUpdate, Extraction, FieldValue, ProbeResult, Question, Reply
+from causal_agent.memory.claims import Claim, ClaimTable, ClaimUpdate, Extraction, FieldValue, ProbeResult, Question, Reply
 from causal_agent.intake.interview.graph import compile_local
-from causal_agent.intake.knowledge import load_catalogue, load_thresholds
-from causal_agent.intake.pack import load_pack
-from causal_agent.intake.profiler import profile
+from causal_agent.memory.catalogue import load_catalogue, load_thresholds
+from causal_agent.profile.pack import load_pack
+from causal_agent.profile.profiler import profile
 
 ROOT = Path(__file__).resolve().parents[4]
 STUDENTS = ROOT / "data/raw/students-performance-in-exams/StudentsPerformance.csv"
@@ -511,10 +511,10 @@ def test_table_cells_and_flag():
 
 
 def test_catalogue_is_consistent_and_names_no_dataset():
-    from causal_agent.intake.interview.checks import CHECKS
+    from causal_agent.memory.checks import CHECKS
 
     names = set(yaml.safe_load((ROOT / "data/datasets.yaml").read_text()))
-    for path in ("causal_agent/intake/knowledge/claims.yaml", "causal_agent/intake/knowledge/checks.yaml"):
+    for path in ("causal_agent/memory/fields.yaml", "causal_agent/memory/checks.yaml"):
         text = (ROOT / path).read_text().lower()
         for n in names:
             assert re.search(rf"\b{re.escape(n)}\b", text) is None, f"{path} names dataset {n}"

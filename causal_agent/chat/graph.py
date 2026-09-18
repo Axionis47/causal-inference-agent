@@ -43,6 +43,11 @@ def build() -> StateGraph:
 graph = build().compile()
 
 _serde = JsonPlusSerializer(allowed_msgpack_modules=[
+    ("causal_agent.memory.claims", "ClaimTable"), ("causal_agent.memory.claims", "Claim"),
+    ("causal_agent.memory.claims", "ProbeResult"), ("causal_agent.memory.claims", "Status"),
+    ("causal_agent.memory.claims", "Reply"), ("causal_agent.memory.claims", "Question"),
+    ("causal_agent.memory.claims", "ClaimUpdate"), ("causal_agent.memory.claims", "FieldValue"),
+    # checkpoints written before the move name the old module; the shim there resolves them until intake/ goes
     ("causal_agent.intake.interview.contracts", "ClaimTable"), ("causal_agent.intake.interview.contracts", "Claim"),
     ("causal_agent.intake.interview.contracts", "ProbeResult"), ("causal_agent.intake.interview.contracts", "Status"),
     ("causal_agent.intake.interview.contracts", "Reply"), ("causal_agent.intake.interview.contracts", "Question"),

@@ -7,7 +7,7 @@ import re
 from dataclasses import dataclass, field
 
 from causal_agent.chat.contracts import RunRecord
-from causal_agent.intake.interview.contracts import ClaimTable
+from causal_agent.memory.claims import ClaimTable
 
 
 @dataclass

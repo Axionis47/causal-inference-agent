@@ -142,7 +142,7 @@ def test_no_admissible_family_stops_honestly():
 
 def test_relevant_columns_not_in_the_file_are_dropped():
     from causal_agent.common.contracts import Candidate, QuestionFrame, Scope
-    from causal_agent.intake.datasets import load_dataset_pack
+    from causal_agent.profile.datasets import load_dataset_pack
     from causal_agent.router import nodes as N
 
     pack = load_dataset_pack("students")

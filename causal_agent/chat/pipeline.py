@@ -35,7 +35,7 @@ def run(dataset: str, question: str, index: int) -> RunRecord:
     import sys
     import tempfile
 
-    from causal_agent.intake.datasets import ROOT
+    from causal_agent.profile.datasets import ROOT
 
     out_path = Path(tempfile.mkdtemp(prefix="desk-")) / f"run-{index}.json"
     cmd = [sys.executable, "-m", "causal_agent.router.run", dataset, question, "--json-file", str(out_path)]

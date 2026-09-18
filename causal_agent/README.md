@@ -4,8 +4,11 @@ One folder per step of the graph. Each step owns its code, its tests, and its ev
 Nothing in a step imports from a later step.
 
 ```
-common/       what every step shares: the contracts (typed artifacts every node reads and writes) and the model wrapper
-intake/       CSV + semantic note → a citable pack. Profiler, pack loader, dataset index. Deterministic, no model.
+common/       what every step shares: the contracts (the context pack, the lane artifacts), the model wrapper, the address grammar
+profile/      the deterministic profile of a CSV, the cards, the dataset index. No model.
+memory/       what is known about a dataset: the field catalogue, the claim table, the checks, the probes, the family fit
+intake/       the interview (moves into desk/ at stage 4) and shims for the modules that moved to profile/ and memory/
+desk/         the context pack builder today; the whole conversation from CSV to run and back, stage by stage
 knowledge/    what is available downstairs: the family registry, written as method knowledge, never as rules
 router/       question + pack → which family, with reasons and citations. Ends at the hand-off.
 specialists/  one subgraph per family, each turns a hand-off into a runnable analysis. dowhy/ (adjustment) and did/ (diff_in_diff, pyfixest) are built; the rest are stubs.

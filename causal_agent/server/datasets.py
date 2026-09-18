@@ -12,8 +12,8 @@ from pathlib import Path
 import pandas as pd
 import yaml
 
-from causal_agent.intake.interview import data as D
-from causal_agent.intake.profiler import Profile, profile
+from causal_agent.profile import data as D
+from causal_agent.profile.profiler import Profile, profile
 from causal_agent.server.context import render_context
 from causal_agent.server.models import ColumnSummary, DatasetCreate, DatasetSummary, DatetimeShape, NumericShape, ProfileOut, Sentinel, TopValue
 from causal_agent.server.settings import Settings

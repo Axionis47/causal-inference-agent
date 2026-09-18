@@ -18,9 +18,9 @@ from causal_agent.chat import pipeline
 from causal_agent.chat.contracts import AfterReply, NumberStated, RunRecord
 from causal_agent.chat.graph import compile_local
 from causal_agent.common.llm import set_llm
-from causal_agent.intake.interview import data as D
+from causal_agent.profile import data as D
 from causal_agent.intake.interview import writer as W
-from causal_agent.intake.interview.contracts import Extraction, Reply
+from causal_agent.memory.claims import Extraction, Reply
 
 HERE = Path(__file__).parent
 ROOT = HERE.parents[2]

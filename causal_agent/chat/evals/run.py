@@ -12,7 +12,7 @@ from causal_agent.chat.evals.dataset import DATASET
 from causal_agent.chat.evals.evaluators import ALL
 from causal_agent.chat.graph import compile_local
 from causal_agent.intake.chat import _drain
-from causal_agent.intake.datasets import ROOT
+from causal_agent.profile.datasets import ROOT
 
 load_dotenv()
 

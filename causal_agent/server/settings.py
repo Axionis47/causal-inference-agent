@@ -6,7 +6,7 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from causal_agent.intake.datasets import ROOT
+from causal_agent.profile.datasets import ROOT
 
 
 @dataclass

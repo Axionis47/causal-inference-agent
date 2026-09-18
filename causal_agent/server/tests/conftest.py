@@ -10,8 +10,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from causal_agent.common.llm import set_llm
-from causal_agent.intake import datasets as DSI
-from causal_agent.intake.interview import data as D
+from causal_agent.profile import datasets as DSI
+from causal_agent.profile import data as D
 from causal_agent.intake.interview import writer as W
 from causal_agent.server.app import create_app
 from causal_agent.server.settings import Settings

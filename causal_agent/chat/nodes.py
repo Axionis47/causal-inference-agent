@@ -14,7 +14,7 @@ from causal_agent.chat.contracts import AfterReply, Exchange, RunRecord
 from causal_agent.chat.state import ChatState
 from causal_agent.common.llm import structured
 from causal_agent.intake.interview import nodes as I
-from causal_agent.intake.knowledge import load_thresholds
+from causal_agent.memory.catalogue import load_thresholds
 
 TH = load_thresholds()
 MAX_ATTEMPTS = 3

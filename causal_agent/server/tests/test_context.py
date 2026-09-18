@@ -1,4 +1,4 @@
-from causal_agent.intake import pack
+from causal_agent.profile import pack
 from causal_agent.server.context import render_context
 
 

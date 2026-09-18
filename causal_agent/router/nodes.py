@@ -17,9 +17,9 @@ from causal_agent.common.contracts import (
     PrefilterVote,
     QuestionFrame,
 )
-from causal_agent.intake.datasets import load_dataset_pack
+from causal_agent.profile.datasets import load_dataset_pack
 from causal_agent.common.llm import structured
-from causal_agent.intake.pack import Pack
+from causal_agent.profile.pack import Pack
 from causal_agent.knowledge import Family, load_registry, render_preferences
 from causal_agent.router import prompts as P
 from causal_agent.router.state import Context, FamilyTask, PrefilterTask, RouterState

@@ -6,7 +6,7 @@ import operator
 from typing import Annotated, TypedDict
 
 from causal_agent.common.contracts import Thought
-from causal_agent.intake.interview.contracts import ClaimTable, ProbeResult, Reply, Status
+from causal_agent.memory.claims import ClaimTable, ProbeResult, Reply, Status
 
 
 class Message(TypedDict):

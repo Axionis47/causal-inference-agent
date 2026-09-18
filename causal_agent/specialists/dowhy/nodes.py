@@ -19,7 +19,7 @@ from langgraph.types import Command, Send
 from causal_agent.common.addresses import key as _key
 from causal_agent.common.contracts import AdjustmentDesign, CheckResult, Checks, Contrast, Estimate, Feasibility, Handoff, Interpretation, Refutation
 from causal_agent.common.llm import structured
-from causal_agent.intake.datasets import ROOT, dataset_entries
+from causal_agent.profile.datasets import ROOT, dataset_entries
 from causal_agent.specialists.dowhy import adapter, checks as CK
 from causal_agent.specialists.dowhy import prompts as P
 from causal_agent.specialists.dowhy.contracts import (

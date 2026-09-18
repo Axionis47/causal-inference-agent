@@ -1,4 +1,4 @@
-from causal_agent.intake.datasets import dataset_entries, load_dataset_pack
+from causal_agent.profile.datasets import dataset_entries, load_dataset_pack
 
 
 def test_all_packs_load_with_every_column_noted():

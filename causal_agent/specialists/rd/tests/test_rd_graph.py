@@ -16,8 +16,8 @@ from causal_agent.common.contracts import Cited, Handoff, Scope
 from causal_agent.common.llm import set_llm
 from causal_agent.desk import handoff as H
 from causal_agent.desk.handoff import forced
-from causal_agent.intake.pack import load_pack
-from causal_agent.intake.profiler import profile
+from causal_agent.profile.pack import load_pack
+from causal_agent.profile.profiler import profile
 from causal_agent.specialists.rd import nodes as N
 from causal_agent.specialists.rd.contracts import CovariateRelation, DesignAssessment, EstimatorPick, RDInterpretation, Score
 from causal_agent.specialists.rd.graph import compile_local

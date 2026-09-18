@@ -6,7 +6,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from causal_agent.intake.interview.contracts import ClaimUpdate
+from causal_agent.memory.claims import ClaimUpdate
 
 
 class RunRecord(BaseModel):

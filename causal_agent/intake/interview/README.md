@@ -11,7 +11,7 @@ listen ─ run, when READY ─▶ write_pack ─ END
 
 ## The claims
 
-`intake/knowledge/claims.yaml` declares eleven kinds: `grain`, `sampling`, `change`, `assignment`, `measured` (one per column), `missing`, and five the file can never check, `unobserved`, `exclusion`, `spillover`, `trend_continues`, `cutoff_only` (asked only while the cutoff family survives). `assignment.level_column` names the group a change was assigned at, for clustering. Each kind has typed fields, the check that can refute it, and a question frame in world terms. `family_needs` says which kinds each family requires and which values fit; that block is read by code to build the table. No family or method word appears in a frame.
+`memory/fields.yaml` declares eleven kinds: `grain`, `sampling`, `change`, `assignment`, `measured` (one per column), `missing`, and five the file can never check, `unobserved`, `exclusion`, `spillover`, `trend_continues`, `cutoff_only` (asked only while the cutoff family survives). `assignment.level_column` names the group a change was assigned at, for clustering. Each kind has typed fields, the check that can refute it, and a question frame in world terms. `family_needs` says which kinds each family requires and which values fit; that block is read by code to build the table. No family or method word appears in a frame.
 
 A claim carries a status (`empty`, `drafted`, `confirmed`, `refuted`, `unknown`, `contradiction`), a source (`doc:<name>`, `user:turn:<n>`, `data`), and evidence addresses. Drafted is not settled: what the model derived from the description is confirmed by the person before it counts.
 

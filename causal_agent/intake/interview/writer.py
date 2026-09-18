@@ -11,9 +11,9 @@ from pathlib import Path
 
 import yaml
 
-from causal_agent.intake.datasets import ROOT
-from causal_agent.intake.interview.contracts import ClaimTable, ProbeResult
-from causal_agent.intake.profiler import Profile
+from causal_agent.profile.datasets import ROOT
+from causal_agent.memory.claims import ClaimTable, ProbeResult
+from causal_agent.profile.profiler import Profile
 
 
 def _src(claim) -> str:

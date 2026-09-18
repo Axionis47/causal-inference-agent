@@ -11,7 +11,7 @@ from langgraph.types import Command
 from langsmith import evaluate
 
 from causal_agent.intake.chat import _drain
-from causal_agent.intake.datasets import ROOT
+from causal_agent.profile.datasets import ROOT
 from causal_agent.intake.interview.evals.dataset import DATASET
 from causal_agent.intake.interview.evals.evaluators import ALL
 from causal_agent.intake.interview.graph import compile_local

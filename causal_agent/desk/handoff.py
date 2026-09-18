@@ -34,9 +34,9 @@ from causal_agent.common.contracts import (
     Said,
     Scope,
 )
-from causal_agent.intake.datasets import ROOT, dataset_entries, load_dataset_pack
-from causal_agent.intake.interview.contracts import Claim, ClaimTable, ProbeResult
-from causal_agent.intake.pack import Pack
+from causal_agent.profile.datasets import ROOT, dataset_entries, load_dataset_pack
+from causal_agent.memory.claims import Claim, ClaimTable, ProbeResult
+from causal_agent.profile.pack import Pack
 from causal_agent.knowledge import Family, load_registry
 
 BELIEF_KINDS = ("unobserved", "exclusion", "spillover", "trend_continues", "cutoff_only")

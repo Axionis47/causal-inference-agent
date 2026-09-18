@@ -233,8 +233,8 @@ def test_pack_panel_block_settles_groups_and_periods_without_a_model_call():
     """No shipped dataset carries diff-in-diff claims yet, so the claims are built here and handed to the builder directly."""
     from causal_agent.common.contracts import Candidate, FamilyDecision, QuestionFrame, Scope
     from causal_agent.desk.handoff import build
-    from causal_agent.intake.datasets import load_dataset_pack
-    from causal_agent.intake.interview.contracts import Claim, ClaimTable
+    from causal_agent.profile.datasets import load_dataset_pack
+    from causal_agent.memory.claims import Claim, ClaimTable
     from causal_agent.knowledge import load_registry
 
     table = ClaimTable(claims={

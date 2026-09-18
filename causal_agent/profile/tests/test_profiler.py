@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from causal_agent.intake.profiler import profile
+from causal_agent.profile.profiler import profile
 
 ROOT = Path(__file__).resolve().parents[3]
 STUDENTS = ROOT / "data/raw/students-performance-in-exams/StudentsPerformance.csv"
