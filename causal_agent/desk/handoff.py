@@ -93,7 +93,6 @@ def _adjustment(briefs: list[ColumnBrief], a: dict, beliefs: dict[str, Belief], 
     kind = a.get("kind")
     voluntary = True if kind == "own_choice" else False if kind in ("cutoff_rule", "date_by_others", "lottery") else (True if a.get("movable") else None)
     return AdjustmentDesign(adjustment_candidates=list(dict.fromkeys(dep + before)), forbidden=list(dict.fromkeys(forbidden)),
-                            identification_allowed=["backdoor"] + (["instrument"] if instrument else []) + (["frontdoor"] if mediator else []),
                             instrument=instrument, mediator=mediator, unobserved_confounding=unob.value if unob and unob.known() else None,
                             voluntary_uptake=voluntary, target_units=scope.target, contrast=scope.contrast)
 

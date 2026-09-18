@@ -434,7 +434,8 @@ def _design_facts(state: SpecialistState) -> dict[str, Any]:
         "contrasts": len(state["contrasts"]),
         "smallest_arm": min((int(r.value) for r in arms if r.value is not None), default=0),
         # from the pack: what the person said, so the pick is not made by habit
-        "identification_allowed": b.identification_allowed if b else ["backdoor"],
+        "instrument_named": b.instrument if b else None,
+        "mediator_named": b.mediator if b else None,
         "hidden_confounding_per_person": b.unobserved_confounding if b else None,
         "voluntary_uptake": b.voluntary_uptake if b else None,
     }

@@ -261,7 +261,6 @@ class AdjustmentDesign(BaseModel):
     kind: Literal["adjustment"] = "adjustment"
     adjustment_candidates: list[str] = Field(default_factory=list, description="columns the offer depended on plus every before-column the change could not have moved")
     forbidden: list[str] = Field(default_factory=list, description="columns set at or after the change; never a parent of the outcome in the graph")
-    identification_allowed: list[Literal["backdoor", "instrument", "frontdoor"]] = Field(default_factory=lambda: ["backdoor"])
     instrument: str | None = None
     mediator: str | None = None
     unobserved_confounding: bool | None = Field(default=None, description="true: the person says something hidden drove both; the caveat must say so")
@@ -273,7 +272,7 @@ class AdjustmentDesign(BaseModel):
         return "\n".join([
             f"  candidates to adjust for: {', '.join(self.adjustment_candidates) or 'none named'}",
             f"  never adjust for: {', '.join(self.forbidden) or 'none named'}",
-            f"  identification allowed: {', '.join(self.identification_allowed)}" + (f" (instrument {self.instrument})" if self.instrument else ""),
+            f"  instrument: {self.instrument or 'none named'} · mediator: {self.mediator or 'none named'}",
             f"  hidden confounding: {'yes, per the person' if self.unobserved_confounding else 'no, per the person' if self.unobserved_confounding is False else 'not known'}",
             f"  uptake: {'voluntary after an offer' if self.voluntary_uptake else 'by a rule' if self.voluntary_uptake is False else 'not known'}",
             f"  target: {self.target_units}; contrast: {self.contrast}",

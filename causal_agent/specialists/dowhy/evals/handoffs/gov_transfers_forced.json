@@ -267,9 +267,6 @@
     "kind": "adjustment",
     "adjustment_candidates": [],
     "forbidden": [],
-    "identification_allowed": [
-      "backdoor"
-    ],
     "instrument": null,
     "mediator": null,
     "unobserved_confounding": null,
