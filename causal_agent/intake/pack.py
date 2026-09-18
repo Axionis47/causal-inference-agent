@@ -23,23 +23,8 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
+from causal_agent.common.addresses import key as _key, norm_address as _norm_address
 from causal_agent.intake.profiler import ColumnProfile, DatasetProfile, Profile
-
-
-def _key(name: str) -> str:
-    s = re.sub(r"[^0-9a-zA-Z]+", "_", name.strip()).strip("_").lower()
-    return s or "col"
-
-
-def _norm_address(address: str) -> str:
-    a = str(address).strip()
-    if a.startswith("col:"):
-        name, dot, rest = a[4:].partition(".")
-        return "col:" + _key(name) + (dot + rest.lower() if dot else "")
-    if a.startswith("claim:col:"):
-        name, dot, rest = a[10:].partition(".")
-        return "claim:col:" + _key(name) + (dot + rest.lower() if dot else "")
-    return a
 
 
 class ChangeCard(BaseModel):
