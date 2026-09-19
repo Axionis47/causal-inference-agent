@@ -1,3 +1,5 @@
+import type { FigureSpec } from "./figure";
+
 // Mirrors of causal_agent/server/models.py.
 
 export interface NumericShape {
@@ -184,6 +186,7 @@ export interface Turn {
   phase: string;
   at: string;
   kind: string | null;
+  figure?: FigureSpec | null;
 }
 
 export interface Prompt {

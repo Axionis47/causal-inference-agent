@@ -153,6 +153,17 @@ textarea.input { min-height: 88px; resize: vertical; line-height: 1.5; }
 .turn .body { white-space: pre-wrap; overflow-wrap: anywhere; }
 .turn .body .addr { font-family: var(--mono); font-size: 11.5px; color: var(--accent-ink); background: var(--accent-soft); border-radius: 4px; padding: 0 4px; }
 .turn .body .num { font-weight: 600; }
+.fig { margin: 10px 0 0; padding: 12px 14px 10px; border: 1px solid var(--rule); border-radius: 10px; background: var(--panel); max-width: 600px; }
+.fig figcaption { font-size: 13.5px; color: var(--ink-2); margin-bottom: 6px; }
+.fig figcaption .addr { font-family: var(--mono); font-size: 11.5px; color: var(--accent-ink); background: var(--accent-soft); border-radius: 4px; padding: 0 4px; margin-right: 6px; }
+.fig svg { width: 100%; height: auto; display: block; }
+.fig .grid { stroke: var(--rule); stroke-width: 1; }
+.fig .axis { stroke: var(--ink-3); stroke-width: 1; }
+.fig .tick { font-family: var(--mono); font-size: 10px; fill: var(--ink-3); }
+.fig .mark line { stroke: var(--ink-2); stroke-dasharray: 3 3; stroke-width: 1; }
+.fig .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); margin-top: 6px; }
+.fig .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: -1px; }
+.fig .note { margin: 6px 0 0; font-size: 13px; color: var(--ink-2); }
 
 .qs { margin: 6px 0 4px; padding: 14px 16px; border: 1px solid var(--rule); border-radius: 10px; background: var(--panel); }
 .qs .qrow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 6px 0; }

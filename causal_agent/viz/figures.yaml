@@ -1,0 +1,27 @@
+# The figures the viz tool can make before a run. One entry per function in viz/previz. The desk never names one of
+# these; it sends a Point, and the tool chooses among the entries whose family matches and whose needs the memory meets.
+# `needs` are memory addresses (claim:<kind>.<field>) or `outcome`, which the frame supplies. No dataset name appears here.
+
+adjustment.overlap:
+  family: adjustment
+  shows: the share of each arm at every level of what the offer depended on, side by side, with the smallest cell counted
+  makes_the_point_when: the point is about overlap, balance, common support, or whether both arms exist at every level
+  needs: [claim:assignment.treatment_column, claim:assignment.treated_level, claim:assignment.depends_on]
+
+diff_in_diff.by_group_over_time:
+  family: diff_in_diff
+  shows: the mean outcome per period for the units that got the change and the rest, with the change marked
+  makes_the_point_when: the point is about movement before the change, parallel paths, or when the groups part
+  needs: [outcome, claim:change.date_column, claim:change.period_value, claim:assignment.treatment_column, claim:assignment.treated_level]
+
+discontinuity.density:
+  family: discontinuity
+  shows: how many rows sit in each score bin either side of the cutoff
+  makes_the_point_when: the point is about bunching, manipulation of the score, or whether rows exist close to the line on both sides
+  needs: [claim:assignment.score_column, claim:assignment.cutoff]
+
+discontinuity.outcome_by_bin:
+  family: discontinuity
+  shows: the mean outcome per score bin either side of the cutoff
+  makes_the_point_when: the point is about the jump at the line, or about the outcome being smooth through it
+  needs: [outcome, claim:assignment.score_column, claim:assignment.cutoff]

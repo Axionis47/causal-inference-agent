@@ -10,6 +10,7 @@ cutoff:
   min_rows_side: 20          # matches specialists/rd/knowledge/checks.yaml sides.min_rows.hard
 arms:
   min_rows_arm: 20           # matches specialists/dowhy/knowledge/checks.yaml arms.min_per_arm.hard
+  min_rows_cell: 5           # ours: the smallest arm in any cell of what the offer depended on; below this overlap is thin
 probe:
   min_pre_periods: 2         # matches specialists/did/knowledge/checks.yaml periods (one lead needs two pre-periods)
   max_treated_units_single: 3   # ours: synthetic control and interrupted series need one or very few treated units

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { Turn } from "../types";
+import Figure from "./Figure";
 
 // Addresses in square brackets become small marks; numbered question lines get a heavier number.
 const ADDR = /\[([a-z_]+:[^\]\s]+|decision\.[^\]\s]+|design\.[^\]\s]+|primary\.[^\]\s]+|feasibility\.[^\]\s]+|run\.[^\]\s]+|dataset|profile|unstated)\]/g;
@@ -55,6 +56,7 @@ export default function Message({ t }: { t: Turn }) {
         <span>{when(t.at)}</span>
       </div>
       <div className="body">{t.role === "assistant" ? richText(t.text) : t.text}</div>
+      {t.figure && <Figure spec={t.figure} />}
     </div>
   );
 }

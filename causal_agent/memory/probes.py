@@ -10,6 +10,7 @@ from causal_agent.profile.data import column
 
 
 from causal_agent.memory.checks import treated_mask as _treated_mask
+from causal_agent.viz.previz.adjustment import overlap_probe
 
 
 def _periods(df: pd.DataFrame, table: ClaimTable) -> tuple[pd.Series | None, str | None]:
@@ -79,6 +80,10 @@ def run_probes(df: pd.DataFrame, table: ClaimTable, families: list[str], th: dic
             floor = int(th["arms"]["min_rows_arm"])
             out.append(ProbeResult(family=fam, name="arms", value=float(min(n_t, n_o)), passed=min(n_t, n_o) >= floor,
                                    detail=f"{n_t} treated rows and {n_o} others; floor {floor} an arm"))
+            deps = [c for d in (a.fields.get("depends_on") or []) if (c := column(df, d)) is not None]
+            if deps:  # the same cells the pre-viz draws: both arms present at every level the offer looked at
+                ov = overlap_probe(df, treated, deps, int(th["arms"]["min_rows_cell"]))
+                out.append(ProbeResult(family=fam, name=ov.name, value=ov.value, passed=ov.passed, detail=ov.detail))
         elif fam in {"diff_in_diff", "synthetic_control", "interrupted_series"}:
             if pre is None:
                 out.append(ProbeResult(family=fam, name="pre_periods", passed=None, detail="period column or change period not settled"))

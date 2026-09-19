@@ -217,6 +217,7 @@ class Turn(BaseModel):
     phase: str = "before"
     at: str
     kind: str | None = None
+    figure: dict | None = Field(default=None, description="a FigureSpec (causal_agent/viz/spec.py) shown under the text")
 
 
 class Prompt(BaseModel):

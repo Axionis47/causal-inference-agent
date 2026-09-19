@@ -226,8 +226,13 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--contrast", default="switch")
     ap.add_argument("--window", default=None)
     ap.add_argument("--assumption", default="forced hand-off")
+    ap.add_argument("--mine", action="store_true", help="read the attached note into drafts first, when the memory holds only the file's facts (one model call)")
     ap.add_argument("-o", "--out", default=None)
     args = ap.parse_args(argv)
+    if args.mine:
+        from causal_agent.desk.nodes.frame import mine
+
+        mine({"dataset": args.dataset, "question": args.question})
     cols = [c.strip() for c in args.columns.split(",") if c.strip()]
     h = forced(args.dataset, args.question, args.family, args.outcome, args.treatment, cols, scope=Scope(target=args.target, window=args.window, contrast=args.contrast), assumption=args.assumption)
     text = json.dumps(h.model_dump(), indent=2, default=str)

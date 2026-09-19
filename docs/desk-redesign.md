@@ -4,7 +4,9 @@ Status, 18 Sept: stages 0 and 1 landed (the first `Handoff`, the one builder, th
 landed the same day: `profile/` and `memory/` split out of `intake/`, the field catalogue final, one map from address to field with a
 status and a source on every entry, roles as a view, the gated write path, the consistency rules, `open`, the store and the migration. The router is folded in too:
 routing runs on the memory (`desk/route.py`), the per-family model verdicts are replaced by the fit over the memory, and the pack is
-projected from a memory. Stage 3 (profile facts, the figure contract, the lanes on the renamed fields) next.
+projected from a memory. Stage 3 landed on 19 Sept: the profile facts (`binary_like`, `bounds`, `role_hints`, the index line, the
+disk cache), the pack with how every field was settled and the lanes reading the person's words, `identification_allowed` gone,
+`viz/` with the figure contract, the three pre-viz functions, the viz subgraph, and `Figure.tsx`. Stage 4 (the journey to ready) next.
 
 ## Context
 
@@ -288,7 +290,10 @@ function returns the spec and the probe number from the same computation.
 - diff_in_diff: the outcome by group over time with the change marked.
 - discontinuity: score density around the cutoff and the outcome means per bin.
 
-`Figure.tsx` renders the spec kinds (bars, lines, points, density, interval) inline in a message and in the inspector.
+`Figure.tsx` renders the spec kinds (bars, lines, points, density, interval) inline in a message (a turn carries an optional
+`figure`) and, at stage 8, in the inspector. The layout is pure code in `web/src/figure.ts`, tested. `viz/figures.yaml` declares
+what each function shows, when it makes a point, and what it needs settled; `candidates` is code over that, `pick` a judgement only
+among several.
 
 ## 5. The run
 
