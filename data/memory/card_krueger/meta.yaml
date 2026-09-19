@@ -1,5 +1,5 @@
 name: card_krueger
-version: 23
+version: 25
 csv: data/raw/card-krueger-minimum-wage/employment.csv
 facts:
   rows: 384

@@ -1,5 +1,5 @@
 name: students
-version: 36
+version: 35
 csv: data/raw/students-performance-in-exams/StudentsPerformance.csv
 facts:
   rows: 1000

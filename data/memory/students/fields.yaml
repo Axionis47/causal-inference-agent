@@ -5,7 +5,7 @@ claim:missing.why:
   said: null
   evidence: []
 claim:grain.row_is:
-  value: one student's results from the May 2026 exam at one school
+  value: one student's results from the May 2026 exam
   status: drafted
   source: doc:context
   said: null
@@ -43,7 +43,7 @@ claim:assignment.kind:
 claim:assignment.rule:
   value: The counsellor offered places first to students on free or reduced lunch
     and to students whose parents hold no degree; remaining places were open to anyone
-    who asked. Uptake was voluntary.
+    who asked. After that, uptake was voluntary.
   status: drafted
   source: doc:context
   said: null
@@ -81,7 +81,7 @@ claim:sampling.detail:
   said: null
   evidence: []
 col:gender.meaning:
-  value: gender
+  value: The student's gender.
   status: drafted
   source: doc:context
   said: null
@@ -93,7 +93,8 @@ col:gender.when:
   said: null
   evidence: []
 col:race_ethnicity.meaning:
-  value: race/ethnicity
+  value: The student's race/ethnicity, according to the school's grouping (letters
+    A to E).
   status: drafted
   source: doc:context
   said: null
@@ -105,7 +106,8 @@ col:race_ethnicity.when:
   said: null
   evidence: []
 col:parental_level_of_education.meaning:
-  value: highest qualification held by either parent
+  value: The highest qualification held by either parent, as declared at enrolment.
+    Six levels from some high school to master's degree.
   status: drafted
   source: doc:context
   said: null
@@ -117,8 +119,9 @@ col:parental_level_of_education.when:
   said: null
   evidence: []
 col:lunch.meaning:
-  value: lunch status (standard or free/reduced), indicating household income below
-    federal threshold
+  value: Whether the student receives standard or free/reduced lunch. Free/reduced
+    is assigned by the district based on household income below the federal threshold,
+    serving as the school's low-income indicator.
   status: drafted
   source: doc:context
   said: null
@@ -130,13 +133,13 @@ col:lunch.when:
   said: null
   evidence: []
 col:lunch.set_by:
-  value: district
+  value: the district
   status: drafted
   source: doc:context
   said: null
   evidence: []
 col:test_preparation_course.meaning:
-  value: whether the student completed the prep course
+  value: Whether the student completed the test preparation course (completed or none).
   status: drafted
   source: doc:context
   said: null
@@ -161,20 +164,14 @@ col:test_preparation_course.when:
   source: doc:context
   said: null
   evidence: []
-col:test_preparation_course.moved_by_change:
-  value: true
-  status: drafted
-  source: doc:context
-  said: null
-  evidence: []
 col:math_score.meaning:
-  value: exam mark
+  value: The student's math exam mark, 0 to 100.
   status: drafted
   source: doc:context
   said: null
   evidence: []
 col:math_score.when:
-  value: at
+  value: after
   status: drafted
   source: doc:context
   said: null
@@ -186,13 +183,13 @@ col:math_score.measures_outcome:
   said: null
   evidence: []
 col:reading_score.meaning:
-  value: exam mark
+  value: The student's reading exam mark, 0 to 100.
   status: drafted
   source: doc:context
   said: null
   evidence: []
 col:reading_score.when:
-  value: at
+  value: after
   status: drafted
   source: doc:context
   said: null
@@ -204,13 +201,13 @@ col:reading_score.measures_outcome:
   said: null
   evidence: []
 col:writing_score.meaning:
-  value: exam mark
+  value: The student's writing exam mark, 0 to 100.
   status: drafted
   source: doc:context
   said: null
   evidence: []
 col:writing_score.when:
-  value: at
+  value: after
   status: drafted
   source: doc:context
   said: null

@@ -76,7 +76,7 @@ kinds:
     about: one column, what it measures, when it was set relative to the change, and how it stands to the change and the outcome
     per_column: true
     fields:
-      meaning: {type: text}
+      meaning: {type: text, hint: "what the column measures and how to read its values: the units, and what each code or level stands for when the values are codes (which number is which place, which level means yes)"}
       stands_for: {type: text, optional: true, hint: "the thing in the world the column measures, so two columns measuring one thing are known as one: household income, prior ability"}
       proxy: {type: choice, options: [exact, proxy, derived], optional: true, about: {exact: the column is the thing itself, proxy: the column stands in for the thing, derived: the column is computed from other columns}}
       derived_from: {type: columns, optional: true}

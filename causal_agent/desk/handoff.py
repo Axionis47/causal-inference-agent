@@ -142,10 +142,10 @@ def build(*, question: str, frame: QuestionFrame, decision: FamilyDecision, fami
     treatment = a.get("treatment_column") or frame.cause
     if a.get("kind") == "cutoff_rule" and not a.get("treatment_column") and treatment and a.get("score_column") and key(treatment) == key(a["score_column"]):
         treatment = None  # the change is the rule itself; the score is not the treatment
-    role = ops.roles(m, outcome=outcome, treatment=treatment)
-    for n in [entry.get("time")] + list(entry.get("entity") or []):  # the index entry's flags stand in for what the memory does not carry yet
+    role = ops.roles(m, outcome=outcome, treatment=treatment, time=entry.get("time"))
+    for n in entry.get("entity") or []:  # the index entry's flags stand in for what the memory does not carry yet
         if n and m.column(n) is not None:
-            role.setdefault(m.column(n).key, "time" if n == entry.get("time") else "unit")
+            role.setdefault(m.column(n).key, "unit")
 
     names: list[str] = []
     for n in [outcome, treatment] + [c.column for c in frame.relevant_columns] + list(a.get("depends_on") or []) + \

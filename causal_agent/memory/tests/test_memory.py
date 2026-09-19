@@ -127,6 +127,10 @@ def test_roles_are_a_view_of_the_dataset_fields():
     assert r["math_score"] == "outcome" and r["test_preparation_course"] == "treatment" and r["lunch"] == "depends_on"
     assert "gender" not in r
     assert m.version == v and not any(a.endswith(".role") for a in m.fields)  # nothing written
+    # a panel's key columns are units except the period column, which the memory or the caller names
+    m.set("claim:grain.panel", True, status="confirmed", source="data")
+    m.set("claim:grain.key_columns", ["gender", "lunch"], status="drafted", source="data")
+    assert ops.roles(m, time="lunch")["gender"] == "unit" and ops.roles(m, time="lunch")["lunch"] == "time"
 
 
 def test_consistency_refutes_without_overwriting():

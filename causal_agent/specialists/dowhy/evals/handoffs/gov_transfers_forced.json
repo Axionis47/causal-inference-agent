@@ -66,7 +66,7 @@
   "question": "Did receiving the transfer raise support for the government?",
   "intent": "effect_of_change",
   "design_id": 0,
-  "memory_version": 72,
+  "memory_version": 33,
   "why": "forced",
   "over": {},
   "csv": "data/raw/gov-transfers-uruguay/gov_transfers.csv",
@@ -81,15 +81,14 @@
     "format_issues": []
   },
   "grain": {
-    "row_is": "one household",
-    "panel": false
+    "row_is": "one household from a 2007 survey in Uruguay"
   },
   "sampling": {
     "how": "by_side",
     "detail": "The file keeps only households whose eligibility score sits within a narrow band around the programme's cutoff, so it is the households closest to the line on either side. The survey sample was drawn by side of the cutoff, two eligible households for every ineligible one."
   },
   "missing": {
-    "why": "Missing for 51 households in Education."
+    "why": "Missing for 51 households in the survey."
   },
   "treated_level": "1",
   "control_level": "0",
@@ -98,13 +97,13 @@
       "name": "Support",
       "key": "support",
       "role": "outcome",
-      "meaning": "The respondent's stated support for the government in the 2007 survey, scored 0, 0.5, or 1",
-      "stands_for": "government support",
+      "meaning": "The respondent's stated support for the government in the 2007 survey, scored 0, 0.5, or 1.",
+      "stands_for": null,
       "proxy": null,
       "when": "after",
       "set_by": null,
       "moved_by_change": null,
-      "measures_outcome": true,
+      "measures_outcome": null,
       "source": "doc:context",
       "provenance": {
         "meaning": {
@@ -112,17 +111,7 @@
           "source": "doc:context",
           "said": null
         },
-        "stands_for": {
-          "status": "drafted",
-          "source": "doc:context",
-          "said": null
-        },
         "when": {
-          "status": "drafted",
-          "source": "doc:context",
-          "said": null
-        },
-        "measures_outcome": {
           "status": "drafted",
           "source": "doc:context",
           "said": null
@@ -159,12 +148,12 @@
       "name": "Participation",
       "key": "participation",
       "role": "treatment",
-      "meaning": "1 if the household received the transfer, 0 if not",
-      "stands_for": "treatment receipt",
-      "proxy": "exact",
-      "when": "at",
+      "meaning": "1 if the household received the transfer, 0 if not.",
+      "stands_for": null,
+      "proxy": null,
+      "when": "before",
       "set_by": null,
-      "moved_by_change": null,
+      "moved_by_change": false,
       "measures_outcome": null,
       "source": "doc:context",
       "provenance": {
@@ -173,17 +162,12 @@
           "source": "doc:context",
           "said": null
         },
-        "stands_for": {
-          "status": "drafted",
-          "source": "doc:context",
-          "said": null
-        },
-        "proxy": {
-          "status": "drafted",
-          "source": "doc:context",
-          "said": null
-        },
         "when": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "moved_by_change": {
           "status": "drafted",
           "source": "doc:context",
           "said": null
@@ -222,8 +206,8 @@
       "name": "Income_Centered",
       "key": "income_centered",
       "role": "score",
-      "meaning": "The eligibility score minus the cutoff, so the cutoff is at zero. Negative means eligible.",
-      "stands_for": "eligibility score",
+      "meaning": "The eligibility score minus the cutoff, so the cutoff is at zero. Negative means eligible. Values run from about minus 0.02 to plus 0.02, the band kept in the file.",
+      "stands_for": null,
       "proxy": "derived",
       "when": "before",
       "set_by": null,
@@ -232,11 +216,6 @@
       "source": "doc:context",
       "provenance": {
         "meaning": {
-          "status": "drafted",
-          "source": "doc:context",
-          "said": null
-        },
-        "stands_for": {
           "status": "drafted",
           "source": "doc:context",
           "said": null
@@ -288,12 +267,12 @@
       "name": "Education",
       "key": "education",
       "role": "candidate",
-      "meaning": "Years of schooling of the household head",
-      "stands_for": "household head's education",
+      "meaning": "Years of schooling of the household head.",
+      "stands_for": null,
       "proxy": null,
       "when": "before",
       "set_by": null,
-      "moved_by_change": null,
+      "moved_by_change": false,
       "measures_outcome": null,
       "source": "doc:context",
       "provenance": {
@@ -302,12 +281,12 @@
           "source": "doc:context",
           "said": null
         },
-        "stands_for": {
+        "when": {
           "status": "drafted",
           "source": "doc:context",
           "said": null
         },
-        "when": {
+        "moved_by_change": {
           "status": "drafted",
           "source": "doc:context",
           "said": null
@@ -344,12 +323,12 @@
       "name": "Age",
       "key": "age",
       "role": "candidate",
-      "meaning": "Age of the household head at the survey",
-      "stands_for": "household head's age",
+      "meaning": "Age of the household head at the survey.",
+      "stands_for": null,
       "proxy": null,
       "when": "before",
       "set_by": null,
-      "moved_by_change": null,
+      "moved_by_change": false,
       "measures_outcome": null,
       "source": "doc:context",
       "provenance": {
@@ -358,12 +337,12 @@
           "source": "doc:context",
           "said": null
         },
-        "stands_for": {
+        "when": {
           "status": "drafted",
           "source": "doc:context",
           "said": null
         },
-        "when": {
+        "moved_by_change": {
           "status": "drafted",
           "source": "doc:context",
           "said": null
@@ -404,11 +383,10 @@
   },
   "assignment": {
     "kind": "cutoff_rule",
-    "rule": "households with a score below a fixed cutoff were eligible, households above were not. The rule was applied mechanically, and take-up among the eligible was near universal.",
+    "rule": "households with a score below a fixed cutoff were eligible, households above were not; the rule was applied mechanically, and take-up among the eligible was near universal",
     "score_column": "Income_Centered",
     "cutoff": 0.0,
     "treated_side": "below",
-    "cutoff_value_treated": true,
     "treatment_column": "Participation",
     "treated_level": "1",
     "movable": false
@@ -459,11 +437,10 @@
       "kind": "assignment",
       "fields": {
         "kind": "cutoff_rule",
-        "rule": "households with a score below a fixed cutoff were eligible, households above were not. The rule was applied mechanically, and take-up among the eligible was near universal.",
+        "rule": "households with a score below a fixed cutoff were eligible, households above were not; the rule was applied mechanically, and take-up among the eligible was near universal",
         "score_column": "Income_Centered",
         "cutoff": 0.0,
         "treated_side": "below",
-        "cutoff_value_treated": true,
         "treatment_column": "Participation",
         "treated_level": "1",
         "movable": false
@@ -484,8 +461,7 @@
     "grain": {
       "kind": "grain",
       "fields": {
-        "row_is": "one household",
-        "panel": false
+        "row_is": "one household from a 2007 survey in Uruguay"
       },
       "status": "drafted",
       "source": "doc:context"
@@ -502,7 +478,7 @@
     "missing": {
       "kind": "missing",
       "fields": {
-        "why": "Missing for 51 households in Education."
+        "why": "Missing for 51 households in the survey."
       },
       "status": "drafted",
       "source": "doc:context"
@@ -510,8 +486,7 @@
     "col:income_centered": {
       "kind": "measured",
       "fields": {
-        "meaning": "The eligibility score minus the cutoff, so the cutoff is at zero. Negative means eligible.",
-        "stands_for": "eligibility score",
+        "meaning": "The eligibility score minus the cutoff, so the cutoff is at zero. Negative means eligible. Values run from about minus 0.02 to plus 0.02, the band kept in the file.",
         "proxy": "derived",
         "when": "before",
         "moved_by_change": false
@@ -522,9 +497,9 @@
     "col:education": {
       "kind": "measured",
       "fields": {
-        "meaning": "Years of schooling of the household head",
-        "stands_for": "household head's education",
-        "when": "before"
+        "meaning": "Years of schooling of the household head.",
+        "when": "before",
+        "moved_by_change": false
       },
       "status": "drafted",
       "source": "doc:context"
@@ -532,9 +507,9 @@
     "col:age": {
       "kind": "measured",
       "fields": {
-        "meaning": "Age of the household head at the survey",
-        "stands_for": "household head's age",
-        "when": "before"
+        "meaning": "Age of the household head at the survey.",
+        "when": "before",
+        "moved_by_change": false
       },
       "status": "drafted",
       "source": "doc:context"
@@ -542,10 +517,9 @@
     "col:participation": {
       "kind": "measured",
       "fields": {
-        "meaning": "1 if the household received the transfer, 0 if not",
-        "stands_for": "treatment receipt",
-        "proxy": "exact",
-        "when": "at"
+        "meaning": "1 if the household received the transfer, 0 if not.",
+        "when": "before",
+        "moved_by_change": false
       },
       "status": "drafted",
       "source": "doc:context"
@@ -553,10 +527,8 @@
     "col:support": {
       "kind": "measured",
       "fields": {
-        "meaning": "The respondent's stated support for the government in the 2007 survey, scored 0, 0.5, or 1",
-        "stands_for": "government support",
-        "when": "after",
-        "measures_outcome": true
+        "meaning": "The respondent's stated support for the government in the 2007 survey, scored 0, 0.5, or 1.",
+        "when": "after"
       },
       "status": "drafted",
       "source": "doc:context"

@@ -6,8 +6,8 @@ claim:missing.why:
   evidence: []
 claim:grain.panel:
   value: true
-  status: confirmed
-  source: data
+  status: drafted
+  source: doc:context
   said: null
   evidence: []
 claim:grain.key_columns:
@@ -25,26 +25,19 @@ claim:grain.row_is:
   said: null
   evidence: []
 claim:change.what:
-  value: Promotion test for a new menu item
+  value: a promotion for a new menu item
   status: drafted
   source: doc:context
   said: null
   evidence: []
 claim:change.to_whom:
-  value: Each store
+  value: each store
   status: drafted
   source: doc:context
   said: null
   evidence: []
 claim:change.when:
-  value: from the first week of the test, and kept the same promotion for all four
-    weeks
-  status: drafted
-  source: doc:context
-  said: null
-  evidence: []
-claim:change.date_column:
-  value: week
+  value: from week 1 to week 4 of the test
   status: drafted
   source: doc:context
   said: null
@@ -79,26 +72,14 @@ col:marketid.when:
   source: doc:context
   said: null
   evidence: []
-col:marketid.moved_by_change:
-  value: false
-  status: drafted
-  source: doc:context
-  said: null
-  evidence: []
 col:marketsize.meaning:
-  value: the chain's classification of the market (Small, medium, or large)
+  value: Small, medium, or large, the chain's classification of the market
   status: drafted
   source: doc:context
   said: null
   evidence: []
 col:marketsize.when:
   value: before
-  status: drafted
-  source: doc:context
-  said: null
-  evidence: []
-col:marketsize.moved_by_change:
-  value: false
   status: drafted
   source: doc:context
   said: null
@@ -115,14 +96,8 @@ col:locationid.when:
   source: doc:context
   said: null
   evidence: []
-col:locationid.moved_by_change:
-  value: false
-  status: drafted
-  source: doc:context
-  said: null
-  evidence: []
 col:ageofstore.meaning:
-  value: Years since the store opened
+  value: Years since the store opened, at the start of the test
   status: drafted
   source: doc:context
   said: null
@@ -133,14 +108,8 @@ col:ageofstore.when:
   source: doc:context
   said: null
   evidence: []
-col:ageofstore.moved_by_change:
-  value: false
-  status: drafted
-  source: doc:context
-  said: null
-  evidence: []
 col:promotion.meaning:
-  value: Which promotion the store ran
+  value: 1, 2, or 3. Which promotion the store ran
   status: drafted
   source: doc:context
   said: null
@@ -151,26 +120,8 @@ col:promotion.when:
   source: doc:context
   said: null
   evidence: []
-col:promotion.set_by:
-  value: marketing team
-  status: drafted
-  source: doc:context
-  said: null
-  evidence: []
-col:promotion.moved_by_change:
-  value: false
-  status: drafted
-  source: doc:context
-  said: null
-  evidence: []
 col:week.meaning:
-  value: Test week
-  status: drafted
-  source: doc:context
-  said: null
-  evidence: []
-col:week.when:
-  value: at
+  value: Test week, 1 to 4
   status: drafted
   source: doc:context
   said: null
@@ -182,13 +133,19 @@ col:salesinthousands.meaning:
   said: null
   evidence: []
 col:salesinthousands.when:
-  value: at
+  value: after
   status: drafted
   source: doc:context
   said: null
   evidence: []
 col:salesinthousands.measures_outcome:
   value: true
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:sampling.how:
+  value: whole
   status: drafted
   source: doc:context
   said: null

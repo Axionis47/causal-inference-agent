@@ -73,7 +73,7 @@
   "question": "Did completing the prep course raise math scores?",
   "intent": "effect_of_change",
   "design_id": 0,
-  "memory_version": 36,
+  "memory_version": 35,
   "why": "forced",
   "over": {},
   "csv": "data/raw/students-performance-in-exams/StudentsPerformance.csv",
@@ -88,7 +88,7 @@
     "format_issues": []
   },
   "grain": {
-    "row_is": "one student's results from the May 2026 exam at one school",
+    "row_is": "one student's results from the May 2026 exam",
     "panel": false
   },
   "sampling": {
@@ -105,10 +105,10 @@
       "name": "math score",
       "key": "math_score",
       "role": "outcome",
-      "meaning": "exam mark",
+      "meaning": "The student's math exam mark, 0 to 100.",
       "stands_for": null,
       "proxy": null,
-      "when": "at",
+      "when": "after",
       "set_by": null,
       "moved_by_change": null,
       "measures_outcome": true,
@@ -161,12 +161,12 @@
       "name": "test preparation course",
       "key": "test_preparation_course",
       "role": "treatment",
-      "meaning": "whether the student completed the prep course",
+      "meaning": "Whether the student completed the test preparation course (completed or none).",
       "stands_for": null,
       "proxy": "derived",
       "when": "before",
       "set_by": null,
-      "moved_by_change": true,
+      "moved_by_change": null,
       "measures_outcome": null,
       "source": "doc:context",
       "provenance": {
@@ -186,11 +186,6 @@
           "said": null
         },
         "when": {
-          "status": "drafted",
-          "source": "doc:context",
-          "said": null
-        },
-        "moved_by_change": {
           "status": "drafted",
           "source": "doc:context",
           "said": null
@@ -229,10 +224,10 @@
       "name": "reading score",
       "key": "reading_score",
       "role": "candidate",
-      "meaning": "exam mark",
+      "meaning": "The student's reading exam mark, 0 to 100.",
       "stands_for": null,
       "proxy": null,
-      "when": "at",
+      "when": "after",
       "set_by": null,
       "moved_by_change": null,
       "measures_outcome": true,
@@ -285,10 +280,10 @@
       "name": "writing score",
       "key": "writing_score",
       "role": "candidate",
-      "meaning": "exam mark",
+      "meaning": "The student's writing exam mark, 0 to 100.",
       "stands_for": null,
       "proxy": null,
-      "when": "at",
+      "when": "after",
       "set_by": null,
       "moved_by_change": null,
       "measures_outcome": true,
@@ -341,11 +336,11 @@
       "name": "lunch",
       "key": "lunch",
       "role": "depends_on",
-      "meaning": "lunch status (standard or free/reduced), indicating household income below federal threshold",
+      "meaning": "Whether the student receives standard or free/reduced lunch. Free/reduced is assigned by the district based on household income below the federal threshold, serving as the school's low-income indicator.",
       "stands_for": null,
       "proxy": null,
       "when": "before",
-      "set_by": "district",
+      "set_by": "the district",
       "moved_by_change": null,
       "measures_outcome": null,
       "source": "doc:context",
@@ -399,7 +394,7 @@
       "name": "parental level of education",
       "key": "parental_level_of_education",
       "role": "depends_on",
-      "meaning": "highest qualification held by either parent",
+      "meaning": "The highest qualification held by either parent, as declared at enrolment. Six levels from some high school to master's degree.",
       "stands_for": null,
       "proxy": null,
       "when": "before",
@@ -476,7 +471,7 @@
   },
   "assignment": {
     "kind": "own_choice",
-    "rule": "The counsellor offered places first to students on free or reduced lunch and to students whose parents hold no degree; remaining places were open to anyone who asked. Uptake was voluntary.",
+    "rule": "The counsellor offered places first to students on free or reduced lunch and to students whose parents hold no degree; remaining places were open to anyone who asked. After that, uptake was voluntary.",
     "depends_on": [
       "lunch",
       "parental level of education"
@@ -530,7 +525,7 @@
       "kind": "assignment",
       "fields": {
         "kind": "own_choice",
-        "rule": "The counsellor offered places first to students on free or reduced lunch and to students whose parents hold no degree; remaining places were open to anyone who asked. Uptake was voluntary.",
+        "rule": "The counsellor offered places first to students on free or reduced lunch and to students whose parents hold no degree; remaining places were open to anyone who asked. After that, uptake was voluntary.",
         "depends_on": [
           "lunch",
           "parental level of education"
@@ -554,7 +549,7 @@
     "grain": {
       "kind": "grain",
       "fields": {
-        "row_is": "one student's results from the May 2026 exam at one school",
+        "row_is": "one student's results from the May 2026 exam",
         "panel": false
       },
       "status": "drafted",
@@ -580,7 +575,7 @@
     "col:gender": {
       "kind": "measured",
       "fields": {
-        "meaning": "gender",
+        "meaning": "The student's gender.",
         "when": "before"
       },
       "status": "drafted",
@@ -589,7 +584,7 @@
     "col:race_ethnicity": {
       "kind": "measured",
       "fields": {
-        "meaning": "race/ethnicity",
+        "meaning": "The student's race/ethnicity, according to the school's grouping (letters A to E).",
         "when": "before"
       },
       "status": "drafted",
@@ -598,7 +593,7 @@
     "col:parental_level_of_education": {
       "kind": "measured",
       "fields": {
-        "meaning": "highest qualification held by either parent",
+        "meaning": "The highest qualification held by either parent, as declared at enrolment. Six levels from some high school to master's degree.",
         "when": "before"
       },
       "status": "drafted",
@@ -607,9 +602,9 @@
     "col:lunch": {
       "kind": "measured",
       "fields": {
-        "meaning": "lunch status (standard or free/reduced), indicating household income below federal threshold",
+        "meaning": "Whether the student receives standard or free/reduced lunch. Free/reduced is assigned by the district based on household income below the federal threshold, serving as the school's low-income indicator.",
         "when": "before",
-        "set_by": "district"
+        "set_by": "the district"
       },
       "status": "drafted",
       "source": "doc:context"
@@ -617,14 +612,13 @@
     "col:test_preparation_course": {
       "kind": "measured",
       "fields": {
-        "meaning": "whether the student completed the prep course",
+        "meaning": "Whether the student completed the test preparation course (completed or none).",
         "proxy": "derived",
         "derived_from": [
           "lunch",
           "parental level of education"
         ],
-        "when": "before",
-        "moved_by_change": true
+        "when": "before"
       },
       "status": "drafted",
       "source": "doc:context"
@@ -632,8 +626,8 @@
     "col:math_score": {
       "kind": "measured",
       "fields": {
-        "meaning": "exam mark",
-        "when": "at",
+        "meaning": "The student's math exam mark, 0 to 100.",
+        "when": "after",
         "measures_outcome": true
       },
       "status": "drafted",
@@ -642,8 +636,8 @@
     "col:reading_score": {
       "kind": "measured",
       "fields": {
-        "meaning": "exam mark",
-        "when": "at",
+        "meaning": "The student's reading exam mark, 0 to 100.",
+        "when": "after",
         "measures_outcome": true
       },
       "status": "drafted",
@@ -652,8 +646,8 @@
     "col:writing_score": {
       "kind": "measured",
       "fields": {
-        "meaning": "exam mark",
-        "when": "at",
+        "meaning": "The student's writing exam mark, 0 to 100.",
+        "when": "after",
         "measures_outcome": true
       },
       "status": "drafted",

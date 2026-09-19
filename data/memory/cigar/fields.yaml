@@ -15,7 +15,7 @@ claim:grain.key_columns:
   - state
   - year
   status: drafted
-  source: doc:context
+  source: data
   said: null
   evidence: []
 claim:grain.row_is:
@@ -25,20 +25,20 @@ claim:grain.row_is:
   said: null
   evidence: []
 claim:change.what:
-  value: 'California Proposition 99: a 25 cent per pack tax increase with revenue
+  value: 'California Proposition 99: a 25 cent per pack tax increase, with revenue
     funding an anti-smoking campaign'
   status: drafted
   source: doc:context
   said: null
   evidence: []
 claim:change.to_whom:
-  value: California voters (applied to the whole state)
+  value: the whole state of California
   status: drafted
   source: doc:context
   said: null
   evidence: []
 claim:change.when:
-  value: January 1989
+  value: effective January 1989
   status: drafted
   source: doc:context
   said: null
@@ -50,7 +50,7 @@ claim:assignment.kind:
   said: null
   evidence: []
 claim:assignment.rule:
-  value: California voters passed a 25 cent per pack tax increase via ballot vote
+  value: California voters passed Proposition 99
   status: drafted
   source: doc:context
   said: null
@@ -61,20 +61,8 @@ claim:assignment.level_column:
   source: doc:context
   said: null
   evidence: []
-claim:sampling.how:
-  value: whole
-  status: drafted
-  source: doc:context
-  said: null
-  evidence: []
-claim:sampling.detail:
-  value: 46 states observed every year from 1963 to 1992
-  status: drafted
-  source: doc:context
-  said: null
-  evidence: []
 col:unnamed_0.meaning:
-  value: Row index from the export
+  value: Row index from the export. Ignore.
   status: drafted
   source: doc:context
   said: null
@@ -86,7 +74,8 @@ col:unnamed_0.when:
   said: null
   evidence: []
 col:state.meaning:
-  value: State number
+  value: State number, 1 to 51 in alphabetical order of the standard state list with
+    five states missing. State 5 is California.
   status: drafted
   source: doc:context
   said: null
@@ -98,7 +87,7 @@ col:state.when:
   said: null
   evidence: []
 col:year.meaning:
-  value: Two-digit year
+  value: Two-digit year, 63 to 92.
   status: drafted
   source: doc:context
   said: null
@@ -111,7 +100,7 @@ col:year.when:
   evidence: []
 col:price.meaning:
   value: Average retail price of a pack in that state and year, in cents, including
-    taxes
+    taxes.
   status: drafted
   source: doc:context
   said: null
@@ -135,7 +124,7 @@ col:price.moved_by_change:
   said: null
   evidence: []
 col:pop.meaning:
-  value: State population in thousands
+  value: State population in thousands.
   status: drafted
   source: doc:context
   said: null
@@ -147,7 +136,7 @@ col:pop.when:
   said: null
   evidence: []
 col:pop16.meaning:
-  value: State population aged 16 and over, in thousands
+  value: State population aged 16 and over, in thousands.
   status: drafted
   source: doc:context
   said: null
@@ -159,13 +148,8 @@ col:pop16.when:
   said: null
   evidence: []
 col:cpi.meaning:
-  value: National consumer price index, 1983 equals 100
-  status: drafted
-  source: doc:context
-  said: null
-  evidence: []
-col:cpi.set_by:
-  value: national economic factors
+  value: National consumer price index, 1983 equals 100. Same for every state in a
+    year.
   status: drafted
   source: doc:context
   said: null
@@ -176,14 +160,8 @@ col:cpi.when:
   source: doc:context
   said: null
   evidence: []
-col:cpi.moved_by_change:
-  value: false
-  status: drafted
-  source: doc:context
-  said: null
-  evidence: []
 col:ndi.meaning:
-  value: Per capita disposable income in the state, in current dollars
+  value: Per capita disposable income in the state, in current dollars.
   status: drafted
   source: doc:context
   said: null
@@ -194,20 +172,14 @@ col:ndi.when:
   source: doc:context
   said: null
   evidence: []
-col:ndi.moved_by_change:
-  value: true
-  status: drafted
-  source: doc:context
-  said: null
-  evidence: []
 col:sales.meaning:
-  value: Packs sold per capita in the state that year, from tax-paid sales
+  value: Packs sold per capita in the state that year, from tax-paid sales.
   status: drafted
   source: doc:context
   said: null
   evidence: []
 col:sales.when:
-  value: at
+  value: after
   status: drafted
   source: doc:context
   said: null
@@ -218,26 +190,15 @@ col:sales.measures_outcome:
   source: doc:context
   said: null
   evidence: []
-col:sales.moved_by_change:
-  value: true
-  status: drafted
-  source: doc:context
-  said: null
-  evidence: []
 col:pimin.meaning:
-  value: Lowest average price among the state's neighbouring states, in cents
+  value: Lowest average price among the state's neighbouring states, in cents. A measure
+    of how cheap it is to buy across the border.
   status: drafted
   source: doc:context
   said: null
   evidence: []
 col:pimin.when:
   value: at
-  status: drafted
-  source: doc:context
-  said: null
-  evidence: []
-col:pimin.moved_by_change:
-  value: false
   status: drafted
   source: doc:context
   said: null

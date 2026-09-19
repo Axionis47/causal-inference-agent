@@ -52,7 +52,7 @@
   "question": "Did New Jersey's 1992 minimum wage rise reduce fast food employment?",
   "intent": "effect_of_change",
   "design_id": 0,
-  "memory_version": 23,
+  "memory_version": 25,
   "why": "forced",
   "over": {},
   "csv": "data/raw/card-krueger-minimum-wage/employment.csv",
@@ -68,9 +68,12 @@
   },
   "grain": {
     "row_is": "one fast food restaurant",
-    "panel": true
+    "panel": false
   },
-  "sampling": {},
+  "sampling": {
+    "how": "unknown",
+    "detail": "This file is a trimmed version of the original survey, 384 restaurants. Restaurants are Burger King, KFC, Wendy's, and Roy Rogers outlets in New Jersey and in eastern Pennsylvania just across the border."
+  },
   "missing": {
     "why": "none"
   },
@@ -81,13 +84,13 @@
       "name": "total_emp_nov",
       "key": "total_emp_nov",
       "role": "outcome",
-      "meaning": "Full-time equivalent employment in November and December 1992",
+      "meaning": "Full-time equivalent employment in November and December 1992. Counted as full-time staff plus managers plus half of part-time staff.",
       "stands_for": "employment",
       "proxy": null,
       "when": "after",
       "set_by": null,
-      "moved_by_change": null,
-      "measures_outcome": true,
+      "moved_by_change": true,
+      "measures_outcome": null,
       "source": "doc:context",
       "provenance": {
         "meaning": {
@@ -105,7 +108,7 @@
           "source": "doc:context",
           "said": null
         },
-        "measures_outcome": {
+        "moved_by_change": {
           "status": "drafted",
           "source": "doc:context",
           "said": null
@@ -143,11 +146,11 @@
       "key": "state",
       "role": "treatment",
       "meaning": "1 for New Jersey, 0 for Pennsylvania. Where the restaurant is, and therefore whether the wage rise applied to it.",
-      "stands_for": "state of location",
+      "stands_for": "state of restaurant location",
       "proxy": "exact",
       "when": "before",
-      "set_by": "Fixed",
-      "moved_by_change": null,
+      "set_by": null,
+      "moved_by_change": false,
       "measures_outcome": null,
       "source": "doc:context",
       "provenance": {
@@ -171,7 +174,7 @@
           "source": "doc:context",
           "said": null
         },
-        "set_by": {
+        "moved_by_change": {
           "status": "drafted",
           "source": "doc:context",
           "said": null
@@ -210,7 +213,7 @@
       "name": "total_emp_feb",
       "key": "total_emp_feb",
       "role": "candidate",
-      "meaning": "Full-time equivalent employment in February and March 1992",
+      "meaning": "Full-time equivalent employment in February and March 1992. Counted as full-time staff plus managers plus half of part-time staff.",
       "stands_for": "employment",
       "proxy": null,
       "when": "before",
@@ -270,7 +273,7 @@
   ],
   "change": {
     "what": "New Jersey minimum wage rise from 4.25 to 5.05 dollars an hour",
-    "to_whom": "Every employer in New Jersey; none in Pennsylvania",
+    "to_whom": "Every employer in New Jersey",
     "when": "1 April 1992"
   },
   "assignment": {
@@ -329,7 +332,7 @@
       "kind": "change",
       "fields": {
         "what": "New Jersey minimum wage rise from 4.25 to 5.05 dollars an hour",
-        "to_whom": "Every employer in New Jersey; none in Pennsylvania",
+        "to_whom": "Every employer in New Jersey",
         "when": "1 April 1992"
       },
       "status": "drafted",
@@ -339,7 +342,16 @@
       "kind": "grain",
       "fields": {
         "row_is": "one fast food restaurant",
-        "panel": true
+        "panel": false
+      },
+      "status": "drafted",
+      "source": "doc:context"
+    },
+    "sampling": {
+      "kind": "sampling",
+      "fields": {
+        "how": "unknown",
+        "detail": "This file is a trimmed version of the original survey, 384 restaurants. Restaurants are Burger King, KFC, Wendy's, and Roy Rogers outlets in New Jersey and in eastern Pennsylvania just across the border."
       },
       "status": "drafted",
       "source": "doc:context"
@@ -356,10 +368,10 @@
       "kind": "measured",
       "fields": {
         "meaning": "1 for New Jersey, 0 for Pennsylvania. Where the restaurant is, and therefore whether the wage rise applied to it.",
-        "stands_for": "state of location",
+        "stands_for": "state of restaurant location",
         "proxy": "exact",
         "when": "before",
-        "set_by": "Fixed"
+        "moved_by_change": false
       },
       "status": "drafted",
       "source": "doc:context"
@@ -367,7 +379,7 @@
     "col:total_emp_feb": {
       "kind": "measured",
       "fields": {
-        "meaning": "Full-time equivalent employment in February and March 1992",
+        "meaning": "Full-time equivalent employment in February and March 1992. Counted as full-time staff plus managers plus half of part-time staff.",
         "stands_for": "employment",
         "when": "before",
         "moved_by_change": false
@@ -378,10 +390,10 @@
     "col:total_emp_nov": {
       "kind": "measured",
       "fields": {
-        "meaning": "Full-time equivalent employment in November and December 1992",
+        "meaning": "Full-time equivalent employment in November and December 1992. Counted as full-time staff plus managers plus half of part-time staff.",
         "stands_for": "employment",
         "when": "after",
-        "measures_outcome": true
+        "moved_by_change": true
       },
       "status": "drafted",
       "source": "doc:context"

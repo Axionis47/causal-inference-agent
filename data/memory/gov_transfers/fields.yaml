@@ -1,11 +1,5 @@
 claim:grain.row_is:
-  value: one household
-  status: drafted
-  source: doc:context
-  said: null
-  evidence: []
-claim:grain.panel:
-  value: false
+  value: one household from a 2007 survey in Uruguay
   status: drafted
   source: doc:context
   said: null
@@ -36,8 +30,8 @@ claim:assignment.kind:
   evidence: []
 claim:assignment.rule:
   value: households with a score below a fixed cutoff were eligible, households above
-    were not. The rule was applied mechanically, and take-up among the eligible was
-    near universal.
+    were not; the rule was applied mechanically, and take-up among the eligible was
+    near universal
   status: drafted
   source: doc:context
   said: null
@@ -56,12 +50,6 @@ claim:assignment.cutoff:
   evidence: []
 claim:assignment.treated_side:
   value: below
-  status: drafted
-  source: doc:context
-  said: null
-  evidence: []
-claim:assignment.cutoff_value_treated:
-  value: true
   status: drafted
   source: doc:context
   said: null
@@ -99,21 +87,10 @@ claim:sampling.detail:
   source: doc:context
   said: null
   evidence: []
-claim:missing.why:
-  value: Missing for 51 households in Education.
-  status: drafted
-  source: doc:context
-  said: null
-  evidence: []
 col:income_centered.meaning:
   value: The eligibility score minus the cutoff, so the cutoff is at zero. Negative
-    means eligible.
-  status: drafted
-  source: doc:context
-  said: null
-  evidence: []
-col:income_centered.stands_for:
-  value: eligibility score
+    means eligible. Values run from about minus 0.02 to plus 0.02, the band kept in
+    the file.
   status: drafted
   source: doc:context
   said: null
@@ -137,13 +114,7 @@ col:income_centered.moved_by_change:
   said: null
   evidence: []
 col:education.meaning:
-  value: Years of schooling of the household head
-  status: drafted
-  source: doc:context
-  said: null
-  evidence: []
-col:education.stands_for:
-  value: household head's education
+  value: Years of schooling of the household head.
   status: drafted
   source: doc:context
   said: null
@@ -154,14 +125,20 @@ col:education.when:
   source: doc:context
   said: null
   evidence: []
-col:age.meaning:
-  value: Age of the household head at the survey
+col:education.moved_by_change:
+  value: false
   status: drafted
   source: doc:context
   said: null
   evidence: []
-col:age.stands_for:
-  value: household head's age
+claim:missing.why:
+  value: Missing for 51 households in the survey.
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:age.meaning:
+  value: Age of the household head at the survey.
   status: drafted
   source: doc:context
   said: null
@@ -172,51 +149,39 @@ col:age.when:
   source: doc:context
   said: null
   evidence: []
+col:age.moved_by_change:
+  value: false
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
 col:participation.meaning:
-  value: 1 if the household received the transfer, 0 if not
-  status: drafted
-  source: doc:context
-  said: null
-  evidence: []
-col:participation.stands_for:
-  value: treatment receipt
-  status: drafted
-  source: doc:context
-  said: null
-  evidence: []
-col:participation.proxy:
-  value: exact
+  value: 1 if the household received the transfer, 0 if not.
   status: drafted
   source: doc:context
   said: null
   evidence: []
 col:participation.when:
-  value: at
+  value: before
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:participation.moved_by_change:
+  value: false
   status: drafted
   source: doc:context
   said: null
   evidence: []
 col:support.meaning:
   value: The respondent's stated support for the government in the 2007 survey, scored
-    0, 0.5, or 1
-  status: drafted
-  source: doc:context
-  said: null
-  evidence: []
-col:support.stands_for:
-  value: government support
+    0, 0.5, or 1.
   status: drafted
   source: doc:context
   said: null
   evidence: []
 col:support.when:
   value: after
-  status: drafted
-  source: doc:context
-  said: null
-  evidence: []
-col:support.measures_outcome:
-  value: true
   status: drafted
   source: doc:context
   said: null

@@ -157,9 +157,10 @@ def apply(memory: Memory, updates: list[Update], cat: Catalogue | None = None) -
 # ------------------------------------------------------------------ roles (a view)
 
 
-def roles(memory: Memory, outcome: str | None = None, treatment: str | None = None) -> dict[str, str]:
+def roles(memory: Memory, outcome: str | None = None, treatment: str | None = None, time: str | None = None) -> dict[str, str]:
     """What each column is to the question, by key, from the dataset fields and the frame. A view: computed every time,
-    never written. A column with no entry is a candidate when the frame names it and out of play otherwise."""
+    never written. A column with no entry is a candidate when the frame names it and out of play otherwise. `time` is the
+    period column when the caller knows it and the memory does not yet (the index entry's flag)."""
     a, ch, g = memory.values_of("claim:assignment"), memory.values_of("claim:change"), memory.values_of("claim:grain")
     excl, med = memory.values_of("claim:exclusion"), memory.values_of("claim:mediator")
     out: dict[str, str] = {}
@@ -168,13 +169,14 @@ def roles(memory: Memory, outcome: str | None = None, treatment: str | None = No
         if col and memory.column(col) is not None:
             out.setdefault(memory.column(col).key, role)
 
+    time = ch.get("date_column") or time
     put(outcome, "outcome")
     put(treatment or a.get("treatment_column"), "treatment")
     put(a.get("score_column"), "score")
-    put(ch.get("date_column"), "time")
+    put(time, "time")
     if g.get("panel") is True:
         for c in g.get("key_columns") or []:
-            if _key(c) != _key(ch.get("date_column") or ""):
+            if _key(c) != _key(time or ""):
                 put(c, "unit")
     put(a.get("level_column"), "group")
     if excl.get("exists") and excl.get("column"):

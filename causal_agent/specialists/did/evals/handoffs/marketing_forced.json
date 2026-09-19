@@ -66,7 +66,7 @@
   "question": "Which of the three promotions produced the highest weekly sales?",
   "intent": "effect_of_change",
   "design_id": 0,
-  "memory_version": 33,
+  "memory_version": 35,
   "why": "forced",
   "over": {},
   "csv": "data/raw/fast-food-marketing-campaign-ab-test/WA_Marketing-Campaign.csv",
@@ -105,7 +105,9 @@
     ],
     "row_is": "one store's sales for one week"
   },
-  "sampling": {},
+  "sampling": {
+    "how": "whole"
+  },
   "missing": {
     "why": "none"
   },
@@ -119,7 +121,7 @@
       "meaning": "Sales of the new item in that store in that week, in thousands of dollars",
       "stands_for": null,
       "proxy": null,
-      "when": "at",
+      "when": "after",
       "set_by": null,
       "moved_by_change": null,
       "measures_outcome": true,
@@ -172,12 +174,12 @@
       "name": "Promotion",
       "key": "promotion",
       "role": "treatment",
-      "meaning": "Which promotion the store ran",
+      "meaning": "1, 2, or 3. Which promotion the store ran",
       "stands_for": null,
       "proxy": null,
       "when": "before",
-      "set_by": "marketing team",
-      "moved_by_change": false,
+      "set_by": null,
+      "moved_by_change": null,
       "measures_outcome": null,
       "source": "doc:context",
       "provenance": {
@@ -187,16 +189,6 @@
           "said": null
         },
         "when": {
-          "status": "drafted",
-          "source": "doc:context",
-          "said": null
-        },
-        "set_by": {
-          "status": "drafted",
-          "source": "doc:context",
-          "said": null
-        },
-        "moved_by_change": {
           "status": "drafted",
           "source": "doc:context",
           "said": null
@@ -240,21 +232,16 @@
       "name": "week",
       "key": "week",
       "role": "time",
-      "meaning": "Test week",
+      "meaning": "Test week, 1 to 4",
       "stands_for": null,
       "proxy": null,
-      "when": "at",
+      "when": "unknown",
       "set_by": null,
       "moved_by_change": null,
       "measures_outcome": null,
       "source": "doc:context",
       "provenance": {
         "meaning": {
-          "status": "drafted",
-          "source": "doc:context",
-          "said": null
-        },
-        "when": {
           "status": "drafted",
           "source": "doc:context",
           "said": null
@@ -303,12 +290,12 @@
       "name": "MarketSize",
       "key": "marketsize",
       "role": "candidate",
-      "meaning": "the chain's classification of the market (Small, medium, or large)",
+      "meaning": "Small, medium, or large, the chain's classification of the market",
       "stands_for": null,
       "proxy": null,
       "when": "before",
       "set_by": null,
-      "moved_by_change": false,
+      "moved_by_change": null,
       "measures_outcome": null,
       "source": "doc:context",
       "provenance": {
@@ -318,11 +305,6 @@
           "said": null
         },
         "when": {
-          "status": "drafted",
-          "source": "doc:context",
-          "said": null
-        },
-        "moved_by_change": {
           "status": "drafted",
           "source": "doc:context",
           "said": null
@@ -371,7 +353,7 @@
       "proxy": null,
       "when": "before",
       "set_by": null,
-      "moved_by_change": false,
+      "moved_by_change": null,
       "measures_outcome": null,
       "source": "doc:context",
       "provenance": {
@@ -381,11 +363,6 @@
           "said": null
         },
         "when": {
-          "status": "drafted",
-          "source": "doc:context",
-          "said": null
-        },
-        "moved_by_change": {
           "status": "drafted",
           "source": "doc:context",
           "said": null
@@ -420,10 +397,9 @@
     }
   ],
   "change": {
-    "what": "Promotion test for a new menu item",
-    "to_whom": "Each store",
-    "when": "from the first week of the test, and kept the same promotion for all four weeks",
-    "date_column": "week"
+    "what": "a promotion for a new menu item",
+    "to_whom": "each store",
+    "when": "from week 1 to week 4 of the test"
   },
   "assignment": {
     "kind": "lottery",
@@ -478,10 +454,9 @@
     "change": {
       "kind": "change",
       "fields": {
-        "what": "Promotion test for a new menu item",
-        "to_whom": "Each store",
-        "when": "from the first week of the test, and kept the same promotion for all four weeks",
-        "date_column": "week"
+        "what": "a promotion for a new menu item",
+        "to_whom": "each store",
+        "when": "from week 1 to week 4 of the test"
       },
       "status": "drafted",
       "source": "doc:context"
@@ -497,7 +472,15 @@
         "row_is": "one store's sales for one week"
       },
       "status": "drafted",
-      "source": "data"
+      "source": "doc:context"
+    },
+    "sampling": {
+      "kind": "sampling",
+      "fields": {
+        "how": "whole"
+      },
+      "status": "drafted",
+      "source": "doc:context"
     },
     "missing": {
       "kind": "missing",
@@ -511,8 +494,7 @@
       "kind": "measured",
       "fields": {
         "meaning": "Which of the 10 markets the store belongs to",
-        "when": "before",
-        "moved_by_change": false
+        "when": "before"
       },
       "status": "drafted",
       "source": "doc:context"
@@ -520,9 +502,8 @@
     "col:marketsize": {
       "kind": "measured",
       "fields": {
-        "meaning": "the chain's classification of the market (Small, medium, or large)",
-        "when": "before",
-        "moved_by_change": false
+        "meaning": "Small, medium, or large, the chain's classification of the market",
+        "when": "before"
       },
       "status": "drafted",
       "source": "doc:context"
@@ -531,8 +512,7 @@
       "kind": "measured",
       "fields": {
         "meaning": "Store number",
-        "when": "before",
-        "moved_by_change": false
+        "when": "before"
       },
       "status": "drafted",
       "source": "doc:context"
@@ -540,9 +520,8 @@
     "col:ageofstore": {
       "kind": "measured",
       "fields": {
-        "meaning": "Years since the store opened",
-        "when": "before",
-        "moved_by_change": false
+        "meaning": "Years since the store opened, at the start of the test",
+        "when": "before"
       },
       "status": "drafted",
       "source": "doc:context"
@@ -550,10 +529,8 @@
     "col:promotion": {
       "kind": "measured",
       "fields": {
-        "meaning": "Which promotion the store ran",
-        "when": "before",
-        "set_by": "marketing team",
-        "moved_by_change": false
+        "meaning": "1, 2, or 3. Which promotion the store ran",
+        "when": "before"
       },
       "status": "drafted",
       "source": "doc:context"
@@ -561,8 +538,7 @@
     "col:week": {
       "kind": "measured",
       "fields": {
-        "meaning": "Test week",
-        "when": "at"
+        "meaning": "Test week, 1 to 4"
       },
       "status": "drafted",
       "source": "doc:context"
@@ -571,7 +547,7 @@
       "kind": "measured",
       "fields": {
         "meaning": "Sales of the new item in that store in that week, in thousands of dollars",
-        "when": "at",
+        "when": "after",
         "measures_outcome": true
       },
       "status": "drafted",
