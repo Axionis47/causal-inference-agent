@@ -375,10 +375,13 @@ Each stage is a commit or a few; the app works after every stage. Stages 2 to 5 
 3. **The pack, frozen, and the lanes on it.** `Handoff` and `ColumnBrief` take the statused fields; `identification_allowed` goes;
    `build()` projects from a memory snapshot; the lanes read the new field names, draft only open fields, and put the said in their
    material. Forced hand-offs regenerated. Profile facts `binary_like`, `role_hints`, the compact index line, the bounds and the cache.
-4. **The journey to ready.** `desk/` replaces the interview and the chat entry points: CSV-only upload, greet, `read`, `frame` as the
-   first question, `next` from `open()`, `ask` one field per turn aware of what the survivors need, `infer` gated by `apply`, the
-   journey payload, the grouped timing tick, contradictions raised as questions. Page: file picker, chips from one question, the
-   grid with "asking because".
+4. **The journey to ready.** `desk/` replaces the interview and the chat entry points: CSV-only upload, then the first thing asked is
+   the causal question, nothing before it. `frame` validates it against the file, by code where it can and by one judgement where it
+   must: it asks about the effect of a change on an outcome; the outcome is a column in this file; the change is something that
+   reached some rows and not others, or some time and not another, and the file can tell them apart; the scope the question implies
+   is one the rows cover. A question that fails says which of these it fails and asks again; no interview starts on it. Then `next`
+   from `open()`, `ask` one field per turn aware of what the survivors need, `infer` gated by `apply`, the journey payload, the
+   grouped timing tick, contradictions raised as questions. Page: file picker, chips from one question, the grid with "asking because".
 5. **Ready, convince, hand off, run.** `viz/` spec, `Point`, `Figure`, the three pre-viz functions and the viz subgraph; `Figure.tsx`;
    `decide` and `frame` moved from the router; `convince`; `handoff` snapshots design 1 and writes `handoff.json`; `desk/pipeline`
    runs the lane from it; `router/`, `chat/`, `intake/`, `server/context.py` deleted; designs routes on the server.
@@ -397,7 +400,8 @@ Each stage is a commit or a few; the app works after every stage. Stages 2 to 5 
 - Stage 3: the three lane suites pass on packs projected from memory; the forced hand-offs give the same estimates as before within
   tolerance; a brief renders every field with status and source; a contradiction in the pack reaches the lane's material.
 - Stage 4, scripted conversations with a fake model (`desk/evals/cases.yaml` as answers, not contexts): students reaches ready in
-  frame plus at most six questions; a not-causal question gets a nudge and no interview; a wrong timing answer is refuted by the
+  frame plus at most six questions; a question that is not causal, or names an outcome or a change the file does not carry, is
+  refused with which test it failed and asked again, and no interview starts; a wrong timing answer is refuted by the
   file and asked again; "the person's word is evidence": a message that contradicts a confirmed field with no reason does not
   overwrite it and the desk says why.
 - Stage 5: on students the ready message names adjustment, cites `probe:adjustment.overlap` and `probe:adjustment.arms`, carries one
