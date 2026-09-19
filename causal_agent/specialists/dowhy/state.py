@@ -47,6 +47,8 @@ class SpecialistState(TypedDict, total=False):
     design: Design | None
     estimates: Annotated[list[Estimate], operator.add]
     refutations: Annotated[list[Refutation], operator.add]
+    hidden_dropped: bool
+    ask: dict | None
     interpretations: Annotated[list[Interpretation], operator.add]
     interpret_errors: dict[str, list[str]]
     interpret_attempts: int

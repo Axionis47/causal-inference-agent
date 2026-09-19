@@ -46,7 +46,7 @@ def build() -> StateGraph:
     b.add_edge("relate", "merge_graph")
     b.add_edge("merge_graph", "verify_graph")
     # verify_graph returns Command(goto=identify | [Send relate...] | feasibility)
-    b.add_edge("identify", "check_design")
+    # identify returns Command(goto=check_design | feasibility)
     b.add_conditional_edges("check_design", N.after_checks, ["assess", "pick_estimator"])
     # assess returns Command(goto=pick_estimator | merge_graph | feasibility)
     # pick_estimator returns Command(goto=freeze_design | feasibility)

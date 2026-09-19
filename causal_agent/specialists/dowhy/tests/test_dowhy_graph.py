@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+
+import pandas as pd
 import re
 import uuid
 
@@ -258,3 +260,105 @@ def test_pack_treated_level_settles_the_contrast_without_a_model_call():
     assert "claim:assignment.depends_on" in parental.cites
     # the person's words reach every judgement the lane makes (students3 ships no transcript, so the section is there and empty)
     assert "WHAT THE PERSON SAID" in N._frame_text(out)
+
+
+# ------------------------------------------------------------------ the other roads: a hidden factor, an instrument, a mediator
+
+
+def _synthetic(tmp_path, seed=0):
+    """z pushes units into treatment and touches y no other way; m carries the whole effect (y = 2m + u); u drives both t and y."""
+    import numpy as np
+
+    rng = np.random.default_rng(seed)
+    n = 600
+    z = rng.normal(size=n)
+    u = rng.normal(size=n)
+    t = (z + u + rng.normal(size=n) > 0).astype(int)
+    m = t + rng.normal(size=n)
+    y = 2 * m + u + rng.normal(size=n)
+    csv = tmp_path / "synthetic.csv"
+    pd.DataFrame({"z": z, "treated": t, "m": m, "y": y}).to_csv(csv, index=False)
+    return csv
+
+
+def _synthetic_memory(csv, *, hidden=True, instrument=None, mediator=None, said_none=False):
+    from causal_agent.memory import ops
+    from causal_agent.profile.profiler import profile
+
+    m = ops.seed("synthetic", profile(csv), csv=str(csv))
+    src = "user:turn:1"
+    m.set("claim:grain.row_is", "one unit", status="confirmed", source=src)
+    m.set("claim:grain.panel", False, status="confirmed", source=src)
+    m.set("claim:sampling.how", "whole", status="confirmed", source=src)
+    m.set("claim:change.what", "the programme", status="confirmed", source=src)
+    m.set("claim:change.to_whom", "units", status="confirmed", source=src)
+    m.set("claim:change.when", "last year", status="confirmed", source=src)
+    m.set("claim:assignment.kind", "own_choice", status="confirmed", source=src)
+    m.set("claim:assignment.rule", "units chose after an offer", status="confirmed", source=src)
+    m.set("claim:assignment.treatment_column", "treated", status="confirmed", source=src)
+    m.set("claim:assignment.treated_level", "1", status="confirmed", source=src)
+    m.set("claim:unobserved.exists", hidden, status="confirmed", source=src, said="something we did not record drove both")
+    for c, when in (("y", "after"), ("treated", "at"), ("z", "before"), ("m", "after")):
+        m.set(f"col:{c}.meaning", f"{c} as recorded", status="confirmed", source=src)
+        m.set(f"col:{c}.when", when, status="confirmed", source=src)
+    m.set("col:m.moved_by_change", True, status="confirmed", source=src)
+    if instrument:
+        m.set("claim:exclusion.exists", True, status="confirmed", source=src, said="the draw pushed them in and touched nothing else")
+        m.set("claim:exclusion.column", instrument, status="confirmed", source=src)
+    elif said_none:
+        m.set("claim:exclusion.exists", False, status="confirmed", source=src)
+    if mediator:
+        m.set("claim:mediator.exists", True, status="confirmed", source=src, said="it works only through m")
+        m.set("claim:mediator.column", mediator, status="confirmed", source=src)
+    elif said_none:
+        m.set("claim:mediator.exists", False, status="confirmed", source=src)
+    return m
+
+
+def _synthetic_handoff(memory):
+    return forced("synthetic", "Did the programme raise y?", "adjustment", "y", "treated", ["y", "treated", "z", "m"],
+                  assumption="the instrument and the mediator are as the person says", cite="col:z.note", memory=memory)
+
+
+def test_instrument_and_mediator_open_roads_around_a_hidden_factor(tmp_path):
+    csv = _synthetic(tmp_path)
+    h = _synthetic_handoff(_synthetic_memory(csv, hidden=True, instrument="z", mediator="m"))
+    assert h.design.instrument == "z" and h.design.mediator == "m" and h.design.unobserved_confounding is True
+    fake = FakeLLM(pick_script=["instrumental_variable"], cite="col:z.note")
+    out = _run(fake, h, question="Did the programme raise y?")
+    r = out["specialist_result"]
+    assert r["status"] == "done", r.get("feasibility")
+    assert fake.calls.count("Relation") == 0  # the instrument and the mediator are the person's word: facts, not judgements
+    g = out["graph"]
+    assert "unobserved" in g.nodes and any(e.src == "treated" and e.dst == "m" for e in g.edges) and any(e.src == "z" and e.dst == "treated" for e in g.edges)
+    est = out["estimand"]
+    assert "backdoor" not in est.roads and {"iv", "frontdoor"} <= set(est.roads) and est.instruments == ["z"] and est.frontdoor_set == ["m"]
+    d = out["design"]
+    assert d.estimator == "instrumental_variable" and d.estimand.kind == "iv" and d.estimand.adjustment_set == []
+    primary = next(e for e in out["estimates"] if not e.secondary)
+    assert primary.error is None and 1.2 < primary.value < 2.8  # the true effect is 2
+    assert {x.refuter for x in out["refutations"]} == {"placebo_treatment_refuter", "data_subset_refuter"}
+
+
+def test_a_hidden_factor_with_no_road_asks_back_about_the_mediator(tmp_path):
+    csv = _synthetic(tmp_path)
+    h = _synthetic_handoff(_synthetic_memory(csv, hidden=True))
+    fake = FakeLLM(cite="col:z.note")
+    out = _run(fake, h, question="Did the programme raise y?")
+    r = out["specialist_result"]
+    assert r["status"] == "ask" and r["ask"]["address"] == "claim:mediator.exists" and "through which" in r["ask"]["question"]
+    assert out["feasibility"].stage == "ask" and out.get("design") is None
+
+
+def test_no_road_and_the_person_says_so_takes_the_back_door_with_a_sensitivity_range(tmp_path):
+    csv = _synthetic(tmp_path)
+    h = _synthetic_handoff(_synthetic_memory(csv, hidden=True, said_none=True))
+    fake = FakeLLM(cite="col:z.note")
+    out = _run(fake, h, question="Did the programme raise y?")
+    r = out["specialist_result"]
+    assert r["status"] == "done", r.get("feasibility")
+    d = out["design"]
+    assert d.estimand.kind == "backdoor" and d.estimand.sensitivity_required and "unobserved" not in d.graph.nodes
+    sens = next(x for x in out["refutations"] if x.refuter == "add_unobserved_common_cause")
+    assert sens.kind == "sensitivity" and sens.range_low is not None and sens.range_high is not None and sens.range_low <= sens.range_high
+    assert "hidden factor" in d.render()

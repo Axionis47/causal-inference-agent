@@ -10,7 +10,7 @@
 placebo_treatment_refuter:
   kind: falsification
   in_words: replace the treatment with a shuffled copy; the estimated effect should collapse to about zero
-  applies_when: {estimand: [backdoor]}
+  applies_when: {estimand: [backdoor, iv, frontdoor]}
   params: {placebo_type: permute, num_simulations: 100}
   pass_when: {new_effect_near_zero: true, p_value_gt: 0.05}
 
@@ -24,6 +24,16 @@ random_common_cause:
 data_subset_refuter:
   kind: falsification
   in_words: re-estimate on random subsets of the rows; the estimate should hold
-  applies_when: {estimand: [backdoor]}
+  applies_when: {estimand: [backdoor, iv, frontdoor]}
   params: {subset_fraction: 0.8, num_simulations: 100}
   pass_when: {p_value_gt: 0.05, or_relative_change_lt: 0.10}
+
+add_unobserved_common_cause:
+  kind: sensitivity
+  in_words: simulate a hidden factor that moves both the treatment and the outcome at the declared strengths, and report how far the estimate moves
+  applies_when: {estimand: [backdoor], hidden: [true]}
+  params:
+    confounders_effect_on_treatment: binary_flip
+    confounders_effect_on_outcome: linear
+    effect_strength_on_treatment: [0.01, 0.03, 0.05]
+    effect_strength_on_outcome: [0.01, 0.03, 0.05]

@@ -1,6 +1,6 @@
 # specialists/dowhy — the adjustment lane
 
-Entered from the router's hand-off for the `adjustment` family. Turns a question, a pack slice, and a table into a frozen Design, runs it on DoWhy, and writes a report or an honest Feasibility stop.
+Entered from the desk's hand-off for the `adjustment` family. Turns a question, a pack slice, and a table into a frozen Design, runs it on DoWhy, and writes a report or an honest Feasibility stop.
 
 ```
 load ─ contrast ─(relate × N)─ merge_graph ─ verify_graph ─ identify ─ check_design
@@ -10,6 +10,17 @@ any typed stop ─────────────────────�
 ```
 
 N = relevant columns other than treatment and outcome, C = contrasts. Neither appears in the graph.
+
+## The roads
+
+`identify` reads every road DoWhy finds on the graph: the back door, the front door, an instrument. The graph carries what the
+pack settled as facts: a column the offer looked at and fixed before the change is a parent of both; the instrument the person
+named points at the treatment alone; the mediator the person named carries the whole effect, so the direct edge goes; and when
+the person says something outside the file drove both, a hidden node says so, which closes the back door. The estimator pick then
+chooses among the estimators of the open roads, and the frozen design records the road taken. With no road open the lane asks the
+desk one question (the mediator, then the instrument) and stops with status `ask`; the desk asks it like any other and runs again.
+When the person has said there is neither, the lane takes the back door with the hidden factor left in as a sensitivity range, and
+the reading says the effect holds only if that factor is no stronger than the simulated ones.
 
 ## The rule every node follows
 

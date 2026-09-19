@@ -17,7 +17,11 @@ drops what was relative to the old one. Stage 7 landed: a field is required only
 `depends_on`; a date column needs its period value), and the wide-table skim runs before the frame in the desk. Stage 8 landed: `viz/postviz`
 draws the estimate against its falsifications and sensitivity ranges for every lane and the effect by period for diff-in-diff; a run's
 figures go to `designs/<n>/figures.json`, into the material with addresses, under the brief, and into the inspector; a reply may name
-a figure to show. Stage 9 (the lanes ask back, DoWhy's other roads) next.
+a figure to show. Stage 9 landed: the adjustment lane draws the hidden factor the person named into its graph, reads every road
+DoWhy finds (backdoor, frontdoor, instrument), takes the instrument or the mediator the person gave as facts, and picks the estimator
+among the open roads; with no road open it asks the desk one question (the mediator, then the instrument), and the desk asks it like
+any other and runs again; with the person saying there is neither, it takes the back door with a sensitivity range and the caveat says
+so. Every stage of the plan has landed.
 
 ## Context
 

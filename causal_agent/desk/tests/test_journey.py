@@ -242,3 +242,38 @@ def test_a_new_question_about_a_different_change_asks_the_relative_fields_again(
     assert m.value("col:lunch.when") is None and m.value("claim:assignment.kind") is None  # relative to the old change: gone
     assert m.value("col:lunch.meaning") and m.value("claim:grain.row_is")  # what a column is, and the grain, carry over
     assert m.value("claim:assignment.treatment_column") == "lunch" and "asked again" in p["text"]
+
+
+def test_a_lane_that_asks_back_gets_its_answer_and_runs_again(monkeypatch):
+    calls = []
+
+    def asking_run(path, n, dataset, question, decision=None, decision_record=""):
+        calls.append(n)
+        if n == 1:
+            return RunRecord(index=n, dataset=dataset, question=question, family="adjustment", specialist="dowhy", status="ask", design_dir=str(path.parent),
+                             specialist_result={"status": "ask", "ask": {"address": "claim:mediator.exists", "question": "Is there a column the change altered, through which its whole effect runs?"},
+                                                "feasibility": {"stage": "ask", "reason": "nothing identifies the effect while a hidden factor stands"}})
+        return canned_run(path, n, dataset, question, decision, decision_record)
+
+    monkeypatch.setattr(pipeline, "run", asking_run)
+
+    def infer(msg, addrs, human):
+        if "nothing hidden" in msg:  # the person says a hidden factor exists this time
+            return Inference(updates=[FieldUpdate(address="claim:unobserved.exists", value="true", said=msg)])
+        if msg == "no mediator":
+            return Inference(updates=[FieldUpdate(address="claim:mediator.exists", value="false", said=msg)])
+        return None
+
+    d = Desk(DeskFake(infer=infer))
+    d.say(QUESTION)
+    d.to_ready()
+    p = d.say("run")
+    assert p["kind"] == "ask" and p["phase"] == "before" and p["ask"]["addresses"] == ["claim:mediator.exists"] and p["ask"]["options"] == ["yes", "no"]
+    assert "stopped before estimating" in p["text"] and d.values["runs"][0].status == "ask"
+    p = d.say("no mediator")
+    assert HELD["students"].value("claim:mediator.exists") is False
+    while p and p["kind"] == "ask" and not p["ready"]:
+        p = d.say(answer_ask(p))
+    assert p["ready"]
+    p = d.say("run")
+    assert p["kind"] == "after" and calls == [1, 2] and d.values["runs"][1].status == "done"

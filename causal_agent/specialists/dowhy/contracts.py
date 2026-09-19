@@ -73,9 +73,15 @@ class Graph(BaseModel):
 
 
 class Estimand(BaseModel):
-    kind: Literal["backdoor", "none"]
+    """What identifies the effect on this graph: every road DoWhy finds, and the one the design takes."""
+
+    kind: Literal["backdoor", "frontdoor", "iv", "none"]
+    roads: list[str] = Field(default_factory=list, description="every road that identifies the effect: backdoor, frontdoor, iv")
     adjustment_set: list[str] = Field(default_factory=list)
+    instruments: list[str] = Field(default_factory=list)
+    frontdoor_set: list[str] = Field(default_factory=list)
     alternatives: dict[str, list[str]] = Field(default_factory=dict)
+    sensitivity_required: bool = Field(default=False, description="the person says a hidden factor exists and no road avoids it: the caveat must say so")
     dowhy_text: str = ""
 
 
@@ -120,7 +126,11 @@ class Design(BaseModel):
             "  graph",
         ]
         lines += ["    " + l for l in self.graph.render().splitlines()]
-        lines.append(f"  estimand     {self.estimand.kind}; adjust for {', '.join(self.estimand.adjustment_set) or 'nothing'}")
+        e = self.estimand
+        road = {"backdoor": f"adjust for {', '.join(e.adjustment_set) or 'nothing'}", "iv": f"through the instrument {', '.join(e.instruments)}",
+                "frontdoor": f"through the mediator {', '.join(e.frontdoor_set)}", "none": "nothing identifies it"}[e.kind]
+        lines.append(f"  estimand     {e.kind}; {road}" + (f"; roads open: {', '.join(e.roads)}" if len(e.roads) > 1 else "")
+                     + ("; a hidden factor is believed to exist and no road avoids it" if e.sensitivity_required else ""))
         for r in self.checks.results:
             lines.append(f"  check        {r.level:4} {r.address}  {r.detail}")
         lines.append(f"  estimator    {self.estimator}" + (f" (+ {self.also_run} as secondary)" if self.also_run else "") + f"  params {self.params}")

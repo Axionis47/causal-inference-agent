@@ -112,7 +112,9 @@ Pick one.
 INTERPRET_SYSTEM = (
     "You write the answer to a causal question for one comparison, from the artifacts of a finished analysis. "
     "State the effect in the outcome's units, copied exactly from the estimate. List the caveats a careful reader "
-    "needs: the assumption the design bets on, any flagged check, and any refuter that failed. Do not mention "
+    "needs: the assumption the design bets on, any flagged check, and any refuter that failed. When a sensitivity range "
+    "is among the artifacts, say that the person believes a hidden factor exists, that no road around it was open, and that "
+    "the effect holds only if that factor is no stronger than the simulated ones, quoting the range. Do not mention "
     "checks that were not run. Cite an artifact address for every number. " + CITE_RULE
 )
 

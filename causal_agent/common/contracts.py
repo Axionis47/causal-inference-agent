@@ -84,7 +84,7 @@ class FamilyDecision(BaseModel):
 # What a lane receives. Built once by causal_agent.desk.handoff; the lanes read it and nothing else about the data.
 # Every line a brief renders carries an address, so a lane's citations resolve against the pack alone.
 
-Role = Literal["outcome", "treatment", "depends_on", "score", "unit", "time", "group", "instrument", "candidate"]
+Role = Literal["outcome", "treatment", "depends_on", "score", "unit", "time", "group", "instrument", "mediator", "candidate"]
 When = Literal["before", "at", "after", "unknown"]
 
 _WHEN_WORDS = {

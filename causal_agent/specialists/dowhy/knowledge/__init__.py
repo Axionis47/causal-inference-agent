@@ -24,14 +24,15 @@ class EstimatorEntry(BaseModel):
     rank: int = 99
     also_run: str | None = None
 
-    def applies(self, *, estimand: str, treatment: str, outcome: str, adjustment_set: str) -> bool:
+    @property
+    def estimand(self) -> str:
+        return str(self.applies_when.get("estimand"))
+
+    def applies(self, *, estimand: str, treatment: str, outcome: str, adjustment_set: str, roads: list[str] | None = None) -> bool:
+        """The entry runs on a design whose taken road, or any open road when `roads` is given, is the entry's."""
         w = self.applies_when
-        return (
-            w.get("estimand") == estimand
-            and treatment in w.get("treatment", [])
-            and outcome in w.get("outcome", [])
-            and adjustment_set in w.get("adjustment_set", [])
-        )
+        on_road = w.get("estimand") in (roads or [estimand])
+        return on_road and treatment in w.get("treatment", []) and outcome in w.get("outcome", []) and adjustment_set in w.get("adjustment_set", [])
 
     def render(self) -> str:
         return (
@@ -50,9 +51,11 @@ class RefuterEntry(BaseModel):
     params: dict[str, Any] = Field(default_factory=dict)
     pass_when: dict[str, Any] = Field(default_factory=dict)
 
-    def applies(self, *, estimand: str, adjustment_set: str) -> bool:
+    def applies(self, *, estimand: str, adjustment_set: str, hidden: bool = False) -> bool:
         w = self.applies_when
-        return estimand in w.get("estimand", []) and adjustment_set in w.get("adjustment_set", ["empty", "nonempty"])
+        needs_hidden = w.get("hidden")
+        return (estimand in w.get("estimand", []) and adjustment_set in w.get("adjustment_set", ["empty", "nonempty"])
+                and (needs_hidden is None or hidden in needs_hidden))
 
 
 @lru_cache(maxsize=1)

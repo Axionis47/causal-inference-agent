@@ -526,3 +526,26 @@ def run(state: DeskState) -> dict:
 
         (Path(state["design_dir"]) / "figures.json").write_text(json.dumps(figs, indent=2, default=str))
     return {"runs": runs + [rec], "phase": "after"}
+
+
+# ------------------------------------------------------------------ the lane asks back
+
+
+def after_run(state: DeskState) -> Literal["ask_back", "brief"]:
+    runs = state.get("runs") or []
+    return "ask_back" if runs and runs[-1].status == "ask" and (runs[-1].specialist_result or {}).get("ask") else "brief"
+
+
+def ask_back(state: DeskState) -> dict:
+    """The lane could not go on without one more thing from the person: ask it, as the desk asks everything else, and once
+    answered the journey runs again on the memory as it then stands."""
+    rec = (state.get("runs") or [])[-1]
+    q = rec.specialist_result.get("ask") or {}
+    address = q.get("address") or ""
+    kind_name = Memory.parse(address)[1] if address.startswith("claim:") else COLUMN_KIND
+    field = Memory.parse(address)[2] or ""
+    kind = CAT.kinds.get(kind_name)
+    options = [str(o) for o in kind.fields[field].options] if kind and field in kind.fields and kind.fields[field].type == "choice" else (["yes", "no"] if kind and field in kind.fields and kind.fields[field].type == "bool" else [])
+    a = Ask(addresses=[address], kind="choose" if options else "open", text=q.get("question") or "", options=options, because=[rec.family] if rec.family else [])
+    text = f"The analysis stopped before estimating: {(rec.specialist_result.get('feasibility') or {}).get('reason') or 'it needs one more thing'}.\n\n" + a.text
+    return {"ask": a, "reply": text, "phase": "before", "run_requested": False, "figure": None, "fork": None, "what_if": {}, "handoff": None}

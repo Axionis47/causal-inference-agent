@@ -58,3 +58,25 @@ generalized_linear_model:
   prefer_over: {}
   params: {glm_family: binomial}
   rank: 2
+
+instrumental_variable:
+  dowhy: iv.instrumental_variable
+  applies_when: {estimand: iv, treatment: [binary], outcome: [continuous, binary], adjustment_set: [empty, nonempty]}
+  in_words: use the column that pushed units toward the treatment but touches the outcome only through it; scale the outcome's movement with the instrument by the treatment's movement with it
+  assumes: the instrument moved the treatment, and reached the outcome no other way; the person's word on exclusion carries this
+  weak_when: the instrument moves the treatment only a little, so the ratio swings on noise; or the exclusion is doubtful
+  prefer_over:
+    linear_regression: when the person says a hidden factor drove both the treatment and the outcome, so no adjustment set closes the back door and only the instrument identifies the effect
+  params: {}
+  rank: 5
+
+frontdoor_two_stage:
+  dowhy: frontdoor.two_stage_regression
+  applies_when: {estimand: frontdoor, treatment: [binary], outcome: [continuous], adjustment_set: [empty, nonempty]}
+  in_words: estimate how the treatment moved the mediator, then how the mediator moved the outcome, and chain the two
+  assumes: the whole effect runs through the mediator, and nothing hidden drives both the treatment and the mediator, or the mediator and the outcome
+  weak_when: part of the effect bypasses the mediator; or the mediator is measured with error
+  prefer_over:
+    instrumental_variable: when the mediator the person named carries the whole effect and no instrument is named, or the instrument is weak
+  params: {}
+  rank: 6

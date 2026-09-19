@@ -10,7 +10,7 @@ import json
 import os
 import uuid
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import pandas as pd
 from langgraph.config import get_stream_writer
@@ -111,7 +111,7 @@ def _thought(t, node: str):
 
 def load(state: SpecialistState) -> Command:
     h = state["handoff"]
-    entry = dataset_entries()[h.pack_name]
+    entry = dataset_entries().get(h.pack_name) or {}
     raw = pd.read_csv(ROOT / (h.csv or entry["csv"]))
     columns = {_key(c): c for c in raw.columns}
     raw.columns = [_key(c) for c in raw.columns]
@@ -219,6 +219,13 @@ def fact_relation(h: Handoff, k: str) -> Relation | None:
     if b is None:
         return None
     a = b.address
+    blk = _block(h)
+    if blk is not None and blk.instrument == k:
+        return Relation(column=k, affects_treatment=True, affects_outcome=False, affected_by_treatment=False, is_outcome_measure=False,
+                        reasons=[Cited(reason=f"{b.name}: the person says it pushed units toward the change and touched the outcome no other way", cites=["claim:exclusion"])])
+    if blk is not None and blk.mediator == k:
+        return Relation(column=k, affects_treatment=False, affects_outcome=True, affected_by_treatment=True, is_outcome_measure=False,
+                        reasons=[Cited(reason=f"{b.name}: the person says the change altered it and reaches the outcome only through it", cites=["claim:mediator"])])
     if b.measures_outcome is True:
         return Relation(column=k, affects_treatment=False, affects_outcome=False, affected_by_treatment=False, is_outcome_measure=True,
                         reasons=[Cited(reason=f"{b.name}: the person said it measures the outcome", cites=[f"{a}.measures_outcome"])])
@@ -267,6 +274,11 @@ def merge_graph(state: SpecialistState) -> dict:
     excluded: list[Excluded] = []
     nodes = [t, y]
     revs: list[Revision] = state.get("applied_revisions") or []
+    blk = _block(h)
+    mediator = blk.mediator if blk else None
+    if blk is not None and blk.unobserved_confounding is True and not state.get("hidden_dropped"):
+        nodes.append(adapter.HIDDEN)  # the person says something outside the file drove both; the graph says so, and only a road that avoids it identifies
+        edges += [Edge(src=adapter.HIDDEN, dst=t, cites=["claim:unobserved"]), Edge(src=adapter.HIDDEN, dst=y, cites=["claim:unobserved"])]
     for k in others:
         r = latest.get(k)
         if r is None:
@@ -274,6 +286,11 @@ def merge_graph(state: SpecialistState) -> dict:
         cites = sorted({c for reason in r.reasons for c in reason.cites})
         if r.is_outcome_measure:
             excluded.append(Excluded(column=k, why="another measurement of the outcome"))
+            continue
+        if r.affected_by_treatment and r.affects_outcome and k == mediator:
+            nodes.append(k)
+            edges = [e for e in edges if not (e.src == t and e.dst == y)]  # the person says the whole effect runs through it: no direct road
+            edges += [Edge(src=t, dst=k, cites=cites), Edge(src=k, dst=y, cites=cites)]
             continue
         if r.affected_by_treatment and not r.affects_treatment:
             excluded.append(Excluded(column=k, why="comes after the treatment; adjusting for it would remove part of the effect"))
@@ -314,7 +331,7 @@ def verify_graph(state: SpecialistState) -> Command:
     if not nx.is_directed_acyclic_graph(nx_g):
         general.append("graph has a cycle")
     for n in g.nodes:
-        if n not in table_cols:
+        if n not in table_cols and n != adapter.HIDDEN:
             general.append(f"node {n!r} is not a table column")
     latest: dict[str, Relation] = {k: r for k in others if (r := fact_relation(h, k)) is not None}
     latest.update({r.column: r for r in state.get("relations") or []})
@@ -354,13 +371,37 @@ def verify_graph(state: SpecialistState) -> Command:
 # ------------------------------------------------------------------ identify + checks (facts)
 
 
-def identify(state: SpecialistState) -> dict:
+def identify(state: SpecialistState) -> Command[Literal["check_design", "feasibility"]]:
+    """Every road DoWhy finds. When the person says a hidden factor exists and no road avoids it, the lane asks about the one
+    belief that could open a road and has not been asked; if the person has already said there is none, the design takes the
+    back door with the hidden factor left in as a sensitivity range and a caveat."""
     g: Graph = state["graph"]
+    h = state["handoff"]
     table = _table(state)
     sub = adapter.contrast_table(table, g.treatment, state["contrasts"][0])
     est = adapter.identify(adapter.build_model(sub, g, g.outcome))
+    hidden = adapter.HIDDEN in g.nodes
+    if est.kind == "none" and hidden:
+        for kind, address, question in (
+            ("mediator", "claim:mediator.exists", "You said something outside the file drove both who got the change and the outcome. Is there a column the change altered, "
+                                                  "through which its whole effect on the outcome runs? If so, which, and why?"),
+            ("exclusion", "claim:exclusion.exists", "Is there a column that pushed units toward the change but could not have affected the outcome any other way? If so, which, and why?"),
+        ):
+            b = h.beliefs.get(kind)
+            if b is None or (b.status not in ("confirmed", "unknown", "contradiction")):
+                ask = {"address": address, "question": question, "options": ["yes", "no"]}
+                f = Feasibility(stage="ask", reason=f"nothing identifies the effect while a hidden factor stands; one question could open a road: {kind}",
+                                facts=[f"roads found: none; graph: {g.render().splitlines()[0]}"], what_would_fix=f"an answer to [{address}]")
+                _writer()({"ask": ask})
+                return Command(goto="feasibility", update={"feasibility": f, "ask": ask, "estimand": est})
+        # the person has said there is no instrument and no mediator: the back door it is, with the hidden factor as a range
+        g2 = Graph(treatment=g.treatment, outcome=g.outcome, nodes=[n for n in g.nodes if n != adapter.HIDDEN], edges=[e for e in g.edges if adapter.HIDDEN not in (e.src, e.dst)], excluded=g.excluded)
+        est = adapter.identify(adapter.build_model(sub, g2, g2.outcome))
+        est.sensitivity_required = True
+        _writer()({"estimand": est.model_dump(exclude={"dowhy_text"}), "hidden_dropped": True})
+        return Command(goto="check_design", update={"estimand": est, "graph": g2, "hidden_dropped": True})
     _writer()({"estimand": est.model_dump(exclude={"dowhy_text"})})
-    return {"estimand": est}
+    return Command(goto="check_design", update={"estimand": est})
 
 
 def check_design(state: SpecialistState) -> dict:
@@ -447,6 +488,10 @@ def _design_facts(state: SpecialistState) -> dict[str, Any]:
     b = _block(state["handoff"])
     return {
         "estimand": est.kind,
+        "roads": est.roads,
+        "instruments": est.instruments,
+        "frontdoor_set": est.frontdoor_set,
+        "sensitivity_required": est.sensitivity_required,
         "treatment": "binary",
         "outcome": state["outcome_kind"],
         "adjustment_set": "nonempty" if est.adjustment_set else "empty",
@@ -465,7 +510,7 @@ def pick_estimator(state: SpecialistState) -> Command:
     facts = _design_facts(state)
     excluded = set(state.get("excluded_estimators") or [])
     allowed = [e for e in load_estimators()
-               if e.applies(estimand=facts["estimand"], treatment=facts["treatment"], outcome=facts["outcome"], adjustment_set=facts["adjustment_set"])
+               if e.applies(estimand=facts["estimand"], treatment=facts["treatment"], outcome=facts["outcome"], adjustment_set=facts["adjustment_set"], roads=facts["roads"])
                and e.name not in excluded]
     if not allowed:
         return _stop("pick_estimator", "no estimator in the catalogue applies to this design", [f"facts: {facts}", f"excluded after failures: {sorted(excluded)}"],
@@ -499,8 +544,10 @@ def pick_estimator(state: SpecialistState) -> Command:
 def freeze_design(state: SpecialistState) -> dict:
     est: Estimand = state["estimand"]
     entry = estimator_entry(state["estimator"])
+    if entry.estimand in est.roads and entry.estimand != est.kind:  # the pick took another open road: the design records it
+        est = est.model_copy(update={"kind": entry.estimand, "adjustment_set": est.adjustment_set if entry.estimand == "backdoor" else []})
     adj = "nonempty" if est.adjustment_set else "empty"
-    refuters = [r.name for r in load_refuters() if r.applies(estimand=est.kind, adjustment_set=adj)]
+    refuters = [r.name for r in load_refuters() if r.applies(estimand=est.kind, adjustment_set=adj, hidden=est.sensitivity_required)]
     also = entry.also_run if entry.also_run and estimator_entry(entry.also_run).applies(
         estimand=est.kind, treatment="binary", outcome=state["outcome_kind"], adjustment_set=adj) else None
     d = Design(contrasts=state["contrasts"], graph=state["graph"], estimand=est, checks=Checks(results=state["checks"]),
@@ -695,7 +742,8 @@ def assemble(state: SpecialistState) -> dict:
             "feasibility": f.model_dump() if f else None,
         }, indent=2, default=str))
     result = {
-        "status": "infeasible" if f else "done",
+        "status": "ask" if state.get("ask") else "infeasible" if f else "done",
+        "ask": state.get("ask"),
         "family": h.family, "specialist": h.specialist, "run_dir": run_dir, "report": report,
         "design": d.model_dump() if d else None,
         "estimates": [e.model_dump() for e in state.get("estimates") or []],

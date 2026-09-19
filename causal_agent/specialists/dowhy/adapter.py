@@ -11,8 +11,11 @@ import math
 import warnings
 from typing import Any
 
+import matplotlib
 import numpy as np
 import pandas as pd
+
+matplotlib.use("Agg")  # the sensitivity refuter draws; nothing here has a screen
 
 from causal_agent.common.contracts import Contrast, Estimate, Refutation
 from causal_agent.specialists.dowhy.contracts import Estimand, Graph
@@ -24,6 +27,7 @@ warnings.filterwarnings("ignore", module="sklearn")
 warnings.filterwarnings("ignore", module="statsmodels")
 
 TREATED = "treated"  # the 0/1 column every contrast table carries
+HIDDEN = "unobserved"  # the node that stands for a factor the person says exists and the file does not hold
 SEED = 7
 
 
@@ -31,8 +35,11 @@ def contrast_table(table: pd.DataFrame, treatment: str, contrast: Contrast) -> p
     """Rows at the two levels only, with a 0/1 `treated` column. DoWhy always sees a binary treatment."""
     col = table[treatment].astype(str)
     sub = table[col.isin([str(contrast.control), str(contrast.treated)])].copy()
-    sub[TREATED] = (col.loc[sub.index] == str(contrast.treated)).astype(int)
-    return sub.drop(columns=[treatment])
+    flag = (col.loc[sub.index] == str(contrast.treated)).astype(int)
+    if treatment != TREATED:  # a file whose treatment column is itself named "treated" keeps its place
+        sub = sub.drop(columns=[treatment])
+    sub[TREATED] = flag
+    return sub
 
 
 def build_model(table: pd.DataFrame, graph: Graph, outcome: str):
@@ -44,12 +51,19 @@ def build_model(table: pd.DataFrame, graph: Graph, outcome: str):
 
 
 def identify(model) -> Estimand:
+    """Every road DoWhy finds on the graph. The design takes the first open one in the order backdoor, frontdoor, iv; the
+    estimator pick may take another, and the frozen design records which."""
     ide = model.identify_effect(proceed_when_unidentifiable=True)
-    backdoor = ide.estimands.get("backdoor") if hasattr(ide, "estimands") else None
-    if backdoor is None:
+    ests = getattr(ide, "estimands", {}) or {}
+    roads = [k for k in ("backdoor", "frontdoor", "iv") if ests.get(k) is not None]
+    if not roads:
         return Estimand(kind="none", dowhy_text=str(ide))
     alts = {k: list(v) for k, v in (getattr(ide, "backdoor_variables", {}) or {}).items() if k != "backdoor"}
-    return Estimand(kind="backdoor", adjustment_set=list(ide.get_backdoor_variables()), alternatives=alts, dowhy_text=str(ide))
+    return Estimand(kind=roads[0], roads=roads,
+                    adjustment_set=list(ide.get_backdoor_variables()) if "backdoor" in roads else [],
+                    instruments=[str(v) for v in (ide.get_instrumental_variables() or [])] if "iv" in roads else [],
+                    frontdoor_set=[str(v) for v in (ide.get_frontdoor_variables() or [])] if "frontdoor" in roads else [],
+                    alternatives=alts, dowhy_text=str(ide))
 
 
 def estimate(model, entry: EstimatorEntry, contrast_key: str, target_units: str, *, secondary: bool = False) -> tuple[Estimate, Any]:
@@ -95,8 +109,8 @@ def refute(model, bundle, est: Estimate, entry: RefuterEntry, contrast_key: str)
     except Exception as ex:
         return Refutation(contrast=contrast_key, refuter=entry.name, kind=entry.kind, detail=f"{type(ex).__name__}: {str(ex)[:300]}")
     if entry.kind == "sensitivity":
-        rng = r.new_effect
-        lo, hi = (float(rng[0]), float(rng[1])) if isinstance(rng, (tuple, list)) else (float(rng), float(rng))
+        arr = np.asarray(r.new_effect, dtype=float).ravel()
+        lo, hi = (float(np.nanmin(arr)), float(np.nanmax(arr))) if arr.size else (float("nan"), float("nan"))
         return Refutation(contrast=contrast_key, refuter=entry.name, kind="sensitivity", range_low=lo, range_high=hi,
                           detail=f"estimate ranges {lo:.3g} to {hi:.3g} under simulated confounders of the declared strengths")
     new = float(r.new_effect)

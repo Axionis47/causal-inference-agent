@@ -46,6 +46,7 @@ def build() -> StateGraph:
     b.add_node("gate", J.gate)
     b.add_node("handoff", J.handoff)
     b.add_node("run", J.run)
+    b.add_node("ask_back", J.ask_back)
     b.add_node("brief", A.brief)
     b.add_node("talk", A.talk)
     b.add_node("turn", A.turn, retry_policy=_retry)
@@ -67,7 +68,8 @@ def build() -> StateGraph:
     b.add_edge("decide", "gate")
     # gate → decide | handoff, via Command
     b.add_edge("handoff", "run")
-    b.add_edge("run", "brief")
+    b.add_conditional_edges("run", J.after_run, ["ask_back", "brief"])
+    b.add_edge("ask_back", "listen")
     b.add_edge("brief", "talk")
     # talk → turn | END; turn → answer | revise | what_if | requestion | END; revise → check | talk; what_if → fit | talk, via Command
     b.add_edge("answer", "talk")
