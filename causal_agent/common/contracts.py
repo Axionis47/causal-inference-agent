@@ -110,6 +110,9 @@ class ColumnFacts(BaseModel):
     switch: dict | None = None
     sentinels: list[str] = Field(default_factory=list)
     format_issues: list[str] = Field(default_factory=list)
+    binary_like: bool = False
+    bounds: list[str] | None = None
+    role_hints: list[str] = Field(default_factory=list)
 
     @classmethod
     def from_profile(cls, p) -> "ColumnFacts":
@@ -123,6 +126,8 @@ class ColumnFacts(BaseModel):
             switch=p.switch.model_dump() if getattr(p, "switch", None) else None,
             sentinels=[f"{s.value} x{s.count} ({s.reason})" for s in (getattr(p, "observed_sentinels", None) or [])],
             format_issues=list(getattr(p, "format_issues", None) or []),
+            binary_like=bool(getattr(p, "binary_like", False)), bounds=list(getattr(p, "bounds", None) or []) or None,
+            role_hints=list(getattr(p, "role_hints", None) or []),
         )
 
     def levels(self) -> list[str]:
@@ -154,10 +159,12 @@ class ColumnBrief(BaseModel):
         return re.split(r"(?<=[.!?])\s", self.meaning.strip(), maxsplit=1)[0]
 
     def line(self) -> str:
-        """One line for an index: address, name, kind, distinct, nulls, a few examples."""
+        """One line for an index: address, name, kind and what the shape allows, distinct, nulls, the bounds or a few examples, the meaning."""
         f = self.facts
+        kind = f.kind + (f" ({', '.join(f.role_hints)})" if f.role_hints else "")
         ex = ", ".join(f.levels()[:3])
-        return f"[{self.address}] {self.name!r} · {f.kind} · {f.distinct} distinct · {f.nulls} null" + (f" · e.g. {ex}" if ex else "") + (f" · {self.first_sentence()}" if self.meaning else "")
+        span = f"{f.bounds[0]} to {f.bounds[1]}" if f.bounds else (f"e.g. {ex}" if ex else "")
+        return f"[{self.address}] {self.name!r} · {kind} · {f.distinct} distinct · {f.nulls} null" + (f" · {span}" if span else "") + (f" · {self.first_sentence()}" if self.meaning else "")
 
     def render(self) -> str:
         f = self.facts
@@ -173,6 +180,10 @@ class ColumnBrief(BaseModel):
         lines.append(f"  [{a}.profile.nulls] {f.nulls} ({f.null_rate:.1%})")
         lines.append(f"  [{a}.profile.distinct] {f.distinct}{' (constant)' if f.constant else ''}")
         lines.append(f"  [{a}.profile.varies_over] {f.varies_over}")
+        if f.role_hints:
+            lines.append(f"  [{a}.profile.hints] {', '.join(f.role_hints)}")
+        if f.bounds:
+            lines.append(f"  [{a}.profile.bounds] {f.bounds[0]} to {f.bounds[1]}")
         if f.numeric:
             n = f.numeric
             lines.append(f"  [{a}.profile.numeric] min {n.get('min', 0):g}, p50 {n.get('p50', 0):g}, max {n.get('max', 0):g}, mean {n.get('mean', 0):g}")

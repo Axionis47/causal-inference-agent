@@ -19,6 +19,10 @@ def test_students_profile_shape():
     assert by["test preparation course"].distinct == 2
     assert by["lunch"].top_values is not None
     assert all(c.nulls == 0 for c in p.columns)
+    # what the shape allows, by code: hints, never roles
+    assert by["lunch"].binary_like and by["lunch"].role_hints == ["binary"]
+    assert by["math score"].role_hints == ["measure"] and by["math score"].bounds == ["0", "100"]
+    assert by["parental level of education"].role_hints == [] and by["parental level of education"].bounds is None
 
 
 def test_deterministic():
@@ -46,6 +50,25 @@ def test_panel_varies_over_and_switch(tmp_path):
     assert by["same"].varies_over == "time"
     assert p.dataset.grain == ["store", "week"]
     assert p.dataset.time_coverage is not None and p.dataset.time_coverage.inferred_frequency == "weekly"
+    assert by["week"].role_hints == ["date"] and by["week"].bounds == ["2024-01-01", "2024-02-05"]
+    assert by["store"].role_hints == ["id_like"] and "binary" in by["on"].role_hints
+
+
+def test_profile_cache_on_disk(tmp_path, monkeypatch):
+    from causal_agent.profile import data as D
+
+    monkeypatch.setenv("PROFILE_CACHE_DIR", str(tmp_path / "cache"))
+    f = tmp_path / "a.csv"
+    pd.DataFrame({"x": [1, 2, 3], "y": ["a", "b", "a"]}).to_csv(f, index=False)
+    a = D.profile_for(f)
+    files = list((tmp_path / "cache").glob("*.json"))
+    assert len(files) == 1 and a.columns[1].binary_like
+    # the same bytes read again come from the cache; different bytes profile afresh
+    calls = []
+    monkeypatch.setattr(D, "profile", lambda *a, **k: calls.append(1) or profile(*a, **k))
+    assert D.profile_for(f).model_dump() == a.model_dump() and calls == []
+    f.write_text("x,y\n1,a\n2,b\n")
+    assert D.profile_for(f).dataset.rows == 2 and calls == [1]
 
 
 def test_sentinels_and_whitespace(tmp_path):

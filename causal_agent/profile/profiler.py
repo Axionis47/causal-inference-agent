@@ -86,6 +86,9 @@ class ColumnProfile(BaseModel):
     varies_over: VariesOver = "unknown"
     switch: SwitchProfile | None = None
     format_issues: list[str] = Field(default_factory=list)
+    binary_like: bool = Field(default=False, description="exactly two values once nulls are dropped, whatever the kind")
+    bounds: list[str] | None = Field(default=None, description="[lowest, highest] for a numeric or dated column")
+    role_hints: list[str] = Field(default_factory=list, description="what the shape alone allows: binary, measure, date, period, id_like, constant, free_text")
 
 
 class TimeCoverage(BaseModel):
@@ -194,6 +197,28 @@ def _kind(s: pd.Series, name: str, rows: int, parsed_dt: pd.Series | None) -> Ki
     if distinct / max(rows, 1) > 0.5 and avg_len > 20:
         return "text"
     return "categorical"
+
+
+def _role_hints(cp: "ColumnProfile", nonnull: pd.Series, rows: int) -> list[str]:
+    """What a column's shape allows, by code. Hints, never roles: the frame and the person say what a column is."""
+    out: list[str] = []
+    if cp.constant:
+        return ["constant"]
+    if cp.binary_like:
+        out.append("binary")
+    if cp.kind == "id" or (cp.distinct == rows and rows > 1 and cp.kind in {"text", "categorical"}):
+        out.append("id_like")
+    if cp.kind == "datetime":
+        out.append("date")
+    if cp.kind in {"numeric", "categorical"} and nonnull.dtype.kind in "iu" and 2 < cp.distinct <= 60:
+        vals = np.sort(nonnull.unique())
+        if len(vals) > 1 and np.all(np.diff(vals) == np.diff(vals)[0]):
+            out.append("period")
+    if cp.kind == "numeric" and cp.distinct > 2:
+        out.append("measure")
+    if cp.kind == "text":
+        out.append("free_text")
+    return out
 
 
 def _sentinels(s: pd.Series, kind: Kind) -> list[Sentinel]:
@@ -390,6 +415,7 @@ def profile(
             constant=distinct <= 1,
             observed_sentinels=_sentinels(s, kind),
             format_issues=_format_issues(s, c),
+            binary_like=distinct == 2,
         )
         if kind in {"numeric", "id"}:
             num = pd.to_numeric(nonnull, errors="coerce").dropna()
@@ -405,6 +431,11 @@ def profile(
         if kind == "datetime" and parsed[c] is not None:
             d = parsed[c].dropna()
             cp.datetime = DatetimeStats(first=str(d.min().date()), last=str(d.max().date()), inferred_frequency=_infer_frequency(d))
+        if cp.numeric is not None:
+            cp.bounds = [f"{cp.numeric.min:g}", f"{cp.numeric.max:g}"]
+        elif cp.datetime is not None:
+            cp.bounds = [cp.datetime.first, cp.datetime.last]
+        cp.role_hints = _role_hints(cp, nonnull, rows)
         cp.varies_over = _varies_over(s, df, entity_cols, time_column)
         if kind == "boolean" and cp.varies_over in {"time", "both"} and entity_cols:
             cp.switch = _switch_profile(s, df, entity_cols, None if time_is_period else time_parsed, period=time_parsed if time_is_period else None)

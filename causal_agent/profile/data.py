@@ -1,22 +1,59 @@
-"""The file and its profile, loaded once per path. Column names are matched by key, as the pack does."""
+"""The file and its profile, loaded once per path in this process and once per file content on disk. Column names are
+matched by key, as the pack does.
+
+The disk cache lives under .artifacts/profiles/<sha256>-<flags>-<profiler version>.json: the same bytes with the same
+flags always give the same profile, so a file is profiled once however many processes read it."""
 
 from __future__ import annotations
 
+import hashlib
+import os
 from pathlib import Path
 
 import pandas as pd
 
 from causal_agent.common.addresses import key as _key
 from causal_agent.profile.pack import ColumnCard, DatasetCard, Pack
-from causal_agent.profile.profiler import Profile, profile
+from causal_agent.profile.profiler import PROFILER_VERSION, Profile, profile
 
 _cache: dict[str, tuple[pd.DataFrame, Profile]] = {}
+
+
+def cache_dir() -> Path:
+    from causal_agent.profile.datasets import ROOT
+
+    return Path(os.getenv("PROFILE_CACHE_DIR") or ROOT / ".artifacts" / "profiles")
+
+
+def _digest(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def profile_for(csv: str | Path, entity: list[str] | None = None, time: str | None = None) -> Profile:
+    """The profile of a file, from the disk cache when the same bytes were profiled before with the same flags."""
+    path = Path(csv)
+    flags = _key("|".join([*(entity or []), time or ""])) or "plain"
+    d = cache_dir()
+    p = d / f"{_digest(path)}-{flags}-{PROFILER_VERSION}.json"
+    if p.exists():
+        try:
+            return Profile.model_validate_json(p.read_text())
+        except ValueError:
+            pass
+    prof = profile(path, entity_columns=entity, time_column=time)
+    d.mkdir(parents=True, exist_ok=True)
+    p.write_text(prof.model_dump_json())
+    return prof
 
 
 def load(csv: str | Path, entity: list[str] | None = None, time: str | None = None) -> tuple[pd.DataFrame, Profile]:
     k = f"{Path(csv).resolve()}|{entity}|{time}"
     if k not in _cache:
-        _cache[k] = (pd.read_csv(csv), profile(csv, entity_columns=entity, time_column=time))
+        _cache[k] = (pd.read_csv(csv), profile_for(csv, entity, time))
     return _cache[k]
 
 
