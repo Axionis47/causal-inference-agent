@@ -3,6 +3,7 @@ import { ci, count, num } from "../../fmt";
 import { checkRows, decisionOver, decisionWhy, estimateRows, primaryEstimate, refutationRows } from "../../inspector/rows";
 import type { Selection } from "../../selection";
 import type { RunView } from "../../types";
+import Figure from "../Figure";
 import { ChecksTable, EstimatesTable, RefutationsTable } from "./RunTables";
 
 export default function RunDetail({ r, prev, onSelect }: { r: RunView; prev: RunView | null; onSelect: (s: Selection) => void }) {
@@ -65,6 +66,15 @@ export default function RunDetail({ r, prev, onSelect }: { r: RunView; prev: Run
           </p>
         )}
       </section>
+
+      {(r.figures ?? []).length > 0 && (
+        <section>
+          <h3>Figures</h3>
+          {r.figures.map((f) => (
+            <Figure key={f.id} spec={f} />
+          ))}
+        </section>
+      )}
 
       <EstimatesTable rows={estimateRows(r)} />
       <ChecksTable rows={checkRows(r.flags)} title="Flags" />

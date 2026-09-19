@@ -130,6 +130,18 @@ def render(run: RunRecord, memory: Memory | None = None, previous: RunRecord | N
             m.add(f"feasibility.fact:{j}", str(fact))
         if f.get("what_would_fix"):
             m.add("feasibility.what_would_fix", str(f["what_would_fix"]))
+    for raw in run.figures or []:
+        try:
+            from causal_agent.viz.spec import FigureSpec
+
+            spec = FigureSpec.model_validate(raw)
+        except Exception:
+            continue
+        m.add(spec.address, f"{spec.kind}: {spec.title}. {spec.note}")
+        for s_ in spec.series:
+            for i, (x, y) in enumerate(zip(s_.x, s_.y)):
+                if y is not None:
+                    m.add(f"{spec.address}.{s_.key}.{i}", f"{s_.name} · {x}: {y:.4g}", float(y))
     if memory is not None:  # every field the memory holds, so the chat can cite what the design rested on
         for address, f in memory.fields.items():
             if f.value is None and f.status == "empty":

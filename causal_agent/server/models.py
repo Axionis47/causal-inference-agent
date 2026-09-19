@@ -207,6 +207,7 @@ class RunView(BaseModel):
     files: list[str] = Field(default_factory=list)
     what_if: dict[str, str] = Field(default_factory=dict)
     differs: list[str] = Field(default_factory=list)
+    figures: list[dict] = Field(default_factory=list)
 
 
 class Turn(BaseModel):

@@ -331,4 +331,4 @@ def run_view(r: RunRecord) -> RunView:
     return RunView(index=r.index, question=r.question, family=r.family, specialist=r.specialist, status=r.status, run_id=run_id, effect=r.effect, ci_low=r.ci_low,
                    ci_high=r.ci_high, estimator=r.estimator, decision=dict(r.decision or {}), decision_record=r.decision_record or "", flags=flags, checks=checks,
                    refutations=refs, interpretations=interps, estimates=ests, feasibility=sr.get("feasibility") or r.artifacts.get("feasibility"), files=files,
-                   what_if=dict(r.what_if or {}), differs=list(r.differs or []))
+                   what_if=dict(r.what_if or {}), differs=list(r.differs or []), figures=list(r.figures or []))

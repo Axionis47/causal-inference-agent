@@ -76,6 +76,8 @@ def _grounded(v: float, mat: M.Material) -> bool:
 def _gate(reply: AfterReply, mat: M.Material) -> list[str]:
     errors: list[str] = []
     if reply.kind == "answer":
+        if not reply.cites and reply.figure:
+            reply.cites = [reply.figure]
         if not reply.cites and reply.numbers:
             reply.cites = list(dict.fromkeys(n.address for n in reply.numbers))
         bad = [c for c in reply.cites if c not in mat.addresses]
@@ -94,7 +96,9 @@ def _gate(reply: AfterReply, mat: M.Material) -> list[str]:
             if round(v, 6) in stated or _grounded(v, mat):
                 continue
             errors.append(f"the text states {v:g}, which is in no artifact; remove it or attach its address in numbers")
-    elif reply.kind in ("revise", "what_if"):
+    if reply.figure and reply.figure not in mat.addresses:
+        errors.append(f"figure {reply.figure!r} is not in the material; name one of the figure: addresses or leave it empty")
+    if reply.kind in ("revise", "what_if"):
         if not reply.updates:
             errors.append(f"{reply.kind} needs at least one field update; if the person wants a design choice changed, answer with which field would change it")
     elif reply.kind == "requestion":
@@ -144,7 +148,12 @@ def talk(state: DeskState) -> Command[Literal["turn", "__end__"]]:
     cur = runs[-1] if runs else None
     reply = state.get("after_reply")
     text = reply.text if reply is not None else state.get("brief", "")
-    payload = {"phase": "after", "kind": "after", "text": text, "status": _status_line(cur), "ready": True, "runs": len(runs), "open": [], "ask": None}
+    figure = None
+    if reply is not None and reply.figure and cur is not None:
+        figure = next((f for f in cur.figures if f"figure:{f.get('id')}" == reply.figure), None)
+    elif reply is None and cur is not None and cur.figures:
+        figure = cur.figures[min(1, len(cur.figures) - 1)]  # the run's own figure, or the ready-moment one when the run made none
+    payload = {"phase": "after", "kind": "after", "text": text, "status": _status_line(cur), "ready": True, "runs": len(runs), "open": [], "ask": None, "figure": figure}
     answer = str(interrupt(payload) or "").strip()
     if answer.lower() in DONE_WORDS:
         return Command(goto="__end__")

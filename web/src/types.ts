@@ -177,6 +177,7 @@ export interface RunView {
   files: string[];
   what_if: Record<string, string>;
   differs: string[];
+  figures: FigureSpec[];
 }
 
 export interface Turn {

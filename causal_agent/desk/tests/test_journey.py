@@ -45,7 +45,8 @@ def _held(monkeypatch, tmp_path):
 def canned_run(path, n, dataset, question, decision=None, decision_record=""):
     sr = {"status": "done", "design": {"estimator": "linear_regression", "contrast": {"treated": "completed", "control": "none"}, "checks": {"results": []}},
           "estimates": [{"contrast": "completed_vs_none", "method": "linear_regression", "value": 5.6, "ci_low": 3.7, "ci_high": 7.5, "secondary": False, "error": None}],
-          "refutations": [], "interpretations": [], "feasibility": None}
+          "refutations": [{"contrast": "completed_vs_none", "refuter": "placebo_treatment_refuter", "kind": "falsification", "new_effect": 0.05, "passed": True}],
+          "interpretations": [], "feasibility": None}
     return RunRecord(index=n, dataset=dataset, question=question, family="adjustment", specialist="dowhy", status="done", effect=5.6, ci_low=3.7, ci_high=7.5,
                      estimator="linear_regression", decision=decision or {}, decision_record=decision_record, specialist_result=sr, design_dir=str(path.parent))
 
@@ -121,6 +122,9 @@ def test_students_reaches_ready_in_the_frame_plus_a_few_questions_then_runs():
     p = d.say("run")
     assert p["kind"] == "after" and p["ready"] and "Run 1" in p["text"] and "[estimate:completed_vs_none.value]" in p["text"]
     runs = d.values["runs"]
+    # the run's figures: the ready-moment overlap first, then the estimate against its falsifications; the brief shows the run's own
+    assert [f["id"] for f in runs[0].figures][1] == "effect_completed_vs_none" and runs[0].figures[0]["id"].startswith("overlap_")
+    assert p["figure"]["id"] == "effect_completed_vs_none" and (tmp_dir := runs[0].design_dir) and (__import__("pathlib").Path(tmp_dir) / "figures.json").exists()
     assert len(runs) == 1 and runs[0].effect == 5.6 and runs[0].family == "adjustment" and d.values["phase"] == "after"
     assert fake.calls.count("FamilyDecision") == 0 and fake.calls.count("Choice") == 0  # one family stood, one figure fit: both by code
     assert (d.values["design_dir"]) and d.values["handoff"].design_id == 1
@@ -162,7 +166,8 @@ def test_run_before_ready_takes_the_drafts_on_their_word_and_asks_the_rest():
 
 def test_after_the_run_a_revision_goes_back_through_the_gate_and_the_checks():
     after = [
-        AfterReply(kind="answer", text="It raised math scores by 5.6 points.", cites=["estimate:completed_vs_none.value"], numbers=[NumberStated(address="estimate:completed_vs_none.value", value=5.6)]),
+        AfterReply(kind="answer", text="It raised math scores by 5.6 points; the figure shows the estimate against the placebo.", cites=["estimate:completed_vs_none.value"],
+                   numbers=[NumberStated(address="estimate:completed_vs_none.value", value=5.6)], figure="figure:effect_completed_vs_none"),
         AfterReply(kind="revise", text="I will re-check with the offer depending on lunch only.", updates=[FieldUpdate(address="claim:assignment.depends_on", value="lunch", said="only lunch")]),
         AfterReply(kind="done", text="Bye."),
     ]
@@ -172,7 +177,7 @@ def test_after_the_run_a_revision_goes_back_through_the_gate_and_the_checks():
     d.to_ready()
     d.say("run")
     p = d.say("what did you find?")
-    assert p["kind"] == "after" and "5.6" in p["text"]
+    assert p["kind"] == "after" and "5.6" in p["text"] and p["figure"]["id"] == "effect_completed_vs_none"
     p = d.say("the offer only depended on lunch, not on parents")
     m = HELD["students"]
     assert m.value("claim:assignment.depends_on") == ["lunch"] and m.field("claim:assignment.depends_on").source.startswith("user:turn:")

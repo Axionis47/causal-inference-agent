@@ -517,4 +517,12 @@ def run(state: DeskState) -> dict:
     else:
         rec = pipeline.run(Path(state["design_dir"]) / "handoff.json", n, state["dataset"], question, decision=_decision(state), decision_record=state.get("decision_record") or "")
     rec.what_if = dict(state.get("what_if") or {})
+    from causal_agent.viz import postviz
+
+    figs = ([state["figure"]] if state.get("figure") else []) + [f.model_dump() for f in postviz.figures(rec)]
+    rec.figures = figs
+    if state.get("design_dir"):
+        import json
+
+        (Path(state["design_dir"]) / "figures.json").write_text(json.dumps(figs, indent=2, default=str))
     return {"runs": runs + [rec], "phase": "after"}

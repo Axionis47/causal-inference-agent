@@ -14,7 +14,10 @@ as a figure, and says the design with its evidence and the struck families; desi
 on a copy of the memory and leaves it alone; then-and-now names the fields that differed; a new question about a different change
 drops what was relative to the old one. Stage 7 landed: a field is required only under the assignment kind that needs it
 (`required_when` in the catalogue: a cutoff rule needs its score, cutoff, side, and whether the score could be moved; a lottery needs no
-`depends_on`; a date column needs its period value), and the wide-table skim runs before the frame in the desk. Stage 8 (post-viz) next.
+`depends_on`; a date column needs its period value), and the wide-table skim runs before the frame in the desk. Stage 8 landed: `viz/postviz`
+draws the estimate against its falsifications and sensitivity ranges for every lane and the effect by period for diff-in-diff; a run's
+figures go to `designs/<n>/figures.json`, into the material with addresses, under the brief, and into the inspector; a reply may name
+a figure to show. Stage 9 (the lanes ask back, DoWhy's other roads) next.
 
 ## Context
 

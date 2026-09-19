@@ -93,7 +93,8 @@ TURN_SYSTEM = (
     "known changes, a copy is made and run beside it, and the text says what will be compared.\n"
     "  requestion: the person asks a new causal question of the same data. Return it in full.\n"
     "  done: they are finished.\n"
-    "If the material cannot answer, say so plainly. Do not name a kind of study or a method the material does not name."
+    "If the material cannot answer, say so plainly. Do not name a kind of study or a method the material does not name. "
+    "When a figure in the material makes the point (its address starts with figure:), name it in figure and the person sees it."
 )
 
 TURN_USER = """WHAT THE RUN LEFT BEHIND

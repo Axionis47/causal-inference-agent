@@ -46,6 +46,7 @@ class RunRecord(BaseModel):
     status: str = "no_handoff"
     run_dir: str | None = None
     design_dir: str | None = None
+    figures: list[dict] = Field(default_factory=list, description="FigureSpecs the run left behind, the ready-moment figure first")
     what_if: dict[str, str] = Field(default_factory=dict, description="for a what-if design: the fields changed on the fork, address -> value")
     differs: list[str] = Field(default_factory=list, description="the fields that differ from the design before, by address")
     effect: float | None = None
@@ -73,6 +74,7 @@ class AfterReply(BaseModel):
     numbers: list[NumberStated] = Field(default_factory=list, description="every number stated in the text, with its address")
     updates: list[FieldUpdate] = Field(default_factory=list, description="for revise and what_if: the field updates the person's words imply")
     question: str | None = Field(default=None, description="for requestion: the new question, in full")
+    figure: str | None = Field(default=None, description="the address of a figure in the material to show beside the text (figure:<id>), when one makes the point")
 
 
 class Exchange(BaseModel):
