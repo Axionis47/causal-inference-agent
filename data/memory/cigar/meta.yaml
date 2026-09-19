@@ -1,5 +1,5 @@
 name: cigar
-version: 3
+version: 41
 csv: data/raw/cigarette-sales-prop99/Cigar.csv
 facts:
   rows: 1380

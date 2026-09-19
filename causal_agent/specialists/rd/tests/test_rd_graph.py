@@ -15,6 +15,7 @@ from langchain_core.messages import AIMessage
 from causal_agent.common.contracts import Cited, Handoff, Scope
 from causal_agent.common.llm import set_llm
 from causal_agent.desk.handoff import forced
+from causal_agent.memory import store
 from causal_agent.profile import datasets as DS
 from causal_agent.profile.profiler import profile
 from causal_agent.specialists.rd import nodes as N
@@ -24,7 +25,7 @@ from causal_agent.specialists.rd.graph import compile_local
 
 def handoff(pack: str, outcome: str, treatment: str | None, cols: list[str], cite: str, target: str = "average") -> Handoff:
     return forced(pack, "Did crossing the cutoff change the outcome?", "discontinuity", outcome, treatment, cols, scope=Scope(target=target),
-                  assumption="units just either side of the cutoff are alike", cite=cite)
+                  assumption="units just either side of the cutoff are alike", cite=cite, memory=store.migrate(pack, write=False))
 
 
 URUGUAY = dict(pack="gov_transfers", outcome="Support", treatment="Participation", cols=["Support", "Participation", "Income_Centered", "Education", "Age"], cite="col:income_centered.note")

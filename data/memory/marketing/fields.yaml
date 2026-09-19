@@ -15,6 +15,181 @@ claim:grain.key_columns:
   - LocationID
   - week
   status: drafted
-  source: data
+  source: doc:context
+  said: null
+  evidence: []
+claim:grain.row_is:
+  value: one store's sales for one week
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:change.what:
+  value: Promotion test for a new menu item
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:change.to_whom:
+  value: Each store
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:change.when:
+  value: from the first week of the test, and kept the same promotion for all four
+    weeks
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:change.date_column:
+  value: week
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:assignment.kind:
+  value: lottery
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:assignment.rule:
+  value: assigned at random by the chain's marketing team
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:assignment.treatment_column:
+  value: Promotion
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:marketid.meaning:
+  value: Which of the 10 markets the store belongs to
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:marketid.when:
+  value: before
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:marketid.moved_by_change:
+  value: false
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:marketsize.meaning:
+  value: the chain's classification of the market (Small, medium, or large)
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:marketsize.when:
+  value: before
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:marketsize.moved_by_change:
+  value: false
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:locationid.meaning:
+  value: Store number
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:locationid.when:
+  value: before
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:locationid.moved_by_change:
+  value: false
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:ageofstore.meaning:
+  value: Years since the store opened
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:ageofstore.when:
+  value: before
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:ageofstore.moved_by_change:
+  value: false
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:promotion.meaning:
+  value: Which promotion the store ran
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:promotion.when:
+  value: before
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:promotion.set_by:
+  value: marketing team
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:promotion.moved_by_change:
+  value: false
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:week.meaning:
+  value: Test week
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:week.when:
+  value: at
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:salesinthousands.meaning:
+  value: Sales of the new item in that store in that week, in thousands of dollars
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:salesinthousands.when:
+  value: at
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:salesinthousands.measures_outcome:
+  value: true
+  status: drafted
+  source: doc:context
   said: null
   evidence: []

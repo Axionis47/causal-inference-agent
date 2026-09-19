@@ -51,12 +51,12 @@
   ],
   "question": "Did New Jersey's 1992 minimum wage rise reduce fast food employment?",
   "intent": "effect_of_change",
+  "design_id": 0,
+  "memory_version": 23,
   "why": "forced",
   "over": {},
   "csv": "data/raw/card-krueger-minimum-wage/employment.csv",
-  "docs": {
-    "about": "Each row is one fast food restaurant surveyed twice in 1992: once in February and March, before New Jersey raised its minimum wage, and once in November and December, after. Restaurants are Burger King, KFC, Wendy's, and Roy Rogers outlets in New Jersey and in eastern Pennsylvania just across the border. This file is a trimmed version of the original survey, 384 restaurants with the two employment counts and the state. There is no restaurant identifier, and 18 rows repeat exactly, which is plausible with only three columns but means individual restaurants cannot be told apart. Restaurants compete locally but the study treats each as its own unit."
-  },
+  "docs": {},
   "dataset_facts": {
     "rows": 384,
     "columns": 3,
@@ -66,21 +66,51 @@
     "entity_summary": null,
     "format_issues": []
   },
-  "grain": {},
+  "grain": {
+    "row_is": "one fast food restaurant",
+    "panel": true
+  },
   "sampling": {},
-  "missing": {},
-  "treated_level": null,
-  "control_level": null,
+  "missing": {
+    "why": "none"
+  },
+  "treated_level": "1",
+  "control_level": "0",
   "columns": [
     {
       "name": "total_emp_nov",
       "key": "total_emp_nov",
       "role": "outcome",
-      "meaning": "The same count in November and December 1992, after the change.",
-      "when": "unknown",
+      "meaning": "Full-time equivalent employment in November and December 1992",
+      "stands_for": "employment",
+      "proxy": null,
+      "when": "after",
       "set_by": null,
-      "affected_by_treatment": null,
-      "source": "doc:readme.md",
+      "moved_by_change": null,
+      "measures_outcome": true,
+      "source": "doc:context",
+      "provenance": {
+        "meaning": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "stands_for": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "when": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "measures_outcome": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        }
+      },
       "facts": {
         "kind": "numeric",
         "nulls": 0,
@@ -102,18 +132,51 @@
         "datetime": null,
         "switch": null,
         "sentinels": [],
-        "format_issues": []
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
       }
     },
     {
       "name": "state",
       "key": "state",
       "role": "treatment",
-      "meaning": "1 for New Jersey, 0 for Pennsylvania. Where the restaurant is, and therefore whether the wage rise applied to it. Fixed. About 80 percent of rows are New Jersey.",
-      "when": "unknown",
-      "set_by": null,
-      "affected_by_treatment": null,
-      "source": "doc:readme.md",
+      "meaning": "1 for New Jersey, 0 for Pennsylvania. Where the restaurant is, and therefore whether the wage rise applied to it.",
+      "stands_for": "state of location",
+      "proxy": "exact",
+      "when": "before",
+      "set_by": "Fixed",
+      "moved_by_change": null,
+      "measures_outcome": null,
+      "source": "doc:context",
+      "provenance": {
+        "meaning": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "stands_for": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "proxy": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "when": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "set_by": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        }
+      },
       "facts": {
         "kind": "boolean",
         "nulls": 0,
@@ -137,18 +200,46 @@
         "datetime": null,
         "switch": null,
         "sentinels": [],
-        "format_issues": []
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
       }
     },
     {
       "name": "total_emp_feb",
       "key": "total_emp_feb",
       "role": "candidate",
-      "meaning": "Full-time equivalent employment in February and March 1992, before the change. Counted as full-time staff plus managers plus half of part-time staff.",
-      "when": "unknown",
+      "meaning": "Full-time equivalent employment in February and March 1992",
+      "stands_for": "employment",
+      "proxy": null,
+      "when": "before",
       "set_by": null,
-      "affected_by_treatment": null,
-      "source": "doc:readme.md",
+      "moved_by_change": false,
+      "measures_outcome": null,
+      "source": "doc:context",
+      "provenance": {
+        "meaning": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "stands_for": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "when": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "moved_by_change": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        }
+      },
       "facts": {
         "kind": "numeric",
         "nulls": 0,
@@ -170,19 +261,132 @@
         "datetime": null,
         "switch": null,
         "sentinels": [],
-        "format_issues": []
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
       }
     }
   ],
   "change": {
-    "what": "New Jersey minimum wage rise, 1 April 1992. New Jersey raised its state minimum wage from 4.25 to 5.05 dollars an hour. Every employer in New Jersey was covered, and none in Pennsylvania, where the minimum stayed at 4.25. The change was a state law, decided by the legislature; which restaurants got it was decided entirely by which side of the state line they sat on. Both waves of the survey bracket the change."
+    "what": "New Jersey minimum wage rise from 4.25 to 5.05 dollars an hour",
+    "to_whom": "Every employer in New Jersey; none in Pennsylvania",
+    "when": "1 April 1992"
   },
-  "assignment": {},
+  "assignment": {
+    "kind": "date_by_others",
+    "rule": "The change was a state law, decided by the legislature; which restaurants got it was decided entirely by which side of the state line they sat on.",
+    "treatment_column": "state",
+    "treated_level": "1"
+  },
   "beliefs": {},
   "unknowns": [],
+  "contradictions": [],
   "said": [],
-  "probes": [],
-  "claims": {},
+  "probes": [
+    {
+      "family": "adjustment",
+      "name": "arms",
+      "value": 75.0,
+      "passed": true,
+      "detail": "309 treated rows and 75 others; floor 20 an arm"
+    },
+    {
+      "family": "diff_in_diff",
+      "name": "pre_periods",
+      "value": null,
+      "passed": null,
+      "detail": "period column or change period not settled"
+    },
+    {
+      "family": "synthetic_control",
+      "name": "pre_periods",
+      "value": null,
+      "passed": null,
+      "detail": "period column or change period not settled"
+    },
+    {
+      "family": "interrupted_series",
+      "name": "pre_periods",
+      "value": null,
+      "passed": null,
+      "detail": "period column or change period not settled"
+    }
+  ],
+  "claims": {
+    "assignment": {
+      "kind": "assignment",
+      "fields": {
+        "kind": "date_by_others",
+        "rule": "The change was a state law, decided by the legislature; which restaurants got it was decided entirely by which side of the state line they sat on.",
+        "treatment_column": "state",
+        "treated_level": "1"
+      },
+      "status": "drafted",
+      "source": "doc:context"
+    },
+    "change": {
+      "kind": "change",
+      "fields": {
+        "what": "New Jersey minimum wage rise from 4.25 to 5.05 dollars an hour",
+        "to_whom": "Every employer in New Jersey; none in Pennsylvania",
+        "when": "1 April 1992"
+      },
+      "status": "drafted",
+      "source": "doc:context"
+    },
+    "grain": {
+      "kind": "grain",
+      "fields": {
+        "row_is": "one fast food restaurant",
+        "panel": true
+      },
+      "status": "drafted",
+      "source": "doc:context"
+    },
+    "missing": {
+      "kind": "missing",
+      "fields": {
+        "why": "none"
+      },
+      "status": "confirmed",
+      "source": "data"
+    },
+    "col:state": {
+      "kind": "measured",
+      "fields": {
+        "meaning": "1 for New Jersey, 0 for Pennsylvania. Where the restaurant is, and therefore whether the wage rise applied to it.",
+        "stands_for": "state of location",
+        "proxy": "exact",
+        "when": "before",
+        "set_by": "Fixed"
+      },
+      "status": "drafted",
+      "source": "doc:context"
+    },
+    "col:total_emp_feb": {
+      "kind": "measured",
+      "fields": {
+        "meaning": "Full-time equivalent employment in February and March 1992",
+        "stands_for": "employment",
+        "when": "before",
+        "moved_by_change": false
+      },
+      "status": "drafted",
+      "source": "doc:context"
+    },
+    "col:total_emp_nov": {
+      "kind": "measured",
+      "fields": {
+        "meaning": "Full-time equivalent employment in November and December 1992",
+        "stands_for": "employment",
+        "when": "after",
+        "measures_outcome": true
+      },
+      "status": "drafted",
+      "source": "doc:context"
+    }
+  },
   "design": {
     "kind": "discontinuity",
     "score": null,
@@ -191,8 +395,13 @@
     "cutoff_value_treated": null,
     "score_fixed_before": null,
     "movable": null,
-    "takeup": null,
-    "covariates_allowed": [],
+    "takeup": {
+      "column": "state",
+      "level": "1"
+    },
+    "covariates_allowed": [
+      "total_emp_feb"
+    ],
     "cluster": null,
     "sampled_by_side": false,
     "cutoff_only": null

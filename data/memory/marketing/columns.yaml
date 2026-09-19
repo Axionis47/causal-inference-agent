@@ -38,6 +38,9 @@ marketid:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 marketsize:
   name: MarketSize
   key: marketsize
@@ -63,6 +66,9 @@ marketsize:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 locationid:
   name: LocationID
   key: locationid
@@ -87,6 +93,9 @@ locationid:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 ageofstore:
   name: AgeOfStore
   key: ageofstore
@@ -111,6 +120,9 @@ ageofstore:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 promotion:
   name: Promotion
   key: promotion
@@ -136,6 +148,9 @@ promotion:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 week:
   name: week
   key: week
@@ -164,6 +179,9 @@ week:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 salesinthousands:
   name: SalesInThousands
   key: salesinthousands
@@ -188,3 +206,6 @@ salesinthousands:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []

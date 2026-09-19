@@ -1,1 +1,223 @@
-{}
+claim:grain.row_is:
+  value: one household
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:grain.panel:
+  value: false
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:change.what:
+  value: PANES cash transfer
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:change.to_whom:
+  value: poor households
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:change.when:
+  value: 2005 to 2007
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:assignment.kind:
+  value: cutoff_rule
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:assignment.rule:
+  value: households with a score below a fixed cutoff were eligible, households above
+    were not. The rule was applied mechanically, and take-up among the eligible was
+    near universal.
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:assignment.score_column:
+  value: Income_Centered
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:assignment.cutoff:
+  value: 0.0
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:assignment.treated_side:
+  value: below
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:assignment.cutoff_value_treated:
+  value: true
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:assignment.treatment_column:
+  value: Participation
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:assignment.treated_level:
+  value: '1'
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:assignment.movable:
+  value: false
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:sampling.how:
+  value: by_side
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:sampling.detail:
+  value: The file keeps only households whose eligibility score sits within a narrow
+    band around the programme's cutoff, so it is the households closest to the line
+    on either side. The survey sample was drawn by side of the cutoff, two eligible
+    households for every ineligible one.
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:missing.why:
+  value: Missing for 51 households in Education.
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:income_centered.meaning:
+  value: The eligibility score minus the cutoff, so the cutoff is at zero. Negative
+    means eligible.
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:income_centered.stands_for:
+  value: eligibility score
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:income_centered.proxy:
+  value: derived
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:income_centered.when:
+  value: before
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:income_centered.moved_by_change:
+  value: false
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:education.meaning:
+  value: Years of schooling of the household head
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:education.stands_for:
+  value: household head's education
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:education.when:
+  value: before
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:age.meaning:
+  value: Age of the household head at the survey
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:age.stands_for:
+  value: household head's age
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:age.when:
+  value: before
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:participation.meaning:
+  value: 1 if the household received the transfer, 0 if not
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:participation.stands_for:
+  value: treatment receipt
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:participation.proxy:
+  value: exact
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:participation.when:
+  value: at
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:support.meaning:
+  value: The respondent's stated support for the government in the 2007 survey, scored
+    0, 0.5, or 1
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:support.stands_for:
+  value: government support
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:support.when:
+  value: after
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:support.measures_outcome:
+  value: true
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []

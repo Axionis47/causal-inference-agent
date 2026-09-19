@@ -22,6 +22,9 @@ income_centered:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 education:
   name: Education
   key: education
@@ -46,6 +49,9 @@ education:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 age:
   name: Age
   key: age
@@ -70,6 +76,9 @@ age:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 participation:
   name: Participation
   key: participation
@@ -92,6 +101,9 @@ participation:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 support:
   name: Support
   key: support
@@ -116,3 +128,6 @@ support:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []

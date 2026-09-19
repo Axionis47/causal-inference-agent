@@ -12,12 +12,14 @@ from langchain_core.messages import AIMessage
 from causal_agent.common.contracts import Cited, Handoff, Interpretation
 from causal_agent.common.llm import set_llm
 from causal_agent.desk.handoff import forced
+from causal_agent.memory import store
 from causal_agent.specialists.did.contracts import ControlRelation, DesignAssessment, EstimatorPick, Groups, Periods, Revision
 from causal_agent.specialists.did.graph import compile_local
 
 
 def handoff(pack: str, outcome: str, treatment: str, cols: list[str], cite: str) -> Handoff:
-    return forced(pack, "q", "diff_in_diff", outcome, treatment, cols, assumption="parallel movement absent the change", cite=cite)
+    return forced(pack, "q", "diff_in_diff", outcome, treatment, cols, assumption="parallel movement absent the change", cite=cite,
+                  memory=store.migrate(pack, write=False))  # the claims file alone: a note mined on disk never moves a test
 
 
 CK = dict(pack="card_krueger", outcome="total_emp_nov", treatment="state", cols=["state", "total_emp_feb", "total_emp_nov"], cite="col:state.note")

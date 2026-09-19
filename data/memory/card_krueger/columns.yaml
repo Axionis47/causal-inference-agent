@@ -20,6 +20,9 @@ state:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 total_emp_feb:
   name: total_emp_feb
   key: total_emp_feb
@@ -44,6 +47,9 @@ total_emp_feb:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 total_emp_nov:
   name: total_emp_nov
   key: total_emp_nov
@@ -68,3 +74,6 @@ total_emp_nov:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []

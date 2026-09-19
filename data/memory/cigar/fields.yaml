@@ -15,6 +15,230 @@ claim:grain.key_columns:
   - state
   - year
   status: drafted
-  source: data
+  source: doc:context
+  said: null
+  evidence: []
+claim:grain.row_is:
+  value: one US state in one year
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:change.what:
+  value: 'California Proposition 99: a 25 cent per pack tax increase with revenue
+    funding an anti-smoking campaign'
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:change.to_whom:
+  value: California voters (applied to the whole state)
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:change.when:
+  value: January 1989
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:assignment.kind:
+  value: own_choice
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:assignment.rule:
+  value: California voters passed a 25 cent per pack tax increase via ballot vote
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:assignment.level_column:
+  value: state
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:sampling.how:
+  value: whole
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:sampling.detail:
+  value: 46 states observed every year from 1963 to 1992
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:unnamed_0.meaning:
+  value: Row index from the export
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:unnamed_0.when:
+  value: before
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:state.meaning:
+  value: State number
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:state.when:
+  value: before
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:year.meaning:
+  value: Two-digit year
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:year.when:
+  value: at
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:price.meaning:
+  value: Average retail price of a pack in that state and year, in cents, including
+    taxes
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:price.set_by:
+  value: manufacturers, retailers, and state tax
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:price.when:
+  value: at
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:price.moved_by_change:
+  value: true
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:pop.meaning:
+  value: State population in thousands
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:pop.when:
+  value: at
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:pop16.meaning:
+  value: State population aged 16 and over, in thousands
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:pop16.when:
+  value: at
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:cpi.meaning:
+  value: National consumer price index, 1983 equals 100
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:cpi.set_by:
+  value: national economic factors
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:cpi.when:
+  value: at
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:cpi.moved_by_change:
+  value: false
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:ndi.meaning:
+  value: Per capita disposable income in the state, in current dollars
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:ndi.when:
+  value: at
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:ndi.moved_by_change:
+  value: true
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:sales.meaning:
+  value: Packs sold per capita in the state that year, from tax-paid sales
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:sales.when:
+  value: at
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:sales.measures_outcome:
+  value: true
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:sales.moved_by_change:
+  value: true
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:pimin.meaning:
+  value: Lowest average price among the state's neighbouring states, in cents
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:pimin.when:
+  value: at
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:pimin.moved_by_change:
+  value: false
+  status: drafted
+  source: doc:context
   said: null
   evidence: []

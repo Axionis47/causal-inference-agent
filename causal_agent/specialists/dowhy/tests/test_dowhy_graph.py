@@ -12,22 +12,28 @@ from langchain_core.messages import AIMessage
 from causal_agent.common.contracts import Cited, Contrast, Handoff, Interpretation
 from causal_agent.common.llm import set_llm
 from causal_agent.desk.handoff import forced
+from causal_agent.memory import store
 from causal_agent.specialists.dowhy.contracts import Contrasts, DesignAssessment, EstimatorPick, Relation, Revision
 from causal_agent.specialists.dowhy.graph import compile_local
 
 CITE = "col:test_preparation_course.note"
 
 
+def _memory(name):
+    """The memory from the shipped claims file alone: a note mined into the memory on disk never moves a test."""
+    return store.migrate(name, write=False)
+
+
 def students_handoff() -> Handoff:
     cols = ["math score", "test preparation course", "lunch", "parental level of education", "gender", "race/ethnicity", "reading score", "writing score"]
     return forced("students", "Did completing the prep course raise math scores?", "adjustment", "math score", "test preparation course", cols,
-                  assumption="nothing beyond lunch and parental education drove both", cite=CITE)
+                  assumption="nothing beyond lunch and parental education drove both", cite=CITE, memory=_memory("students"))
 
 
 def uruguay_handoff() -> Handoff:
     cols = ["Support", "Participation", "Income_Centered", "Education", "Age"]
     return forced("gov_transfers", "Did receiving the transfer raise support for the government?", "adjustment", "Support", "Participation", cols,
-                  assumption="forced into the adjustment lane for the negative case", cite="col:participation.note")
+                  assumption="forced into the adjustment lane for the negative case", cite="col:participation.note", memory=_memory("gov_transfers"))
 
 
 # students: how each column relates (what a careful reader of the note would answer)

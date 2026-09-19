@@ -72,12 +72,12 @@
   ],
   "question": "Did completing the prep course raise math scores?",
   "intent": "effect_of_change",
+  "design_id": 0,
+  "memory_version": 36,
   "why": "forced",
   "over": {},
   "csv": "data/raw/students-performance-in-exams/StudentsPerformance.csv",
-  "docs": {
-    "about": "Each row is one student's results from the May 2026 exam at one school. Every enrolled student who sat the exam is included; absentees are not. There is no student identifier in the file, so rows cannot be tied back to a person. Students sit individually, so one student's result does not affect another's. Exported from the school register on 1 June 2026."
-  },
+  "docs": {},
   "dataset_facts": {
     "rows": 1000,
     "columns": 8,
@@ -87,21 +87,49 @@
     "entity_summary": null,
     "format_issues": []
   },
-  "grain": {},
-  "sampling": {},
-  "missing": {},
-  "treated_level": null,
-  "control_level": null,
+  "grain": {
+    "row_is": "one student's results from the May 2026 exam at one school",
+    "panel": false
+  },
+  "sampling": {
+    "how": "whole",
+    "detail": "Every enrolled student who sat the exam is included; absentees are not."
+  },
+  "missing": {
+    "why": "none"
+  },
+  "treated_level": "completed",
+  "control_level": "none",
   "columns": [
     {
       "name": "math score",
       "key": "math_score",
       "role": "outcome",
-      "meaning": "The exam marks, 0 to 100, recorded at the sitting. No missing values.",
-      "when": "unknown",
+      "meaning": "exam mark",
+      "stands_for": null,
+      "proxy": null,
+      "when": "at",
       "set_by": null,
-      "affected_by_treatment": null,
-      "source": "doc:readme.md",
+      "moved_by_change": null,
+      "measures_outcome": true,
+      "source": "doc:context",
+      "provenance": {
+        "meaning": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "when": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "measures_outcome": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        }
+      },
       "facts": {
         "kind": "numeric",
         "nulls": 0,
@@ -123,18 +151,51 @@
         "datetime": null,
         "switch": null,
         "sentinels": [],
-        "format_issues": []
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
       }
     },
     {
       "name": "test preparation course",
       "key": "test_preparation_course",
       "role": "treatment",
-      "meaning": "Whether the student completed the prep course. Who got a place depended on lunch status and parental education, per the counsellor's offering rule above; after that, uptake was voluntary. So this column is a decision, not a measurement, and it was shaped by lunch and parental education. Fixed before the exam.",
-      "when": "unknown",
+      "meaning": "whether the student completed the prep course",
+      "stands_for": null,
+      "proxy": "derived",
+      "when": "before",
       "set_by": null,
-      "affected_by_treatment": null,
-      "source": "doc:prep_course_memo.md",
+      "moved_by_change": true,
+      "measures_outcome": null,
+      "source": "doc:context",
+      "provenance": {
+        "meaning": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "proxy": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "derived_from": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "when": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "moved_by_change": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        }
+      },
       "facts": {
         "kind": "categorical",
         "nulls": 0,
@@ -158,18 +219,41 @@
         "datetime": null,
         "switch": null,
         "sentinels": [],
-        "format_issues": []
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
       }
     },
     {
       "name": "reading score",
       "key": "reading_score",
       "role": "candidate",
-      "meaning": "The exam marks, 0 to 100, recorded at the sitting. No missing values.",
-      "when": "unknown",
+      "meaning": "exam mark",
+      "stands_for": null,
+      "proxy": null,
+      "when": "at",
       "set_by": null,
-      "affected_by_treatment": null,
-      "source": "doc:readme.md",
+      "moved_by_change": null,
+      "measures_outcome": true,
+      "source": "doc:context",
+      "provenance": {
+        "meaning": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "when": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "measures_outcome": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        }
+      },
       "facts": {
         "kind": "numeric",
         "nulls": 0,
@@ -191,18 +275,41 @@
         "datetime": null,
         "switch": null,
         "sentinels": [],
-        "format_issues": []
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
       }
     },
     {
       "name": "writing score",
       "key": "writing_score",
       "role": "candidate",
-      "meaning": "The exam marks, 0 to 100, recorded at the sitting. No missing values.",
-      "when": "unknown",
+      "meaning": "exam mark",
+      "stands_for": null,
+      "proxy": null,
+      "when": "at",
       "set_by": null,
-      "affected_by_treatment": null,
-      "source": "doc:readme.md",
+      "moved_by_change": null,
+      "measures_outcome": true,
+      "source": "doc:context",
+      "provenance": {
+        "meaning": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "when": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "measures_outcome": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        }
+      },
       "facts": {
         "kind": "numeric",
         "nulls": 0,
@@ -224,18 +331,41 @@
         "datetime": null,
         "switch": null,
         "sentinels": [],
-        "format_issues": []
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
       }
     },
     {
       "name": "lunch",
       "key": "lunch",
-      "role": "candidate",
-      "meaning": "Standard or free/reduced. Free/reduced is assigned by the district when household income is below the federal threshold, so it is the school's low-income indicator. Set before the exam and not by the school.",
-      "when": "unknown",
-      "set_by": null,
-      "affected_by_treatment": null,
-      "source": "doc:lunch_policy.md",
+      "role": "depends_on",
+      "meaning": "lunch status (standard or free/reduced), indicating household income below federal threshold",
+      "stands_for": null,
+      "proxy": null,
+      "when": "before",
+      "set_by": "district",
+      "moved_by_change": null,
+      "measures_outcome": null,
+      "source": "doc:context",
+      "provenance": {
+        "meaning": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "when": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "set_by": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        }
+      },
       "facts": {
         "kind": "categorical",
         "nulls": 0,
@@ -259,18 +389,36 @@
         "datetime": null,
         "switch": null,
         "sentinels": [],
-        "format_issues": []
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
       }
     },
     {
       "name": "parental level of education",
       "key": "parental_level_of_education",
-      "role": "candidate",
-      "meaning": "Highest qualification held by either parent, as declared at enrolment. Six levels from some high school to master's degree. Known before the exam.",
-      "when": "unknown",
+      "role": "depends_on",
+      "meaning": "highest qualification held by either parent",
+      "stands_for": null,
+      "proxy": null,
+      "when": "before",
       "set_by": null,
-      "affected_by_treatment": null,
-      "source": "doc:readme.md",
+      "moved_by_change": null,
+      "measures_outcome": null,
+      "source": "doc:context",
+      "provenance": {
+        "meaning": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "when": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        }
+      },
       "facts": {
         "kind": "categorical",
         "nulls": 0,
@@ -314,19 +462,204 @@
         "datetime": null,
         "switch": null,
         "sentinels": [],
-        "format_issues": []
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
       }
     }
   ],
   "change": {
-    "what": "Prep course, 1 March to 12 April 2026. The school ran a six-week test preparation course before the exam. The counsellor offered places first to students on free or reduced lunch and to students whose parents hold no degree; remaining places were open to anyone who asked. Completion was recorded by the counsellor."
+    "what": "a six-week test preparation course",
+    "to_whom": "students",
+    "when": "1 March to 12 April 2026"
   },
-  "assignment": {},
+  "assignment": {
+    "kind": "own_choice",
+    "rule": "The counsellor offered places first to students on free or reduced lunch and to students whose parents hold no degree; remaining places were open to anyone who asked. Uptake was voluntary.",
+    "depends_on": [
+      "lunch",
+      "parental level of education"
+    ],
+    "treatment_column": "test preparation course",
+    "treated_level": "completed"
+  },
   "beliefs": {},
   "unknowns": [],
+  "contradictions": [],
   "said": [],
-  "probes": [],
-  "claims": {},
+  "probes": [
+    {
+      "family": "adjustment",
+      "name": "arms",
+      "value": 358.0,
+      "passed": true,
+      "detail": "358 treated rows and 642 others; floor 20 an arm"
+    },
+    {
+      "family": "adjustment",
+      "name": "overlap",
+      "value": 8.0,
+      "passed": true,
+      "detail": "12 cells over lunch, parental level of education; smallest arm in a cell 8; 0 cells with one arm missing; floor 5"
+    },
+    {
+      "family": "diff_in_diff",
+      "name": "pre_periods",
+      "value": null,
+      "passed": null,
+      "detail": "period column or change period not settled"
+    },
+    {
+      "family": "synthetic_control",
+      "name": "pre_periods",
+      "value": null,
+      "passed": null,
+      "detail": "period column or change period not settled"
+    },
+    {
+      "family": "interrupted_series",
+      "name": "pre_periods",
+      "value": null,
+      "passed": null,
+      "detail": "period column or change period not settled"
+    }
+  ],
+  "claims": {
+    "assignment": {
+      "kind": "assignment",
+      "fields": {
+        "kind": "own_choice",
+        "rule": "The counsellor offered places first to students on free or reduced lunch and to students whose parents hold no degree; remaining places were open to anyone who asked. Uptake was voluntary.",
+        "depends_on": [
+          "lunch",
+          "parental level of education"
+        ],
+        "treatment_column": "test preparation course",
+        "treated_level": "completed"
+      },
+      "status": "drafted",
+      "source": "doc:context"
+    },
+    "change": {
+      "kind": "change",
+      "fields": {
+        "what": "a six-week test preparation course",
+        "to_whom": "students",
+        "when": "1 March to 12 April 2026"
+      },
+      "status": "drafted",
+      "source": "doc:context"
+    },
+    "grain": {
+      "kind": "grain",
+      "fields": {
+        "row_is": "one student's results from the May 2026 exam at one school",
+        "panel": false
+      },
+      "status": "drafted",
+      "source": "doc:context"
+    },
+    "sampling": {
+      "kind": "sampling",
+      "fields": {
+        "how": "whole",
+        "detail": "Every enrolled student who sat the exam is included; absentees are not."
+      },
+      "status": "drafted",
+      "source": "doc:context"
+    },
+    "missing": {
+      "kind": "missing",
+      "fields": {
+        "why": "none"
+      },
+      "status": "confirmed",
+      "source": "data"
+    },
+    "col:gender": {
+      "kind": "measured",
+      "fields": {
+        "meaning": "gender",
+        "when": "before"
+      },
+      "status": "drafted",
+      "source": "doc:context"
+    },
+    "col:race_ethnicity": {
+      "kind": "measured",
+      "fields": {
+        "meaning": "race/ethnicity",
+        "when": "before"
+      },
+      "status": "drafted",
+      "source": "doc:context"
+    },
+    "col:parental_level_of_education": {
+      "kind": "measured",
+      "fields": {
+        "meaning": "highest qualification held by either parent",
+        "when": "before"
+      },
+      "status": "drafted",
+      "source": "doc:context"
+    },
+    "col:lunch": {
+      "kind": "measured",
+      "fields": {
+        "meaning": "lunch status (standard or free/reduced), indicating household income below federal threshold",
+        "when": "before",
+        "set_by": "district"
+      },
+      "status": "drafted",
+      "source": "doc:context"
+    },
+    "col:test_preparation_course": {
+      "kind": "measured",
+      "fields": {
+        "meaning": "whether the student completed the prep course",
+        "proxy": "derived",
+        "derived_from": [
+          "lunch",
+          "parental level of education"
+        ],
+        "when": "before",
+        "moved_by_change": true
+      },
+      "status": "drafted",
+      "source": "doc:context"
+    },
+    "col:math_score": {
+      "kind": "measured",
+      "fields": {
+        "meaning": "exam mark",
+        "when": "at",
+        "measures_outcome": true
+      },
+      "status": "drafted",
+      "source": "doc:context"
+    },
+    "col:reading_score": {
+      "kind": "measured",
+      "fields": {
+        "meaning": "exam mark",
+        "when": "at",
+        "measures_outcome": true
+      },
+      "status": "drafted",
+      "source": "doc:context"
+    },
+    "col:writing_score": {
+      "kind": "measured",
+      "fields": {
+        "meaning": "exam mark",
+        "when": "at",
+        "measures_outcome": true
+      },
+      "status": "drafted",
+      "source": "doc:context"
+    }
+  },
   "design": {
     "kind": "discontinuity",
     "score": null,
@@ -335,7 +668,10 @@
     "cutoff_value_treated": null,
     "score_fixed_before": null,
     "movable": null,
-    "takeup": null,
+    "takeup": {
+      "column": "test preparation course",
+      "level": "completed"
+    },
     "covariates_allowed": [],
     "cluster": null,
     "sampled_by_side": false,

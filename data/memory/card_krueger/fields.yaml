@@ -4,3 +4,137 @@ claim:missing.why:
   source: data
   said: null
   evidence: []
+claim:grain.row_is:
+  value: one fast food restaurant
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:grain.panel:
+  value: true
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:change.what:
+  value: New Jersey minimum wage rise from 4.25 to 5.05 dollars an hour
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:change.to_whom:
+  value: Every employer in New Jersey; none in Pennsylvania
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:change.when:
+  value: 1 April 1992
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:assignment.kind:
+  value: date_by_others
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:assignment.rule:
+  value: The change was a state law, decided by the legislature; which restaurants
+    got it was decided entirely by which side of the state line they sat on.
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:assignment.treatment_column:
+  value: state
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:assignment.treated_level:
+  value: '1'
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:state.meaning:
+  value: 1 for New Jersey, 0 for Pennsylvania. Where the restaurant is, and therefore
+    whether the wage rise applied to it.
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:state.stands_for:
+  value: state of location
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:state.proxy:
+  value: exact
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:state.when:
+  value: before
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:state.set_by:
+  value: Fixed
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:total_emp_feb.meaning:
+  value: Full-time equivalent employment in February and March 1992
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:total_emp_feb.stands_for:
+  value: employment
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:total_emp_feb.when:
+  value: before
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:total_emp_feb.moved_by_change:
+  value: false
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:total_emp_nov.meaning:
+  value: Full-time equivalent employment in November and December 1992
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:total_emp_nov.stands_for:
+  value: employment
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:total_emp_nov.when:
+  value: after
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:total_emp_nov.measures_outcome:
+  value: true
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []

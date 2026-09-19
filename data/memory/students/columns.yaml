@@ -20,6 +20,9 @@ gender:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 race_ethnicity:
   name: race/ethnicity
   key: race_ethnicity
@@ -51,6 +54,9 @@ race_ethnicity:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 parental_level_of_education:
   name: parental level of education
   key: parental_level_of_education
@@ -85,6 +91,9 @@ parental_level_of_education:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 lunch:
   name: lunch
   key: lunch
@@ -107,6 +116,9 @@ lunch:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 test_preparation_course:
   name: test preparation course
   key: test_preparation_course
@@ -129,6 +141,9 @@ test_preparation_course:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 math_score:
   name: math score
   key: math_score
@@ -153,6 +168,9 @@ math_score:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 reading_score:
   name: reading score
   key: reading_score
@@ -177,6 +195,9 @@ reading_score:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 writing_score:
   name: writing score
   key: writing_score
@@ -201,3 +222,6 @@ writing_score:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []

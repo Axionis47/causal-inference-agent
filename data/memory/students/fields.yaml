@@ -4,3 +4,220 @@ claim:missing.why:
   source: data
   said: null
   evidence: []
+claim:grain.row_is:
+  value: one student's results from the May 2026 exam at one school
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:grain.panel:
+  value: false
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:change.what:
+  value: a six-week test preparation course
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:change.to_whom:
+  value: students
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:change.when:
+  value: 1 March to 12 April 2026
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:assignment.kind:
+  value: own_choice
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:assignment.rule:
+  value: The counsellor offered places first to students on free or reduced lunch
+    and to students whose parents hold no degree; remaining places were open to anyone
+    who asked. Uptake was voluntary.
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:assignment.depends_on:
+  value:
+  - lunch
+  - parental level of education
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:assignment.treatment_column:
+  value: test preparation course
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:assignment.treated_level:
+  value: completed
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:sampling.how:
+  value: whole
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+claim:sampling.detail:
+  value: Every enrolled student who sat the exam is included; absentees are not.
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:gender.meaning:
+  value: gender
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:gender.when:
+  value: before
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:race_ethnicity.meaning:
+  value: race/ethnicity
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:race_ethnicity.when:
+  value: before
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:parental_level_of_education.meaning:
+  value: highest qualification held by either parent
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:parental_level_of_education.when:
+  value: before
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:lunch.meaning:
+  value: lunch status (standard or free/reduced), indicating household income below
+    federal threshold
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:lunch.when:
+  value: before
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:lunch.set_by:
+  value: district
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:test_preparation_course.meaning:
+  value: whether the student completed the prep course
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:test_preparation_course.proxy:
+  value: derived
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:test_preparation_course.derived_from:
+  value:
+  - lunch
+  - parental level of education
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:test_preparation_course.when:
+  value: before
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:test_preparation_course.moved_by_change:
+  value: true
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:math_score.meaning:
+  value: exam mark
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:math_score.when:
+  value: at
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:math_score.measures_outcome:
+  value: true
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:reading_score.meaning:
+  value: exam mark
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:reading_score.when:
+  value: at
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:reading_score.measures_outcome:
+  value: true
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:writing_score.meaning:
+  value: exam mark
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:writing_score.when:
+  value: at
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []
+col:writing_score.measures_outcome:
+  value: true
+  status: drafted
+  source: doc:context
+  said: null
+  evidence: []

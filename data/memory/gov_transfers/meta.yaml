@@ -1,5 +1,5 @@
 name: gov_transfers
-version: 0
+version: 72
 csv: data/raw/gov-transfers-uruguay/gov_transfers.csv
 facts:
   rows: 1948

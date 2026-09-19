@@ -86,12 +86,12 @@
   ],
   "question": "What did California's 1989 tobacco tax do to cigarette sales?",
   "intent": "effect_of_change",
+  "design_id": 0,
+  "memory_version": 41,
   "why": "forced",
   "over": {},
   "csv": "data/raw/cigarette-sales-prop99/Cigar.csv",
-  "docs": {
-    "about": "Each row is one US state in one year. 46 states are observed every year from 1963 to 1992, 1,380 rows, no gaps. Years are written as two digits, 63 to 92. States are numbered 1 to 51 in alphabetical order of the standard state list with five states missing, so the numbers are not contiguous; state 5 is California. The first column is an unnamed row index left over from an R export and carries no information. States are treated as separate markets, though cigarettes bought in a neighbouring state with lower prices are a known leak, which is why the minimum neighbouring price is included. Data are Baltagi and Levin's panel, distributed in the Ecdat package."
-  },
+  "docs": {},
   "dataset_facts": {
     "rows": 1380,
     "columns": 10,
@@ -117,9 +117,21 @@
     },
     "format_issues": []
   },
-  "grain": {},
-  "sampling": {},
-  "missing": {},
+  "grain": {
+    "panel": true,
+    "key_columns": [
+      "state",
+      "year"
+    ],
+    "row_is": "one US state in one year"
+  },
+  "sampling": {
+    "how": "whole",
+    "detail": "46 states observed every year from 1963 to 1992"
+  },
+  "missing": {
+    "why": "none"
+  },
   "treated_level": null,
   "control_level": null,
   "columns": [
@@ -127,11 +139,36 @@
       "name": "sales",
       "key": "sales",
       "role": "outcome",
-      "meaning": "Packs sold per capita in the state that year, from tax-paid sales. The year's result.",
-      "when": "unknown",
+      "meaning": "Packs sold per capita in the state that year, from tax-paid sales",
+      "stands_for": null,
+      "proxy": null,
+      "when": "at",
       "set_by": null,
-      "affected_by_treatment": null,
-      "source": "doc:readme.md",
+      "moved_by_change": true,
+      "measures_outcome": true,
+      "source": "doc:context",
+      "provenance": {
+        "meaning": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "when": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "measures_outcome": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "moved_by_change": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        }
+      },
       "facts": {
         "kind": "numeric",
         "nulls": 0,
@@ -153,18 +190,36 @@
         "datetime": null,
         "switch": null,
         "sentinels": [],
-        "format_issues": []
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
       }
     },
     {
       "name": "state",
       "key": "state",
       "role": "treatment",
-      "meaning": "State number, see above. Fixed.",
-      "when": "unknown",
+      "meaning": "State number",
+      "stands_for": null,
+      "proxy": null,
+      "when": "before",
       "set_by": null,
-      "affected_by_treatment": null,
-      "source": "doc:readme.md",
+      "moved_by_change": null,
+      "measures_outcome": null,
+      "source": "doc:context",
+      "provenance": {
+        "meaning": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "when": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        }
+      },
       "facts": {
         "kind": "id",
         "nulls": 0,
@@ -186,18 +241,36 @@
         "datetime": null,
         "switch": null,
         "sentinels": [],
-        "format_issues": []
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
       }
     },
     {
       "name": "year",
       "key": "year",
-      "role": "time",
-      "meaning": "Two-digit year, 63 to 92.",
-      "when": "unknown",
+      "role": "unit",
+      "meaning": "Two-digit year",
+      "stands_for": null,
+      "proxy": null,
+      "when": "at",
       "set_by": null,
-      "affected_by_treatment": null,
-      "source": "doc:readme.md",
+      "moved_by_change": null,
+      "measures_outcome": null,
+      "source": "doc:context",
+      "provenance": {
+        "meaning": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "when": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        }
+      },
       "facts": {
         "kind": "numeric",
         "nulls": 0,
@@ -219,18 +292,46 @@
         "datetime": null,
         "switch": null,
         "sentinels": [],
-        "format_issues": []
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
       }
     },
     {
       "name": "price",
       "key": "price",
       "role": "candidate",
-      "meaning": "Average retail price of a pack in that state and year, in cents, including taxes. Set by manufacturers, retailers, and state tax, and moves with them.",
-      "when": "unknown",
-      "set_by": null,
-      "affected_by_treatment": null,
-      "source": "doc:readme.md",
+      "meaning": "Average retail price of a pack in that state and year, in cents, including taxes",
+      "stands_for": null,
+      "proxy": null,
+      "when": "at",
+      "set_by": "manufacturers, retailers, and state tax",
+      "moved_by_change": true,
+      "measures_outcome": null,
+      "source": "doc:context",
+      "provenance": {
+        "meaning": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "set_by": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "when": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "moved_by_change": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        }
+      },
       "facts": {
         "kind": "numeric",
         "nulls": 0,
@@ -252,18 +353,41 @@
         "datetime": null,
         "switch": null,
         "sentinels": [],
-        "format_issues": []
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
       }
     },
     {
       "name": "pimin",
       "key": "pimin",
       "role": "candidate",
-      "meaning": "Lowest average price among the state's neighbouring states, in cents. A measure of how cheap it is to buy across the border.",
-      "when": "unknown",
+      "meaning": "Lowest average price among the state's neighbouring states, in cents",
+      "stands_for": null,
+      "proxy": null,
+      "when": "at",
       "set_by": null,
-      "affected_by_treatment": null,
-      "source": "doc:readme.md",
+      "moved_by_change": false,
+      "measures_outcome": null,
+      "source": "doc:context",
+      "provenance": {
+        "meaning": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "when": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "moved_by_change": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        }
+      },
       "facts": {
         "kind": "numeric",
         "nulls": 0,
@@ -285,18 +409,41 @@
         "datetime": null,
         "switch": null,
         "sentinels": [],
-        "format_issues": []
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
       }
     },
     {
       "name": "ndi",
       "key": "ndi",
       "role": "candidate",
-      "meaning": "Per capita disposable income in the state, in current dollars.",
-      "when": "unknown",
+      "meaning": "Per capita disposable income in the state, in current dollars",
+      "stands_for": null,
+      "proxy": null,
+      "when": "at",
       "set_by": null,
-      "affected_by_treatment": null,
-      "source": "doc:readme.md",
+      "moved_by_change": true,
+      "measures_outcome": null,
+      "source": "doc:context",
+      "provenance": {
+        "meaning": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "when": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "moved_by_change": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        }
+      },
       "facts": {
         "kind": "numeric",
         "nulls": 0,
@@ -318,18 +465,36 @@
         "datetime": null,
         "switch": null,
         "sentinels": [],
-        "format_issues": []
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
       }
     },
     {
       "name": "pop",
       "key": "pop",
       "role": "candidate",
-      "meaning": "State population in thousands.",
-      "when": "unknown",
+      "meaning": "State population in thousands",
+      "stands_for": null,
+      "proxy": null,
+      "when": "at",
       "set_by": null,
-      "affected_by_treatment": null,
-      "source": "doc:readme.md",
+      "moved_by_change": null,
+      "measures_outcome": null,
+      "source": "doc:context",
+      "provenance": {
+        "meaning": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "when": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        }
+      },
       "facts": {
         "kind": "numeric",
         "nulls": 0,
@@ -351,18 +516,46 @@
         "datetime": null,
         "switch": null,
         "sentinels": [],
-        "format_issues": []
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
       }
     },
     {
       "name": "cpi",
       "key": "cpi",
       "role": "candidate",
-      "meaning": "National consumer price index, 1983 equals 100. Same for every state in a year.",
-      "when": "unknown",
-      "set_by": null,
-      "affected_by_treatment": null,
-      "source": "doc:readme.md",
+      "meaning": "National consumer price index, 1983 equals 100",
+      "stands_for": null,
+      "proxy": null,
+      "when": "at",
+      "set_by": "national economic factors",
+      "moved_by_change": false,
+      "measures_outcome": null,
+      "source": "doc:context",
+      "provenance": {
+        "meaning": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "set_by": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "when": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "moved_by_change": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        }
+      },
       "facts": {
         "kind": "numeric",
         "nulls": 0,
@@ -384,19 +577,207 @@
         "datetime": null,
         "switch": null,
         "sentinels": [],
-        "format_issues": []
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
       }
     }
   ],
   "change": {
-    "what": "California Proposition 99, effective January 1989. California voters passed a 25 cent per pack tax increase, with the revenue funding an anti-smoking campaign. It applied to the whole state and no other state adopted anything comparable in the period. It was decided by a ballot vote, and which state got it was simply California. The file has 26 years before the change and 4 after. Other states raised their own taxes by smaller amounts at various times, which shows up in the price column."
+    "what": "California Proposition 99: a 25 cent per pack tax increase with revenue funding an anti-smoking campaign",
+    "to_whom": "California voters (applied to the whole state)",
+    "when": "January 1989"
   },
-  "assignment": {},
+  "assignment": {
+    "kind": "own_choice",
+    "rule": "California voters passed a 25 cent per pack tax increase via ballot vote",
+    "level_column": "state"
+  },
   "beliefs": {},
   "unknowns": [],
+  "contradictions": [],
   "said": [],
-  "probes": [],
-  "claims": {},
+  "probes": [
+    {
+      "family": "adjustment",
+      "name": "arms",
+      "value": null,
+      "passed": null,
+      "detail": "treatment column not settled"
+    },
+    {
+      "family": "diff_in_diff",
+      "name": "pre_periods",
+      "value": null,
+      "passed": null,
+      "detail": "period column or change period not settled"
+    },
+    {
+      "family": "synthetic_control",
+      "name": "pre_periods",
+      "value": null,
+      "passed": null,
+      "detail": "period column or change period not settled"
+    },
+    {
+      "family": "interrupted_series",
+      "name": "pre_periods",
+      "value": null,
+      "passed": null,
+      "detail": "period column or change period not settled"
+    }
+  ],
+  "claims": {
+    "assignment": {
+      "kind": "assignment",
+      "fields": {
+        "kind": "own_choice",
+        "rule": "California voters passed a 25 cent per pack tax increase via ballot vote",
+        "level_column": "state"
+      },
+      "status": "drafted",
+      "source": "doc:context"
+    },
+    "change": {
+      "kind": "change",
+      "fields": {
+        "what": "California Proposition 99: a 25 cent per pack tax increase with revenue funding an anti-smoking campaign",
+        "to_whom": "California voters (applied to the whole state)",
+        "when": "January 1989"
+      },
+      "status": "drafted",
+      "source": "doc:context"
+    },
+    "grain": {
+      "kind": "grain",
+      "fields": {
+        "panel": true,
+        "key_columns": [
+          "state",
+          "year"
+        ],
+        "row_is": "one US state in one year"
+      },
+      "status": "drafted",
+      "source": "data"
+    },
+    "sampling": {
+      "kind": "sampling",
+      "fields": {
+        "how": "whole",
+        "detail": "46 states observed every year from 1963 to 1992"
+      },
+      "status": "drafted",
+      "source": "doc:context"
+    },
+    "missing": {
+      "kind": "missing",
+      "fields": {
+        "why": "none"
+      },
+      "status": "confirmed",
+      "source": "data"
+    },
+    "col:unnamed_0": {
+      "kind": "measured",
+      "fields": {
+        "meaning": "Row index from the export",
+        "when": "before"
+      },
+      "status": "drafted",
+      "source": "doc:context"
+    },
+    "col:state": {
+      "kind": "measured",
+      "fields": {
+        "meaning": "State number",
+        "when": "before"
+      },
+      "status": "drafted",
+      "source": "doc:context"
+    },
+    "col:year": {
+      "kind": "measured",
+      "fields": {
+        "meaning": "Two-digit year",
+        "when": "at"
+      },
+      "status": "drafted",
+      "source": "doc:context"
+    },
+    "col:price": {
+      "kind": "measured",
+      "fields": {
+        "meaning": "Average retail price of a pack in that state and year, in cents, including taxes",
+        "set_by": "manufacturers, retailers, and state tax",
+        "when": "at",
+        "moved_by_change": true
+      },
+      "status": "drafted",
+      "source": "doc:context"
+    },
+    "col:pop": {
+      "kind": "measured",
+      "fields": {
+        "meaning": "State population in thousands",
+        "when": "at"
+      },
+      "status": "drafted",
+      "source": "doc:context"
+    },
+    "col:pop16": {
+      "kind": "measured",
+      "fields": {
+        "meaning": "State population aged 16 and over, in thousands",
+        "when": "at"
+      },
+      "status": "drafted",
+      "source": "doc:context"
+    },
+    "col:cpi": {
+      "kind": "measured",
+      "fields": {
+        "meaning": "National consumer price index, 1983 equals 100",
+        "set_by": "national economic factors",
+        "when": "at",
+        "moved_by_change": false
+      },
+      "status": "drafted",
+      "source": "doc:context"
+    },
+    "col:ndi": {
+      "kind": "measured",
+      "fields": {
+        "meaning": "Per capita disposable income in the state, in current dollars",
+        "when": "at",
+        "moved_by_change": true
+      },
+      "status": "drafted",
+      "source": "doc:context"
+    },
+    "col:sales": {
+      "kind": "measured",
+      "fields": {
+        "meaning": "Packs sold per capita in the state that year, from tax-paid sales",
+        "when": "at",
+        "measures_outcome": true,
+        "moved_by_change": true
+      },
+      "status": "drafted",
+      "source": "doc:context"
+    },
+    "col:pimin": {
+      "kind": "measured",
+      "fields": {
+        "meaning": "Lowest average price among the state's neighbouring states, in cents",
+        "when": "at",
+        "moved_by_change": false
+      },
+      "status": "drafted",
+      "source": "doc:context"
+    }
+  },
   "design": {
     "kind": "diff_in_diff",
     "unit": "state",
@@ -409,9 +790,7 @@
     "pre_periods": null,
     "post_periods": null,
     "controls_allowed": [
-      "price",
       "pimin",
-      "ndi",
       "pop",
       "cpi"
     ],

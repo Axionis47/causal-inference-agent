@@ -65,12 +65,12 @@
   ],
   "question": "Did receiving the transfer raise support for the government?",
   "intent": "effect_of_change",
+  "design_id": 0,
+  "memory_version": 72,
   "why": "forced",
   "over": {},
   "csv": "data/raw/gov-transfers-uruguay/gov_transfers.csv",
-  "docs": {
-    "about": "Each row is one household from a 2007 survey in Uruguay, taken after the PANES emergency cash transfer programme of 2005 to 2007. The file keeps only households whose eligibility score sits within a narrow band around the programme's cutoff, 1,948 of them, so it is the households closest to the line on either side. There is no household identifier and 21 rows repeat exactly. Households are treated as independent. Data are from Manacorda, Miguel and Vigorito's 2011 study, distributed with the causaldata package. [docs/gov_transfers/readme.md] The survey sample was drawn by side of the cutoff, two eligible households for every ineligible one, so the count of rows on each side says nothing about manipulation of the score."
-  },
+  "docs": {},
   "dataset_facts": {
     "rows": 1948,
     "columns": 5,
@@ -80,21 +80,54 @@
     "entity_summary": null,
     "format_issues": []
   },
-  "grain": {},
-  "sampling": {},
-  "missing": {},
-  "treated_level": null,
-  "control_level": null,
+  "grain": {
+    "row_is": "one household",
+    "panel": false
+  },
+  "sampling": {
+    "how": "by_side",
+    "detail": "The file keeps only households whose eligibility score sits within a narrow band around the programme's cutoff, so it is the households closest to the line on either side. The survey sample was drawn by side of the cutoff, two eligible households for every ineligible one."
+  },
+  "missing": {
+    "why": "Missing for 51 households in Education."
+  },
+  "treated_level": "1",
+  "control_level": "0",
   "columns": [
     {
       "name": "Support",
       "key": "support",
       "role": "outcome",
-      "meaning": "The respondent's stated support for the government in the 2007 survey, scored 0, 0.5, or 1. Measured after the programme.",
-      "when": "unknown",
+      "meaning": "The respondent's stated support for the government in the 2007 survey, scored 0, 0.5, or 1",
+      "stands_for": "government support",
+      "proxy": null,
+      "when": "after",
       "set_by": null,
-      "affected_by_treatment": null,
-      "source": "doc:readme.md",
+      "moved_by_change": null,
+      "measures_outcome": true,
+      "source": "doc:context",
+      "provenance": {
+        "meaning": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "stands_for": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "when": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "measures_outcome": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        }
+      },
       "facts": {
         "kind": "numeric",
         "nulls": 0,
@@ -116,18 +149,46 @@
         "datetime": null,
         "switch": null,
         "sentinels": [],
-        "format_issues": []
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
       }
     },
     {
       "name": "Participation",
       "key": "participation",
       "role": "treatment",
-      "meaning": "1 if the household received the transfer, 0 if not. Determined by the score: 1 for every household with Income_Centered below zero, 0 for every household above.",
-      "when": "unknown",
+      "meaning": "1 if the household received the transfer, 0 if not",
+      "stands_for": "treatment receipt",
+      "proxy": "exact",
+      "when": "at",
       "set_by": null,
-      "affected_by_treatment": null,
-      "source": "doc:readme.md",
+      "moved_by_change": null,
+      "measures_outcome": null,
+      "source": "doc:context",
+      "provenance": {
+        "meaning": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "stands_for": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "proxy": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "when": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        }
+      },
       "facts": {
         "kind": "boolean",
         "nulls": 0,
@@ -151,18 +212,51 @@
         "datetime": null,
         "switch": null,
         "sentinels": [],
-        "format_issues": []
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
       }
     },
     {
       "name": "Income_Centered",
       "key": "income_centered",
-      "role": "candidate",
-      "meaning": "The eligibility score minus the cutoff, so the cutoff is at zero. Negative means eligible. Computed before the programme from household characteristics, and not something households could adjust afterwards. Values run from about minus 0.02 to plus 0.02, the band kept in the file.",
-      "when": "unknown",
+      "role": "score",
+      "meaning": "The eligibility score minus the cutoff, so the cutoff is at zero. Negative means eligible.",
+      "stands_for": "eligibility score",
+      "proxy": "derived",
+      "when": "before",
       "set_by": null,
-      "affected_by_treatment": null,
-      "source": "doc:readme.md",
+      "moved_by_change": false,
+      "measures_outcome": null,
+      "source": "doc:context",
+      "provenance": {
+        "meaning": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "stands_for": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "proxy": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "when": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "moved_by_change": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        }
+      },
       "facts": {
         "kind": "numeric",
         "nulls": 0,
@@ -184,18 +278,41 @@
         "datetime": null,
         "switch": null,
         "sentinels": [],
-        "format_issues": []
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
       }
     },
     {
       "name": "Education",
       "key": "education",
       "role": "candidate",
-      "meaning": "Years of schooling of the household head. Recorded in the survey. Missing for 51 households. [readme.md] The study treats the head's years of schooling as a characteristic fixed before the programme and uses it as a balance check.",
-      "when": "unknown",
+      "meaning": "Years of schooling of the household head",
+      "stands_for": "household head's education",
+      "proxy": null,
+      "when": "before",
       "set_by": null,
-      "affected_by_treatment": null,
-      "source": "doc:Manacorda, Miguel and Vigorito 2011",
+      "moved_by_change": null,
+      "measures_outcome": null,
+      "source": "doc:context",
+      "provenance": {
+        "meaning": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "stands_for": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "when": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        }
+      },
       "facts": {
         "kind": "numeric",
         "nulls": 51,
@@ -217,18 +334,41 @@
         "datetime": null,
         "switch": null,
         "sentinels": [],
-        "format_issues": []
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
       }
     },
     {
       "name": "Age",
       "key": "age",
       "role": "candidate",
-      "meaning": "Age of the household head at the survey. [readme.md] The study treats the head's age as a characteristic fixed before the programme and uses it as a balance check.",
-      "when": "unknown",
+      "meaning": "Age of the household head at the survey",
+      "stands_for": "household head's age",
+      "proxy": null,
+      "when": "before",
       "set_by": null,
-      "affected_by_treatment": null,
-      "source": "doc:Manacorda, Miguel and Vigorito 2011",
+      "moved_by_change": null,
+      "measures_outcome": null,
+      "source": "doc:context",
+      "provenance": {
+        "meaning": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "stands_for": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        },
+        "when": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null
+        }
+      },
       "facts": {
         "kind": "numeric",
         "nulls": 0,
@@ -250,27 +390,190 @@
         "datetime": null,
         "switch": null,
         "sentinels": [],
-        "format_issues": []
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
       }
     }
   ],
   "change": {
-    "what": "PANES cash transfer, 2005 to 2007. The government paid a monthly transfer to poor households. Eligibility was decided by a score predicted from household characteristics before the programme; households with a score below a fixed cutoff were eligible, households above were not. The rule was applied mechanically, and take-up among the eligible was near universal, so in this file every household below the cutoff received the transfer and no household above it did."
+    "what": "PANES cash transfer",
+    "to_whom": "poor households",
+    "when": "2005 to 2007"
   },
-  "assignment": {},
+  "assignment": {
+    "kind": "cutoff_rule",
+    "rule": "households with a score below a fixed cutoff were eligible, households above were not. The rule was applied mechanically, and take-up among the eligible was near universal.",
+    "score_column": "Income_Centered",
+    "cutoff": 0.0,
+    "treated_side": "below",
+    "cutoff_value_treated": true,
+    "treatment_column": "Participation",
+    "treated_level": "1",
+    "movable": false
+  },
   "beliefs": {},
   "unknowns": [],
+  "contradictions": [],
   "said": [],
-  "probes": [],
-  "claims": {},
+  "probes": [
+    {
+      "family": "adjustment",
+      "name": "arms",
+      "value": 821.0,
+      "passed": true,
+      "detail": "1127 treated rows and 821 others; floor 20 an arm"
+    },
+    {
+      "family": "diff_in_diff",
+      "name": "pre_periods",
+      "value": null,
+      "passed": null,
+      "detail": "period column or change period not settled"
+    },
+    {
+      "family": "discontinuity",
+      "name": "rows_by_side",
+      "value": 821.0,
+      "passed": true,
+      "detail": "1127 rows below 0.0 and 821 above on 'Income_Centered'; floor 20 a side"
+    },
+    {
+      "family": "synthetic_control",
+      "name": "pre_periods",
+      "value": null,
+      "passed": null,
+      "detail": "period column or change period not settled"
+    },
+    {
+      "family": "interrupted_series",
+      "name": "pre_periods",
+      "value": null,
+      "passed": null,
+      "detail": "period column or change period not settled"
+    }
+  ],
+  "claims": {
+    "assignment": {
+      "kind": "assignment",
+      "fields": {
+        "kind": "cutoff_rule",
+        "rule": "households with a score below a fixed cutoff were eligible, households above were not. The rule was applied mechanically, and take-up among the eligible was near universal.",
+        "score_column": "Income_Centered",
+        "cutoff": 0.0,
+        "treated_side": "below",
+        "cutoff_value_treated": true,
+        "treatment_column": "Participation",
+        "treated_level": "1",
+        "movable": false
+      },
+      "status": "drafted",
+      "source": "doc:context"
+    },
+    "change": {
+      "kind": "change",
+      "fields": {
+        "what": "PANES cash transfer",
+        "to_whom": "poor households",
+        "when": "2005 to 2007"
+      },
+      "status": "drafted",
+      "source": "doc:context"
+    },
+    "grain": {
+      "kind": "grain",
+      "fields": {
+        "row_is": "one household",
+        "panel": false
+      },
+      "status": "drafted",
+      "source": "doc:context"
+    },
+    "sampling": {
+      "kind": "sampling",
+      "fields": {
+        "how": "by_side",
+        "detail": "The file keeps only households whose eligibility score sits within a narrow band around the programme's cutoff, so it is the households closest to the line on either side. The survey sample was drawn by side of the cutoff, two eligible households for every ineligible one."
+      },
+      "status": "drafted",
+      "source": "doc:context"
+    },
+    "missing": {
+      "kind": "missing",
+      "fields": {
+        "why": "Missing for 51 households in Education."
+      },
+      "status": "drafted",
+      "source": "doc:context"
+    },
+    "col:income_centered": {
+      "kind": "measured",
+      "fields": {
+        "meaning": "The eligibility score minus the cutoff, so the cutoff is at zero. Negative means eligible.",
+        "stands_for": "eligibility score",
+        "proxy": "derived",
+        "when": "before",
+        "moved_by_change": false
+      },
+      "status": "drafted",
+      "source": "doc:context"
+    },
+    "col:education": {
+      "kind": "measured",
+      "fields": {
+        "meaning": "Years of schooling of the household head",
+        "stands_for": "household head's education",
+        "when": "before"
+      },
+      "status": "drafted",
+      "source": "doc:context"
+    },
+    "col:age": {
+      "kind": "measured",
+      "fields": {
+        "meaning": "Age of the household head at the survey",
+        "stands_for": "household head's age",
+        "when": "before"
+      },
+      "status": "drafted",
+      "source": "doc:context"
+    },
+    "col:participation": {
+      "kind": "measured",
+      "fields": {
+        "meaning": "1 if the household received the transfer, 0 if not",
+        "stands_for": "treatment receipt",
+        "proxy": "exact",
+        "when": "at"
+      },
+      "status": "drafted",
+      "source": "doc:context"
+    },
+    "col:support": {
+      "kind": "measured",
+      "fields": {
+        "meaning": "The respondent's stated support for the government in the 2007 survey, scored 0, 0.5, or 1",
+        "stands_for": "government support",
+        "when": "after",
+        "measures_outcome": true
+      },
+      "status": "drafted",
+      "source": "doc:context"
+    }
+  },
   "design": {
     "kind": "adjustment",
-    "adjustment_candidates": [],
+    "adjustment_candidates": [
+      "income_centered",
+      "education",
+      "age"
+    ],
     "forbidden": [],
     "instrument": null,
     "mediator": null,
     "unobserved_confounding": null,
-    "voluntary_uptake": null,
+    "voluntary_uptake": false,
     "target_units": "average",
     "contrast": "switch"
   }

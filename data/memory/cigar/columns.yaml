@@ -22,6 +22,9 @@ unnamed_0:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 state:
   name: state
   key: state
@@ -46,6 +49,9 @@ state:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 year:
   name: year
   key: year
@@ -70,6 +76,9 @@ year:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 price:
   name: price
   key: price
@@ -94,6 +103,9 @@ price:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 pop:
   name: pop
   key: pop
@@ -118,6 +130,9 @@ pop:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 pop16:
   name: pop16
   key: pop16
@@ -142,6 +157,9 @@ pop16:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 cpi:
   name: cpi
   key: cpi
@@ -166,6 +184,9 @@ cpi:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 ndi:
   name: ndi
   key: ndi
@@ -190,6 +211,9 @@ ndi:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 sales:
   name: sales
   key: sales
@@ -214,6 +238,9 @@ sales:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 pimin:
   name: pimin
   key: pimin
@@ -238,3 +265,6 @@ pimin:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
