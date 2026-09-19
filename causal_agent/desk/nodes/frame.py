@@ -35,6 +35,10 @@ def _writer():
 
 
 def memory_of(state: RouteState) -> Memory:
+    """The memory on disk, or the what-if fork while one is being routed and run."""
+    fork = state.get("fork")
+    if fork is not None:
+        return fork
     return store.memory_for(state["dataset"])
 
 

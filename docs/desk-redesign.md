@@ -9,7 +9,10 @@ disk cache), the pack with how every field was settled and the lanes reading the
 `viz/` with the figure contract, the three pre-viz functions, the viz subgraph, and `Figure.tsx`. Stage 4 landed the same day: `desk/graph.py`
 replaces the interview and the chat; the question comes first and is validated against the file; one question per turn from what the
 surviving families need, composed by code; `infer` gated by `apply`; contradictions; the lane in its own process on `designs/<n>/`;
-CSV-only upload; `intake/` and `chat/` deleted. Stage 5 (convince with a figure, then-and-now designs) next.
+CSV-only upload; `intake/` and `chat/` deleted. Stages 5 and 6 landed the same day: the ready moment decides, shows the family's point
+as a figure, and says the design with its evidence and the struck families; designs are snapshots under `designs/<n>/`; a what-if runs
+on a copy of the memory and leaves it alone; then-and-now names the fields that differed; a new question about a different change
+drops what was relative to the old one. Stage 7 (fewer asks, scale) next.
 
 ## Context
 

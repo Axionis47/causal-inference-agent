@@ -20,6 +20,26 @@ export default function RunDetail({ r, prev, onSelect }: { r: RunView; prev: Run
           <span className="pill">{r.status}</span>
         </div>
         <p className="dim">{r.question}</p>
+        {Object.keys(r.what_if ?? {}).length > 0 && (
+          <p className="dim">
+            A what-if: nothing known changed. The copy differed in{" "}
+            {Object.entries(r.what_if).map(([a, v]) => (
+              <span key={a}>
+                <span className="addr">{a}</span> = {v}{" "}
+              </span>
+            ))}
+          </p>
+        )}
+        {(r.differs ?? []).length > 0 && (
+          <p className="dim">
+            Differs from the design before in{" "}
+            {r.differs.map((a) => (
+              <span key={a} className="addr">
+                {a}{" "}
+              </span>
+            ))}
+          </p>
+        )}
         {r.effect !== null ? (
           <div className="eff">
             effect <span className="v">{num(r.effect)}</span> {ci(r.ci_low, r.ci_high)}

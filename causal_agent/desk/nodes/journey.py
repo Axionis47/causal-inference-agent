@@ -155,10 +155,16 @@ def read_question(state: DeskState) -> Command[Literal["ask_question", "check"]]
     if problems:
         text = "That is not yet a question I can answer from this file: " + "; ".join(problems) + ". Ask it again, naming the change and the outcome as they appear in the columns."
         return Command(goto="ask_question", update={"frame": fr, "invalid": text, "frame_attempts": attempts, "debug": out["debug"]})
+    note = ""
+    old = memory.value("claim:assignment.treatment_column")
+    if state.get("runs") and fr.cause and old and memory.column(old) is not None and memory.column(fr.cause) is not None and memory.column(old).key != memory.column(fr.cause).key:
+        # a new change: everything settled relative to the old one is asked again; what a column is carries over
+        dropped = ops.forget_change(memory)
+        note = f"The change is not the one before ({old}), so what was settled relative to it is asked again ({len(dropped)} fields); what each column is carries over. "
     if fr.cause and memory.value("claim:assignment.treatment_column") is None:  # the frame's reading, as a draft the person confirms
         ops.apply(memory, [ops.Update(address="claim:assignment.treatment_column", value=fr.cause, status="drafted", source="code:frame")], CAT)
-        store.save(memory)
-    return Command(goto="check", update={"frame": fr, "invalid": None, "frame_attempts": attempts, "debug": out["debug"], "settled_now": []})
+    store.save(memory)
+    return Command(goto="check", update={"frame": fr, "invalid": None, "frame_attempts": attempts, "debug": out["debug"], "settled_now": [], "reply": note})
 
 
 # ------------------------------------------------------------------ check, probe, fit (facts)
@@ -301,7 +307,7 @@ def ask(state: DeskState) -> Command[Literal["listen", "fit", "convince"]]:
         return Command(goto="fit", update={"run_requested": False, "ask": None})
     memory = F.memory_of(state)
     a = compose_ask(memory, state.get("open") or [], state.get("findings") or [], state.get("frame"))
-    head = acknowledge(memory, state.get("settled_now") or [])
+    head = (state.get("reply") or "" if not state.get("ask") and not state.get("settled_now") else "") + acknowledge(memory, state.get("settled_now") or [])
     if a is None:
         if st.ready:
             return Command(goto="convince", update={"ask": None, "reply": head, "run_requested": False, "figure": None})
@@ -510,4 +516,5 @@ def run(state: DeskState) -> dict:
                         design_dir=state.get("design_dir"))
     else:
         rec = pipeline.run(Path(state["design_dir"]) / "handoff.json", n, state["dataset"], question, decision=_decision(state), decision_record=state.get("decision_record") or "")
+    rec.what_if = dict(state.get("what_if") or {})
     return {"runs": runs + [rec], "phase": "after"}

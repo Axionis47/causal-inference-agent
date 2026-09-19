@@ -175,6 +175,8 @@ export interface RunView {
   estimates: EstimateView[];
   feasibility: Record<string, unknown> | null;
   files: string[];
+  what_if: Record<string, string>;
+  differs: string[];
 }
 
 export interface Turn {

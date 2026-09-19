@@ -12,7 +12,8 @@ export default function RunsView({ view, run, onSelect }: { view: SessionView; r
         <div className="picker" role="tablist" aria-label="Runs">
           {view.runs.map((x) => (
             <button key={x.index} type="button" role="tab" aria-selected={x.index === r.index} className={`chip${x.index === r.index ? " on" : ""}`} onClick={() => onSelect({ tab: "runs", run: x.index })}>
-              Run {x.index}
+              {Object.keys(x.what_if ?? {}).length ? "What if " : "Design "}
+              {x.index}
               {x.family ? ` · ${x.family}` : ""}
             </button>
           ))}

@@ -94,9 +94,9 @@ def _gate(reply: AfterReply, mat: M.Material) -> list[str]:
             if round(v, 6) in stated or _grounded(v, mat):
                 continue
             errors.append(f"the text states {v:g}, which is in no artifact; remove it or attach its address in numbers")
-    elif reply.kind == "revise":
+    elif reply.kind in ("revise", "what_if"):
         if not reply.updates:
-            errors.append("revise needs at least one field update; if the person wants a design choice changed, answer with which field would change it")
+            errors.append(f"{reply.kind} needs at least one field update; if the person wants a design choice changed, answer with which field would change it")
     elif reply.kind == "requestion":
         if not (reply.question or "").strip():
             errors.append("requestion needs the new question in full")
@@ -107,10 +107,36 @@ def _gate(reply: AfterReply, mat: M.Material) -> list[str]:
 
 
 def brief(state: DeskState) -> dict:
-    runs = state.get("runs") or []
+    runs = list(state.get("runs") or [])
     cur, prev = runs[-1], (runs[-2] if len(runs) > 1 else None)
-    mat = M.render(cur, F.memory_of(state), prev)
-    return {"brief": M.brief(cur, prev, mat), "after_reply": None, "after_errors": [], "after_attempts": 0, "reply": M.brief(cur, prev, mat)}
+    memory = F.memory_of(state)
+    if prev is not None:  # then and now: which fields differed between the two designs
+        cur.differs = design_differences(prev.design_dir, cur.design_dir)
+    mat = M.render(cur, memory, prev)
+    text = M.brief(cur, prev, mat)
+    if cur.what_if:
+        text += "\nThis was a what-if: nothing you told me changed. The copy differed in " + ", ".join(f"[{a}] = {v}" for a, v in cur.what_if.items()) + "."
+    elif cur.differs:
+        text += "\nWhat differed from the design before: " + ", ".join(f"[{a}]" for a in cur.differs) + "."
+    return {"brief": text, "after_reply": None, "after_errors": [], "after_attempts": 0, "reply": text, "runs": runs, "fork": None, "what_if": {}}
+
+
+def design_differences(before_dir: str | None, after_dir: str | None) -> list[str]:
+    """The addresses whose value or status differs between two design snapshots."""
+    import json
+    from pathlib import Path
+
+    try:
+        a = json.loads((Path(before_dir) / "memory.json").read_text())["fields"]
+        b = json.loads((Path(after_dir) / "memory.json").read_text())["fields"]
+    except Exception:
+        return []
+    out = []
+    for addr in sorted(set(a) | set(b)):
+        fa, fb = a.get(addr) or {}, b.get(addr) or {}
+        if (fa.get("value"), fa.get("status")) != (fb.get("value"), fb.get("status")):
+            out.append(addr)
+    return out
 
 
 def talk(state: DeskState) -> Command[Literal["turn", "__end__"]]:
@@ -130,7 +156,7 @@ def talk(state: DeskState) -> Command[Literal["turn", "__end__"]]:
     return Command(goto="turn", update={"message": answer, "turn": turn, "after_errors": [], "after_attempts": 0})
 
 
-def turn(state: DeskState) -> Command[Literal["turn", "answer", "revise", "requestion", "__end__"]]:
+def turn(state: DeskState) -> Command[Literal["turn", "answer", "revise", "what_if", "requestion", "__end__"]]:
     runs = state.get("runs") or []
     cur = runs[-1]
     memory = F.memory_of(state)
@@ -148,7 +174,7 @@ def turn(state: DeskState) -> Command[Literal["turn", "answer", "revise", "reque
         out = AfterReply(kind="answer", text="I cannot ground that in the run's artifacts: " + "; ".join(gate) + ". Ask about what the run left behind, or tell me something to change.", cites=["run.question"])
         gate = [f"fell back after {attempts} tries: " + "; ".join(gate)]
     ex = Exchange(turn=int(state.get("turn", 0)), user=state.get("message", ""), assistant=out.text, kind=out.kind)
-    goto = {"answer": "answer", "revise": "revise", "requestion": "requestion", "done": "__end__"}[out.kind]
+    goto = {"answer": "answer", "revise": "revise", "what_if": "what_if", "requestion": "requestion", "done": "__end__"}[out.kind]
     return Command(goto=goto, update={"after_reply": out, "after_errors": gate, "after_attempts": 0, "exchanges": [ex], "debug": [thought]})
 
 
@@ -171,6 +197,24 @@ def revise(state: DeskState) -> Command[Literal["check", "talk"]]:
         note = "I could not apply that change: " + "; ".join(rejected)
         return Command(goto="talk", update={"after_reply": reply.model_copy(update={"text": note, "kind": "answer"})})
     return Command(goto="check", update={"phase": "before", "settled_now": settled, "run_requested": False, "infer_errors": [], "infer_attempts": 0, "handoff": None})
+
+
+def what_if(state: DeskState) -> Command[Literal["fit", "talk"]]:
+    """A supposition: the memory is copied, the supposed fields written on the copy through the same gate, and the copy is routed
+    and run as the next design. What is known does not change."""
+    reply = state["after_reply"]
+    memory = F.memory_of(state)
+    fork = memory.fork()
+    turn = int(state.get("turn") or 0)
+    src = f"user:turn:{turn}"
+    updates = [ops.Update(address=u.address, value=u.value, status="confirmed", source=src, said=u.said or state.get("message", "")[:200], reason=u.reason) for u in reply.updates]
+    before = {a: (f.value, f.status) for a, f in fork.fields.items()}
+    rejected = ops.apply(fork, updates, CAT)
+    changed = {a: f.value for a, f in fork.fields.items() if before.get(a) != (f.value, f.status)}
+    if not changed:
+        note = "I could not suppose that: " + "; ".join(rejected)
+        return Command(goto="talk", update={"after_reply": reply.model_copy(update={"text": note, "kind": "answer"})})
+    return Command(goto="fit", update={"fork": fork, "what_if": {a: str(v) for a, v in changed.items()}, "handoff": None, "gate_errors": [], "decide_attempts": 0})
 
 
 def requestion(state: DeskState) -> dict:

@@ -205,6 +205,8 @@ class RunView(BaseModel):
     estimates: list[EstimateView] = Field(default_factory=list)
     feasibility: dict[str, Any] | None = None
     files: list[str] = Field(default_factory=list)
+    what_if: dict[str, str] = Field(default_factory=dict)
+    differs: list[str] = Field(default_factory=list)
 
 
 class Turn(BaseModel):

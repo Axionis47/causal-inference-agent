@@ -154,6 +154,22 @@ def apply(memory: Memory, updates: list[Update], cat: Catalogue | None = None) -
     return rejected
 
 
+RELATIVE_COLUMN_FIELDS = ("when", "moved_by_change", "measures_outcome")
+RELATIVE_KINDS = ("change", "assignment", "unobserved", "exclusion", "spillover", "trend_continues", "cutoff_only", "mediator")
+
+
+def forget_change(memory: Memory) -> list[str]:
+    """A new question about a different change: every field that was relative to the old change goes; what a column is, the
+    grain, the sampling, and the gaps carry over. Returns the addresses dropped."""
+    dropped = [a for a in memory.fields if (a.startswith("claim:") and Memory.parse(a)[1] in RELATIVE_KINDS)
+               or (a.startswith("col:") and Memory.parse(a)[2] in RELATIVE_COLUMN_FIELDS)]
+    for a in dropped:
+        del memory.fields[a]
+    if dropped:
+        memory.version += 1
+    return dropped
+
+
 # ------------------------------------------------------------------ roles (a view)
 
 

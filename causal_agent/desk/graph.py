@@ -4,6 +4,7 @@
                                                                    └─ check ─ probe_fit ─ ask ─(convince, when ready)─ listen ─(interrupt)─┬─ infer ─ check …
                                                                                                                    └─ (run, ready) ─ fit ─ decide ─ gate ─ handoff ─ run ─ brief ─ talk ─(interrupt)─ turn ─┬─ answer ─ talk
                                                                                                                                                                                                            ├─ revise ─ check …
+                                                                                                                                                                                                           ├─ what_if ─ fit ─ … ─ run (on a copy)
                                                                                                                                                                                                            ├─ requestion ─ read_question …
                                                                                                                                                                                                            └─ done ─ END
 
@@ -49,6 +50,7 @@ def build() -> StateGraph:
     b.add_node("turn", A.turn, retry_policy=_retry)
     b.add_node("answer", A.answer)
     b.add_node("revise", A.revise)
+    b.add_node("what_if", A.what_if)
     b.add_node("requestion", A.requestion)
     b.add_edge(START, "load")
     b.add_edge("load", "ask_question")
@@ -65,7 +67,7 @@ def build() -> StateGraph:
     b.add_edge("handoff", "run")
     b.add_edge("run", "brief")
     b.add_edge("brief", "talk")
-    # talk → turn | END; turn → answer | revise | requestion | END; revise → check | talk, via Command
+    # talk → turn | END; turn → answer | revise | what_if | requestion | END; revise → check | talk; what_if → fit | talk, via Command
     b.add_edge("answer", "talk")
     b.add_edge("requestion", "read_question")
     return b
@@ -84,6 +86,7 @@ _CONTRACTS = [
     ("causal_agent.memory.claims", n) for n in ("ProbeResult", "Status")
 ] + [
     ("causal_agent.memory.ops", "Open"),
+    ("causal_agent.memory.records", "Memory"), ("causal_agent.memory.records", "Field"), ("causal_agent.memory.records", "Column"),
 ]
 
 serde = JsonPlusSerializer(allowed_msgpack_modules=_CONTRACTS)

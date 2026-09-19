@@ -181,3 +181,59 @@ def test_after_the_run_a_revision_goes_back_through_the_gate_and_the_checks():
     assert p["kind"] == "after" and len(d.values["runs"]) == 2 and "Then and now" in p["text"]
     p = d.say("done")
     assert p is None
+
+
+def test_a_what_if_runs_on_a_copy_and_leaves_the_memory_alone():
+    after = [
+        AfterReply(kind="what_if", text="Suppose places had been drawn by lot.", updates=[FieldUpdate(address="claim:assignment.kind", value="lottery", said="if it had been a lottery")]),
+        AfterReply(kind="done", text="Bye."),
+    ]
+    d = Desk(DeskFake(after=after))
+    d.say(QUESTION)
+    d.to_ready()
+    d.say("run")
+    v_before = HELD["students"].version
+    p = d.say("what if the places had been drawn by lot?")
+    m = HELD["students"]
+    assert m.value("claim:assignment.kind") == "own_choice" and m.version == v_before  # nothing known changed
+    runs = d.values["runs"]
+    assert len(runs) == 2 and runs[1].what_if == {"claim:assignment.kind": "lottery"} and runs[1].family == "adjustment"
+    assert p["kind"] == "after" and "what-if" in p["text"] and "[claim:assignment.kind] = lottery" in p["text"] and "Then and now" in p["text"]
+    assert "claim:assignment.kind" in runs[1].differs and d.values["fork"] is None
+    assert d.values["handoff"].design_id == 2 and d.values["handoff"].assignment["kind"] == "lottery"
+
+
+def test_a_new_question_about_a_different_change_asks_the_relative_fields_again():
+    after = [AfterReply(kind="requestion", text="A new question.", question="Did a standard lunch raise math scores?")]
+
+    def frame_lunch(msg, addrs, human):
+        return None
+
+    fake = DeskFake(after=after, infer=frame_lunch)
+    d = Desk(fake)
+    d.say(QUESTION)
+    d.to_ready()
+    d.say("run")
+    m = HELD["students"]
+    assert m.value("col:lunch.when") == "before" and m.value("col:lunch.meaning")
+    # the scripted frame reads any question as the prep course; make it read lunch as the change for this one
+    fr = fake.answer.__func__  # noqa: F841
+    from causal_agent.common.contracts import Candidate
+    from causal_agent.desk.tests import fakes as FK
+
+    original = FK.students_frame
+
+    def lunch_frame():
+        f = original()
+        f.cause_candidates = [Candidate(column="lunch", reason="the change asked about", cites=["col:lunch.note"])]
+        return f
+
+    FK.students_frame = lunch_frame
+    try:
+        p = d.say("Did a standard lunch raise math scores?")
+    finally:
+        FK.students_frame = original
+    assert d.values["question"] == "Did a standard lunch raise math scores?" and d.values["phase"] == "before"
+    assert m.value("col:lunch.when") is None and m.value("claim:assignment.kind") is None  # relative to the old change: gone
+    assert m.value("col:lunch.meaning") and m.value("claim:grain.row_is")  # what a column is, and the grain, carry over
+    assert m.value("claim:assignment.treatment_column") == "lunch" and "asked again" in p["text"]

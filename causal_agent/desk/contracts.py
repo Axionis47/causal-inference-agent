@@ -46,6 +46,8 @@ class RunRecord(BaseModel):
     status: str = "no_handoff"
     run_dir: str | None = None
     design_dir: str | None = None
+    what_if: dict[str, str] = Field(default_factory=dict, description="for a what-if design: the fields changed on the fork, address -> value")
+    differs: list[str] = Field(default_factory=list, description="the fields that differ from the design before, by address")
     effect: float | None = None
     ci_low: float | None = None
     ci_high: float | None = None
@@ -61,15 +63,15 @@ class NumberStated(BaseModel):
     value: float = Field(description="the number as you state it in the text")
 
 
-AfterKind = Literal["answer", "revise", "requestion", "done"]
+AfterKind = Literal["answer", "revise", "what_if", "requestion", "done"]
 
 
 class AfterReply(BaseModel):
-    kind: AfterKind = Field(description="answer: reply from the material; revise: the person changed something about the data; requestion: a new causal question of the same data; done: they are finished")
+    kind: AfterKind = Field(description="answer: reply from the material; revise: the person changed something about the data; what_if: the person asks what the answer would be if the data had been different, without changing what is known; requestion: a new causal question of the same data; done: they are finished")
     text: str = Field(description="the message to the person")
     cites: list[str] = Field(default_factory=list, description="material addresses the message rests on")
     numbers: list[NumberStated] = Field(default_factory=list, description="every number stated in the text, with its address")
-    updates: list[FieldUpdate] = Field(default_factory=list, description="for revise: the field updates the person's words imply")
+    updates: list[FieldUpdate] = Field(default_factory=list, description="for revise and what_if: the field updates the person's words imply")
     question: str | None = Field(default=None, description="for requestion: the new question, in full")
 
 
