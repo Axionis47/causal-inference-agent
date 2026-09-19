@@ -203,3 +203,23 @@ def test_store_round_trip_and_migration(tmp_path):
     assert (d / "memory.json").exists() and Memory.model_validate_json((d / "memory.json").read_text()).name == "students3"
     with pytest.raises(KeyError):
         store.migrate("nope", root)
+
+
+# ------------------------------------------------------------------ what each assignment kind needs
+
+
+def test_a_cutoff_rule_needs_its_score_and_cutoff_and_a_lottery_does_not():
+    kind = CAT.kinds["assignment"]
+    assert "score_column" not in kind.required({}) and "treatment_column" not in kind.required({})
+    assert {"score_column", "cutoff", "treated_side", "movable"} <= set(kind.required({"kind": "cutoff_rule"}))
+    assert "score_column" not in kind.required({"kind": "lottery"}) and {"treatment_column", "treated_level"} <= set(kind.required({"kind": "own_choice"}))
+    assert "period_value" in CAT.kinds["change"].required({"date_column": "year"}) and "period_value" not in CAT.kinds["change"].required({})
+    # in the memory: a cutoff rule with no cutoff is a drafted claim, not a settled one, and the cutoff is open
+    m, _ = students3()
+    m.set("claim:assignment.kind", "cutoff_rule", status="confirmed", source="user:turn:2")
+    assert m.to_claims().claims["assignment"].status == "drafted"
+    df = pd.read_csv(STUDENTS)
+    st = ops.fit(m, ops.probe(m, df))
+    opened = {o.address: o for o in ops.open(m, st)}
+    assert "claim:assignment.score_column" in opened and not opened["claim:assignment.score_column"].optional
+    assert "claim:assignment.depends_on" not in opened

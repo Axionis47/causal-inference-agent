@@ -186,9 +186,8 @@ class Memory(BaseModel):
             for n, v in values.items():
                 m.fields[f"{prefix}.{n}"] = Field(value=v, status=status, source=claim.source, evidence=list(claim.evidence))
             if not values and claim.status in {"unknown", "refuted", "contradiction"} and spec is not None:
-                for n, s in spec.fields.items():  # the claim as a whole was asked and not settled: its required fields carry that
-                    if not s.optional:
-                        m.fields[f"{prefix}.{n}"] = Field(status=claim.status, source=claim.source, evidence=list(claim.evidence))
+                for n in spec.required():  # the claim as a whole was asked and not settled: its required fields carry that
+                    m.fields[f"{prefix}.{n}"] = Field(status=claim.status, source=claim.source, evidence=list(claim.evidence))
         return m
 
     def to_claims(self, cat: Catalogue | None = None, columns: list[str] | None = None) -> ClaimTable:
@@ -199,10 +198,11 @@ class Memory(BaseModel):
         for kind in cat.ordered():
             if kind.per_column:
                 continue
-            required = [n for n, s in kind.fields.items() if not s.optional]
-            t.claims[kind.name] = _claim(kind.name, kind.name, self.fields_of(f"claim:{kind.name}"), required)
+            fields = self.fields_of(f"claim:{kind.name}")
+            required = kind.required({n: f.value for n, f in fields.items()})
+            t.claims[kind.name] = _claim(kind.name, kind.name, fields, required)
         col_kind = cat.kinds[COLUMN_KIND]
-        required = [n for n, s in col_kind.fields.items() if not s.optional]
+        required = col_kind.required()
         for c in self.columns.values():
             if c.facts.constant or (keys is not None and c.key not in keys):
                 continue

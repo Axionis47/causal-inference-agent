@@ -19,6 +19,7 @@ class FieldSpec(BaseModel):
     about: dict[str, str] = Field(default_factory=dict)  # what each option means, in world terms
     hint: str = ""  # what to put in the field, in world terms
     optional: bool = False
+    required_when: dict[str, list[Any]] = Field(default_factory=dict, description="field -> values of a sibling field under which this optional field is required")
 
 
 class ClaimKind(BaseModel):
@@ -34,6 +35,21 @@ class ClaimKind(BaseModel):
 
     def legal(self, field: str) -> list[Any]:
         return list(self.fields[field].options) if field in self.fields else []
+
+    def required(self, values: dict[str, Any] | None = None) -> list[str]:
+        """The fields that must be settled, given the sibling values known so far: the always-required ones, plus any optional
+        field whose `required_when` condition the known values meet."""
+        values = values or {}
+        out = []
+        for name, spec in self.fields.items():
+            if not spec.optional:
+                out.append(name)
+            elif spec.required_when and all(
+                (values.get(k) is not None) if allowed == ["*"] else (str(values.get(k)).lower() in {str(v).lower() for v in allowed})
+                for k, allowed in spec.required_when.items()
+            ):
+                out.append(name)
+        return out
 
 
 class FamilyNeeds(BaseModel):

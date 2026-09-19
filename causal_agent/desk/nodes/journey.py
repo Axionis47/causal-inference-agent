@@ -278,7 +278,7 @@ def compose_ask(memory: Memory, opened: list, findings: list[Finding], frame: Qu
         text = f"You said {o.kind}, {o.field} = {_value_words(kind, o.field, memory.value(o.address))}, but {fd.detail} [{fd.evidence}]. Which is it?"
     else:
         hint = kind.fields[o.field].hint
-        required = [n for n, sp in kind.fields.items() if not sp.optional]
+        required = kind.required(memory.values_of(o.address.rsplit(".", 1)[0]))
         text = kind.frame[0].upper() + kind.frame[1:] + "?"
         if len(required) > 1 or o.field not in required:  # the frame covers several fields: say which one this turn settles
             text += f" This turn: {o.field.replace('_', ' ')}" + (f", {hint}" if hint else "") + "."

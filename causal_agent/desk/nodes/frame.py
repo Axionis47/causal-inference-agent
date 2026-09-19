@@ -126,11 +126,12 @@ def mine(state: RouteState) -> dict:
 # ------------------------------------------------------------------ prefilter (wide tables only) and frame
 
 
-def fan_out_prefilter(state: RouteState) -> list[Send] | Literal["frame"]:
+def fan_out_prefilter(state: RouteState, then: str = "frame") -> list[Send] | str:
+    """On a wide table, one skim per column before the frame; otherwise straight to `then`."""
     memory = memory_of(state)
     recs = index_records(memory)
     if len(recs) <= width_budget():
-        return "frame"
+        return then
     changes = render_change_text(H.fields_of(memory, "change"), H.fields_of(memory, "assignment"))
     return [Send("prefilter", PrefilterTask(question=state["question"], changes=changes, column=c.name, card=H.brief_of(memory, c).render())) for c in recs]
 

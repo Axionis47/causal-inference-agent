@@ -12,7 +12,9 @@ surviving families need, composed by code; `infer` gated by `apply`; contradicti
 CSV-only upload; `intake/` and `chat/` deleted. Stages 5 and 6 landed the same day: the ready moment decides, shows the family's point
 as a figure, and says the design with its evidence and the struck families; designs are snapshots under `designs/<n>/`; a what-if runs
 on a copy of the memory and leaves it alone; then-and-now names the fields that differed; a new question about a different change
-drops what was relative to the old one. Stage 7 (fewer asks, scale) next.
+drops what was relative to the old one. Stage 7 landed: a field is required only under the assignment kind that needs it
+(`required_when` in the catalogue: a cutoff rule needs its score, cutoff, side, and whether the score could be moved; a lottery needs no
+`depends_on`; a date column needs its period value), and the wide-table skim runs before the frame in the desk. Stage 8 (post-viz) next.
 
 ## Context
 

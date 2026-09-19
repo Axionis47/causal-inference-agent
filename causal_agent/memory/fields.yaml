@@ -41,7 +41,7 @@ kinds:
       to_whom: {type: text}
       when: {type: text}
       date_column: {type: column, optional: true, hint: "a column of dates or period numbers, only when the file has one"}
-      period_value: {type: text, optional: true}   # the value in date_column at which the change took effect
+      period_value: {type: text, optional: true, required_when: {date_column: ["*"]}}   # the value in date_column at which the change took effect; required once a date column is named
     check: date_column_exists
     frame: what was the change, which units could it reach, and when did it happen; if a column records the period, which value marks when it took effect
     order: 1
@@ -60,14 +60,14 @@ kinds:
           third_party: someone else picked the units one by one, not by a draw, a score, or a date
       rule: {type: text}
       depends_on: {type: columns, optional: true}   # the columns the decision to give or offer the change depended on, when the person names them
-      treatment_column: {type: column, optional: true, hint: "the column that records who actually got the change or sits in the treated group; name it whenever the description says a column records receipt, even when receipt follows the rule exactly"}
-      treated_level: {type: text, optional: true, hint: "the value in that column that means the unit got the change, exactly as it appears in the file"}
-      score_column: {type: column, optional: true, hint: "for a cutoff rule, the column holding the score the line was drawn on"}
-      cutoff: {type: number, optional: true, hint: "for a cutoff rule, the value of the line in the score's own units"}
-      treated_side: {type: choice, options: [above, below], optional: true}
+      treatment_column: {type: column, optional: true, required_when: {kind: [lottery, own_choice, third_party, date_by_others]}, hint: "the column that records who actually got the change or sits in the treated group; name it whenever the description says a column records receipt, even when receipt follows the rule exactly"}
+      treated_level: {type: text, optional: true, required_when: {kind: [lottery, own_choice, third_party, date_by_others]}, hint: "the value in that column that means the unit got the change, exactly as it appears in the file"}
+      score_column: {type: column, optional: true, required_when: {kind: [cutoff_rule]}, hint: "for a cutoff rule, the column holding the score the line was drawn on"}
+      cutoff: {type: number, optional: true, required_when: {kind: [cutoff_rule]}, hint: "for a cutoff rule, the value of the line in the score's own units"}
+      treated_side: {type: choice, options: [above, below], optional: true, required_when: {kind: [cutoff_rule]}}
       cutoff_value_treated: {type: bool, optional: true}
-      movable: {type: bool, optional: true}   # could a unit change what decided its assignment after seeing the rule
-      level_column: {type: column, optional: true, hint: "the column naming the group the change was assigned at, when it reached whole groups (a state, a school, a store); the level to cluster at"}
+      movable: {type: bool, optional: true, required_when: {kind: [cutoff_rule]}}   # could a unit change what decided its assignment after seeing the rule
+      level_column: {type: column, optional: true, required_when: {kind: [date_by_others]}, hint: "the column naming the group the change was assigned at, when it reached whole groups (a state, a school, a store); the level to cluster at"}
     check: assignment_matches_data
     frame: who decided which units got the change and on what basis, a draw, a line on a score, the unit's own choice, a date set by someone else; which columns the decision or the offer depended on; which column records who got it; could a unit have changed what the rule looked at
     order: 0

@@ -33,6 +33,7 @@ def build() -> StateGraph:
     b.add_node("load", J.load)
     b.add_node("ask_question", J.ask_question)
     b.add_node("mine", F.mine, retry_policy=_retry)
+    b.add_node("prefilter", F.prefilter, retry_policy=_retry)
     b.add_node("read_question", J.read_question, retry_policy=_retry)
     b.add_node("check", J.check)
     b.add_node("probe_fit", J.probe_fit)
@@ -55,7 +56,8 @@ def build() -> StateGraph:
     b.add_edge(START, "load")
     b.add_edge("load", "ask_question")
     # ask_question → mine | END, via Command
-    b.add_edge("mine", "read_question")
+    b.add_conditional_edges("mine", lambda s: F.fan_out_prefilter(s, "read_question"), ["prefilter", "read_question"])
+    b.add_edge("prefilter", "read_question")
     # read_question → ask_question | check, via Command
     b.add_edge("check", "probe_fit")
     b.add_edge("probe_fit", "ask")

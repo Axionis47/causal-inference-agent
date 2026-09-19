@@ -335,14 +335,15 @@ def open(memory: Memory, status: Status, cat: Catalogue | None = None) -> list[O
         else:
             kind, prefix = cat.kinds[key], f"claim:{key}"
         fields = memory.fields_of(prefix)
+        required = set(kind.required({n: f.value for n, f in fields.items()}))
         because = [f for f in status.surviving if kind.name in needs.get(f, [])]
         here: list[Open] = []
         for name, spec in kind.fields.items():
             f = fields.get(name) or Field()
-            vague = (blocking and f.status in {"empty", "refuted"} and not spec.optional) or f.status == "drafted"
+            vague = (blocking and f.status in {"empty", "refuted"} and name in required) or f.status == "drafted"
             if vague:
                 here.append(Open(address=f"{prefix}.{name}", kind=kind.name, field=name, status=f.status, options=_options(kind, name),
-                                 optional=spec.optional, because=because, frame=kind.frame))
+                                 optional=name not in required, because=because, frame=kind.frame))
         here.sort(key=lambda o: (o.optional, o.status == "drafted"))  # within a claim: required and empty first, then drafts
         out.extend(here)
     return out
