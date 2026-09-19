@@ -89,8 +89,8 @@ def mine(state: RouteState) -> dict:
     doc = _doc(memory)
     if not _bare(memory) or doc is None:
         return {}
-    from causal_agent.intake.interview import nodes as I
-    from causal_agent.intake.interview import prompts as IP
+    from causal_agent.desk.nodes.journey import kinds_text
+    from causal_agent.desk.prompts import journey as JP
 
     name, text = doc
     cat = load_catalogue()
@@ -98,9 +98,9 @@ def mine(state: RouteState) -> dict:
     errors = ""
     debug, rejected = [], []
     for _ in range(MINE_ATTEMPTS):
-        user = IP.EXTRACT_USER.format(kinds=I._kinds_text(), claims=memory.to_claims(cat).render(), cards=cards, asked="(none: this is the description)",
+        user = JP.EXTRACT_USER.format(kinds=kinds_text(), claims=memory.to_claims(cat).render(), cards=cards, asked="(none: this is the description)",
                                       source=f"doc:{name}", material=text, errors=errors)
-        out, thought = structured(Extraction, IP.EXTRACT_SYSTEM, user, node="mine")
+        out, thought = structured(Extraction, JP.EXTRACT_SYSTEM, user, node="mine")
         debug.append(thought)
         updates = []
         for up in out.updates:

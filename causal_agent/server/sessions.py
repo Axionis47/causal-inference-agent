@@ -16,8 +16,9 @@ from typing import Any
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.types import Command
 
-from causal_agent.chat import graph as chat_graph
-from causal_agent.chat.contracts import RunRecord
+from causal_agent.desk import graph as desk_graph
+from causal_agent.desk.contracts import RunRecord
+from causal_agent.memory import store as MS
 from causal_agent.server import datasets as DS
 from causal_agent.server.models import (Activity, CheckView, ClaimView, EstimateView, InterpretationView, Prompt, QuestionView, RefutationView, RunView,
                                         SessionView, StatusView, Turn)
@@ -62,8 +63,8 @@ class SessionManager:
         self.s = settings
         self.s.checkpoint_db.parent.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(str(self.s.checkpoint_db), check_same_thread=False)
-        self.saver = SqliteSaver(conn, serde=chat_graph.serde)
-        self.graph = chat_graph.compile_with(self.saver)
+        self.saver = SqliteSaver(conn, serde=desk_graph.serde)
+        self.graph = desk_graph.compile_with(self.saver)
         self.pool = ThreadPoolExecutor(max_workers=workers, thread_name_prefix="desk")
         self.sessions: dict[str, Session] = {}
         self._lock = threading.Lock()
@@ -100,8 +101,7 @@ class SessionManager:
             sess.ended, sess.error, sess.last_payload = False, None, None
             meta.update({"thread_id": sess.thread_id, "ended": False, "last_prompt": None})
             DS.write_meta(self.s, name, meta)
-            csv = str((self.s.root / meta["csv"]).resolve())
-            inp = {"dataset": name, "csv": csv, "docs": {"context": meta["context"]}, "question": meta.get("question")}
+            inp = {"dataset": name}
             self._append(name, Turn(role="system", text="Conversation started.", at=_now()))
             self._launch(sess, inp)
         return sess
@@ -183,7 +183,7 @@ class SessionManager:
                     continue
                 if mode == "tasks":
                     # a task start names the node now running; the parent's "interview" wraps the subgraph's own nodes
-                    if "triggers" in chunk and chunk.get("name") not in {None, "interview"}:
+                    if "triggers" in chunk and chunk.get("name") is not None:
                         sess.activity = (str(chunk["name"]), _now())
                     continue
                 if "__interrupt__" in chunk:
@@ -198,7 +198,13 @@ class SessionManager:
             else:
                 sess.last_payload = payload
                 meta["last_prompt"] = payload
-                self._append(sess.name, Turn(role="assistant", text=payload.get("text") or "", phase=payload.get("phase") or "before", at=_now()))
+                try:
+                    q = (self._values(sess) or {}).get("question")
+                    if q and not (self._values(sess) or {}).get("invalid"):
+                        meta["question"] = q
+                except Exception:
+                    pass
+                self._append(sess.name, Turn(role="assistant", text=payload.get("text") or "", phase=payload.get("phase") or "before", at=_now(), figure=payload.get("figure")))
             DS.write_meta(self.s, sess.name, meta)
         except Exception as e:  # the graph's own retries are inside; this is what got through
             sess.error = f"{type(e).__name__}: {e}"
@@ -285,19 +291,26 @@ class SessionManager:
             stage = "new"
         phase = values.get("phase") or (prompt_raw or {}).get("phase") or "before"
         prompt = Prompt(text=(prompt_raw or {}).get("text") or "", status=(prompt_raw or {}).get("status") or "", ready=bool((prompt_raw or {}).get("ready")),
-                        open=list((prompt_raw or {}).get("open") or []), runs=int((prompt_raw or {}).get("runs") or 0), phase=(prompt_raw or {}).get("phase") or "before") if prompt_raw else None
+                        open=list((prompt_raw or {}).get("open") or []), runs=int((prompt_raw or {}).get("runs") or 0), phase=(prompt_raw or {}).get("phase") or "before",
+                        kind=(prompt_raw or {}).get("kind")) if prompt_raw else None
         questions: list[QuestionView] = []
-        reply = values.get("reply")
-        if phase == "before" and reply is not None and stage == "waiting":
-            questions = [QuestionView(keys=list(q.keys), field=q.field, kind=q.kind, text=q.text, options=list(q.options or []), evidence_cites=list(q.evidence_cites or [])) for q in reply.questions]
-        claims = [ClaimView(**c.model_dump()) for c in (values.get("claims").claims.values() if values.get("claims") else [])]
+        ask = values.get("ask")
+        if phase == "before" and ask is not None and stage == "waiting" and (prompt_raw or {}).get("kind") == "ask":
+            questions = [QuestionView(keys=list(ask.addresses), field=None, kind=ask.kind, text=ask.text, options=list(ask.options or []), evidence_cites=list(ask.evidence or []), because=list(ask.because or []))]
+        claims: list[ClaimView] = []
+        if MS.exists(name, self.s.root):
+            try:
+                table = MS.load(name, self.s.root).to_claims()
+                claims = [ClaimView(**c.model_dump()) for c in table.claims.values() if c.status != "empty"]
+            except Exception:
+                claims = []
         st = values.get("status")
         status = StatusView(**st.model_dump()) if st is not None else None
         runs = [run_view(r) for r in values.get("runs") or []]
         activity = Activity(node=sess.activity[0], since=sess.activity[1]) if sess.activity else None
         return SessionView(name=name, title=title, question=values.get("question") or question, stage=stage, phase=phase, activity=activity,
                            ready=bool(prompt and prompt.ready) if phase == "before" else True, prompt=prompt, questions=questions, claims=claims, status=status,
-                           runs=runs, brief=values.get("brief") or "", transcript=self.transcript(name), written=values.get("written"), error=sess.error)
+                           runs=runs, brief=values.get("brief") or "", transcript=self.transcript(name), written=None, error=sess.error)
 
 
 def run_view(r: RunRecord) -> RunView:

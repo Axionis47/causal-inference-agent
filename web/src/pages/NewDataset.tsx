@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api, ApiError } from "../api";
-import ColumnForm from "../components/ColumnForm";
 import DatasetPreview from "../components/DatasetPreview";
 import { useDatasets } from "../components/Shell";
 import TopBar from "../components/TopBar";
@@ -27,10 +26,6 @@ export default function NewDataset() {
   const [title, setTitle] = useState("");
   const [name, setName] = useState("");
   const [nameTouched, setNameTouched] = useState(false);
-  const [question, setQuestion] = useState("");
-  const [about, setAbout] = useState("");
-  const [changed, setChanged] = useState("");
-  const [cols, setCols] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
@@ -53,23 +48,14 @@ export default function NewDataset() {
   };
 
   const nameOk = NAME_RE.test(name);
-  const described = prof ? prof.columns.filter((c) => (cols[c.name] ?? "").trim()).length : 0;
-  const canCreate = !!prof && nameOk && title.trim() && question.trim() && about.trim() && changed.trim() && !creating;
+  const canCreate = !!prof && nameOk && title.trim() && !creating;
 
   const create = async () => {
     if (!prof || !canCreate) return;
     setCreating(true);
     setError(null);
     try {
-      const d = await api.createDataset({
-        name,
-        title: title.trim(),
-        upload_id: prof.upload_id,
-        question: question.trim(),
-        about,
-        changed,
-        columns: prof.columns.map((c) => ({ name: c.name, description: cols[c.name] ?? "" })),
-      });
+      const d = await api.createDataset({ name, title: title.trim(), upload_id: prof.upload_id });
       await refresh();
       nav(`/d/${encodeURIComponent(d.name)}`);
     } catch (e) {
@@ -84,7 +70,7 @@ export default function NewDataset() {
       <section className="hero">
         <div>
           <h1>New dataset</h1>
-          <p className="lede">Upload the table, then say in your own words what each column records and what changed. The conversation starts from that.</p>
+          <p className="lede">Upload the table. The conversation starts by asking what you want to know; everything about the data is settled in it, one question at a time.</p>
         </div>
       </section>
       <div className="form">
@@ -117,7 +103,7 @@ export default function NewDataset() {
           <>
             <section className="stage">
               <h2>What this is</h2>
-              <p className="help">A title for the card, a short name for the files, and the question you want answered.</p>
+              <p className="help">A title for the card and a short name for the files.</p>
               <div className="two">
                 <label className="field">
                   <span>Title</span>
@@ -144,32 +130,6 @@ export default function NewDataset() {
                   <small>{nameOk ? "Lowercase letters, digits and underscores; used for the files." : "Start with a letter; lowercase letters, digits and underscores only; 2 to 40 characters."}</small>
                 </label>
               </div>
-              <label className="field">
-                <span>The causal question</span>
-                <input className="input" value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="Did completing the course raise math scores?" />
-                <small>One cause, one outcome, in plain words.</small>
-              </label>
-            </section>
-
-            <section className="stage">
-              <h2>About the dataset</h2>
-              <p className="help">What one row is, who is in the file and how they got there, and anything missing or odd.</p>
-              <label className="field">
-                <textarea className="input" value={about} onChange={(e) => setAbout(e.target.value)} placeholder="Each row is one student's results from the May 2026 exam at one school; every student who sat is included." />
-              </label>
-              <h2>What changed</h2>
-              <p className="help">The programme, policy, or event the question is about: what it was, who it reached, when, and how it was decided who got it.</p>
-              <label className="field">
-                <textarea className="input" value={changed} onChange={(e) => setChanged(e.target.value)} placeholder="A six-week prep course before the exam. Places were offered first to free-lunch students, then to anyone who asked." />
-              </label>
-            </section>
-
-            <section className="stage">
-              <h2>About each column</h2>
-              <p className="help">
-                One line each: what it records and whether it was fixed before the change, set by it, or measured after. {described} of {prof.columns.length} described.
-              </p>
-              <ColumnForm columns={prof.columns} values={cols} onChange={(n, v) => setCols((c) => ({ ...c, [n]: v }))} />
             </section>
 
             <section className="stage">
@@ -177,7 +137,7 @@ export default function NewDataset() {
                 <button className="btn primary" disabled={!canCreate} onClick={create}>
                   {creating ? "Creating…" : "Create dataset and start"}
                 </button>
-                <span className="muted">The conversation opens on the next page.</span>
+                <span className="muted">The conversation opens on the next page and starts with your question.</span>
               </div>
               {error && <p className="err">{error}</p>}
             </section>

@@ -191,8 +191,10 @@ class Memory(BaseModel):
                         m.fields[f"{prefix}.{n}"] = Field(status=claim.status, source=claim.source, evidence=list(claim.evidence))
         return m
 
-    def to_claims(self, cat: Catalogue | None = None) -> ClaimTable:
+    def to_claims(self, cat: Catalogue | None = None, columns: list[str] | None = None) -> ClaimTable:
+        """The claim-table view. `columns` limits the per-column claims to the columns in play (by name or key); None means all."""
         cat = cat or load_catalogue()
+        keys = None if columns is None else {c.key for n in columns if (c := self.column(n)) is not None}
         t = ClaimTable()
         for kind in cat.ordered():
             if kind.per_column:
@@ -202,7 +204,7 @@ class Memory(BaseModel):
         col_kind = cat.kinds[COLUMN_KIND]
         required = [n for n, s in col_kind.fields.items() if not s.optional]
         for c in self.columns.values():
-            if c.facts.constant:
+            if c.facts.constant or (keys is not None and c.key not in keys):
                 continue
             t.claims[c.address] = _claim(COLUMN_KIND, c.address, self.fields_of(c.address), required)
         return t

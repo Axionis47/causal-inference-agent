@@ -12,19 +12,12 @@ NAME_RE = r"^[a-z][a-z0-9_]{1,39}$"
 # ------------------------------------------------------------------ requests
 
 
-class ColumnDescription(BaseModel):
-    name: str
-    description: str = ""
-
-
 class DatasetCreate(BaseModel):
+    """CSV only. The conversation starts with the causal question; nothing about the data is typed into a form."""
+
     name: str = Field(pattern=NAME_RE)
     title: str = Field(min_length=1, max_length=120)
     upload_id: str = Field(pattern=r"^[0-9a-f]{8}$")
-    question: str = Field(min_length=1)
-    about: str = Field(min_length=1)
-    changed: str = Field(min_length=1)
-    columns: list[ColumnDescription]
 
 
 class MessageIn(BaseModel):
@@ -119,12 +112,15 @@ class DatasetList(BaseModel):
 
 
 class QuestionView(BaseModel):
+    """The one question the desk asks this turn, as the page shows it: the field addresses it settles, its form, its chips."""
+
     keys: list[str]
     field: str | None = None
     kind: str
     text: str
     options: list[str] = Field(default_factory=list)
     evidence_cites: list[str] = Field(default_factory=list)
+    because: list[str] = Field(default_factory=list, description="the families that need these fields")
 
 
 class ClaimView(BaseModel):
@@ -227,6 +223,7 @@ class Prompt(BaseModel):
     open: list[str] = Field(default_factory=list)
     runs: int = 0
     phase: str = "before"
+    kind: str | None = Field(default=None, description="question: the causal question is being asked; ask: a field; after: the chat after a run")
 
 
 class Activity(BaseModel):

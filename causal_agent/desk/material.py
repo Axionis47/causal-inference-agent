@@ -6,8 +6,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-from causal_agent.chat.contracts import RunRecord
-from causal_agent.memory.claims import ClaimTable
+from causal_agent.desk.contracts import RunRecord
+from causal_agent.memory.records import Memory
 
 
 @dataclass
@@ -47,7 +47,7 @@ def _slug(s) -> str:
     return re.sub(r"[^0-9a-zA-Z]+", "_", str(s or "")).strip("_").lower() or "x"
 
 
-def render(run: RunRecord, claims: ClaimTable | None = None, previous: RunRecord | None = None) -> Material:
+def render(run: RunRecord, memory: Memory | None = None, previous: RunRecord | None = None) -> Material:
     m = Material()
     dec = run.decision or {}
     m.add("run.question", run.question)
@@ -130,17 +130,14 @@ def render(run: RunRecord, claims: ClaimTable | None = None, previous: RunRecord
             m.add(f"feasibility.fact:{j}", str(fact))
         if f.get("what_would_fix"):
             m.add("feasibility.what_would_fix", str(f["what_would_fix"]))
-    if claims is not None:
-        for cl in claims.claims.values():
-            if cl.status == "empty":
+    if memory is not None:  # every field the memory holds, so the chat can cite what the design rested on
+        for address, f in memory.fields.items():
+            if f.value is None and f.status == "empty":
                 continue
-            vals = "; ".join(f"{k}={v}" for k, v in cl.fields.items() if v is not None)
-            m.add(cl.address, f"{cl.kind} ({cl.status}, {cl.source}): {vals}")
-            for k, v in cl.fields.items():
-                if v is not None:
-                    m.addresses.add(f"{cl.address}.{k}")
-                    if isinstance(v, (int, float)) and not isinstance(v, bool):
-                        m.numbers[f"{cl.address}.{k}"] = float(v)
+            m.add(address, f"{f.value} ({f.status}, {f.source})" + (f' said "{f.said}"' if f.said else ""),
+                  float(f.value) if isinstance(f.value, (int, float)) and not isinstance(f.value, bool) else None)
+        for a in list(m.addresses):
+            m.addresses.add(a.rsplit(".", 1)[0])
     return m
 
 
@@ -151,19 +148,19 @@ def brief(run: RunRecord, previous: RunRecord | None, material: Material) -> str
     if run.status == "pipeline_error":
         lines.append("The analysis process failed before producing a record. [decision.family]")
         lines.append(run.decision_record[-1500:])
-        lines.append("Ask again, or change a claim; the pack was written.")
+        lines.append("Ask again, or change something about the data; the pack was written.")
         return "\n".join(lines)
     if run.family:
         lines.append(f"Design: {run.family} via {run.specialist}." + (f" Why: {run.decision.get('why')}" if run.decision.get("why") else "") + " [decision.family]")
     else:
-        lines.append("No design fit the claims and the data. [decision.family]")
+        lines.append("No design fit what is known and the data. [decision.family]")
     if run.status == "done" and run.effect is not None:
         lines.append(f"Effect: {_g(run.effect)}, interval {_g(run.ci_low)} to {_g(run.ci_high)}, by {run.estimator}. [estimate:{_contrast_key(sr.get('design') or {}) or 'all'}.value]")
     elif run.status == "no_handoff" or not run.family:
-        lines.append("No family was admissible for this question on these claims. Each was rejected for a reason:")
+        lines.append("No family was admissible for this question on what is known. Each was rejected for a reason:")
         for fam, why in (run.decision.get("over") or {}).items():
             lines.append(f"  {fam}: {why} [decision.over:{fam}]")
-        lines.append("Change a claim about the data if one of those reasons rests on a claim that is wrong.")
+        lines.append("Tell me if one of those reasons rests on something about the data that is wrong.")
     elif run.status != "done":
         f = sr.get("feasibility") or {}
         lines.append(f"Stopped at {f.get('stage')}: {f.get('reason')} [feasibility.reason]")
@@ -184,5 +181,5 @@ def brief(run: RunRecord, previous: RunRecord | None, material: Material) -> str
             lines.append(f"  caveat: {cv} [interpretation:{i.get('contrast')}.caveat:{j}]")
     if previous is not None:
         lines.append(f"Then and now: run {previous.index} gave {_g(previous.effect)} ({previous.family or 'no design'}); run {run.index} gives {_g(run.effect)} ({run.family or 'no design'}).")
-    lines.append("Ask anything about it, tell me a claim to change, ask a new question of the same data, or say done.")
+    lines.append("Ask anything about it, tell me something to change, ask a new question of the same data, or say done.")
     return "\n".join(lines)

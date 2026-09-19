@@ -3,7 +3,8 @@ import json
 import yaml
 
 from causal_agent.common.llm import set_llm
-from causal_agent.server.tests.conftest import CT, IT, STUDENTS, create_request, upload, wait_idle
+from causal_agent.desk.tests.fakes import DeskFake
+from causal_agent.server.tests.conftest import STUDENTS, create_request, upload, wait_idle
 
 
 def test_profile_upload_detects_columns(client):
@@ -37,7 +38,7 @@ def test_profile_preview_reports_missing_and_short_files(client):
 
 
 def test_create_lists_and_deletes_a_dataset(client, settings):
-    set_llm(CT.Fake({"doc:context": IT.students_turn0()}))
+    set_llm(DeskFake())
     prof = upload(client)
     req = create_request(prof)
     r = client.post("/api/datasets", json=req)
@@ -47,12 +48,11 @@ def test_create_lists_and_deletes_a_dataset(client, settings):
     root = settings.root
     assert (root / "data/raw/students_web" / STUDENTS.name).exists()
     assert (root / "data/profiles/students_web.json").exists()
-    note = (root / "data/context/students_web.md").read_text()
-    assert "## About each column" in note and "**lunch** — standard or free/reduced" in note
+    assert not (root / "data/context/students_web.md").exists()  # CSV only: nothing about the data is typed into a form
     entry = yaml.safe_load((root / "data/datasets.yaml").read_text())["students_web"]
-    assert entry == {"csv": f"data/raw/students_web/{STUDENTS.name}", "note": "data/context/students_web.md", "profile": "data/profiles/students_web.json"}
+    assert entry == {"csv": f"data/raw/students_web/{STUDENTS.name}", "profile": "data/profiles/students_web.json"}
     meta = json.loads((root / "data/web/students_web/meta.json").read_text())
-    assert meta["question"] == req["question"] and meta["form"]["columns"][3]["name"] == "lunch" and meta["thread_id"]
+    assert meta["question"] is None and meta["thread_id"]
     # the same name again, and a bad name
     assert client.post("/api/datasets", json=req).status_code in {409, 404}
     assert client.post("/api/datasets", json={**req, "name": "../x"}).status_code == 422
@@ -61,11 +61,11 @@ def test_create_lists_and_deletes_a_dataset(client, settings):
     assert v["stage"] == "waiting"
     listed = client.get("/api/datasets").json()["datasets"]
     mine = next(d for d in listed if d["name"] == "students_web")
-    assert mine["shipped"] is False and mine["session"]["stage"] == "waiting" and mine["has_claims"] is False
+    assert mine["shipped"] is False and mine["session"]["stage"] == "waiting" and mine["has_claims"] is True  # the memory exists from the first turn
     # delete: every file, the entry, the meta, the caches
     assert client.delete("/api/datasets/students_web").status_code == 204
     assert not (root / "data/raw/students_web").exists()
-    for rel in ("data/profiles/students_web.json", "data/context/students_web.md", "data/web/students_web"):
+    for rel in ("data/profiles/students_web.json", "data/memory/students_web", "data/web/students_web"):
         assert not (root / rel).exists(), rel
     assert "students_web" not in yaml.safe_load((root / "data/datasets.yaml").read_text())
     assert client.delete("/api/datasets/students_web").status_code == 404

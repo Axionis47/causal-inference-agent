@@ -1,4 +1,5 @@
-"""The routing state: the dataset name and each step's artifacts. The memory itself is loaded by the nodes, never held in state."""
+"""The desk state: the dataset name and each step's artifacts. The memory itself lives on disk and is loaded by the nodes,
+never held in state."""
 
 from __future__ import annotations
 
@@ -9,6 +10,7 @@ from typing import Annotated
 from typing_extensions import TypedDict
 
 from causal_agent.common.contracts import FamilyDecision, FamilyVerdict, Handoff, PrefilterVote, QuestionFrame, Thought
+from causal_agent.desk.contracts import AfterReply, Ask, Exchange, Finding, RunRecord
 
 
 @dataclass
@@ -20,6 +22,8 @@ class Context:
 
 
 class RouteState(TypedDict, total=False):
+    """The routing keys: from a question and a memory to a hand-off."""
+
     question: str
     dataset: str
     prefilter_votes: Annotated[list[PrefilterVote], operator.add]
@@ -36,6 +40,34 @@ class RouteState(TypedDict, total=False):
     debug: Annotated[list[Thought], operator.add]
 
 
+class DeskState(RouteState, total=False):
+    """The whole conversation: the question first, the journey to ready, the run, and the chat after."""
+
+    turn: int
+    message: str                 # the person's last message
+    invalid: str | None          # why the last question did not pass, or None
+    frame_attempts: int
+    status: object | None        # memory.claims.Status: the fit
+    open: list                   # ops.Open: what is still vague
+    findings: list[Finding]      # the checks' verdicts this turn
+    refutations: dict[str, int]  # address -> how many times the file refuted the person's answer
+    settled_now: list[str]       # addresses written this turn, for the acknowledgement
+    ask: Ask | None
+    reply: str                   # the desk's message this turn
+    design_dir: str | None       # designs/<n>/ once the pack is written
+    infer_errors: list[str]
+    infer_attempts: int
+    run_requested: bool
+    ready: bool
+    phase: str                   # before | after
+    runs: list[RunRecord]
+    exchanges: Annotated[list[Exchange], operator.add]
+    after_reply: AfterReply | None
+    after_errors: list[str]
+    after_attempts: int
+    brief: str
+
+
 class PrefilterTask(TypedDict):
     """Input to one prefilter worker. Not the parent state."""
 
@@ -43,5 +75,6 @@ class PrefilterTask(TypedDict):
     changes: str
     column: str
     card: str
+
 
 RouterState = RouteState  # the older name

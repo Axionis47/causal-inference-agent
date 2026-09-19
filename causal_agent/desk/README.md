@@ -3,9 +3,18 @@
 The one conversation from a CSV to a routed context pack, and back after the run. Built stage by stage; see
 `docs/desk-redesign.md` for the plan and where it stands.
 
-Today: the routing and the pack builder.
-
-- `route.py`, `nodes/frame.py`, `nodes/decide.py`, `prompts/routing.py`, `state.py` — from a memory and a question to a hand-off:
+- `graph.py`, `nodes/journey.py`, `nodes/after.py`, `prompts/journey.py`, `contracts.py`, `state.py` — the conversation. The first
+  thing asked is the causal question; `read_question` frames it (one judgement) and validates it against the file by code: an effect
+  of a change on an outcome, the outcome a column, the change a column the file can tell apart. A question that fails is refused
+  with which test it failed. Then `check` (the data checks and the consistency rules), `probe_fit` (the families over the memory,
+  counting only the columns in play), `ask` (one question, composed by code: the drafts to confirm in one go, the in-play columns
+  in one tick, else one dataset field, with why it is asked), `listen`, `infer` (one judgement: what the message settles, with the
+  person's words), and the gate in `memory.ops.apply`. A refuted answer is asked again with the check that refuted it; kept twice,
+  it stands as a contradiction and reaches the lane. "run" while drafts are open takes them on the person's word. After the run:
+  `brief`, `talk`, `turn` (answer, revise, requestion, done), with a revision going through the same gate and back to the checks.
+- `pipeline.py` — the lane in its own process on `designs/<n>/handoff.json`; `material.py` — everything a run left behind as lines
+  with addresses, what the chat after cites.
+- `route.py`, `nodes/frame.py`, `nodes/decide.py`, `prompts/routing.py` — the routing, also usable alone (`desk.route`):
   `load` the memory; `mine` an attached document once into drafts when the memory holds only the file's facts (a description never
   confirms and never sets a belief); `prefilter` on a wide table; `frame` the question; `fit` the families over the memory by code;
   `decide` among the ones that stand, one judgement, only when more than one does; `gate` the choice; `handoff`. The old router's

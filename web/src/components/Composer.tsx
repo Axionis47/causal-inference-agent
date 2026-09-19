@@ -78,7 +78,7 @@ export default function Composer({
           ref={ta}
           value={free}
           disabled={disabled}
-          placeholder={before ? "Answer in your own words, or pick the chips above and add what they miss." : "Ask what it found, why this design, what a flag means, or say what to change."}
+          placeholder={!before ? "Ask what it found, why this design, what a flag means, or say what to change." : view.prompt?.kind === "question" ? "What changed, and what might it have affected? Name them as they appear in the columns." : "Answer in your own words, or pick a chip above and add what it misses."}
           onChange={(e) => setFree(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send();

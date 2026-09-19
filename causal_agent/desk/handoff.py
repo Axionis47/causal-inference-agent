@@ -83,6 +83,22 @@ def said_of(memory: Memory) -> list[Said]:
     return sorted(out, key=lambda s: s.turn)
 
 
+def in_play(memory: Memory, frame: QuestionFrame | None, entry: dict | None = None) -> list[str]:
+    """The columns the question, the rule, or the grain name, by the file's own name. Every other column is out of play:
+    never asked about, never in the pack."""
+    entry = entry or {}
+    a, ch, g = memory.values_of("claim:assignment"), memory.values_of("claim:change"), memory.values_of("claim:grain")
+    names: list[str] = []
+    cands = ([frame.outcome, frame.cause] + [c.column for c in frame.relevant_columns]) if frame else []
+    for n in cands + [a.get("treatment_column")] + list(a.get("depends_on") or []) + \
+            [a.get("score_column"), ch.get("date_column"), a.get("level_column"), memory.value("claim:exclusion.column"), memory.value("claim:mediator.column")] + \
+            list(g.get("key_columns") or []) + [entry.get("time")] + list(entry.get("entity") or []):
+        c = memory.column(n) if n else None
+        if c is not None and c.name not in names:
+            names.append(c.name)
+    return names
+
+
 # ------------------------------------------------------------------ the family blocks (derived by code; never a constraint)
 
 
@@ -147,12 +163,10 @@ def build(*, question: str, frame: QuestionFrame, decision: FamilyDecision, fami
         if n and m.column(n) is not None:
             role.setdefault(m.column(n).key, "unit")
 
-    names: list[str] = []
-    for n in [outcome, treatment] + [c.column for c in frame.relevant_columns] + list(a.get("depends_on") or []) + \
-            [a.get("score_column"), ch.get("date_column"), a.get("level_column"), fields_of(m, "exclusion").get("column"), fields_of(m, "mediator").get("column")] + \
-            list(g.get("key_columns") or []) + [entry.get("time")] + list(entry.get("entity") or []):
-        if n and key(n) not in {key(x) for x in names} and m.column(n) is not None:
-            names.append(n)
+    names = in_play(m, frame, entry)
+    for n in [treatment] if treatment else []:
+        if m.column(n) is not None and m.column(n).name not in names:
+            names.insert(1, m.column(n).name)
     briefs = [brief_of(m, m.column(n), role.get(key(n))) for n in names]
 
     beliefs = {k: b for k in BELIEF_KINDS if (b := belief_of(m, k)) is not None}

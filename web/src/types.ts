@@ -81,19 +81,16 @@ export interface DatasetCreate {
   name: string;
   title: string;
   upload_id: string;
-  question: string;
-  about: string;
-  changed: string;
-  columns: { name: string; description: string }[];
 }
 
 export interface QuestionView {
   keys: string[];
   field: string | null;
-  kind: "confirm" | "choose" | "open" | string;
+  kind: "confirm" | "choose" | "open" | "columns" | string;
   text: string;
   options: string[];
   evidence_cites: string[];
+  because: string[];
 }
 
 export interface ClaimView {
@@ -196,6 +193,7 @@ export interface Prompt {
   open: string[];
   runs: number;
   phase: string;
+  kind?: string | null;
 }
 
 export type Stage = "busy" | "waiting" | "ended" | "stale" | "error" | "new";

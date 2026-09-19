@@ -6,7 +6,10 @@ status and a source on every entry, roles as a view, the gated write path, the c
 routing runs on the memory (`desk/route.py`), the per-family model verdicts are replaced by the fit over the memory, and the pack is
 projected from a memory. Stage 3 landed on 19 Sept: the profile facts (`binary_like`, `bounds`, `role_hints`, the index line, the
 disk cache), the pack with how every field was settled and the lanes reading the person's words, `identification_allowed` gone,
-`viz/` with the figure contract, the three pre-viz functions, the viz subgraph, and `Figure.tsx`. Stage 4 (the journey to ready) next.
+`viz/` with the figure contract, the three pre-viz functions, the viz subgraph, and `Figure.tsx`. Stage 4 landed the same day: `desk/graph.py`
+replaces the interview and the chat; the question comes first and is validated against the file; one question per turn from what the
+surviving families need, composed by code; `infer` gated by `apply`; contradictions; the lane in its own process on `designs/<n>/`;
+CSV-only upload; `intake/` and `chat/` deleted. Stage 5 (convince with a figure, then-and-now designs) next.
 
 ## Context
 
@@ -353,7 +356,7 @@ causal_agent/
   common/       contracts.py (Handoff, ColumnBrief with statused fields, Belief, Said, Probe, family blocks, lane artifacts), llm.py, addresses.py
   profile/      profiler.py, cards.py, cache.py
   memory/       fields.yaml, checks.yaml, records.py (Field, Column, Memory: the map), ops.py (seed, apply, check, probe, fit, open, roles as a view), checks.py, probes.py, table.py, store.py (data/memory/<name>/ layout), tests/
-  desk/         graph.py, state.py, contracts.py, nodes/{intake.py, frame.py, decide.py, after.py}, prompts/, handoff.py, material.py, pipeline.py, evals/, tests/
+  desk/         graph.py, state.py, contracts.py, nodes/{journey.py, frame.py, decide.py, after.py}, prompts/, handoff.py, material.py, pipeline.py, route.py, tests/
   viz/          spec.py, graph.py, previz/, postviz/, registry.py, tests/
   knowledge/    families.yaml (needs, fits, convince block, prefer_over), loader
   specialists/  dowhy/, did/, rd/ reading the pack

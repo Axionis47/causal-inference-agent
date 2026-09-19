@@ -214,7 +214,8 @@ def _refute(memory: Memory, address: str, finding: Finding) -> None:
     f = memory.field(address)
     if f is None:
         return
-    f.status = "refuted"
+    if f.status != "contradiction":  # a contradiction stands; the person kept their answer against the file twice
+        f.status = "refuted"
     f.evidence = list(dict.fromkeys(f.evidence + [finding.evidence]))
 
 
@@ -261,7 +262,7 @@ def check(memory: Memory, df: pd.DataFrame, profile, th: dict | None = None, cat
         f = memory.field(address)
         if f is not None:
             f.evidence = list(dict.fromkeys(f.evidence + [fd.evidence]))
-            if res.passed is False:
+            if res.passed is False and f.status != "contradiction":
                 f.status = "refuted"
     out += consistency(memory, outcome, treatment)
     return out
@@ -275,9 +276,10 @@ def probe(memory: Memory, df: pd.DataFrame, th: dict | None = None, cat: Catalog
     return run_probes(df, memory.to_claims(cat), list(cat.families), th)
 
 
-def fit(memory: Memory, probes: list[ProbeResult], cat: Catalogue | None = None) -> Status:
+def fit(memory: Memory, probes: list[ProbeResult], cat: Catalogue | None = None, columns: list[str] | None = None) -> Status:
+    """The family grid. `columns` limits the per-column needs to the columns in play; a column nobody named never blocks."""
     cat = cat or load_catalogue()
-    return T.compute(cat, memory.to_claims(cat), probes)
+    return T.compute(cat, memory.to_claims(cat, columns=columns), probes)
 
 
 class Open(BaseModel):

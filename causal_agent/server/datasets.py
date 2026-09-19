@@ -14,7 +14,7 @@ import yaml
 
 from causal_agent.profile import data as D
 from causal_agent.profile.profiler import Profile, profile
-from causal_agent.server.context import render_context
+from causal_agent.memory import store as MS
 from causal_agent.server.models import ColumnSummary, DatasetCreate, DatasetSummary, DatetimeShape, NumericShape, ProfileOut, Sentinel, TopValue
 from causal_agent.server.settings import Settings
 
@@ -95,7 +95,7 @@ def list_datasets(s: Settings) -> list[DatasetSummary]:
         e, m = es.get(name) or {}, metas.get(name)
         rows, cols = _profile_counts(s, e)
         out.append(DatasetSummary(name=name, title=(m or {}).get("title") or name.replace("_", " "), csv=e.get("csv") or (m or {}).get("csv") or "",
-                                  rows=rows, columns=cols, created_at=(m or {}).get("created_at"), shipped=m is None, has_claims="claims" in e,
+                                  rows=rows, columns=cols, created_at=(m or {}).get("created_at"), shipped=m is None, has_claims=MS.exists(name, s.root),
                                   question=(m or {}).get("question")))
     # newest web datasets first, then the shipped ones by name
     out.sort(key=lambda d: (d.shipped, -(dt.datetime.fromisoformat(d.created_at).timestamp() if d.created_at else 0), d.name))
@@ -191,25 +191,18 @@ def create_dataset(s: Settings, req: DatasetCreate) -> tuple[DatasetSummary, dic
     shutil.move(str(src), dest)
     shutil.rmtree(src.parent, ignore_errors=True)
     prof = profile(dest)
-    by_name = {c.name: c for c in prof.columns}
-    given = {c.name: c.description for c in req.columns}
-    columns = [(c.name, given.get(c.name, "")) for c in prof.columns]
-    context = render_context(req.title, req.about, req.changed, columns)
-    for sub in ("profiles", "context"):
-        (s.root / "data" / sub).mkdir(parents=True, exist_ok=True)
-    profile_rel, note_rel, csv_rel = f"data/profiles/{req.name}.json", f"data/context/{req.name}.md", str(dest.relative_to(s.root))
+    (s.root / "data" / "profiles").mkdir(parents=True, exist_ok=True)
+    profile_rel, csv_rel = f"data/profiles/{req.name}.json", str(dest.relative_to(s.root))
     (s.root / profile_rel).write_text(json.dumps(prof.model_dump(), indent=2))
-    (s.root / note_rel).write_text(context)
     es = entries(s)
-    es[req.name] = {"csv": csv_rel, "note": note_rel, "profile": profile_rel}
+    es[req.name] = {"csv": csv_rel, "profile": profile_rel}
     write_entries(s, es)
-    meta = {"name": req.name, "title": req.title.strip(), "created_at": _now(), "csv": csv_rel, "thread_id": None, "question": req.question.strip(),
-            "form": {"about": req.about, "changed": req.changed, "columns": [{"name": n, "description": d} for n, d in columns]},
-            "context": context, "last_prompt": None, "ended": False, "unknown_columns": sorted(set(given) - set(by_name))}
+    meta = {"name": req.name, "title": req.title.strip(), "created_at": _now(), "csv": csv_rel, "thread_id": None, "question": None,
+            "last_prompt": None, "ended": False}
     write_meta(s, req.name, meta)
     D.clear()
     return DatasetSummary(name=req.name, title=meta["title"], csv=csv_rel, rows=prof.dataset.rows, columns=prof.dataset.columns, created_at=meta["created_at"],
-                          shipped=False, has_claims=False, question=meta["question"]), meta
+                          shipped=False, has_claims=False, question=None), meta
 
 
 # ------------------------------------------------------------------ delete
