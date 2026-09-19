@@ -1,7 +1,7 @@
 """The desk: one conversation from a CSV to a run and back.
 
     START ─ load ─ ask_question ─(interrupt)─ mine ─ read_question ─┬─ (invalid) ─ ask_question
-                                                                   └─ check ─ probe_fit ─ ask ─ listen ─(interrupt)─┬─ infer ─ check …
+                                                                   └─ check ─ probe_fit ─ ask ─(convince, when ready)─ listen ─(interrupt)─┬─ infer ─ check …
                                                                                                                    └─ (run, ready) ─ fit ─ decide ─ gate ─ handoff ─ run ─ brief ─ talk ─(interrupt)─ turn ─┬─ answer ─ talk
                                                                                                                                                                                                            ├─ revise ─ check …
                                                                                                                                                                                                            ├─ requestion ─ read_question …
@@ -36,6 +36,7 @@ def build() -> StateGraph:
     b.add_node("check", J.check)
     b.add_node("probe_fit", J.probe_fit)
     b.add_node("ask", J.ask)
+    b.add_node("convince", J.convince, retry_policy=_retry)
     b.add_node("listen", J.listen)
     b.add_node("infer", J.infer, retry_policy=_retry)
     b.add_node("fit", D.fit)
@@ -56,7 +57,8 @@ def build() -> StateGraph:
     # read_question → ask_question | check, via Command
     b.add_edge("check", "probe_fit")
     b.add_edge("probe_fit", "ask")
-    # ask → listen | fit; listen → infer | fit | check | END; infer → infer | check, via Command
+    # ask → listen | convince | fit; listen → infer | fit | handoff | check | END; infer → infer | check, via Command
+    b.add_edge("convince", "listen")
     b.add_edge("fit", "decide")
     b.add_edge("decide", "gate")
     # gate → decide | handoff, via Command

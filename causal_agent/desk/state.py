@@ -59,6 +59,8 @@ class DeskState(RouteState, total=False):
     infer_attempts: int
     run_requested: bool
     ready: bool
+    figure: dict | None          # the figure shown at the ready moment, a FigureSpec
+    convinced_version: int       # the memory version the decision shown at the ready moment was made on
     phase: str                   # before | after
     runs: list[RunRecord]
     exchanges: Annotated[list[Exchange], operator.add]

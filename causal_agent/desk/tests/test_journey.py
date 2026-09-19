@@ -106,6 +106,13 @@ def test_students_reaches_ready_in_the_frame_plus_a_few_questions_then_runs():
     assert HELD["students"].field("claim:assignment.kind").status == "drafted" and HELD["students"].field("claim:unobserved.exists") is None
     turns = d.to_ready(max_turns=6)
     assert turns <= 5 and d.payload["ready"] and "Say run" in d.payload["text"]
+    # the ready moment: the design in the question's words, the evidence with addresses, the figure, the struck families with a reason each
+    text = d.payload["text"]
+    assert "Design: adjustment" in text and "[probe:adjustment.overlap]" in text and "[probe:adjustment.arms]" in text
+    assert "You said" in text and "nothing hidden" in text and "Set aside: " in text and "diff_in_diff" in text and "discontinuity" in text
+    fig = d.payload["figure"]
+    assert fig and fig["id"].startswith("overlap_lunch") and fig["kind"] == "bars" and f"[{'figure:' + fig['id']}]" in text
+    assert d.values["decision"].chosen == "adjustment" and d.values["convinced_version"] == HELD["students"].version
     m = HELD["students"]
     assert m.field("claim:assignment.kind").status == "confirmed" and m.field("claim:assignment.kind").source == "user:turn:2"
     assert m.field("claim:unobserved.exists").value is False and m.field("claim:unobserved.exists").said == "nothing hidden"
@@ -115,7 +122,7 @@ def test_students_reaches_ready_in_the_frame_plus_a_few_questions_then_runs():
     assert p["kind"] == "after" and p["ready"] and "Run 1" in p["text"] and "[estimate:completed_vs_none.value]" in p["text"]
     runs = d.values["runs"]
     assert len(runs) == 1 and runs[0].effect == 5.6 and runs[0].family == "adjustment" and d.values["phase"] == "after"
-    assert fake.calls.count("FamilyDecision") == 0  # one family stood: the choice was code
+    assert fake.calls.count("FamilyDecision") == 0 and fake.calls.count("Choice") == 0  # one family stood, one figure fit: both by code
     assert (d.values["design_dir"]) and d.values["handoff"].design_id == 1
 
 

@@ -86,7 +86,9 @@ def fit(state: RouteState, runtime: Runtime[Context]) -> dict:
     memory = memory_of(state)
     df = table_of(memory)
     probes = ops.probe(memory, df)
-    status = ops.fit(memory, probes)
+    from causal_agent.profile import datasets as DS
+
+    status = ops.fit(memory, probes, columns=H.in_play(memory, state.get("frame"), DS.dataset_entries().get(memory.name) or {}))
     verdicts = verdicts_from(memory, status, probes, _registry(runtime))
     _writer()({"fit": {"surviving": status.surviving, "struck": status.struck, "admissible": [v.family for v in verdicts if v.admissible]}})
     return {"family_verdicts": verdicts, "probes": probes, "fit_status": status.model_dump()}

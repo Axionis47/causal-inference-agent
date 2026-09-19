@@ -18,6 +18,7 @@ class Family(BaseModel):
     assumes: str
     weak_when: str
     prefer_over: dict[str, str] = Field(default_factory=dict)
+    convince: str = Field(default="", description="the point a figure makes at the ready moment, in the question's words")
     specialist: str
     status: Literal["built", "declared"]
 

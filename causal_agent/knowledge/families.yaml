@@ -14,6 +14,7 @@ adjustment:
   assumes: nothing unmeasured drove both the change and the outcome
   weak_when: the notes say the change was assigned by a strict mechanical rule with no voluntary element, so nobody with the same inputs went the other way; or the change reached whole groups at once and what separates the groups is not in the data. If the notes describe voluntary uptake after an offer, neither applies.
   prefer_over: {}
+  convince: both arms are present at every level of what the offer depended on, so like is compared with like
   specialist: dowhy
   status: built
 
@@ -30,6 +31,7 @@ diff_in_diff:
   weak_when: there is only one treated unit; or the treated group was chosen because its outcome was trending differently; or there is no observation before the change; or the dataset note says units can affect each other's outcomes
   prefer_over:
     adjustment: when the change was given to whole groups by a group label such as a state or region, adjusting for that label leaves nothing to compare, because every unit with the label got the change; a measure of the outcome from before the change lets diff_in_diff difference the group gap away instead
+  convince: the two groups moved together before the change, so their paths can be compared after it
   specialist: pyfixest
   status: built
 
@@ -46,6 +48,7 @@ discontinuity:
   weak_when: rows bunch up on one side of the cutoff; or other things also switch at the same cutoff
   prefer_over:
     adjustment: when the change is a strict function of the score, no two rows with the same score differ in the change, so adjustment has nothing to compare; the cutoff is the only comparison; and when eligibility is decided by the cutoff but take-up is voluntary, the cutoff still identifies the effect for those who took it up because they crossed it, without assuming the take-up decision was fully measured
+  convince: rows sit close to the line on both sides and do not bunch at it, so the two sides can be compared
   specialist: rdrobust
   status: built
 

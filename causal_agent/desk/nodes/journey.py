@@ -26,8 +26,10 @@ from causal_agent.desk.state import Context, DeskState
 from causal_agent.memory import ops, store
 from causal_agent.memory.catalogue import Catalogue, ClaimKind, load_catalogue, load_thresholds
 from causal_agent.memory.records import COLUMN_KIND, Memory
+from causal_agent.knowledge import Family, load_registry
 from causal_agent.profile import data as PD
 from causal_agent.profile import datasets as DS
+from causal_agent.viz.spec import Point
 
 CAT: Catalogue = load_catalogue()
 TH: dict = load_thresholds()
@@ -293,7 +295,7 @@ def acknowledge(memory: Memory, addresses: list[str]) -> str:
     return ("Noted: " + "; ".join(lines) + "\n\n") if lines else ""
 
 
-def ask(state: DeskState) -> Command[Literal["listen", "fit"]]:
+def ask(state: DeskState) -> Command[Literal["listen", "fit", "convince"]]:
     st = state["status"]
     if state.get("run_requested") and st.ready:
         return Command(goto="fit", update={"run_requested": False, "ask": None})
@@ -302,20 +304,84 @@ def ask(state: DeskState) -> Command[Literal["listen", "fit"]]:
     head = acknowledge(memory, state.get("settled_now") or [])
     if a is None:
         if st.ready:
-            body = "Everything the analysis needs is settled. " + _design_line(st, memory, state.get("frame")) + " Say run to hand off, or tell me anything to change."
-        else:
-            body = "Nothing more to ask, but no design fits yet: " + "; ".join(f"{f} ({w})" for f, w in st.struck.items()) + ". Tell me what is different about the data, or ask another question."
+            return Command(goto="convince", update={"ask": None, "reply": head, "run_requested": False, "figure": None})
+        body = "Nothing more to ask, but no design fits yet: " + "; ".join(f"{f} ({w})" for f, w in st.struck.items()) + ". Tell me what is different about the data, or ask another question."
     else:
         body = a.text
         if state.get("run_requested"):
             body = "Before I can run, this still has to be settled. " + body
-    return Command(goto="listen", update={"ask": a, "reply": head + body, "run_requested": False})
+    return Command(goto="listen", update={"ask": a, "reply": head + body, "run_requested": False, "figure": None})
 
 
-def listen(state: DeskState) -> Command[Literal["infer", "fit", "check", "__end__"]]:
+# ------------------------------------------------------------------ convince (the ready moment)
+
+
+def _belief_words(memory: Memory, family: Family) -> str:
+    """The assumption the family bets on, and the person's own words where a belief carries them."""
+    said = []
+    for kind in ("unobserved", "exclusion", "spillover", "trend_continues", "cutoff_only"):
+        if kind in (CAT.families.get(family.name).requires if CAT.families.get(family.name) else []):
+            for n, f in memory.fields_of(f"claim:{kind}").items():
+                if f.said and f.value is not None:
+                    said.append(f'"{f.said}" [claim:{kind}.{n}]')
+                    break
+    return family.assumes + (" You said: " + "; ".join(said) + "." if said else "")
+
+
+def convince(state: DeskState, runtime: Runtime[Context]) -> dict:
+    """At ready: decide by code (a judgement only among several), make the family's point visible, and say the design in the
+    question's words with the evidence, the assumption, the figure, and the struck families with one reason each."""
+    memory = F.memory_of(state)
+    fr = state.get("frame")
+    out = D.fit(state, runtime)
+    st2 = {**state, **out}
+    dec = D.decide(st2, runtime)
+    st3 = {**st2, **dec}
+    g = D.gate(st3, runtime)
+    update: dict = {**out, **dec, **(g.update or {}), "convinced_version": memory.version}
+    d = update.get("decision")
+    registry = {f.name: f for f in load_registry(runtime.context.registry_path if runtime and runtime.context else None)}
+    head = state.get("reply") or ""
+    verdicts = {v.family: v for v in update.get("family_verdicts") or []}
+    if d is None or g.goto == "__end__" or d.chosen not in registry:
+        text = head + "Everything the analysis needs is settled, but no family stands: " + "; ".join(
+            f"{v.family} ({next((n.note for n in v.needs if not n.met), v.concern or 'does not fit')})" for v in verdicts.values()) + ". Tell me what is different about the data."
+        return {**update, "reply": text, "figure": None, "handoff": None}
+    fam = registry[d.chosen]
+    probes = [p for p in update.get("probes") or [] if p.family == fam.name and p.passed is not None]
+    evidence = "; ".join(f"{p.detail} [{p.address}]" for p in probes) or "no probe applies"
+    fields = [f"[claim:assignment.kind] {memory.value('claim:assignment.kind')}"] + [f"[{a}]" for a in ("claim:change.what", "claim:grain.panel") if memory.value(a) is not None]
+    struck = [f"{v.family}: {next((n.note for n in v.needs if not n.met), v.concern or 'does not fit')}" for v in verdicts.values() if not v.admissible and v.family != fam.name]
+    figure = None
+    fig_line = ""
+    try:
+        from causal_agent.viz.graph import make
+
+        fig = make(Point(family=fam.name, claim=fam.convince or fam.answers, about=[p.address for p in probes]), memory.name, outcome=fr.outcome if fr else None,
+                   treatment=fr.cause if fr else None)
+        if fig.made and fig.spec is not None:
+            figure = fig.spec.model_dump()
+            fig_line = f"The figure shows it: {fig.spec.note} [{fig.spec.address}]"
+        else:
+            fig_line = f"No figure could make the point: {fig.why}"
+    except Exception as e:  # a figure is never a reason to stop
+        fig_line = f"No figure could be made ({type(e).__name__})."
+    lines = [head + "Everything the analysis needs is settled.",
+             f"Design: {fam.name.replace('_', ' ')}. {fam.answers[0].upper() + fam.answers[1:]}.",
+             f"It rests on: {_belief_words(memory, fam)}",
+             f"Evidence: {evidence}. " + " ".join(fields),
+             fig_line]
+    if struck:
+        lines.append("Set aside: " + "; ".join(struck) + ".")
+    lines.append("Say run to hand off, or tell me anything to change.")
+    _writer()({"convince": {"family": fam.name, "figure": bool(figure)}})
+    return {**update, "reply": "\n".join(ln for ln in lines if ln), "figure": figure}
+
+
+def listen(state: DeskState) -> Command[Literal["infer", "fit", "handoff", "check", "__end__"]]:
     st, a = state["status"], state.get("ask")
     payload = {"phase": "before", "kind": "ask", "text": state.get("reply") or "", "status": st.render(list(CAT.kinds)) if st else "", "ready": bool(st and st.ready),
-               "open": list(st.open) if st else [], "ask": a.model_dump() if a else None}
+               "open": list(st.open) if st else [], "ask": a.model_dump() if a else None, "figure": state.get("figure")}
     answer = str(interrupt(payload) or "").strip()
     low = answer.lower()
     if low in QUIT_WORDS:
@@ -326,6 +392,8 @@ def listen(state: DeskState) -> Command[Literal["infer", "fit", "check", "__end_
     if low in RUN_WORDS:
         if st and st.ready:
             store.save(memory)
+            if state.get("decision") is not None and state.get("convinced_version") == memory.version:  # decided at the ready moment; nothing moved since
+                return Command(goto="handoff", update={"turn": turn, "message": answer, "run_requested": False})
             return Command(goto="fit", update={"turn": turn, "message": answer, "run_requested": False})
         # "run" is the person's word that the drafts they were shown stand; empty and refuted fields stay open
         confirmed = []
