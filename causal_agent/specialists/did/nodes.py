@@ -93,6 +93,7 @@ def _frame_text(state: SpecialistState) -> str:
              f"assumption the router bet on: {h.chosen_assumption}"]
     if _block(h):
         lines.append("what the pack settled:\n" + h.design.render())
+    lines.append(h.render_words())
     if g:
         lines.append(f"groups: {g.column} = {g.treated_level!r} treated, other levels control")
     if p:

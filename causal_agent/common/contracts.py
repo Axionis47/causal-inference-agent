@@ -134,18 +134,38 @@ class ColumnFacts(BaseModel):
         return [str(t["value"]) for t in self.top_values]
 
 
+class Provenance(BaseModel):
+    """How one field of a brief was settled: its status, who set it, and the sentence it rests on."""
+
+    status: str = "empty"
+    source: str | None = None
+    said: str | None = None
+
+    def tail(self) -> str:
+        return f" · {self.status}" + (f" · {self.source}" if self.source else "") + (f' · said "{self.said}"' if self.said else "")
+
+
 class ColumnBrief(BaseModel):
-    """One column as the lane reads it: the person's word about it beside the profiler's facts, with an address on every line."""
+    """One column as the lane reads it: the person's word about it beside the profiler's facts, with an address on every line
+    and, on every field the memory holds, how it was settled."""
 
     name: str
     key: str
     role: Role = "candidate"
     meaning: str | None = None
+    stands_for: str | None = None
+    proxy: str | None = None
     when: When = "unknown"
     set_by: str | None = None
     moved_by_change: bool | None = None
+    measures_outcome: bool | None = None
     source: str | None = Field(default=None, description="where the meaning and timing came from: user:turn:<n>, doc:<name>, or data")
+    provenance: dict[str, Provenance] = Field(default_factory=dict, description="field name -> how it was settled")
     facts: ColumnFacts = Field(default_factory=ColumnFacts)
+
+    def how(self, field: str) -> str:
+        p = self.provenance.get(field)
+        return p.tail() if p else ""
 
     @property
     def address(self) -> str:
@@ -170,12 +190,16 @@ class ColumnBrief(BaseModel):
         f = self.facts
         a = self.address
         lines = [f"[{a}] column {self.name!r}" + (f" ({self.role})" if self.role != "candidate" else "")]
-        lines.append(f"  [{a}.note] {self.meaning or '(not described)'}")
-        lines.append(f"  [{a}.when] {_WHEN_WORDS[self.when]}")
+        lines.append(f"  [{a}.note] {self.meaning or '(not described)'}" + self.how("meaning"))
+        if self.stands_for:
+            lines.append(f"  [{a}.stands_for] {self.stands_for}" + (f" ({self.proxy})" if self.proxy else "") + self.how("stands_for"))
+        lines.append(f"  [{a}.when] {_WHEN_WORDS[self.when]}" + self.how("when"))
         if self.set_by:
-            lines.append(f"  [{a}.set_by] set by {self.set_by}")
+            lines.append(f"  [{a}.set_by] set by {self.set_by}" + self.how("set_by"))
         if self.moved_by_change is not None:
-            lines.append(f"  [{a}.moved] the change {'could have moved it' if self.moved_by_change else 'could not have moved it'}")
+            lines.append(f"  [{a}.moved] the change {'could have moved it' if self.moved_by_change else 'could not have moved it'}" + self.how("moved_by_change"))
+        if self.measures_outcome is not None:
+            lines.append(f"  [{a}.measures_outcome] {'another measure of the outcome' if self.measures_outcome else 'not a measure of the outcome'}" + self.how("measures_outcome"))
         lines.append(f"  [{a}.profile.kind] {f.kind}")
         lines.append(f"  [{a}.profile.nulls] {f.nulls} ({f.null_rate:.1%})")
         lines.append(f"  [{a}.profile.distinct] {f.distinct}{' (constant)' if f.constant else ''}")
@@ -213,6 +237,7 @@ class Belief(BaseModel):
     column: str | None = None
     status: str = "empty"
     source: str | None = None
+    said: str | None = None
 
     @property
     def address(self) -> str:
@@ -369,6 +394,8 @@ class Handoff(BaseModel):
     # the question
     question: str = ""
     intent: Intent = "effect_of_change"
+    design_id: int = Field(default=0, description="which design of this dataset the pack is; 0 for a forced hand-off")
+    memory_version: int = Field(default=0, description="the memory version the pack was projected from")
     why: str = Field(default="", description="why this family over the others")
     over: dict[str, str] = Field(default_factory=dict, description="rejected family -> reason")
     # the data
@@ -387,7 +414,8 @@ class Handoff(BaseModel):
     assignment: dict = Field(default_factory=dict, description="kind, rule, depends_on, treatment_column, treated_level, score_column, cutoff, treated_side, cutoff_value_treated, level_column, movable")
     # what the person believes and could not say
     beliefs: dict[str, Belief] = Field(default_factory=dict)
-    unknowns: list[str] = Field(default_factory=list)
+    unknowns: list[str] = Field(default_factory=list, description="addresses the person could not settle")
+    contradictions: list[str] = Field(default_factory=list, description="addresses the data refuted and the person kept, or two confirmed fields at odds")
     said: list[Said] = Field(default_factory=list)
     # evidence and the record
     probes: list[Probe] = Field(default_factory=list)
@@ -431,9 +459,25 @@ class Handoff(BaseModel):
     def render_design(self) -> str:
         return self.design.render() if self.design else "(no family block)"
 
+    def render_open(self) -> str:
+        """What the memory could not settle: the fields the person could not say, and the ones the data refuted and they kept."""
+        lines = []
+        if self.unknowns:
+            lines.append("UNKNOWN (the person could not say): " + ", ".join(f"[{a}]" for a in self.unknowns))
+        if self.contradictions:
+            lines.append("CONTRADICTION (the file disagrees and the person kept it; weigh it, and say which you took): " + ", ".join(f"[{a}]" for a in self.contradictions))
+        return "\n".join(lines)
+
+    def render_words(self) -> str:
+        """The person's words and the open fields, for every judgement a lane makes."""
+        parts = ["WHAT THE PERSON SAID\n" + self.render_said()]
+        if self.render_open():
+            parts.append(self.render_open())
+        return "\n\n".join(parts)
+
     def render_context(self) -> str:
-        """The dataset, the change, the beliefs, and the family block: what pack.digest() used to be."""
-        return "\n\n".join([self.render_dataset(), self.render_change(), "BELIEFS\n" + self.render_beliefs(), "FAMILY BLOCK\n" + self.render_design()])
+        """The dataset, the change, the beliefs, the family block, the person's words, and what is open: what pack.digest() used to be."""
+        return "\n\n".join([self.render_dataset(), self.render_change(), "BELIEFS\n" + self.render_beliefs(), "FAMILY BLOCK\n" + self.render_design(), self.render_words()])
 
     # ------------------------------------------------------------- addresses
     def addresses(self) -> set[str]:
@@ -441,7 +485,7 @@ class Handoff(BaseModel):
         out.update(f"dataset.profile.{f}" for f in _DATASET_FACETS)
         for b in self.columns:
             a = b.address
-            out.update({a, f"{a}.note", f"{a}.when", f"{a}.set_by", f"{a}.moved"})
+            out.update({a, f"{a}.note", f"{a}.stands_for", f"{a}.when", f"{a}.set_by", f"{a}.moved", f"{a}.measures_outcome", f"{a}.role"})
             out.update(f"{a}.profile.{f}" for f in _COLUMN_FACETS)
         for k, c in self.claims.items():
             out.update({f"claim:{k}", f"claim:{k}.check"})

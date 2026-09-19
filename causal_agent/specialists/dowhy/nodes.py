@@ -17,7 +17,7 @@ from langgraph.config import get_stream_writer
 from langgraph.types import Command, Send
 
 from causal_agent.common.addresses import key as _key
-from causal_agent.common.contracts import AdjustmentDesign, CheckResult, Checks, Contrast, Estimate, Feasibility, Handoff, Interpretation, Refutation
+from causal_agent.common.contracts import AdjustmentDesign, CheckResult, Checks, Cited, Contrast, Estimate, Feasibility, Handoff, Interpretation, Refutation
 from causal_agent.common.llm import structured
 from causal_agent.profile.datasets import ROOT, dataset_entries
 from causal_agent.specialists.dowhy import adapter, checks as CK
@@ -97,6 +97,7 @@ def _frame_text(state: SpecialistState) -> str:
         f"filter={s.population_filter or 'none'}; window={s.window or 'none'}; contrast={s.contrast}; target={s.target}\n"
         f"assumption the router bet on: {h.chosen_assumption}"
         + (f"\nwhat the pack settled:\n{h.design.render()}" if _block(h) else "")
+        + "\n" + h.render_words()
     )
 
 
@@ -211,13 +212,30 @@ def _question(state: SpecialistState) -> str:
 # ------------------------------------------------------------------ relate (judgement, fan-out)
 
 
+def fact_relation(h: Handoff, k: str) -> Relation | None:
+    """A column's relation when the pack settles it, so no judgement is made: a column the rule or the offer looked at, fixed
+    before the change, is a parent of both; a column the person called another measure of the outcome is excluded."""
+    b = h.brief(k)
+    if b is None:
+        return None
+    a = b.address
+    if b.measures_outcome is True:
+        return Relation(column=k, affects_treatment=False, affects_outcome=False, affected_by_treatment=False, is_outcome_measure=True,
+                        reasons=[Cited(reason=f"{b.name}: the person said it measures the outcome", cites=[f"{a}.measures_outcome"])])
+    if b.role == "depends_on" and b.when == "before":
+        return Relation(column=k, affects_treatment=True, affects_outcome=True, affected_by_treatment=False, is_outcome_measure=False,
+                        reasons=[Cited(reason=f"{b.name}: the rule or the offer looked at it", cites=["claim:assignment.depends_on"]),
+                                 Cited(reason=f"{b.name}: fixed before the change, a background attribute", cites=[f"{a}.when"])])
+    return None
+
+
 def fan_out_relate(state: SpecialistState):
     if state.get("feasibility"):
         return "feasibility"
     h = state["handoff"]
     t, y, others = _keys(state)
     errs = state.get("relate_errors") or {}
-    targets = [k for k in others if k in errs] if errs else others
+    targets = [k for k in others if k in errs] if errs else [k for k in others if fact_relation(h, k) is None]
     if not targets:
         return "merge_graph"
     q, frame = _question(state), _frame_text(state)
@@ -240,8 +258,9 @@ def relate(task: RelateTask) -> dict:
 
 
 def merge_graph(state: SpecialistState) -> dict:
+    h = state["handoff"]
     t, y, others = _keys(state)
-    latest: dict[str, Relation] = {}
+    latest: dict[str, Relation] = {k: r for k in others if (r := fact_relation(h, k)) is not None}  # settled by the pack
     for r in state.get("relations") or []:
         latest[r.column] = r  # later answers replace earlier ones
     edges: list[Edge] = [Edge(src=t, dst=y)]
@@ -297,7 +316,8 @@ def verify_graph(state: SpecialistState) -> Command:
     for n in g.nodes:
         if n not in table_cols:
             general.append(f"node {n!r} is not a table column")
-    latest: dict[str, Relation] = {r.column: r for r in state.get("relations") or []}
+    latest: dict[str, Relation] = {k: r for k in others if (r := fact_relation(h, k)) is not None}
+    latest.update({r.column: r for r in state.get("relations") or []})
     for k in others:
         r = latest.get(k)
         if r is None:

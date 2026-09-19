@@ -89,6 +89,7 @@ def _frame_text(state: SpecialistState) -> str:
              f"assumption the router bet on: {h.chosen_assumption}"]
     if _block(h):
         lines.append("what the pack settled:\n" + h.design.render())
+    lines.append(h.render_words())
     sc = state.get("score")
     if sc and sc.column:
         rule = f"{'at or ' if sc.cutoff_value_treated else ''}{sc.treated_side} {sc.cutoff:g}"

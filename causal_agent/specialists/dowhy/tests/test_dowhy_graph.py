@@ -246,3 +246,9 @@ def test_pack_treated_level_settles_the_contrast_without_a_model_call():
 
     material = N._material(out, c.key)  # the beliefs are in what the interpretation reads, with addresses it may cite
     assert "[claim:unobserved] nothing outside the file" in material and "claim:unobserved" in N._addresses(out, c.key)
+    # parental education: the offer looked at it and it was fixed before, so its relation is a fact; lunch was marked 'after', so the model is asked
+    assert fake.calls.count("Relation") == 5 and "relate:parental_level_of_education" not in {t.node for t in out["debug"]}
+    parental = next(e for e in out["graph"].edges if e.src == "parental_level_of_education" and e.dst == "test_preparation_course")
+    assert "claim:assignment.depends_on" in parental.cites
+    # the person's words reach every judgement the lane makes (students3 ships no transcript, so the section is there and empty)
+    assert "WHAT THE PERSON SAID" in N._frame_text(out)

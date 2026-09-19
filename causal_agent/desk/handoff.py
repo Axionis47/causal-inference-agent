@@ -26,6 +26,7 @@ from causal_agent.common.contracts import (
     FamilyDecision,
     Handoff,
     Probe,
+    Provenance,
     QuestionFrame,
     RdDesign,
     Said,
@@ -53,8 +54,10 @@ def brief_of(memory: Memory, col: Column, role: str | None = None) -> ColumnBrie
     fs = memory.fields_of(col.address)
     v = {n: f.value for n, f in fs.items() if f.value is not None}
     src = next((fs[n].source for n in ("meaning", "when") if n in v and fs[n].source), None)
-    return ColumnBrief(name=col.name, key=col.key, role=role or "candidate", meaning=v.get("meaning"), when=v.get("when") or "unknown", set_by=v.get("set_by"),
-                       moved_by_change=v.get("moved_by_change"), source=src, facts=col.facts)
+    prov = {n: Provenance(status=f.status, source=f.source, said=f.said) for n, f in fs.items() if f.value is not None or f.status != "empty"}
+    return ColumnBrief(name=col.name, key=col.key, role=role or "candidate", meaning=v.get("meaning"), stands_for=v.get("stands_for"), proxy=v.get("proxy"),
+                       when=v.get("when") or "unknown", set_by=v.get("set_by"), moved_by_change=v.get("moved_by_change"), measures_outcome=v.get("measures_outcome"),
+                       source=src, provenance=prov, facts=col.facts)
 
 
 def belief_of(memory: Memory, kind: str) -> Belief | None:
@@ -130,7 +133,7 @@ def _rd(briefs: list[ColumnBrief], a: dict, samp: dict, beliefs: dict[str, Belie
 
 
 def build(*, question: str, frame: QuestionFrame, decision: FamilyDecision, family: Family, memory: Memory,
-          probes: list[ProbeResult] | list[Probe] = ()) -> Handoff:
+          probes: list[ProbeResult] | list[Probe] = (), design_id: int = 0) -> Handoff:
     """The one hand-off, projected from the memory. The memory is not changed."""
     m = memory
     entry = DS.dataset_entries().get(m.name) or {}
@@ -172,15 +175,16 @@ def build(*, question: str, frame: QuestionFrame, decision: FamilyDecision, fami
 
     table = m.to_claims()
     unknowns = [address for address, f in m.fields.items() if f.status == "unknown"]
+    contradictions = [address for address, f in m.fields.items() if f.status == "contradiction"]
     return Handoff(
         family=family.name, specialist=family.specialist, supported_now=family.status == "built",
         outcome=outcome, treatment=treatment, scope=frame.scope, pack_name=m.name, relevant_columns=list(frame.relevant_columns),
         chosen_assumption=decision.chosen_assumption,
         reasons=[Candidate(column=c.column, reason=c.reason, cites=c.cites) for c in frame.outcome_candidates[:1] + frame.cause_candidates[:1]],
-        question=question, intent=frame.intent, why=decision.why_over_alternatives, over={r.family: r.reason for r in decision.rejected},
+        question=question, intent=frame.intent, design_id=design_id, memory_version=m.version, why=decision.why_over_alternatives, over={r.family: r.reason for r in decision.rejected},
         csv=m.csv or entry.get("csv"), docs={}, dataset_facts=m.facts, grain=g, sampling=samp, missing=miss,
         treated_level=treated_level, control_level=control_level, columns=briefs,
-        change=ch, assignment=a, beliefs=beliefs, unknowns=unknowns, said=said_of(m), probes=probe_list,
+        change=ch, assignment=a, beliefs=beliefs, unknowns=unknowns, contradictions=contradictions, said=said_of(m), probes=probe_list,
         claims={c.key: {"kind": c.kind, "fields": {k: v for k, v in c.fields.items() if v is not None}, "status": c.status, "source": c.source}
                 for c in table.claims.values() if c.status != "empty"},
         design=design,
