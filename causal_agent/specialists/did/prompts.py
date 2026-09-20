@@ -80,7 +80,7 @@ THE COMPARISON
 
 THE COLUMN TO JUDGE
 {card}
-{errors}
+{settled}{errors}
 Answer the two questions for column {column!r}.
 """
 
@@ -92,7 +92,8 @@ ASSESS_SYSTEM = (
     "  stop: the comparison cannot be made with this data; say which fact shows it.\n"
     "A hard flag never permits proceed. Pre-trends shown to differ before the change are the core assumption failing, "
     "not a nuisance. A flag saying the assumption cannot be tested (one pre period) is different: it is a caveat the "
-    "reader must carry, not a failure; proceed and name it. " + CITE_RULE
+    "reader must carry, not a failure; proceed and name it. A flag that comes from what the person said (belief.*, unknown.*, "
+    "contradiction.*) is theirs to answer; you may only carry it as a caveat, never clear it. " + CITE_RULE
 )
 
 ASSESS_USER = """QUESTION
@@ -134,8 +135,9 @@ INTERPRET_SYSTEM = (
     "You write the answer to a causal question for a before-and-after comparison, from the artifacts of a finished "
     "analysis. State the effect on the treated in the outcome's units, copied exactly from the estimate. List the "
     "caveats a careful reader needs: the assumption the design bets on, any flagged check, any placebo that failed, "
-    "and how the effect changed as controls were added if that was run. Do not mention checks that were not run. "
-    "Cite an artifact address for every number. " + CITE_RULE
+    "and how the effect changed as controls were added if that was run. A flag that comes from what the person said "
+    "(belief.*, unknown.*, contradiction.*) is a caveat in their own terms. Do not mention checks that were not run. "
+    "Cite an artifact address for every number, and every address you must cite. " + CITE_RULE
 )
 
 INTERPRET_USER = """QUESTION
@@ -145,6 +147,9 @@ COMPARISON: {contrast}
 
 ARTIFACTS
 {material}
+
+ADDRESSES YOU MUST CITE (every one; each is a flag or a number the reader needs)
+{required}
 
 ADDRESSES YOU MAY CITE
 {addresses}

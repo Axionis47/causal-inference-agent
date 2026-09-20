@@ -41,19 +41,23 @@ def fit(formula: str, panel: pd.DataFrame, vcov: Any):
 
 
 def estimate(entry: EstimatorEntry, formula: str, panel: pd.DataFrame, vcov: Any, contrast_key: str, target_units: str, *, secondary: bool = False) -> tuple[list[Estimate], Any]:
-    """Returns one Estimate per fitted model (csw0 yields several) and the primary fit object for follow-ups."""
+    """Returns one Estimate per fitted model (csw0 yields several: no controls, then each added) and the primary fit object
+    for follow-ups. Under csw0 the primary is the full formula the design advertises, the last model; the steps are secondary,
+    labelled by how many controls they carry."""
     n_t = int(panel.loc[panel["treated"] == 1, "unit"].nunique())
     n_c = int(panel.loc[panel["treated"] == 0, "unit"].nunique())
     try:
         res = fit(formula, panel, vcov)
         models = res.to_list() if hasattr(res, "to_list") else [res]
+        stepwise = entry.controls_mode == "csw0" and len(models) > 1
+        primary_i = len(models) - 1 if stepwise else 0
         out: list[Estimate] = []
         for i, m in enumerate(models):
-            label = entry.name if i == 0 else f"{entry.name}+{i}"
+            label = entry.name if i == primary_i else f"{entry.name}+{i}"
             if COEF in m.coef().index:
                 lo, hi = (float(x) for x in m.confint().loc[COEF].to_numpy())
                 out.append(Estimate(contrast=contrast_key, method=label, value=float(m.coef()[COEF]), ci_low=lo, ci_high=hi,
-                                    n_treated=n_t, n_control=n_c, target_units=target_units, secondary=secondary or i > 0))
+                                    n_treated=n_t, n_control=n_c, target_units=target_units, secondary=secondary or i != primary_i))
             else:  # dynamic model: the effect is the mean of post-period coefficients; each period is reported separately
                 names = [n for n in m.coef().index if DYNAMIC.search(n)]
                 lags = [n for n in names if int(DYNAMIC.search(n).group(1)) >= 0]
@@ -61,7 +65,7 @@ def estimate(entry: EstimatorEntry, formula: str, panel: pd.DataFrame, vcov: Any
                     vals = m.coef()[lags]
                     out.append(Estimate(contrast=contrast_key, method=label, value=float(vals.mean()), n_treated=n_t, n_control=n_c,
                                         target_units=target_units, secondary=True))
-        return out, models[0]
+        return out, models[primary_i]
     except Exception as ex:
         return [Estimate(contrast=contrast_key, method=entry.name, n_treated=n_t, n_control=n_c, target_units=target_units,
                          secondary=secondary, error=f"{type(ex).__name__}: {str(ex)[:300]}")], None
@@ -101,8 +105,9 @@ def wild_bootstrap(model, reps: int, seed: int) -> float | None:
         return None
 
 
-def placebo_group(formula: str, panel: pd.DataFrame, observed: float, entry: PlaceboEntry, contrast_key: str) -> Refutation:
-    """Reassign the treated label across units at random and refit. p = share of |placebo| >= |observed|."""
+def placebo_group(formula: str, panel: pd.DataFrame, observed: float, entry: PlaceboEntry, contrast_key: str) -> tuple[Refutation, list[float]]:
+    """Reassign the treated label across units at random and refit. p = share of |placebo| >= |observed|. Every placebo
+    effect comes back too, so the spread can be drawn."""
     rng = np.random.default_rng(SEED)
     labels = panel.groupby("unit")["treated"].first()
     draws = int(entry.params.get("draws", 200))
@@ -119,11 +124,11 @@ def placebo_group(formula: str, panel: pd.DataFrame, observed: float, entry: Pla
         except Exception:
             continue
     if not effects:
-        return Refutation(contrast=contrast_key, refuter=entry.name, kind="falsification", detail="no placebo fit succeeded")
+        return Refutation(contrast=contrast_key, refuter=entry.name, kind="falsification", detail="no placebo fit succeeded"), []
     p = float(np.mean(np.abs(effects) >= abs(observed)))
     passed = p < float(entry.pass_when.get("p_value_lt", 0.05))
     return Refutation(contrast=contrast_key, refuter=entry.name, kind="falsification", new_effect=float(np.mean(effects)), p_value=p, passed=passed,
-                      detail=f"{len(effects)} reassignments; share with an effect at least as large: {p:.2f}" + (" (pass)" if passed else " (FAIL: the observed effect is not unusual)"))
+                      detail=f"{len(effects)} reassignments; share with an effect at least as large: {p:.2f}" + (" (pass)" if passed else " (FAIL: the observed effect is not unusual)")), effects
 
 
 def placebo_timing(formula: str, panel: pd.DataFrame, entry: PlaceboEntry, contrast_key: str) -> Refutation:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import uuid
 
@@ -17,9 +18,18 @@ from causal_agent.specialists.did.contracts import ControlRelation, DesignAssess
 from causal_agent.specialists.did.graph import compile_local
 
 
-def handoff(pack: str, outcome: str, treatment: str, cols: list[str], cite: str) -> Handoff:
+def memory(pack: str, *, trend=None, trend_status="unknown", spillover=False, said=None):
+    """The claims file alone (a note mined on disk never moves a test), plus the two beliefs the family asks for: by default
+    the person could not say whether the paths would have stayed together, and units do not reach one another."""
+    m = store.migrate(pack, write=False)
+    m.set("claim:trend_continues.believed", trend, status=trend_status, source="user:turn:1", said=said)
+    m.set("claim:spillover.possible", spillover, status="confirmed", source="user:turn:1")
+    return m
+
+
+def handoff(pack: str, outcome: str, treatment: str, cols: list[str], cite: str, memory_=None) -> Handoff:
     return forced(pack, "q", "diff_in_diff", outcome, treatment, cols, assumption="parallel movement absent the change", cite=cite,
-                  memory=store.migrate(pack, write=False))  # the claims file alone: a note mined on disk never moves a test
+                  memory=memory_ or memory(pack))
 
 
 CK = dict(pack="card_krueger", outcome="total_emp_nov", treatment="state", cols=["state", "total_emp_feb", "total_emp_nov"], cite="col:state.note")
@@ -79,9 +89,11 @@ class FakeLLM:
             return EstimatorPick(name=self.pick_script.pop(0) if self.pick_script else names[0], reason="ranked first", cites=[])
         if schema is Interpretation:
             addresses = human.split("ADDRESSES YOU MAY CITE")[1].split("\n\n")[0].strip().splitlines()
+            required = [a for a in human.split("ADDRESSES YOU MUST CITE")[1].split("\n\n")[0].strip().splitlines()[1:] if a and a != "(none)"]
             contrast = re.search(r"COMPARISON: (\S+)", human).group(1)
             value = float(re.search(r"\[estimate:%s\.value\] ([-\d.eE+]+)" % re.escape(contrast), human).group(1))
-            return Interpretation(contrast=contrast, answer=f"The effect on the treated is {value:.3g}.", effect_stated=value, caveats=["parallel trends assumed"], cites=addresses[:3])
+            return Interpretation(contrast=contrast, answer=f"The effect on the treated is {value:.3g}.", effect_stated=value,
+                                  caveats=["parallel trends assumed"] + [f"flag {a}" for a in required], cites=list(dict.fromkeys(required + addresses[:3])))
         raise AssertionError(schema)
 
 
@@ -115,7 +127,7 @@ def test_card_krueger_wide_happy_path():
     m = ck.groupby("state")[["total_emp_feb", "total_emp_nov"]].mean()
     four_means = (m.loc[1, "total_emp_nov"] - m.loc[1, "total_emp_feb"]) - (m.loc[0, "total_emp_nov"] - m.loc[0, "total_emp_feb"])
     assert abs(primary.value - four_means) < 1e-6
-    assert {c.name for c in out["checks"] if c.level == "soft"} == {"parallel_untestable"}
+    assert {c.name for c in out["checks"] if c.level == "soft"} == {"parallel_untestable", "belief.trend_continues"}  # the person could not say
     assert [x.refuter for x in out["refutations"]] == ["placebo_group"] and out["refutations"][0].passed is True
     assert fake.calls.count("ControlRelation") == 0 and "DesignAssessment" in fake.calls
     assert len(out["interpretations"]) == 1 and not out.get("interpret_errors")
@@ -267,3 +279,137 @@ def test_pack_panel_block_settles_groups_and_periods_without_a_model_call():
     assert fake.calls.count("Groups") == 0 and fake.calls.count("Periods") == 0
     assert out["groups"].column == "state" and out["groups"].treated_level == "5" and out["periods"].first_post == "89"
     assert out["groups"].cites == ["claim:assignment.treatment_column", "claim:assignment.treated_level"]
+
+
+# ------------------------------------------------------------------ the lane on the harness: the person's beliefs meet the checks
+
+
+def _cigar(**kw) -> Handoff:
+    return handoff(**CIGAR, memory_=memory("cigar", **kw))
+
+
+def test_trend_false_and_a_hard_pre_trends_check_stops_by_code_with_no_assessment_call():
+    fake = FakeLLM(SCRIPT["cigar"], CIGAR["cite"])
+    out = _run(fake, _cigar(trend=False, trend_status="confirmed", said="sales in that state were already falling"))
+    r = out["specialist_result"]
+    assert r["status"] == "infeasible" and out["feasibility"].stage == "assess" and "agree" in out["feasibility"].reason
+    assert any("already falling" in x for x in out["feasibility"].facts) and "DesignAssessment" not in fake.calls
+    assert next(c for c in out["checks"] if c.name == "belief.trend_continues").level == "hard"
+
+
+def test_trend_true_and_a_hard_check_asks_back_once_then_softens_and_the_primary_is_the_full_formula():
+    from causal_agent.common.contracts import Said
+
+    fake = FakeLLM(SCRIPT["cigar"], CIGAR["cite"])
+    out = _run(fake, _cigar(trend=True, trend_status="confirmed", said="they moved together for decades"))
+    r = out["specialist_result"]
+    assert r["status"] == "ask" and r["ask"]["address"] == "claim:trend_continues.believed" and r["ask"]["options"] == ["yes", "no"]
+    assert "p = " in r["ask"]["question"] and "moved together for decades" in r["ask"]["question"] and r["ask"]["evidence"] == [f"check:{out['contrast'].key}.pre_trends"]
+    assert "DesignAssessment" not in fake.calls and "ASKS BACK" in r["report"]
+    # the person answered once: the flag softens with their reason, the assessment sees a soft flag, and the run goes on
+    m = memory("cigar", trend=True, trend_status="confirmed", said="the tax was announced years earlier")
+    m.said.append(Said(turn=3, about="lane:claim:trend_continues.believed", text="yes, the tax was announced years earlier"))
+    h = handoff(**CIGAR, memory_=m)
+    fake = FakeLLM(SCRIPT["cigar"], CIGAR["cite"])
+    out = _run(fake, h)
+    r = out["specialist_result"]
+    assert r["status"] == "done", r.get("feasibility")
+    pre = next(c for c in out["checks"] if c.name == "pre_trends")
+    assert pre.level == "soft" and "announced years earlier" in pre.detail and "DesignAssessment" in fake.calls
+    d = out["design"]
+    assert d.controls.included == ["pimin", "ndi", "pop"] and "csw0" in d.formula
+    primary = next(e for e in out["estimates"] if not e.secondary)
+    assert primary.method == "twfe_static" and {e.method for e in out["estimates"] if e.method.startswith("twfe_static+")} == {"twfe_static+0", "twfe_static+1", "twfe_static+2"}
+    assert pre.address in out["interpretations"][0].cites and not out.get("interpret_errors")
+    assert "placebo_group" in out["placebo_draws"] and len(out["placebo_draws"]["placebo_group"]) > 100
+    ids = [f["id"] for f in json.loads(open(f"{r['run_dir']}/figures.json").read())]
+    assert ids == [f"effect_{d.contrast.key}", f"event_study_{d.contrast.key}"]
+    assert out["dynamic"] and "-5" in out["dynamic"]
+
+
+def test_spillover_the_person_kept_is_a_flag_the_interpretation_cites():
+    fake = FakeLLM(SCRIPT["card_krueger"], CK["cite"])
+    out = _run(fake, handoff(**CK, memory_=memory("card_krueger", spillover=True)))
+    r = out["specialist_result"]
+    assert r["status"] == "done", r.get("feasibility")
+    flag = next(c for c in out["checks"] if c.name == "belief.spillover")
+    assert flag.level == "soft" and "bound" in flag.detail and flag.address in out["interpretations"][0].cites
+    assert out["contrast"].control == "0"  # the other level of the settled group column
+
+
+def test_controls_allowed_is_honoured_and_a_moved_column_is_never_asked_about():
+    from causal_agent.common.contracts import Said
+
+    m = memory("cigar", trend=True, trend_status="confirmed", said="together")
+    m.said.append(Said(turn=3, about="lane:claim:trend_continues.believed", text="yes"))
+    m.set("col:price.moved_by_change", True, status="confirmed", source="user:turn:2", said="the tax is in the price")
+    h = handoff(**CIGAR, memory_=m)
+    h.design.controls_allowed = ["pimin", "ndi"]
+    fake = FakeLLM(SCRIPT["cigar"], CIGAR["cite"])
+    out = _run(fake, h)
+    r = out["specialist_result"]
+    assert r["status"] == "done", r.get("feasibility")
+    c = out["controls"]
+    why = {x.column: x.why for x in c.excluded}
+    assert c.included == ["pimin", "ndi"] and "design.controls_allowed" in why["pop"] and "col:price.moved" in why["price"]
+    assert fake.calls.count("ControlRelation") == 4  # price was settled by the person's word
+
+
+def test_a_cluster_level_the_inference_cannot_honour_is_declined_with_a_record():
+    h = handoff(**CK)
+    h.design.cluster_level = "state"
+    fake = FakeLLM(SCRIPT["card_krueger"], CK["cite"])
+    out = _run(fake, h)
+    r = out["specialist_result"]
+    assert r["status"] == "done", r.get("feasibility")
+    d = next(x for x in out["declines"] if x.about == "design.cluster_level")
+    assert d.check == "inference.cluster_column" and "does not cluster" in d.reason and d.address in r["report"]
+    assert any(x["about"] == "design.cluster_level" for x in r["declines"])
+
+
+def test_pre_periods_that_differ_from_the_pack_are_recorded():
+    h = handoff(**CK)
+    h.design.pre_periods = 3
+    out = _run(FakeLLM(SCRIPT["card_krueger"], CK["cite"]), h)
+    d = next(x for x in out["declines"] if x.about == "design.pre_periods")
+    assert d.kind == "replaced" and d.pack_value == "3" and d.took == "1" and d.check == "shape.pre_periods"
+
+
+def test_a_rejected_pack_block_is_recorded_and_its_errors_shown_to_the_model():
+    h = _cigar()
+    h.design.treated_group = {"column": "state", "level": "99"}
+    fake = FakeLLM(SCRIPT["cigar"], CIGAR["cite"], assess_script=[DesignAssessment(action="stop", reason="pre-trends", cites=[])])
+
+    class Fake(FakeLLM):
+        def answer(self, schema, human):
+            if schema is Groups:
+                assert "PREVIOUS ANSWER WAS REJECTED" in human and "'99' is not observed" in human
+            return super().answer(schema, human)
+
+    fake = Fake(SCRIPT["cigar"], CIGAR["cite"], assess_script=[DesignAssessment(action="stop", reason="pre-trends", cites=[])])
+    out = _run(fake, h)
+    assert fake.calls.count("Groups") == 1 and out["groups"].treated_level == "5"
+    d = next(x for x in out["declines"] if x.about == "claim:assignment.treated_level")
+    assert d.kind == "replaced" and "'99'" in d.pack_value and d.check == "groups.level_observed"
+
+
+def test_the_window_is_applied_on_the_time_column_by_code():
+    from causal_agent.common.contracts import Scope
+
+    h = forced("cigar", "q", "diff_in_diff", "sales", "state", CIGAR["cols"], scope=Scope(window="from 80 to 92"), cite=CIGAR["cite"], memory=memory("cigar"))
+    fake = FakeLLM(SCRIPT["cigar"], CIGAR["cite"], assess_script=[DesignAssessment(action="stop", reason="pre-trends", cites=[])])
+    out = _run(fake, h)
+    s = out["shape"]
+    assert s.periods_pre == 9 and s.periods_post == 4 and out["check_facts"]["intake"]["rows_after"] < out["check_facts"]["intake"]["rows_before"]
+    assert out["declines"] == [] and out["periods"].window_start == "80" and out["periods"].window_end == "92"
+
+
+def test_a_first_period_nobody_can_settle_asks_back():
+    script = dict(SCRIPT["cigar"], periods=Periods(kind="long", time_column="year", first_post=None, reason="no date in the notes", cites=["change:1.note"]))
+    h = _cigar()
+    h.design.change_period = None
+    fake = FakeLLM(script, CIGAR["cite"])
+    out = _run(fake, h)
+    r = out["specialist_result"]
+    assert r["status"] == "ask" and r["ask"]["address"] == "claim:change.period_value" and "'year'" in r["ask"]["question"] and r["ask"]["stage"] == "periods"
+    assert fake.calls.count("Periods") == 3

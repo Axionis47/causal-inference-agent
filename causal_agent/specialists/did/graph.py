@@ -1,8 +1,8 @@
 """The diff-in-diff subgraph on pyfixest. Nodes are constant; workers scale with columns and placebos.
 
-    load ─ groups ─ periods ─ shape_table ─(relate × N)─ merge_controls ─ verify ─ check_design
-         ─(assess, only when flagged)─ pick_estimator ─ freeze_design ─ estimate ─(placebo × K)─ interpret ─ assemble
-    any typed stop ───────────────────────────────────────────────────────────▶ feasibility ─ assemble
+    load ─ case ─ groups ─ periods ─ shape_table ─(relate × N)─ merge_controls ─ verify ─ check_design
+         ─(assess, only when flagged)─ pick_estimator ─ freeze_design ─ estimate ─(placebo × K)─ interpret ─ figures ─ assemble
+    any typed stop, or an ask back ───────────────────────────────────────────▶ feasibility ─ figures ─ assemble
 
 verify reruns only the relate workers it rejected (3 tries). assess may send a control delta back to
 merge_controls (3 times). estimate may re-pick once on a fit failure. Nothing loops after an estimate exists.
@@ -23,6 +23,7 @@ _retry = RetryPolicy(max_attempts=3, initial_interval=1.0)
 def build() -> StateGraph:
     b = StateGraph(SpecialistState)
     b.add_node("load", N.load)
+    b.add_node("case", N.case)
     b.add_node("groups", N.groups, retry_policy=_retry)
     b.add_node("periods", N.periods, retry_policy=_retry)
     b.add_node("shape_table", N.shape_table)
@@ -37,10 +38,12 @@ def build() -> StateGraph:
     b.add_node("placebo", N.placebo)
     b.add_node("interpret", N.interpret, retry_policy=_retry)
     b.add_node("feasibility", N.feasibility)
+    b.add_node("figures", N.figures)
     b.add_node("assemble", N.assemble)
 
     b.add_edge(START, "load")
-    # load returns Command(goto=groups | feasibility)
+    # load returns Command(goto=case | feasibility)
+    b.add_edge("case", "groups")
     b.add_conditional_edges("groups", N.after_groups, ["periods", "feasibility"])
     b.add_conditional_edges("periods", N.after_periods, ["shape_table", "feasibility"])
     # shape_table returns Command(goto=[Send relate...] | merge_controls | feasibility)
@@ -53,8 +56,9 @@ def build() -> StateGraph:
     b.add_edge("freeze_design", "estimate")
     # estimate returns Command(goto=[Send placebo...] | interpret | pick_estimator | feasibility)
     b.add_edge("placebo", "interpret")
-    b.add_edge("interpret", "assemble")
-    b.add_edge("feasibility", "assemble")
+    b.add_edge("interpret", "figures")
+    b.add_edge("feasibility", "figures")
+    b.add_edge("figures", "assemble")
     b.add_edge("assemble", END)
     return b
 

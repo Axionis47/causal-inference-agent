@@ -340,7 +340,7 @@ class DidDesign(BaseModel):
             f"  change period: {self.change_period or 'not known'}; treated group: " + (f"{tg.get('column')} = {tg.get('level')!r}" if tg.get("column") else "not known"),
             f"  staggered: {self.staggered}; never-treated units: {self.never_treated_exists}; pre periods: {self.pre_periods}; post periods: {self.post_periods}",
             f"  controls allowed: {', '.join(self.controls_allowed) or 'none named'}; cluster at: {self.cluster_level or 'not known'}",
-        ])
+        ] + [f"  {b.render()}" for b in (self.trend_belief, self.spillover) if b is not None])
 
 
 class RdDesign(BaseModel):

@@ -1,0 +1,74 @@
+# What the person's beliefs, the unknowns, and the contradictions mean to the diff-in-diff lane. Read by lane.case.
+# A flag is a check named belief.<kind>, unknown.<address>, or contradiction.<address>; the assessment must answer it
+# and the interpretation must cite it. `with_check` weighs a belief against a data check of the same run, by code.
+# {value} is the check's value, {said} the person's sentence, {column} the column. No dataset, column, or method name here.
+
+beliefs:
+  trend_continues:
+    value_field: believed
+    by_status:
+      confirmed_true:
+        level: pass
+      confirmed_false:
+        level: hard
+        caveat: "the person says that apart from the change the treated group would have moved differently from the others; that is the comparison's assumption failing"
+      drafted:
+        level: soft
+        caveat: "that the groups would have kept moving together is a draft the person never confirmed"
+      unknown:
+        level: soft
+        caveat: "the person could not say whether the groups would have kept moving together apart from the change"
+      contradiction:
+        level: soft
+        caveat: "what the person said about the groups moving together stands against the file"
+      empty:
+        level: soft
+        caveat: "the person was not asked whether the groups would have kept moving together apart from the change"
+        ask:
+          question: "Apart from the change, would the group that got it have kept moving with the others?"
+          options: ["yes", "no"]
+    with_check:
+      pre_trends:
+        - belief: confirmed_false
+          check: hard
+          then: stop
+          reason: "the test and the person agree: the groups were already moving apart before the change"
+        - belief: confirmed_true
+          check: hard
+          then: ask
+          once: true
+          question: "The groups were already moving apart before the change (joint test on the periods before, p = {value}). You said: \"{said}\". Is there a reason they would have moved differently apart from the change?"
+          options: ["yes", "no"]
+        - belief: confirmed_true
+          check: hard
+          asked: true
+          then: soften
+          caveat: "the person kept the belief after seeing the test; their reason: \"{said}\""
+        - belief: confirmed_true
+          check: soft
+          then: caveat
+          caveat: "the person believes the paths would have stayed together: \"{said}\""
+  spillover:
+    value_field: possible
+    by_status:
+      confirmed_true:
+        level: soft
+        caveat: "units that got the change could reach the outcomes of the comparison units, so the comparison carries part of the effect and the estimate reads as a bound"
+      unknown:
+        level: soft
+        caveat: "the person could not say whether units that got the change could reach the outcomes of the comparison units"
+
+unknowns:
+  "claim:change.period_value":
+    level: hard
+    caveat: "the first period at or after the change is not known; the one used is a reading, not the person's word"
+    ask:
+      question: "Which value of the period column is the first period at or after the change?"
+  "col:*.when":
+    level: soft
+    caveat: "when {column} was set is not known; it was used as the notes allow"
+
+contradictions:
+  "col:*.when":
+    level: soft
+    caveat: "the file and the person disagree on when {column} was set; the lane took the file's reading"

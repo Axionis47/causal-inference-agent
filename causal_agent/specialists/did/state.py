@@ -1,4 +1,4 @@
-"""Diff-in-diff lane state. Shares question, handoff, dataset, specialist_result, debug with the router.
+"""Diff-in-diff lane state. Shares the harness keys with every lane; the rest is its own.
 
 The panel never sits in state: `panel_path` points at the run directory. pyfixest objects never sit in
 state either; the estimate node refits from the Design.
@@ -11,7 +11,8 @@ from typing import Annotated
 
 from typing_extensions import TypedDict
 
-from causal_agent.common.contracts import Contrast, Estimate, Feasibility, Handoff, Interpretation, Refutation, Thought
+from causal_agent.common.contracts import Contrast, Estimate, Interpretation, Refutation
+from causal_agent.lane.state import LaneState, by_key, merge_dicts
 from causal_agent.specialists.did.contracts import (
     ControlRelation,
     Controls,
@@ -25,20 +26,10 @@ from causal_agent.specialists.did.contracts import (
 )
 
 
-class SpecialistState(TypedDict, total=False):
-    # shared with the parent graph
-    question: str
-    handoff: Handoff | None
-    dataset: str
-    specialist_result: dict | None
-    debug: Annotated[list[Thought], operator.add]
-
-    # this lane
-    run_dir: str
-    table_path: str
+class SpecialistState(LaneState, total=False):
     panel_path: str
-    columns: dict[str, str]  # key -> raw name
     unit_column: str | None
+    cluster_column: str | None
     target_units: str
     group_levels: list[str]
     groups: Groups | None
@@ -51,20 +42,18 @@ class SpecialistState(TypedDict, total=False):
     controls: Controls | None
     applied_revisions: list[Revision]
     revisions: int
-    checks: list  # list[CheckResult]
     assessment: DesignAssessment | None
     estimator: str | None
     estimator_pick: EstimatorPick | None
     excluded_estimators: list[str]
     pick_attempts: int
     design: Design | None
-    estimates: Annotated[list[Estimate], operator.add]
-    refutations: Annotated[list[Refutation], operator.add]
+    estimates: Annotated[list[Estimate], by_key(lambda e: (e.contrast, e.method))]
+    refutations: Annotated[list[Refutation], by_key(lambda r: (r.contrast, r.refuter))]
     dynamic: dict  # rel_time -> (value, lo, hi) when the dynamic model ran
+    placebo_draws: Annotated[dict, merge_dicts]  # placebo name -> every placebo effect, so the spread can be drawn
     interpretations: Annotated[list[Interpretation], operator.add]
-    interpret_errors: dict[str, list[str]]
-    feasibility: Feasibility | None
-    report: str
+    interpret_errors: Annotated[dict[str, list[str]], merge_dicts]
 
 
 class RelateTask(TypedDict):
@@ -72,6 +61,7 @@ class RelateTask(TypedDict):
     frame: str
     column: str
     card: str
+    settled: str
     errors: str
 
 

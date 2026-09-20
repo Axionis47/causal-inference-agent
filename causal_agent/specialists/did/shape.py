@@ -21,12 +21,27 @@ class ShapeError(Exception):
         self.reason, self.facts, self.fix = reason, facts, fix
 
 
-def canonical(table: pd.DataFrame, groups: Groups, periods: Periods, outcome: str, candidates: list[str], unit_column: str | None = None) -> tuple[pd.DataFrame, ShapeFacts]:
-    """unit_column: the entity column for a long panel (from the dataset index); the group column when absent."""
+def canonical(table: pd.DataFrame, groups: Groups, periods: Periods, outcome: str, candidates: list[str], unit_column: str | None = None,
+              cluster_column: str | None = None) -> tuple[pd.DataFrame, ShapeFacts]:
+    """unit_column: the entity column for a long panel (from the dataset index); the group column when absent.
+    cluster_column: the level the pack says errors cluster at; carried as `cluster` when it is a column of the table."""
     treated = (table[groups.column].astype(str) == str(groups.treated_level)).astype(int)
     if periods.kind == "wide":
-        return _from_wide(table, treated, periods, candidates)
-    return _from_long(table, treated, periods, outcome, candidates, unit_column or groups.column)
+        panel, facts = _from_wide(table, treated, periods, candidates)
+    else:
+        panel, facts = _from_long(table, treated, periods, outcome, candidates, unit_column or groups.column)
+    if cluster_column and cluster_column in table.columns and "cluster" not in panel.columns:
+        by_row = table[cluster_column].astype(str)
+        if periods.kind == "wide":
+            panel["cluster"] = pd.concat([by_row, by_row], ignore_index=True).to_numpy()
+        else:
+            panel["cluster"] = by_row.to_numpy()[panel.index] if len(panel) == len(table) else _cluster_by_unit(table, panel, unit_column or groups.column, cluster_column)
+    return panel, facts
+
+
+def _cluster_by_unit(table: pd.DataFrame, panel: pd.DataFrame, unit_column: str, cluster_column: str):
+    first = table.groupby(table[unit_column].astype(str))[cluster_column].first().astype(str)
+    return panel["unit"].map(first).to_numpy()
 
 
 def _from_wide(table: pd.DataFrame, treated: pd.Series, p: Periods, candidates: list[str]) -> tuple[pd.DataFrame, ShapeFacts]:
