@@ -6,7 +6,17 @@ __pycache__/
 *.pyc
 .pytest_cache/
 data/generated/
-data/raw/
+# uploads land under data/raw/<name>/; only the shipped example datasets ride with the repo
+data/raw/*
+!data/raw/academic-probation-gpa/
+!data/raw/card-krueger-minimum-wage/
+!data/raw/cigarette-sales-prop99/
+!data/raw/fast-food-marketing-campaign-ab-test/
+!data/raw/gov-transfers-uruguay/
+!data/raw/head-start-mortality/
+!data/raw/senate-incumbency/
+!data/raw/spp-colombia-financial-aid/
+!data/raw/students-performance-in-exams/
 data/web/
 web/node_modules/
 web/dist/
