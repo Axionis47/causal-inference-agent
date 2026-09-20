@@ -2,23 +2,6 @@
 # Written as method knowledge the router reads and judges the data against.
 # Never written as rules the harness evaluates.
 
-discontinuity:
-  applies_to: [effect_of_change]
-  answers: effect of a change that was assigned by a strict cutoff on one measured score, comparing rows just above and just below the cutoff
-  needs:
-    - the note says the change was given to rows on one side of a cutoff value on a specific numeric score, and not on the other; a group label such as a state, region, or store is not a score and does not meet this
-    - that score was fixed before the decision and could not be adjusted to get across the cutoff
-    - rows exist close to the cutoff on both sides, meaning the score takes values just below and just above it
-    - the outcome is measured after the decision
-  look_for: a change card or column note naming a cutoff and the column it applies to; the score column's note on when it was fixed; the score column's profile range around the cutoff
-  assumes: rows just either side of the cutoff are alike in everything except the change
-  weak_when: rows bunch up on one side of the cutoff; or other things also switch at the same cutoff
-  prefer_over:
-    adjustment: when the change is a strict function of the score, no two rows with the same score differ in the change, so adjustment has nothing to compare; the cutoff is the only comparison; and when eligibility is decided by the cutoff but take-up is voluntary, the cutoff still identifies the effect for those who took it up because they crossed it, without assuming the take-up decision was fully measured
-  convince: rows sit close to the line on both sides and do not bunch at it, so the two sides can be compared
-  specialist: rdrobust
-  status: built
-
 interrupted_series:
   applies_to: [effect_of_change]
   answers: effect of a change at one point in time on a single unit, comparing the unit's outcome after the change against what its own history predicted

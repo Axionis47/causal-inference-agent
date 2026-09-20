@@ -24,10 +24,10 @@ $H marketing --mine --family diff_in_diff --outcome SalesInThousands --treatment
 $H card_krueger --mine --family discontinuity --outcome total_emp_nov --treatment state --columns "total_emp_nov,state,total_emp_feb" \
   --question "Did New Jersey's 1992 minimum wage rise reduce fast food employment?" --target on_treated \
   --assumption "forced into the discontinuity lane as the negative case: the notes name a state, not a score with a cutoff" \
-  -o causal_agent/specialists/rd/evals/handoffs/card_krueger_forced.json
+  -o causal_agent/families/discontinuity/evals/handoffs/card_krueger_forced.json
 
 $H students --mine --family discontinuity --outcome "math score" --treatment "test preparation course" \
   --columns "math score,test preparation course,reading score,writing score,lunch,parental level of education" \
   --question "Did completing the prep course raise math scores?" \
   --assumption "forced into the discontinuity lane as the negative case: numeric scores exist but no note states a cutoff rule" \
-  -o causal_agent/specialists/rd/evals/handoffs/students_forced.json
+  -o causal_agent/families/discontinuity/evals/handoffs/students_forced.json

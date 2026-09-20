@@ -15,12 +15,12 @@ from langchain_core.messages import AIMessage
 from causal_agent.common.contracts import Cited, Handoff, Scope
 from causal_agent.common.llm import set_llm
 from causal_agent.desk.handoff import forced
+from causal_agent.families.discontinuity.lane import nodes as N
+from causal_agent.families.discontinuity.lane.contracts import CovariateRelation, DesignAssessment, EstimatorPick, RDInterpretation, Score
+from causal_agent.families.discontinuity.lane.graph import compile_local
 from causal_agent.memory import store
 from causal_agent.profile import datasets as DS
 from causal_agent.profile.profiler import profile
-from causal_agent.specialists.rd import nodes as N
-from causal_agent.specialists.rd.contracts import CovariateRelation, DesignAssessment, EstimatorPick, RDInterpretation, Score
-from causal_agent.specialists.rd.graph import compile_local
 
 
 def memory(pack: str, *, cutoff_only=True, cutoff_only_status="confirmed", said=None):
@@ -575,8 +575,8 @@ def test_interpretation_bad_cite_is_retried():
 
 
 def test_catalogues_and_thresholds():
-    from causal_agent.specialists.rd import adapter
-    from causal_agent.specialists.rd.knowledge import load_checks, load_estimators, load_inference, load_placebos
+    from causal_agent.families.discontinuity.lane import adapter
+    from causal_agent.families.discontinuity.lane.knowledge import load_checks, load_estimators, load_inference, load_placebos
 
     toy = fuzzy_above(n=1500, seed=9).rename(columns={"received": "t"})
     toy["side"] = (toy["x"] >= 0).astype(int)
@@ -589,7 +589,7 @@ def test_catalogues_and_thresholds():
     assert {p.name for p in load_placebos()} == {"placebo_cutoffs", "bandwidth_grid", "donut"}
     cfg = load_checks()
     assert cfg["sides"]["min_rows"]["hard"] < cfg["sides"]["min_rows"]["soft"]
-    text = Path(__file__).resolve().parents[1].joinpath("knowledge", "checks.yaml").read_text().lower()
+    text = Path(__file__).resolve().parents[1].joinpath("lane", "knowledge", "checks.yaml").read_text().lower()
     for name in ("uruguay", "senate", "panes", "gov_transfers", "headstart", "spp", "probation", "students", "cigar", "krueger", "marketing"):
         assert name not in text, f"checks.yaml names a dataset: {name}"
 
@@ -597,7 +597,7 @@ def test_catalogues_and_thresholds():
 def test_adapter_reproduces_the_senate_known_answer():
     from rdrobust import rdrobust_RDsenate
 
-    from causal_agent.specialists.rd import adapter
+    from causal_agent.families.discontinuity.lane import adapter
 
     df = rdrobust_RDsenate()
     canon = pd.DataFrame({"y": df["vote"], "x": df["margin"], "cluster": df["state"].astype(str)})

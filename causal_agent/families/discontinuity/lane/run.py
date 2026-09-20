@@ -1,7 +1,7 @@
 """Run the discontinuity lane from the command line.
 
-uv run python -m causal_agent.specialists.rd.run <dataset> "<question>"        # through the desk's routing graph, end to end
-uv run python -m causal_agent.specialists.rd.run --handoff handoff.json         # the specialist alone, from a stored hand-off
+uv run python -m causal_agent.families.discontinuity.lane.run <dataset> "<question>"        # through the desk's routing graph, end to end
+uv run python -m causal_agent.families.discontinuity.lane.run --handoff handoff.json         # the specialist alone, from a stored hand-off
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ from causal_agent.common.contracts import Handoff
 
 
 def run_from_handoff(handoff: Handoff, question: str) -> dict:
-    from causal_agent.specialists.rd.graph import compile_local
+    from causal_agent.families.discontinuity.lane.graph import compile_local
 
     g = compile_local()
     cfg = {"configurable": {"thread_id": str(uuid.uuid4())}, "tags": [f"dataset:{handoff.pack_name}", "lane:rd"], "metadata": {"dataset": handoff.pack_name}}

@@ -5,8 +5,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from causal_agent.families.discontinuity import postviz as R
 from causal_agent.viz.graph import check_spec
-from causal_agent.viz.postviz import discontinuity as R
 
 
 def canon(n=2000, jump=2.0, seed=3) -> pd.DataFrame:

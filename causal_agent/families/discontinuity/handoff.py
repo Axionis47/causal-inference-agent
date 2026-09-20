@@ -1,14 +1,14 @@
-"""How the desk fills each family's design block, by code, from the briefs, the claims, the beliefs and the probes. Never a
-constraint: an empty field means the desk could not say, and the lane's own judgement fills what it can."""
+"""How the desk fills the discontinuity block, by code: the score and cutoff, the treated side, whether the score was fixed
+before the decision, the take-up column when the rule is not the change, and the covariates that may enter. Never a constraint."""
 
 from __future__ import annotations
 
 from causal_agent.common.addresses import key
-from causal_agent.common.contracts import RdDesign
 from causal_agent.families.base import BlockInputs
+from causal_agent.families.discontinuity.design import RdDesign
 
 
-def discontinuity(i: BlockInputs) -> RdDesign:
+def design_block(i: BlockInputs) -> RdDesign:
     a, samp, briefs, beliefs, entry, treatment = i.claims["assignment"], i.claims["sampling"], i.briefs, i.beliefs, i.entry, i.treatment
     score = key(a["score_column"]) if a.get("score_column") else None
     sb = next((b for b in briefs if score and b.key == score), None)

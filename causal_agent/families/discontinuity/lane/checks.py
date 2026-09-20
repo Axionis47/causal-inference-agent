@@ -12,9 +12,9 @@ import numpy as np
 import pandas as pd
 
 from causal_agent.common.contracts import CheckResult
-from causal_agent.specialists.rd import adapter
-from causal_agent.specialists.rd.contracts import Covariates, ShapeFacts
-from causal_agent.specialists.rd.shape import covcol
+from causal_agent.families.discontinuity.lane import adapter
+from causal_agent.families.discontinuity.lane.contracts import Covariates, ShapeFacts
+from causal_agent.families.discontinuity.lane.shape import covcol
 
 SHARP = {"p": 1, "kernel": "tri", "bwselect": "mserd", "masspoints": "adjust", "level": 95}
 

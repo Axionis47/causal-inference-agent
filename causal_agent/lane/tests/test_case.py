@@ -194,7 +194,7 @@ def test_an_unasked_belief_with_an_ask_opens_it_once():
 
 
 def test_harden_unless_a_fact_stands():
-    from causal_agent.common.contracts import RdDesign
+    from causal_agent.families.discontinuity.design import RdDesign
 
     h = cigar()
     h.design = RdDesign(score="pop", cutoff=1.0, treated_side="above")

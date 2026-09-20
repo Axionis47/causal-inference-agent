@@ -12,8 +12,7 @@ from typing import Annotated
 from typing_extensions import TypedDict
 
 from causal_agent.common.contracts import Contrast, Estimate, Refutation
-from causal_agent.lane.state import LaneState, by_key, merge_dicts
-from causal_agent.specialists.rd.contracts import (
+from causal_agent.families.discontinuity.lane.contracts import (
     CovariateRelation,
     Covariates,
     Design,
@@ -23,6 +22,7 @@ from causal_agent.specialists.rd.contracts import (
     Score,
     ShapeFacts,
 )
+from causal_agent.lane.state import LaneState, by_key, merge_dicts
 
 
 class SpecialistState(LaneState, total=False):

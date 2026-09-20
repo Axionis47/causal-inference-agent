@@ -3,10 +3,11 @@ figures and a lane, and the core packages reach them only through it."""
 
 from __future__ import annotations
 
-from causal_agent.common.contracts import DESIGNS, RdDesign
+from causal_agent.common.contracts import DESIGNS
 from causal_agent.families import registry as R
 from causal_agent.families.adjustment.design import AdjustmentDesign
 from causal_agent.families.diff_in_diff.design import DidDesign
+from causal_agent.families.discontinuity.design import RdDesign
 from causal_agent.viz import graph as G
 
 BUILT = {"adjustment": AdjustmentDesign, "diff_in_diff": DidDesign, "discontinuity": RdDesign}

@@ -37,9 +37,9 @@ Runs write to `RUN_DIR/<dataset>-rd-<id>/`: `table.csv` (the whole file), `canon
 ## Run it
 
 ```bash
-uv run python -m causal_agent.specialists.rd.run gov_transfers "Did receiving the transfer raise support for the government?"
-uv run python -m causal_agent.specialists.rd.run --handoff causal_agent/specialists/rd/evals/handoffs/students_forced.json
-uv run pytest causal_agent/specialists/rd -q
+uv run python -m causal_agent.families.discontinuity.lane.run gov_transfers "Did receiving the transfer raise support for the government?"
+uv run python -m causal_agent.families.discontinuity.lane.run --handoff causal_agent/families/discontinuity/evals/handoffs/students_forced.json
+uv run pytest causal_agent/families/discontinuity/lane -q
 ```
 
 ## Library facts the code leans on (rdrobust 2.0.0, rddensity 3.0)

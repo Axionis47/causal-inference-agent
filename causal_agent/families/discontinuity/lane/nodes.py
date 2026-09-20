@@ -20,18 +20,14 @@ from langgraph.config import get_stream_writer
 from langgraph.types import Command, Send
 
 from causal_agent.common.addresses import key as _key
-from causal_agent.common.contracts import Checks, Cited, Contrast, Decline, Estimate, Feasibility, Handoff, LaneAsk, RdDesign, Refutation
+from causal_agent.common.contracts import Checks, Cited, Contrast, Decline, Estimate, Feasibility, Handoff, LaneAsk, Refutation
 from causal_agent.common.llm import structured
-from causal_agent.lane import asks, intake, records
-from causal_agent.lane import case as C
-from causal_agent.lane import figures as LF
-from causal_agent.lane import words as W
-from causal_agent.profile.datasets import dataset_entries
-from causal_agent.specialists.rd import adapter
-from causal_agent.specialists.rd import checks as CK
-from causal_agent.specialists.rd import prompts as P
-from causal_agent.specialists.rd import shape as SH
-from causal_agent.specialists.rd.contracts import (
+from causal_agent.families.discontinuity.design import RdDesign
+from causal_agent.families.discontinuity.lane import adapter
+from causal_agent.families.discontinuity.lane import checks as CK
+from causal_agent.families.discontinuity.lane import prompts as P
+from causal_agent.families.discontinuity.lane import shape as SH
+from causal_agent.families.discontinuity.lane.contracts import (
     Bandwidths,
     CovariateRelation,
     Covariates,
@@ -42,7 +38,7 @@ from causal_agent.specialists.rd.contracts import (
     RDInterpretation,
     Score,
 )
-from causal_agent.specialists.rd.knowledge import (
+from causal_agent.families.discontinuity.lane.knowledge import (
     EstimatorEntry,
     load_beliefs,
     load_checks,
@@ -51,13 +47,18 @@ from causal_agent.specialists.rd.knowledge import (
     pick_inference,
     render_preferences,
 )
-from causal_agent.specialists.rd.knowledge import (
+from causal_agent.families.discontinuity.lane.knowledge import (
     estimator as estimator_entry,
 )
-from causal_agent.specialists.rd.knowledge import (
+from causal_agent.families.discontinuity.lane.knowledge import (
     placebo as placebo_entry,
 )
-from causal_agent.specialists.rd.state import PlaceboTask, RelateTask, SpecialistState
+from causal_agent.families.discontinuity.lane.state import PlaceboTask, RelateTask, SpecialistState
+from causal_agent.lane import asks, intake, records
+from causal_agent.lane import case as C
+from causal_agent.lane import figures as LF
+from causal_agent.lane import words as W
+from causal_agent.profile.datasets import dataset_entries
 from causal_agent.viz.postviz import common as PV
 
 MAX_RELATE_ATTEMPTS = 3
@@ -1237,7 +1238,7 @@ def figures(state: SpecialistState) -> dict:
     """What this run drew, checked against the addresses it produced: the outcome against the score with a fit on each side,
     the score's density either side, each covariate's jump, the estimate across bandwidths and at the placebo cutoffs, and the
     estimate against its placebos."""
-    from causal_agent.viz.postviz import discontinuity as PR
+    from causal_agent.families.discontinuity import postviz as PR
 
     h = state["handoff"]
     names = state.get("columns") or {}

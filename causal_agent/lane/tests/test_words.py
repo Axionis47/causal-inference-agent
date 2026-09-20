@@ -5,8 +5,8 @@ from __future__ import annotations
 from causal_agent.common.contracts import CheckResult
 from causal_agent.families.adjustment.lane.knowledge import load_checks as dowhy_checks
 from causal_agent.families.diff_in_diff.lane.knowledge import load_checks as did_checks
+from causal_agent.families.discontinuity.lane.knowledge import load_checks as rd_checks
 from causal_agent.lane import words as W
-from causal_agent.specialists.rd.knowledge import load_checks as rd_checks
 
 EMITTED = {
     "dowhy": ["arms", "overlap", "separation", "balance", "identification", "adjusts_outside_candidates"],

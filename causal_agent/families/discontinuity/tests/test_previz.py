@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pandas as pd
 
+from causal_agent.families.discontinuity import previz as discontinuity
 from causal_agent.profile.datasets import ROOT
-from causal_agent.viz.previz import discontinuity
 
 SENATE = pd.read_csv(ROOT / "data/raw/senate-incumbency/senate.csv")
 

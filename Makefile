@@ -41,7 +41,7 @@ dev-web: ## the web dev server on :5173, proxying /api
 build-web: ## the web bundle the API serves
 	npm run $(WEB) build
 
-evals: ## run one lane's evals: make evals LANE=rd
-	$(UV) python -m causal_agent.specialists.$(LANE).evals.run
+evals: ## run one family's evals: make evals FAMILY=discontinuity
+	$(UV) python -m causal_agent.families.$(FAMILY).evals.run
 
 .PHONY: help lint fmt types test test-web check dev-api dev-web build-web evals

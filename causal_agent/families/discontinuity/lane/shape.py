@@ -11,7 +11,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from causal_agent.specialists.rd.contracts import Score, ShapeFacts
+from causal_agent.families.discontinuity.lane.contracts import Score, ShapeFacts
 
 CANON = ["y", "x", "side"]
 
