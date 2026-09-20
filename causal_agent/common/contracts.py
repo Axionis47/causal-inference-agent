@@ -3,9 +3,9 @@ and the question frame and decision in between. Every claim carries the addresse
 
 from __future__ import annotations
 
-from typing import Annotated, Literal
+from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, SerializeAsAny, field_validator
 
 Intent = Literal["effect_of_change", "driver_search", "root_cause", "not_causal"]
 
@@ -320,7 +320,46 @@ class Probe(BaseModel):
         return f"[{self.address}] {v}: {self.detail}"
 
 
-class AdjustmentDesign(BaseModel):
+class Design(BaseModel):
+    """The family block: what a lane must not guess, as the desk filled it. Each family subclasses this and registers
+    the subclass, so a pack read from JSON comes back as the family's own block without the pack naming any family."""
+
+    kind: str
+
+    def columns(self) -> list[str]:
+        """Every column the block names, by the pack's name; the harness loads them even when the frame forgot one."""
+        return []
+
+    def time_column(self) -> str | None:
+        return None
+
+    def render(self) -> str:
+        return "  (no fields)"
+
+
+DESIGNS: dict[str, type[Design]] = {}
+
+
+def register_design(cls: type[Design]) -> type[Design]:
+    DESIGNS[cls.model_fields["kind"].default] = cls
+    return cls
+
+
+def parse_design(value: object) -> object:
+    """A design as it arrives: already a block, or a dict whose kind names a registered block."""
+    if value is None or isinstance(value, Design):
+        return value
+    if isinstance(value, dict):
+        kind = value.get("kind")
+        cls = DESIGNS.get(str(kind))
+        if cls is None:
+            raise ValueError(f"no family block is registered for kind {kind!r}; registered: {sorted(DESIGNS)}")
+        return cls.model_validate(value)
+    return value
+
+
+@register_design
+class AdjustmentDesign(Design):
     """What the adjustment lane must not guess. Every field is optional: an empty field means the desk could not say."""
 
     kind: Literal["adjustment"] = "adjustment"
@@ -335,6 +374,9 @@ class AdjustmentDesign(BaseModel):
     target_units: str = "average"
     contrast: str = "switch"
 
+    def columns(self) -> list[str]:
+        return [n for n in [self.instrument, self.mediator, *self.adjustment_candidates] if n]
+
     def render(self) -> str:
         return "\n".join(
             [
@@ -348,7 +390,8 @@ class AdjustmentDesign(BaseModel):
         )
 
 
-class DidDesign(BaseModel):
+@register_design
+class DidDesign(Design):
     """What the diff-in-diff lane must not guess."""
 
     kind: Literal["diff_in_diff"] = "diff_in_diff"
@@ -366,6 +409,12 @@ class DidDesign(BaseModel):
     trend_belief: Belief | None = None
     spillover: Belief | None = None
 
+    def columns(self) -> list[str]:
+        return [n for n in [self.unit, self.time, (self.treated_group or {}).get("column"), self.cluster_level, *self.controls_allowed] if n]
+
+    def time_column(self) -> str | None:
+        return self.time or None
+
     def render(self) -> str:
         tg = self.treated_group
         return "\n".join(
@@ -380,7 +429,8 @@ class DidDesign(BaseModel):
         )
 
 
-class RdDesign(BaseModel):
+@register_design
+class RdDesign(Design):
     """What the discontinuity lane must not guess."""
 
     kind: Literal["discontinuity"] = "discontinuity"
@@ -398,6 +448,9 @@ class RdDesign(BaseModel):
     sampled_by_side: bool = False
     cutoff_only: Belief | None = None
 
+    def columns(self) -> list[str]:
+        return [n for n in [self.score, (self.takeup or {}).get("column"), self.cluster, *self.covariates_allowed] if n]
+
     def render(self) -> str:
         rule = f"{self.score} {self.treated_side} {self.cutoff:g}" if self.score and self.cutoff is not None and self.treated_side else "not known"
         tk = self.takeup or {}
@@ -414,8 +467,6 @@ class RdDesign(BaseModel):
             + ([f"  {self.cutoff_only.render()}"] if self.cutoff_only is not None else [])
         )
 
-
-DesignBlock = Annotated[AdjustmentDesign | DidDesign | RdDesign, Field(discriminator="kind")]
 
 _DATASET_FACETS = ("rows", "grain", "time_coverage", "entity_summary", "format_issues")
 _COLUMN_FACETS = ("kind", "nulls", "distinct", "varies_over", "numeric", "top_values", "datetime", "switch", "sentinels", "format_issues")
@@ -469,7 +520,12 @@ class Handoff(BaseModel):
     probes: list[Probe] = Field(default_factory=list)
     claims: dict = Field(default_factory=dict, description="claim key -> {kind, fields, status, source}")
     # the family block
-    design: DesignBlock | None = None
+    design: SerializeAsAny[Design] | None = None
+
+    @field_validator("design", mode="before")
+    @classmethod
+    def _design(cls, v: object) -> object:
+        return parse_design(v)
 
     # ------------------------------------------------------------- columns
     def brief(self, name_or_key: str) -> ColumnBrief | None:

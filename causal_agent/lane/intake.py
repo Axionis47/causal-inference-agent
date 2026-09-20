@@ -19,7 +19,7 @@ import pandas as pd
 
 from causal_agent.common import config
 from causal_agent.common.addresses import key as _key
-from causal_agent.common.contracts import AdjustmentDesign, Decline, DidDesign, Feasibility, Handoff, RdDesign
+from causal_agent.common.contracts import Decline, Feasibility, Handoff
 from causal_agent.profile import datasets as DS
 
 
@@ -46,15 +46,7 @@ class Intake:
 
 def design_columns(h: Handoff) -> list[str]:
     """Every column the family block names, by key. A column the desk put in the block is loaded even when the frame forgot it."""
-    b = h.design
-    names: list = []
-    if isinstance(b, AdjustmentDesign):
-        names += [b.instrument, b.mediator] + list(b.adjustment_candidates)
-    elif isinstance(b, DidDesign):
-        names += [b.unit, b.time, (b.treated_group or {}).get("column"), b.cluster_level] + list(b.controls_allowed)
-    elif isinstance(b, RdDesign):
-        names += [b.score, (b.takeup or {}).get("column"), b.cluster] + list(b.covariates_allowed)
-    return [_key(n) for n in names if n]
+    return [_key(n) for n in (h.design.columns() if h.design else []) if n]
 
 
 def wanted_columns(h: Handoff, extra: list[str] | None = None) -> list[str]:
@@ -286,9 +278,9 @@ def apply_window(table: pd.DataFrame, text: str | None, time_key: str | None, st
 
 def time_key(h: Handoff, entry: dict | None = None) -> str | None:
     """The time column the pack names: the panel block's, the change's date column, or the dataset entry's."""
-    b = h.design
-    if isinstance(b, DidDesign) and b.time:
-        return _key(b.time)
+    t = h.design.time_column() if h.design else None
+    if t:
+        return _key(t)
     if h.change.get("date_column"):
         return _key(h.change["date_column"])
     e = entry or {}
