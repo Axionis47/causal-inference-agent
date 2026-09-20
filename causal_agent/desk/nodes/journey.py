@@ -394,7 +394,7 @@ def listen(state: DeskState) -> Command[Literal["infer", "fit", "handoff", "chec
         return Command(goto="__end__")
     memory = F.memory_of(state)
     turn = int(state.get("turn") or 0) + 1
-    _remember(memory, turn, ", ".join(a.addresses) if a else "", answer)
+    _remember(memory, turn, ", ".join((("lane:" + x) if a.from_lane else x) for x in a.addresses) if a else "", answer)
     if low in RUN_WORDS:
         if st and st.ready:
             store.save(memory)
@@ -581,7 +581,7 @@ def ask_back(state: DeskState) -> dict:
     if not options:
         options = [str(o) for o in kind.fields[field].options] if kind and field in kind.fields and kind.fields[field].type == "choice" else (["yes", "no"] if kind and field in kind.fields and kind.fields[field].type == "bool" else [])
     a = Ask(addresses=[address], kind="choose" if options else "open", text=q.get("question") or "", options=options, because=[rec.family] if rec.family else [],
-            evidence=[str(e) for e in q.get("evidence") or []])
+            evidence=[str(e) for e in q.get("evidence") or []], from_lane=True)
     reason = (rec.specialist_result.get("feasibility") or {}).get("reason") or "it needs one more thing"
     because = f"{q['because']}\n" if q.get("because") else ""
     text = f"The analysis stopped before estimating: {reason}.\n\n{because}{a.text}"

@@ -137,7 +137,7 @@ def test_trend_true_and_a_hard_check_asks_once_then_softens():
     action, ask, checks = C.decide_by_code(case, _checks("hard"), RULES, h)
     assert action == "ask" and ask.address == "claim:trend_continues.believed" and ask.options == ["yes", "no"] and ask.evidence == ["check:c.pre_trends"]
     assert "p = 0.004" in ask.question and 'You said: "they moved together"' in ask.question and ask.because.startswith("[check:c.pre_trends]")
-    h.said.append(Said(turn=7, about="claim:trend_continues.believed", text="yes, the tax was announced early"))
+    h.said.append(Said(turn=7, about="lane:claim:trend_continues.believed", text="yes, the tax was announced early"))
     h.beliefs["trend_continues"].said = "yes, the tax was announced early"
     case = C.weigh(h, RULES)
     action, payload, checks = C.decide_by_code(case, _checks("hard"), RULES, h)
@@ -151,7 +151,7 @@ def test_an_unasked_belief_with_an_ask_opens_it_once():
     case = C.weigh(h, RULES)
     action, ask, _ = C.decide_by_code(case, [], RULES, h)
     assert action == "ask" and ask.address == "claim:trend_continues.believed" and "state" in ask.question
-    h.said.append(Said(turn=3, about="claim:trend_continues.believed, claim:spillover.possible", text="I don't know"))
+    h.said.append(Said(turn=3, about="lane:claim:trend_continues.believed, lane:claim:spillover.possible", text="I don't know"))
     assert C.already_asked(h, "claim:trend_continues.believed")
     action, _, _ = C.decide_by_code(C.weigh(h, RULES), [], RULES, h)
     assert action == "proceed"

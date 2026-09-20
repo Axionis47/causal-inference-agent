@@ -248,8 +248,9 @@ def as_checks(case: Case) -> list[CheckResult]:
 
 
 def already_asked(h: Handoff, address: str) -> bool:
-    """The desk records what each turn was about; an address asked once is not asked again across designs."""
-    return any(address in (s.about or "") for s in h.said)
+    """The desk remembers a turn that answered a lane's question as about lane:<address>; an address asked once is not asked
+    again across designs. The person's own earlier sentence about the field does not count as an answer to the lane."""
+    return any(f"lane:{address}" in (s.about or "") for s in h.said)
 
 
 def decide_by_code(case: Case, checks: list[CheckResult], rules: dict | None, h: Handoff) -> tuple[str, Any, list[CheckResult]]:

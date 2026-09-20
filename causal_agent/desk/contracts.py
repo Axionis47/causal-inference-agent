@@ -19,6 +19,7 @@ class Ask(BaseModel):
     options: list[str] = Field(default_factory=list, description="for choose: the legal answers")
     because: list[str] = Field(default_factory=list, description="the families that need these fields")
     evidence: list[str] = Field(default_factory=list, description="check addresses shown beside the question, when the file refuted an answer")
+    from_lane: bool = Field(default=False, description="a lane asked it back after a run; the turn is remembered as about lane:<address> so it is asked once")
 
 
 class FieldUpdate(BaseModel):
