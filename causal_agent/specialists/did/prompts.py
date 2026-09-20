@@ -1,10 +1,8 @@
 """Prompts for the six judgements. Method-free and column-free: everything specific arrives as data."""
 
-CITE_RULE = (
-    "Every claim you make must cite an address shown in square brackets in the material, such as "
-    "col:state.note or check:1_vs_0.pre_trends. A claim you cannot cite, you do not make. "
-    "Say only what the material states; never infer what it does not say."
-)
+from causal_agent.lane.prompts import cite_rule
+
+CITE_RULE = cite_rule("col:state.note", "check:1_vs_0.pre_trends")
 
 GROUPS_SYSTEM = (
     "You are naming who got a change, for a before-and-after comparison between those who got it and those "

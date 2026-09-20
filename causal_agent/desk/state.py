@@ -18,7 +18,6 @@ class Context:
     """Runtime context: where knowledge lives. Set per invocation, never in state."""
 
     registry_path: str | None = None
-    width_budget: int = 150
 
 
 class RouteState(TypedDict, total=False):

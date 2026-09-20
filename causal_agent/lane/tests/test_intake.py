@@ -11,11 +11,6 @@ from causal_agent.lane import intake
 from causal_agent.memory import store
 
 
-@pytest.fixture(autouse=True)
-def _run_dir(monkeypatch, tmp_path):
-    monkeypatch.setenv("RUN_DIR", str(tmp_path / "runs"))
-
-
 def students(scope: Scope | None = None):
     return forced(
         "students3",

@@ -1,11 +1,7 @@
 """The routing prompts: skim a column, read the question, choose among the families the memory lets survive. No column
 names, no family names, no rules in the prompt; the memory and the knowledge go in as data."""
 
-CITE_RULE = (
-    "Every reason must cite one or more addresses exactly as they appear in square brackets in the material, "
-    "for example col:lunch.note or change:1.note or dataset.profile.grain. "
-    "Do not invent addresses. If the material does not support a claim, do not make the claim."
-)
+from causal_agent.common.prompts import CITE_ADDRESSES_RULE as CITE_RULE
 
 PREFILTER_SYSTEM = f"""You are a causal analyst skimming one column of a wide dataset to decide whether it could matter
 to a question. Say relevant if the column could be the outcome, could be the change asked about, could have

@@ -19,11 +19,40 @@ from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from langgraph.graph import START, StateGraph
 from langgraph.types import RetryPolicy
 
+from causal_agent.common.contracts import (
+    AdjustmentDesign,
+    Belief,
+    Candidate,
+    Cited,
+    ColumnBrief,
+    ColumnFacts,
+    Decline,
+    DidDesign,
+    FamilyDecision,
+    FamilyVerdict,
+    Handoff,
+    LaneAsk,
+    NeedCheck,
+    PrefilterVote,
+    Probe,
+    Provenance,
+    QuestionFrame,
+    RdDesign,
+    Rejection,
+    RunRecord,
+    Said,
+    Scope,
+    Thought,
+)
+from causal_agent.desk.contracts import AfterReply, Ask, Exchange, FieldUpdate, Finding, Inference, NumberStated
 from causal_agent.desk.nodes import after as A
 from causal_agent.desk.nodes import decide as D
 from causal_agent.desk.nodes import frame as F
 from causal_agent.desk.nodes import journey as J
 from causal_agent.desk.state import Context, DeskState
+from causal_agent.memory.claims import ProbeResult, Status
+from causal_agent.memory.ops import Open
+from causal_agent.memory.records import Column, Field, Memory
 
 _retry = RetryPolicy(max_attempts=3, initial_interval=1.0)
 
@@ -79,43 +108,46 @@ def build() -> StateGraph:
 
 graph = build().compile()  # for `langgraph dev`: the platform injects its own checkpointer
 
-_CONTRACTS = (
-    [
-        ("causal_agent.common.contracts", n)
-        for n in (
-            "Thought",
-            "Cited",
-            "Candidate",
-            "Scope",
-            "QuestionFrame",
-            "PrefilterVote",
-            "NeedCheck",
-            "FamilyVerdict",
-            "Rejection",
-            "FamilyDecision",
-            "Handoff",
-            "ColumnBrief",
-            "ColumnFacts",
-            "Provenance",
-            "Belief",
-            "Said",
-            "Probe",
-            "AdjustmentDesign",
-            "DidDesign",
-            "RdDesign",
-            "Decline",
-            "LaneAsk",
-        )
-    ]
-    + [("causal_agent.desk.contracts", n) for n in ("Ask", "FieldUpdate", "Inference", "RunRecord", "NumberStated", "AfterReply", "Exchange", "Finding")]
-    + [("causal_agent.memory.claims", n) for n in ("ProbeResult", "Status")]
-    + [
-        ("causal_agent.memory.ops", "Open"),
-        ("causal_agent.memory.records", "Memory"),
-        ("causal_agent.memory.records", "Field"),
-        ("causal_agent.memory.records", "Column"),
-    ]
-)
+_CONTRACTS: list = [
+    Thought,
+    Cited,
+    Candidate,
+    Scope,
+    QuestionFrame,
+    PrefilterVote,
+    NeedCheck,
+    FamilyVerdict,
+    Rejection,
+    FamilyDecision,
+    Handoff,
+    ColumnBrief,
+    ColumnFacts,
+    Provenance,
+    Belief,
+    Said,
+    Probe,
+    AdjustmentDesign,
+    DidDesign,
+    RdDesign,
+    Decline,
+    LaneAsk,
+    RunRecord,
+    Ask,
+    FieldUpdate,
+    Inference,
+    NumberStated,
+    AfterReply,
+    Exchange,
+    Finding,
+    ProbeResult,
+    Status,
+    Open,
+    Memory,
+    Field,
+    Column,
+    # where a class used to live, so a checkpoint written then still loads
+    ("causal_agent.desk.contracts", "RunRecord"),
+]
 
 serde = JsonPlusSerializer(allowed_msgpack_modules=_CONTRACTS)
 

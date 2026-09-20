@@ -4,23 +4,23 @@ columns when the table is wide, and frame the question. One judgement per model 
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
-import pandas as pd
 from langgraph.config import get_stream_writer
 from langgraph.types import Send
 
+from causal_agent.common import config
 from causal_agent.common.addresses import key as _key
-from causal_agent.common.contracts import PrefilterVote, QuestionFrame, render_change_text, render_dataset_text
+from causal_agent.common.contracts import PrefilterVote, QuestionFrame, render_change_text
 from causal_agent.common.llm import structured
-from causal_agent.desk import handoff as H
 from causal_agent.desk.prompts import routing as P
 from causal_agent.desk.state import PrefilterTask, RouteState
 from causal_agent.memory import ops, store
+from causal_agent.memory import views as V
 from causal_agent.memory.catalogue import load_catalogue
 from causal_agent.memory.claims import Extraction
 from causal_agent.memory.records import Memory
+from causal_agent.memory.views import context_text, index_records
 from causal_agent.profile import datasets as DS
 
 MINE_ATTEMPTS = 2
@@ -39,31 +39,6 @@ def memory_of(state: RouteState) -> Memory:
     if fork is not None:
         return fork
     return store.memory_for(state["dataset"])
-
-
-def table_of(memory: Memory) -> pd.DataFrame:
-    csv = memory.csv or (DS.dataset_entries().get(memory.name) or {}).get("csv")
-    path = Path(csv) if csv and Path(csv).is_absolute() else Path(DS.ROOT) / csv
-    return pd.read_csv(path)
-
-
-def width_budget() -> int:
-    return int(os.getenv("FRAME_WIDTH_BUDGET", os.getenv("ROUTER_WIDTH_BUDGET", "150")))
-
-
-def index_records(memory: Memory) -> list:
-    """Columns the frame may see: drop ids and constants deterministically."""
-    return [c for c in memory.columns.values() if c.facts.kind != "id" and not c.facts.constant]
-
-
-def context_text(memory: Memory) -> str:
-    return "\n\n".join(
-        [
-            render_dataset_text(memory.name, memory.facts, H.fields_of(memory, "grain"), H.fields_of(memory, "sampling"), H.fields_of(memory, "missing")),
-            render_change_text(H.fields_of(memory, "change"), H.fields_of(memory, "assignment")),
-            "BELIEFS\n" + ("\n".join(b.render() for k in H.BELIEF_KINDS if (b := H.belief_of(memory, k)) is not None) or "(none recorded)"),
-        ]
-    )
 
 
 # ------------------------------------------------------------------ load and mine
@@ -99,7 +74,7 @@ def mine(state: RouteState) -> dict:
 
     name, text = doc
     cat = load_catalogue()
-    cards = "\n".join(H.brief_of(memory, c).line() for c in memory.columns.values())
+    cards = "\n".join(V.brief_of(memory, c).line() for c in memory.columns.values())
     errors = ""
     debug, rejected = [], []
     for _ in range(MINE_ATTEMPTS):
@@ -138,10 +113,10 @@ def fan_out_prefilter(state: RouteState, then: str = "frame") -> list[Send] | st
     """On a wide table, one skim per column before the frame; otherwise straight to `then`."""
     memory = memory_of(state)
     recs = index_records(memory)
-    if len(recs) <= width_budget():
+    if len(recs) <= config.get().width_budget:
         return then
-    changes = render_change_text(H.fields_of(memory, "change"), H.fields_of(memory, "assignment"))
-    return [Send("prefilter", PrefilterTask(question=state["question"], changes=changes, column=c.name, card=H.brief_of(memory, c).render())) for c in recs]
+    changes = render_change_text(V.fields_of(memory, "change"), V.fields_of(memory, "assignment"))
+    return [Send("prefilter", PrefilterTask(question=state["question"], changes=changes, column=c.name, card=V.brief_of(memory, c).render())) for c in recs]
 
 
 def prefilter(task: PrefilterTask) -> dict:
@@ -161,7 +136,7 @@ def frame(state: RouteState) -> dict:
     votes = {v.column: v.relevant for v in state.get("prefilter_votes", [])}
     if votes:
         recs = [c for c in recs if votes.get(c.name, True)]
-    index = "\n".join(H.brief_of(memory, c).line() for c in recs)
+    index = "\n".join(V.brief_of(memory, c).line() for c in recs)
     fr, thought = structured(
         QuestionFrame, P.FRAME_SYSTEM, P.FRAME_USER.format(question=state["question"], digest=context_text(memory), column_index=index), node="frame"
     )

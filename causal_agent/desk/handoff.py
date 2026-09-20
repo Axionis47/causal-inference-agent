@@ -14,7 +14,6 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
-from typing import Any
 
 from causal_agent.common.addresses import key
 from causal_agent.common.contracts import (
@@ -26,111 +25,16 @@ from causal_agent.common.contracts import (
     FamilyDecision,
     Handoff,
     Probe,
-    Provenance,
     QuestionFrame,
     RdDesign,
-    Said,
     Scope,
 )
 from causal_agent.knowledge import Family, load_registry
 from causal_agent.memory import ops, store
 from causal_agent.memory.claims import ProbeResult
-from causal_agent.memory.records import COLUMN_KIND, Column, Memory
+from causal_agent.memory.records import COLUMN_KIND, Memory
+from causal_agent.memory.views import BELIEF_KINDS, belief_of, brief_of, fields_of, in_play, said_of
 from causal_agent.profile import datasets as DS
-
-BELIEF_KINDS = ("unobserved", "exclusion", "spillover", "trend_continues", "cutoff_only", "mediator")
-_VALUE_FIELD = {
-    "unobserved": "exists",
-    "exclusion": "exists",
-    "spillover": "possible",
-    "trend_continues": "believed",
-    "cutoff_only": "believed",
-    "mediator": "exists",
-}
-
-
-# ------------------------------------------------------------------ pieces
-
-
-def fields_of(memory: Memory, kind: str) -> dict[str, Any]:
-    return memory.values_of(f"claim:{kind}")
-
-
-def brief_of(memory: Memory, col: Column, role: str | None = None) -> ColumnBrief:
-    """A column as the lane reads it: the file's facts beside what is known about it. The role is the caller's view."""
-    fs = memory.fields_of(col.address)
-    v = {n: f.value for n, f in fs.items() if f.value is not None}
-    src = next((fs[n].source for n in ("meaning", "when") if n in v and fs[n].source), None)
-    prov = {n: Provenance(status=f.status, source=f.source, said=f.said) for n, f in fs.items() if f.value is not None or f.status != "empty"}
-    return ColumnBrief(
-        name=col.name,
-        key=col.key,
-        role=role or "candidate",
-        meaning=v.get("meaning"),
-        stands_for=v.get("stands_for"),
-        proxy=v.get("proxy"),
-        when=v.get("when") or "unknown",
-        set_by=v.get("set_by"),
-        moved_by_change=v.get("moved_by_change"),
-        measures_outcome=v.get("measures_outcome"),
-        source=src,
-        provenance=prov,
-        facts=col.facts,
-    )
-
-
-def belief_of(memory: Memory, kind: str) -> Belief | None:
-    fs = {n: f for n, f in memory.fields_of(f"claim:{kind}").items() if f.value is not None or f.status != "empty"}
-    if not fs:
-        return None
-    vf = fs.get(_VALUE_FIELD[kind]) or next(iter(fs.values()))
-    known = {n: f.value for n, f in fs.items() if f.value is not None}
-    return Belief(
-        kind=kind,
-        value=known.get(_VALUE_FIELD[kind]),
-        what=known.get("what"),
-        why=known.get("why") or known.get("why_believed"),
-        column=known.get("column"),
-        status=vf.status,
-        source=vf.source,
-        said=vf.said,
-    )
-
-
-def said_of(memory: Memory) -> list[Said]:
-    """The person's words, plus the sentence each known field rests on when the transcript does not carry it."""
-    out = list(memory.said)
-    seen = {(s.turn, s.text) for s in out}
-    for address, f in memory.fields.items():
-        if f.said and f.source and f.source.startswith("user:turn:"):
-            turn = int(f.source.rsplit(":", 1)[1])
-            if (turn, f.said) not in seen:
-                out.append(Said(turn=turn, about=address, text=f.said))
-                seen.add((turn, f.said))
-    return sorted(out, key=lambda s: s.turn)
-
-
-def in_play(memory: Memory, frame: QuestionFrame | None, entry: dict | None = None) -> list[str]:
-    """The columns the question, the rule, or the grain name, by the file's own name. Every other column is out of play:
-    never asked about, never in the pack."""
-    entry = entry or {}
-    a, ch, g = memory.values_of("claim:assignment"), memory.values_of("claim:change"), memory.values_of("claim:grain")
-    names: list[str] = []
-    cands = ([frame.outcome, frame.cause] + [c.column for c in frame.relevant_columns]) if frame else []
-    for n in (
-        cands
-        + [a.get("treatment_column")]
-        + list(a.get("depends_on") or [])
-        + [a.get("score_column"), ch.get("date_column"), a.get("level_column"), memory.value("claim:exclusion.column"), memory.value("claim:mediator.column")]
-        + list(g.get("key_columns") or [])
-        + [entry.get("time")]
-        + list(entry.get("entity") or [])
-    ):
-        c = memory.column(n) if n else None
-        if c is not None and c.name not in names:
-            names.append(c.name)
-    return names
-
 
 # ------------------------------------------------------------------ the family blocks (derived by code; never a constraint)
 
@@ -351,8 +255,7 @@ def forced(
         reasons=[],
     )
     decision = FamilyDecision(admissible=[family], chosen=family, chosen_assumption=assumption, why_over_alternatives="forced", rejected=[])
-    csv = m.csv or (DS.dataset_entries().get(pack_name) or {}).get("csv")
-    path = Path(csv) if csv and Path(csv).is_absolute() else (Path(DS.ROOT) / csv if csv else None)
+    path = DS.csv_path(pack_name, m.csv)
     probes = ops.probe(m, pd.read_csv(path)) if path is not None and path.exists() else []
     return build(question=question, frame=frame, decision=decision, family=fam, memory=m, probes=probes)
 

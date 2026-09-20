@@ -109,9 +109,6 @@ layers = [
 ]
 ignore_imports = [
     "causal_agent.memory.probes -> causal_agent.viz.previz.adjustment",
-    "causal_agent.viz.graph -> causal_agent.desk.nodes.frame",
-    "causal_agent.viz.prompts -> causal_agent.desk.prompts.routing",
-    "causal_agent.viz.postviz -> causal_agent.desk.contracts",
     "causal_agent.specialists.*.run -> causal_agent.desk.route",
     "causal_agent.specialists.*.evals.run -> causal_agent.desk.route",
     "causal_agent.**.tests.** -> causal_agent.desk.**",

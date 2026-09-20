@@ -26,7 +26,6 @@ def settings(tmp_path, monkeypatch) -> Settings:
     (tmp_path / "data").mkdir()
     (tmp_path / "data" / "datasets.yaml").write_text("# test index\n{}\n")
     monkeypatch.setattr(DSI, "ROOT", tmp_path)
-    monkeypatch.setenv("PROFILE_CACHE_DIR", str(tmp_path / "cache"))
     return Settings(root=tmp_path, run_root=tmp_path / "runs", dist=tmp_path / "dist")
 
 

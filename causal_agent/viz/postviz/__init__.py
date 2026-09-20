@@ -4,7 +4,7 @@ modules (`adjustment`, `diff_in_diff`, `discontinuity`) draw more, from inside t
 
 from __future__ import annotations
 
-from causal_agent.desk.contracts import RunRecord
+from causal_agent.common.contracts import RunRecord
 from causal_agent.viz.postviz import common
 from causal_agent.viz.spec import FigureSpec
 

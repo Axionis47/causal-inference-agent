@@ -147,7 +147,6 @@ class FakeLLM:
 
 @pytest.fixture(autouse=True)
 def _restore(tmp_path, monkeypatch):
-    monkeypatch.setenv("RUN_DIR", str(tmp_path / "runs"))
     yield
     set_llm(None)
 

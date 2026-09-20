@@ -16,7 +16,6 @@ from langgraph.types import Command, interrupt
 
 from causal_agent.common.contracts import QuestionFrame, Said
 from causal_agent.common.llm import structured
-from causal_agent.desk import handoff as H
 from causal_agent.desk import pipeline
 from causal_agent.desk.contracts import Ask, Finding, Inference, RunRecord
 from causal_agent.desk.nodes import decide as D
@@ -25,6 +24,7 @@ from causal_agent.desk.prompts import journey as P
 from causal_agent.desk.state import Context, DeskState
 from causal_agent.knowledge import Family, load_registry
 from causal_agent.memory import ops, store
+from causal_agent.memory import views as V
 from causal_agent.memory.catalogue import Catalogue, ClaimKind, load_catalogue, load_thresholds
 from causal_agent.memory.records import COLUMN_KIND, Memory
 from causal_agent.profile import data as PD
@@ -64,8 +64,9 @@ def kinds_text() -> str:
 
 
 def _csv_path(memory: Memory) -> Path:
-    csv = memory.csv or (DS.dataset_entries().get(memory.name) or {}).get("csv")
-    return Path(csv) if csv and Path(csv).is_absolute() else Path(DS.ROOT) / csv
+    path = DS.csv_path(memory.name, memory.csv)
+    assert path is not None, f"no csv is known for {memory.name!r}"
+    return path
 
 
 def _entry(memory: Memory) -> dict:
@@ -73,7 +74,7 @@ def _entry(memory: Memory) -> dict:
 
 
 def _columns_in_play(memory: Memory, frame: QuestionFrame | None) -> list[str]:
-    return H.in_play(memory, frame, _entry(memory))
+    return V.in_play(memory, frame, _entry(memory))
 
 
 def _remember(memory: Memory, turn: int, about: str, text: str) -> None:
@@ -213,7 +214,7 @@ def read_question(state: DeskState) -> Command[Literal["ask_question", "check"]]
 
 def check(state: DeskState) -> dict:
     memory = F.memory_of(state)
-    df = F.table_of(memory)
+    df = V.table_of(memory)
     prof = PD.profile_for(_csv_path(memory))
     fr = state.get("frame")
     turn = int(state.get("turn") or 0)
@@ -233,7 +234,7 @@ def check(state: DeskState) -> dict:
 
 def probe_fit(state: DeskState) -> dict:
     memory = F.memory_of(state)
-    df = F.table_of(memory)
+    df = V.table_of(memory)
     fr = state.get("frame")
     probes = ops.probe(memory, df, TH, CAT)
     status = ops.fit(memory, probes, CAT, columns=_columns_in_play(memory, fr))
@@ -532,7 +533,7 @@ def infer(state: DeskState) -> Command[Literal["infer", "check"]]:
     asked = (a.text + "\n(settles: " + ", ".join(a.addresses) + ")") if a else "(no question was asked; the person spoke freely)"
     errs = state.get("infer_errors") or []
     errors = ("\nPREVIOUS UPDATES WERE REJECTED:\n" + "\n".join(f"- {e}" for e in errs) + "\nFix them and return the set again.\n") if errs else ""
-    cols = "\n".join(H.brief_of(memory, c).line() for c in memory.columns.values() if not c.facts.constant)
+    cols = "\n".join(V.brief_of(memory, c).line() for c in memory.columns.values() if not c.facts.constant)
     user = P.INFER_USER.format(
         kinds=kinds_text(),
         memory=memory.render() or "(nothing known yet)",

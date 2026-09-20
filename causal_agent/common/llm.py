@@ -6,7 +6,6 @@ for debugging. Thoughts are never gated, cited, or read by another node.
 
 from __future__ import annotations
 
-import os
 import subprocess
 from functools import lru_cache
 from typing import Any, TypeVar
@@ -14,6 +13,7 @@ from typing import Any, TypeVar
 from dotenv import load_dotenv
 from pydantic import BaseModel
 
+from causal_agent.common import config
 from causal_agent.common.contracts import Thought
 
 load_dotenv()
@@ -29,25 +29,15 @@ def _gcloud_project() -> str | None:
         return None
 
 
-def _flag(name: str, default: bool) -> bool:
-    v = os.getenv(name)
-    return default if v is None else v.strip().lower() in {"1", "true", "yes", "on"}
-
-
 @lru_cache(maxsize=1)
 def get_llm():
     from langchain_google_vertexai import ChatVertexAI
 
-    kwargs: dict[str, Any] = dict(
-        model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
-        project=os.getenv("VERTEX_PROJECT") or _gcloud_project(),
-        location=os.getenv("VERTEX_LOCATION", "us-central1"),
-        temperature=0,
-        max_retries=2,
-    )
-    if _flag("INCLUDE_THOUGHTS", True):
+    m = config.get().model
+    kwargs: dict[str, Any] = dict(model=m.name, project=m.project or _gcloud_project(), location=m.location, temperature=0, max_retries=2)
+    if m.include_thoughts:
         kwargs["include_thoughts"] = True
-        kwargs["thinking_budget"] = int(os.getenv("THINKING_BUDGET", "1024"))
+        kwargs["thinking_budget"] = m.thinking_budget
     return ChatVertexAI(**kwargs)
 
 

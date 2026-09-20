@@ -1,10 +1,8 @@
 """Prompts for the five judgements. Method-free and column-free: everything specific arrives as data."""
 
-CITE_RULE = (
-    "Every claim you make must cite an address shown in square brackets in the material, such as "
-    "col:lunch.note or check:completed_vs_none.overlap. A claim you cannot cite, you do not make. "
-    "Say only what the material states; never infer what it does not say."
-)
+from causal_agent.lane.prompts import cite_rule
+
+CITE_RULE = cite_rule("col:lunch.note", "check:completed_vs_none.overlap")
 
 CONTRAST_SYSTEM = (
     "You define the comparison for a causal analysis. The treatment column's card and the question are given. "

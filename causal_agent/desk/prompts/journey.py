@@ -1,7 +1,7 @@
 """The desk's judgements before and after the run: read a note into drafts, infer what a message settles, and answer
 after a run. Method-free and column-free: kinds, fields, the memory, and the person's words arrive as data."""
 
-CITE_RULE = (
+UPDATE_RULE = (
     "Every update names the address of the field it fills, exactly as listed, and quotes the person's own words it "
     "rests on. Say only what the words state or what follows from combining two stated things. A field the words do "
     "not touch is left alone and will be asked."
@@ -19,7 +19,7 @@ INFER_SYSTEM = (
     "fixed before the change; a mark from the exam sat after the course was measured after it.\n"
     "Never fill a field from the file's numbers alone. Never fill a belief (a field marked uncheckable) unless the "
     "person states it. The person may say anything; you decide what their words support, and the desk decides what "
-    "is written. " + CITE_RULE
+    "is written. " + UPDATE_RULE
 )
 
 INFER_USER = """KINDS OF FIELD

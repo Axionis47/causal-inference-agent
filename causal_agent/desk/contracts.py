@@ -7,6 +7,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from causal_agent.common.contracts import RunRecord as RunRecord  # moved to common; kept here for old checkpoints
+
 AskKind = Literal["confirm", "choose", "open", "columns"]
 
 
@@ -36,28 +38,6 @@ class Inference(BaseModel):
     confirms: list[str] = Field(default_factory=list, description="addresses of drafted fields the person said are right, as they stand")
     unknown: list[str] = Field(default_factory=list, description="addresses the person said they cannot say")
     note: str = Field(default="", description="anything said that fits no field, one sentence, or empty")
-
-
-class RunRecord(BaseModel):
-    index: int
-    dataset: str
-    question: str
-    family: str | None = None
-    specialist: str | None = None
-    status: str = "no_handoff"
-    run_dir: str | None = None
-    design_dir: str | None = None
-    figures: list[dict] = Field(default_factory=list, description="FigureSpecs the run left behind, the ready-moment figure first")
-    what_if: dict[str, str] = Field(default_factory=dict, description="for a what-if design: the fields changed on the fork, address -> value")
-    differs: list[str] = Field(default_factory=list, description="the fields that differ from the design before, by address")
-    effect: float | None = None
-    ci_low: float | None = None
-    ci_high: float | None = None
-    estimator: str | None = None
-    decision_record: str = ""
-    decision: dict = Field(default_factory=dict)  # chosen, chosen_assumption, why, over: {family: reason}
-    specialist_result: dict = Field(default_factory=dict)
-    artifacts: dict = Field(default_factory=dict)  # artifacts.json when the run dir holds one
 
 
 class NumberStated(BaseModel):

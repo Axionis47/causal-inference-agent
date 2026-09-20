@@ -693,6 +693,30 @@ class LaneAsk(BaseModel):
     stage: str = ""
 
 
+class RunRecord(BaseModel):
+    """What one run left behind, as the desk keeps it in state and the server shows it."""
+
+    index: int
+    dataset: str
+    question: str
+    family: str | None = None
+    specialist: str | None = None
+    status: str = "no_handoff"
+    run_dir: str | None = None
+    design_dir: str | None = None
+    figures: list[dict] = Field(default_factory=list, description="FigureSpecs the run left behind, the ready-moment figure first")
+    what_if: dict[str, str] = Field(default_factory=dict, description="for a what-if design: the fields changed on the fork, address -> value")
+    differs: list[str] = Field(default_factory=list, description="the fields that differ from the design before, by address")
+    effect: float | None = None
+    ci_low: float | None = None
+    ci_high: float | None = None
+    estimator: str | None = None
+    decision_record: str = ""
+    decision: dict = Field(default_factory=dict)  # chosen, chosen_assumption, why, over: {family: reason}
+    specialist_result: dict = Field(default_factory=dict)
+    artifacts: dict = Field(default_factory=dict)  # artifacts.json when the run dir holds one
+
+
 def _slug(s: str) -> str:
     import re
 

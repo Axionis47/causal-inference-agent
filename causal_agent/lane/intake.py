@@ -10,7 +10,6 @@ The filter grammar is small on purpose: `col == v`, `col != v`, `col >= v`, `col
 
 from __future__ import annotations
 
-import os
 import re
 import uuid
 from dataclasses import dataclass, field
@@ -18,6 +17,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from causal_agent.common import config
 from causal_agent.common.addresses import key as _key
 from causal_agent.common.contracts import AdjustmentDesign, Decline, DidDesign, Feasibility, Handoff, RdDesign
 from causal_agent.profile import datasets as DS
@@ -342,7 +342,7 @@ def load(h: Handoff, tag: str, *, extra: list[str] | None = None, dropna: bool =
     facts.update(f)
     if dropna:
         table = table.dropna()
-    run_dir = Path(os.getenv("RUN_DIR", ".artifacts/runs")) / f"{h.pack_name}-{tag}-{uuid.uuid4().hex[:8]}"
+    run_dir = config.get().paths.runs / f"{h.pack_name}-{tag}-{uuid.uuid4().hex[:8]}"
     run_dir.mkdir(parents=True, exist_ok=True)
     table_path = run_dir / "table.csv"
     table.to_csv(table_path, index=False)

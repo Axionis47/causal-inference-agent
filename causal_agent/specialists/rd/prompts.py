@@ -1,10 +1,8 @@
 """Prompts for the five judgements. Method-free and column-free: everything specific arrives as data."""
 
-CITE_RULE = (
-    "Every claim you make must cite an address shown in square brackets in the material, such as "
-    "col:score.note or check:above_vs_below.density. A claim you cannot cite, you do not make. "
-    "Say only what the material states; never infer what it does not say."
-)
+from causal_agent.lane.prompts import cite_rule
+
+CITE_RULE = cite_rule("col:score.note", "check:above_vs_below.density")
 
 SCORE_SYSTEM = (
     "You are naming the score and the cutoff that decided who got a change, for a comparison of units just either "

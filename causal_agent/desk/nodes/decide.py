@@ -13,14 +13,16 @@ from causal_agent.common.addresses import norm_address
 from causal_agent.common.contracts import FamilyDecision, FamilyVerdict, Handoff, NeedCheck, QuestionFrame, Rejection, render_change_text
 from causal_agent.common.llm import structured
 from causal_agent.desk import handoff as H
-from causal_agent.desk.nodes.frame import memory_of, table_of
+from causal_agent.desk.nodes.frame import memory_of
 from causal_agent.desk.prompts import routing as P
 from causal_agent.desk.state import Context, RouteState
 from causal_agent.knowledge import Family, load_registry, render_preferences
 from causal_agent.memory import ops
+from causal_agent.memory import views as V
 from causal_agent.memory.catalogue import load_catalogue
 from causal_agent.memory.claims import ProbeResult, Status
 from causal_agent.memory.records import Memory
+from causal_agent.memory.views import table_of
 
 MAX_DECIDE_ATTEMPTS = 3
 
@@ -88,7 +90,7 @@ def fit(state: RouteState, runtime: Runtime[Context]) -> dict:
     probes = ops.probe(memory, df)
     from causal_agent.profile import datasets as DS
 
-    status = ops.fit(memory, probes, columns=H.in_play(memory, state.get("frame"), DS.dataset_entries().get(memory.name) or {}))
+    status = ops.fit(memory, probes, columns=V.in_play(memory, state.get("frame"), DS.dataset_entries().get(memory.name) or {}))
     verdicts = verdicts_from(memory, status, probes, _registry(runtime))
     _writer()({"fit": {"surviving": status.surviving, "struck": status.struck, "admissible": [v.family for v in verdicts if v.admissible]}})
     return {"family_verdicts": verdicts, "probes": probes, "fit_status": status.model_dump()}
@@ -152,7 +154,7 @@ def decide(state: RouteState, runtime: Runtime[Context]) -> dict:
             outcome=fr.outcome or "none",
             cause=fr.cause or "none",
             scope=_scope_text(fr),
-            changes=render_change_text(H.fields_of(memory, "change"), H.fields_of(memory, "assignment")),
+            changes=render_change_text(V.fields_of(memory, "change"), V.fields_of(memory, "assignment")),
             preferences=render_preferences(_registry(runtime)),
             verdicts=_render_verdicts(verdicts),
             addresses=", ".join(dict.fromkeys(addresses)),

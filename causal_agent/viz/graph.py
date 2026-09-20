@@ -28,10 +28,10 @@ from typing_extensions import TypedDict
 from causal_agent.common.addresses import norm_address
 from causal_agent.common.contracts import Thought
 from causal_agent.common.llm import structured
-from causal_agent.desk.nodes.frame import context_text, table_of
 from causal_agent.memory import store
 from causal_agent.memory.catalogue import load_thresholds
 from causal_agent.memory.records import Memory
+from causal_agent.memory.views import context_text, table_of
 from causal_agent.profile.data import column
 from causal_agent.viz import prompts as P
 from causal_agent.viz.previz import adjustment, diff_in_diff, discontinuity

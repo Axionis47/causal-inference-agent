@@ -7,11 +7,11 @@ flags always give the same profile, so a file is profiled once however many proc
 from __future__ import annotations
 
 import hashlib
-import os
 from pathlib import Path
 
 import pandas as pd
 
+from causal_agent.common import config
 from causal_agent.common.addresses import key as _key
 from causal_agent.profile.pack import ColumnCard, DatasetCard, Pack
 from causal_agent.profile.profiler import PROFILER_VERSION, Profile, profile
@@ -20,9 +20,7 @@ _cache: dict[str, tuple[pd.DataFrame, Profile]] = {}
 
 
 def cache_dir() -> Path:
-    from causal_agent.profile.datasets import ROOT
-
-    return Path(os.getenv("PROFILE_CACHE_DIR") or ROOT / ".artifacts" / "profiles")
+    return config.get().paths.profiles
 
 
 def _digest(path: Path) -> str:
