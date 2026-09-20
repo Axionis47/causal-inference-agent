@@ -121,3 +121,14 @@ def test_time_key_comes_from_the_panel_block_then_the_change_then_the_entry():
     assert intake.time_key(h) == "when"
     h.change = {}
     assert intake.time_key(h, {}) is None
+
+
+def test_a_scope_written_as_words_for_nothing_is_not_a_decline():
+    df = pd.DataFrame({"year": [70, 80], "lunch": ["a", "b"]})
+    for text in (None, "", "null", "None", "n/a", "all students", "every row", "whole", "no filter"):
+        kept, d, facts = intake.apply_filter(df, text)
+        assert d is None and len(kept) == 2 and facts == {}, text
+    for text in ("null", "none", "all years", "no window"):
+        kept, d, _ = intake.apply_window(df, text, "year")
+        assert d is None and len(kept) == 2, text
+    assert intake.blank("gender == female") is False and intake.blank("from 80 to 89") is False and intake.blank("all") is True

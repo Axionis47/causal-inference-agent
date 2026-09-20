@@ -104,9 +104,17 @@ def parse_filter(text: str) -> list[tuple[str, str, list[str]]] | None:
     return out or None
 
 
+_BLANK = re.compile(r"^\s*(null|none|n/?a|no filter|no window|whole|all( \w+){0,3}|every \w+( \w+){0,2})\s*\.?\s*$", re.IGNORECASE)
+
+
+def blank(text: str | None) -> bool:
+    """A scope the frame wrote as words for 'nothing': the word null, none, all students, every row. Not a decline; there is nothing to apply."""
+    return not text or bool(_BLANK.match(str(text)))
+
+
 def apply_filter(table: pd.DataFrame, text: str | None, stage: str = "load") -> tuple[pd.DataFrame, Decline | None, dict]:
     """The rows the filter keeps, or the table unchanged with a Decline saying why."""
-    if not text:
+    if blank(text):
         return table, None, {}
     clauses = parse_filter(text)
     if clauses is None:
@@ -171,7 +179,7 @@ def _parse_like(time: pd.Series, value: str):
 
 def apply_window(table: pd.DataFrame, text: str | None, time_key: str | None, stage: str = "load") -> tuple[pd.DataFrame, Decline | None, dict]:
     """The rows inside the window on the time column, or the table unchanged with a Decline."""
-    if not text:
+    if blank(text):
         return table, None, {}
     if not time_key or time_key not in table.columns:
         return table, Decline(stage=stage, kind="declined", about="scope.window", pack_value=text, check="intake.window_no_time_column",
