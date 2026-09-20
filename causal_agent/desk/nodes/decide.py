@@ -16,7 +16,8 @@ from causal_agent.desk import handoff as H
 from causal_agent.desk.nodes.frame import memory_of
 from causal_agent.desk.prompts import routing as P
 from causal_agent.desk.state import Context, RouteState
-from causal_agent.knowledge import Family, load_registry, render_preferences
+from causal_agent.families import registry as R
+from causal_agent.knowledge import Family, render_preferences
 from causal_agent.memory import ops
 from causal_agent.memory import views as V
 from causal_agent.memory.catalogue import load_catalogue
@@ -35,8 +36,7 @@ def _writer():
 
 
 def _registry(runtime: Runtime[Context] | None) -> list[Family]:
-    path = runtime.context.registry_path if runtime and runtime.context else None
-    return load_registry(path)
+    return R.knowledge()
 
 
 def _scope_text(frame: QuestionFrame) -> str:
@@ -52,9 +52,10 @@ def verdicts_from(memory: Memory, status: Status, probes: list[ProbeResult], reg
     person could have settled is settled and fits. A belief not asked yet is listed unmet but does not strike the family: only the
     person can give it, and the routing before the interview cannot wait for it. The assumption bet on must name it."""
     cat = load_catalogue()
+    all_needs = R.needs()
     out = []
     for fam in registry:
-        needs_spec = cat.families.get(fam.name)
+        needs_spec = all_needs.get(fam.name)
         cells = status.table.get(fam.name, {})
         needs: list[NeedCheck] = []
         blocking = False
@@ -87,10 +88,10 @@ def verdicts_from(memory: Memory, status: Status, probes: list[ProbeResult], reg
 def fit(state: RouteState, runtime: Runtime[Context]) -> dict:
     memory = memory_of(state)
     df = table_of(memory)
-    probes = ops.probe(memory, df)
+    probes = ops.probe(memory, df, R.REGISTRY.values())
     from causal_agent.profile import datasets as DS
 
-    status = ops.fit(memory, probes, columns=V.in_play(memory, state.get("frame"), DS.dataset_entries().get(memory.name) or {}))
+    status = ops.fit(memory, probes, R.needs(), columns=V.in_play(memory, state.get("frame"), DS.dataset_entries().get(memory.name) or {}))
     verdicts = verdicts_from(memory, status, probes, _registry(runtime))
     _writer()({"fit": {"surviving": status.surviving, "struck": status.struck, "admissible": [v.family for v in verdicts if v.admissible]}})
     return {"family_verdicts": verdicts, "probes": probes, "fit_status": status.model_dump()}
@@ -219,7 +220,7 @@ def handoff(state: RouteState, runtime: Runtime[Context]) -> dict:
     memory = memory_of(state)
     fr, d = state["frame"], state["decision"]
     assert fr is not None and d is not None
-    fam = next((f for f in _registry(runtime) if f.name == d.chosen), None)
+    fam = R.REGISTRY.get(d.chosen)
     if fam is None:  # no admissible family: honest stop, record kept, no hand-off
         record = decision_record(state, None)
         _writer()({"handoff": None, "decision_record": record})

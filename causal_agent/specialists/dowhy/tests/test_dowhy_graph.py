@@ -262,7 +262,9 @@ def test_catalogues_name_real_dowhy_methods():
 
 def test_the_desk_reaches_the_real_specialist():
     from causal_agent.desk.route import graph as route_graph
-    from causal_agent.specialists import SPECIALISTS
+    from causal_agent.families.registry import lanes
+
+    SPECIALISTS = lanes()
 
     assert "freeze_design" in SPECIALISTS["adjustment"].get_graph().nodes
     assert "relate" not in SPECIALISTS["synthetic_control"].get_graph().nodes  # still a stub

@@ -625,7 +625,9 @@ def adapter_sharp() -> dict:
 
 def test_the_desk_reaches_three_specialists():
     from causal_agent.desk.route import graph as route_graph
-    from causal_agent.specialists import SPECIALISTS
+    from causal_agent.families.registry import lanes
+
+    SPECIALISTS = lanes()
 
     assert "score" in SPECIALISTS["discontinuity"].get_graph().nodes
     assert "shape_table" in SPECIALISTS["diff_in_diff"].get_graph().nodes and "score" not in SPECIALISTS["diff_in_diff"].get_graph().nodes

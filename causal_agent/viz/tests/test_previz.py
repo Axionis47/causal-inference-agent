@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pandas as pd
 
+from causal_agent.memory.overlap import MAX_LEVELS
 from causal_agent.profile.datasets import ROOT
 from causal_agent.viz.previz import adjustment, diff_in_diff, discontinuity
 
@@ -39,7 +40,7 @@ def test_overlap_bins_a_numeric_column_and_flags_a_thin_cell():
     df = pd.DataFrame({"t": ["a"] * 30 + ["b"] * 30, "age": list(range(30)) + list(range(30, 60))})
     f = adjustment.overlap(df, "t", "a", ["age"], floor=5)
     assert f.made and not f.probe.passed and "one arm missing" in f.probe.detail
-    assert all(x.startswith("age = ") for x in f.spec.series[0].x) and len(f.spec.series[0].x) <= adjustment.MAX_LEVELS
+    assert all(x.startswith("age = ") for x in f.spec.series[0].x) and len(f.spec.series[0].x) <= MAX_LEVELS
 
 
 def test_by_group_over_time_marks_the_change_and_counts_pre_periods():

@@ -10,7 +10,6 @@ from langchain_core.messages import AIMessage
 
 from causal_agent.common.contracts import Candidate, FamilyDecision, PrefilterVote, QuestionFrame, Rejection, Scope
 from causal_agent.common.llm import set_llm
-from causal_agent.desk import route as RG
 from causal_agent.desk.nodes import frame as F
 from causal_agent.desk.route import compile_local
 from causal_agent.knowledge import load_registry
@@ -120,10 +119,10 @@ class FakeLLM:
 @pytest.fixture(autouse=True)
 def _restore(monkeypatch):
     """Specialists are stubbed; the memory lives in this process so mining never touches data/memory/."""
-    from causal_agent import specialists as S
+    from causal_agent.families import registry as R
 
-    stubs = {name: S._stub(name, "stub", True) for name in S.SPECIALISTS}
-    monkeypatch.setattr(RG, "SPECIALISTS", stubs)
+    stubs = {name: R.stub_lane(name, "stub", True) for name in R.REGISTRY}
+    monkeypatch.setattr(R, "lanes", lambda: stubs)
     held: dict[str, Memory] = {}
 
     def memory_for(name, root=None):

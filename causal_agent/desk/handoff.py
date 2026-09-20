@@ -17,107 +17,20 @@ from pathlib import Path
 
 from causal_agent.common.addresses import key
 from causal_agent.common.contracts import (
-    AdjustmentDesign,
-    Belief,
     Candidate,
-    ColumnBrief,
-    DidDesign,
     FamilyDecision,
     Handoff,
     Probe,
     QuestionFrame,
-    RdDesign,
     Scope,
 )
-from causal_agent.knowledge import Family, load_registry
+from causal_agent.families import registry as R
+from causal_agent.families.registry import BlockInputs, FamilyDef
 from causal_agent.memory import ops, store
 from causal_agent.memory.claims import ProbeResult
 from causal_agent.memory.records import COLUMN_KIND, Memory
 from causal_agent.memory.views import BELIEF_KINDS, belief_of, brief_of, fields_of, in_play, said_of
 from causal_agent.profile import datasets as DS
-
-# ------------------------------------------------------------------ the family blocks (derived by code; never a constraint)
-
-
-def _adjustment(briefs: list[ColumnBrief], a: dict, beliefs: dict[str, Belief], scope: Scope) -> AdjustmentDesign:
-    dep = [key(c) for c in a.get("depends_on") or []]
-    before = [b.key for b in briefs if b.role not in ("outcome", "treatment") and b.when == "before" and b.moved_by_change is not True]
-    forbidden = [b.key for b in briefs if b.role not in ("outcome", "treatment", "depends_on") and (b.when in ("after", "at") or b.moved_by_change is True)]
-    excl, med, unob = beliefs.get("exclusion"), beliefs.get("mediator"), beliefs.get("unobserved")
-    instrument = key(excl.column) if excl and excl.known() and excl.value and excl.column else None
-    mediator = key(med.column) if med and med.known() and med.value and med.column else None
-    kind = a.get("kind")
-    voluntary = True if kind == "own_choice" else False if kind in ("cutoff_rule", "date_by_others", "lottery") else (True if a.get("movable") else None)
-    return AdjustmentDesign(
-        adjustment_candidates=list(dict.fromkeys(dep + before)),
-        forbidden=list(dict.fromkeys(forbidden)),
-        instrument=instrument,
-        mediator=mediator,
-        unobserved_confounding=unob.value if unob and unob.known() else None,
-        voluntary_uptake=voluntary,
-        target_units=scope.target,
-        contrast=scope.contrast,
-    )
-
-
-def _did(
-    briefs: list[ColumnBrief], a: dict, ch: dict, g: dict, beliefs: dict[str, Belief], probes: list[Probe], entry: dict, treatment: str | None
-) -> DidDesign:
-    time = ch.get("date_column") or entry.get("time")
-    tkey = key(time) if time else None
-    units = [c for c in (g.get("key_columns") or []) if key(c) != tkey] if g.get("panel") is True else []
-    unit = units[0] if units else (entry.get("entity") or [None])[0]
-    tb = next((b for b in briefs if tkey and b.key == tkey), None)
-    period_kind = ("date" if tb.facts.kind == "datetime" else "integer") if tb else None
-    treated_group = (
-        {"column": a["treatment_column"], "level": a["treated_level"]}
-        if a.get("treatment_column") and a.get("treated_level") is not None
-        else ({"column": treatment, "level": a["treated_level"]} if treatment and a.get("treated_level") is not None else {})
-    )
-    pre = next((p for p in probes if p.family == "diff_in_diff" and p.name == "pre_periods"), None)
-    controls = [
-        b.key
-        for b in briefs
-        if b.role == "candidate" and b.moved_by_change is not True and (b.when == "before" or b.facts.varies_over in ("entity", "time", "both"))
-    ]
-    return DidDesign(
-        unit=key(unit) if unit else None,
-        time=tkey,
-        period_kind=period_kind,
-        change_period=str(ch["period_value"]) if ch.get("period_value") is not None else None,
-        treated_group=treated_group,
-        pre_periods=int(pre.value) if pre and pre.value is not None else None,
-        controls_allowed=controls,
-        cluster_level=key(a["level_column"]) if a.get("level_column") else (key(unit) if unit else None),
-        trend_belief=beliefs.get("trend_continues"),
-        spillover=beliefs.get("spillover"),
-    )
-
-
-def _rd(briefs: list[ColumnBrief], a: dict, samp: dict, beliefs: dict[str, Belief], entry: dict, treatment: str | None) -> RdDesign:
-    score = key(a["score_column"]) if a.get("score_column") else None
-    sb = next((b for b in briefs if score and b.key == score), None)
-    takeup = (
-        {"column": treatment, "level": a.get("treated_level")}
-        if treatment and (not score or key(treatment) != score) and a.get("treated_level") is not None
-        else None
-    )
-    covs = [b.key for b in briefs if b.role == "candidate" and b.when == "before" and b.moved_by_change is not True]
-    cluster = a.get("level_column") or (entry.get("entity") or [None])[0]
-    return RdDesign(
-        score=score,
-        cutoff=float(a["cutoff"]) if a.get("cutoff") is not None else None,
-        treated_side=a.get("treated_side"),
-        cutoff_value_treated=a.get("cutoff_value_treated"),
-        score_fixed_before=(sb.when == "before") if sb and sb.when != "unknown" else None,
-        movable=a.get("movable"),
-        takeup=takeup,
-        covariates_allowed=covs,
-        cluster=key(cluster) if cluster else None,
-        sampled_by_side=samp.get("how") == "by_side" or bool(entry.get("sampled_by_side", False)),
-        cutoff_only=beliefs.get("cutoff_only"),
-    )
-
 
 # ------------------------------------------------------------------ the builder
 
@@ -127,7 +40,7 @@ def build(
     question: str,
     frame: QuestionFrame,
     decision: FamilyDecision,
-    family: Family,
+    family: FamilyDef,
     memory: Memory,
     probes: list[ProbeResult] | list[Probe] = (),
     design_id: int = 0,
@@ -160,14 +73,16 @@ def build(
         others = [v for v in tb.facts.levels() if v != treated_level]
         control_level = others[0] if len(tb.facts.levels()) == 2 and others else None
 
-    if family.name == "adjustment":
-        design = _adjustment(briefs, a, beliefs, frame.scope)
-    elif family.name == "diff_in_diff":
-        design = _did(briefs, a, ch, g, beliefs, probe_list, entry, treatment)
-    elif family.name == "discontinuity":
-        design = _rd(briefs, a, samp, beliefs, entry, treatment)
-    else:
-        design = None
+    inputs = BlockInputs(
+        briefs=briefs,
+        claims={"assignment": a, "change": ch, "grain": g, "sampling": samp, "missing": miss},
+        beliefs=beliefs,
+        probes=probe_list,
+        entry=entry,
+        scope=frame.scope,
+        treatment=treatment,
+    )
+    design = family.design_block(inputs) if family.design_block else None
 
     table = m.to_claims()
     unknowns = [address for address, f in m.fields.items() if f.status == "unknown"]
@@ -175,7 +90,7 @@ def build(
     return Handoff(
         family=family.name,
         specialist=family.specialist,
-        supported_now=family.status == "built",
+        supported_now=family.built,
         outcome=outcome,
         treatment=treatment,
         scope=frame.scope,
@@ -241,7 +156,7 @@ def forced(
     For tests and evals. The memory on disk, when the dataset has one, fills the briefs and the family block."""
     import pandas as pd
 
-    fam = next(f for f in load_registry() if f.name == family)
+    fam = R.family(family)
     m = memory or store.memory_for(pack_name)
     cite_of = lambda c: [cite] if cite else [f"col:{key(c)}.note"]  # noqa: E731
     cands = [Candidate(column=c, reason="named in the forced hand-off", cites=cite_of(c)) for c in columns]
@@ -256,7 +171,7 @@ def forced(
     )
     decision = FamilyDecision(admissible=[family], chosen=family, chosen_assumption=assumption, why_over_alternatives="forced", rejected=[])
     path = DS.csv_path(pack_name, m.csv)
-    probes = ops.probe(m, pd.read_csv(path)) if path is not None and path.exists() else []
+    probes = ops.probe(m, pd.read_csv(path), R.REGISTRY.values()) if path is not None and path.exists() else []
     return build(question=question, frame=frame, decision=decision, family=fam, memory=m, probes=probes)
 
 

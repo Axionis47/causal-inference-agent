@@ -267,7 +267,9 @@ def test_catalogues_parse_on_a_toy_panel():
 
 def test_the_desk_reaches_both_specialists():
     from causal_agent.desk.route import graph as route_graph
-    from causal_agent.specialists import SPECIALISTS
+    from causal_agent.families.registry import lanes
+
+    SPECIALISTS = lanes()
 
     assert "shape_table" in SPECIALISTS["diff_in_diff"].get_graph().nodes
     assert "freeze_design" in SPECIALISTS["adjustment"].get_graph().nodes and "shape_table" not in SPECIALISTS["adjustment"].get_graph().nodes
@@ -283,7 +285,7 @@ def test_pack_panel_block_settles_groups_and_periods_without_a_model_call():
 
     from causal_agent.common.contracts import Candidate, FamilyDecision, QuestionFrame, Scope
     from causal_agent.desk.handoff import build
-    from causal_agent.knowledge import load_registry
+    from causal_agent.families import registry as R
     from causal_agent.memory.claims import Claim, ClaimTable
     from causal_agent.memory.records import Memory
     from causal_agent.profile.datasets import ROOT, dataset_entries
@@ -338,7 +340,7 @@ def test_pack_panel_block_settles_groups_and_periods_without_a_model_call():
         why_over_alternatives="only one",
         rejected=[],
     )
-    fam = next(f for f in load_registry() if f.name == "diff_in_diff")
+    fam = R.family("diff_in_diff")
     e = dataset_entries()["cigar"]
     memory = Memory.from_claims("cigar", table, profile=Profile.model_validate(json.loads((ROOT / e["profile"]).read_text())), csv=e["csv"])
     h = build(question="q", frame=frame, decision=decision, family=fam, memory=memory)

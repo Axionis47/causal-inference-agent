@@ -8,6 +8,7 @@ the memory itself; the consistency rules and `open` run on the map directly."""
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping
 from typing import Any, Literal
 
 import pandas as pd
@@ -17,7 +18,7 @@ from pydantic import Field as PField
 from causal_agent.common.addresses import key as _key
 from causal_agent.memory import checks as C
 from causal_agent.memory import table as T
-from causal_agent.memory.catalogue import Catalogue, ClaimKind, load_catalogue, load_thresholds
+from causal_agent.memory.catalogue import Catalogue, ClaimKind, FamilyNeeds, load_catalogue, load_thresholds
 from causal_agent.memory.claims import ProbeResult, Status
 from causal_agent.memory.probes import run_probes
 from causal_agent.memory.records import COLUMN_KIND, Field, Memory
@@ -325,15 +326,17 @@ def check(
 # ------------------------------------------------------------------ probe, fit, open
 
 
-def probe(memory: Memory, df: pd.DataFrame, th: dict | None = None, cat: Catalogue | None = None) -> list[ProbeResult]:
+def probe(memory: Memory, df: pd.DataFrame, families: Iterable[Any], th: dict | None = None, cat: Catalogue | None = None) -> list[ProbeResult]:
+    """Every family's probes over the table; `families` are the registry's entries, each with its `probes` callable."""
     cat, th = cat or load_catalogue(), th or load_thresholds()
-    return run_probes(df, memory.to_claims(cat), list(cat.families), th)
+    return run_probes(df, memory.to_claims(cat), families, th)
 
 
-def fit(memory: Memory, probes: list[ProbeResult], cat: Catalogue | None = None, columns: list[str] | None = None) -> Status:
-    """The family grid. `columns` limits the per-column needs to the columns in play; a column nobody named never blocks."""
+def fit(memory: Memory, probes: list[ProbeResult], needs: Mapping[str, FamilyNeeds], columns: list[str] | None = None, cat: Catalogue | None = None) -> Status:
+    """The family grid. `needs` says what each family requires; `columns` limits the per-column needs to the columns in play,
+    so a column nobody named never blocks."""
     cat = cat or load_catalogue()
-    return T.compute(cat, memory.to_claims(cat, columns=columns), probes)
+    return T.compute(cat, needs, memory.to_claims(cat, columns=columns), probes)
 
 
 class Open(BaseModel):
@@ -358,11 +361,11 @@ def _options(kind: ClaimKind, field: str) -> list[str]:
     return []
 
 
-def open(memory: Memory, status: Status, cat: Catalogue | None = None) -> list[Open]:
+def open(memory: Memory, status: Status, needs: Mapping[str, FamilyNeeds], cat: Catalogue | None = None) -> list[Open]:
     """Every field still vague on a claim a survivor needs: first the open claims (what blocks readiness, required fields first),
     then the drafts the model left on settled claims (what the person has not confirmed yet, never blocking), in the table's order."""
     cat = cat or load_catalogue()
-    needs = {f: fam.requires for f, fam in cat.families.items()}
+    requires = {f: fam.requires for f, fam in needs.items()}
     out: list[Open] = []
     for key in list(status.open) + [k for k in status.settled if k not in status.open]:
         blocking = key in status.open
@@ -374,7 +377,7 @@ def open(memory: Memory, status: Status, cat: Catalogue | None = None) -> list[O
             kind, prefix = cat.kinds[key], f"claim:{key}"
         fields = memory.fields_of(prefix)
         required = set(kind.required({n: f.value for n, f in fields.items()}))
-        because = [f for f in status.surviving if kind.name in needs.get(f, [])]
+        because = [f for f in status.surviving if kind.name in requires.get(f, [])]
         here: list[Open] = []
         for name in kind.fields:
             f = fields.get(name) or Field()

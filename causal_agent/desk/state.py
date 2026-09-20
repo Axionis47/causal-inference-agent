@@ -15,9 +15,7 @@ from causal_agent.desk.contracts import AfterReply, Ask, Exchange, Finding, RunR
 
 @dataclass
 class Context:
-    """Runtime context: where knowledge lives. Set per invocation, never in state."""
-
-    registry_path: str | None = None
+    """Runtime context, set per invocation and never in state. Empty today; the families are read from their registry."""
 
 
 class RouteState(TypedDict, total=False):

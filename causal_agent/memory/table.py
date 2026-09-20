@@ -1,9 +1,11 @@
-"""The table: every family against every claim kind, from the catalogue's family needs and the claim table.
+"""The table: every family against every claim kind, from the families' needs and the claim table.
 Code only. The flag is a cell count."""
 
 from __future__ import annotations
 
-from causal_agent.memory.catalogue import Catalogue
+from collections.abc import Mapping
+
+from causal_agent.memory.catalogue import Catalogue, FamilyNeeds
 from causal_agent.memory.claims import Cell, ClaimTable, ProbeResult, Status
 
 
@@ -32,21 +34,21 @@ def _cell(kind: str, fam, table: ClaimTable) -> Cell:
     return "fits"
 
 
-def compute(cat: Catalogue, table: ClaimTable, probes: list[ProbeResult]) -> Status:
+def compute(cat: Catalogue, needs: Mapping[str, FamilyNeeds], table: ClaimTable, probes: list[ProbeResult]) -> Status:
     grid: dict[str, dict[str, Cell]] = {}
     struck: dict[str, str] = {}
     failed = {p.family: p for p in probes if p.passed is False}
-    for name, fam in cat.families.items():
+    for name, fam in needs.items():
         grid[name] = {kind: _cell(kind, fam, table) for kind in cat.kinds}
         bad = [k for k, v in grid[name].items() if v == "does_not_fit"]
         if bad:
             struck[name] = f"{bad[0]} does not fit"
         elif name in failed:
             struck[name] = f"{failed[name].name}: {failed[name].detail}"
-    surviving = [f for f in cat.families if f not in struck]
+    surviving = [f for f in needs if f not in struck]
     kinds_required: set[str] = set()
     for f in surviving:
-        kinds_required.update(cat.families[f].requires)
+        kinds_required.update(needs[f].requires)
     if not surviving:  # nothing fits yet: keep the family-independent claims required so the interview can continue
         kinds_required = {k for k, spec in cat.kinds.items() if not spec.uncheckable}
     a = table.get("assignment")

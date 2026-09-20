@@ -16,7 +16,7 @@ from langgraph.types import RetryPolicy
 from causal_agent.desk.nodes import decide as D
 from causal_agent.desk.nodes import frame as F
 from causal_agent.desk.state import Context, RouteState
-from causal_agent.specialists import SPECIALISTS
+from causal_agent.families import registry as R
 
 _retry = RetryPolicy(max_attempts=3, initial_interval=1.0)
 
@@ -31,7 +31,8 @@ def build() -> StateGraph:
     b.add_node("decide", D.decide, retry_policy=_retry)
     b.add_node("gate", D.gate)
     b.add_node("handoff", D.handoff)
-    for name, sub in SPECIALISTS.items():
+    lanes = R.lanes()
+    for name, sub in lanes.items():
         b.add_node(f"specialist_{name}", sub)
     b.add_edge(START, "load")
     b.add_edge("load", "mine")
@@ -41,8 +42,8 @@ def build() -> StateGraph:
     b.add_edge("fit", "decide")
     b.add_edge("decide", "gate")
     # gate returns Command(goto=decide | handoff | END)
-    b.add_conditional_edges("handoff", D.route_specialist, [f"specialist_{n}" for n in SPECIALISTS] + [END])
-    for name in SPECIALISTS:
+    b.add_conditional_edges("handoff", D.route_specialist, [f"specialist_{n}" for n in lanes] + [END])
+    for name in lanes:
         b.add_edge(f"specialist_{name}", END)
     return b
 

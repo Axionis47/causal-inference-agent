@@ -8,6 +8,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
+from causal_agent.families import registry as R
 from causal_agent.memory import ops, store
 from causal_agent.memory.catalogue import load_catalogue
 from causal_agent.memory.claims import ClaimTable
@@ -169,16 +170,16 @@ def test_check_runs_the_data_facts_and_marks_fields():
 def test_fit_and_open_on_students3():
     m, _ = students3()
     df = pd.read_csv(STUDENTS)
-    probes = ops.probe(m, df)
+    probes = ops.probe(m, df, R.REGISTRY.values())
     assert any(p.family == "adjustment" and p.name == "arms" and p.passed for p in probes)
-    st = ops.fit(m, probes)
+    st = ops.fit(m, probes, R.needs())
     assert "adjustment" in st.surviving and st.ready
-    assert ops.open(m, st) == []
+    assert ops.open(m, st, R.needs()) == []
     # make one required field vague and one optional draft: both come back, required first
     m.set("col:lunch.when", None, status="empty", source=None)
     m.set("col:gender.stands_for", "sex", status="drafted", source="model:infer")
-    st = ops.fit(m, probes)
-    opened = ops.open(m, st)
+    st = ops.fit(m, probes, R.needs())
+    opened = ops.open(m, st, R.needs())
     assert {o.address for o in opened} == {"col:gender.stands_for", "col:lunch.when"}
     lunch = next(o for o in opened if o.address == "col:lunch.when")
     assert lunch.options == ["before", "at", "after", "unknown"] and "adjustment" in lunch.because and not lunch.optional
@@ -222,7 +223,7 @@ def test_a_cutoff_rule_needs_its_score_and_cutoff_and_a_lottery_does_not():
     m.set("claim:assignment.kind", "cutoff_rule", status="confirmed", source="user:turn:2")
     assert m.to_claims().claims["assignment"].status == "drafted"
     df = pd.read_csv(STUDENTS)
-    st = ops.fit(m, ops.probe(m, df))
-    opened = {o.address: o for o in ops.open(m, st)}
+    st = ops.fit(m, ops.probe(m, df, R.REGISTRY.values()), R.needs())
+    opened = {o.address: o for o in ops.open(m, st, R.needs())}
     assert "claim:assignment.score_column" in opened and not opened["claim:assignment.score_column"].optional
     assert "claim:assignment.depends_on" not in opened

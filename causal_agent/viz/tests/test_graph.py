@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 from langchain_core.messages import AIMessage
 
+import causal_agent.families.registry  # noqa: F401  (registers every family's figures)
 from causal_agent.common.llm import set_llm
 from causal_agent.memory import store
 from causal_agent.memory.records import Memory
@@ -80,11 +81,14 @@ def test_a_bad_pick_is_retried_then_refused():
 
 
 def test_check_refuses_a_figure_that_draws_on_nothing(monkeypatch):
+    real = next(f.render for f in G.declared("adjustment") if f.decl.name == "adjustment.overlap")
+
     def bogus(memory, df, state, th):
-        fig = G._render_overlap(memory, df, state, th)
+        fig = real(memory, df, state, th)
         fig.spec.draws_on = ["claim:nope.field"]
         return fig
 
-    monkeypatch.setitem(G.FUNCTIONS, "adjustment.overlap", bogus)
+    figs = [G.PrevizFigure(f.decl, bogus) if f.decl.name == "adjustment.overlap" else f for f in G.declared("adjustment")]
+    monkeypatch.setitem(G.FIGURES, "adjustment", figs)
     f = G.make(Point(family="adjustment", claim="overlap"), "students3", outcome="math score")
     assert not f.made and "do not resolve" in f.why and f.function == "adjustment.overlap"

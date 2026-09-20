@@ -16,15 +16,14 @@ import sys
 import uuid
 from pathlib import Path
 
-from causal_agent.common.contracts import Handoff
-from causal_agent.desk.contracts import RunRecord
+from causal_agent.common.contracts import Handoff, RunRecord
 
 
 def run_lane(h: Handoff, question: str) -> dict:
     """The specialist subgraph for the pack's family, in this process."""
-    from causal_agent.specialists import SPECIALISTS
+    from causal_agent.families import registry as R
 
-    sub = SPECIALISTS.get(h.family)
+    sub = R.lanes().get(h.family)
     if sub is None:
         return {"status": "not_supported", "family": h.family, "message": f"no specialist for {h.family}"}
     cfg = {

@@ -2,7 +2,7 @@
 
     START ─ candidates ─ pick ─ render ─ check ─ END
 
-`candidates` is code: the declared figures whose family matches the point and whose needs the memory meets. `pick` is a
+`candidates` is code: the figures the point's family declared whose needs the memory meets. `pick` is a
 judgement only when more than one candidate stands; one candidate is chosen by code, none is a refusal with why. `render`
 calls the pre-viz function on the table. `check` is code: the figure has values, and every address it draws on resolves.
 
@@ -14,11 +14,10 @@ from __future__ import annotations
 
 import operator
 from collections.abc import Callable
-from pathlib import Path
+from dataclasses import dataclass
 from typing import Annotated
 
 import pandas as pd
-import yaml
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import RetryPolicy
@@ -32,12 +31,9 @@ from causal_agent.memory import store
 from causal_agent.memory.catalogue import load_thresholds
 from causal_agent.memory.records import Memory
 from causal_agent.memory.views import context_text, table_of
-from causal_agent.profile.data import column
 from causal_agent.viz import prompts as P
-from causal_agent.viz.previz import adjustment, diff_in_diff, discontinuity
 from causal_agent.viz.spec import Figure, FigureSpec, Point
 
-_HERE = Path(__file__).parent
 PICK_ATTEMPTS = 3
 _retry = RetryPolicy(max_attempts=3, initial_interval=1.0)
 
@@ -51,11 +47,6 @@ class FigureDecl(BaseModel):
 
     def render(self) -> str:
         return f"{self.name}: shows {self.shows}. Makes the point when {self.makes_the_point_when}."
-
-
-def load_figures(path: str | Path | None = None) -> list[FigureDecl]:
-    raw = yaml.safe_load(Path(path or _HERE / "figures.yaml").read_text())
-    return [FigureDecl(name=k, **v) for k, v in raw.items()]
 
 
 class Choice(BaseModel):
@@ -78,6 +69,26 @@ class VizState(TypedDict, total=False):
     debug: Annotated[list[Thought], operator.add]
 
 
+@dataclass(frozen=True)
+class PrevizFigure:
+    """One declared figure and the function that draws it from the memory and the table."""
+
+    decl: FigureDecl
+    render: Callable[[Memory, pd.DataFrame, VizState, dict], Figure]
+
+
+FIGURES: dict[str, list[PrevizFigure]] = {}
+
+
+def register_figures(family: str, figures: list[PrevizFigure]) -> None:
+    """A family declares its pre-run figures here at import; the tool never names one."""
+    FIGURES[family] = list(figures)
+
+
+def declared(family: str) -> list[PrevizFigure]:
+    return FIGURES.get(family, [])
+
+
 # ------------------------------------------------------------------ candidates (code)
 
 
@@ -90,7 +101,7 @@ def _has(memory: Memory, need: str, outcome: str | None) -> bool:
 
 def candidates(state: VizState) -> dict:
     memory = store.memory_for(state["dataset"])
-    fits = [d.name for d in load_figures() if d.family == state["point"].family and all(_has(memory, n, state.get("outcome")) for n in d.needs)]
+    fits = [f.decl.name for f in declared(state["point"].family) if all(_has(memory, n, state.get("outcome")) for n in f.decl.needs)]
     return {"candidates": fits, "choice": None, "figure": None, "pick_attempts": 0, "debug": []}
 
 
@@ -106,7 +117,7 @@ def pick(state: VizState) -> dict:
     if len(cands) == 1:
         return {"choice": Choice(function=cands[0], why="the only figure that fits the point's family and the memory")}
     memory = store.memory_for(state["dataset"])
-    decls = {d.name: d for d in load_figures()}
+    decls = {f.decl.name: f.decl for f in declared(point.family)}
     errors = ""
     debug = []
     allowed = set(memory.addresses()) | {"dataset.note", "change:1.note"} | set(point.about)
@@ -142,73 +153,13 @@ def pick(state: VizState) -> dict:
 # ------------------------------------------------------------------ render (fact)
 
 
-def _render_overlap(memory: Memory, df: pd.DataFrame, state: VizState, th: dict) -> Figure:
-    a = memory.values_of("claim:assignment")
-    t = column(df, a.get("treatment_column"))
-    named = [c for n in (state["point"].columns or []) if (c := column(df, n)) is not None]
-    deps = named or [c for d in (a.get("depends_on") or []) if (c := column(df, d)) is not None]
-    return adjustment.overlap(
-        df,
-        t,
-        str(a.get("treated_level")),
-        deps,
-        floor=int(th["arms"]["min_rows_cell"]),
-        addresses=["claim:assignment.depends_on", "claim:assignment.treatment_column"],
-    )
-
-
-def _render_did(memory: Memory, df: pd.DataFrame, state: VizState, th: dict) -> Figure:
-    a, ch = memory.values_of("claim:assignment"), memory.values_of("claim:change")
-    return diff_in_diff.by_group_over_time(
-        df,
-        column(df, state.get("outcome")),
-        column(df, ch.get("date_column")),
-        column(df, a.get("treatment_column")),
-        str(a.get("treated_level")),
-        ch.get("period_value"),
-        floor=int(th["probe"]["min_pre_periods"]),
-        addresses=["claim:change.date_column", "claim:change.period_value"],
-    )
-
-
-def _render_density(memory: Memory, df: pd.DataFrame, state: VizState, th: dict) -> Figure:
-    a = memory.values_of("claim:assignment")
-    return discontinuity.density(
-        df,
-        column(df, a.get("score_column")),
-        float(a["cutoff"]),
-        floor=int(th["cutoff"]["min_rows_side"]),
-        addresses=["claim:assignment.score_column", "claim:assignment.cutoff"],
-    )
-
-
-def _render_outcome_by_bin(memory: Memory, df: pd.DataFrame, state: VizState, th: dict) -> Figure:
-    a = memory.values_of("claim:assignment")
-    return discontinuity.outcome_by_bin(
-        df,
-        column(df, a.get("score_column")),
-        float(a["cutoff"]),
-        column(df, state.get("outcome")),
-        floor=int(th["cutoff"]["min_rows_side"]),
-        addresses=["claim:assignment.score_column", "claim:assignment.cutoff"],
-    )
-
-
-FUNCTIONS: dict[str, Callable[[Memory, pd.DataFrame, VizState, dict], Figure]] = {
-    "adjustment.overlap": _render_overlap,
-    "diff_in_diff.by_group_over_time": _render_did,
-    "discontinuity.density": _render_density,
-    "discontinuity.outcome_by_bin": _render_outcome_by_bin,
-}
-
-
 def render(state: VizState) -> dict:
     if state.get("figure") is not None:  # refused at pick
         return {}
     choice = state.get("choice")
     assert choice is not None, "render runs after pick"
     name = choice.function
-    fn = FUNCTIONS.get(name)
+    fn = next((f.render for f in declared(state["point"].family) if f.decl.name == name), None)
     if fn is None:
         return {"figure": Figure.refused(f"{name!r} is declared but not built", name)}
     memory = store.memory_for(state["dataset"])

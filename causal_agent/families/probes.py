@@ -1,0 +1,128 @@
+"""Each family's disqualifiers, computed once assignment and change are settled. pandas only, no fits. A failed probe
+strikes the family out; a probe that cannot run leaves it in. Probes never pick a family."""
+
+from __future__ import annotations
+
+import pandas as pd
+
+from causal_agent.memory.claims import ClaimTable, ProbeResult
+from causal_agent.memory.overlap import overlap_probe
+from causal_agent.memory.probes import periods, pre_periods, treated_mask, unit_col
+from causal_agent.profile.data import column
+
+
+def adjustment(df: pd.DataFrame, table: ClaimTable, th: dict) -> list[ProbeResult]:
+    fam = "adjustment"
+    a = table.get("assignment")
+    treated = treated_mask(df, table)
+    if treated is None or not a:
+        return [ProbeResult(family=fam, name="arms", passed=None, detail="treatment column not settled")]
+    out = []
+    n_t, n_o = int(treated.sum()), int((~treated).sum())
+    floor = int(th["arms"]["min_rows_arm"])
+    out.append(
+        ProbeResult(
+            family=fam,
+            name="arms",
+            value=float(min(n_t, n_o)),
+            passed=min(n_t, n_o) >= floor,
+            detail=f"{n_t} treated rows and {n_o} others; floor {floor} an arm",
+        )
+    )
+    deps = [c for d in (a.fields.get("depends_on") or []) if (c := column(df, d)) is not None]
+    if deps:  # the same cells the pre-viz draws: both arms present at every level the offer looked at
+        ov = overlap_probe(df, treated, deps, int(th["arms"]["min_rows_cell"]))
+        out.append(ProbeResult(family=fam, name=ov.name, value=ov.value, passed=ov.passed, detail=ov.detail))
+    return out
+
+
+def _pre_period_probe(fam: str, df: pd.DataFrame, table: ClaimTable, th: dict) -> ProbeResult:
+    pre = pre_periods(df, table)
+    if pre is None:
+        return ProbeResult(family=fam, name="pre_periods", passed=None, detail="period column or change period not settled")
+    floor = int(th["probe"]["min_pre_periods"])
+    return ProbeResult(family=fam, name="pre_periods", value=float(pre), passed=pre >= floor, detail=f"{pre} distinct periods before the change; floor {floor}")
+
+
+def diff_in_diff(df: pd.DataFrame, table: ClaimTable, th: dict) -> list[ProbeResult]:
+    fam = "diff_in_diff"
+    out = [_pre_period_probe(fam, df, table, th)]
+    treated = treated_mask(df, table)
+    if treated is not None and pre_periods(df, table) is not None:
+        col, pv = periods(df, table)
+        if col is None or pv is None:
+            return out
+        num = pd.to_numeric(col, errors="coerce")
+        try:
+            before = num < float(pv)
+            n_tb = int((treated & before).sum())
+            out.append(
+                ProbeResult(
+                    family=fam, name="treated_before", value=float(n_tb), passed=n_tb > 0, detail=f"{n_tb} rows of the treated group observed before the change"
+                )
+            )
+        except (TypeError, ValueError):
+            pass
+    return out
+
+
+def _single_unit_family(fam: str, df: pd.DataFrame, table: ClaimTable, th: dict) -> list[ProbeResult]:
+    out = [_pre_period_probe(fam, df, table, th)]
+    treated, unit = treated_mask(df, table), unit_col(df, table)
+    if treated is not None and unit is not None:
+        n_units = int(df.loc[treated, unit].nunique())
+        cap = int(th["probe"]["max_treated_units_single"])
+        out.append(
+            ProbeResult(
+                family=fam,
+                name="treated_units",
+                value=float(n_units),
+                passed=1 <= n_units <= cap,
+                detail=f"{n_units} treated units by {unit!r}; needs one or at most {cap}",
+            )
+        )
+    return out
+
+
+def synthetic_control(df: pd.DataFrame, table: ClaimTable, th: dict) -> list[ProbeResult]:
+    return _single_unit_family("synthetic_control", df, table, th)
+
+
+def interrupted_series(df: pd.DataFrame, table: ClaimTable, th: dict) -> list[ProbeResult]:
+    return _single_unit_family("interrupted_series", df, table, th)
+
+
+def discontinuity(df: pd.DataFrame, table: ClaimTable, th: dict) -> list[ProbeResult]:
+    fam = "discontinuity"
+    a = table.get("assignment")
+    if not a or a.fields.get("kind") != "cutoff_rule":
+        return []
+    sc = column(df, a.fields.get("score_column"))
+    if sc is None or a.fields.get("cutoff") is None:
+        return [ProbeResult(family=fam, name="rows_by_side", passed=None, detail="score column or cutoff not settled")]
+    x = pd.to_numeric(df[sc], errors="coerce")
+    c = float(a.fields["cutoff"])
+    n_above, n_below = int((x > c).sum()), int((x < c).sum())
+    floor = int(th["cutoff"]["min_rows_side"])
+    ok = min(n_above, n_below) >= floor
+    return [
+        ProbeResult(
+            family=fam,
+            name="rows_by_side",
+            value=float(min(n_above, n_below)),
+            passed=ok,
+            detail=f"{n_below} rows below {c} and {n_above} above on {sc!r}; floor {floor} a side",
+        )
+    ]
+
+
+def instrument(df: pd.DataFrame, table: ClaimTable, th: dict) -> list[ProbeResult]:
+    fam = "instrument"
+    ex = table.get("exclusion")
+    if not ex or ex.status in {"empty", "refuted", "unknown"} or ex.fields.get("exists") is not True:
+        return []
+    ic = column(df, ex.fields.get("column"))
+    if ic is None:
+        return [ProbeResult(family=fam, name="instrument_column", passed=False, detail=f"{ex.fields.get('column')!r} is not a column in the file")]
+    n = int(df[ic].nunique())
+    return [ProbeResult(family=fam, name="instrument_varies", value=float(n), passed=n >= 2, detail=f"{ic!r} takes {n} values")]

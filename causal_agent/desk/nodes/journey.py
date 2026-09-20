@@ -22,7 +22,8 @@ from causal_agent.desk.nodes import decide as D
 from causal_agent.desk.nodes import frame as F
 from causal_agent.desk.prompts import journey as P
 from causal_agent.desk.state import Context, DeskState
-from causal_agent.knowledge import Family, load_registry
+from causal_agent.families import registry as R
+from causal_agent.knowledge import Family
 from causal_agent.memory import ops, store
 from causal_agent.memory import views as V
 from causal_agent.memory.catalogue import Catalogue, ClaimKind, load_catalogue, load_thresholds
@@ -236,9 +237,9 @@ def probe_fit(state: DeskState) -> dict:
     memory = F.memory_of(state)
     df = V.table_of(memory)
     fr = state.get("frame")
-    probes = ops.probe(memory, df, TH, CAT)
-    status = ops.fit(memory, probes, CAT, columns=_columns_in_play(memory, fr))
-    opened = ops.open(memory, status, CAT)
+    probes = ops.probe(memory, df, R.REGISTRY.values(), TH, CAT)
+    status = ops.fit(memory, probes, R.needs(), columns=_columns_in_play(memory, fr), cat=CAT)
+    opened = ops.open(memory, status, R.needs(), CAT)
     _writer()({"fit": {"surviving": status.surviving, "struck": status.struck, "open": [o.address for o in opened], "ready": status.ready}})
     return {"probes": probes, "status": status, "fit_status": status.model_dump(), "open": opened, "ready": status.ready}
 
@@ -392,7 +393,7 @@ def _belief_words(memory: Memory, family: Family) -> str:
     """The assumption the family bets on, and the person's own words where a belief carries them."""
     said = []
     for kind in ("unobserved", "exclusion", "spillover", "trend_continues", "cutoff_only"):
-        if kind in (CAT.families.get(family.name).requires if CAT.families.get(family.name) else []):
+        if kind in (R.needs()[family.name].requires if family.name in R.needs() else []):
             for n, f in memory.fields_of(f"claim:{kind}").items():
                 if f.said and f.value is not None:
                     said.append(f'"{f.said}" [claim:{kind}.{n}]')
@@ -412,7 +413,7 @@ def convince(state: DeskState, runtime: Runtime[Context]) -> dict:
     g = D.gate(st3, runtime)
     update: dict = {**out, **dec, **(g.update or {}), "convinced_version": memory.version}
     d = update.get("decision")
-    registry = {f.name: f for f in load_registry(runtime.context.registry_path if runtime and runtime.context else None)}
+    registry = {f.name: f for f in R.knowledge()}
     head = state.get("reply") or ""
     verdicts = {v.family: v for v in update.get("family_verdicts") or []}
     if d is None or g.goto == "__end__" or d.chosen not in registry:
