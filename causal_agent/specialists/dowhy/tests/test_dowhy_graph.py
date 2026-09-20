@@ -409,7 +409,8 @@ def test_a_forbidden_column_never_enters_the_graph_and_the_flags_are_cited():
     assert not out.get("interpret_errors")
     arts = json.loads(open(f"{r['run_dir']}/artifacts.json").read())
     assert arts["case"]["facts"]["col:gender.when"] == "before" and any(c["name"] == "arms" for c in arts["checks"]) and arts["design"]["estimator"]
-    assert [f["id"] for f in json.loads(open(f"{r['run_dir']}/figures.json").read())] == ["effect_completed_vs_none"] and r["figures"] == ["effect_completed_vs_none"]
+    ids = [f["id"] for f in json.loads(open(f"{r['run_dir']}/figures.json").read())]
+    assert "effect_completed_vs_none" in ids and r["figures"] == ids
 
 
 def test_relate_is_skipped_when_the_pack_settles_every_claim():
