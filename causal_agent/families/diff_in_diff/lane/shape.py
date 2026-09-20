@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from causal_agent.specialists.did.contracts import Groups, Periods, ShapeFacts
+from causal_agent.families.diff_in_diff.lane.contracts import Groups, Periods, ShapeFacts
 
 CANON = ["y", "unit", "time", "treated", "post", "treat", "rel_time", "cohort"]
 

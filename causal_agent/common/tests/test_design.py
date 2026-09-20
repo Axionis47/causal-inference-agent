@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from causal_agent.common.contracts import DESIGNS, Design, DidDesign, Handoff, RdDesign, parse_design
+from causal_agent.common.contracts import DESIGNS, Design, Handoff, RdDesign, parse_design
 from causal_agent.families.adjustment.design import AdjustmentDesign
+from causal_agent.families.diff_in_diff.design import DidDesign
 
 
 def test_every_built_family_block_is_registered_by_its_kind():

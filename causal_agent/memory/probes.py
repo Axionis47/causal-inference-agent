@@ -49,6 +49,15 @@ def unit_col(df: pd.DataFrame, table: ClaimTable) -> str | None:
     return None
 
 
+def pre_period_probe(fam: str, df: pd.DataFrame, table: ClaimTable, th: dict) -> ProbeResult:
+    """Distinct periods before the change against the floor, for any family that compares before with after."""
+    pre = pre_periods(df, table)
+    if pre is None:
+        return ProbeResult(family=fam, name="pre_periods", passed=None, detail="period column or change period not settled")
+    floor = int(th["probe"]["min_pre_periods"])
+    return ProbeResult(family=fam, name="pre_periods", value=float(pre), passed=pre >= floor, detail=f"{pre} distinct periods before the change; floor {floor}")
+
+
 def run_probes(df: pd.DataFrame, table: ClaimTable, families: Iterable[Any], th: dict) -> list[ProbeResult]:
     """Every family's probes, in the order given. A family is anything with a `probes` callable, or none."""
     out: list[ProbeResult] = []

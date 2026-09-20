@@ -23,7 +23,6 @@ from causal_agent.common.contracts import (
     Cited,
     Contrast,
     Decline,
-    DidDesign,
     Feasibility,
     Handoff,
     Interpretation,
@@ -31,16 +30,12 @@ from causal_agent.common.contracts import (
     Refutation,
 )
 from causal_agent.common.llm import structured
-from causal_agent.lane import asks, intake, records
-from causal_agent.lane import case as C
-from causal_agent.lane import figures as LF
-from causal_agent.lane import words as W
-from causal_agent.profile.datasets import dataset_entries
-from causal_agent.specialists.did import adapter
-from causal_agent.specialists.did import checks as CK
-from causal_agent.specialists.did import prompts as P
-from causal_agent.specialists.did import shape as SH
-from causal_agent.specialists.did.contracts import (
+from causal_agent.families.diff_in_diff.design import DidDesign
+from causal_agent.families.diff_in_diff.lane import adapter
+from causal_agent.families.diff_in_diff.lane import checks as CK
+from causal_agent.families.diff_in_diff.lane import prompts as P
+from causal_agent.families.diff_in_diff.lane import shape as SH
+from causal_agent.families.diff_in_diff.lane.contracts import (
     ControlRelation,
     Controls,
     Design,
@@ -50,10 +45,10 @@ from causal_agent.specialists.did.contracts import (
     Groups,
     Periods,
 )
-from causal_agent.specialists.did.knowledge import (
+from causal_agent.families.diff_in_diff.lane.knowledge import (
     estimator as estimator_entry,
 )
-from causal_agent.specialists.did.knowledge import (
+from causal_agent.families.diff_in_diff.lane.knowledge import (
     load_beliefs,
     load_checks,
     load_estimators,
@@ -61,10 +56,15 @@ from causal_agent.specialists.did.knowledge import (
     pick_inference,
     render_preferences,
 )
-from causal_agent.specialists.did.knowledge import (
+from causal_agent.families.diff_in_diff.lane.knowledge import (
     placebo as placebo_entry,
 )
-from causal_agent.specialists.did.state import PlaceboTask, RelateTask, SpecialistState
+from causal_agent.families.diff_in_diff.lane.state import PlaceboTask, RelateTask, SpecialistState
+from causal_agent.lane import asks, intake, records
+from causal_agent.lane import case as C
+from causal_agent.lane import figures as LF
+from causal_agent.lane import words as W
+from causal_agent.profile.datasets import dataset_entries
 from causal_agent.viz.postviz import common as PV
 
 MAX_RELATE_ATTEMPTS = 3
@@ -1089,7 +1089,7 @@ def feasibility(state: SpecialistState) -> dict:
 def figures(state: SpecialistState) -> dict:
     """What this run drew, checked against the addresses it produced: the estimate against its placebos, and the effect by
     period from the dynamic fit or the pre-trends fit, whichever ran."""
-    from causal_agent.viz.postviz import diff_in_diff as PD
+    from causal_agent.families.diff_in_diff import postviz as PD
 
     h = state["handoff"]
     c = state["contrast"].key if state.get("contrast") else None

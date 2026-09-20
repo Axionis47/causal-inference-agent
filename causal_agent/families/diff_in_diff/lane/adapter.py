@@ -15,7 +15,7 @@ import numpy as np
 import pandas as pd
 
 from causal_agent.common.contracts import Estimate, Refutation
-from causal_agent.specialists.did.knowledge import EstimatorEntry, PlaceboEntry
+from causal_agent.families.diff_in_diff.lane.knowledge import EstimatorEntry, PlaceboEntry
 
 logging.getLogger("pyfixest").setLevel(logging.ERROR)
 warnings.filterwarnings("ignore", module="pyfixest")

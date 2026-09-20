@@ -6,42 +6,12 @@ from __future__ import annotations
 import pandas as pd
 
 from causal_agent.memory.claims import ClaimTable, ProbeResult
-from causal_agent.memory.probes import periods, pre_periods, treated_mask, unit_col
+from causal_agent.memory.probes import pre_period_probe, treated_mask, unit_col
 from causal_agent.profile.data import column
 
 
-def _pre_period_probe(fam: str, df: pd.DataFrame, table: ClaimTable, th: dict) -> ProbeResult:
-    pre = pre_periods(df, table)
-    if pre is None:
-        return ProbeResult(family=fam, name="pre_periods", passed=None, detail="period column or change period not settled")
-    floor = int(th["probe"]["min_pre_periods"])
-    return ProbeResult(family=fam, name="pre_periods", value=float(pre), passed=pre >= floor, detail=f"{pre} distinct periods before the change; floor {floor}")
-
-
-def diff_in_diff(df: pd.DataFrame, table: ClaimTable, th: dict) -> list[ProbeResult]:
-    fam = "diff_in_diff"
-    out = [_pre_period_probe(fam, df, table, th)]
-    treated = treated_mask(df, table)
-    if treated is not None and pre_periods(df, table) is not None:
-        col, pv = periods(df, table)
-        if col is None or pv is None:
-            return out
-        num = pd.to_numeric(col, errors="coerce")
-        try:
-            before = num < float(pv)
-            n_tb = int((treated & before).sum())
-            out.append(
-                ProbeResult(
-                    family=fam, name="treated_before", value=float(n_tb), passed=n_tb > 0, detail=f"{n_tb} rows of the treated group observed before the change"
-                )
-            )
-        except (TypeError, ValueError):
-            pass
-    return out
-
-
 def _single_unit_family(fam: str, df: pd.DataFrame, table: ClaimTable, th: dict) -> list[ProbeResult]:
-    out = [_pre_period_probe(fam, df, table, th)]
+    out = [pre_period_probe(fam, df, table, th)]
     treated, unit = treated_mask(df, table), unit_col(df, table)
     if treated is not None and unit is not None:
         n_units = int(df.loc[treated, unit].nunique())

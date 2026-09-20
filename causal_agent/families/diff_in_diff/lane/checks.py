@@ -7,8 +7,8 @@ from typing import Any
 import pandas as pd
 
 from causal_agent.common.contracts import CheckResult
-from causal_agent.specialists.did import adapter
-from causal_agent.specialists.did.contracts import ShapeFacts
+from causal_agent.families.diff_in_diff.lane import adapter
+from causal_agent.families.diff_in_diff.lane.contracts import ShapeFacts
 
 
 def run_checks(panel: pd.DataFrame, shape: ShapeFacts, controls: list[str], contrast_key: str, cfg: dict[str, Any]) -> tuple[list[CheckResult], dict[str, Any]]:

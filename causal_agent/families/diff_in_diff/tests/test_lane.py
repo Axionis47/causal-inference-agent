@@ -13,9 +13,9 @@ from langchain_core.messages import AIMessage
 from causal_agent.common.contracts import Cited, Handoff, Interpretation
 from causal_agent.common.llm import set_llm
 from causal_agent.desk.handoff import forced
+from causal_agent.families.diff_in_diff.lane.contracts import ControlRelation, DesignAssessment, EstimatorPick, Groups, Periods, Revision
+from causal_agent.families.diff_in_diff.lane.graph import compile_local
 from causal_agent.memory import store
-from causal_agent.specialists.did.contracts import ControlRelation, DesignAssessment, EstimatorPick, Groups, Periods, Revision
-from causal_agent.specialists.did.graph import compile_local
 
 
 def memory(pack: str, *, trend=None, trend_status="unknown", spillover=False, said=None):
@@ -241,8 +241,8 @@ def test_estimator_outside_list_is_rejected_then_accepted():
 def test_catalogues_parse_on_a_toy_panel():
     import pyfixest as pf
 
-    from causal_agent.specialists.did import adapter
-    from causal_agent.specialists.did.knowledge import load_checks, load_estimators, load_inference, load_placebos
+    from causal_agent.families.diff_in_diff.lane import adapter
+    from causal_agent.families.diff_in_diff.lane.knowledge import load_checks, load_estimators, load_inference, load_placebos
 
     rng = pd.Series(range(200))
     toy = pd.DataFrame({"unit": (rng % 20).astype(str), "time": rng // 20})

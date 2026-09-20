@@ -168,11 +168,6 @@ kinds:
 # Which claims each family needs, and for grain and assignment which values fit. A family with a cell that does
 # not fit, or a failed probe, is struck out; the required set is the union over the survivors. Read by code.
 family_needs:
-  diff_in_diff:
-    requires: [grain, sampling, change, assignment, measured, missing, spillover, trend_continues]
-    fits:
-      grain.panel: [true]
-      assignment.kind: [date_by_others, third_party, own_choice]
   discontinuity:
     requires: [grain, sampling, change, assignment, measured, missing, cutoff_only]
     fits:

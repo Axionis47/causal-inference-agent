@@ -15,12 +15,6 @@ from causal_agent.viz.graph import register_figures
 __all__ = ["REGISTRY", "BlockInputs", "FamilyDef", "family", "knowledge", "lanes", "needs", "stub_lane"]
 
 
-def _diff_in_diff_lane():
-    from causal_agent.specialists.did.graph import compile_subgraph
-
-    return compile_subgraph()
-
-
 def _discontinuity_lane():
     from causal_agent.specialists.rd.graph import compile_subgraph
 
@@ -29,14 +23,11 @@ def _discontinuity_lane():
 
 def _legacy() -> list[FamilyDef]:
     """The families not yet in their own package: knowledge from knowledge/families.yaml, needs from memory/fields.yaml."""
-    from causal_agent.common.contracts import DidDesign, RdDesign
+    from causal_agent.common.contracts import RdDesign
     from causal_agent.families import blocks, previz, probes
 
     needs = load_catalogue().families
     built: dict[str, dict[str, Any]] = {
-        "diff_in_diff": dict(
-            design_cls=DidDesign, design_block=blocks.diff_in_diff, probes=probes.diff_in_diff, previz=previz.DIFF_IN_DIFF, lane=_diff_in_diff_lane
-        ),
         "discontinuity": dict(
             design_cls=RdDesign, design_block=blocks.discontinuity, probes=probes.discontinuity, previz=previz.DISCONTINUITY, lane=_discontinuity_lane
         ),
@@ -54,10 +45,10 @@ def _legacy() -> list[FamilyDef]:
 
 
 def _build() -> dict[str, FamilyDef]:
-    from causal_agent.families import adjustment
+    from causal_agent.families import adjustment, diff_in_diff
 
     out: dict[str, FamilyDef] = {}
-    for f in [adjustment.FAMILY, *_legacy()]:
+    for f in [adjustment.FAMILY, diff_in_diff.FAMILY, *_legacy()]:
         out[f.name] = f
         if f.previz:
             register_figures(f.name, f.previz)

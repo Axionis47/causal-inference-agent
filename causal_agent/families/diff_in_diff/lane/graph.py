@@ -14,8 +14,8 @@ from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import RetryPolicy
 
-from causal_agent.specialists.did import nodes as N
-from causal_agent.specialists.did.state import SpecialistState
+from causal_agent.families.diff_in_diff.lane import nodes as N
+from causal_agent.families.diff_in_diff.lane.state import SpecialistState
 
 _retry = RetryPolicy(max_attempts=3, initial_interval=1.0)
 

@@ -9,23 +9,8 @@ import pandas as pd
 from causal_agent.memory.records import Memory
 from causal_agent.profile.data import column
 from causal_agent.viz.graph import FigureDecl, PrevizFigure, VizState
-from causal_agent.viz.previz import diff_in_diff as PD
 from causal_agent.viz.previz import discontinuity as PR
 from causal_agent.viz.spec import Figure
-
-
-def _by_group_over_time(memory: Memory, df: pd.DataFrame, state: VizState, th: dict) -> Figure:
-    a, ch = memory.values_of("claim:assignment"), memory.values_of("claim:change")
-    return PD.by_group_over_time(
-        df,
-        column(df, state.get("outcome")),
-        column(df, ch.get("date_column")),
-        column(df, a.get("treatment_column")),
-        str(a.get("treated_level")),
-        ch.get("period_value"),
-        floor=int(th["probe"]["min_pre_periods"]),
-        addresses=["claim:change.date_column", "claim:change.period_value"],
-    )
 
 
 def _density(memory: Memory, df: pd.DataFrame, state: VizState, th: dict) -> Figure:
@@ -50,19 +35,6 @@ def _outcome_by_bin(memory: Memory, df: pd.DataFrame, state: VizState, th: dict)
         addresses=["claim:assignment.score_column", "claim:assignment.cutoff"],
     )
 
-
-DIFF_IN_DIFF = [
-    PrevizFigure(
-        FigureDecl(
-            name="diff_in_diff.by_group_over_time",
-            family="diff_in_diff",
-            shows="the mean outcome per period for the units that got the change and the rest, with the change marked",
-            makes_the_point_when="the point is about movement before the change, parallel paths, or when the groups part",
-            needs=["outcome", "claim:change.date_column", "claim:change.period_value", "claim:assignment.treatment_column", "claim:assignment.treated_level"],
-        ),
-        _by_group_over_time,
-    )
-]
 
 DISCONTINUITY = [
     PrevizFigure(

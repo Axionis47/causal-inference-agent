@@ -2,23 +2,6 @@
 # Written as method knowledge the router reads and judges the data against.
 # Never written as rules the harness evaluates.
 
-diff_in_diff:
-  applies_to: [effect_of_change]
-  answers: effect of a change that reached some units and not others, comparing how outcomes moved over time in each group
-  needs:
-    - rows are units observed at more than one time, or the same units measured before and after
-    - some units got the change and some never did
-    - the outcome is measured at least once before the change and once after
-    - which units got the change was not decided by how their outcome was already moving
-  look_for: a time column or two dated measures of the outcome in the column notes; a change card naming who got it and who did not
-  assumes: without the change, the treated and untreated groups would have moved in parallel, and units do not affect each other's outcomes
-  weak_when: there is only one treated unit; or the treated group was chosen because its outcome was trending differently; or there is no observation before the change; or the dataset note says units can affect each other's outcomes
-  prefer_over:
-    adjustment: when the change was given to whole groups by a group label such as a state or region, adjusting for that label leaves nothing to compare, because every unit with the label got the change; a measure of the outcome from before the change lets diff_in_diff difference the group gap away instead
-  convince: the two groups moved together before the change, so their paths can be compared after it
-  specialist: pyfixest
-  status: built
-
 discontinuity:
   applies_to: [effect_of_change]
   answers: effect of a change that was assigned by a strict cutoff on one measured score, comparing rows just above and just below the cutoff

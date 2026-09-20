@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pandas as pd
 
+from causal_agent.families.diff_in_diff import postviz as D
 from causal_agent.viz.graph import check_spec
-from causal_agent.viz.postviz import diff_in_diff as D
 
 
 def toy_panel() -> pd.DataFrame:

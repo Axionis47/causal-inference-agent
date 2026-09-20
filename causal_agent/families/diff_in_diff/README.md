@@ -37,9 +37,9 @@ Runs write to `RUN_DIR/<dataset>-did-<id>/`: `table.csv`, `panel.csv`, `design.j
 ## Run it
 
 ```bash
-uv run python -m causal_agent.specialists.did.run card_krueger "Did New Jersey's 1992 minimum wage rise reduce fast food employment?"
-uv run python -m causal_agent.specialists.did.run --handoff causal_agent/specialists/did/evals/handoffs/cigar_forced.json
-uv run pytest causal_agent/specialists/did -q
+uv run python -m causal_agent.families.diff_in_diff.lane.run card_krueger "Did New Jersey's 1992 minimum wage rise reduce fast food employment?"
+uv run python -m causal_agent.families.diff_in_diff.lane.run --handoff causal_agent/families/diff_in_diff/evals/handoffs/cigar_forced.json
+uv run pytest causal_agent/families/diff_in_diff/lane -q
 ```
 
 ## Known limits of this version

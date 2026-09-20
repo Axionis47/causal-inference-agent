@@ -13,8 +13,8 @@ from langsmith import evaluate
 
 import causal_agent.families.registry  # noqa: F401  (registers every family's block before a pack is read)
 from causal_agent.common.contracts import Handoff
-from causal_agent.specialists.did.evals.dataset import DATASET
-from causal_agent.specialists.did.evals.evaluators import ALL
+from causal_agent.families.diff_in_diff.evals.dataset import DATASET
+from causal_agent.families.diff_in_diff.evals.evaluators import ALL
 
 load_dotenv()
 
@@ -49,7 +49,7 @@ def _summarise(result: dict) -> dict:
 
 def run_case(inputs: dict) -> dict:
     if inputs.get("handoff"):
-        from causal_agent.specialists.did.graph import compile_local
+        from causal_agent.families.diff_in_diff.lane.graph import compile_local
 
         raw = dict(inputs["handoff"])
         raw.pop("question", None)
