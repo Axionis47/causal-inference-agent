@@ -20,7 +20,7 @@ beliefs.yaml, per lane:
             - {belief: confirmed_true, check: hard, then: ask, once: true, question: "...", options: [yes, no]}
             - {belief: confirmed_true, check: hard, asked: true, then: soften, caveat: "..."}
             - {belief: confirmed_false, check: hard, then: stop, reason: "..."}
-            - {belief: confirmed_true, check: soft, then: harden, unless_fact: "col:{score}.set_by", caveat: "..."}
+            - {belief: confirmed_true, check: soft, then: harden, unless_fact: "col:{score}.set_by", check_value_lt: 0.10, caveat: "..."}
     unknowns:
       "col:*.when": {level: soft, caveat: "..."}
       "claim:change.period_value": {level: hard, ask: {question: "..."}}
@@ -140,20 +140,28 @@ class Case(BaseModel):
 def _address(kind: str, spec: dict) -> str:
     if spec.get("address"):
         return spec["address"]
+    if str(spec.get("from") or "").startswith("design."):
+        return str(spec["from"])
     if spec.get("from"):
         return f"claim:{spec['from']}"
     return f"claim:{kind}.{spec.get('value_field', 'believed')}"
 
 
 def _belief(h: Handoff, kind: str, spec: dict) -> Belief | None:
-    """The belief by kind, or a dataset field read as one (`from: assignment.movable`)."""
+    """The belief by kind, or a dataset field read as one (`from: assignment.movable`), or a family-block field
+    (`from: design.score_fixed_before`), whose status is confirmed when the desk could say and empty when it could not."""
+    if str(spec.get("from") or "").startswith("design."):
+        fld = str(spec["from"]).split(".", 1)[1]
+        value = getattr(h.design, fld, None) if h.design is not None else None
+        return Belief(kind=kind, value=bool(value) if value is not None else None, status="confirmed" if value is not None else "empty")
     if spec.get("from"):
         claim, _, fld = str(spec["from"]).partition(".")
         d = getattr(h, claim, None) or {}
         c = (h.claims or {}).get(claim) or {}
         value = d.get(fld) if isinstance(d, dict) else None
         addr = f"claim:{claim}.{fld}"
-        status = "unknown" if addr in h.unknowns else "contradiction" if addr in h.contradictions else (c.get("status") or ("confirmed" if value is not None else "empty"))
+        own = (c.get("fields_status") or {}).get(fld)  # the field's own status when the pack carries it; the claim's is a poor proxy
+        status = "unknown" if addr in h.unknowns else "contradiction" if addr in h.contradictions else own or ("empty" if value is None else c.get("status") or "confirmed")
         return Belief(kind=kind, value=bool(value) if value is not None else None, status=status, source=c.get("source"))
     return h.beliefs.get(kind)
 
@@ -277,6 +285,8 @@ def decide_by_code(case: Case, checks: list[CheckResult], rules: dict | None, h:
                 for row in rows:
                     if row.get("belief") != st or row.get("check") != c.level:
                         continue
+                    if "check_value_lt" in row and (c.value is None or c.value >= float(row["check_value_lt"])):
+                        continue  # the check is flagged for another reason (uninformative, not computable); the number is not a jump
                     asked = already_asked(h, addr)
                     if row.get("asked") is True and not asked:
                         continue

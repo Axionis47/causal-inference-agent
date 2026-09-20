@@ -23,9 +23,17 @@ from causal_agent.specialists.rd.contracts import CovariateRelation, DesignAsses
 from causal_agent.specialists.rd.graph import compile_local
 
 
-def handoff(pack: str, outcome: str, treatment: str | None, cols: list[str], cite: str, target: str = "average") -> Handoff:
+def memory(pack: str, *, cutoff_only=True, cutoff_only_status="confirmed", said=None):
+    """The claims file alone (a note mined on disk never moves a test), plus the belief the family asks for: by default the
+    person says nothing else switches at the cutoff."""
+    m = store.migrate(pack, write=False)
+    m.set("claim:cutoff_only.believed", cutoff_only, status=cutoff_only_status, source="user:turn:1", said=said)
+    return m
+
+
+def handoff(pack: str, outcome: str, treatment: str | None, cols: list[str], cite: str, target: str = "average", memory_=None) -> Handoff:
     return forced(pack, "Did crossing the cutoff change the outcome?", "discontinuity", outcome, treatment, cols, scope=Scope(target=target),
-                  assumption="units just either side of the cutoff are alike", cite=cite, memory=store.migrate(pack, write=False))
+                  assumption="units just either side of the cutoff are alike", cite=cite, memory=memory_ or memory(pack))
 
 
 URUGUAY = dict(pack="gov_transfers", outcome="Support", treatment="Participation", cols=["Support", "Participation", "Income_Centered", "Education", "Age"], cite="col:income_centered.note")
@@ -250,7 +258,9 @@ def test_proceed_on_density_without_a_note_cite_is_rejected(tmp_path, monkeypatc
     sc = Score(column="x", cutoff=0.0, treated_side="above", cutoff_value_treated=True, takeup_column=None, takeup_level=None, reason="r", cites=["col:x.note"])
     # cites the flag addresses but no pack address, three times
     fake = FakeLLM(sc, {}, "col:x.note", assess_script=[DesignAssessment(action="proceed", reason="fine", cites=["check:above_vs_below.density"])] * 3)
-    out = _run(fake, handoff("manip", "y", None, ["x", "y"], "col:x.note"))
+    m = memory("manip")
+    m.set("claim:assignment.movable", False, status="confirmed", source="user:turn:1")  # the person says the score could not be moved: the jump is the model's to argue
+    out = _run(fake, handoff("manip", "y", None, ["x", "y"], "col:x.note", memory_=m))
     levels = {c.name: c.level for c in out["checks"]}
     assert levels["density"] == "soft", [c.detail for c in out["checks"] if c.name == "density"]
     assert out["specialist_result"]["status"] == "infeasible" and out["feasibility"].stage == "assess"
@@ -534,3 +544,134 @@ def test_pack_cutoff_block_settles_the_score_without_a_model_call():
     assert fake.calls.count("Score") == 0
     assert out["score"].column == "margin" and out["score"].cutoff == 0.0 and out["score"].treated_side == "above"
     assert out["score"].cites[0].startswith("claim:assignment.")
+
+
+# ------------------------------------------------------------------ the lane on the harness: the person's beliefs meet the checks
+
+
+def _rule(m, *, score="x", cutoff=0.0, side="above", movable=None):
+    src = "user:turn:1"
+    m.set("claim:assignment.kind", "cutoff_rule", status="confirmed", source=src)
+    m.set("claim:assignment.score_column", score, status="confirmed", source=src)
+    m.set("claim:assignment.cutoff", cutoff, status="confirmed", source=src)
+    m.set("claim:assignment.treated_side", side, status="confirmed", source=src)
+    if movable is not None:
+        m.set("claim:assignment.movable", movable, status="confirmed", source=src, said="they knew the line and could argue their score")
+    return m
+
+
+def test_cutoff_only_false_stops_by_code_and_unasked_asks_back():
+    fake = FakeLLM(URUGUAY_SCORE, URUGUAY_RELATIONS, URUGUAY["cite"])
+    out = _run(fake, handoff(**URUGUAY, memory_=memory("gov_transfers", cutoff_only=False, said="the pension also kicks in at that income")))
+    r = out["specialist_result"]
+    assert r["status"] == "infeasible" and out["feasibility"].stage == "assess" and "something else" in out["feasibility"].reason
+    assert "DesignAssessment" not in fake.calls
+    fake = FakeLLM(URUGUAY_SCORE, URUGUAY_RELATIONS, URUGUAY["cite"])
+    out = _run(fake, handoff(**URUGUAY, memory_=store.migrate("gov_transfers", write=False)))
+    r = out["specialist_result"]
+    assert r["status"] == "ask" and r["ask"]["address"] == "claim:cutoff_only.believed" and r["ask"]["options"] == ["yes", "no"] and r["ask"]["stage"] == "assess"
+
+
+def test_movable_true_hardens_a_real_density_jump_unless_the_score_has_a_set_by_fact(tmp_path, monkeypatch):
+    make_pack(tmp_path, monkeypatch, "manip", manipulated(), "Units with a score at or above zero got the grant.", {"x": "The score, fixed before the grant.", "y": "The outcome, measured after."})
+    m = _rule(memory("manip"), movable=True)
+    fake = FakeLLM(URUGUAY_SCORE, {}, "col:x.note")
+    out = _run(fake, handoff("manip", "y", None, ["x", "y"], "col:x.note", memory_=m))
+    assert fake.calls.count("Score") == 0  # the pack settles the rule
+    density = next(c for c in out["checks"] if c.name == "density")
+    assert density.level == "hard" and "crossed it on purpose" in density.detail and density.value is not None and density.value < 0.10
+    assert out["specialist_result"]["status"] == "infeasible" and out["feasibility"].stage == "assess"
+    # the person also said who set the score: the jump is a caveat the assessment must argue, not a hard stop
+    m2 = _rule(memory("manip"), movable=True)
+    m2.set("col:x.set_by", "the registry, from records the unit never saw", status="confirmed", source="user:turn:2")
+    fake = FakeLLM(URUGUAY_SCORE, {}, "col:x.note")
+    out = _run(fake, handoff("manip", "y", None, ["x", "y"], "col:x.note", memory_=m2))
+    assert next(c for c in out["checks"] if c.name == "density").level == "soft" and out["specialist_result"]["status"] == "done"
+
+
+def test_movable_unasked_with_a_real_density_jump_asks_back(tmp_path, monkeypatch):
+    make_pack(tmp_path, monkeypatch, "manip", manipulated(), "Units with a score at or above zero got the grant.", {"x": "The score, fixed before the grant.", "y": "The outcome, measured after."})
+    fake = FakeLLM(URUGUAY_SCORE, {}, "col:x.note")
+    out = _run(fake, handoff("manip", "y", None, ["x", "y"], "col:x.note", memory_=_rule(memory("manip"))))
+    r = out["specialist_result"]
+    assert r["status"] == "ask" and r["ask"]["address"] == "claim:assignment.movable" and "density test p = " in r["ask"]["question"] and r["ask"]["evidence"] == ["check:above_cutoff_vs_below_cutoff.density"]
+
+
+def test_a_missing_cutoff_asks_back_instead_of_stopping():
+    m = memory("gov_transfers")
+    m.set("claim:assignment.kind", "cutoff_rule", status="confirmed", source="user:turn:1")
+    m.set("claim:assignment.score_column", "Income_Centered", status="confirmed", source="user:turn:1")
+    fake = FakeLLM(Score(column=None, reason="no note states a cutoff", cites=[]), {}, URUGUAY["cite"])
+    out = _run(fake, handoff(**URUGUAY, memory_=m))
+    r = out["specialist_result"]
+    assert r["status"] == "ask" and r["ask"]["address"] == "claim:assignment.cutoff" and "Income_Centered" in r["ask"]["question"] and r["ask"]["stage"] == "score"
+
+
+def test_on_treated_is_substituted_with_a_record_the_interpretation_cites():
+    fake = FakeLLM(URUGUAY_SCORE, URUGUAY_RELATIONS, URUGUAY["cite"])
+    out = _run(fake, handoff(**URUGUAY, target="on_treated"))
+    r = out["specialist_result"]
+    assert r["status"] == "done", r.get("feasibility")
+    d = next(x for x in out["declines"] if x.about == "scope.target")
+    assert d.kind == "substituted" and d.pack_value == "on_treated" and d.took == "effect_at_cutoff" and d.address == "decline:load.scope_target"
+    assert d.address in out["interpretations"][0].cites and "DISAGREEMENTS WITH THE PACK" in r["report"]
+
+
+def test_covariates_allowed_is_honoured_and_settled_timing_is_not_asked_again(tmp_path, monkeypatch):
+    h = handoff(**URUGUAY)
+    h.design.covariates_allowed = ["education"]
+    fake = FakeLLM(URUGUAY_SCORE, URUGUAY_RELATIONS, URUGUAY["cite"])
+    out = _run(fake, h)
+    assert out["specialist_result"]["status"] == "done"
+    c = out["design"].covariates
+    assert c.balance_tested == ["education"] and "design.covariates_allowed" in {x.column: x.why for x in c.excluded}["age"]
+    # the person's word on a column's timing and on what measures the outcome settles the claims the model would be asked
+    make_pack(tmp_path, monkeypatch, "sharp", sharp_below(), "Units with a score strictly below 50 got the grant; a unit exactly at 50 did not.", SYNTH_COLS)
+    m = memory("sharp")
+    m.set("col:z.when", "before", status="confirmed", source="user:turn:2")
+    m.set("col:later.measures_outcome", True, status="confirmed", source="user:turn:2")
+    sc = Score(column="score", cutoff=50.0, treated_side="below", cutoff_value_treated=False, takeup_column="got", takeup_level="1", reason="r", cites=["col:score.note"])
+
+    class Fake(FakeLLM):
+        def answer(self, schema, human):
+            if schema is CovariateRelation:
+                assert "for column 'z'" in human and "predetermined = true [col:z.when]" in human
+            return super().answer(schema, human)
+
+    fake = Fake(sc, {"z": dict(predetermined=True)}, "col:score.note")
+    out = _run(fake, handoff("sharp", "y", "got", ["score", "y", "got", "z", "later"], "col:score.note", memory_=m))
+    assert out["specialist_result"]["status"] == "done", out["specialist_result"].get("feasibility")
+    assert fake.calls.count("CovariateRelation") == 1 and out["design"].covariates.balance_tested == ["z"]
+    assert "col:later.measures_outcome" in {x.column: x.why for x in out["design"].covariates.excluded}["later"]
+
+
+def test_a_rejected_score_block_is_recorded_and_the_model_told_why():
+    h = handoff("senate3", "vote", None, ["vote", "margin", "state", "year"], "col:margin.note")
+    h.design.cutoff = 999.0
+    sc = Score(column="margin", cutoff=0.0, treated_side="above", cutoff_value_treated=True, takeup_column=None, takeup_level=None, reason="r", cites=["col:margin.note"])
+
+    class Fake(FakeLLM):
+        def answer(self, schema, human):
+            if schema is Score:
+                assert "PREVIOUS ANSWER WAS REJECTED" in human and "not strictly inside" in human
+            return super().answer(schema, human)
+
+    fake = Fake(sc, {}, "col:margin.note")
+    out = _run(fake, h)
+    assert fake.calls.count("Score") == 1 and out["score"].cutoff == 0.0
+    d = next(x for x in out["declines"] if x.about == "claim:assignment.cutoff")
+    assert d.kind == "replaced" and "999" in d.pack_value and d.check == "score.rule_in_file"
+
+
+def test_placebo_points_are_kept_for_the_figures():
+    fake = FakeLLM(URUGUAY_SCORE, URUGUAY_RELATIONS, URUGUAY["cite"])
+    out = _run(fake, handoff(**URUGUAY))
+    pts = out["placebo_points"]
+    assert set(pts) == {"placebo_cutoffs", "bandwidth_grid", "donut"} and len(pts["bandwidth_grid"]) == 4
+    grid = [p for p in pts["bandwidth_grid"] if "value" in p]
+    assert grid and all(p["at"] > 0 and p["lo"] <= p["value"] <= p["hi"] for p in grid)
+    import json
+
+    arts = json.loads((Path(out["run_dir"]) / "artifacts.json").read_text())
+    assert "placebo_points" in arts and arts["case"]["beliefs"]["cutoff_only"] == "confirmed_true"
+    assert [f["id"] for f in json.loads((Path(out["run_dir"]) / "figures.json").read_text())] == ["effect_below_cutoff_vs_above_cutoff"]

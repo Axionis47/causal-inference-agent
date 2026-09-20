@@ -1,4 +1,4 @@
-"""Discontinuity lane state. Shares question, handoff, dataset, specialist_result, debug with the router.
+"""Discontinuity lane state. Shares the harness keys with every lane; the rest is its own.
 
 Tables never sit in state: `table_path`, `canon_path`, and `xall_path` point at the run directory. Library
 objects never sit in state either; every node that needs a fit refits from the Design.
@@ -11,7 +11,8 @@ from typing import Annotated
 
 from typing_extensions import TypedDict
 
-from causal_agent.common.contracts import Contrast, Estimate, Feasibility, Handoff, Refutation, Thought
+from causal_agent.common.contracts import Contrast, Estimate, Refutation
+from causal_agent.lane.state import LaneState, by_key, merge_dicts
 from causal_agent.specialists.rd.contracts import (
     CovariateRelation,
     Covariates,
@@ -24,20 +25,9 @@ from causal_agent.specialists.rd.contracts import (
 )
 
 
-class SpecialistState(TypedDict, total=False):
-    # shared with the parent graph
-    question: str
-    handoff: Handoff | None
-    dataset: str
-    specialist_result: dict | None
-    debug: Annotated[list[Thought], operator.add]
-
-    # this lane
-    run_dir: str
-    table_path: str
+class SpecialistState(LaneState, total=False):
     canon_path: str
     xall_path: str
-    columns: dict[str, str]  # key -> raw name
     cluster_column: str | None
     sampled_by_side: bool
     target_units: str
@@ -49,8 +39,6 @@ class SpecialistState(TypedDict, total=False):
     relate_errors: dict[str, list[str]]
     relate_attempts: int
     covariates: Covariates | None
-    checks: list  # list[CheckResult]
-    check_facts: dict
     assessment: DesignAssessment | None
     estimator: str | None
     estimator_pick: EstimatorPick | None
@@ -58,12 +46,11 @@ class SpecialistState(TypedDict, total=False):
     pick_attempts: int
     design: Design | None
     primary: dict
-    estimates: Annotated[list[Estimate], operator.add]
-    refutations: Annotated[list[Refutation], operator.add]
+    estimates: Annotated[list[Estimate], by_key(lambda e: (e.contrast, e.method))]
+    refutations: Annotated[list[Refutation], by_key(lambda r: (r.contrast, r.refuter))]
+    placebo_points: Annotated[dict, merge_dicts]  # placebo name -> every refit, so the curve and the cutoffs can be drawn
     interpretations: Annotated[list[RDInterpretation], operator.add]
-    interpret_errors: dict[str, list[str]]
-    feasibility: Feasibility | None
-    report: str
+    interpret_errors: Annotated[dict[str, list[str]], merge_dicts]
 
 
 class RelateTask(TypedDict):
@@ -71,6 +58,7 @@ class RelateTask(TypedDict):
     frame: str
     column: str
     card: str
+    settled: str
     errors: str
 
 

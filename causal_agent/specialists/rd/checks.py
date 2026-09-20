@@ -111,8 +111,8 @@ def _density(x_all: pd.Series, c: str, cfg: dict, sampled_by_side: bool, extra: 
     d = adapter.density(x_all.to_numpy(), floor=int(cfg["density"]["library_floor_rows_per_side"]))
     extra["density"] = d
     pop = f"population: {d.get('n_left', 0) + d.get('n_right', 0)} rows with a score as recorded, {d.get('n_left', 0)} below and {d.get('n_right', 0)} at or above the cutoff"
-    if sampled_by_side:
-        return CheckResult(contrast=c, name="density", level="soft", value=d.get("p"), detail=f"uninformative: the rows were sampled by side of the cutoff, so their density says nothing about manipulation; {pop}")
+    if sampled_by_side:  # no value: the number says nothing here, and no rule may read it as a jump
+        return CheckResult(contrast=c, name="density", level="soft", detail=f"uninformative: the rows were sampled by side of the cutoff, so their density says nothing about manipulation; {pop}")
     if not d["computable"]:
         return CheckResult(contrast=c, name="density", level="soft", detail=f"not computable: {d['reason']}; {pop}")
     thr = cfg["density"]["p_value"]["soft"]

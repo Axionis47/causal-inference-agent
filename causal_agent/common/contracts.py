@@ -367,7 +367,7 @@ class RdDesign(BaseModel):
             f"  score fixed before the decision: {self.score_fixed_before}; a unit could move it: {self.movable}",
             f"  take-up: " + (f"{tk.get('column')} = {tk.get('level')!r} (fuzzy)" if tk.get("column") else "none recorded (sharp)"),
             f"  covariates allowed: {', '.join(self.covariates_allowed) or 'none named'}; cluster: {self.cluster or 'none'}; rows drawn by side: {self.sampled_by_side}",
-        ])
+        ] + ([f"  {self.cutoff_only.render()}"] if self.cutoff_only is not None else []))
 
 
 DesignBlock = Annotated[AdjustmentDesign | DidDesign | RdDesign, Field(discriminator="kind")]

@@ -20,7 +20,7 @@ import pandas as pd
 
 from causal_agent.common.addresses import key as _key
 from causal_agent.common.contracts import AdjustmentDesign, Decline, DidDesign, Feasibility, Handoff, RdDesign
-from causal_agent.profile.datasets import ROOT, dataset_entries
+from causal_agent.profile import datasets as DS
 
 
 class IntakeStop(Exception):
@@ -219,11 +219,11 @@ def time_key(h: Handoff, entry: dict | None = None) -> str | None:
 
 def load(h: Handoff, tag: str, *, extra: list[str] | None = None, dropna: bool = True, stage: str = "load") -> Intake:
     """The table for one run. Raises IntakeStop when the outcome or the treatment is missing; every other trouble is a Decline."""
-    entry = dataset_entries().get(h.pack_name) or {}
+    entry = DS.dataset_entries().get(h.pack_name) or {}  # through the module, so a test can point it at its own index
     csv = h.csv or entry.get("csv")
     if not csv:
         raise IntakeStop(Feasibility(stage=stage, reason="the hand-off names no file", facts=[f"pack {h.pack_name!r}"], what_would_fix="a hand-off with a csv path"))
-    raw = pd.read_csv(ROOT / csv)
+    raw = pd.read_csv(Path(DS.ROOT) / csv)
     columns = {_key(c): c for c in raw.columns}
     raw.columns = [_key(c) for c in raw.columns]
     t, y = (_key(h.treatment) if h.treatment else None), _key(h.outcome)

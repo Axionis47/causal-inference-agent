@@ -1,0 +1,81 @@
+# What the person's beliefs, the unknowns, and the contradictions mean to the discontinuity lane. Read by lane.case.
+# A flag is a check named belief.<kind>, unknown.<address>, or contradiction.<address>; the assessment must answer it
+# and the interpretation must cite it. `with_check` weighs a belief against a data check of the same run, by code.
+# {value} is the check's value, {said} the person's sentence, {column} the column, {score} the score column.
+# No dataset, column, or method name here.
+
+beliefs:
+  cutoff_only:
+    value_field: believed
+    by_status:
+      confirmed_true:
+        level: pass
+      confirmed_false:
+        level: stop
+        caveat: "the person says something else also switches at the cutoff, so a jump there cannot be read as the change's alone"
+      drafted:
+        level: soft
+        caveat: "that nothing else switches at the cutoff is a draft the person never confirmed"
+        ask:
+          question: "Does anything else change for a unit at the cutoff besides the change asked about?"
+          options: ["yes", "no"]
+      unknown:
+        level: soft
+        caveat: "the person could not say whether anything else switches at the cutoff; a jump there may not be the change's alone"
+      contradiction:
+        level: soft
+        caveat: "what the person said about other things switching at the cutoff stands against the file"
+      empty:
+        level: soft
+        caveat: "the person was not asked whether anything else switches at the cutoff"
+        ask:
+          question: "Does anything else change for a unit at the cutoff besides the change asked about?"
+          options: ["yes", "no"]
+  movable:
+    from: assignment.movable
+    by_status:
+      confirmed_true:
+        level: soft
+        caveat: "a unit could change what the rule looked at, so bunching at the line would mean some did"
+      unknown:
+        level: soft
+        caveat: "the person could not say whether a unit could change its score once it knew the rule"
+    with_check:
+      density:
+        - belief: confirmed_true
+          check: soft
+          check_value_lt: 0.10          # the density flag with a real jump, not one that is uninformative or not computable
+          then: harden
+          unless_fact: "col:{score}.set_by"
+          caveat: "the score could be moved and the number of units jumps at the line: some crossed it on purpose, and units either side are no longer alike"
+        - belief: empty
+          check: soft
+          check_value_lt: 0.10
+          then: ask
+          once: true
+          question: "The number of units jumps at the cutoff (density test p = {value}). Could a unit have changed its score once it knew the rule?"
+          options: ["yes", "no"]
+        - belief: unknown
+          check: soft
+          check_value_lt: 0.10
+          then: caveat
+          caveat: "the person could not say whether a unit could move its score, and the number of units jumps at the line"
+  score_fixed_before:
+    from: design.score_fixed_before
+    by_status:
+      confirmed_false:
+        level: stop
+        caveat: "the score was set at or after the decision, so the line on it cannot have decided who got the change"
+      empty:
+        level: soft
+        caveat: "when the score was set is not known; the design assumes it was fixed before the decision"
+
+unknowns:
+  "col:*.when":
+    level: soft
+    caveat: "when {column} was set is not known; it was used as the notes allow"
+
+contradictions:
+  "col:*.when":
+    level: soft
+    caveat: "the file and the person disagree on when {column} was set; the lane took the file's reading"

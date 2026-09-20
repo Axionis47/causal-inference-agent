@@ -35,7 +35,7 @@ from causal_agent.common.contracts import (
 from causal_agent.knowledge import Family, load_registry
 from causal_agent.memory import ops, store
 from causal_agent.memory.claims import ProbeResult
-from causal_agent.memory.records import Column, Memory
+from causal_agent.memory.records import COLUMN_KIND, Column, Memory
 from causal_agent.profile import datasets as DS
 
 BELIEF_KINDS = ("unobserved", "exclusion", "spillover", "trend_continues", "cutoff_only", "mediator")
@@ -199,7 +199,8 @@ def build(*, question: str, frame: QuestionFrame, decision: FamilyDecision, fami
         csv=m.csv or entry.get("csv"), docs={}, dataset_facts=m.facts, grain=g, sampling=samp, missing=miss,
         treated_level=treated_level, control_level=control_level, columns=briefs,
         change=ch, assignment=a, beliefs=beliefs, unknowns=unknowns, contradictions=contradictions, said=said_of(m), probes=probe_list,
-        claims={c.key: {"kind": c.kind, "fields": {k: v for k, v in c.fields.items() if v is not None}, "status": c.status, "source": c.source}
+        claims={c.key: {"kind": c.kind, "fields": {k: v for k, v in c.fields.items() if v is not None}, "status": c.status, "source": c.source,
+                        "fields_status": {n: f.status for n, f in m.fields_of(c.key if c.kind == COLUMN_KIND else f"claim:{c.kind}").items() if f.value is not None or f.status != "empty"}}
                 for c in table.claims.values() if c.status != "empty"},
         design=design,
     )

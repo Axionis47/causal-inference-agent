@@ -53,7 +53,8 @@ RELATE_SYSTEM = (
     "  is_outcome_measure: another measure of the outcome, or a later outcome, or a fitted or derived version of one.\n"
     "A code, label, or identifier that names a unit, a place, or a category (a county code, a state number, a campus label) "
     "is not a characteristic: mark all three false for it.\n"
-    "Give one reason per claim you mark true, each with a citation. " + CITE_RULE
+    "Give one reason per claim you mark true, each with a citation. When a block SETTLED BY THE PACK gives a claim, the "
+    "person has already said it: copy that answer and cite the address shown. " + CITE_RULE
 )
 
 RELATE_USER = """QUESTION
@@ -64,7 +65,7 @@ THE COMPARISON
 
 THE COLUMN TO JUDGE
 {card}
-{errors}
+{settled}{errors}
 Answer the three questions for column {column!r}.
 """
 
@@ -76,7 +77,9 @@ ASSESS_SYSTEM = (
     "A hard flag never permits proceed. A density flag or a covariate-continuity flag is not a number you can wave away: "
     "the notes decide. To proceed over one you must cite the note that says how the score was set and whether units could "
     "move it, or that says the covariate was fixed before the change; if no note says so, stop. A flag that says a test "
-    "was uninformative or not computable is a caveat to carry, not a failure; cite it and say why the data cannot test it. " + CITE_RULE
+    "was uninformative or not computable is a caveat to carry, not a failure; cite it and say why the data cannot test it. "
+    "A flag that comes from what the person said (belief.*, unknown.*, contradiction.*) is theirs to answer; you may only carry it "
+    "as a caveat, never clear it. " + CITE_RULE
 )
 
 ASSESS_USER = """QUESTION
