@@ -323,7 +323,7 @@ def test_trend_true_and_a_hard_check_asks_back_once_then_softens_and_the_primary
     assert pre.address in out["interpretations"][0].cites and not out.get("interpret_errors")
     assert "placebo_group" in out["placebo_draws"] and len(out["placebo_draws"]["placebo_group"]) > 100
     ids = [f["id"] for f in json.loads(open(f"{r['run_dir']}/figures.json").read())]
-    assert ids == [f"effect_{d.contrast.key}", f"event_study_{d.contrast.key}"]
+    assert f"effect_{d.contrast.key}" in ids and f"event_study_{d.contrast.key}" in ids
     assert out["dynamic"] and "-5" in out["dynamic"]
 
 
@@ -413,3 +413,28 @@ def test_a_first_period_nobody_can_settle_asks_back():
     r = out["specialist_result"]
     assert r["status"] == "ask" and r["ask"]["address"] == "claim:change.period_value" and "'year'" in r["ask"]["question"] and r["ask"]["stage"] == "periods"
     assert fake.calls.count("Periods") == 3
+
+
+def test_the_run_leaves_the_paths_the_leads_and_the_placebo_spread_as_figures():
+    from causal_agent.common.contracts import Said
+
+    m = memory("cigar", trend=True, trend_status="confirmed", said="together")
+    m.said.append(Said(turn=3, about="lane:claim:trend_continues.believed", text="yes"))
+    fake = FakeLLM(SCRIPT["cigar"], CIGAR["cite"])
+    out = _run(fake, handoff(**CIGAR, memory_=m))
+    r = out["specialist_result"]
+    assert r["status"] == "done", r.get("feasibility")
+    c = out["design"].contrast.key
+    figs = {f["id"]: f for f in json.loads(open(f"{r['run_dir']}/figures.json").read())}
+    assert list(figs) == [f"paths_{c}", f"event_study_{c}", f"placebo_{c}", f"effect_{c}"]
+    paths = figs[f"paths_{c}"]
+    assert [s["name"] for s in paths["series"]][2] == "the treated group without the change" and paths["marks"][0]["at"] == 89.0
+    cf = paths["series"][2]["y"]
+    assert cf[:26] == [None] * 26 and all(v is not None for v in cf[26:])
+    assert figs[f"event_study_{c}"]["draws_on"] == [f"check:{c}.pre_trends"]
+    assert sum(figs[f"placebo_{c}"]["series"][0]["y"]) == len(out["placebo_draws"]["placebo_group"]) and figs[f"placebo_{c}"]["marks"][0]["label"] == "observed"
+    assert not any(x["check"] == "figure.check" for x in r["declines"])
+    # a run that stopped at the assessment still leaves the event study from the pre-trends fit
+    out = _run(FakeLLM(SCRIPT["cigar"], CIGAR["cite"], assess_script=[DesignAssessment(action="stop", reason="pre-trends", cites=[])]), _cigar())
+    ids = [f["id"] for f in json.loads(open(f"{out['specialist_result']['run_dir']}/figures.json").read())]
+    assert ids == [f"paths_{c}", f"event_study_{c}"]

@@ -805,12 +805,25 @@ def feasibility(state: SpecialistState) -> dict:
 def figures(state: SpecialistState) -> dict:
     """What this run drew, checked against the addresses it produced: the estimate against its placebos, and the effect by
     period from the dynamic fit or the pre-trends fit, whichever ran."""
+    from causal_agent.viz.postviz import diff_in_diff as PD
+
     h = state["handoff"]
     c = state["contrast"].key if state.get("contrast") else None
+    d: Design | None = state.get("design")
     dyn = state.get("dynamic") or (state.get("check_facts") or {}).get("dynamic") or {}
     pre = next((r.address for r in state.get("checks") or [] if r.name == "pre_trends"), None)
-    specs = [PV.effect_and_refutations([e.model_dump() for e in state.get("estimates") or []], [r.model_dump() for r in state.get("refutations") or []], "placebo"),
-             PV.event_study(dyn, contrast=c, draws_on=[pre] if pre else ["design.dynamic"]) if c else None]
+    ests = [e.model_dump() for e in state.get("estimates") or []]
+    refs = [r.model_dump() for r in state.get("refutations") or []]
+    primary = next((e for e in ests if not e.get("secondary") and e.get("error") is None and e.get("value") is not None), None)
+    specs = []
+    if c and state.get("panel_path") and Path(state["panel_path"]).exists():
+        specs.append(PD.paths_with_counterfactual(pd.read_csv(state["panel_path"]), c, primary.get("value") if primary else None))
+    if c:
+        specs.append(PV.event_study(dyn, contrast=c, draws_on=[pre] if pre else ["design.dynamic"]))
+        group = next((r for r in refs if r.get("refuter") == "placebo_group"), None)
+        if group is not None:
+            specs.append(PD.placebo_distribution((state.get("placebo_draws") or {}).get("placebo_group") or [], primary.get("value") if primary else None, group.get("p_value"), c))
+    specs.append(PV.effect_and_refutations(ests, refs, "placebo"))
     kept, declines = LF.write(state.get("run_dir"), specs, LF.ok_addresses(h, state, "placebo"))
     _writer()({"figures": [s.id for s in kept]})
     return {"figures": [s.model_dump() for s in kept], "declines": declines}
