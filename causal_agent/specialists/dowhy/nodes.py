@@ -824,9 +824,18 @@ def feasibility(state: SpecialistState) -> dict:
 
 
 def figures(state: SpecialistState) -> dict:
-    """What this run drew, checked against the addresses it produced: the estimate against its falsifications."""
+    """What this run drew, checked against the addresses it produced: the graph it built, the balance of every adjustment
+    column before and after weighting on the score, and the estimate against its falsifications."""
+    from causal_agent.viz.postviz import adjustment as PA
+
     h = state["handoff"]
-    specs = [PV.effect_and_refutations([e.model_dump() for e in state.get("estimates") or []], [r.model_dump() for r in state.get("refutations") or []], "refute")]
+    names = state.get("columns") or {}
+    g = state.get("graph")
+    specs = [PA.causal_graph(g.model_dump() if g is not None else {}, names)]
+    thr = float(load_checks()["balance"]["smd"]["soft"])
+    for c, facts in ((state.get("check_facts") or {}).get("balance") or {}).items():
+        specs.append(PA.balance(facts, c, thr, names))
+    specs.append(PV.effect_and_refutations([e.model_dump() for e in state.get("estimates") or []], [r.model_dump() for r in state.get("refutations") or []], "refute"))
     kept, declines = LF.write(state.get("run_dir"), specs, LF.ok_addresses(h, state, "refute"))
     _writer()({"figures": [s.id for s in kept]})
     return {"figures": [s.model_dump() for s in kept], "declines": declines}

@@ -496,3 +496,20 @@ def test_spillover_the_person_kept_is_a_flag_the_interpretation_cites(tmp_path):
     assert flag.level == "soft" and "carries part of the effect" in flag.detail
     assert "check:all.belief.spillover" in out["interpretations"][0].cites and not out.get("interpret_errors")
     assert "DesignAssessment" in fake.calls  # a flag from the person's word is a flag the assessment answers
+
+
+def test_the_run_leaves_its_graph_and_its_balance_as_figures():
+    fake = FakeLLM()
+    out = _run(fake, _students3())
+    r = out["specialist_result"]
+    assert r["status"] == "done", r.get("feasibility")
+    figs = json.loads(open(f"{r['run_dir']}/figures.json").read())
+    assert [f["id"] for f in figs] == ["causal_graph", "balance_completed_vs_none", "effect_completed_vs_none"] and r["figures"] == [f["id"] for f in figs]
+    g = figs[0]
+    roles = {n["id"]: n["role"] for n in g["nodes"]}
+    assert roles["test_preparation_course"] == "treatment" and roles["math_score"] == "outcome" and roles["parental_level_of_education"] == "confounder" and roles["reading_score"] == "excluded"
+    assert any(e["src"] == "parental_level_of_education" and e["dst"] == "test_preparation_course" and "claim:assignment.depends_on" in e["cites"] for e in g["edges"])
+    b = figs[1]
+    assert [s["name"] for s in b["series"]] == ["before adjustment", "after weighting on the score"] and set(b["series"][0]["x"]) == {"lunch", "parental level of education"}
+    assert all(a is not None and a < 0.3 for a in b["series"][1]["y"])
+    assert not any(x["check"] == "figure.check" for x in r["declines"])
