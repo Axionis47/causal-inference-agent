@@ -233,13 +233,13 @@ def test_catalogues_name_real_dowhy_methods():
     assert cfg["balance"]["smd"]["soft"] < cfg["balance"]["smd"]["hard"]
 
 
-def test_router_wires_the_real_specialist():
-    from causal_agent.router.graph import graph as router_graph
+def test_the_desk_reaches_the_real_specialist():
+    from causal_agent.desk.route import graph as route_graph
     from causal_agent.specialists import SPECIALISTS
 
     assert "freeze_design" in SPECIALISTS["adjustment"].get_graph().nodes
     assert "relate" not in SPECIALISTS["synthetic_control"].get_graph().nodes  # still a stub
-    assert len(router_graph.get_graph().nodes) == 17
+    assert "specialist_adjustment" in route_graph.get_graph().nodes
 
 
 # ------------------------------------------------------------------ the pack's facts end judgements

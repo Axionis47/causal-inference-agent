@@ -231,13 +231,13 @@ def test_catalogues_parse_on_a_toy_panel():
     assert cfg["pre_trends"]["p_value"]["hard"] < cfg["pre_trends"]["p_value"]["soft"]
 
 
-def test_router_wires_both_specialists():
-    from causal_agent.router.graph import graph as router_graph
+def test_the_desk_reaches_both_specialists():
+    from causal_agent.desk.route import graph as route_graph
     from causal_agent.specialists import SPECIALISTS
 
     assert "shape_table" in SPECIALISTS["diff_in_diff"].get_graph().nodes
     assert "freeze_design" in SPECIALISTS["adjustment"].get_graph().nodes and "shape_table" not in SPECIALISTS["adjustment"].get_graph().nodes
-    assert len(router_graph.get_graph().nodes) == 17
+    assert "specialist_diff_in_diff" in route_graph.get_graph().nodes
 
 
 # ------------------------------------------------------------------ the pack's facts end judgements

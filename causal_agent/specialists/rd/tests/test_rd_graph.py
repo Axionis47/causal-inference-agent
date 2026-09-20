@@ -508,14 +508,14 @@ def adapter_sharp() -> dict:
     return {"p": 1, "kernel": "tri", "bwselect": "mserd", "masspoints": "adjust", "level": 95}
 
 
-def test_router_wires_three_specialists():
-    from causal_agent.router.graph import graph as router_graph
+def test_the_desk_reaches_three_specialists():
+    from causal_agent.desk.route import graph as route_graph
     from causal_agent.specialists import SPECIALISTS
 
     assert "score" in SPECIALISTS["discontinuity"].get_graph().nodes
     assert "shape_table" in SPECIALISTS["diff_in_diff"].get_graph().nodes and "score" not in SPECIALISTS["diff_in_diff"].get_graph().nodes
     assert "relate" not in SPECIALISTS["synthetic_control"].get_graph().nodes  # still a stub
-    assert len(router_graph.get_graph().nodes) == 17
+    assert "specialist_discontinuity" in route_graph.get_graph().nodes
 
 
 def test_raw_columns_named_like_canonical_ones_do_not_collide(tmp_path, monkeypatch):

@@ -1,6 +1,6 @@
 """Specialist subgraphs, one per family, keyed by family name.
 
-The router reaches a specialist by looking the chosen family up here. A family whose registry entry
+The desk reaches a specialist by looking the chosen family up here. A family whose registry entry
 names a built specialist gets that specialist's compiled subgraph. Every other family gets a stub that
 reports "not supported yet" with the hand-off preserved. Adding a specialist: build its subgraph in its
 own folder, register it in BUILT below, flip the family's status in knowledge/families.yaml.

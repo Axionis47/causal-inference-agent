@@ -1,6 +1,6 @@
 """Run the diff-in-diff cases against the LangSmith dataset and score them.
 
-Card and Krueger goes through the router end to end. A case with a stored hand-off runs the specialist alone.
+Card and Krueger goes through the desk's routing graph end to end. A case with a stored hand-off runs the specialist alone.
 Each output carries the model's thoughts.
 """
 
@@ -57,9 +57,9 @@ def run_case(inputs: dict) -> dict:
         summary = _summarise(out.get("specialist_result") or {})
         summary["thoughts"] = _thoughts(out)
         return summary
-    from causal_agent.router.graph import compile_local as router_local
+    from causal_agent.desk.route import compile_local as route_local
 
-    g = router_local()
+    g = route_local()
     cfg = {"configurable": {"thread_id": str(uuid.uuid4())}, "tags": [f"dataset:{inputs['dataset']}"], "metadata": {"dataset": inputs["dataset"]}}
     out = g.invoke({"question": inputs["question"], "dataset": inputs["dataset"]}, cfg)
     summary = _summarise(out.get("specialist_result") or {})

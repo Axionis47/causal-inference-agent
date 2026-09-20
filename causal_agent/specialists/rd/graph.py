@@ -62,7 +62,7 @@ def build() -> StateGraph:
 
 
 def compile_subgraph():
-    """As a node inside the router: no checkpointer of its own, no interrupts."""
+    """As a node inside the desk's graphs: no checkpointer of its own, no interrupts."""
     return build().compile(checkpointer=False)
 
 

@@ -1,6 +1,6 @@
 """Run the adjustment lane from the command line.
 
-    uv run python -m causal_agent.specialists.dowhy.run <dataset> "<question>"        # through the router, end to end
+    uv run python -m causal_agent.specialists.dowhy.run <dataset> "<question>"        # through the desk's routing graph, end to end
     uv run python -m causal_agent.specialists.dowhy.run --handoff handoff.json         # the specialist alone, from a stored hand-off
 
 Streams progress, prints the report, and says where the run directory is.
@@ -49,10 +49,12 @@ def main(argv: list[str] | None = None) -> None:
     else:
         if not (args.dataset and args.question):
             ap.error("give <dataset> and <question>, or --handoff")
-        from causal_agent.router.run import main as router_main
+        from causal_agent.desk.route import compile_local as route_local
 
-        router_main([args.dataset, args.question, "--json"])
-        return
+        g = route_local()
+        cfg = {"configurable": {"thread_id": str(uuid.uuid4())}, "tags": [f"dataset:{args.dataset}"], "metadata": {"dataset": args.dataset}}
+        out = g.invoke({"question": args.question, "dataset": args.dataset}, cfg)
+        result = out.get("specialist_result") or {}
     print()
     print(result.get("report", "(no report)"))
     print(f"\nrun directory: {result.get('run_dir')}")
