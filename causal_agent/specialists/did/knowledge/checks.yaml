@@ -21,3 +21,12 @@ target_units:
 
 # interpretation gate: the stated effect must match the estimate within this relative tolerance
 effect_tolerance: 0.01
+
+# What each check asks, in the question's words. The lane puts this before the number on every check line the
+# interpretation and the brief read. No dataset name here.
+in_words:
+  units: "how many units got the change and how many are compared against them"
+  single_treated_unit: "whether only one unit got the change, so the usual standard errors mean little"
+  parallel_untestable: "whether there is more than one period before the change to see if the groups moved together"
+  pre_trends: "whether the two groups were already moving apart before the change"
+  staggered: "whether units got the change at different times"

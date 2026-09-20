@@ -19,7 +19,7 @@ from langgraph.types import Command, Send
 from causal_agent.common.addresses import key as _key
 from causal_agent.common.contracts import AdjustmentDesign, CheckResult, Checks, Cited, Contrast, Decline, Estimate, Feasibility, Handoff, Interpretation, LaneAsk, Refutation
 from causal_agent.common.llm import structured
-from causal_agent.lane import asks, case as C, figures as LF, intake, records, verify as V
+from causal_agent.lane import asks, case as C, figures as LF, intake, records, verify as V, words as W
 from causal_agent.specialists.dowhy import adapter, checks as CK
 from causal_agent.specialists.dowhy import prompts as P
 from causal_agent.specialists.dowhy.contracts import (
@@ -525,6 +525,7 @@ def check_design(state: SpecialistState) -> dict:
         if outside:
             results.append(CheckResult(contrast="all", name="adjusts_outside_candidates", level="soft",
                                        detail=f"the adjustment set reaches beyond the columns the pack named as candidates: {', '.join(outside)} [design.adjustment_candidates]"))
+    W.say(results, cfg, state.get("columns") or {})  # the sentence before the number, for the reader
     results += C.as_checks(_case(state))
     _writer()({"checks": [f"{r.level} {r.address} {r.detail}" for r in results]})
     return {"checks": results, "check_facts": facts}

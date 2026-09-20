@@ -177,7 +177,7 @@ def render(run: RunRecord, memory: Memory | None = None, previous: RunRecord | N
 
 
 def brief(run: RunRecord, previous: RunRecord | None, material: Material) -> str:
-    """The opening message after a run: values with addresses, no model."""
+    """The opening message after a run: the reading first, then the record, every line with its address, no model."""
     sr = run.specialist_result or {}
     lines = [f"Run {run.index}: {run.question}"]
     if run.status == "pipeline_error":
@@ -185,13 +185,17 @@ def brief(run: RunRecord, previous: RunRecord | None, material: Material) -> str
         lines.append(run.decision_record[-1500:])
         lines.append("Ask again, or change something about the data; the pack was written.")
         return "\n".join(lines)
+    for i in sr.get("interpretations") or []:
+        lines.append(f"{i.get('answer')} [interpretation:{i.get('contrast')}.answer]")
+        for j, cv in enumerate(i.get("caveats") or [], start=1):
+            lines.append(f"  Keep in mind: {cv} [interpretation:{i.get('contrast')}.caveat:{j}]")
+    if run.status == "done" and run.effect is not None:
+        lines.append(f"The number: {_g(run.effect)}, interval {_g(run.ci_low)} to {_g(run.ci_high)}, by {run.estimator}. [estimate:{_contrast_key(sr.get('design') or {}) or 'all'}.value]")
     if run.family:
         lines.append(f"Design: {run.family} via {run.specialist}." + (f" Why: {run.decision.get('why')}" if run.decision.get("why") else "") + " [decision.family]")
     else:
         lines.append("No design fit what is known and the data. [decision.family]")
-    if run.status == "done" and run.effect is not None:
-        lines.append(f"Effect: {_g(run.effect)}, interval {_g(run.ci_low)} to {_g(run.ci_high)}, by {run.estimator}. [estimate:{_contrast_key(sr.get('design') or {}) or 'all'}.value]")
-    elif run.status == "no_handoff" or not run.family:
+    if run.status == "no_handoff" or not run.family:
         lines.append("No family was admissible for this question on what is known. Each was rejected for a reason:")
         for fam, why in (run.decision.get("over") or {}).items():
             lines.append(f"  {fam}: {why} [decision.over:{fam}]")
@@ -205,25 +209,23 @@ def brief(run: RunRecord, previous: RunRecord | None, material: Material) -> str
         lines.append(f"Stopped at {f.get('stage')}: {f.get('reason')} [feasibility.reason]")
         for j, fact in enumerate(f.get("facts") or [], start=1):
             lines.append(f"  fact: {fact} [feasibility.fact:{j}]")
+    flags = [r for r in ((sr.get("design") or {}).get("checks") or {}).get("results") or [] if r.get("level") != "pass"]
+    if flags:
+        lines.append("Checks that did not pass clean:")
+        for r in flags:
+            lines.append(f"  {r.get('detail') or r['name']} ({r['level']}; {r['name']}) [check:{r['contrast']}.{r['name']}]")
+    failed = [r for r in sr.get("refutations") or [] if r.get("passed") is False]
+    if failed:
+        prefix = "refute" if run.specialist == "dowhy" else "placebo"
+        lines.append("Tried to break it, and these did: " + "; ".join(f"{r.get('detail') or r['refuter']} ({r['refuter']}) [{prefix}:{r['contrast']}.{r['refuter']}.passed]" for r in failed))
+    elif sr.get("refutations"):
+        lines.append(f"Tried to break it {len(sr['refutations'])} ways; the estimate held every time.")
     declines = _declines(run)
     if declines:
         lines.append("Where the analysis disagreed with what was settled: " + "; ".join(f"{d.about} ({d.kind}: {d.reason}) [{d.address}]" for d in declines))
     made = [f.get("id") for f in run.figures or [] if isinstance(f, dict) and f.get("moment") != "ready" and f.get("id")]
     if made:
         lines.append(f"The run left {len(made)} figure{'s' if len(made) != 1 else ''}: " + ", ".join(f"[figure:{i}]" for i in made))
-    flags = [r for r in ((sr.get("design") or {}).get("checks") or {}).get("results") or [] if r.get("level") != "pass"]
-    if flags:
-        lines.append("Flags carried: " + "; ".join(f"{r['name']} ({r['level']}) [check:{r['contrast']}.{r['name']}]" for r in flags))
-    failed = [r for r in sr.get("refutations") or [] if r.get("passed") is False]
-    if failed:
-        prefix = "refute" if run.specialist == "dowhy" else "placebo"
-        lines.append("Falsifications that failed: " + "; ".join(f"{r['refuter']} [{prefix}:{r['contrast']}.{r['refuter']}.passed]" for r in failed))
-    elif sr.get("refutations"):
-        lines.append(f"All {len(sr['refutations'])} falsifications passed.")
-    for i in sr.get("interpretations") or []:
-        lines.append(f"Reading: {i.get('answer')} [interpretation:{i.get('contrast')}.answer]")
-        for j, cv in enumerate(i.get("caveats") or [], start=1):
-            lines.append(f"  caveat: {cv} [interpretation:{i.get('contrast')}.caveat:{j}]")
     if previous is not None:
         lines.append(f"Then and now: run {previous.index} gave {_g(previous.effect)} ({previous.family or 'no design'}); run {run.index} gives {_g(run.effect)} ({run.family or 'no design'}).")
     lines.append("Ask anything about it, tell me something to change, ask a new question of the same data, or say done.")

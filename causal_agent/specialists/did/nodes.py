@@ -20,7 +20,7 @@ from langgraph.types import Command, Send
 from causal_agent.common.addresses import key as _key
 from causal_agent.common.contracts import CheckResult, Checks, Cited, Contrast, Decline, DidDesign, Estimate, Feasibility, Handoff, Interpretation, LaneAsk, Refutation
 from causal_agent.common.llm import structured
-from causal_agent.lane import asks, case as C, figures as LF, intake, records
+from causal_agent.lane import asks, case as C, figures as LF, intake, records, words as W
 from causal_agent.profile.datasets import dataset_entries
 from causal_agent.specialists.did import adapter, checks as CK, prompts as P, shape as SH
 from causal_agent.specialists.did.contracts import (
@@ -516,6 +516,7 @@ def verify(state: SpecialistState) -> Command:
 def check_design(state: SpecialistState) -> dict:
     panel = pd.read_csv(state["panel_path"])
     results, facts = CK.run_checks(panel, state["shape"], state["controls"].included, state["contrast"].key, load_checks())
+    W.say(results, load_checks(), state.get("columns") or {})  # the sentence before the number, for the reader
     results += C.as_checks(_case(state))
     _writer()({"checks": [f"{r.level} {r.address} {r.detail}" for r in results]})
     return {"checks": results, "check_facts": facts}

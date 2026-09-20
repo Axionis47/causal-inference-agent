@@ -22,7 +22,7 @@ from langgraph.types import Command, Send
 from causal_agent.common.addresses import key as _key
 from causal_agent.common.contracts import CheckResult, Checks, Cited, Contrast, Decline, Estimate, Feasibility, Handoff, LaneAsk, RdDesign, Refutation
 from causal_agent.common.llm import structured
-from causal_agent.lane import asks, case as C, figures as LF, intake, records
+from causal_agent.lane import asks, case as C, figures as LF, intake, records, words as W
 from causal_agent.profile.datasets import ROOT, dataset_entries
 from causal_agent.specialists.rd import adapter, checks as CK, prompts as P, shape as SH
 from causal_agent.specialists.rd.contracts import (
@@ -551,6 +551,7 @@ def check_design(state: SpecialistState) -> dict:
     inf = pick_inference(cluster_column=bool(shape.cluster_column))
     results, extra = CK.run_checks(canon, x_all, shape, state["covariates"], state["contrast"].key, _cfg(),
                                    cluster=bool(shape.cluster_column), vce=inf.vce, sampled_by_side=bool(state.get("sampled_by_side")))
+    W.say(results, _cfg(), state.get("columns") or {})  # the sentence before the number, for the reader
     results += C.as_checks(_case(state))
     _writer()({"checks": [f"{r.level} {r.address} {r.detail}" for r in results]})
     facts = {k: v for k, v in extra.items() if k != "first_stage"}

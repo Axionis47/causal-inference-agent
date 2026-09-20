@@ -356,3 +356,25 @@ def test_the_desk_shows_what_the_lane_drew_and_marks_the_ready_figure(monkeypatc
 
     m = M.render(d.values["runs"][0])
     assert "figure:causal_graph.edge.0" in m.addresses and "(before the run)" in m.by_address[figs[0]["id"] and f"figure:{figs[0]['id']}"]
+
+
+def test_the_brief_reads_first_and_names_a_flag_by_its_sentence(monkeypatch):
+    def worded_run(path, n, dataset, question, decision=None, decision_record=""):
+        rec = canned_run(path, n, dataset, question, decision, decision_record)
+        rec.specialist_result["design"]["checks"] = {"results": [{"contrast": "completed_vs_none", "name": "balance.lunch", "level": "soft", "value": 0.16, "threshold": 0.1,
+                                                                   "detail": "how alike the two arms are on lunch before the adjustment, and after weighting: standardised mean difference 0.16"}]}
+        rec.specialist_result["interpretations"] = [{"contrast": "completed_vs_none", "answer": "Completing the course raised math scores by about 5.6 points.", "effect_stated": 5.6,
+                                                     "caveats": ["The two arms differed on lunch before the adjustment [check:completed_vs_none.balance.lunch]."], "cites": ["estimate:completed_vs_none.value"]}]
+        return rec
+
+    monkeypatch.setattr(pipeline, "run", worded_run)
+    d = Desk(DeskFake())
+    d.say(QUESTION)
+    d.to_ready()
+    text = d.say("run")["text"]
+    lines = text.splitlines()
+    assert lines[1].startswith("Completing the course raised") and lines[2].startswith("  Keep in mind:")
+    assert lines.index(next(l for l in lines if l.startswith("The number:"))) < lines.index(next(l for l in lines if l.startswith("Design:")))
+    flag = next(l for l in lines if l.endswith("[check:completed_vs_none.balance.lunch]"))
+    assert flag.startswith("  how alike the two arms are on lunch") and "(soft; balance.lunch)" in flag
+    assert "the estimate held every time" in text and "[estimate:completed_vs_none.value]" in text

@@ -61,3 +61,17 @@ target_units:
 
 # interpretation gate: stated numbers must match the estimate within this relative tolerance
 effect_tolerance: 0.01
+
+# What each check asks, in the question's words. The lane puts this before the number on every check line the
+# interpretation and the brief read; {column} is filled for a per-column check. No dataset name here.
+in_words:
+  sides: "how many rows sit on each side of the cutoff"
+  effective_rows: "how many rows close enough to the cutoff the fit actually uses on each side"
+  density: "whether units bunch up just on one side of the line, as they would if some moved their score"
+  mass_points: "whether many units share the same score, so the score is coarser than it looks"
+  support: "whether the score takes enough distinct values for the fit to choose its own width"
+  compliance: "whether crossing the cutoff is what decided the change, or only made it likelier"
+  first_stage: "how much take-up jumps at the cutoff"
+  first_stage_weak: "whether take-up jumps at the cutoff enough to lean on"
+  no_first_stage: "whether take-up jumps at the cutoff at all"
+  covariate_continuity: "whether units just either side of the cutoff are alike on what was fixed before it"

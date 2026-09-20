@@ -128,7 +128,10 @@ INTERPRET_SYSTEM = (
     "cutoff whatever was taken up. Say in one sentence that the effect is local to units at the cutoff, in the score's units, "
     "and does not speak to units far from it. List the caveats a careful reader needs: the assumption the design bets on, "
     "every flagged check, every falsification that failed, and how the estimate moved when covariates or the polynomial "
-    "order changed if that was run. Do not mention checks that were not run. Cite an artifact address for every number. " + CITE_RULE
+    "order changed if that was run. Do not mention checks that were not run. Cite an artifact address for every number. " + "Write for the person who asked the question, in its own words. Say first what the answer means for the decision the "
+    "question served, in the outcome's units. Name a check by what it asks, as the material says it, and give its technical "
+    "name once in brackets; the address is the citation. A caveat is one sentence a careful reader can act on, never a list of "
+    "names. " + CITE_RULE
 )
 
 INTERPRET_USER = """QUESTION

@@ -94,7 +94,10 @@ TURN_SYSTEM = (
     "  requestion: the person asks a new causal question of the same data. Return it in full.\n"
     "  done: they are finished.\n"
     "If the material cannot answer, say so plainly. Do not name a kind of study or a method the material does not name. "
-    "When a figure in the material makes the point (its address starts with figure:), name it in figure and the person sees it."
+    "When a figure in the material makes the point (its address starts with figure:), name it in figure and the person sees it; "
+    "prefer one when they ask why something holds.\n"
+    "Write in the question's own words. Say a check by what it asks, as its line says it, before its technical name, and give "
+    "that name once; the address is the citation. One idea per sentence, in the outcome's units."
 )
 
 TURN_USER = """WHAT THE RUN LEFT BEHIND
