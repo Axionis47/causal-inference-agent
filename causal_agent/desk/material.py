@@ -208,6 +208,9 @@ def brief(run: RunRecord, previous: RunRecord | None, material: Material) -> str
     declines = _declines(run)
     if declines:
         lines.append("Where the analysis disagreed with what was settled: " + "; ".join(f"{d.about} ({d.kind}: {d.reason}) [{d.address}]" for d in declines))
+    made = [f.get("id") for f in run.figures or [] if isinstance(f, dict) and f.get("moment") != "ready" and f.get("id")]
+    if made:
+        lines.append(f"The run left {len(made)} figure{'s' if len(made) != 1 else ''}: " + ", ".join(f"[figure:{i}]" for i in made))
     flags = [r for r in ((sr.get("design") or {}).get("checks") or {}).get("results") or [] if r.get("level") != "pass"]
     if flags:
         lines.append("Flags carried: " + "; ".join(f"{r['name']} ({r['level']}) [check:{r['contrast']}.{r['name']}]" for r in flags))

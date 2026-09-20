@@ -130,3 +130,18 @@ export function decisionOver(run: RunView): { family: string; reason: string }[]
   if (!over || typeof over !== "object") return [];
   return Object.entries(over as Record<string, unknown>).map(([family, reason]) => ({ family, reason: String(reason) }));
 }
+
+export interface DeclineRow {
+  address: string;
+  about: string;
+  kind: string;
+  packValue: string;
+  took: string;
+  reason: string;
+  check: string;
+}
+
+// Where the lane did not take the pack as given, one row each, in the order the lane recorded them.
+export function declineRows(run: RunView): DeclineRow[] {
+  return (run.declines ?? []).map((d) => ({ address: d.address, about: d.about, kind: d.kind, packValue: d.pack_value ?? "—", took: d.took ?? "—", reason: d.reason, check: d.check }));
+}

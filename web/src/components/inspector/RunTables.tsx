@@ -1,5 +1,5 @@
 import { count } from "../../fmt";
-import type { CheckRow, EstimateRow, RefutationRow } from "../../inspector/rows";
+import type { CheckRow, DeclineRow, EstimateRow, RefutationRow } from "../../inspector/rows";
 
 export function EstimatesTable({ rows }: { rows: EstimateRow[] }) {
   if (!rows.length) return null;
@@ -112,6 +112,43 @@ export function RefutationsTable({ rows }: { rows: RefutationRow[] }) {
           </table>
         </div>
       )}
+    </section>
+  );
+}
+
+export function DeclinesTable({ rows }: { rows: DeclineRow[] }) {
+  if (!rows.length) return null;
+  return (
+    <section>
+      <h3>Where the lane disagreed with the pack</h3>
+      <div className="tbl">
+        <table>
+          <thead>
+            <tr>
+              <th>about</th>
+              <th>kind</th>
+              <th>pack said</th>
+              <th>lane took</th>
+              <th>why</th>
+              <th>rule</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.address}>
+                <td className="k">
+                  <span className="addr">{r.about}</span>
+                </td>
+                <td className="mono">{r.kind}</td>
+                <td className="wrap">{r.packValue}</td>
+                <td className="wrap">{r.took}</td>
+                <td className="wrap">{r.reason}</td>
+                <td className="mono">{r.check}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </section>
   );
 }

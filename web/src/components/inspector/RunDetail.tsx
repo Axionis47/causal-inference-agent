@@ -1,11 +1,11 @@
 import { Fragment } from "react";
 import { ci, count, num } from "../../fmt";
-import { checkRows, decisionOver, decisionWhy, estimateRows, primaryEstimate, refutationRows } from "../../inspector/rows";
+import { checkRows, decisionOver, decisionWhy, declineRows, estimateRows, primaryEstimate, refutationRows } from "../../inspector/rows";
 import type { Selection } from "../../selection";
 import type { FigureSpec } from "../../figure";
 import type { RunView } from "../../types";
 import Figure from "../Figure";
-import { ChecksTable, EstimatesTable, RefutationsTable } from "./RunTables";
+import { ChecksTable, DeclinesTable, EstimatesTable, RefutationsTable } from "./RunTables";
 
 // The ready-moment figure beside the run's first own figure, then the rest in order.
 export function Figures({ figures }: { figures: FigureSpec[] }) {
@@ -104,6 +104,7 @@ export default function RunDetail({ r, prev, onSelect }: { r: RunView; prev: Run
 
       <EstimatesTable rows={estimateRows(r)} />
       <ChecksTable rows={checkRows(r.flags)} title="Flags" />
+      <DeclinesTable rows={declineRows(r)} />
       <ChecksTable rows={checkRows(r.checks)} title="Checks" />
       <RefutationsTable rows={refutationRows(r)} />
 

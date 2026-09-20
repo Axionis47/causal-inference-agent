@@ -20,7 +20,8 @@ from causal_agent.desk import graph as desk_graph
 from causal_agent.desk.contracts import RunRecord
 from causal_agent.memory import store as MS
 from causal_agent.server import datasets as DS
-from causal_agent.server.models import (Activity, CheckView, ClaimView, EstimateView, InterpretationView, Prompt, QuestionView, RefutationView, RunView,
+from causal_agent.common.contracts import Decline
+from causal_agent.server.models import (Activity, CheckView, ClaimView, DeclineView, EstimateView, InterpretationView, Prompt, QuestionView, RefutationView, RunView,
                                         SessionView, StatusView, Turn)
 from causal_agent.server.settings import Settings
 
@@ -328,7 +329,14 @@ def run_view(r: RunRecord) -> RunView:
             for e in (sr.get("estimates") or r.artifacts.get("estimates") or [])]
     run_id = Path(r.run_dir).name if r.run_dir else None
     files = sorted(p.name for p in Path(r.run_dir).iterdir() if p.is_file()) if r.run_dir and Path(r.run_dir).is_dir() else []
+    declines = []
+    for d in sr.get("declines") or r.artifacts.get("declines") or []:
+        try:
+            dd = Decline.model_validate(d)
+        except Exception:
+            continue
+        declines.append(DeclineView(address=dd.address, stage=dd.stage, kind=dd.kind, about=dd.about, pack_value=dd.pack_value, took=dd.took, reason=dd.reason, check=dd.check))
     return RunView(index=r.index, question=r.question, family=r.family, specialist=r.specialist, status=r.status, run_id=run_id, effect=r.effect, ci_low=r.ci_low,
                    ci_high=r.ci_high, estimator=r.estimator, decision=dict(r.decision or {}), decision_record=r.decision_record or "", flags=flags, checks=checks,
                    refutations=refs, interpretations=interps, estimates=ests, feasibility=sr.get("feasibility") or r.artifacts.get("feasibility"), files=files,
-                   what_if=dict(r.what_if or {}), differs=list(r.differs or []), figures=list(r.figures or []))
+                   what_if=dict(r.what_if or {}), differs=list(r.differs or []), figures=list(r.figures or []), declines=declines)

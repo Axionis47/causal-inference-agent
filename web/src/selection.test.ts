@@ -3,7 +3,7 @@ import { parseSelection, resolveSelection, serialiseSelection } from "./selectio
 import type { RunView } from "./types";
 
 const run = (index: number, files: string[] = []): RunView =>
-  ({ index, question: "", family: null, specialist: null, status: "ok", run_id: `r${index}`, effect: null, ci_low: null, ci_high: null, estimator: null, decision: {}, decision_record: "", flags: [], checks: [], refutations: [], interpretations: [], estimates: [], feasibility: null, files, what_if: {}, differs: [], figures: [] }) as RunView;
+  ({ index, question: "", family: null, specialist: null, status: "ok", run_id: `r${index}`, effect: null, ci_low: null, ci_high: null, estimator: null, decision: {}, decision_record: "", flags: [], checks: [], refutations: [], interpretations: [], estimates: [], feasibility: null, files, what_if: {}, differs: [], figures: [], declines: [] }) as RunView;
 
 describe("selection hash", () => {
   it("round-trips every form", () => {

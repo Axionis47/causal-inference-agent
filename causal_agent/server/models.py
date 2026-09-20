@@ -185,6 +185,19 @@ class EstimateView(BaseModel):
     error: str | None = None
 
 
+class DeclineView(BaseModel):
+    """Where the lane did not take the pack as given."""
+
+    address: str
+    stage: str
+    kind: str
+    about: str
+    pack_value: str | None = None
+    took: str | None = None
+    reason: str
+    check: str
+
+
 class RunView(BaseModel):
     index: int
     question: str
@@ -208,6 +221,7 @@ class RunView(BaseModel):
     what_if: dict[str, str] = Field(default_factory=dict)
     differs: list[str] = Field(default_factory=list)
     figures: list[dict] = Field(default_factory=list)
+    declines: list[DeclineView] = Field(default_factory=list)
 
 
 class Turn(BaseModel):

@@ -178,6 +178,18 @@ export interface RunView {
   what_if: Record<string, string>;
   differs: string[];
   figures: FigureSpec[];
+  declines: DeclineView[];
+}
+
+export interface DeclineView {
+  address: string;
+  stage: string;
+  kind: string;
+  about: string;
+  pack_value: string | null;
+  took: string | null;
+  reason: string;
+  check: string;
 }
 
 export interface Turn {

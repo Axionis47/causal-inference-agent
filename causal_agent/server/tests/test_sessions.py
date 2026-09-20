@@ -120,3 +120,14 @@ def test_run_files_are_guarded(client, settings):
     assert "effect 5.6" in text and "secret" not in text
     assert "secret" in client.get("/api/runs/students_web-abcd1234/files/report.md?raw=1").text
     assert client.get("/api/runs/students_web-abcd1234/files/artifacts.json").json() == {"estimates": []}
+
+
+def test_run_view_carries_where_the_lane_disagreed_with_the_pack():
+    from causal_agent.desk.contracts import RunRecord
+    from causal_agent.server.sessions import run_view
+
+    sr = {"status": "done", "declines": [{"stage": "load", "kind": "substituted", "about": "scope.target", "pack_value": "on_treated", "took": "effect_at_cutoff",
+                                          "reason": "no average over the treated", "check": "target.effect_at_cutoff"}, {"not": "a decline"}]}
+    v = run_view(RunRecord(index=1, dataset="d", question="q", status="done", specialist_result=sr))
+    assert [d.address for d in v.declines] == ["decline:load.scope_target"] and v.declines[0].took == "effect_at_cutoff" and v.declines[0].kind == "substituted"
+    assert run_view(RunRecord(index=1, dataset="d", question="q", status="done")).declines == []

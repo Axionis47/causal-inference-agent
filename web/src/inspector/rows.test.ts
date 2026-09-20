@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkRows, claimRows, decisionOver, decisionWhy, estimateRows, refutationRows, statusMatrix } from "./rows";
+import { checkRows, claimRows, decisionOver, decisionWhy, declineRows, estimateRows, refutationRows, statusMatrix } from "./rows";
 import type { ClaimView, RunView, StatusView } from "../types";
 
 const claim = (over: Partial<ClaimView>): ClaimView => ({ key: "k", kind: "unit", status: "drafted", fields: {}, source: null, evidence: [], check_detail: null, asked: 0, refutations: 0, ...over });
@@ -59,5 +59,21 @@ describe("run rows", () => {
     expect(decisionOver(r)).toEqual([{ family: "rd", reason: "no cutoff" }, { family: "iv", reason: "no instrument" }]);
     expect(decisionWhy(run({}))).toBeNull();
     expect(decisionOver(run({ decision: { over: "x" } }))).toEqual([]);
+  });
+});
+
+describe("declineRows", () => {
+  it("keeps the lane's order and shows a dash for what was not given", () => {
+    const r = run({
+      declines: [
+        { address: "decline:load.scope_window", stage: "load", kind: "declined", about: "scope.window", pack_value: "the spring term", took: null, reason: "not in a form the code can apply", check: "intake.window_unparsed" },
+        { address: "decline:load.scope_target", stage: "load", kind: "substituted", about: "scope.target", pack_value: "on_treated", took: "effect_at_cutoff", reason: "no average over the treated", check: "target.effect_at_cutoff" },
+      ],
+    });
+    const rows = declineRows(r);
+    expect(rows.map((x) => x.about)).toEqual(["scope.window", "scope.target"]);
+    expect(rows[0].took).toBe("—");
+    expect(rows[1]).toMatchObject({ kind: "substituted", packValue: "on_treated", took: "effect_at_cutoff", check: "target.effect_at_cutoff" });
+    expect(declineRows(run({}))).toEqual([]);
   });
 });
