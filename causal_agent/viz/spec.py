@@ -112,7 +112,7 @@ class FigureSpec(BaseModel):
 class Point(BaseModel):
     """What the desk wants shown: a claim to make visible, and what it is about. Never a figure name."""
 
-    family: str = Field(description="the family the point serves: adjustment, diff_in_diff, discontinuity")
+    family: str = Field(description="the family the point serves, by its registry name")
     claim: str = Field(description="the point, in the question's words: 'the two arms overlap on lunch'")
     about: list[str] = Field(default_factory=list, description="memory or probe addresses the point rests on")
     columns: list[str] = Field(default_factory=list, description="columns the point names, if any")

@@ -1,0 +1,21 @@
+# interrupted_series: a family the routing knows and can rule in or out, with no lane built for it yet.
+
+applies_to: [effect_of_change]
+answers: effect of a change at one point in time on a single unit, comparing the unit's outcome after the change against what its own history predicted
+needs:
+  - one unit, or one series, observed repeatedly over time
+  - a change that happened on a known date and applied to that unit
+  - many observations before the change and some after
+  - the notes record no other change to the outcome's definition or to the unit around the same date; this is an absence, met when the notes mention none
+look_for: dataset profile time coverage; a change card with a single date and one unit; column notes on definition changes
+assumes: the outcome's pre-change trend would have continued without the change
+weak_when: other similar units were not affected and could serve as a comparison; or the series is short before the change
+prefer_over: {}
+specialist: causalpy
+status: declared
+
+needs_claims:
+  requires: [grain, sampling, change, assignment, measured, missing, trend_continues]
+  fits:
+    grain.panel: [true]
+    assignment.kind: [date_by_others, third_party]

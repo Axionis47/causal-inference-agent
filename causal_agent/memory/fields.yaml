@@ -1,7 +1,7 @@
 # Claims about the world that an analysis rests on. The interview fills them; code checks the ones the data can
 # check; the families read them. Kinds, their fields, the check that can refute each, and the question frame the
 # model writes questions from. Hints describe the world, never a method: no family or method word appears in a
-# hint. Family names appear only under family_needs, which is read by code to build the table.
+# hint. No family name appears here: what each family needs is in its own family.yaml.
 
 kinds:
   grain:
@@ -164,25 +164,6 @@ kinds:
     frame: is there a column the change altered, such that the change reaches the outcome only by altering it; if so which, and why
     cues: "'it works through', 'only by changing' name a mediator with column; 'no', 'directly' mean exists=false"
     order: 12
-
-# Which claims each family needs, and for grain and assignment which values fit. A family with a cell that does
-# not fit, or a failed probe, is struck out; the required set is the union over the survivors. Read by code.
-family_needs:
-  synthetic_control:
-    requires: [grain, sampling, change, assignment, measured, missing, spillover]
-    fits:
-      grain.panel: [true]
-      assignment.kind: [date_by_others, third_party]
-  interrupted_series:
-    requires: [grain, sampling, change, assignment, measured, missing, trend_continues]
-    fits:
-      grain.panel: [true]
-      assignment.kind: [date_by_others, third_party]
-  instrument:
-    requires: [grain, sampling, change, assignment, measured, missing, unobserved, exclusion]
-    fits:
-      assignment.kind: [lottery, own_choice, third_party, cutoff_rule]
-      exclusion.exists: [true]
 
 # Words the reply gate refuses in a question. Family names from the registry are added by code.
 method_words:

@@ -13,7 +13,7 @@ def primary(estimates: list[dict]) -> dict | None:
 
 def effect_and_refutations(estimates: list[dict], refutations: list[dict], prefix: str) -> FigureSpec | None:
     """The estimate with its interval beside every falsification's new effect and every sensitivity range, on one axis.
-    `prefix` is the lane's refutation address prefix: refute for dowhy, placebo for the others."""
+    `prefix` is how the lane addresses its falsifications (refute:<c>.<name> or placebo:<c>.<name>)."""
     est = primary(estimates)
     if est is None:
         return None

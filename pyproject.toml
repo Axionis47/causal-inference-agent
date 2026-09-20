@@ -87,8 +87,6 @@ module = [
     "causal_agent.memory.*",
     "causal_agent.profile.*",
     "causal_agent.server.*",
-    "causal_agent.specialists.*",
-    "causal_agent.knowledge.*",
     "causal_agent.families.*.lane.*",
     "causal_agent.families.*.evals.*",
 ]
@@ -109,12 +107,10 @@ layers = [
     "causal_agent.server",
     "causal_agent.desk",
     "causal_agent.families",
-    "causal_agent.specialists",
     "causal_agent.lane",
     "causal_agent.viz",
     "causal_agent.memory",
     "causal_agent.profile",
-    "causal_agent.knowledge",
     "causal_agent.common",
 ]
 ignore_imports = [
@@ -129,6 +125,6 @@ unmatched_ignore_imports_alerting = "error"
 name = "the core names no family"
 type = "forbidden"
 source_modules = ["causal_agent.common", "causal_agent.profile", "causal_agent.memory", "causal_agent.viz", "causal_agent.lane"]
-forbidden_modules = ["causal_agent.families", "causal_agent.specialists"]
+forbidden_modules = ["causal_agent.families"]
 allow_indirect_imports = "True"
 ignore_imports = ["causal_agent.**.tests.** -> causal_agent.families.**"]

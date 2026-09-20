@@ -23,7 +23,7 @@ from causal_agent.desk.nodes import frame as F
 from causal_agent.desk.prompts import journey as P
 from causal_agent.desk.state import Context, DeskState
 from causal_agent.families import registry as R
-from causal_agent.knowledge import Family
+from causal_agent.families.base import Family
 from causal_agent.memory import ops, store
 from causal_agent.memory import views as V
 from causal_agent.memory.catalogue import Catalogue, ClaimKind, load_catalogue, load_thresholds
@@ -659,7 +659,8 @@ def _figures(state: DeskState, rec: RunRecord) -> list[dict]:
         except Exception:
             lane = []
     if not lane:
-        lane = [f.model_dump() for f in postviz.figures(rec)]
+        prefix = R.REGISTRY[rec.family].refutation_prefix if rec.family in R.REGISTRY else "placebo"
+        lane = [f.model_dump() for f in postviz.figures(rec, prefix)]
     return ready + lane
 
 

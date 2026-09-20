@@ -1,0 +1,22 @@
+# synthetic_control: a family the routing knows and can rule in or out, with no lane built for it yet.
+
+applies_to: [effect_of_change]
+answers: effect of a change on one unit, comparing it against a weighted mix of untreated units built to match its history before the change
+needs:
+  - many units observed over many periods
+  - exactly one unit, or very few, got the change and the rest did not
+  - a long stretch of periods before the change to match on
+look_for: dataset profile entity summary and time coverage; a change card naming one unit and a date
+assumes: a weighted combination of untreated units reproduces what the treated unit would have done without the change, and the change did not reach the donors
+weak_when: no combination of donors matches the treated unit's pre-period; or the dataset or change note says the change may have spilled over to the donors
+prefer_over:
+  diff_in_diff: with one treated unit, diff_in_diff has no way to gauge uncertainty from the treated side and rests on parallel trends with the average of all others; synthetic control matches the pre-period explicitly
+  interrupted_series: when many untreated units exist, ignoring them throws away the comparison that protects against a common shock at the change date
+specialist: causalpy
+status: declared
+
+needs_claims:
+  requires: [grain, sampling, change, assignment, measured, missing, spillover]
+  fits:
+    grain.panel: [true]
+    assignment.kind: [date_by_others, third_party]

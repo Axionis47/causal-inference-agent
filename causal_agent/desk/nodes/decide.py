@@ -17,7 +17,7 @@ from causal_agent.desk.nodes.frame import memory_of
 from causal_agent.desk.prompts import routing as P
 from causal_agent.desk.state import Context, RouteState
 from causal_agent.families import registry as R
-from causal_agent.knowledge import Family, render_preferences
+from causal_agent.families.base import Family, render_preferences
 from causal_agent.memory import ops
 from causal_agent.memory import views as V
 from causal_agent.memory.catalogue import load_catalogue

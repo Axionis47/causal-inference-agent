@@ -1,6 +1,5 @@
-"""The field catalogue: the kinds of claim, their fields, the checks, the family needs. Loaded from fields.yaml and checks.yaml.
-
-Loaders for the interview's knowledge: the claim kinds, the family needs, and the thresholds."""
+"""The field catalogue: the kinds of claim, their fields, the checks, and the thresholds. Loaded from fields.yaml and
+checks.yaml. FamilyNeeds is the shape of what a family asks of the catalogue; the families themselves say which."""
 
 from __future__ import annotations
 
@@ -55,6 +54,8 @@ class ClaimKind(BaseModel):
 
 
 class FamilyNeeds(BaseModel):
+    """The claim kinds a family requires, and for some fields which values fit."""
+
     name: str
     requires: list[str]
     fits: dict[str, list[Any]] = Field(default_factory=dict)
@@ -62,7 +63,6 @@ class FamilyNeeds(BaseModel):
 
 class Catalogue(BaseModel):
     kinds: dict[str, ClaimKind]
-    families: dict[str, FamilyNeeds]
     method_words: list[str]
 
     def ordered(self) -> list[ClaimKind]:
@@ -72,8 +72,7 @@ class Catalogue(BaseModel):
 def load_catalogue(path: str | Path | None = None) -> Catalogue:
     raw = yaml.safe_load(Path(path or _HERE / "fields.yaml").read_text())
     kinds = {k: ClaimKind(name=k, **v) for k, v in raw["kinds"].items()}
-    fams = {k: FamilyNeeds(name=k, **v) for k, v in raw["family_needs"].items()}
-    return Catalogue(kinds=kinds, families=fams, method_words=list(raw.get("method_words") or []))
+    return Catalogue(kinds=kinds, method_words=list(raw.get("method_words") or []))
 
 
 def load_thresholds(path: str | Path | None = None) -> dict:

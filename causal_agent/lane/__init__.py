@@ -6,4 +6,4 @@
     asks      one question back to the desk, the same shape for every lane
     records   the artifacts, the result, the report tail: declines and asks in every lane's record
 
-DoWhy stays in specialists/dowhy, pyfixest in specialists/did, rdrobust in specialists/rd. Nothing here fits a model."""
+Each engine stays in its family's lane under causal_agent/families/<family>/lane. Nothing here fits a model."""

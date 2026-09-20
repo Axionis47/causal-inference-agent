@@ -1,0 +1,20 @@
+# instrument: a family the routing knows and can rule in or out, with no lane built for it yet.
+
+applies_to: [effect_of_change]
+answers: effect of a change when something nudged who got the change without touching the outcome any other way
+needs:
+  - the note describes a separate column that influenced whether a row got the change
+  - the note states, in so many words, that the nudge column touches the outcome only through the change; this is a positive statement the note must make, not an absence, and a background attribute such as income, region, or education never meets it
+  - the change itself is recorded separately from the nudge
+look_for: a column note describing a random or unrelated push toward the change; a separate column recording the change itself
+assumes: the nudge affects the outcome only through the change
+weak_when: the nudge is weak, or plausibly affects the outcome directly
+prefer_over: {}
+specialist: none
+status: declared
+
+needs_claims:
+  requires: [grain, sampling, change, assignment, measured, missing, unobserved, exclusion]
+  fits:
+    assignment.kind: [lottery, own_choice, third_party, cutoff_rule]
+    exclusion.exists: [true]

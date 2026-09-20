@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pandas as pd
 
+from causal_agent.families.adjustment.overlap import overlap_probe
 from causal_agent.memory.claims import ClaimTable, ProbeResult
-from causal_agent.memory.overlap import overlap_probe
 from causal_agent.memory.probes import treated_mask
 from causal_agent.profile.data import column
 

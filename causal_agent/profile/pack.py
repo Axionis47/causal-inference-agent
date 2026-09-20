@@ -9,7 +9,7 @@ per settled claim and per probe. Every card has an address an agent can cite:
     col:lunch.profile.varies_over
     claim:assignment.kind
     claim:col:lunch.when
-    probe:discontinuity.rows_by_side
+    probe:<family>.<name>
 
 Addresses are the whole citation system. A claim that cites an address that
 does not exist fails the gate.

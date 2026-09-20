@@ -25,4 +25,5 @@ FAMILY = FamilyDef(
     probes=probes.probes,
     previz=previz.FIGURES,
     lane=_lane,
+    refutation_prefix="refute",
 )

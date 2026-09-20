@@ -1,5 +1,5 @@
-"""Each family's disqualifiers, computed once assignment and change are settled. pandas only, no fits. A failed probe
-strikes the family out; a probe that cannot run leaves it in. Probes never pick a family."""
+"""The declared families' disqualifiers, computed once assignment and change are settled. pandas only, no fits. A failed
+probe strikes the family out; a probe that cannot run leaves it in. Probes never pick a family."""
 
 from __future__ import annotations
 

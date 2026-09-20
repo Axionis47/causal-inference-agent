@@ -1,5 +1,5 @@
 from causal_agent.families import registry as R
-from causal_agent.knowledge import render_preferences
+from causal_agent.families.base import render_preferences
 
 
 def test_registry_loads():

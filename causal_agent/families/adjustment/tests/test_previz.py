@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pandas as pd
 
+from causal_agent.families.adjustment.overlap import MAX_LEVELS
 from causal_agent.families.adjustment.previz import overlap
-from causal_agent.memory.overlap import MAX_LEVELS
 from causal_agent.profile.datasets import ROOT
 
 STUDENTS = pd.read_csv(ROOT / "data/raw/students-performance-in-exams/StudentsPerformance.csv")

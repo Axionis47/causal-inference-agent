@@ -1,0 +1,13 @@
+# root_cause: a family the routing knows and can rule in or out, with no lane built for it yet.
+
+applies_to: [root_cause, driver_search]
+answers: which upstream variable explains an unusual value of the outcome, when no single change is in question
+needs:
+  - the notes describe how columns are set from other columns, so a chain of mechanisms can be traced
+  - an outcome and a period or rows where it is unusual
+look_for: column notes that say a value is set from other columns; the question naming an unusual outcome rather than a change
+assumes: the described mechanisms are the real ones
+weak_when: mechanisms are unknown for most columns
+prefer_over: {}
+specialist: none
+status: declared

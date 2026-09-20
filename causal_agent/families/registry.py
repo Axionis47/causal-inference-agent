@@ -1,44 +1,23 @@
 """The registry: every family the desk knows, in the order the routing lists them. An explicit list, built once at import;
-nothing is scanned. A family that lives in its own package contributes its FAMILY; the rest are still read from the old
-places until each moves."""
+nothing is scanned. A built family's package contributes its FAMILY; the declared ones come from families/declared."""
 
 from __future__ import annotations
 
 from functools import lru_cache
 from typing import Any
 
-from causal_agent.families.base import BlockInputs, FamilyDef, stub_lane
-from causal_agent.knowledge import Family, load_registry
-from causal_agent.memory.catalogue import FamilyNeeds, load_catalogue
+from causal_agent.families.base import BlockInputs, Family, FamilyDef, stub_lane
+from causal_agent.memory.catalogue import FamilyNeeds
 from causal_agent.viz.graph import register_figures
 
 __all__ = ["REGISTRY", "BlockInputs", "FamilyDef", "family", "knowledge", "lanes", "needs", "stub_lane"]
 
 
-def _legacy() -> list[FamilyDef]:
-    """The families not yet in their own package: knowledge from knowledge/families.yaml, needs from memory/fields.yaml."""
-    from causal_agent.families import probes
-
-    needs = load_catalogue().families
-    built: dict[str, dict[str, Any]] = {
-        "synthetic_control": dict(probes=probes.synthetic_control),
-        "interrupted_series": dict(probes=probes.interrupted_series),
-        "instrument": dict(probes=probes.instrument),
-    }
-    out = []
-    for fam in load_registry():
-        extra = dict(built.get(fam.name, {}))
-        if "lane" not in extra:
-            extra["lane"] = lambda n=fam.name, s=fam.specialist, b=fam.status == "built": stub_lane(n, s, b)
-        out.append(FamilyDef(name=fam.name, knowledge=fam, needs=needs.get(fam.name), **extra))
-    return out
-
-
 def _build() -> dict[str, FamilyDef]:
-    from causal_agent.families import adjustment, diff_in_diff, discontinuity
+    from causal_agent.families import adjustment, declared, diff_in_diff, discontinuity
 
     out: dict[str, FamilyDef] = {}
-    for f in [adjustment.FAMILY, diff_in_diff.FAMILY, discontinuity.FAMILY, *_legacy()]:
+    for f in [adjustment.FAMILY, diff_in_diff.FAMILY, discontinuity.FAMILY, *declared.FAMILIES]:
         out[f.name] = f
         if f.previz:
             register_figures(f.name, f.previz)

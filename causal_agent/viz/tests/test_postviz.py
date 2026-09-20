@@ -31,7 +31,7 @@ def _rec(**kw) -> RunRecord:
 
 
 def test_effect_against_refutations():
-    f = postviz.effect_and_refutations(_rec())
+    f = postviz.effect_and_refutations(_rec(), "refute")
     assert f.kind == "interval" and f.id == "effect_completed_vs_none" and f.address == "figure:effect_completed_vs_none"
     s = f.series[0]
     assert s.x[0] == "linear_regression" and s.y[0] == 5.6 and s.lo[0] == 3.7 and s.hi[0] == 7.5
@@ -66,7 +66,7 @@ def test_the_builders_over_dicts_are_what_the_record_wrappers_draw():
 
     rec = _rec(dynamic={"-1": [0.0, -0.4, 0.4], "0": [2.1, 1.2, 3.0]})
     sr = rec.specialist_result
-    assert common.effect_and_refutations(sr["estimates"], sr["refutations"], "refute") == postviz.effect_and_refutations(rec)
+    assert common.effect_and_refutations(sr["estimates"], sr["refutations"], "refute") == postviz.effect_and_refutations(rec, "refute")
     assert common.event_study(sr["dynamic"]) == postviz.dynamic_effects(rec)
     f = common.event_study(sr["dynamic"], contrast="a_vs_b", draws_on=["check:a_vs_b.pre_trends"])
     assert f.id == "event_study_a_vs_b" and f.draws_on == ["check:a_vs_b.pre_trends"]

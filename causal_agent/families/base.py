@@ -6,18 +6,55 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import pandas as pd
 import yaml
 from langgraph.graph import END, START, StateGraph
+from pydantic import BaseModel, Field
 from typing_extensions import TypedDict
 
 from causal_agent.common.contracts import Belief, ColumnBrief, Design, Handoff, Probe, Scope
-from causal_agent.knowledge import Family
 from causal_agent.memory.catalogue import FamilyNeeds
 from causal_agent.memory.claims import ClaimTable, ProbeResult
 from causal_agent.viz.graph import PrevizFigure
+
+
+class Family(BaseModel):
+    """What the routing knows about a family: written as method knowledge it judges the data against, never as rules."""
+
+    name: str
+    applies_to: list[str]
+    answers: str
+    needs: list[str]
+    look_for: str
+    assumes: str
+    weak_when: str
+    prefer_over: dict[str, str] = Field(default_factory=dict)
+    convince: str = Field(default="", description="the point a figure makes at the ready moment, in the question's words")
+    specialist: str
+    status: Literal["built", "declared"]
+
+    def render(self) -> str:
+        needs = "\n".join(f"    - {n}" for n in self.needs)
+        return (
+            f"family: {self.name}  (status: {self.status})\n"
+            f"  applies to questions of kind: {', '.join(self.applies_to)}\n"
+            f"  answers: {self.answers}\n"
+            f"  needs:\n{needs}\n"
+            f"  where the evidence usually lives: {self.look_for}\n"
+            f"  assumes: {self.assumes}\n"
+            f"  weak when: {self.weak_when}"
+        )
+
+
+def render_preferences(registry: list[Family]) -> str:
+    """The families' stated preferences over one another, for the routing prompt."""
+    lines = []
+    for f in registry:
+        for other, why in f.prefer_over.items():
+            lines.append(f"- prefer {f.name} over {other}: {why}")
+    return "\n".join(lines) or "(none recorded)"
 
 
 @dataclass(frozen=True)
@@ -47,6 +84,7 @@ class FamilyDef:
     probes: ProbeFn | None = None
     previz: list[PrevizFigure] = field(default_factory=list)
     lane: LaneFactory | None = None
+    refutation_prefix: str = "placebo"  # how the lane addresses its falsifications: refute:<c>.<name> or placebo:<c>.<name>
 
     @property
     def specialist(self) -> str:
@@ -57,10 +95,12 @@ class FamilyDef:
         return self.knowledge.status == "built"
 
 
-def load_family_yaml(path: Path) -> tuple[Family, FamilyNeeds | None]:
-    """A family's own file: the knowledge the routing reads, and under `needs_claims` the claims it needs for the fit grid."""
+def load_family_yaml(path: Path, name: str | None = None) -> tuple[Family, FamilyNeeds | None]:
+    """A family's own file: the knowledge the routing reads, and under `needs_claims` the claims it needs for the fit grid.
+    The name is the one given, else the file's `name`, else the package folder's."""
     raw = yaml.safe_load(Path(path).read_text())
-    name = raw.pop("name", None) or Path(path).parent.name
+    name = name or raw.pop("name", None) or Path(path).parent.name
+    raw.pop("name", None)
     needs = raw.pop("needs_claims", None)
     return Family(name=name, **raw), (FamilyNeeds(name=name, **needs) if needs else None)
 

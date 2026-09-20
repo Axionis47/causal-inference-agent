@@ -5,7 +5,7 @@ from __future__ import annotations
 import pandas as pd
 
 from causal_agent.common.addresses import key as _key
-from causal_agent.memory.overlap import levels_of, overlap_probe
+from causal_agent.families.adjustment.overlap import levels_of, overlap_probe
 from causal_agent.memory.records import Memory
 from causal_agent.profile.data import column
 from causal_agent.viz.graph import FigureDecl, PrevizFigure, VizState

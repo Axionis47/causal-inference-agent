@@ -7,7 +7,7 @@ judgement only when more than one candidate stands; one candidate is chosen by c
 calls the pre-viz function on the table. `check` is code: the figure has values, and every address it draws on resolves.
 
     from causal_agent.viz.graph import make
-    make(Point(family="adjustment", claim="both arms exist at every lunch level"), dataset="students3", outcome="math score")
+    make(Point(family="<family>", claim="both arms exist at every lunch level"), dataset="students3", outcome="math score")
 """
 
 from __future__ import annotations
