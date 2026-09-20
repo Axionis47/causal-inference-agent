@@ -60,6 +60,10 @@ class FakeLLM:
         self.interpret_bad_first = interpret_bad_first
         self.cite = cite
         self.calls: list[str] = []
+        self.humans: list[tuple[str, str]] = []
+
+    def humans_of(self, name: str) -> list[str]:
+        return [h for n, h in self.humans if n == name]
 
     def with_structured_output(self, schema, include_raw=False):
         fake = self
@@ -76,6 +80,7 @@ class FakeLLM:
 
     def answer(self, schema, human):
         self.calls.append(schema.__name__)
+        self.humans.append((schema.__name__, human))
         cite = "col:nope.note" if self.bad_cites else self.cite
         if schema is Contrasts:
             levels = re.findall(r"'([^']+)'", human.split("OBSERVED LEVELS")[1].split("\n")[1])
@@ -99,11 +104,13 @@ class FakeLLM:
             return EstimatorPick(name=name, reason="ranked first and the checks allow it", cites=[])
         if schema is Interpretation:
             addresses = human.split("ADDRESSES YOU MAY CITE")[1].split("\n\n")[0].strip().splitlines()
+            required = [a for a in human.split("ADDRESSES YOU MUST CITE")[1].split("\n\n")[0].strip().splitlines()[1:] if a and a != "(none)"]
             contrast = re.search(r"COMPARISON: (\S+)", human).group(1)
             value = float(re.search(r"\[estimate:%s\.value\] ([-\d.eE+]+)" % re.escape(contrast), human).group(1))
             bad = self.interpret_bad_first and "PREVIOUS ANSWER WAS REJECTED" not in human
+            cites = ["nope:x"] if bad else list(dict.fromkeys(required + addresses[:3]))
             return Interpretation(contrast=contrast, answer=f"The effect is {value:.3g} points.", effect_stated=value,
-                                  caveats=["bets on the router's assumption"], cites=["nope:x"] if bad else addresses[:3])
+                                  caveats=["bets on the router's assumption"] + [f"flag {a}" for a in required], cites=cites)
         raise AssertionError(schema)
 
 
@@ -362,3 +369,130 @@ def test_no_road_and_the_person_says_so_takes_the_back_door_with_a_sensitivity_r
     sens = next(x for x in out["refutations"] if x.refuter == "add_unobserved_common_cause")
     assert sens.kind == "sensitivity" and sens.range_low is not None and sens.range_high is not None and sens.range_low <= sens.range_high
     assert "hidden factor" in d.render()
+
+
+# ------------------------------------------------------------------ the lane on the harness: the pack weighed by code
+
+
+def _students3(cols=None, scope=None):
+    from causal_agent.common.contracts import Scope
+
+    cols = cols or ["math score", "test preparation course", "lunch", "parental level of education", "gender", "race/ethnicity", "reading score", "writing score"]
+    return forced("students3", "Did completing the prep course raise math scores?", "adjustment", "math score", "test preparation course", cols, cite=CITE,
+                  scope=scope or Scope(), memory=_memory("students3"))
+
+
+def test_a_forbidden_column_never_enters_the_graph_and_the_flags_are_cited():
+    """students3 marks the two other scores 'after': the pack forbids them. A model that calls one of them a plain parent of the
+    outcome is overruled by code; the other it calls a measure of the outcome, which is excluded first."""
+    h = _students3()
+    assert {"reading_score", "writing_score"} <= set(h.design.forbidden)
+
+    class Fake(FakeLLM):
+        def answer(self, schema, human):
+            if schema is Relation and "for column 'writing_score'" in human:
+                return Relation(column="writing_score", affects_treatment=False, affects_outcome=True, affected_by_treatment=False, is_outcome_measure=False,
+                                reasons=[Cited(reason="writing: moves the outcome", cites=[CITE])])
+            return super().answer(schema, human)
+
+    fake = Fake()
+    out = _run(fake, h)
+    r = out["specialist_result"]
+    assert r["status"] == "done", r.get("feasibility")
+    why = {x.column: x.why for x in out["graph"].excluded}
+    assert "design.forbidden" in why["writing_score"] and "measurement of the outcome" in why["reading_score"]
+    assert not any(e.src in ("reading_score", "writing_score") for e in out["graph"].edges)
+    # the case reached every relate prompt: the settled block for a column the pack partly settles, the pack's cards and probes
+    human = next(m for m in fake.humans_of("Relation") if "for column 'gender'" in m)
+    assert "SETTLED BY THE PACK" in human and "affected_by_treatment = false [col:gender.when]" in human and "[probe:adjustment" in human and "[dataset.profile.rows]" in human
+    # the interpretation had to cite every flag, and the artifacts carry the case and the checks
+    assert not out.get("interpret_errors")
+    arts = json.loads(open(f"{r['run_dir']}/artifacts.json").read())
+    assert arts["case"]["facts"]["col:gender.when"] == "before" and any(c["name"] == "arms" for c in arts["checks"]) and arts["design"]["estimator"]
+    assert [f["id"] for f in json.loads(open(f"{r['run_dir']}/figures.json").read())] == ["effect_completed_vs_none"] and r["figures"] == ["effect_completed_vs_none"]
+
+
+def test_relate_is_skipped_when_the_pack_settles_every_claim():
+    """A column the person said the change moved and that measures nothing: affected, and open only on affects_outcome, so the model is asked;
+    one it called a measure of the outcome, or the offer looked at and was fixed before, is never asked about."""
+    h = _students3()
+    fake = FakeLLM()
+    out = _run(fake, h)
+    asked = {t.node.split(":", 1)[1] for t in out["debug"] if t.node.startswith("relate:")}
+    assert "parental_level_of_education" not in asked and "gender" in asked
+    from causal_agent.specialists.dowhy import nodes as N
+
+    claims, cites = N.settled_claims(h, "gender", out["case"])
+    assert claims == {"affected_by_treatment": False} and cites == {"affected_by_treatment": "col:gender.when"}
+    claims, _ = N.settled_claims(h, "lunch", out["case"])
+    assert claims.get("affects_treatment") is True  # the offer depended on it, whatever the timing says
+
+
+def test_the_filter_is_applied_by_code_and_a_prose_filter_is_a_recorded_decline():
+    from causal_agent.common.contracts import Scope
+
+    out = _run(FakeLLM(), _students3(scope=Scope(population_filter="gender == female")))
+    r = out["specialist_result"]
+    assert r["status"] == "done", r.get("feasibility")
+    assert out["check_facts"]["intake"] == {"filter": "gender == female", "rows_before": 1000, "rows_after": 518}
+    assert len(pd.read_csv(out["table_path"])) == 518 and out["declines"] == []
+    out = _run(FakeLLM(), _students3(scope=Scope(population_filter="students who sat the May exam")))
+    r = out["specialist_result"]
+    assert r["status"] == "done" and [d["check"] for d in r["declines"]] == ["intake.filter_unparsed"]
+    assert "DISAGREEMENTS WITH THE PACK" in r["report"] and "[decline:load.scope_population_filter]" in r["report"]
+
+
+def test_a_pack_named_mediator_outside_the_frame_is_loaded_and_a_confirmed_mediator_without_a_column_asks_for_it(tmp_path):
+    csv = _synthetic(tmp_path)
+    m = _synthetic_memory(csv, hidden=True, mediator="m")
+    h = forced("synthetic", "Did the programme raise y?", "adjustment", "y", "treated", ["y", "treated", "z"], cite="col:z.note", memory=m)
+    assert h.design.mediator == "m" and "m" not in [c.column for c in h.relevant_columns]
+    fake = FakeLLM(cite="col:z.note")
+    out = _run(fake, h, question="Did the programme raise y?")
+    assert "m" in out["columns"] and any(e.src == "treated" and e.dst == "m" for e in out["graph"].edges)
+    assert out["specialist_result"]["status"] == "done", out["specialist_result"].get("feasibility")
+    # the person says there is a mediator but not which column: the lane asks for the column, not whether it exists
+    m2 = _synthetic_memory(csv, hidden=True)
+    m2.set("claim:mediator.exists", True, status="confirmed", source="user:turn:2", said="it works through something we measured")
+    out = _run(FakeLLM(cite="col:z.note"), _synthetic_handoff(m2), question="Did the programme raise y?")
+    r = out["specialist_result"]
+    assert r["status"] == "ask" and r["ask"]["address"] == "claim:mediator.column" and "Which column" in r["ask"]["question"] and r["ask"]["stage"] == "identify"
+
+
+def test_sensitivity_survives_a_revise_loop_and_a_repick_does_not_duplicate_estimates(tmp_path):
+    csv = _synthetic(tmp_path)
+    h = _synthetic_handoff(_synthetic_memory(csv, hidden=True, said_none=True))
+    # z read as a parent of both puts it in the adjustment set; its imbalance is flagged; the assessment revises it out, then proceeds
+    script = [DesignAssessment(action="revise", reason="z is too imbalanced to adjust for", cites=[], revisions=[Revision(column="z", change="exclude", reason="test delta", cites=["col:z.note"])]),
+              DesignAssessment(action="proceed", reason="fine", cites=[])]
+
+    class Fake(FakeLLM):
+        def answer(self, schema, human):
+            if schema is Relation and "for column 'z'" in human:
+                return Relation(column="z", affects_treatment=True, affects_outcome=True, affected_by_treatment=False, is_outcome_measure=False,
+                                reasons=[Cited(reason="z: fed the decision and moves y", cites=["col:z.note"])])
+            return super().answer(schema, human)
+
+    fake = Fake(assess_script=script, cite="col:z.note", pick_script=["econml_magic", "linear_regression"])
+    out = _run(fake, h, question="Did the programme raise y?")
+    r = out["specialist_result"]
+    assert r["status"] == "done", r.get("feasibility")
+    assert out["revisions"] == 1 and out["design"].estimand.sensitivity_required and "unobserved" not in out["design"].graph.nodes
+    assert any(x.refuter == "add_unobserved_common_cause" for x in out["refutations"])
+    assert "check:all.belief.unobserved" in {c.address for c in out["checks"]}
+    keys = [(e.contrast, e.method) for e in out["estimates"]]
+    assert len(keys) == len(set(keys))
+
+
+def test_spillover_the_person_kept_is_a_flag_the_interpretation_cites(tmp_path):
+    csv = _synthetic(tmp_path)
+    m = _synthetic_memory(csv, hidden=False)
+    m.set("claim:spillover.possible", True, status="confirmed", source="user:turn:3", said="they talk to each other")
+    fake = FakeLLM(cite="col:z.note")
+    out = _run(fake, _synthetic_handoff(m), question="Did the programme raise y?")
+    r = out["specialist_result"]
+    assert r["status"] == "done", r.get("feasibility")
+    flag = next(c for c in out["checks"] if c.name == "belief.spillover")
+    assert flag.level == "soft" and "carries part of the effect" in flag.detail
+    assert "check:all.belief.spillover" in out["interpretations"][0].cites and not out.get("interpret_errors")
+    assert "DesignAssessment" in fake.calls  # a flag from the person's word is a flag the assessment answers

@@ -1,0 +1,36 @@
+# What the person's beliefs, the unknowns, and the contradictions mean to the adjustment lane. Read by lane.case.
+# A flag is a check named belief.<kind>, unknown.<address>, or contradiction.<address>; the assessment must answer it and
+# the interpretation must cite it. No dataset, column, or method name belongs here.
+
+beliefs:
+  unobserved:
+    value_field: exists
+    by_status:
+      confirmed_true:
+        level: soft
+        caveat: "the person says something outside the file drove both who got the change and the outcome; the graph carries it as a hidden factor and only a road around it identifies the effect"
+      unknown:
+        level: soft
+        caveat: "the person could not say whether something outside the file drove both who got the change and the outcome; the design takes the back door and the reader should weigh that"
+      contradiction:
+        level: soft
+        caveat: "what the person said about a hidden factor stands against the file; the design takes the back door and says so"
+  spillover:
+    value_field: possible
+    by_status:
+      confirmed_true:
+        level: soft
+        caveat: "units that got the change could reach the outcomes of those that did not, so the comparison carries part of the effect and the estimate reads as a bound"
+      unknown:
+        level: soft
+        caveat: "the person could not say whether units that got the change could reach the outcomes of those that did not"
+
+unknowns:
+  "col:*.when":
+    level: soft
+    caveat: "when {column} was set is not known; its place in the graph is the model's reading of the card"
+
+contradictions:
+  "col:*.when":
+    level: soft
+    caveat: "the file and the person disagree on when {column} was set; the graph follows the model's reading of both, and the reader should weigh it"

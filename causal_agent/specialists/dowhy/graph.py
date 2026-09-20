@@ -1,9 +1,9 @@
 """The adjustment-lane subgraph on DoWhy. Nodes are constant; workers scale with columns and contrasts.
 
-    load ─ contrast ─(relate × N)─ merge_graph ─ verify_graph ─ identify ─ check_design
+    load ─ case ─ contrast ─(relate × N)─ merge_graph ─ verify_graph ─ identify ─ check_design
          ─(assess, only when flagged)─ pick_estimator ─ freeze_design ─(analyse × C)─ after_analyse
-         ─(interpret × C)─ assemble ─ END
-    any typed stop ─────────────────────────────────────────────▶ feasibility ─ assemble
+         ─(interpret × C)─ figures ─ assemble ─ END
+    any typed stop, or an ask back ─────────────────────────────▶ feasibility ─ figures ─ assemble
 
 verify_graph reruns only the relate workers it rejected (3 tries). assess may send a revision delta back
 to merge_graph (3 times). after_analyse may re-pick the estimator once on a fit failure. Nothing loops after
@@ -25,6 +25,7 @@ _retry = RetryPolicy(max_attempts=3, initial_interval=1.0)
 def build() -> StateGraph:
     b = StateGraph(SpecialistState)
     b.add_node("load", N.load)
+    b.add_node("case", N.case)
     b.add_node("contrast", N.contrast, retry_policy=_retry)
     b.add_node("relate", N.relate, retry_policy=_retry)
     b.add_node("merge_graph", N.merge_graph)
@@ -38,10 +39,12 @@ def build() -> StateGraph:
     b.add_node("after_analyse", N.after_analyse)
     b.add_node("interpret", N.interpret, retry_policy=_retry)
     b.add_node("feasibility", N.feasibility)
+    b.add_node("figures", N.figures)
     b.add_node("assemble", N.assemble)
 
     b.add_edge(START, "load")
-    # load returns Command(goto=contrast | feasibility)
+    # load returns Command(goto=case | feasibility)
+    b.add_edge("case", "contrast")
     b.add_conditional_edges("contrast", N.fan_out_relate, ["relate", "merge_graph", "feasibility"])
     b.add_edge("relate", "merge_graph")
     b.add_edge("merge_graph", "verify_graph")
@@ -52,9 +55,10 @@ def build() -> StateGraph:
     # pick_estimator returns Command(goto=freeze_design | feasibility)
     b.add_conditional_edges("freeze_design", N.fan_out_analyse, ["analyse"])
     b.add_edge("analyse", "after_analyse")
-    # after_analyse returns Command(goto=[Send interpret...] | pick_estimator | assemble | feasibility)
-    b.add_edge("interpret", "assemble")
-    b.add_edge("feasibility", "assemble")
+    # after_analyse returns Command(goto=[Send interpret...] | pick_estimator | figures | feasibility)
+    b.add_edge("interpret", "figures")
+    b.add_edge("feasibility", "figures")
+    b.add_edge("figures", "assemble")
     b.add_edge("assemble", END)
     return b
 

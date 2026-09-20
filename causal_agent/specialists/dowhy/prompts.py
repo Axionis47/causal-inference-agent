@@ -35,6 +35,8 @@ RELATE_SYSTEM = (
     "  affects_outcome: this column could move the outcome on its own. A characteristic of the unit that was fixed "
     "before the treatment (a background attribute, a prior condition, a group the unit belongs to) counts as yes "
     "unless the note rules it out; cite the note that says it was fixed before.\n"
+    "When a block SETTLED BY THE PACK gives one of the four, the person has already said it: copy that answer and cite the "
+    "address shown; do not argue with it.\n"
     "  affected_by_treatment: this column's value was recorded after the treatment began, so the treatment could "
     "have changed it. A measurement taken at the same time as the outcome counts as yes.\n"
     "  is_outcome_measure: this column measures the same quantity as the outcome, so it is a result, not a cause.\n"
@@ -57,7 +59,7 @@ OUTCOME CARD
 
 THE COLUMN TO RELATE
 {card}
-{errors}
+{settled}{errors}
 Answer the four questions for column {column!r}.
 """
 
@@ -114,8 +116,9 @@ INTERPRET_SYSTEM = (
     "State the effect in the outcome's units, copied exactly from the estimate. List the caveats a careful reader "
     "needs: the assumption the design bets on, any flagged check, and any refuter that failed. When a sensitivity range "
     "is among the artifacts, say that the person believes a hidden factor exists, that no road around it was open, and that "
-    "the effect holds only if that factor is no stronger than the simulated ones, quoting the range. Do not mention "
-    "checks that were not run. Cite an artifact address for every number. " + CITE_RULE
+    "the effect holds only if that factor is no stronger than the simulated ones, quoting the range. A flag that comes from "
+    "what the person said (belief.*, unknown.*, contradiction.*) is a caveat in their own terms. Do not mention "
+    "checks that were not run. Cite an artifact address for every number, and every address you must cite. " + CITE_RULE
 )
 
 INTERPRET_USER = """QUESTION
@@ -125,6 +128,9 @@ COMPARISON: {contrast}
 
 ARTIFACTS
 {material}
+
+ADDRESSES YOU MUST CITE (every one; each is a flag or a number the reader needs)
+{required}
 
 ADDRESSES YOU MAY CITE
 {addresses}

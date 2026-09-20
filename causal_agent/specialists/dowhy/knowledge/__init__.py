@@ -1,4 +1,4 @@
-"""Loaders for the three knowledge files. Read once, rendered for the model, filtered by facts."""
+"""Loaders for the four knowledge files. Read once, rendered for the model, filtered by facts."""
 
 from __future__ import annotations
 
@@ -73,6 +73,12 @@ def load_refuters() -> list[RefuterEntry]:
 @lru_cache(maxsize=1)
 def load_checks() -> dict[str, Any]:
     return yaml.safe_load((_HERE / "checks.yaml").read_text())
+
+
+@lru_cache(maxsize=1)
+def load_beliefs() -> dict[str, Any]:
+    """What the person's beliefs, the unknowns, and the contradictions mean to this lane (see lane.case)."""
+    return yaml.safe_load((_HERE / "beliefs.yaml").read_text()) or {}
 
 
 def estimator(name: str) -> EstimatorEntry:
