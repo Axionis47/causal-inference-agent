@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bars, categorical, categories, extent, fmtTick, markX, path, plotBox, points, ticks, yExtent, type FigureSpec } from "./figure";
+import { bars, categorical, categories, extent, fmtTick, graphLayout, markX, path, plotBox, points, ticks, yExtent, type FigureSpec } from "./figure";
 
 const barSpec: FigureSpec = {
   id: "overlap_lunch", kind: "bars", title: "t", x_label: "", y_label: "", note: "", draws_on: [],
@@ -82,5 +82,33 @@ describe("points and marks", () => {
     const ps = points(spec, plotBox(), yExtent(spec));
     expect(ps[0].lo).toBeGreaterThan(ps[0].y);
     expect(ps[0].hi).toBeLessThan(ps[0].y);
+  });
+});
+
+describe("graph layout", () => {
+  const graph: FigureSpec = {
+    id: "causal_graph", kind: "graph", title: "g", x_label: "", y_label: "", note: "", draws_on: ["design.graph"], series: [], marks: [],
+    nodes: [
+      { id: "course", label: "test preparation course", role: "treatment" },
+      { id: "math", label: "math score", role: "outcome" },
+      { id: "lunch", label: "lunch", role: "confounder" },
+      { id: "gender", label: "gender", role: "driver" },
+      { id: "reading", label: "reading score", role: "excluded" },
+    ],
+    edges: [{ src: "course", dst: "math", cites: [] }, { src: "lunch", dst: "course", cites: ["col:lunch.when"] }, { src: "lunch", dst: "math", cites: [] }, { src: "nope", dst: "math", cites: [] }],
+  };
+  it("puts the treatment left of the outcome, drivers above, excluded below, and drops an arrow to a missing node", () => {
+    const box = plotBox();
+    const { nodes, edges } = graphLayout(graph, box);
+    const at = (id: string) => nodes.find((n) => n.id === id)!;
+    expect(at("course").x).toBeLessThan(at("math").x);
+    expect(at("course").y).toBeCloseTo(at("math").y, 5);
+    expect(at("lunch").y).toBeLessThan(at("course").y);
+    expect(at("gender").x).toBeGreaterThan(at("lunch").x);
+    expect(at("reading").y).toBeGreaterThan(at("course").y);
+    expect(edges.map((e) => e.i)).toEqual([0, 1, 2]);
+    const e0 = edges[0];
+    expect(e0.x1).toBeGreaterThan(at("course").x);
+    expect(e0.x2).toBeLessThan(at("math").x);
   });
 });

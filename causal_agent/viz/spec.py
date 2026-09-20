@@ -13,7 +13,9 @@ from pydantic import BaseModel, Field
 from causal_agent.common.addresses import key as _key
 from causal_agent.common.contracts import Probe
 
-Kind = Literal["bars", "lines", "points", "density", "interval"]
+Kind = Literal["bars", "lines", "points", "density", "interval", "graph"]
+Role = Literal["treatment", "outcome", "confounder", "driver", "mediator", "instrument", "hidden", "excluded", "other"]
+Moment = Literal["ready", "run"]
 
 
 class Series(BaseModel):
@@ -39,6 +41,22 @@ class Mark(BaseModel):
     label: str = ""
 
 
+class Node(BaseModel):
+    """One node of a graph figure: a column, or the hidden factor."""
+
+    id: str
+    label: str = ""
+    role: Role = "other"
+
+
+class Edge(BaseModel):
+    """One arrow of a graph figure, with the addresses it rests on."""
+
+    src: str
+    dst: str
+    cites: list[str] = Field(default_factory=list)
+
+
 class FigureSpec(BaseModel):
     id: str
     kind: Kind
@@ -47,6 +65,9 @@ class FigureSpec(BaseModel):
     y_label: str = ""
     series: list[Series] = Field(default_factory=list)
     marks: list[Mark] = Field(default_factory=list)
+    nodes: list[Node] = Field(default_factory=list, description="for kind graph: the nodes")
+    edges: list[Edge] = Field(default_factory=list, description="for kind graph: the arrows")
+    moment: Moment = Field(default="run", description="ready: made at the ready moment, before the run; run: made by the run")
     note: str = Field(default="", description="one sentence on what the figure shows, in the question's words")
     draws_on: list[str] = Field(default_factory=list, description="the memory and probe addresses the figure rests on")
 
@@ -58,11 +79,17 @@ class FigureSpec(BaseModel):
         out = {self.address}
         for s in self.series:
             out.update(f"{self.address}.{s.key}.{i}" for i in range(len(s.x)))
+        out.update(f"{self.address}.node.{i}" for i in range(len(self.nodes)))
+        out.update(f"{self.address}.edge.{i}" for i in range(len(self.edges)))
         return out
 
     def render(self) -> str:
         """The figure as lines with addresses, for the chat's material."""
-        lines = [f"[{self.address}] {self.kind}: {self.title}" + (f" — {self.note}" if self.note else "")]
+        lines = [f"[{self.address}] {self.kind}: {self.title}" + (f" — {self.note}" if self.note else "") + (" (before the run)" if self.moment == "ready" else "")]
+        for i, n in enumerate(self.nodes):
+            lines.append(f"  [{self.address}.node.{i}] {n.label or n.id} ({n.role})")
+        for i, e in enumerate(self.edges):
+            lines.append(f"  [{self.address}.edge.{i}] {e.src} -> {e.dst}" + (f" [{', '.join(e.cites)}]" if e.cites else ""))
         for s in self.series:
             for i, (x, y) in enumerate(zip(s.x, s.y)):
                 tail = ""

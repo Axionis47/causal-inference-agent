@@ -30,3 +30,20 @@ describe("Figure", () => {
     expect(html).toContain("the change");
   });
 });
+
+describe("Figure graph", () => {
+  it("draws a circle per node and an arrow per edge, each carrying its address", () => {
+    const graph: FigureSpec = {
+      id: "causal_graph", kind: "graph", title: "What the lane drew", x_label: "", y_label: "", note: "lunch drives both", draws_on: ["design.graph"], series: [], marks: [],
+      nodes: [{ id: "course", label: "course", role: "treatment" }, { id: "math", label: "math score", role: "outcome" }, { id: "lunch", label: "lunch", role: "confounder" }, { id: "u", label: "unobserved", role: "hidden" }],
+      edges: [{ src: "course", dst: "math", cites: [] }, { src: "lunch", dst: "course", cites: ["col:lunch.when"] }, { src: "lunch", dst: "math", cites: [] }],
+    };
+    const html = renderToStaticMarkup(createElement(Figure, { spec: graph }));
+    expect((html.match(/<circle/g) ?? []).length).toBe(4);
+    expect((html.match(/marker-end="url\(#arrow\)"/g) ?? []).length).toBe(3);
+    expect(html).toContain("[figure:causal_graph.edge.1] lunch → course (col:lunch.when)");
+    expect(html).toContain("[figure:causal_graph.node.3] unobserved (hidden)");
+    expect(html).toContain('stroke-dasharray="3 3"');
+    expect(html).toContain("lunch drives both");
+  });
+});

@@ -1,7 +1,20 @@
 // A figure is data with addresses (see causal_agent/viz/spec.py). This module turns a spec into the numbers an SVG
 // needs: scales, ticks, bar and point positions. Pure functions, tested; Figure.tsx only draws what comes out.
 
-export type Kind = "bars" | "lines" | "points" | "density" | "interval";
+export type Kind = "bars" | "lines" | "points" | "density" | "interval" | "graph";
+export type Role = "treatment" | "outcome" | "confounder" | "driver" | "mediator" | "instrument" | "hidden" | "excluded" | "other";
+
+export interface GraphNode {
+  id: string;
+  label: string;
+  role: Role;
+}
+
+export interface GraphEdge {
+  src: string;
+  dst: string;
+  cites: string[];
+}
 
 export interface Series {
   name: string;
@@ -26,6 +39,9 @@ export interface FigureSpec {
   y_label: string;
   series: Series[];
   marks: Mark[];
+  nodes?: GraphNode[];
+  edges?: GraphEdge[];
+  moment?: "ready" | "run";
   note: string;
   draws_on: string[];
 }
@@ -198,4 +214,65 @@ export function markX(spec: FigureSpec, box: Box, m: Mark): number | null {
   }
   if (typeof m.at !== "number") return null;
   return scale(xExtent(spec), [box.left, box.left + box.width])(m.at);
+}
+
+export const NODE_R = 16;
+
+export interface LaidNode {
+  id: string;
+  label: string;
+  role: Role;
+  x: number;
+  y: number;
+}
+
+export interface LaidEdge {
+  i: number;
+  src: string;
+  dst: string;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+}
+
+// A causal graph laid out by role: the instrument at the far left, the treatment left, the mediator between, the
+// outcome right; what drives both above, spread between treatment and outcome; what the lane set aside below, dimmed.
+// Arrows run centre to centre, shortened by the node radius at both ends.
+export function graphLayout(spec: FigureSpec, box: Box): { nodes: LaidNode[]; edges: LaidEdge[] } {
+  const nodes = spec.nodes ?? [];
+  const yMid = box.top + box.height * 0.58;
+  const tx = box.left + box.width * 0.2;
+  const ox = box.left + box.width * 0.86;
+  const fixed: Record<string, [number, number]> = { instrument: [box.left + box.width * 0.04, yMid], treatment: [tx, yMid], mediator: [(tx + ox) / 2, yMid], outcome: [ox, yMid] };
+  const above = nodes.filter((n) => ["confounder", "driver", "hidden", "other"].includes(n.role));
+  const below = nodes.filter((n) => n.role === "excluded");
+  const spread = (list: GraphNode[], y: number): LaidNode[] =>
+    list.map((n, i) => ({ ...n, x: tx + ((i + 0.5) * (ox - tx)) / Math.max(list.length, 1), y }));
+  const laid: LaidNode[] = [];
+  const seen = new Set<string>();
+  for (const n of nodes) {
+    const f = fixed[n.role];
+    if (f && !seen.has(n.role)) {
+      laid.push({ ...n, x: f[0], y: f[1] });
+      seen.add(n.role);
+    }
+  }
+  const rest = nodes.filter((n) => !laid.some((l) => l.id === n.id) && n.role !== "excluded");
+  laid.push(...spread(rest.length === above.length ? above : rest, box.top + NODE_R + 6));
+  laid.push(...spread(below, box.top + box.height - NODE_R - 2));
+  const at = (id: string) => laid.find((n) => n.id === id);
+  const edges: LaidEdge[] = [];
+  (spec.edges ?? []).forEach((e, i) => {
+    const a = at(e.src);
+    const b = at(e.dst);
+    if (!a || !b) return;
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const d = Math.hypot(dx, dy) || 1;
+    const ux = dx / d;
+    const uy = dy / d;
+    edges.push({ i, src: e.src, dst: e.dst, x1: a.x + ux * NODE_R, y1: a.y + uy * NODE_R, x2: b.x - ux * (NODE_R + 3), y2: b.y - uy * (NODE_R + 3) });
+  });
+  return { nodes: laid, edges };
 }

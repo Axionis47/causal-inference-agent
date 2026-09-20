@@ -326,3 +326,33 @@ def test_the_brief_lists_where_the_lane_disagreed_with_the_pack(monkeypatch):
 
     m = M.render(d.values["runs"][0])
     assert "decline:load.scope_window" in m.addresses and "pack said 'the spring term'" in m.by_address["decline:load.scope_window"]
+
+
+def test_the_desk_shows_what_the_lane_drew_and_marks_the_ready_figure(monkeypatch, tmp_path):
+    """A lane's own figures.json is what the run shows, after the ready-moment figure; without one the post-viz fallback draws."""
+    import json
+
+    def drawing_run(path, n, dataset, question, decision=None, decision_record=""):
+        rec = canned_run(path, n, dataset, question, decision, decision_record)
+        run_dir = tmp_path / "run"
+        run_dir.mkdir(exist_ok=True)
+        (run_dir / "figures.json").write_text(json.dumps([
+            {"id": "causal_graph", "kind": "graph", "title": "g", "series": [], "marks": [], "note": "", "draws_on": ["design.graph"],
+             "nodes": [{"id": "a", "label": "a", "role": "treatment"}, {"id": "b", "label": "b", "role": "outcome"}], "edges": [{"src": "a", "dst": "b", "cites": []}]},
+            {"id": "effect_completed_vs_none", "kind": "interval", "title": "e", "series": [{"name": "effect", "x": ["lr"], "y": [5.6]}], "marks": [], "note": "", "draws_on": []},
+        ]))
+        rec.run_dir = str(run_dir)
+        return rec
+
+    monkeypatch.setattr(pipeline, "run", drawing_run)
+    d = Desk(DeskFake())
+    d.say(QUESTION)
+    d.to_ready()
+    p = d.say("run")
+    figs = d.values["runs"][0].figures
+    assert [f["id"] for f in figs][1:] == ["causal_graph", "effect_completed_vs_none"] and figs[0]["moment"] == "ready" and figs[0]["id"].startswith("overlap_")
+    assert p["figure"]["id"] == "causal_graph"
+    from causal_agent.desk import material as M
+
+    m = M.render(d.values["runs"][0])
+    assert "figure:causal_graph.edge.0" in m.addresses and "(before the run)" in m.by_address[figs[0]["id"] and f"figure:{figs[0]['id']}"]

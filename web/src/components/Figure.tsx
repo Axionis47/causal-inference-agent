@@ -1,10 +1,11 @@
-import { bars, categorical, categories, fmtTick, markX, path, plotBox, points, ticks, yExtent, type FigureSpec } from "../figure";
+import { NODE_R, bars, categorical, categories, fmtTick, graphLayout, markX, path, plotBox, points, ticks, yExtent, type FigureSpec } from "../figure";
 
 const COLORS = ["var(--accent)", "var(--declared)", "var(--ink-3)", "var(--accent-ink)"];
 
 // Draws a figure spec (causal_agent/viz/spec.py) as inline SVG. Every drawn value carries its address in a title, so
 // hovering a bar or a point shows what the chat can cite.
 export default function Figure({ spec }: { spec: FigureSpec }) {
+  if (spec.kind === "graph") return <GraphFigure spec={spec} />;
   const box = plotBox();
   const yd = yExtent(spec);
   const sy = (v: number) => box.top + box.height - ((v - yd[0]) / (yd[1] - yd[0] || 1)) * box.height;
@@ -96,6 +97,59 @@ export default function Figure({ spec }: { spec: FigureSpec }) {
         {spec.series.map((s, i) => (
           <span key={s.name}>
             <i style={{ background: COLORS[i % COLORS.length] }} /> {s.name}
+          </span>
+        ))}
+      </div>
+      {spec.note && <p className="note">{spec.note}</p>}
+    </figure>
+  );
+}
+
+const NODE_FILL: Record<string, string> = {
+  treatment: "var(--accent)", outcome: "var(--accent-ink)", mediator: "var(--declared)", instrument: "var(--declared)",
+  confounder: "var(--ink-3)", driver: "var(--ink-3)", hidden: "var(--panel)", excluded: "var(--rule)", other: "var(--ink-3)",
+};
+
+// A causal graph: nodes by role, arrows with the addresses they rest on. The hidden factor is dashed; what the lane set
+// aside sits below with no arrows.
+function GraphFigure({ spec }: { spec: FigureSpec }) {
+  const box = { ...plotBox(), left: 12 };
+  box.width = 560 - 24;
+  const { nodes, edges } = graphLayout(spec, box);
+  const width = 560;
+  const height = box.top + box.height + 30;
+  const short = (s: string) => (s.length > 16 ? `${s.slice(0, 15)}…` : s);
+  return (
+    <figure className="fig fig-graph" aria-label={spec.title}>
+      <figcaption>
+        <span className="addr">figure:{spec.id}</span> {spec.title}
+      </figcaption>
+      <svg viewBox={`0 0 ${width} ${height}`} role="img">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--ink-2)" />
+          </marker>
+        </defs>
+        {edges.map((e) => (
+          <line key={e.i} x1={e.x1} y1={e.y1} x2={e.x2} y2={e.y2} className="edge" markerEnd="url(#arrow)">
+            <title>{`[figure:${spec.id}.edge.${e.i}] ${e.src} → ${e.dst}${spec.edges?.[e.i]?.cites.length ? ` (${spec.edges[e.i].cites.join(", ")})` : ""}`}</title>
+          </line>
+        ))}
+        {nodes.map((n, i) => (
+          <g key={n.id} className={`node ${n.role}`}>
+            <circle cx={n.x} cy={n.y} r={NODE_R} fill={NODE_FILL[n.role] ?? NODE_FILL.other} strokeDasharray={n.role === "hidden" ? "3 3" : undefined} opacity={n.role === "excluded" ? 0.5 : 0.9}>
+              <title>{`[figure:${spec.id}.node.${i}] ${n.label || n.id} (${n.role})`}</title>
+            </circle>
+            <text x={n.x} y={n.y + NODE_R + 11} className="tick" textAnchor="middle">
+              {short(n.label || n.id)}
+            </text>
+          </g>
+        ))}
+      </svg>
+      <div className="legend">
+        {Array.from(new Set(nodes.map((n) => n.role))).map((role) => (
+          <span key={role}>
+            <i style={{ background: NODE_FILL[role] ?? NODE_FILL.other }} /> {role}
           </span>
         ))}
       </div>

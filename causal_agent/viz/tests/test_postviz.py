@@ -41,3 +41,15 @@ def test_dynamic_effects_only_when_the_lane_left_them():
 def test_no_estimate_no_figure():
     rec = _rec(estimates=[], refutations=[])
     assert postviz.figures(rec) == []
+
+
+def test_the_builders_over_dicts_are_what_the_record_wrappers_draw():
+    from causal_agent.viz.postviz import common
+
+    rec = _rec(dynamic={"-1": [0.0, -0.4, 0.4], "0": [2.1, 1.2, 3.0]})
+    sr = rec.specialist_result
+    assert common.effect_and_refutations(sr["estimates"], sr["refutations"], "refute") == postviz.effect_and_refutations(rec)
+    assert common.event_study(sr["dynamic"]) == postviz.dynamic_effects(rec)
+    f = common.event_study(sr["dynamic"], contrast="a_vs_b", draws_on=["check:a_vs_b.pre_trends"])
+    assert f.id == "event_study_a_vs_b" and f.draws_on == ["check:a_vs_b.pre_trends"]
+    assert common.effect_and_refutations([], [], "placebo") is None and common.event_study({}) is None

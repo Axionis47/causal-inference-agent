@@ -156,7 +156,11 @@ def render(run: RunRecord, memory: Memory | None = None, previous: RunRecord | N
             spec = FigureSpec.model_validate(raw)
         except Exception:
             continue
-        m.add(spec.address, f"{spec.kind}: {spec.title}. {spec.note}")
+        m.add(spec.address, f"{spec.kind}: {spec.title}. {spec.note}" + (" (before the run)" if spec.moment == "ready" else ""))
+        for i, n in enumerate(spec.nodes):
+            m.add(f"{spec.address}.node.{i}", f"{n.label or n.id} ({n.role})")
+        for i, e in enumerate(spec.edges):
+            m.add(f"{spec.address}.edge.{i}", f"{e.src} -> {e.dst}" + (f" [{', '.join(e.cites)}]" if e.cites else ""))
         for s_ in spec.series:
             for i, (x, y) in enumerate(zip(s_.x, s_.y)):
                 if y is not None:

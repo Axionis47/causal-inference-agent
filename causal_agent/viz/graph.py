@@ -34,7 +34,7 @@ from causal_agent.memory.records import Memory
 from causal_agent.profile.data import column
 from causal_agent.viz import prompts as P
 from causal_agent.viz.previz import adjustment, diff_in_diff, discontinuity
-from causal_agent.viz.spec import Figure, Point
+from causal_agent.viz.spec import Figure, FigureSpec, Point
 
 _HERE = Path(__file__).parent
 PICK_ATTEMPTS = 3
@@ -184,21 +184,35 @@ def render(state: VizState) -> dict:
 # ------------------------------------------------------------------ check (fact)
 
 
+def check_spec(spec: FigureSpec, ok: set[str]) -> list[str]:
+    """The problems with a figure, by code: a graph needs nodes and arrows between them; any other kind needs values; and
+    every address the figure draws on must resolve in `ok`. Empty means the figure stands."""
+    problems = []
+    if spec.kind == "graph":
+        ids = {n.id for n in spec.nodes}
+        if not spec.nodes:
+            problems.append("a graph with no nodes")
+        loose = [f"{e.src} -> {e.dst}" for e in spec.edges if e.src not in ids or e.dst not in ids]
+        if loose:
+            problems.append("arrows between nodes the figure does not have: " + ", ".join(loose))
+    elif not spec.series or all(not s.x for s in spec.series):
+        problems.append("no series to draw")
+    elif all(y is None for s in spec.series for y in s.y):
+        problems.append("every value is empty")
+    okn = {norm_address(a) for a in ok}
+    bad = [a for a in spec.draws_on if norm_address(a) not in okn]
+    if bad:
+        problems.append("draws on addresses that do not resolve: " + ", ".join(bad))
+    return problems
+
+
 def check(state: VizState) -> dict:
     fig = state.get("figure")
     if fig is None or not fig.made or fig.spec is None:
         return {}
-    spec = fig.spec
-    problems = []
-    if not spec.series or all(not s.x for s in spec.series):
-        problems.append("no series to draw")
-    elif all(y is None for s in spec.series for y in s.y):
-        problems.append("every value is empty")
     memory = store.memory_for(state["dataset"])
-    ok = {norm_address(a) for a in memory.addresses()} | ({fig.probe.address} if fig.probe else set())
-    bad = [a for a in spec.draws_on if norm_address(a) not in ok]
-    if bad:
-        problems.append("draws on addresses that do not resolve: " + ", ".join(bad))
+    ok = set(memory.addresses()) | ({fig.probe.address} if fig.probe else set())
+    problems = check_spec(fig.spec, ok)
     if problems:
         return {"figure": Figure.refused("the figure did not pass its check: " + "; ".join(problems), fig.function)}
     return {}

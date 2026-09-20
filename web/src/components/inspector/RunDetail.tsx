@@ -2,9 +2,42 @@ import { Fragment } from "react";
 import { ci, count, num } from "../../fmt";
 import { checkRows, decisionOver, decisionWhy, estimateRows, primaryEstimate, refutationRows } from "../../inspector/rows";
 import type { Selection } from "../../selection";
+import type { FigureSpec } from "../../figure";
 import type { RunView } from "../../types";
 import Figure from "../Figure";
 import { ChecksTable, EstimatesTable, RefutationsTable } from "./RunTables";
+
+// The ready-moment figure beside the run's first own figure, then the rest in order.
+export function Figures({ figures }: { figures: FigureSpec[] }) {
+  if (!figures.length) return null;
+  const ready = figures.filter((f) => f.moment === "ready");
+  const made = figures.filter((f) => f.moment !== "ready");
+  const pair = ready.length > 0 && made.length > 0;
+  return (
+    <section>
+      <h3>Figures</h3>
+      {pair ? (
+        <>
+          <div className="fig-pair">
+            <div>
+              <div className="fig-when">before the run</div>
+              <Figure spec={ready[0]} />
+            </div>
+            <div>
+              <div className="fig-when">what the run produced</div>
+              <Figure spec={made[0]} />
+            </div>
+          </div>
+          {[...ready.slice(1), ...made.slice(1)].map((f) => (
+            <Figure key={f.id} spec={f} />
+          ))}
+        </>
+      ) : (
+        figures.map((f) => <Figure key={f.id} spec={f} />)
+      )}
+    </section>
+  );
+}
 
 export default function RunDetail({ r, prev, onSelect }: { r: RunView; prev: RunView | null; onSelect: (s: Selection) => void }) {
   const primary = primaryEstimate(r);
@@ -67,14 +100,7 @@ export default function RunDetail({ r, prev, onSelect }: { r: RunView; prev: Run
         )}
       </section>
 
-      {(r.figures ?? []).length > 0 && (
-        <section>
-          <h3>Figures</h3>
-          {r.figures.map((f) => (
-            <Figure key={f.id} spec={f} />
-          ))}
-        </section>
-      )}
+      <Figures figures={r.figures ?? []} />
 
       <EstimatesTable rows={estimateRows(r)} />
       <ChecksTable rows={checkRows(r.flags)} title="Flags" />

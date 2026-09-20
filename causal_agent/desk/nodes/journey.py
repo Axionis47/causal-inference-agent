@@ -517,15 +517,32 @@ def run(state: DeskState) -> dict:
     else:
         rec = pipeline.run(Path(state["design_dir"]) / "handoff.json", n, state["dataset"], question, decision=_decision(state), decision_record=state.get("decision_record") or "")
     rec.what_if = dict(state.get("what_if") or {})
-    from causal_agent.viz import postviz
-
-    figs = ([state["figure"]] if state.get("figure") else []) + [f.model_dump() for f in postviz.figures(rec)]
-    rec.figures = figs
+    rec.figures = _figures(state, rec)
     if state.get("design_dir"):
         import json
 
-        (Path(state["design_dir"]) / "figures.json").write_text(json.dumps(figs, indent=2, default=str))
+        (Path(state["design_dir"]) / "figures.json").write_text(json.dumps(rec.figures, indent=2, default=str))
     return {"runs": runs + [rec], "phase": "after"}
+
+
+def _figures(state: DeskState, rec: RunRecord) -> list[dict]:
+    """The ready-moment figure first, then what the lane wrote and checked under its run dir; the post-viz fallback for a lane
+    that wrote none."""
+    import json
+
+    from causal_agent.viz import postviz
+
+    ready = [{**state["figure"], "moment": "ready"}] if state.get("figure") else []
+    lane: list[dict] = []
+    p = Path(rec.run_dir) / "figures.json" if rec.run_dir else None
+    if p is not None and p.exists():
+        try:
+            lane = [f for f in json.loads(p.read_text()) if isinstance(f, dict) and f.get("id")]
+        except Exception:
+            lane = []
+    if not lane:
+        lane = [f.model_dump() for f in postviz.figures(rec)]
+    return ready + lane
 
 
 # ------------------------------------------------------------------ the lane asks back
