@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bars, categorical, categories, extent, fmtTick, graphLayout, markX, path, plotBox, points, ticks, yExtent, type FigureSpec } from "./figure";
+import { LABEL_W, bars, categorical, categories, categoryLabels, extent, fmtTick, graphLayout, markX, path, plotBox, points, ticks, yExtent, type FigureSpec } from "./figure";
 
 const barSpec: FigureSpec = {
   id: "overlap_lunch", kind: "bars", title: "t", x_label: "", y_label: "", note: "", draws_on: [],
@@ -110,5 +110,26 @@ describe("graph layout", () => {
     const e0 = edges[0];
     expect(e0.x1).toBeGreaterThan(at("course").x);
     expect(e0.x2).toBeLessThan(at("math").x);
+  });
+});
+
+describe("labels that fit", () => {
+  it("slants and shortens category labels when the slots are narrow", () => {
+    const box = plotBox();
+    const few = categoryLabels(["lunch = free/reduced", "lunch = standard"], box);
+    expect(few.every((l) => !l.slant)).toBe(true);
+    const many = categoryLabels(Array.from({ length: 12 }, (_, i) => `lunch = free/reduced, parental level of education = level ${i}`), box);
+    expect(many.every((l) => l.slant && l.text.length <= 22)).toBe(true);
+  });
+  it("alternates node labels when a row is crowded and uses the whole width", () => {
+    const nodes = Array.from({ length: 7 }, (_, i) => ({ id: `c${i}`, label: `confounder ${i}`, role: "confounder" as const }));
+    const spec: FigureSpec = { id: "g", kind: "graph", title: "", x_label: "", y_label: "", note: "", draws_on: [], series: [], marks: [],
+      nodes: [{ id: "t", label: "t", role: "treatment" }, { id: "y", label: "y", role: "outcome" }, ...nodes], edges: [] };
+    const box = plotBox();
+    const laid = graphLayout(spec, box).nodes.filter((n) => n.role === "confounder");
+    expect(laid[1].x - laid[0].x).toBeLessThan(LABEL_W);
+    expect(laid.map((n) => n.labelBelow)).toEqual([true, false, true, false, true, false, true]);
+    expect(laid[0].x).toBeLessThan(box.left + box.width * 0.2);
+    expect(laid[6].x).toBeGreaterThan(box.left + box.width * 0.8);
   });
 });

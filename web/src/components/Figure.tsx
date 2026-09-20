@@ -1,4 +1,4 @@
-import { NODE_R, bars, categorical, categories, fmtTick, graphLayout, markX, path, plotBox, points, ticks, yExtent, type FigureSpec } from "../figure";
+import { NODE_R, bars, categorical, categories, categoryLabels, fmtTick, graphLayout, markX, path, plotBox, points, ticks, yExtent, type FigureSpec } from "../figure";
 
 const COLORS = ["var(--accent)", "var(--declared)", "var(--ink-3)", "var(--accent-ink)"];
 
@@ -69,11 +69,16 @@ export default function Figure({ spec }: { spec: FigureSpec }) {
         })}
         <line x1={box.left} x2={box.left + box.width} y1={box.top + box.height} y2={box.top + box.height} className="axis" />
         {cat
-          ? cats.map((c, i) => (
-              <text key={c} x={box.left + (i + 0.5) * (box.width / cats.length)} y={box.top + box.height + 14} className="tick" textAnchor="middle">
-                {c.length > 18 ? `${c.slice(0, 17)}…` : c}
-              </text>
-            ))
+          ? categoryLabels(cats, box).map((l, i) => {
+              const x = box.left + (i + 0.5) * (box.width / cats.length);
+              const y = box.top + box.height + 14;
+              return (
+                <text key={cats[i]} x={x} y={y} className="tick" textAnchor={l.slant ? "end" : "middle"} transform={l.slant ? `rotate(-35 ${x} ${y})` : undefined}>
+                  <title>{cats[i]}</title>
+                  {l.text}
+                </text>
+              );
+            })
           : ticks([Math.min(...spec.series.flatMap((s) => s.x.map(Number))), Math.max(...spec.series.flatMap((s) => s.x.map(Number)))], 6).map((t) => {
               const xs = points({ ...spec, series: [{ name: "_", x: [t], y: [yd[0]] }] }, box, yd);
               return xs.length ? (
@@ -140,7 +145,8 @@ function GraphFigure({ spec }: { spec: FigureSpec }) {
             <circle cx={n.x} cy={n.y} r={NODE_R} fill={NODE_FILL[n.role] ?? NODE_FILL.other} strokeDasharray={n.role === "hidden" ? "3 3" : undefined} opacity={n.role === "excluded" ? 0.5 : 0.9}>
               <title>{`[figure:${spec.id}.node.${i}] ${n.label || n.id} (${n.role})`}</title>
             </circle>
-            <text x={n.x} y={n.y + NODE_R + 11} className="tick" textAnchor="middle">
+            <text x={n.x} y={n.labelBelow === false ? n.y - NODE_R - 4 : n.y + NODE_R + 11} className="tick" textAnchor="middle">
+              <title>{n.label || n.id}</title>
               {short(n.label || n.id)}
             </text>
           </g>

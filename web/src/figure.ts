@@ -217,6 +217,7 @@ export function markX(spec: FigureSpec, box: Box, m: Mark): number | null {
 }
 
 export const NODE_R = 16;
+export const LABEL_W = 96; // room one node label needs, in pixels
 
 export interface LaidNode {
   id: string;
@@ -224,6 +225,7 @@ export interface LaidNode {
   role: Role;
   x: number;
   y: number;
+  labelBelow?: boolean; // false: the label sits above the node, to stay clear of a neighbour's
 }
 
 export interface LaidEdge {
@@ -247,8 +249,14 @@ export function graphLayout(spec: FigureSpec, box: Box): { nodes: LaidNode[]; ed
   const fixed: Record<string, [number, number]> = { instrument: [box.left + box.width * 0.04, yMid], treatment: [tx, yMid], mediator: [(tx + ox) / 2, yMid], outcome: [ox, yMid] };
   const above = nodes.filter((n) => ["confounder", "driver", "hidden", "other"].includes(n.role));
   const below = nodes.filter((n) => n.role === "excluded");
-  const spread = (list: GraphNode[], y: number): LaidNode[] =>
-    list.map((n, i) => ({ ...n, x: tx + ((i + 0.5) * (ox - tx)) / Math.max(list.length, 1), y }));
+  // The rows above and below use the whole width, so their labels have room; a row's labels alternate up and down when
+  // its nodes sit closer than a label is wide.
+  const spread = (list: GraphNode[], y: number): LaidNode[] => {
+    const left = box.left + NODE_R + 4;
+    const span = box.width - 2 * NODE_R - 8;
+    const step = span / Math.max(list.length, 1);
+    return list.map((n, i) => ({ ...n, x: left + (i + 0.5) * step, y, labelBelow: step >= LABEL_W || i % 2 === 0 }));
+  };
   const laid: LaidNode[] = [];
   const seen = new Set<string>();
   for (const n of nodes) {
@@ -275,4 +283,12 @@ export function graphLayout(spec: FigureSpec, box: Box): { nodes: LaidNode[]; ed
     edges.push({ i, src: e.src, dst: e.dst, x1: a.x + ux * NODE_R, y1: a.y + uy * NODE_R, x2: b.x - ux * (NODE_R + 3), y2: b.y - uy * (NODE_R + 3) });
   });
   return { nodes: laid, edges };
+}
+
+// Category axis labels: slanted when the slots are narrower than a label, and cut to what a slot can hold.
+export function categoryLabels(cats: string[], box: Box): { text: string; slant: boolean }[] {
+  const slot = box.width / Math.max(cats.length, 1);
+  const slant = slot < 72;
+  const max = slant ? 22 : Math.max(6, Math.floor(slot / 6.5));
+  return cats.map((c) => ({ text: c.length > max ? `${c.slice(0, max - 1)}…` : c, slant }));
 }
