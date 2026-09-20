@@ -593,6 +593,41 @@ class Feasibility(BaseModel):
     what_would_fix: str = ""
 
 
+class Decline(BaseModel):
+    """The lane did not take a pack field as given. Every override of the pack is one of these, with an address, so the
+    brief and the page can show where the lane and the desk disagreed."""
+
+    stage: str = Field(description="the node that declined")
+    kind: Literal["declined", "replaced", "substituted"] = Field(description="declined: could not apply it; replaced: took another value; substituted: answered a near thing")
+    about: str = Field(description="the pack address: scope.window, design.cluster_level, claim:assignment.cutoff, col:<key>")
+    pack_value: str | None = None
+    took: str | None = None
+    reason: str
+    check: str = Field(description="the code rule that decided: intake.filter_unparsed, groups.level_observed, shape.pre_periods")
+    cites: list[str] = Field(default_factory=list)
+
+    @property
+    def address(self) -> str:
+        return f"decline:{self.stage}.{_slug(self.about)}"
+
+    def render(self) -> str:
+        pack = f" · pack said {self.pack_value!r}" if self.pack_value is not None else ""
+        took = f" · lane took {self.took!r}" if self.took is not None else ""
+        return f"[{self.address}] {self.kind}: {self.about}{pack}{took} · {self.reason} ({self.check})"
+
+
+class LaneAsk(BaseModel):
+    """One question back to the desk, keyed to a memory address the desk can settle. The desk asks it as it asks
+    everything else, and the lane runs again on the memory as it then stands."""
+
+    address: str
+    question: str
+    options: list[str] = Field(default_factory=list)
+    because: str = Field(default="", description="the check or belief that opened the question, in words")
+    evidence: list[str] = Field(default_factory=list, description="check addresses shown beside the question")
+    stage: str = ""
+
+
 def _slug(s: str) -> str:
     import re
 

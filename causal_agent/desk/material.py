@@ -6,6 +6,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
+from causal_agent.common.contracts import Decline
 from causal_agent.desk.contracts import RunRecord
 from causal_agent.memory.records import Memory
 
@@ -45,6 +46,18 @@ def _contrast_key(design: dict) -> str | None:
 
 def _slug(s) -> str:
     return re.sub(r"[^0-9a-zA-Z]+", "_", str(s or "")).strip("_").lower() or "x"
+
+
+def _declines(run: RunRecord) -> list[Decline]:
+    """Where the lane did not take the pack as given, from the result or the artifacts on disk."""
+    raw = (run.specialist_result or {}).get("declines") or run.artifacts.get("declines") or []
+    out = []
+    for d in raw:
+        try:
+            out.append(Decline.model_validate(d))
+        except Exception:
+            continue
+    return out
 
 
 def render(run: RunRecord, memory: Memory | None = None, previous: RunRecord | None = None) -> Material:
@@ -122,6 +135,12 @@ def render(run: RunRecord, memory: Memory | None = None, previous: RunRecord | N
         m.add(f"interpretation:{i.get('contrast')}.answer", str(i.get("answer")))
         for j, cv in enumerate(i.get("caveats") or [], start=1):
             m.add(f"interpretation:{i.get('contrast')}.caveat:{j}", str(cv))
+    for d in _declines(run):
+        m.add(d.address, f"{d.kind}: {d.about}" + (f" · pack said {d.pack_value!r}" if d.pack_value is not None else "") + (f" · lane took {d.took!r}" if d.took is not None else "") + f" · {d.reason} ({d.check})")
+    a = sr.get("ask")
+    if a and a.get("address"):
+        m.add("ask.address", str(a["address"]))
+        m.add("ask.question", str(a.get("question") or ""))
     f = sr.get("feasibility")
     if f:
         m.add("feasibility.stage", str(f.get("stage")))
@@ -173,11 +192,18 @@ def brief(run: RunRecord, previous: RunRecord | None, material: Material) -> str
         for fam, why in (run.decision.get("over") or {}).items():
             lines.append(f"  {fam}: {why} [decision.over:{fam}]")
         lines.append("Tell me if one of those reasons rests on something about the data that is wrong.")
+    elif run.status == "ask" and (sr.get("ask") or {}).get("address"):
+        a = sr["ask"]
+        lines.append(f"The analysis still asks one thing it asked before, at [{a['address']}]: {a.get('question')} [ask.question]")
+        lines.append("Answer it in your own words when you can, or ask something else; the design stands as it is until then.")
     elif run.status != "done":
         f = sr.get("feasibility") or {}
         lines.append(f"Stopped at {f.get('stage')}: {f.get('reason')} [feasibility.reason]")
         for j, fact in enumerate(f.get("facts") or [], start=1):
             lines.append(f"  fact: {fact} [feasibility.fact:{j}]")
+    declines = _declines(run)
+    if declines:
+        lines.append("Where the analysis disagreed with what was settled: " + "; ".join(f"{d.about} ({d.kind}: {d.reason}) [{d.address}]" for d in declines))
     flags = [r for r in ((sr.get("design") or {}).get("checks") or {}).get("results") or [] if r.get("level") != "pass"]
     if flags:
         lines.append("Flags carried: " + "; ".join(f"{r['name']} ({r['level']}) [check:{r['contrast']}.{r['name']}]" for r in flags))

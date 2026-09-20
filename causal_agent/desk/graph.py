@@ -83,6 +83,7 @@ _CONTRACTS = [
     ("causal_agent.common.contracts", n) for n in (
         "Thought", "Cited", "Candidate", "Scope", "QuestionFrame", "PrefilterVote", "NeedCheck", "FamilyVerdict", "Rejection", "FamilyDecision",
         "Handoff", "ColumnBrief", "ColumnFacts", "Provenance", "Belief", "Said", "Probe", "AdjustmentDesign", "DidDesign", "RdDesign",
+        "Decline", "LaneAsk",
     )
 ] + [
     ("causal_agent.desk.contracts", n) for n in ("Ask", "FieldUpdate", "Inference", "RunRecord", "NumberStated", "AfterReply", "Exchange", "Finding")

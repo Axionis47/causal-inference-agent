@@ -531,21 +531,41 @@ def run(state: DeskState) -> dict:
 # ------------------------------------------------------------------ the lane asks back
 
 
+def _asked(rec: RunRecord | None) -> str | None:
+    """The address a run asked back about, if it did."""
+    if rec is None or rec.status != "ask":
+        return None
+    return ((rec.specialist_result or {}).get("ask") or {}).get("address") or None
+
+
 def after_run(state: DeskState) -> Literal["ask_back", "brief"]:
+    """A lane that asks back is asked once per address: the same question from the run before goes to the brief, which
+    says the lane still asks it."""
     runs = state.get("runs") or []
-    return "ask_back" if runs and runs[-1].status == "ask" and (runs[-1].specialist_result or {}).get("ask") else "brief"
+    address = _asked(runs[-1]) if runs else None
+    if not address:
+        return "brief"
+    if len(runs) > 1 and _asked(runs[-2]) == address:
+        return "brief"
+    return "ask_back"
 
 
 def ask_back(state: DeskState) -> dict:
     """The lane could not go on without one more thing from the person: ask it, as the desk asks everything else, and once
-    answered the journey runs again on the memory as it then stands."""
+    answered the journey runs again on the memory as it then stands. The lane's own options and evidence are used when it
+    gives them; otherwise the catalogue's field type says what the legal answers are."""
     rec = (state.get("runs") or [])[-1]
     q = rec.specialist_result.get("ask") or {}
     address = q.get("address") or ""
     kind_name = Memory.parse(address)[1] if address.startswith("claim:") else COLUMN_KIND
     field = Memory.parse(address)[2] or ""
     kind = CAT.kinds.get(kind_name)
-    options = [str(o) for o in kind.fields[field].options] if kind and field in kind.fields and kind.fields[field].type == "choice" else (["yes", "no"] if kind and field in kind.fields and kind.fields[field].type == "bool" else [])
-    a = Ask(addresses=[address], kind="choose" if options else "open", text=q.get("question") or "", options=options, because=[rec.family] if rec.family else [])
-    text = f"The analysis stopped before estimating: {(rec.specialist_result.get('feasibility') or {}).get('reason') or 'it needs one more thing'}.\n\n" + a.text
+    options = [str(o) for o in q.get("options") or []]
+    if not options:
+        options = [str(o) for o in kind.fields[field].options] if kind and field in kind.fields and kind.fields[field].type == "choice" else (["yes", "no"] if kind and field in kind.fields and kind.fields[field].type == "bool" else [])
+    a = Ask(addresses=[address], kind="choose" if options else "open", text=q.get("question") or "", options=options, because=[rec.family] if rec.family else [],
+            evidence=[str(e) for e in q.get("evidence") or []])
+    reason = (rec.specialist_result.get("feasibility") or {}).get("reason") or "it needs one more thing"
+    because = f"{q['because']}\n" if q.get("because") else ""
+    text = f"The analysis stopped before estimating: {reason}.\n\n{because}{a.text}"
     return {"ask": a, "reply": text, "phase": "before", "run_requested": False, "figure": None, "fork": None, "what_if": {}, "handoff": None}

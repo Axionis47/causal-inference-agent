@@ -277,3 +277,52 @@ def test_a_lane_that_asks_back_gets_its_answer_and_runs_again(monkeypatch):
     assert p["ready"]
     p = d.say("run")
     assert p["kind"] == "after" and calls == [1, 2] and d.values["runs"][1].status == "done"
+
+
+def test_a_lane_ask_with_options_and_evidence_reaches_the_page_and_is_asked_once(monkeypatch):
+    """A lane's own options and evidence are shown; the same address asked by two runs in a row goes to the brief."""
+    ask = {"address": "claim:trend_continues.believed", "question": "Is there a reason the groups would have moved differently?", "options": ["yes", "no"],
+           "because": "[check:c.pre_trends] hard: the leads differ", "evidence": ["check:c.pre_trends"]}
+
+    def asking_run(path, n, dataset, question, decision=None, decision_record=""):
+        return RunRecord(index=n, dataset=dataset, question=question, family="adjustment", specialist="dowhy", status="ask", design_dir=str(path.parent),
+                         specialist_result={"status": "ask", "ask": ask, "feasibility": {"stage": "ask", "reason": "the groups were already moving apart"}})
+
+    monkeypatch.setattr(pipeline, "run", asking_run)
+
+    def infer(msg, addrs, human):
+        if msg == "yes there is":
+            return Inference(updates=[FieldUpdate(address="claim:trend_continues.believed", value="true", said=msg)])
+        return None
+
+    d = Desk(DeskFake(infer=infer))
+    d.say(QUESTION)
+    d.to_ready()
+    p = d.say("run")
+    assert p["kind"] == "ask" and p["ask"]["addresses"] == ["claim:trend_continues.believed"] and p["ask"]["options"] == ["yes", "no"] and p["ask"]["evidence"] == ["check:c.pre_trends"]
+    assert "the leads differ" in p["text"] and "moving apart" in p["text"]
+    p = d.say("yes there is")
+    while p and p["kind"] == "ask" and not p["ready"]:
+        p = d.say(answer_ask(p))
+    p = d.say("run")
+    # the lane asked the same address again: the desk does not ask it twice, the brief says the lane still asks it
+    assert p["kind"] == "after" and "still asks one thing" in p["text"] and "[ask.question]" in p["text"]
+    assert [r.status for r in d.values["runs"]] == ["ask", "ask"]
+
+
+def test_the_brief_lists_where_the_lane_disagreed_with_the_pack(monkeypatch):
+    def declining_run(path, n, dataset, question, decision=None, decision_record=""):
+        rec = canned_run(path, n, dataset, question, decision, decision_record)
+        rec.specialist_result["declines"] = [{"stage": "load", "kind": "declined", "about": "scope.window", "pack_value": "the spring term", "reason": "the window is not in a form the code can apply; every row was kept", "check": "intake.window_unparsed"}]
+        return rec
+
+    monkeypatch.setattr(pipeline, "run", declining_run)
+    d = Desk(DeskFake())
+    d.say(QUESTION)
+    d.to_ready()
+    p = d.say("run")
+    assert "disagreed with what was settled" in p["text"] and "[decline:load.scope_window]" in p["text"] and "every row was kept" in p["text"]
+    from causal_agent.desk import material as M
+
+    m = M.render(d.values["runs"][0])
+    assert "decline:load.scope_window" in m.addresses and "pack said 'the spring term'" in m.by_address["decline:load.scope_window"]
