@@ -18,8 +18,8 @@ import pandas as pd
 matplotlib.use("Agg")  # the sensitivity refuter draws; nothing here has a screen
 
 from causal_agent.common.contracts import Contrast, Estimate, Refutation
-from causal_agent.specialists.dowhy.contracts import Estimand, Graph
-from causal_agent.specialists.dowhy.knowledge import EstimatorEntry, RefuterEntry
+from causal_agent.families.adjustment.lane.contracts import Estimand, Graph
+from causal_agent.families.adjustment.lane.knowledge import EstimatorEntry, RefuterEntry
 
 logging.getLogger("dowhy").setLevel(logging.ERROR)
 warnings.filterwarnings("ignore", module="dowhy")

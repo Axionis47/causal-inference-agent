@@ -6,6 +6,9 @@ import pandas as pd
 
 from causal_agent.common.addresses import key as _key
 from causal_agent.memory.overlap import levels_of, overlap_probe
+from causal_agent.memory.records import Memory
+from causal_agent.profile.data import column
+from causal_agent.viz.graph import FigureDecl, PrevizFigure, VizState
 from causal_agent.viz.spec import Figure, FigureSpec, Series
 
 
@@ -47,3 +50,35 @@ def overlap(df: pd.DataFrame, treatment: str | None, treated_level: str, columns
         draws_on=list(addresses or []) + [probe.address],
     )
     return Figure(made=True, spec=spec, probe=probe, function="adjustment.overlap")
+
+
+# ------------------------------------------------------------------ what the viz tool may choose
+
+
+def _overlap(memory: Memory, df: pd.DataFrame, state: VizState, th: dict) -> Figure:
+    a = memory.values_of("claim:assignment")
+    t = column(df, a.get("treatment_column"))
+    named = [c for n in (state["point"].columns or []) if (c := column(df, n)) is not None]
+    deps = named or [c for d in (a.get("depends_on") or []) if (c := column(df, d)) is not None]
+    return overlap(
+        df,
+        t,
+        str(a.get("treated_level")),
+        deps,
+        floor=int(th["arms"]["min_rows_cell"]),
+        addresses=["claim:assignment.depends_on", "claim:assignment.treatment_column"],
+    )
+
+
+FIGURES = [
+    PrevizFigure(
+        FigureDecl(
+            name="adjustment.overlap",
+            family="adjustment",
+            shows="the share of each arm at every level of what the offer depended on, side by side, with the smallest cell counted",
+            makes_the_point_when="the point is about overlap, balance, common support, or whether both arms exist at every level",
+            needs=["claim:assignment.treatment_column", "claim:assignment.treated_level", "claim:assignment.depends_on"],
+        ),
+        _overlap,
+    )
+]

@@ -11,6 +11,7 @@ import uuid
 from dotenv import load_dotenv
 from langsmith import evaluate
 
+import causal_agent.families.registry  # noqa: F401  (registers every family's block before a pack is read)
 from causal_agent.common.contracts import Handoff
 from causal_agent.specialists.did.evals.dataset import DATASET
 from causal_agent.specialists.did.evals.evaluators import ALL

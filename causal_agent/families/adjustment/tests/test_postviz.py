@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from causal_agent.viz.graph import check_spec
-from causal_agent.viz.postviz import adjustment as A
+from causal_agent.families.adjustment import postviz as A
 
 GRAPH = {
     "treatment": "course",

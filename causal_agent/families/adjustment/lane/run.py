@@ -1,7 +1,7 @@
 """Run the adjustment lane from the command line.
 
-    uv run python -m causal_agent.specialists.dowhy.run <dataset> "<question>"        # through the desk's routing graph, end to end
-    uv run python -m causal_agent.specialists.dowhy.run --handoff handoff.json         # the specialist alone, from a stored hand-off
+    uv run python -m causal_agent.families.adjustment.lane.run <dataset> "<question>"        # through the desk's routing graph, end to end
+    uv run python -m causal_agent.families.adjustment.lane.run --handoff handoff.json         # the specialist alone, from a stored hand-off
 
 Streams progress, prints the report, and says where the run directory is.
 """
@@ -13,11 +13,12 @@ import json
 import uuid
 from pathlib import Path
 
+import causal_agent.families.registry  # noqa: F401  (registers every family's block before a pack is read)
 from causal_agent.common.contracts import Handoff
 
 
 def run_from_handoff(handoff: Handoff, question: str) -> dict:
-    from causal_agent.specialists.dowhy.graph import compile_local
+    from causal_agent.families.adjustment.lane.graph import compile_local
 
     g = compile_local()
     cfg = {"configurable": {"thread_id": str(uuid.uuid4())}, "tags": [f"dataset:{handoff.pack_name}", "lane:dowhy"], "metadata": {"dataset": handoff.pack_name}}

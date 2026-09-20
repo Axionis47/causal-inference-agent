@@ -12,8 +12,8 @@ from typing import Annotated
 from typing_extensions import TypedDict
 
 from causal_agent.common.contracts import Contrast, Estimate, Interpretation, Refutation
+from causal_agent.families.adjustment.lane.contracts import Design, DesignAssessment, Estimand, EstimatorPick, Graph, Relation, Revision
 from causal_agent.lane.state import LaneState, by_key, merge_dicts
-from causal_agent.specialists.dowhy.contracts import Design, DesignAssessment, Estimand, EstimatorPick, Graph, Relation, Revision
 
 
 class SpecialistState(LaneState, total=False):

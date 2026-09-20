@@ -18,7 +18,6 @@ from langgraph.types import Command, Send
 
 from causal_agent.common.addresses import key as _key
 from causal_agent.common.contracts import (
-    AdjustmentDesign,
     CheckResult,
     Checks,
     Cited,
@@ -32,15 +31,11 @@ from causal_agent.common.contracts import (
     Refutation,
 )
 from causal_agent.common.llm import structured
-from causal_agent.lane import asks, intake, records
-from causal_agent.lane import case as C
-from causal_agent.lane import figures as LF
-from causal_agent.lane import verify as V
-from causal_agent.lane import words as W
-from causal_agent.specialists.dowhy import adapter
-from causal_agent.specialists.dowhy import checks as CK
-from causal_agent.specialists.dowhy import prompts as P
-from causal_agent.specialists.dowhy.contracts import (
+from causal_agent.families.adjustment.design import AdjustmentDesign
+from causal_agent.families.adjustment.lane import adapter
+from causal_agent.families.adjustment.lane import checks as CK
+from causal_agent.families.adjustment.lane import prompts as P
+from causal_agent.families.adjustment.lane.contracts import (
     Contrasts,
     Design,
     DesignAssessment,
@@ -52,17 +47,22 @@ from causal_agent.specialists.dowhy.contracts import (
     Relation,
     Revision,
 )
-from causal_agent.specialists.dowhy.knowledge import (
+from causal_agent.families.adjustment.lane.knowledge import (
     estimator as estimator_entry,
 )
-from causal_agent.specialists.dowhy.knowledge import (
+from causal_agent.families.adjustment.lane.knowledge import (
     load_beliefs,
     load_checks,
     load_estimators,
     load_refuters,
     render_preferences,
 )
-from causal_agent.specialists.dowhy.state import ContrastTask, InterpretTask, RelateTask, SpecialistState
+from causal_agent.families.adjustment.lane.state import ContrastTask, InterpretTask, RelateTask, SpecialistState
+from causal_agent.lane import asks, intake, records
+from causal_agent.lane import case as C
+from causal_agent.lane import figures as LF
+from causal_agent.lane import verify as V
+from causal_agent.lane import words as W
 from causal_agent.viz.postviz import common as PV
 
 MAX_RELATE_ATTEMPTS = 3
@@ -1046,7 +1046,7 @@ def feasibility(state: SpecialistState) -> dict:
 def figures(state: SpecialistState) -> dict:
     """What this run drew, checked against the addresses it produced: the graph it built, the balance of every adjustment
     column before and after weighting on the score, and the estimate against its falsifications."""
-    from causal_agent.viz.postviz import adjustment as PA
+    from causal_agent.families.adjustment import postviz as PA
 
     h = state["handoff"]
     names = state.get("columns") or {}

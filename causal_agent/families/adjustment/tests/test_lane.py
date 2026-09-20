@@ -13,9 +13,9 @@ from langchain_core.messages import AIMessage
 from causal_agent.common.contracts import Cited, Contrast, Handoff, Interpretation
 from causal_agent.common.llm import set_llm
 from causal_agent.desk.handoff import forced
+from causal_agent.families.adjustment.lane.contracts import Contrasts, DesignAssessment, EstimatorPick, Relation, Revision
+from causal_agent.families.adjustment.lane.graph import compile_local
 from causal_agent.memory import store
-from causal_agent.specialists.dowhy.contracts import Contrasts, DesignAssessment, EstimatorPick, Relation, Revision
-from causal_agent.specialists.dowhy.graph import compile_local
 
 CITE = "col:test_preparation_course.note"
 
@@ -249,7 +249,7 @@ def test_interpretation_bad_cite_is_retried():
 def test_catalogues_name_real_dowhy_methods():
     from dowhy import causal_estimators, causal_refuters
 
-    from causal_agent.specialists.dowhy.knowledge import load_checks, load_estimators, load_refuters
+    from causal_agent.families.adjustment.lane.knowledge import load_checks, load_estimators, load_refuters
 
     for e in load_estimators():
         assert causal_estimators.get_class_object(e.dowhy.split(".", 1)[1] + "_estimator") is not None, e.name
@@ -286,7 +286,7 @@ def test_pack_treated_level_settles_the_contrast_without_a_model_call():
     c = out["contrasts"][0]
     assert c.treated == "completed" and c.control == "none" and "claim:assignment.treated_level" in c.cites
     assert out["specialist_result"]["status"] == "done", out["specialist_result"].get("feasibility")
-    from causal_agent.specialists.dowhy import nodes as N
+    from causal_agent.families.adjustment.lane import nodes as N
 
     material = N._material(out, c.key)  # the beliefs are in what the interpretation reads, with addresses it may cite
     assert "[claim:unobserved] nothing outside the file" in material and "claim:unobserved" in N._addresses(out, c.key)
@@ -488,7 +488,7 @@ def test_relate_is_skipped_when_the_pack_settles_every_claim():
     out = _run(fake, h)
     asked = {t.node.split(":", 1)[1] for t in out["debug"] if t.node.startswith("relate:")}
     assert "parental_level_of_education" not in asked and "gender" in asked
-    from causal_agent.specialists.dowhy import nodes as N
+    from causal_agent.families.adjustment.lane import nodes as N
 
     claims, cites = N.settled_claims(h, "gender", out["case"])
     assert claims == {"affected_by_treatment": False} and cites == {"affected_by_treatment": "col:gender.when"}

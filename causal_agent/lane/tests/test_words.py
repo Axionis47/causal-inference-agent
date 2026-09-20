@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from causal_agent.common.contracts import CheckResult
+from causal_agent.families.adjustment.lane.knowledge import load_checks as dowhy_checks
 from causal_agent.lane import words as W
 from causal_agent.specialists.did.knowledge import load_checks as did_checks
-from causal_agent.specialists.dowhy.knowledge import load_checks as dowhy_checks
 from causal_agent.specialists.rd.knowledge import load_checks as rd_checks
 
 EMITTED = {

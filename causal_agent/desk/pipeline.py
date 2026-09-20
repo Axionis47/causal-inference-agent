@@ -16,6 +16,7 @@ import sys
 import uuid
 from pathlib import Path
 
+import causal_agent.families.registry  # noqa: F401  (registers every family's block before a pack is read)
 from causal_agent.common.contracts import Handoff, RunRecord
 
 

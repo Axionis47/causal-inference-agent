@@ -9,7 +9,7 @@ H="uv run python -m causal_agent.desk.handoff"
 $H gov_transfers --mine --family adjustment --outcome Support --treatment Participation --columns "Support,Participation,Income_Centered,Education,Age" \
   --question "Did receiving the transfer raise support for the government?" \
   --assumption "forced into the adjustment lane as the negative case: the router would route this to discontinuity" \
-  -o causal_agent/specialists/dowhy/evals/handoffs/gov_transfers_forced.json
+  -o causal_agent/families/adjustment/evals/handoffs/gov_transfers_forced.json
 
 $H cigar --mine --family diff_in_diff --outcome sales --treatment state --columns "sales,state,year,price,pimin,ndi,pop,cpi" \
   --question "What did California's 1989 tobacco tax do to cigarette sales?" --window "1989 to 1992 against the years before" --target on_treated \

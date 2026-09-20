@@ -5,8 +5,9 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from causal_agent.common.contracts import AdjustmentDesign, DidDesign, Scope
+from causal_agent.common.contracts import DidDesign, Scope
 from causal_agent.desk.handoff import forced
+from causal_agent.families.adjustment.design import AdjustmentDesign
 from causal_agent.lane import intake
 from causal_agent.memory import store
 

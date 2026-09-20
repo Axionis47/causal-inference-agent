@@ -12,12 +12,12 @@ from causal_agent.common.contracts import Candidate, FamilyDecision, PrefilterVo
 from causal_agent.common.llm import set_llm
 from causal_agent.desk.nodes import frame as F
 from causal_agent.desk.route import compile_local
-from causal_agent.knowledge import load_registry
+from causal_agent.families import registry as R
 from causal_agent.memory import store
 from causal_agent.memory.claims import ClaimUpdate, Extraction, FieldValue
 from causal_agent.memory.records import Memory
 
-FAMILIES = [f.name for f in load_registry()]
+FAMILIES = [f.name for f in R.knowledge()]
 
 
 def U(claim_kind, cites, column=None, **values):

@@ -82,7 +82,16 @@ module = ["causal_agent.common.*", "causal_agent.lane.*", "causal_agent.viz.*"]
 check_untyped_defs = true
 
 [[tool.mypy.overrides]]
-module = ["causal_agent.desk.*", "causal_agent.memory.*", "causal_agent.profile.*", "causal_agent.server.*", "causal_agent.specialists.*", "causal_agent.knowledge.*"]
+module = [
+    "causal_agent.desk.*",
+    "causal_agent.memory.*",
+    "causal_agent.profile.*",
+    "causal_agent.server.*",
+    "causal_agent.specialists.*",
+    "causal_agent.knowledge.*",
+    "causal_agent.families.*.lane.*",
+    "causal_agent.families.*.evals.*",
+]
 ignore_errors = true
 
 # ------------------------------------------------------------------ layers: a lower package never imports a higher one
@@ -111,6 +120,10 @@ layers = [
 ignore_imports = [
     "causal_agent.specialists.*.run -> causal_agent.desk.route",
     "causal_agent.specialists.*.evals.run -> causal_agent.desk.route",
+    "causal_agent.families.*.lane.run -> causal_agent.desk.route",
+    "causal_agent.specialists.*.run -> causal_agent.families.registry",
+    "causal_agent.specialists.*.evals.run -> causal_agent.families.registry",
+    "causal_agent.families.*.evals.run -> causal_agent.desk.route",
     "causal_agent.**.tests.** -> causal_agent.desk.**",
     "causal_agent.**.tests.** -> causal_agent.specialists.**",
     "causal_agent.**.tests.** -> causal_agent.families.**",

@@ -6,30 +6,8 @@ from __future__ import annotations
 from typing import Literal
 
 from causal_agent.common.addresses import key
-from causal_agent.common.contracts import AdjustmentDesign, DidDesign, RdDesign
-from causal_agent.families.registry import BlockInputs
-
-
-def adjustment(i: BlockInputs) -> AdjustmentDesign:
-    a, briefs, beliefs = i.claims["assignment"], i.briefs, i.beliefs
-    dep = [key(c) for c in a.get("depends_on") or []]
-    before = [b.key for b in briefs if b.role not in ("outcome", "treatment") and b.when == "before" and b.moved_by_change is not True]
-    forbidden = [b.key for b in briefs if b.role not in ("outcome", "treatment", "depends_on") and (b.when in ("after", "at") or b.moved_by_change is True)]
-    excl, med, unob = beliefs.get("exclusion"), beliefs.get("mediator"), beliefs.get("unobserved")
-    instrument = key(excl.column) if excl and excl.known() and excl.value and excl.column else None
-    mediator = key(med.column) if med and med.known() and med.value and med.column else None
-    kind = a.get("kind")
-    voluntary = True if kind == "own_choice" else False if kind in ("cutoff_rule", "date_by_others", "lottery") else (True if a.get("movable") else None)
-    return AdjustmentDesign(
-        adjustment_candidates=list(dict.fromkeys(dep + before)),
-        forbidden=list(dict.fromkeys(forbidden)),
-        instrument=instrument,
-        mediator=mediator,
-        unobserved_confounding=unob.value if unob and unob.known() else None,
-        voluntary_uptake=voluntary,
-        target_units=i.scope.target,
-        contrast=i.scope.contrast,
-    )
+from causal_agent.common.contracts import DidDesign, RdDesign
+from causal_agent.families.base import BlockInputs
 
 
 def diff_in_diff(i: BlockInputs) -> DidDesign:

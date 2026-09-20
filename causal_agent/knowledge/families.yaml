@@ -2,22 +2,6 @@
 # Written as method knowledge the router reads and judges the data against.
 # Never written as rules the harness evaluates.
 
-adjustment:
-  applies_to: [effect_of_change]
-  answers: effect of a change on an outcome when the things that drove the change are measured in the data
-  needs:
-    - the change is recorded as a column that differs across rows
-    - the note says what the decision to make the change depended on, and those things are columns; or the note says the change was assigned at random, in which case it depended on nothing and this is met
-    - the outcome is measured at or after the change, not before
-    - overlap exists, meaning among rows with the same values of the things the decision depended on, some got the change and some did not; met by construction if assignment was random; unmet if the change is a strict function of those things, or the thing it depended on is the same label as the change itself
-  look_for: a column note saying the value was a decision and naming what it depended on, and whether uptake was voluntary after that; a change card describing who was offered it; profile top_values showing both arms present
-  assumes: nothing unmeasured drove both the change and the outcome
-  weak_when: the notes say the change was assigned by a strict mechanical rule with no voluntary element, so nobody with the same inputs went the other way; or the change reached whole groups at once and what separates the groups is not in the data. If the notes describe voluntary uptake after an offer, neither applies.
-  prefer_over: {}
-  convince: both arms are present at every level of what the offer depended on, so like is compared with like
-  specialist: dowhy
-  status: built
-
 diff_in_diff:
   applies_to: [effect_of_change]
   answers: effect of a change that reached some units and not others, comparing how outcomes moved over time in each group

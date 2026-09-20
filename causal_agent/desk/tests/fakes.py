@@ -9,10 +9,10 @@ from langchain_core.messages import AIMessage
 
 from causal_agent.common.contracts import Candidate, FamilyDecision, QuestionFrame, Rejection, Scope
 from causal_agent.desk.contracts import AfterReply, FieldUpdate, Inference
-from causal_agent.knowledge import load_registry
+from causal_agent.families import registry as R
 from causal_agent.memory.claims import ClaimUpdate, Extraction, FieldValue
 
-FAMILIES = [f.name for f in load_registry()]
+FAMILIES = [f.name for f in R.knowledge()]
 QUESTION = "Did completing the prep course raise math scores?"
 
 
