@@ -674,4 +674,26 @@ def test_placebo_points_are_kept_for_the_figures():
 
     arts = json.loads((Path(out["run_dir"]) / "artifacts.json").read_text())
     assert "placebo_points" in arts and arts["case"]["beliefs"]["cutoff_only"] == "confirmed_true"
-    assert [f["id"] for f in json.loads((Path(out["run_dir"]) / "figures.json").read_text())] == ["effect_below_cutoff_vs_above_cutoff"]
+    assert "effect_below_cutoff_vs_above_cutoff" in [f["id"] for f in json.loads((Path(out["run_dir"]) / "figures.json").read_text())]
+
+
+def test_the_run_leaves_the_jump_the_density_the_covariates_and_the_bandwidths_as_figures():
+    import json
+
+    fake = FakeLLM(URUGUAY_SCORE, URUGUAY_RELATIONS, URUGUAY["cite"])
+    out = _run(fake, handoff(**URUGUAY))
+    r = out["specialist_result"]
+    assert r["status"] == "done", r.get("feasibility")
+    c = out["design"].contrast.key
+    figs = {f["id"]: f for f in json.loads((Path(r["run_dir"]) / "figures.json").read_text())}
+    assert list(figs) == [f"rd_plot_{c}", f"density_{c}", f"continuity_{c}", f"bandwidths_{c}", f"placebo_cutoffs_{c}", f"effect_{c}"]
+    plot = figs[f"rd_plot_{c}"]
+    assert [s["name"] for s in plot["series"]] == ["binned means", "fit, control side", "fit, treated side"] and plot["marks"][0]["label"] == "the cutoff"
+    jump = plot["series"][2]["y"][0] - plot["series"][1]["y"][-1]
+    primary = next(e for e in out["estimates"] if e.method == "local_linear")
+    assert primary.ci_low - 0.1 <= jump <= primary.ci_high + 0.1, (jump, primary.value)
+    assert "drawn by side" in figs[f"density_{c}"]["note"]  # the rows were sampled by side of the cutoff: the test says nothing here
+    assert set(figs[f"continuity_{c}"]["series"][0]["x"]) == {"Education", "Age"}
+    assert len(figs[f"bandwidths_{c}"]["series"][0]["x"]) == 4 and figs[f"bandwidths_{c}"]["marks"][0]["label"] == "h used"
+    assert "the cutoff" in figs[f"placebo_cutoffs_{c}"]["series"][0]["x"]
+    assert not any(x["check"] == "figure.check" for x in r["declines"])

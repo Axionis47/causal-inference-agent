@@ -960,9 +960,29 @@ def feasibility(state: SpecialistState) -> dict:
 
 
 def figures(state: SpecialistState) -> dict:
-    """What this run drew, checked against the addresses it produced: the estimate against its placebos."""
+    """What this run drew, checked against the addresses it produced: the outcome against the score with a fit on each side,
+    the score's density either side, each covariate's jump, the estimate across bandwidths and at the placebo cutoffs, and the
+    estimate against its placebos."""
+    from causal_agent.viz.postviz import discontinuity as PR
+
     h = state["handoff"]
-    specs = [PV.effect_and_refutations([e.model_dump() for e in state.get("estimates") or []], [r.model_dump() for r in state.get("refutations") or []], "placebo")]
+    names = state.get("columns") or {}
+    c = state["contrast"].key if state.get("contrast") else None
+    d: Design | None = state.get("design")
+    cf = state.get("check_facts") or {}
+    pts = state.get("placebo_points") or {}
+    run_dir = Path(state["run_dir"]) if state.get("run_dir") else None
+    specs = []
+    if c and d is not None and state.get("canon_path") and Path(state["canon_path"]).exists():
+        bins = pd.read_csv(run_dir / "bins.csv") if run_dir and (run_dir / "bins.csv").exists() else None
+        specs.append(PR.rd_plot(bins, _canon(state), d.bandwidths.h, int(d.spec.get("p", 1)), c, names.get(d.score.column, d.score.column)))
+    if c and state.get("xall_path") and Path(state["xall_path"]).exists():
+        specs.append(PR.density_test(pd.read_csv(state["xall_path"])["x"], cf.get("density"), c, sampled_by_side=bool(state.get("sampled_by_side"))))
+    if c:
+        specs.append(PR.covariate_continuity(cf.get("continuity"), c, names, float(_cfg()["covariate_continuity"]["p_value"]["soft"])))
+        specs.append(PR.bandwidth_curve(pts.get("bandwidth_grid"), d.bandwidths.h if d is not None else None, c))
+        specs.append(PR.placebo_cutoffs(pts.get("placebo_cutoffs"), state.get("primary"), c))
+    specs.append(PV.effect_and_refutations([e.model_dump() for e in state.get("estimates") or []], [r.model_dump() for r in state.get("refutations") or []], "placebo"))
     kept, declines = LF.write(state.get("run_dir"), specs, LF.ok_addresses(h, state, "placebo"))
     _writer()({"figures": [s.id for s in kept]})
     return {"figures": [s.model_dump() for s in kept], "declines": declines}
