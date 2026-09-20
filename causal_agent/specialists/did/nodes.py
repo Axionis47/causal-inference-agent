@@ -18,11 +18,28 @@ from langgraph.config import get_stream_writer
 from langgraph.types import Command, Send
 
 from causal_agent.common.addresses import key as _key
-from causal_agent.common.contracts import CheckResult, Checks, Cited, Contrast, Decline, DidDesign, Estimate, Feasibility, Handoff, Interpretation, LaneAsk, Refutation
+from causal_agent.common.contracts import (
+    Checks,
+    Cited,
+    Contrast,
+    Decline,
+    DidDesign,
+    Feasibility,
+    Handoff,
+    Interpretation,
+    LaneAsk,
+    Refutation,
+)
 from causal_agent.common.llm import structured
-from causal_agent.lane import asks, case as C, figures as LF, intake, records, words as W
+from causal_agent.lane import asks, intake, records
+from causal_agent.lane import case as C
+from causal_agent.lane import figures as LF
+from causal_agent.lane import words as W
 from causal_agent.profile.datasets import dataset_entries
-from causal_agent.specialists.did import adapter, checks as CK, prompts as P, shape as SH
+from causal_agent.specialists.did import adapter
+from causal_agent.specialists.did import checks as CK
+from causal_agent.specialists.did import prompts as P
+from causal_agent.specialists.did import shape as SH
 from causal_agent.specialists.did.contracts import (
     ControlRelation,
     Controls,
@@ -32,19 +49,22 @@ from causal_agent.specialists.did.contracts import (
     Excluded,
     Groups,
     Periods,
-    Revision,
 )
 from causal_agent.specialists.did.knowledge import (
     estimator as estimator_entry,
+)
+from causal_agent.specialists.did.knowledge import (
     load_beliefs,
     load_checks,
     load_estimators,
     load_placebos,
     pick_inference,
-    placebo as placebo_entry,
     render_preferences,
 )
-from causal_agent.specialists.did.state import InterpretTask, PlaceboTask, RelateTask, SpecialistState
+from causal_agent.specialists.did.knowledge import (
+    placebo as placebo_entry,
+)
+from causal_agent.specialists.did.state import PlaceboTask, RelateTask, SpecialistState
 from causal_agent.viz.postviz import common as PV
 
 MAX_RELATE_ATTEMPTS = 3
@@ -54,6 +74,7 @@ MAX_PICK_ATTEMPTS = 2
 MAX_LEVELS = 100  # levels shown to the model; a level list cut short once hid California (state 5) behind 30 string-sorted numbers
 
 # ------------------------------------------------------------------ helpers
+
 
 def _writer():
     try:
@@ -98,8 +119,10 @@ def _frame_text(state: SpecialistState) -> str:
     h = state["handoff"]
     s = h.scope
     g, p = state.get("groups"), state.get("periods")
-    lines = [f"family: {h.family}; outcome: {h.outcome}; treatment: {h.treatment}; filter={s.population_filter or 'none'}; window={s.window or 'none'}; target={s.target}",
-             f"assumption the router bet on: {h.chosen_assumption}"]
+    lines = [
+        f"family: {h.family}; outcome: {h.outcome}; treatment: {h.treatment}; filter={s.population_filter or 'none'}; window={s.window or 'none'}; target={s.target}",
+        f"assumption the router bet on: {h.chosen_assumption}",
+    ]
     if _block(h):
         lines.append("what the pack settled:\n" + h.design.render())
     if h.probes:
@@ -110,7 +133,10 @@ def _frame_text(state: SpecialistState) -> str:
     if g:
         lines.append(f"groups: {g.column} = {g.treated_level!r} treated, other levels control")
     if p:
-        lines.append(f"periods: {p.kind}; " + (f"time {p.time_column}, first post {p.first_post}" if p.kind == "long" else f"before {p.before_column}, after {p.after_column}"))
+        lines.append(
+            f"periods: {p.kind}; "
+            + (f"time {p.time_column}, first post {p.first_post}" if p.kind == "long" else f"before {p.before_column}, after {p.after_column}")
+        )
     return "\n".join(lines)
 
 
@@ -158,16 +184,47 @@ def load(state: SpecialistState) -> Command:
         return _stop("load", "the outcome is not numeric", [f"outcome {y} is {table[y].dtype}"], "a numeric outcome", {"declines": it.declines})
     target = load_checks()["target_units"].get(h.scope.target)
     if target is None:
-        return _stop("load", f"target '{h.scope.target}' is not supported by this lane", [], "a question asking for the average effect, or the effect on the treated", {"declines": it.declines})
+        return _stop(
+            "load",
+            f"target '{h.scope.target}' is not supported by this lane",
+            [],
+            "a question asking for the average effect, or the effect on the treated",
+            {"declines": it.declines},
+        )
     levels = [str(v) for v in _sorted_levels(table[t])][:MAX_LEVELS]
-    _writer()({"load": {"rows": len(table), "columns": list(it.columns), "target_units": target, "unit_column": unit_col, "run_dir": str(it.run_dir),
-                        "declines": [d.render() for d in it.declines], **it.facts}})
-    return Command(goto="case", update={
-        "run_dir": str(it.run_dir), "table_path": str(it.table_path), "columns": it.columns, "unit_column": unit_col, "cluster_column": cluster_col,
-        "declines": it.declines, "check_facts": {"intake": it.facts} if it.facts else {},
-        "target_units": target, "group_levels": levels, "relate_attempts": 0, "revisions": 0, "pick_attempts": 0,
-        "relate_errors": {}, "excluded_estimators": [], "applied_revisions": [],
-    })
+    _writer()(
+        {
+            "load": {
+                "rows": len(table),
+                "columns": list(it.columns),
+                "target_units": target,
+                "unit_column": unit_col,
+                "run_dir": str(it.run_dir),
+                "declines": [d.render() for d in it.declines],
+                **it.facts,
+            }
+        }
+    )
+    return Command(
+        goto="case",
+        update={
+            "run_dir": str(it.run_dir),
+            "table_path": str(it.table_path),
+            "columns": it.columns,
+            "unit_column": unit_col,
+            "cluster_column": cluster_col,
+            "declines": it.declines,
+            "check_facts": {"intake": it.facts} if it.facts else {},
+            "target_units": target,
+            "group_levels": levels,
+            "relate_attempts": 0,
+            "revisions": 0,
+            "pick_attempts": 0,
+            "relate_errors": {},
+            "excluded_estimators": [],
+            "applied_revisions": [],
+        },
+    )
 
 
 def case(state: SpecialistState) -> dict:
@@ -185,8 +242,12 @@ def _block_groups(h: Handoff) -> Groups | None:
     tg = b.treated_group if b else {}
     if not (tg.get("column") and tg.get("level") is not None):
         return None
-    return Groups(column=_key(tg["column"]), treated_level=str(tg["level"]), reason="the pack names the column and the level that mean the unit got the change",
-                  cites=_cites(h, "claim:assignment.treatment_column", "claim:assignment.treated_level"))
+    return Groups(
+        column=_key(tg["column"]),
+        treated_level=str(tg["level"]),
+        reason="the pack names the column and the level that mean the unit got the change",
+        cites=_cites(h, "claim:assignment.treatment_column", "claim:assignment.treated_level"),
+    )
 
 
 def groups(state: SpecialistState) -> dict:
@@ -201,8 +262,14 @@ def groups(state: SpecialistState) -> dict:
         if block is not None and attempt == 0:  # a fact from the pack; the same checks apply, and the model is asked only if they fail
             parsed = block
         else:
-            user = P.GROUPS_USER.format(question=_question(state), frame=_frame_text(state), dataset_card=h.render_dataset(), changes=h.render_change(),
-                                        treatment_card=_card(h, t), levels=", ".join(repr(v) for v in state["group_levels"])) + _rejected(errors)
+            user = P.GROUPS_USER.format(
+                question=_question(state),
+                frame=_frame_text(state),
+                dataset_card=h.render_dataset(),
+                changes=h.render_change(),
+                treatment_card=_card(h, t),
+                levels=", ".join(repr(v) for v in state["group_levels"]),
+            ) + _rejected(errors)
             parsed, th = structured(Groups, P.GROUPS_SYSTEM, user, node="groups")
             debug.append(th)
         parsed.column = _key(parsed.column)
@@ -213,7 +280,9 @@ def groups(state: SpecialistState) -> dict:
             col = pd.read_csv(state["table_path"], usecols=[parsed.column])[parsed.column]
             observed = set(col.astype(str))
             if str(parsed.treated_level) not in observed:
-                errors.append(f"level {parsed.treated_level!r} is not observed in {parsed.column!r}; observed: {[str(v) for v in _sorted_levels(col)][:MAX_LEVELS]}")
+                errors.append(
+                    f"level {parsed.treated_level!r} is not observed in {parsed.column!r}; observed: {[str(v) for v in _sorted_levels(col)][:MAX_LEVELS]}"
+                )
             elif len(observed) < 2:
                 errors.append(f"{parsed.column!r} has a single level; nothing to compare")
         for c in parsed.cites:
@@ -223,10 +292,22 @@ def groups(state: SpecialistState) -> dict:
             _writer()({"groups": parsed.model_dump()})
             return {"groups": parsed, "debug": debug, "declines": declines}
         if parsed is block:  # the pack's answer failed the file's checks: recorded, and the model is told why
-            declines.append(Decline(stage="groups", kind="replaced", about="claim:assignment.treated_level", pack_value=f"{block.column} = {block.treated_level!r}",
-                                    check="groups.level_observed", reason="; ".join(errors)))
+            declines.append(
+                Decline(
+                    stage="groups",
+                    kind="replaced",
+                    about="claim:assignment.treated_level",
+                    pack_value=f"{block.column} = {block.treated_level!r}",
+                    check="groups.level_observed",
+                    reason="; ".join(errors),
+                )
+            )
             _writer()({"groups": {"pack_block_rejected": errors}})
-    return {"feasibility": _feas("groups", "could not name who got the change", errors, "a column and level the notes tie to the change"), "debug": debug, "declines": declines}
+    return {
+        "feasibility": _feas("groups", "could not name who got the change", errors, "a column and level the notes tie to the change"),
+        "debug": debug,
+        "declines": declines,
+    }
 
 
 def after_groups(state: SpecialistState) -> str:
@@ -243,9 +324,15 @@ def _block_periods(h: Handoff) -> Periods | None:
     lo = hi = None
     if h.scope.window and (w := intake.parse_window(h.scope.window)):
         lo, _, hi, _ = w
-    return Periods(kind="long", time_column=_key(b.time), first_post=str(b.change_period), window_start=lo, window_end=hi,
-                   reason="the pack names the period column and the first period at or after the change",
-                   cites=_cites(h, "claim:change.date_column", "claim:change.period_value"))
+    return Periods(
+        kind="long",
+        time_column=_key(b.time),
+        first_post=str(b.change_period),
+        window_start=lo,
+        window_end=hi,
+        reason="the pack names the period column and the first period at or after the change",
+        cites=_cites(h, "claim:change.date_column", "claim:change.period_value"),
+    )
 
 
 def periods(state: SpecialistState) -> dict:
@@ -263,8 +350,13 @@ def periods(state: SpecialistState) -> dict:
         if block is not None and attempt == 0:
             parsed = block
         else:
-            user = P.PERIODS_USER.format(question=_question(state), changes=h.render_change(), dataset_card=h.render_dataset(),
-                                         outcome_card=_card(h, y), time_cards=time_cards or "(none besides the outcome)") + _rejected(errors)
+            user = P.PERIODS_USER.format(
+                question=_question(state),
+                changes=h.render_change(),
+                dataset_card=h.render_dataset(),
+                outcome_card=_card(h, y),
+                time_cards=time_cards or "(none besides the outcome)",
+            ) + _rejected(errors)
             parsed, th = structured(Periods, P.PERIODS_SYSTEM, user, node="periods")
             debug.append(th)
         errors = []
@@ -288,17 +380,43 @@ def periods(state: SpecialistState) -> dict:
             _writer()({"periods": parsed.model_dump(exclude_none=True)})
             return {"periods": parsed, "debug": debug, "declines": declines}
         if parsed is block:
-            declines.append(Decline(stage="periods", kind="replaced", about="claim:change.period_value", pack_value=f"{block.time_column} from {block.first_post!r}",
-                                    check="periods.first_post_in_table", reason="; ".join(errors)))
+            declines.append(
+                Decline(
+                    stage="periods",
+                    kind="replaced",
+                    about="claim:change.period_value",
+                    pack_value=f"{block.time_column} from {block.first_post!r}",
+                    check="periods.first_post_in_table",
+                    reason="; ".join(errors),
+                )
+            )
             _writer()({"periods": {"pack_block_rejected": errors}})
     # a time column the file has but a first period nobody could settle: one question, not a stop
-    if parsed is not None and parsed.kind == "long" and parsed.time_column in table_cols and h.scope.window is None or (parsed is not None and parsed.kind == "long" and parsed.time_column in table_cols):
+    if (
+        parsed is not None
+        and parsed.kind == "long"
+        and parsed.time_column in table_cols
+        and h.scope.window is None
+        or (parsed is not None and parsed.kind == "long" and parsed.time_column in table_cols)
+    ):
         time_name = (state.get("columns") or {}).get(parsed.time_column, parsed.time_column)
-        ask = LaneAsk(address="claim:change.period_value", question=f"Which value of {time_name!r} is the first period at or after the change?",
-                      because="the period column is known but not the first period after the change")
-        f = Feasibility(stage="ask", reason="the first period at or after the change could not be settled from the notes", facts=errors, what_would_fix=f"an answer to [{ask.address}]")
+        ask = LaneAsk(
+            address="claim:change.period_value",
+            question=f"Which value of {time_name!r} is the first period at or after the change?",
+            because="the period column is known but not the first period after the change",
+        )
+        f = Feasibility(
+            stage="ask",
+            reason="the first period at or after the change could not be settled from the notes",
+            facts=errors,
+            what_would_fix=f"an answer to [{ask.address}]",
+        )
         return {"feasibility": f, "ask": ask.model_copy(update={"stage": "periods"}), "debug": debug, "declines": declines}
-    return {"feasibility": _feas("periods", "could not locate before and after", errors, "a time column or a before and an after measure the notes describe"), "debug": debug, "declines": declines}
+    return {
+        "feasibility": _feas("periods", "could not locate before and after", errors, "a time column or a before and an after measure the notes describe"),
+        "debug": debug,
+        "declines": declines,
+    }
 
 
 def after_periods(state: SpecialistState) -> str:
@@ -331,25 +449,65 @@ def shape_table(state: SpecialistState) -> Command:
     # the control level from the settled group column, and the pack's word on it when the group column is the treatment column
     levels = [str(v) for v in _sorted_levels(table[g.column])]
     others = [v for v in levels if v != str(g.treated_level)]
-    control = str(h.control_level) if h.control_level is not None and g.column == t and str(h.control_level) in others else (others[0] if len(others) == 1 else "other")
+    control = (
+        str(h.control_level)
+        if h.control_level is not None and g.column == t and str(h.control_level) in others
+        else (others[0] if len(others) == 1 else "other")
+    )
     contrast = Contrast(control=control, treated=str(g.treated_level), reason=g.reason, cites=g.cites)
     # what the pack said about the panel against what the table shows: a difference is recorded, never hidden
     declines: list[Decline] = []
     b = _block(h)
     if b is not None:
         if b.pre_periods is not None and b.pre_periods != facts.periods_pre:
-            declines.append(Decline(stage="shape_table", kind="replaced", about="design.pre_periods", pack_value=str(b.pre_periods), took=str(facts.periods_pre),
-                                    check="shape.pre_periods", reason="counted on the table after the filter and the window"))
+            declines.append(
+                Decline(
+                    stage="shape_table",
+                    kind="replaced",
+                    about="design.pre_periods",
+                    pack_value=str(b.pre_periods),
+                    took=str(facts.periods_pre),
+                    check="shape.pre_periods",
+                    reason="counted on the table after the filter and the window",
+                )
+            )
         if b.post_periods is not None and b.post_periods != facts.periods_post:
-            declines.append(Decline(stage="shape_table", kind="replaced", about="design.post_periods", pack_value=str(b.post_periods), took=str(facts.periods_post),
-                                    check="shape.post_periods", reason="counted on the table after the filter and the window"))
+            declines.append(
+                Decline(
+                    stage="shape_table",
+                    kind="replaced",
+                    about="design.post_periods",
+                    pack_value=str(b.post_periods),
+                    took=str(facts.periods_post),
+                    check="shape.post_periods",
+                    reason="counted on the table after the filter and the window",
+                )
+            )
         if b.staggered is False and facts.cohorts > 1:
-            declines.append(Decline(stage="shape_table", kind="replaced", about="design.staggered", pack_value="false", took=f"{facts.cohorts} first-treated periods",
-                                    check="shape.cohorts", reason="the units did not all get the change in the same period"))
+            declines.append(
+                Decline(
+                    stage="shape_table",
+                    kind="replaced",
+                    about="design.staggered",
+                    pack_value="false",
+                    took=f"{facts.cohorts} first-treated periods",
+                    check="shape.cohorts",
+                    reason="the units did not all get the change in the same period",
+                )
+            )
     for pr in h.probes:
         if pr.family == "diff_in_diff" and pr.name == "pre_periods" and pr.value is not None and int(pr.value) != facts.periods_pre:
-            declines.append(Decline(stage="shape_table", kind="replaced", about=pr.address, pack_value=str(int(pr.value)), took=str(facts.periods_pre),
-                                    check="shape.pre_periods", reason="the desk counted on the whole file; the lane counts on the table after the filter and the window"))
+            declines.append(
+                Decline(
+                    stage="shape_table",
+                    kind="replaced",
+                    about=pr.address,
+                    pack_value=str(int(pr.value)),
+                    took=str(facts.periods_pre),
+                    check="shape.pre_periods",
+                    reason="the desk counted on the whole file; the lane counts on the table after the filter and the window",
+                )
+            )
     _writer()({"shape": facts.model_dump(exclude={"time_values"}), "declines": [d.render() for d in declines]})
     update = {"panel_path": str(panel_path), "shape": facts, "contrast": contrast, "declines": declines}
     sends = _relate_sends(state, candidates)
@@ -375,8 +533,10 @@ def settled_claims(h: Handoff, k: str, case: C.Case) -> tuple[dict[str, bool], d
 def fact_relation(h: Handoff, k: str, case: C.Case) -> ControlRelation | None:
     claims, cites = settled_claims(h, k, case)
     if "affected_by_treatment" in claims and "usable_as_control" in claims:
-        name = (h.brief(k).name if h.brief(k) else k)
-        return ControlRelation(column=k, reasons=[Cited(reason=f"{name}: the person says the change could have moved it", cites=[cites["affected_by_treatment"]])], **claims)
+        name = h.brief(k).name if h.brief(k) else k
+        return ControlRelation(
+            column=k, reasons=[Cited(reason=f"{name}: the person says the change could have moved it", cites=[cites["affected_by_treatment"]])], **claims
+        )
     return None
 
 
@@ -384,7 +544,9 @@ def _settled_text(h: Handoff, k: str, case: C.Case) -> str:
     claims, cites = settled_claims(h, k, case)
     if not claims:
         return ""
-    return "\nSETTLED BY THE PACK (copy these answers; cite the address)\n" + "\n".join(f"  {c} = {str(v).lower()} [{cites[c]}]" for c, v in claims.items()) + "\n"
+    return (
+        "\nSETTLED BY THE PACK (copy these answers; cite the address)\n" + "\n".join(f"  {c} = {str(v).lower()} [{cites[c]}]" for c, v in claims.items()) + "\n"
+    )
 
 
 def apply_settled(r: ControlRelation, h: Handoff, case: C.Case) -> ControlRelation:
@@ -413,9 +575,20 @@ def _relate_sends(state: SpecialistState, candidates: list[str], errors: dict[st
     case = _case(state)
     errs = errors or {}
     targets = [k for k in candidates if k in errs] if errs else [k for k in candidates if fact_relation(h, k, case) is None]
-    return [Send("relate", RelateTask(question=_question(state), frame=_frame_text(state), column=k, card=_card(h, k), settled=_settled_text(h, k, case),
-                                      errors=_rejected(errs.get(k, []))))
-            for k in targets]
+    return [
+        Send(
+            "relate",
+            RelateTask(
+                question=_question(state),
+                frame=_frame_text(state),
+                column=k,
+                card=_card(h, k),
+                settled=_settled_text(h, k, case),
+                errors=_rejected(errs.get(k, [])),
+            ),
+        )
+        for k in targets
+    ]
 
 
 def relate(task: RelateTask) -> dict:
@@ -455,7 +628,11 @@ def merge_controls(state: SpecialistState) -> dict:
             continue
         # then the person's word, then the judgements
         if r.affected_by_treatment:
-            why = "the person says the change could have moved it [col:%s.moved]" % k if _case(state).fact(f"col:{k}.moved_by_change") is True else "could be changed by the treatment; adjusting for it would remove part of the effect"
+            why = (
+                "the person says the change could have moved it [col:%s.moved]" % k
+                if _case(state).fact(f"col:{k}.moved_by_change") is True
+                else "could be changed by the treatment; adjusting for it would remove part of the effect"
+            )
             excluded.append(Excluded(column=k, why=why))
         elif r.usable_as_control:
             if allowed and k not in allowed:
@@ -502,8 +679,13 @@ def verify(state: SpecialistState) -> Command:
     attempts = state.get("relate_attempts", 0) + 1
     if errs:
         if attempts >= MAX_RELATE_ATTEMPTS:
-            return _stop("verify", "the control relations could not be made to pass verification", [f"{k}: {'; '.join(v)}" for k, v in errs.items()],
-                         "clearer column notes about what moves over time and what the treatment touches", {"relate_attempts": attempts})
+            return _stop(
+                "verify",
+                "the control relations could not be made to pass verification",
+                [f"{k}: {'; '.join(v)}" for k, v in errs.items()],
+                "clearer column notes about what moves over time and what the treatment touches",
+                {"relate_attempts": attempts},
+            )
         _writer()({"verify": {"attempt": attempts, "errors": errs}})
         return Command(goto=_relate_sends(state, _candidates(state), errs), update={"relate_errors": errs, "relate_attempts": attempts})
     _writer()({"verify": "ok"})
@@ -539,7 +721,13 @@ def assess(state: SpecialistState) -> Command:
     if action == "stop":
         return _stop("assess", payload["reason"], payload["facts"], payload["what_would_fix"], {"checks": results})
     if action == "ask":
-        return asks.ask_back("assess", payload, reason=payload.because or "the design needs one more thing from the person", facts=[f"[{a}]" for a in payload.evidence], extra={"checks": results})
+        return asks.ask_back(
+            "assess",
+            payload,
+            reason=payload.because or "the design needs one more thing from the person",
+            facts=[f"[{a}]" for a in payload.evidence],
+            extra={"checks": results},
+        )
     checks = Checks(results=results)
     flags, hard = checks.flags, checks.hard
     if not flags:
@@ -574,13 +762,32 @@ def assess(state: SpecialistState) -> Command:
         if parsed.action == "proceed":
             return Command(goto="pick_estimator", update={"assessment": parsed, "debug": debug, "checks": results})
         if parsed.action == "stop":
-            return _stop("assess", parsed.reason, [f"{r.address}: {r.detail}" for r in flags], "a comparison group that moved like the treated group before the change, or a design that does not need one",
-                         {"assessment": parsed, "debug": debug, "checks": results})
+            return _stop(
+                "assess",
+                parsed.reason,
+                [f"{r.address}: {r.detail}" for r in flags],
+                "a comparison group that moved like the treated group before the change, or a design that does not need one",
+                {"assessment": parsed, "debug": debug, "checks": results},
+            )
         n = state.get("revisions", 0) + 1
         if n > MAX_REVISIONS:
-            return _stop("assess", "three revisions did not clear the flags", [f"{r.address}: {r.detail}" for r in flags], "a different design", {"assessment": parsed, "debug": debug, "revisions": n, "checks": results})
-        return Command(goto="merge_controls", update={"assessment": parsed, "debug": debug, "revisions": n, "checks": results,
-                                                      "applied_revisions": (state.get("applied_revisions") or []) + parsed.revisions})
+            return _stop(
+                "assess",
+                "three revisions did not clear the flags",
+                [f"{r.address}: {r.detail}" for r in flags],
+                "a different design",
+                {"assessment": parsed, "debug": debug, "revisions": n, "checks": results},
+            )
+        return Command(
+            goto="merge_controls",
+            update={
+                "assessment": parsed,
+                "debug": debug,
+                "revisions": n,
+                "checks": results,
+                "applied_revisions": (state.get("applied_revisions") or []) + parsed.revisions,
+            },
+        )
     return _stop("assess", "the design assessment could not be validated", errors, "see the gate errors", {"debug": debug, "checks": results})
 
 
@@ -589,8 +796,15 @@ def assess(state: SpecialistState) -> Command:
 
 def _facts(state: SpecialistState) -> dict[str, Any]:
     s = state["shape"]
-    return {"kind": s.kind, "units_treated": s.units_treated, "units_control": s.units_control, "periods_pre": s.periods_pre,
-            "periods_post": s.periods_post, "cohorts": s.cohorts, "controls": state["controls"].included}
+    return {
+        "kind": s.kind,
+        "units_treated": s.units_treated,
+        "units_control": s.units_control,
+        "periods_pre": s.periods_pre,
+        "periods_post": s.periods_post,
+        "cohorts": s.cohorts,
+        "controls": state["controls"].included,
+    }
 
 
 def pick_estimator(state: SpecialistState) -> Command:
@@ -599,15 +813,25 @@ def pick_estimator(state: SpecialistState) -> Command:
     excluded = set(state.get("excluded_estimators") or [])
     allowed = [e for e in load_estimators() if e.applies(cohorts=s.cohorts, periods_pre=s.periods_pre, periods_post=s.periods_post) and e.name not in excluded]
     if not allowed:
-        return _stop("pick_estimator", "no estimator in the catalogue applies to this design", [f"facts: {facts}", f"excluded after failures: {sorted(excluded)}"],
-                     "an estimator entry for this adoption pattern and period count")
+        return _stop(
+            "pick_estimator",
+            "no estimator in the catalogue applies to this design",
+            [f"facts: {facts}", f"excluded after failures: {sorted(excluded)}"],
+            "an estimator entry for this adoption pattern and period count",
+        )
     names = [e.name for e in allowed]
     check_text = "\n".join(f"[{r.address}] {r.level}: {r.detail}" for r in state["checks"])
     errors: list[str] = []
     debug = []
     for _ in range(MAX_MODEL_RETRIES):
-        user = P.PICK_USER.format(facts=json.dumps(facts), checks=check_text, estimators="\n\n".join(e.render() for e in allowed),
-                                  preferences=render_preferences(allowed), names=", ".join(names), errors=_rejected(errors))
+        user = P.PICK_USER.format(
+            facts=json.dumps(facts),
+            checks=check_text,
+            estimators="\n\n".join(e.render() for e in allowed),
+            preferences=render_preferences(allowed),
+            names=", ".join(names),
+            errors=_rejected(errors),
+        )
         parsed, th = structured(EstimatorPick, P.PICK_SYSTEM, user, node="pick_estimator")
         debug.append(th)
         errors = []
@@ -618,8 +842,10 @@ def pick_estimator(state: SpecialistState) -> Command:
                 errors.append(f"{c} is not a check or pack address")
         if not errors:
             _writer()({"estimator": parsed.model_dump()})
-            return Command(goto="freeze_design", update={"estimator": parsed.name, "estimator_pick": parsed, "debug": debug,
-                                                         "pick_attempts": state.get("pick_attempts", 0) + 1})
+            return Command(
+                goto="freeze_design",
+                update={"estimator": parsed.name, "estimator_pick": parsed, "debug": debug, "pick_attempts": state.get("pick_attempts", 0) + 1},
+            )
     return _stop("pick_estimator", "the estimator pick could not be validated", errors, "see the gate errors", {"debug": debug})
 
 
@@ -646,16 +872,42 @@ def freeze_design(state: SpecialistState) -> dict:
         if "cluster" in panel.columns and clustered and (panel.groupby("unit")["cluster"].nunique() <= 1).all():
             vcov = {"CRV1": "cluster"}
         else:
-            why = ("the inference for this shape does not cluster" if not clustered else "the column is not in the table" if "cluster" not in panel.columns
-                   else "a unit sits in more than one of its groups")
-            declines.append(Decline(stage="freeze_design", kind="declined", about="design.cluster_level", pack_value=b.cluster_level, took=str(inf.vcov),
-                                    check="inference.cluster_column", reason=f"errors were not clustered at the level the pack names: {why}"))
+            why = (
+                "the inference for this shape does not cluster"
+                if not clustered
+                else "the column is not in the table"
+                if "cluster" not in panel.columns
+                else "a unit sits in more than one of its groups"
+            )
+            declines.append(
+                Decline(
+                    stage="freeze_design",
+                    kind="declined",
+                    about="design.cluster_level",
+                    pack_value=b.cluster_level,
+                    took=str(inf.vcov),
+                    check="inference.cluster_column",
+                    reason=f"errors were not clustered at the level the pack names: {why}",
+                )
+            )
     units = s.units_treated + s.units_control
     placebos = [p.name for p in load_placebos() if p.applies(units=units, periods_pre=s.periods_pre)]
-    d = Design(contrast=state["contrast"], groups=state["groups"], periods=state["periods"], shape=s, controls=state["controls"],
-               checks=Checks(results=state["checks"]), estimator=entry.name, formula=adapter.formula_for(entry, controls),
-               also_run=also.name if also else None, also_formula=adapter.formula_for(also, controls) if also else None,
-               inference=inf.name, vcov=vcov, placebos=placebos, target_units=state["target_units"])
+    d = Design(
+        contrast=state["contrast"],
+        groups=state["groups"],
+        periods=state["periods"],
+        shape=s,
+        controls=state["controls"],
+        checks=Checks(results=state["checks"]),
+        estimator=entry.name,
+        formula=adapter.formula_for(entry, controls),
+        also_run=also.name if also else None,
+        also_formula=adapter.formula_for(also, controls) if also else None,
+        inference=inf.name,
+        vcov=vcov,
+        placebos=placebos,
+        target_units=state["target_units"],
+    )
     run_dir = Path(state["run_dir"])
     (run_dir / "design.json").write_text(d.model_dump_json(indent=2))
     (run_dir / "design.md").write_text(d.render())
@@ -683,8 +935,15 @@ def estimate(state: SpecialistState) -> Command:
     inf = pick_inference(units_treated=d.shape.units_treated, kind=d.shape.kind)
     if primary.error is None and inf.resample == "wild_bootstrap" and model is not None:
         p = adapter.wild_bootstrap(model, int(inf.params.get("reps", 999)), int(inf.params.get("seed", 7)))
-        refs.append(Refutation(contrast=d.contrast.key, refuter="wild_bootstrap", kind="sensitivity", p_value=p,
-                               detail=f"wild cluster bootstrap p-value for the effect: {p}" if p is not None else "wild bootstrap failed"))
+        refs.append(
+            Refutation(
+                contrast=d.contrast.key,
+                refuter="wild_bootstrap",
+                kind="sensitivity",
+                p_value=p,
+                detail=f"wild cluster bootstrap p-value for the effect: {p}" if p is not None else "wild bootstrap failed",
+            )
+        )
     _writer()({"estimate": [e.model_dump(exclude_none=True) for e in ests]})
     update: dict[str, Any] = {"estimates": ests, "refutations": refs, "dynamic": dynamic}
     if primary.error:
@@ -717,7 +976,11 @@ def placebo(task: PlaceboTask) -> dict:
 def _addresses(state: SpecialistState) -> list[str]:
     d: Design = state["design"]
     c = d.contrast.key
-    out = ["design.assumption", "design.periods", "design.controls"] + [b.address for b in state["handoff"].beliefs.values() if b.known() or b.status == "unknown"] + [r.address for r in d.checks.results]
+    out = (
+        ["design.assumption", "design.periods", "design.controls"]
+        + [b.address for b in state["handoff"].beliefs.values() if b.known() or b.status == "unknown"]
+        + [r.address for r in d.checks.results]
+    )
     out += [x.address for x in state.get("declines") or []]
     for e in state.get("estimates") or []:
         if e.error is None:
@@ -742,25 +1005,39 @@ def _material(state: SpecialistState) -> str:
     names = state.get("columns") or {}
     c = d.contrast.key
     p = d.periods
-    lines = [f"[design.assumption] the design bets on: without the change, the treated units would have moved like the control units; router's reading: {state['handoff'].chosen_assumption}"]
+    lines = [
+        f"[design.assumption] the design bets on: without the change, the treated units would have moved like the control units; router's reading: {state['handoff'].chosen_assumption}"
+    ]
     lines += [b.render() for b in state["handoff"].beliefs.values() if b.known() or b.status == "unknown"]
-    lines += [f"[design.periods] " + (f"before {names.get(p.before_column, p.before_column)}, after {names.get(p.after_column, p.after_column)}" if p.kind == "wide"
-                                     else f"time {names.get(p.time_column, p.time_column)}, first post {p.first_post}; {d.shape.periods_pre} pre periods, {d.shape.periods_post} post"),
-             f"[design.controls] {', '.join(names.get(k, k) for k in d.controls.included) or 'none'}",
-             f"comparison: {names.get(d.groups.column, d.groups.column)} = {d.contrast.treated!r} versus {d.contrast.control!r}; outcome: {state['handoff'].outcome}; "
-             f"{d.shape.units_treated} treated units, {d.shape.units_control} control"]
+    lines += [
+        "[design.periods] "
+        + (
+            f"before {names.get(p.before_column, p.before_column)}, after {names.get(p.after_column, p.after_column)}"
+            if p.kind == "wide"
+            else f"time {names.get(p.time_column, p.time_column)}, first post {p.first_post}; {d.shape.periods_pre} pre periods, {d.shape.periods_post} post"
+        ),
+        f"[design.controls] {', '.join(names.get(k, k) for k in d.controls.included) or 'none'}",
+        f"comparison: {names.get(d.groups.column, d.groups.column)} = {d.contrast.treated!r} versus {d.contrast.control!r}; outcome: {state['handoff'].outcome}; "
+        f"{d.shape.units_treated} treated units, {d.shape.units_control} control",
+    ]
     for r in d.checks.results:
         lines.append(f"[{r.address}] {r.level}: {r.detail}")
     lines += [x.render() for x in state.get("declines") or []]
     for e in state.get("estimates") or []:
         if e.error is None:
             tag = f"estimate:{c}" if e.method == d.estimator else f"estimate:{c}.{e.method}"
-            what = "primary" if e.method == d.estimator else ("with controls added one at a time" if e.method.startswith(d.estimator + "+") else "secondary, mean of post-period coefficients")
+            what = (
+                "primary"
+                if e.method == d.estimator
+                else ("with controls added one at a time" if e.method.startswith(d.estimator + "+") else "secondary, mean of post-period coefficients")
+            )
             lines.append(f"[{tag}.value] {e.value:.4g} ({what}: {e.method}, target {e.target_units})")
             lines.append(f"[{tag}.ci] 95% interval {e.ci_low:.4g} to {e.ci_high:.4g}" if e.ci_low is not None else f"[{tag}.ci] no interval")
             lines.append(f"[{tag}.n] {e.n_treated} treated units, {e.n_control} control")
     for r in state.get("refutations") or []:
-        lines.append(f"[placebo:{c}.{r.refuter}.passed] {r.passed}  [placebo:{c}.{r.refuter}.new_effect] {r.new_effect}  [placebo:{c}.{r.refuter}.p_value] {r.p_value}  ({r.detail})")
+        lines.append(
+            f"[placebo:{c}.{r.refuter}.passed] {r.passed}  [placebo:{c}.{r.refuter}.new_effect] {r.new_effect}  [placebo:{c}.{r.refuter}.p_value] {r.p_value}  ({r.detail})"
+        )
     return "\n".join(lines)
 
 
@@ -774,8 +1051,14 @@ def interpret(state: SpecialistState) -> dict:
     debug = []
     parsed = None
     for _ in range(MAX_MODEL_RETRIES):
-        user = P.INTERPRET_USER.format(question=_question(state), contrast=d.contrast.key, material=_material(state), addresses="\n".join(sorted(allowed)),
-                                       required="\n".join(required) or "(none)", errors=_rejected(errors))
+        user = P.INTERPRET_USER.format(
+            question=_question(state),
+            contrast=d.contrast.key,
+            material=_material(state),
+            addresses="\n".join(sorted(allowed)),
+            required="\n".join(required) or "(none)",
+            errors=_rejected(errors),
+        )
         parsed, th = structured(Interpretation, P.INTERPRET_SYSTEM, user, node="interpret")
         debug.append(th)
         parsed.contrast = d.contrast.key
@@ -810,7 +1093,6 @@ def figures(state: SpecialistState) -> dict:
 
     h = state["handoff"]
     c = state["contrast"].key if state.get("contrast") else None
-    d: Design | None = state.get("design")
     dyn = state.get("dynamic") or (state.get("check_facts") or {}).get("dynamic") or {}
     pre = next((r.address for r in state.get("checks") or [] if r.name == "pre_trends"), None)
     ests = [e.model_dump() for e in state.get("estimates") or []]
@@ -823,7 +1105,11 @@ def figures(state: SpecialistState) -> dict:
         specs.append(PV.event_study(dyn, contrast=c, draws_on=[pre] if pre else ["design.dynamic"]))
         group = next((r for r in refs if r.get("refuter") == "placebo_group"), None)
         if group is not None:
-            specs.append(PD.placebo_distribution((state.get("placebo_draws") or {}).get("placebo_group") or [], primary.get("value") if primary else None, group.get("p_value"), c))
+            specs.append(
+                PD.placebo_distribution(
+                    (state.get("placebo_draws") or {}).get("placebo_group") or [], primary.get("value") if primary else None, group.get("p_value"), c
+                )
+            )
     specs.append(PV.effect_and_refutations(ests, refs, "placebo"))
     kept, declines = LF.write(state.get("run_dir"), specs, LF.ok_addresses(h, state, "placebo"))
     _writer()({"figures": [s.id for s in kept]})
@@ -843,7 +1129,9 @@ def assemble(state: SpecialistState) -> dict:
                 lines.append(f"    {e.method:34} FAILED: {e.error}")
             else:
                 ci = f" [{e.ci_low:.3g}, {e.ci_high:.3g}]" if e.ci_low is not None else ""
-                lines.append(f"    {e.method:34} {e.value:+.4g}{ci}  units={e.n_treated}/{e.n_control}  {'primary' if e.method == d.estimator else 'secondary'}")
+                lines.append(
+                    f"    {e.method:34} {e.value:+.4g}{ci}  units={e.n_treated}/{e.n_control}  {'primary' if e.method == d.estimator else 'secondary'}"
+                )
         dyn = state.get("dynamic") or {}
         if dyn:
             lines.append("    dynamic effects by period relative to the change:")
@@ -864,7 +1152,10 @@ def assemble(state: SpecialistState) -> dict:
         if g:
             lines.append(f"GROUPS       {names.get(g.column, g.column)} = {g.treated_level!r} treated")
         if p:
-            lines.append(f"PERIODS      {p.kind}: " + (f"before {p.before_column}, after {p.after_column}" if p.kind == "wide" else f"time {p.time_column}, first post {p.first_post}"))
+            lines.append(
+                f"PERIODS      {p.kind}: "
+                + (f"before {p.before_column}, after {p.after_column}" if p.kind == "wide" else f"time {p.time_column}, first post {p.first_post}")
+            )
         if s:
             lines.append(f"SHAPE        {s.units_treated} treated units, {s.units_control} control; {s.periods_pre} pre, {s.periods_post} post")
         for r in state.get("checks") or []:
@@ -876,7 +1167,12 @@ def assemble(state: SpecialistState) -> dict:
     if any(t.text for t in debug):
         lines += ["", "MODEL THOUGHTS (debug only)"] + [f"  [{t.node}] {t.text.strip()[:2000]}" for t in debug if t.text]
     report = "\n".join(lines)
-    extra = {"shape": state.get("shape"), "controls": state.get("controls"), "dynamic": state.get("dynamic") or {}, "placebo_draws": state.get("placebo_draws") or {}}
+    extra = {
+        "shape": state.get("shape"),
+        "controls": state.get("controls"),
+        "dynamic": state.get("dynamic") or {},
+        "placebo_draws": state.get("placebo_draws") or {},
+    }
     records.write(state.get("run_dir"), records.artifacts(state, extra), report)
     result = records.result(state, report, {"shape": state.get("shape"), "controls": state.get("controls"), "dynamic": state.get("dynamic") or {}})
     _writer()({"report": report})

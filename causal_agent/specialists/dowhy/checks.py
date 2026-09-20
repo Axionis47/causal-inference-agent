@@ -31,8 +31,16 @@ def run_checks(table: pd.DataFrame, adjustment_set: list[str], contrast_key: str
     t = table[TREATED] == 1
     n_t, n_c = int(t.sum()), int((~t).sum())
     thr = float(cfg["arms"]["min_per_arm"]["hard"])
-    out.append(CheckResult(contrast=contrast_key, name="arms", level="hard" if min(n_t, n_c) < thr else "pass",
-                           value=float(min(n_t, n_c)), threshold=thr, detail=f"{n_t} treated, {n_c} control"))
+    out.append(
+        CheckResult(
+            contrast=contrast_key,
+            name="arms",
+            level="hard" if min(n_t, n_c) < thr else "pass",
+            value=float(min(n_t, n_c)),
+            threshold=thr,
+            detail=f"{n_t} treated, {n_c} control",
+        )
+    )
     if not adjustment_set:
         out.append(CheckResult(contrast=contrast_key, name="overlap", level="pass", detail="nothing to adjust for; overlap holds by construction"))
         return out, facts
@@ -40,18 +48,40 @@ def run_checks(table: pd.DataFrame, adjustment_set: list[str], contrast_key: str
     X = _design_matrix(table[adjustment_set])
     scores, auc = _propensity(X, t.astype(int).to_numpy())
     weights = np.where(t.to_numpy(), 1.0 / np.clip(scores, 1e-3, 1 - 1e-3), 1.0 / np.clip(1 - scores, 1e-3, 1 - 1e-3))
-    facts["propensity"] = {"auc": round(float(auc), 4), "min_treated": round(float(scores[t].min()), 4), "max_treated": round(float(scores[t].max()), 4),
-                           "min_control": round(float(scores[~t].min()), 4), "max_control": round(float(scores[~t].max()), 4)}
+    facts["propensity"] = {
+        "auc": round(float(auc), 4),
+        "min_treated": round(float(scores[t].min()), 4),
+        "max_treated": round(float(scores[t].max()), 4),
+        "min_control": round(float(scores[~t].min()), 4),
+        "max_control": round(float(scores[~t].max()), 4),
+    }
     lo = max(scores[t].min(), scores[~t].min())
     hi = min(scores[t].max(), scores[~t].max())
     share = float(((scores >= lo) & (scores <= hi)).mean()) if hi >= lo else 0.0
     o = cfg["overlap"]
     level = "hard" if share < o["common_support_share"]["hard"] else "soft" if share < o["common_support_share"]["soft"] else "pass"
-    out.append(CheckResult(contrast=contrast_key, name="overlap", level=level, value=round(share, 3), threshold=o["common_support_share"]["soft"],
-                           detail=f"{share:.0%} of rows inside the score range both arms cover ({lo:.2f} to {hi:.2f})"))
+    out.append(
+        CheckResult(
+            contrast=contrast_key,
+            name="overlap",
+            level=level,
+            value=round(share, 3),
+            threshold=o["common_support_share"]["soft"],
+            detail=f"{share:.0%} of rows inside the score range both arms cover ({lo:.2f} to {hi:.2f})",
+        )
+    )
     auc_thr = float(o["max_auc"]["hard"])
-    out.append(CheckResult(contrast=contrast_key, name="separation", level="hard" if auc >= auc_thr else "pass", value=round(auc, 3), threshold=auc_thr,
-                           detail=f"a score model tells the arms apart with AUC {auc:.2f}" + ("; treatment is nearly a function of the adjustment set" if auc >= auc_thr else "")))
+    out.append(
+        CheckResult(
+            contrast=contrast_key,
+            name="separation",
+            level="hard" if auc >= auc_thr else "pass",
+            value=round(auc, 3),
+            threshold=auc_thr,
+            detail=f"a score model tells the arms apart with AUC {auc:.2f}"
+            + ("; treatment is nearly a function of the adjustment set" if auc >= auc_thr else ""),
+        )
+    )
 
     b = cfg["balance"]["smd"]
     for col in adjustment_set:
@@ -59,8 +89,16 @@ def run_checks(table: pd.DataFrame, adjustment_set: list[str], contrast_key: str
         after = _smd(table[col], t, weights)
         facts["balance"][col] = {"before": round(smd, 4), "after": round(after, 4)}
         level = "hard" if smd >= b["hard"] else "soft" if smd >= b["soft"] else "pass"
-        out.append(CheckResult(contrast=contrast_key, name=f"balance.{col}", level=level, value=round(smd, 3), threshold=b["soft"],
-                               detail=f"standardised mean difference {smd:.2f} between arms before adjustment, {after:.2f} after weighting on the score"))
+        out.append(
+            CheckResult(
+                contrast=contrast_key,
+                name=f"balance.{col}",
+                level=level,
+                value=round(smd, 3),
+                threshold=b["soft"],
+                detail=f"standardised mean difference {smd:.2f} between arms before adjustment, {after:.2f} after weighting on the score",
+            )
+        )
     return out, facts
 
 

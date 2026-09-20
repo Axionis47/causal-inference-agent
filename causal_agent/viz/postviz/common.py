@@ -37,10 +37,16 @@ def effect_and_refutations(estimates: list[dict], refutations: list[dict], prefi
             hi.append(None)
     failed = [r.get("refuter") for r in refs if r.get("passed") is False]
     return FigureSpec(
-        id=f"effect_{contrast}", kind="interval", title=f"The estimate and what was thrown at it ({contrast})", x_label="", y_label="effect",
-        series=[Series(name="effect", x=x, y=y, lo=lo, hi=hi)], marks=[Mark(kind="hline", at=0.0, label="no effect")],
+        id=f"effect_{contrast}",
+        kind="interval",
+        title=f"The estimate and what was thrown at it ({contrast})",
+        x_label="",
+        y_label="effect",
+        series=[Series(name="effect", x=x, y=y, lo=lo, hi=hi)],
+        marks=[Mark(kind="hline", at=0.0, label="no effect")],
         note=("every falsification passed" if refs and not failed else f"failed: {', '.join(map(str, failed))}" if failed else "no falsification ran"),
-        draws_on=[f"estimate:{contrast}.value", f"estimate:{contrast}.ci"] + [f"{prefix}:{contrast}.{r.get('refuter')}.new_effect" for r in refs if r.get("new_effect") is not None],
+        draws_on=[f"estimate:{contrast}.value", f"estimate:{contrast}.ci"]
+        + [f"{prefix}:{contrast}.{r.get('refuter')}.new_effect" for r in refs if r.get("new_effect") is not None],
     )
 
 
@@ -51,9 +57,17 @@ def event_study(dynamic: dict, contrast: str | None = None, draws_on: list[str] 
     keys = sorted(dynamic, key=lambda k: int(k))
     vals = [dynamic[k] for k in keys]
     return FigureSpec(
-        id="dynamic_effects" if contrast is None else f"event_study_{contrast}", kind="interval", title="The effect by period relative to the change",
-        x_label="periods from the change", y_label="effect",
-        series=[Series(name="effect", x=[float(int(k)) for k in keys], y=[float(v[0]) for v in vals], lo=[float(v[1]) for v in vals], hi=[float(v[2]) for v in vals])],
+        id="dynamic_effects" if contrast is None else f"event_study_{contrast}",
+        kind="interval",
+        title="The effect by period relative to the change",
+        x_label="periods from the change",
+        y_label="effect",
+        series=[
+            Series(
+                name="effect", x=[float(int(k)) for k in keys], y=[float(v[0]) for v in vals], lo=[float(v[1]) for v in vals], hi=[float(v[2]) for v in vals]
+            )
+        ],
         marks=[Mark(kind="vline", at=-0.5, label="the change"), Mark(kind="hline", at=0.0, label="no effect")],
-        note="before the change the effect should sit at zero; after it, the estimate", draws_on=list(draws_on or ["design.dynamic"]),
+        note="before the change the effect should sit at zero; after it, the estimate",
+        draws_on=list(draws_on or ["design.dynamic"]),
     )

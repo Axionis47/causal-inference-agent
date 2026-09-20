@@ -13,8 +13,9 @@ calls the pre-viz function on the table. `check` is code: the figure has values,
 from __future__ import annotations
 
 import operator
+from collections.abc import Callable
 from pathlib import Path
-from typing import Annotated, Callable
+from typing import Annotated
 
 import pandas as pd
 import yaml
@@ -82,7 +83,7 @@ class VizState(TypedDict, total=False):
 
 def _has(memory: Memory, need: str, outcome: str | None) -> bool:
     if need == "outcome":
-        return bool(outcome) and memory.column(outcome) is not None
+        return bool(outcome) and outcome is not None and memory.column(outcome) is not None
     v = memory.value(need)
     return v is not None and v != [] and v != ""
 
@@ -110,9 +111,14 @@ def pick(state: VizState) -> dict:
     debug = []
     allowed = set(memory.addresses()) | {"dataset.note", "change:1.note"} | set(point.about)
     for attempt in range(PICK_ATTEMPTS):
-        user = P.PICK_USER.format(point=f"{point.claim}\nabout: {', '.join(f'[{a}]' for a in point.about) or '(no addresses)'}"
-                                  + (f"\ncolumns named: {', '.join(point.columns)}" if point.columns else ""),
-                                  context=context_text(memory), figures="\n".join(decls[c].render() for c in cands), names=", ".join(cands), errors=errors)
+        user = P.PICK_USER.format(
+            point=f"{point.claim}\nabout: {', '.join(f'[{a}]' for a in point.about) or '(no addresses)'}"
+            + (f"\ncolumns named: {', '.join(point.columns)}" if point.columns else ""),
+            context=context_text(memory),
+            figures="\n".join(decls[c].render() for c in cands),
+            names=", ".join(cands),
+            errors=errors,
+        )
         choice, thought = structured(Choice, P.PICK_SYSTEM, user, node="viz.pick")
         debug.append(thought)
         bad = [a for a in choice.cites if norm_address(a) not in {norm_address(x) for x in allowed}]
@@ -125,8 +131,12 @@ def pick(state: VizState) -> dict:
             if choice.function == "none":
                 out["figure"] = Figure.refused(choice.why)
             return out
-    return {"choice": Choice(function="none", why="the pick did not resolve"), "figure": Figure.refused("the pick did not resolve: " + errors.strip()),
-            "pick_attempts": PICK_ATTEMPTS, "debug": debug}
+    return {
+        "choice": Choice(function="none", why="the pick did not resolve"),
+        "figure": Figure.refused("the pick did not resolve: " + errors.strip()),
+        "pick_attempts": PICK_ATTEMPTS,
+        "debug": debug,
+    }
 
 
 # ------------------------------------------------------------------ render (fact)
@@ -137,27 +147,51 @@ def _render_overlap(memory: Memory, df: pd.DataFrame, state: VizState, th: dict)
     t = column(df, a.get("treatment_column"))
     named = [c for n in (state["point"].columns or []) if (c := column(df, n)) is not None]
     deps = named or [c for d in (a.get("depends_on") or []) if (c := column(df, d)) is not None]
-    return adjustment.overlap(df, t, str(a.get("treated_level")), deps, floor=int(th["arms"]["min_rows_cell"]),
-                              addresses=["claim:assignment.depends_on", "claim:assignment.treatment_column"])
+    return adjustment.overlap(
+        df,
+        t,
+        str(a.get("treated_level")),
+        deps,
+        floor=int(th["arms"]["min_rows_cell"]),
+        addresses=["claim:assignment.depends_on", "claim:assignment.treatment_column"],
+    )
 
 
 def _render_did(memory: Memory, df: pd.DataFrame, state: VizState, th: dict) -> Figure:
     a, ch = memory.values_of("claim:assignment"), memory.values_of("claim:change")
-    return diff_in_diff.by_group_over_time(df, column(df, state.get("outcome")), column(df, ch.get("date_column")), column(df, a.get("treatment_column")),
-                                           str(a.get("treated_level")), ch.get("period_value"), floor=int(th["probe"]["min_pre_periods"]),
-                                           addresses=["claim:change.date_column", "claim:change.period_value"])
+    return diff_in_diff.by_group_over_time(
+        df,
+        column(df, state.get("outcome")),
+        column(df, ch.get("date_column")),
+        column(df, a.get("treatment_column")),
+        str(a.get("treated_level")),
+        ch.get("period_value"),
+        floor=int(th["probe"]["min_pre_periods"]),
+        addresses=["claim:change.date_column", "claim:change.period_value"],
+    )
 
 
 def _render_density(memory: Memory, df: pd.DataFrame, state: VizState, th: dict) -> Figure:
     a = memory.values_of("claim:assignment")
-    return discontinuity.density(df, column(df, a.get("score_column")), float(a["cutoff"]), floor=int(th["cutoff"]["min_rows_side"]),
-                                 addresses=["claim:assignment.score_column", "claim:assignment.cutoff"])
+    return discontinuity.density(
+        df,
+        column(df, a.get("score_column")),
+        float(a["cutoff"]),
+        floor=int(th["cutoff"]["min_rows_side"]),
+        addresses=["claim:assignment.score_column", "claim:assignment.cutoff"],
+    )
 
 
 def _render_outcome_by_bin(memory: Memory, df: pd.DataFrame, state: VizState, th: dict) -> Figure:
     a = memory.values_of("claim:assignment")
-    return discontinuity.outcome_by_bin(df, column(df, a.get("score_column")), float(a["cutoff"]), column(df, state.get("outcome")),
-                                        floor=int(th["cutoff"]["min_rows_side"]), addresses=["claim:assignment.score_column", "claim:assignment.cutoff"])
+    return discontinuity.outcome_by_bin(
+        df,
+        column(df, a.get("score_column")),
+        float(a["cutoff"]),
+        column(df, state.get("outcome")),
+        floor=int(th["cutoff"]["min_rows_side"]),
+        addresses=["claim:assignment.score_column", "claim:assignment.cutoff"],
+    )
 
 
 FUNCTIONS: dict[str, Callable[[Memory, pd.DataFrame, VizState, dict], Figure]] = {
@@ -171,7 +205,9 @@ FUNCTIONS: dict[str, Callable[[Memory, pd.DataFrame, VizState, dict], Figure]] =
 def render(state: VizState) -> dict:
     if state.get("figure") is not None:  # refused at pick
         return {}
-    name = state["choice"].function
+    choice = state.get("choice")
+    assert choice is not None, "render runs after pick"
+    name = choice.function
     fn = FUNCTIONS.get(name)
     if fn is None:
         return {"figure": Figure.refused(f"{name!r} is declared but not built", name)}
@@ -246,6 +282,7 @@ def make(point: Point, dataset: str, outcome: str | None = None, treatment: str 
     """The viz tool as one call: a Point in, a Figure out (made, or refused with why)."""
     import uuid
 
-    out = compile_local().invoke({"dataset": dataset, "point": point, "outcome": outcome, "treatment": treatment},
-                                 {"configurable": {"thread_id": str(uuid.uuid4())}})
+    out = compile_local().invoke(
+        {"dataset": dataset, "point": point, "outcome": outcome, "treatment": treatment}, {"configurable": {"thread_id": str(uuid.uuid4())}}
+    )
     return out["figure"]

@@ -50,7 +50,9 @@ def effective_cutoff(x_raw: pd.Series, score: Score) -> tuple[float, float]:
     return c_eff, c_eff - c
 
 
-def canonical(table: pd.DataFrame, score: Score, outcome: str, candidates: list[str], cluster_column: str | None, cfg: dict) -> tuple[pd.DataFrame, pd.Series, ShapeFacts]:
+def canonical(
+    table: pd.DataFrame, score: Score, outcome: str, candidates: list[str], cluster_column: str | None, cfg: dict
+) -> tuple[pd.DataFrame, pd.Series, ShapeFacts]:
     """Returns the canonical table (primary rows), the recentred scores of every finite-score row in their recorded
     orientation (for the density test), and the shape facts. Raises ShapeError when a side is too thin."""
     x_raw = pd.to_numeric(table[score.column], errors="coerce")
@@ -102,13 +104,22 @@ def _facts(df, x_all, table, x_raw, numeric_candidates, rows_at_cutoff, shift, c
         kind = "sharp" if (tr is not None and tl is not None and tr >= rule["treated_side_min"] and tl <= rule["other_side_max"]) else "fuzzy"
     finite = x_raw[np.isfinite(x_raw)]
     return ShapeFacts(
-        rows_file=int(len(table)), rows_score=int(len(x_all)), rows_primary=int(len(df)), rows_covariates=rows_complete_on(df, numeric_candidates),
-        n_left=int(len(left)), n_right=int(len(right)), takeup_left=tl, takeup_right=tr, kind=kind,
+        rows_file=int(len(table)),
+        rows_score=int(len(x_all)),
+        rows_primary=int(len(df)),
+        rows_covariates=rows_complete_on(df, numeric_candidates),
+        n_left=int(len(left)),
+        n_right=int(len(right)),
+        takeup_left=tl,
+        takeup_right=tr,
+        kind=kind,
         distinct_scores=int(df["x"].nunique()),
         duplicate_share_left=float(1 - left["x"].nunique() / len(left)) if len(left) else 0.0,
         duplicate_share_right=float(1 - right["x"].nunique() / len(right)) if len(right) else 0.0,
-        rows_at_cutoff=rows_at_cutoff, cutoff_shift=float(shift),
-        score_min=float(finite.min()) if len(finite) else float("nan"), score_max=float(finite.max()) if len(finite) else float("nan"),
+        rows_at_cutoff=rows_at_cutoff,
+        cutoff_shift=float(shift),
+        score_min=float(finite.min()) if len(finite) else float("nan"),
+        score_max=float(finite.max()) if len(finite) else float("nan"),
         cluster_column=cluster_column if cluster_column and "cluster" in df.columns else None,
     )
 
@@ -116,5 +127,8 @@ def _facts(df, x_all, table, x_raw, numeric_candidates, rows_at_cutoff, shift, c
 def _guard(f: ShapeFacts, cfg: dict) -> None:
     hard = int(cfg["sides"]["min_rows"]["hard"])
     if f.n_left < hard or f.n_right < hard:
-        raise ShapeError("too few rows on one side of the cutoff", [f"{f.n_left} rows on the control side, {f.n_right} on the treated side; the floor is {hard} a side"],
-                         "more units with scores on both sides of the cutoff")
+        raise ShapeError(
+            "too few rows on one side of the cutoff",
+            [f"{f.n_left} rows on the control side, {f.n_right} on the treated side; the floor is {hard} a side"],
+            "more units with scores on both sides of the cutoff",
+        )

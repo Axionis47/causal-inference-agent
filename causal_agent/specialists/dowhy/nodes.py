@@ -17,10 +17,28 @@ from langgraph.config import get_stream_writer
 from langgraph.types import Command, Send
 
 from causal_agent.common.addresses import key as _key
-from causal_agent.common.contracts import AdjustmentDesign, CheckResult, Checks, Cited, Contrast, Decline, Estimate, Feasibility, Handoff, Interpretation, LaneAsk, Refutation
+from causal_agent.common.contracts import (
+    AdjustmentDesign,
+    CheckResult,
+    Checks,
+    Cited,
+    Contrast,
+    Decline,
+    Estimate,
+    Feasibility,
+    Handoff,
+    Interpretation,
+    LaneAsk,
+    Refutation,
+)
 from causal_agent.common.llm import structured
-from causal_agent.lane import asks, case as C, figures as LF, intake, records, verify as V, words as W
-from causal_agent.specialists.dowhy import adapter, checks as CK
+from causal_agent.lane import asks, intake, records
+from causal_agent.lane import case as C
+from causal_agent.lane import figures as LF
+from causal_agent.lane import verify as V
+from causal_agent.lane import words as W
+from causal_agent.specialists.dowhy import adapter
+from causal_agent.specialists.dowhy import checks as CK
 from causal_agent.specialists.dowhy import prompts as P
 from causal_agent.specialists.dowhy.contracts import (
     Contrasts,
@@ -36,6 +54,8 @@ from causal_agent.specialists.dowhy.contracts import (
 )
 from causal_agent.specialists.dowhy.knowledge import (
     estimator as estimator_entry,
+)
+from causal_agent.specialists.dowhy.knowledge import (
     load_beliefs,
     load_checks,
     load_estimators,
@@ -56,6 +76,7 @@ CONTRADICTION_RULES: list[V.Rule] = [("affects_treatment", True, "when", ("after
 
 
 # ------------------------------------------------------------------ helpers
+
 
 def _writer():
     try:
@@ -133,8 +154,12 @@ def _question(state: SpecialistState) -> str:
 def load(state: SpecialistState) -> Command:
     h = state["handoff"]
     if h.intent != "effect_of_change":
-        return _stop("load", "this lane answers the effect of a change on an outcome; the question was read differently", [f"intent: {h.intent}"],
-                     "a question about the effect of a change on an outcome")
+        return _stop(
+            "load",
+            "this lane answers the effect of a change on an outcome; the question was read differently",
+            [f"intent: {h.intent}"],
+            "a question about the effect of a change on an outcome",
+        )
     if not h.treatment:
         return _stop("load", "the hand-off names no treatment", [], "a hand-off whose columns exist in the file")
     try:
@@ -145,29 +170,65 @@ def load(state: SpecialistState) -> Command:
     table = it.table
     ok = CK.outcome_kind(table[y])
     if ok is None:
-        return _stop("load", "the outcome is neither numeric nor two-valued", [f"outcome {y} has {table[y].nunique()} distinct non-numeric values"],
-                     "an outcome measured as a number or a yes/no", {"declines": it.declines})
+        return _stop(
+            "load",
+            "the outcome is neither numeric nor two-valued",
+            [f"outcome {y} has {table[y].nunique()} distinct non-numeric values"],
+            "an outcome measured as a number or a yes/no",
+            {"declines": it.declines},
+        )
     cfg = load_checks()
     target = cfg["target_units"].get(h.scope.target)
     if target is None:
-        return _stop("load", f"target '{h.scope.target}' is not supported by this lane yet", [], "a question asking for the average effect, or the effect on the treated",
-                     {"declines": it.declines})
+        return _stop(
+            "load",
+            f"target '{h.scope.target}' is not supported by this lane yet",
+            [],
+            "a question asking for the average effect, or the effect on the treated",
+            {"declines": it.declines},
+        )
     tcol = table[t]
     numeric_dose = pd.api.types.is_numeric_dtype(tcol) and tcol.nunique() > MAX_DOSE_LEVELS
     if numeric_dose:
-        return _stop("load", "the treatment is a dose with many values; this lane compares levels", [f"{t} has {tcol.nunique()} distinct values"],
-                     "a two-level or few-level treatment, or a dose-response lane", {"declines": it.declines})
+        return _stop(
+            "load",
+            "the treatment is a dose with many values; this lane compares levels",
+            [f"{t} has {tcol.nunique()} distinct values"],
+            "a two-level or few-level treatment, or a dose-response lane",
+            {"declines": it.declines},
+        )
     levels = [str(v) for v in sorted(tcol.unique(), key=lambda v: str(v))]
-    _writer()({"load": {"rows": len(table), "columns": list(it.columns), "outcome_kind": ok, "target_units": target, "run_dir": str(it.run_dir),
-                        "declines": [d.render() for d in it.declines], **it.facts}})
+    _writer()(
+        {
+            "load": {
+                "rows": len(table),
+                "columns": list(it.columns),
+                "outcome_kind": ok,
+                "target_units": target,
+                "run_dir": str(it.run_dir),
+                "declines": [d.render() for d in it.declines],
+                **it.facts,
+            }
+        }
+    )
     return Command(
         goto="case",
         update={
-            "run_dir": str(it.run_dir), "table_path": str(it.table_path), "columns": it.columns, "declines": it.declines,
+            "run_dir": str(it.run_dir),
+            "table_path": str(it.table_path),
+            "columns": it.columns,
+            "declines": it.declines,
             "check_facts": {"intake": it.facts} if it.facts else {},
-            "outcome_kind": ok, "target_units": target, "treatment_levels": levels,
-            "relate_attempts": 0, "revisions": 0, "pick_attempts": 0, "interpret_attempts": 0,
-            "relate_errors": {}, "excluded_estimators": [], "applied_revisions": [],
+            "outcome_kind": ok,
+            "target_units": target,
+            "treatment_levels": levels,
+            "relate_attempts": 0,
+            "revisions": 0,
+            "pick_attempts": 0,
+            "interpret_attempts": 0,
+            "relate_errors": {},
+            "excluded_estimators": [],
+            "applied_revisions": [],
         },
     )
 
@@ -192,8 +253,12 @@ def contrast(state: SpecialistState) -> dict:
         if control is None and len(levels) == 2:
             control = next(v for v in levels if v != treated)
         if control is not None:
-            c = Contrast(control=control, treated=treated, reason="the pack names the level that means the unit got the change",
-                         cites=_cites(h, "claim:assignment.treated_level", "claim:assignment.treatment_column"))
+            c = Contrast(
+                control=control,
+                treated=treated,
+                reason="the pack names the level that means the unit got the change",
+                cites=_cites(h, "claim:assignment.treated_level", "claim:assignment.treatment_column"),
+            )
             _writer()({"contrasts": [c.model_dump()]})
             return {"contrasts": [c], "debug": []}
     s = h.scope
@@ -201,8 +266,7 @@ def contrast(state: SpecialistState) -> dict:
     errors: list[str] = []
     debug = []
     for _ in range(MAX_MODEL_RETRIES):
-        user = P.CONTRAST_USER.format(question=_question(state), scope=scope,
-                                      treatment_card=_card(h, t), levels=", ".join(repr(v) for v in levels))
+        user = P.CONTRAST_USER.format(question=_question(state), scope=scope, treatment_card=_card(h, t), levels=", ".join(repr(v) for v in levels))
         if errors:
             user += "\nPREVIOUS ANSWER WAS REJECTED\n" + "\n".join(f"- {e}" for e in errors) + "\n"
         parsed, th = structured(Contrasts, P.CONTRAST_SYSTEM, user, node="contrast")
@@ -211,8 +275,15 @@ def contrast(state: SpecialistState) -> dict:
         if not errors:
             _writer()({"contrasts": [c.model_dump() for c in parsed.items]})
             return {"contrasts": parsed.items, "debug": debug}
-    return {"feasibility": Feasibility(stage="contrast", reason="could not define a comparison from the treatment's levels", facts=errors,
-                                       what_would_fix="a treatment whose levels the note explains"), "debug": debug}
+    return {
+        "feasibility": Feasibility(
+            stage="contrast",
+            reason="could not define a comparison from the treatment's levels",
+            facts=errors,
+            what_would_fix="a treatment whose levels the note explains",
+        ),
+        "debug": debug,
+    }
 
 
 def _validate_contrasts(items: list[Contrast], levels: list[str]) -> list[str]:
@@ -272,14 +343,28 @@ def fact_relation(h: Handoff, k: str, case: C.Case | None = None) -> Relation | 
         return None
     claims, cites = settled_claims(h, k, case)
     if claims.get("is_outcome_measure") is True:
-        return Relation(column=k, affects_treatment=False, affects_outcome=False, affected_by_treatment=False, is_outcome_measure=True,
-                        reasons=[Cited(reason=f"{b.name}: the person said it measures the outcome", cites=[cites["is_outcome_measure"]])])
+        return Relation(
+            column=k,
+            affects_treatment=False,
+            affects_outcome=False,
+            affected_by_treatment=False,
+            is_outcome_measure=True,
+            reasons=[Cited(reason=f"{b.name}: the person said it measures the outcome", cites=[cites["is_outcome_measure"]])],
+        )
     if all(c in claims for c in CLAIMS):
         return Relation(column=k, reasons=[Cited(reason=f"{b.name}: {c} settled by the pack", cites=[cites[c]]) for c in CLAIMS if claims[c]], **claims)
     if b.role == "depends_on" and case.fact(f"{b.address}.when") == "before":
-        return Relation(column=k, affects_treatment=True, affects_outcome=True, affected_by_treatment=False, is_outcome_measure=False,
-                        reasons=[Cited(reason=f"{b.name}: the rule or the offer looked at it", cites=["claim:assignment.depends_on"]),
-                                 Cited(reason=f"{b.name}: fixed before the change, a background attribute", cites=[f"{b.address}.when"])])
+        return Relation(
+            column=k,
+            affects_treatment=True,
+            affects_outcome=True,
+            affected_by_treatment=False,
+            is_outcome_measure=False,
+            reasons=[
+                Cited(reason=f"{b.name}: the rule or the offer looked at it", cites=["claim:assignment.depends_on"]),
+                Cited(reason=f"{b.name}: fixed before the change, a background attribute", cites=[f"{b.address}.when"]),
+            ],
+        )
     return None
 
 
@@ -287,7 +372,9 @@ def _settled_text(h: Handoff, k: str, case: C.Case) -> str:
     claims, cites = settled_claims(h, k, case)
     if not claims:
         return ""
-    return "\nSETTLED BY THE PACK (copy these answers; cite the address)\n" + "\n".join(f"  {c} = {str(v).lower()} [{cites[c]}]" for c, v in claims.items()) + "\n"
+    return (
+        "\nSETTLED BY THE PACK (copy these answers; cite the address)\n" + "\n".join(f"  {c} = {str(v).lower()} [{cites[c]}]" for c, v in claims.items()) + "\n"
+    )
 
 
 def apply_settled(r: Relation, h: Handoff, case: C.Case) -> Relation:
@@ -317,9 +404,19 @@ def _latest(state: SpecialistState) -> dict[str, Relation]:
 def _relate_send(state: SpecialistState, k: str, errors: list[str] | None = None) -> Send:
     h = state["handoff"]
     t, y, _ = _keys(state)
-    return Send("relate", RelateTask(question=_question(state), frame=_frame_text(state), treatment_card=_card(h, t), outcome_card=_card(h, y),
-                                     column=k, card=_card(h, k), settled=_settled_text(h, k, _case(state)),
-                                     errors=("\nPREVIOUS ANSWER WAS REJECTED\n" + "\n".join(f"- {e}" for e in errors) + "\n") if errors else ""))
+    return Send(
+        "relate",
+        RelateTask(
+            question=_question(state),
+            frame=_frame_text(state),
+            treatment_card=_card(h, t),
+            outcome_card=_card(h, y),
+            column=k,
+            card=_card(h, k),
+            settled=_settled_text(h, k, _case(state)),
+            errors=("\nPREVIOUS ANSWER WAS REJECTED\n" + "\n".join(f"- {e}" for e in errors) + "\n") if errors else "",
+        ),
+    )
 
 
 def fan_out_relate(state: SpecialistState):
@@ -442,9 +539,13 @@ def verify_graph(state: SpecialistState) -> Command:
     attempts = state.get("relate_attempts", 0) + 1
     if errs or general:
         if attempts >= MAX_RELATE_ATTEMPTS or (general and not errs):
-            return _stop("verify_graph", "the graph could not be made to pass verification",
-                         general + [f"{k}: {'; '.join(v)}" for k, v in errs.items()], "clearer column notes about what fed the decision",
-                         {"relate_attempts": attempts})
+            return _stop(
+                "verify_graph",
+                "the graph could not be made to pass verification",
+                general + [f"{k}: {'; '.join(v)}" for k, v in errs.items()],
+                "clearer column notes about what fed the decision",
+                {"relate_attempts": attempts},
+            )
         _writer()({"verify_graph": {"attempt": attempts, "errors": errs}})
         return Command(goto=[_relate_send(state, k, v) for k, v in errs.items()], update={"relate_errors": errs, "relate_attempts": attempts})
     _writer()({"verify_graph": "ok"})
@@ -454,11 +555,17 @@ def verify_graph(state: SpecialistState) -> Command:
 # ------------------------------------------------------------------ identify + checks (facts)
 
 _ROAD_QUESTIONS = {
-    "mediator": ("claim:mediator.exists", "You said something outside the file drove both who got the change and the outcome. Is there a column the change altered, "
-                                          "through which its whole effect on the outcome runs? If so, which, and why?",
-                 "a column the change altered, through which its whole effect on the outcome runs"),
-    "exclusion": ("claim:exclusion.exists", "Is there a column that pushed units toward the change but could not have affected the outcome any other way? If so, which, and why?",
-                  "a column that pushed units toward the change and could not have affected the outcome any other way"),
+    "mediator": (
+        "claim:mediator.exists",
+        "You said something outside the file drove both who got the change and the outcome. Is there a column the change altered, "
+        "through which its whole effect on the outcome runs? If so, which, and why?",
+        "a column the change altered, through which its whole effect on the outcome runs",
+    ),
+    "exclusion": (
+        "claim:exclusion.exists",
+        "Is there a column that pushed units toward the change but could not have affected the outcome any other way? If so, which, and why?",
+        "a column that pushed units toward the change and could not have affected the outcome any other way",
+    ),
 }
 
 
@@ -480,18 +587,42 @@ def identify(state: SpecialistState) -> Command[Literal["check_design", "feasibi
             b = h.beliefs.get(kind)
             st = C.belief_status(b)
             if st in ("empty", "drafted"):
-                return asks.ask_back("identify", LaneAsk(address=address, question=question, options=["yes", "no"], because=because),
-                                     reason=f"nothing identifies the effect while a hidden factor stands; one question could open a road: {kind}", facts=facts, extra={"estimand": est})
+                return asks.ask_back(
+                    "identify",
+                    LaneAsk(address=address, question=question, options=["yes", "no"], because=because),
+                    reason=f"nothing identifies the effect while a hidden factor stands; one question could open a road: {kind}",
+                    facts=facts,
+                    extra={"estimand": est},
+                )
             if st == "confirmed_true":
                 col = _key(b.column) if b and b.column else None
                 if not col:
-                    return asks.ask_back("identify", LaneAsk(address=f"claim:{kind}.column", question=f"You said there is {what}. Which column is it?", because=because),
-                                         reason=f"the person says there is {what}, but not which column", facts=facts, extra={"estimand": est})
+                    return asks.ask_back(
+                        "identify",
+                        LaneAsk(address=f"claim:{kind}.column", question=f"You said there is {what}. Which column is it?", because=because),
+                        reason=f"the person says there is {what}, but not which column",
+                        facts=facts,
+                        extra={"estimand": est},
+                    )
                 if col not in state.get("columns", {}):
-                    declines.append(Decline(stage="identify", kind="declined", about=f"claim:{kind}.column", pack_value=b.column, check="intake.column_missing",
-                                            reason="the pack names it and the file has no such column; the road it would open is closed"))
+                    declines.append(
+                        Decline(
+                            stage="identify",
+                            kind="declined",
+                            about=f"claim:{kind}.column",
+                            pack_value=b.column,
+                            check="intake.column_missing",
+                            reason="the pack names it and the file has no such column; the road it would open is closed",
+                        )
+                    )
         # the person has said there is no instrument and no mediator, or named one the file cannot carry: the back door it is, with the hidden factor as a range
-        g2 = Graph(treatment=g.treatment, outcome=g.outcome, nodes=[n for n in g.nodes if n != adapter.HIDDEN], edges=[e for e in g.edges if adapter.HIDDEN not in (e.src, e.dst)], excluded=g.excluded)
+        g2 = Graph(
+            treatment=g.treatment,
+            outcome=g.outcome,
+            nodes=[n for n in g.nodes if n != adapter.HIDDEN],
+            edges=[e for e in g.edges if adapter.HIDDEN not in (e.src, e.dst)],
+            excluded=g.excluded,
+        )
         est = adapter.identify(adapter.build_model(sub, g2, g2.outcome))
         est.sensitivity_required = True
         _writer()({"estimand": est.model_dump(exclude={"dowhy_text"}), "hidden_dropped": True})
@@ -511,8 +642,9 @@ def check_design(state: SpecialistState) -> dict:
     results: list[CheckResult] = []
     facts: dict[str, Any] = {"balance": {}, "propensity": {}}
     if est.kind == "none":
-        results.append(CheckResult(contrast="all", name="identification", level="hard",
-                                   detail="no adjustment set makes the comparison identifiable with this graph"))
+        results.append(
+            CheckResult(contrast="all", name="identification", level="hard", detail="no adjustment set makes the comparison identifiable with this graph")
+        )
     else:
         for c in state["contrasts"]:
             sub = adapter.contrast_table(table, g.treatment, c)
@@ -523,8 +655,14 @@ def check_design(state: SpecialistState) -> dict:
     if blk is not None and blk.adjustment_candidates and est.adjustment_set:
         outside = [k for k in est.adjustment_set if k not in blk.adjustment_candidates]
         if outside:
-            results.append(CheckResult(contrast="all", name="adjusts_outside_candidates", level="soft",
-                                       detail=f"the adjustment set reaches beyond the columns the pack named as candidates: {', '.join(outside)} [design.adjustment_candidates]"))
+            results.append(
+                CheckResult(
+                    contrast="all",
+                    name="adjusts_outside_candidates",
+                    level="soft",
+                    detail=f"the adjustment set reaches beyond the columns the pack named as candidates: {', '.join(outside)} [design.adjustment_candidates]",
+                )
+            )
     W.say(results, cfg, state.get("columns") or {})  # the sentence before the number, for the reader
     results += C.as_checks(_case(state))
     _writer()({"checks": [f"{r.level} {r.address} {r.detail}" for r in results]})
@@ -546,7 +684,13 @@ def assess(state: SpecialistState) -> Command:
     if action == "stop":
         return _stop("assess", payload["reason"], payload["facts"], payload["what_would_fix"], {"checks": results})
     if action == "ask":
-        return asks.ask_back("assess", payload, reason=payload.because or "the design needs one more thing from the person", facts=[f"[{a}]" for a in payload.evidence], extra={"checks": results})
+        return asks.ask_back(
+            "assess",
+            payload,
+            reason=payload.because or "the design needs one more thing from the person",
+            facts=[f"[{a}]" for a in payload.evidence],
+            extra={"checks": results},
+        )
     checks = Checks(results=results)
     flags = checks.flags
     if not flags:
@@ -559,9 +703,13 @@ def assess(state: SpecialistState) -> Command:
     errors: list[str] = []
     debug = []
     for _ in range(MAX_MODEL_RETRIES):
-        user = P.ASSESS_USER.format(question=_question(state), graph=g.render(),
-                                    estimand=(", ".join(est.adjustment_set) or "nothing") if est.kind == "backdoor" else "none found",
-                                    flags=flag_text, errors=("\nPREVIOUS ANSWER WAS REJECTED\n" + "\n".join(f"- {e}" for e in errors) + "\n") if errors else "")
+        user = P.ASSESS_USER.format(
+            question=_question(state),
+            graph=g.render(),
+            estimand=(", ".join(est.adjustment_set) or "nothing") if est.kind == "backdoor" else "none found",
+            flags=flag_text,
+            errors=("\nPREVIOUS ANSWER WAS REJECTED\n" + "\n".join(f"- {e}" for e in errors) + "\n") if errors else "",
+        )
         parsed, th = structured(DesignAssessment, P.ASSESS_SYSTEM, user, node="assess")
         debug.append(th)
         errors = []
@@ -585,14 +733,32 @@ def assess(state: SpecialistState) -> Command:
         if parsed.action == "proceed":
             return Command(goto="pick_estimator", update={"assessment": parsed, "debug": debug, "checks": results})
         if parsed.action == "stop":
-            return _stop("assess", parsed.reason, [f"{r.address}: {r.detail}" for r in flags],
-                         "a design whose comparison the data can support; see the flags", {"assessment": parsed, "debug": debug, "checks": results})
+            return _stop(
+                "assess",
+                parsed.reason,
+                [f"{r.address}: {r.detail}" for r in flags],
+                "a design whose comparison the data can support; see the flags",
+                {"assessment": parsed, "debug": debug, "checks": results},
+            )
         n = state.get("revisions", 0) + 1
         if n > MAX_REVISIONS:
-            return _stop("assess", "three revisions did not clear the flags", [f"{r.address}: {r.detail}" for r in flags],
-                         "a different design or better column notes", {"assessment": parsed, "debug": debug, "revisions": n, "checks": results})
-        return Command(goto="merge_graph", update={"assessment": parsed, "debug": debug, "revisions": n, "checks": results,
-                                                   "applied_revisions": (state.get("applied_revisions") or []) + parsed.revisions})
+            return _stop(
+                "assess",
+                "three revisions did not clear the flags",
+                [f"{r.address}: {r.detail}" for r in flags],
+                "a different design or better column notes",
+                {"assessment": parsed, "debug": debug, "revisions": n, "checks": results},
+            )
+        return Command(
+            goto="merge_graph",
+            update={
+                "assessment": parsed,
+                "debug": debug,
+                "revisions": n,
+                "checks": results,
+                "applied_revisions": (state.get("applied_revisions") or []) + parsed.revisions,
+            },
+        )
     return _stop("assess", "the design assessment could not be validated", errors, "see the gate errors", {"debug": debug, "checks": results})
 
 
@@ -627,20 +793,34 @@ def _design_facts(state: SpecialistState) -> dict[str, Any]:
 def pick_estimator(state: SpecialistState) -> Command:
     facts = _design_facts(state)
     excluded = set(state.get("excluded_estimators") or [])
-    allowed = [e for e in load_estimators()
-               if e.applies(estimand=facts["estimand"], treatment=facts["treatment"], outcome=facts["outcome"], adjustment_set=facts["adjustment_set"], roads=facts["roads"])
-               and e.name not in excluded]
+    allowed = [
+        e
+        for e in load_estimators()
+        if e.applies(
+            estimand=facts["estimand"], treatment=facts["treatment"], outcome=facts["outcome"], adjustment_set=facts["adjustment_set"], roads=facts["roads"]
+        )
+        and e.name not in excluded
+    ]
     if not allowed:
-        return _stop("pick_estimator", "no estimator in the catalogue applies to this design", [f"facts: {facts}", f"excluded after failures: {sorted(excluded)}"],
-                     "an estimator entry for this estimand, treatment, and outcome kind")
+        return _stop(
+            "pick_estimator",
+            "no estimator in the catalogue applies to this design",
+            [f"facts: {facts}", f"excluded after failures: {sorted(excluded)}"],
+            "an estimator entry for this estimand, treatment, and outcome kind",
+        )
     names = [e.name for e in allowed]
     check_text = "\n".join(f"[{r.address}] {r.level}: {r.detail}" for r in state["checks"])
     errors: list[str] = []
     debug = []
     for _ in range(MAX_MODEL_RETRIES):
-        user = P.PICK_USER.format(facts=json.dumps(facts), checks=check_text, estimators="\n\n".join(e.render() for e in allowed),
-                                  preferences=render_preferences(allowed), names=", ".join(names),
-                                  errors=("\nPREVIOUS ANSWER WAS REJECTED\n" + "\n".join(f"- {e}" for e in errors) + "\n") if errors else "")
+        user = P.PICK_USER.format(
+            facts=json.dumps(facts),
+            checks=check_text,
+            estimators="\n\n".join(e.render() for e in allowed),
+            preferences=render_preferences(allowed),
+            names=", ".join(names),
+            errors=("\nPREVIOUS ANSWER WAS REJECTED\n" + "\n".join(f"- {e}" for e in errors) + "\n") if errors else "",
+        )
         parsed, th = structured(EstimatorPick, P.PICK_SYSTEM, user, node="pick_estimator")
         debug.append(th)
         errors = []
@@ -651,8 +831,10 @@ def pick_estimator(state: SpecialistState) -> Command:
                 errors.append(f"{c} is not a check or pack address")
         if not errors:
             _writer()({"estimator": parsed.model_dump()})
-            return Command(goto="freeze_design", update={"estimator": parsed.name, "estimator_pick": parsed, "debug": debug,
-                                                         "pick_attempts": state.get("pick_attempts", 0) + 1})
+            return Command(
+                goto="freeze_design",
+                update={"estimator": parsed.name, "estimator_pick": parsed, "debug": debug, "pick_attempts": state.get("pick_attempts", 0) + 1},
+            )
     return _stop("pick_estimator", "the estimator pick could not be validated", errors, "see the gate errors", {"debug": debug})
 
 
@@ -666,10 +848,22 @@ def freeze_design(state: SpecialistState) -> dict:
         est = est.model_copy(update={"kind": entry.estimand, "adjustment_set": est.adjustment_set if entry.estimand == "backdoor" else []})
     adj = "nonempty" if est.adjustment_set else "empty"
     refuters = [r.name for r in load_refuters() if r.applies(estimand=est.kind, adjustment_set=adj, hidden=est.sensitivity_required)]
-    also = entry.also_run if entry.also_run and estimator_entry(entry.also_run).applies(
-        estimand=est.kind, treatment="binary", outcome=state["outcome_kind"], adjustment_set=adj) else None
-    d = Design(contrasts=state["contrasts"], graph=state["graph"], estimand=est, checks=Checks(results=state["checks"]),
-               estimator=entry.name, params=entry.params, also_run=also, refuters=refuters, target_units=state["target_units"])
+    also = (
+        entry.also_run
+        if entry.also_run and estimator_entry(entry.also_run).applies(estimand=est.kind, treatment="binary", outcome=state["outcome_kind"], adjustment_set=adj)
+        else None
+    )
+    d = Design(
+        contrasts=state["contrasts"],
+        graph=state["graph"],
+        estimand=est,
+        checks=Checks(results=state["checks"]),
+        estimator=entry.name,
+        params=entry.params,
+        also_run=also,
+        refuters=refuters,
+        target_units=state["target_units"],
+    )
     run_dir = Path(state["run_dir"])
     (run_dir / "design.json").write_text(d.model_dump_json(indent=2))
     (run_dir / "design.md").write_text(d.render())
@@ -681,8 +875,7 @@ def freeze_design(state: SpecialistState) -> dict:
 
 
 def fan_out_analyse(state: SpecialistState):
-    return [Send("analyse", ContrastTask(contrast=c.key, design=state["design"].model_dump(), table_path=state["table_path"]))
-            for c in state["contrasts"]]
+    return [Send("analyse", ContrastTask(contrast=c.key, design=state["design"].model_dump(), table_path=state["table_path"])) for c in state["contrasts"]]
 
 
 def analyse(task: ContrastTask) -> dict:
@@ -722,8 +915,12 @@ def after_analyse(state: SpecialistState) -> Command:
     if state.get("pick_attempts", 0) < MAX_PICK_ATTEMPTS:
         _writer()({"fit_failure": [e.error for e in failed]})
         return Command(goto="pick_estimator", update={"excluded_estimators": (state.get("excluded_estimators") or []) + [state["estimator"]]})
-    return _stop("estimate", "the estimator failed to fit and the re-pick failed too", [f"{e.contrast}: {e.error}" for e in failed],
-                 "a different estimator entry or a smaller adjustment set")
+    return _stop(
+        "estimate",
+        "the estimator failed to fit and the re-pick failed too",
+        [f"{e.contrast}: {e.error}" for e in failed],
+        "a different estimator entry or a smaller adjustment set",
+    )
 
 
 # ------------------------------------------------------------------ interpret (judgement, fan-out per contrast)
@@ -759,8 +956,10 @@ def _material(state: SpecialistState, contrast_key: str) -> str:
     names = state.get("columns") or {}
     lines = [f"[design.assumption] the design bets on: {state['handoff'].chosen_assumption}"]
     lines += [b.render() for b in state["handoff"].beliefs.values() if b.known() or b.status == "unknown"]
-    lines += [f"[design.estimand.adjustment_set] adjusted for: {', '.join(names.get(k, k) for k in d.estimand.adjustment_set) or 'nothing (no confounders in the graph)'}",
-              f"comparison: {names.get(d.graph.treatment, d.graph.treatment)} = {c.treated!r} versus {c.control!r}; outcome: {names.get(d.graph.outcome, d.graph.outcome)}"]
+    lines += [
+        f"[design.estimand.adjustment_set] adjusted for: {', '.join(names.get(k, k) for k in d.estimand.adjustment_set) or 'nothing (no confounders in the graph)'}",
+        f"comparison: {names.get(d.graph.treatment, d.graph.treatment)} = {c.treated!r} versus {c.control!r}; outcome: {names.get(d.graph.outcome, d.graph.outcome)}",
+    ]
     for r in d.checks.results:
         if r.contrast in (contrast_key, "all"):
             lines.append(f"[{r.address}] {r.level}: {r.detail}")
@@ -773,16 +972,31 @@ def _material(state: SpecialistState, contrast_key: str) -> str:
             lines.append(f"[{tag}.n] {e.n_treated} treated, {e.n_control} control")
     for r in state.get("refutations") or []:
         if r.contrast == contrast_key:
-            lines.append(f"[refute:{contrast_key}.{r.refuter}.passed] {r.passed}  [refute:{contrast_key}.{r.refuter}.new_effect] {r.new_effect}  "
-                         f"[refute:{contrast_key}.{r.refuter}.p_value] {r.p_value}  ({r.detail})")
+            lines.append(
+                f"[refute:{contrast_key}.{r.refuter}.passed] {r.passed}  [refute:{contrast_key}.{r.refuter}.new_effect] {r.new_effect}  "
+                f"[refute:{contrast_key}.{r.refuter}.p_value] {r.p_value}  ({r.detail})"
+            )
     return "\n".join(lines)
 
 
 def fan_out_interpret(state: SpecialistState):
-    return [Send("interpret", InterpretTask(question=_question(state), contrast=c.key, material=_material(state, c.key),
-                                            addresses="\n".join(_addresses(state, c.key)), required="\n".join(_required(state, c.key)), errors="",
-                                            primary_value=_latest_primary(state)[c.key].value, tolerance=load_checks().get("effect_tolerance", 0.01)))
-            for c in state["contrasts"] if c.key in _latest_primary(state)]
+    return [
+        Send(
+            "interpret",
+            InterpretTask(
+                question=_question(state),
+                contrast=c.key,
+                material=_material(state, c.key),
+                addresses="\n".join(_addresses(state, c.key)),
+                required="\n".join(_required(state, c.key)),
+                errors="",
+                primary_value=_latest_primary(state)[c.key].value,
+                tolerance=load_checks().get("effect_tolerance", 0.01),
+            ),
+        )
+        for c in state["contrasts"]
+        if c.key in _latest_primary(state)
+    ]
 
 
 def interpret(task: InterpretTask) -> dict:
@@ -792,9 +1006,14 @@ def interpret(task: InterpretTask) -> dict:
     debug = []
     parsed = None
     for _ in range(MAX_MODEL_RETRIES):
-        user = P.INTERPRET_USER.format(question=task["question"], contrast=task["contrast"], material=task["material"], addresses=task["addresses"],
-                                       required="\n".join(required) or "(none)",
-                                       errors=("\nPREVIOUS ANSWER WAS REJECTED\n" + "\n".join(f"- {e}" for e in errors) + "\n") if errors else "")
+        user = P.INTERPRET_USER.format(
+            question=task["question"],
+            contrast=task["contrast"],
+            material=task["material"],
+            addresses=task["addresses"],
+            required="\n".join(required) or "(none)",
+            errors=("\nPREVIOUS ANSWER WAS REJECTED\n" + "\n".join(f"- {e}" for e in errors) + "\n") if errors else "",
+        )
         parsed, th = structured(Interpretation, P.INTERPRET_SYSTEM, user, node=f"interpret:{task['contrast']}")
         debug.append(th)
         parsed.contrast = task["contrast"]
@@ -836,7 +1055,9 @@ def figures(state: SpecialistState) -> dict:
     thr = float(load_checks()["balance"]["smd"]["soft"])
     for c, facts in ((state.get("check_facts") or {}).get("balance") or {}).items():
         specs.append(PA.balance(facts, c, thr, names))
-    specs.append(PV.effect_and_refutations([e.model_dump() for e in state.get("estimates") or []], [r.model_dump() for r in state.get("refutations") or []], "refute"))
+    specs.append(
+        PV.effect_and_refutations([e.model_dump() for e in state.get("estimates") or []], [r.model_dump() for r in state.get("refutations") or []], "refute")
+    )
     kept, declines = LF.write(state.get("run_dir"), specs, LF.ok_addresses(h, state, "refute"))
     _writer()({"figures": [s.id for s in kept]})
     return {"figures": [s.model_dump() for s in kept], "declines": declines}

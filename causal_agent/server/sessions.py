@@ -4,7 +4,6 @@ projection of its state for the page. The manager drives; it never judges."""
 from __future__ import annotations
 
 import datetime as dt
-import json
 import sqlite3
 import threading
 import uuid
@@ -16,13 +15,26 @@ from typing import Any
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.types import Command
 
+from causal_agent.common.contracts import Decline
 from causal_agent.desk import graph as desk_graph
 from causal_agent.desk.contracts import RunRecord
 from causal_agent.memory import store as MS
 from causal_agent.server import datasets as DS
-from causal_agent.common.contracts import Decline
-from causal_agent.server.models import (Activity, CheckView, ClaimView, DeclineView, EstimateView, InterpretationView, Prompt, QuestionView, RefutationView, RunView,
-                                        SessionView, StatusView, Turn)
+from causal_agent.server.models import (
+    Activity,
+    CheckView,
+    ClaimView,
+    DeclineView,
+    EstimateView,
+    InterpretationView,
+    Prompt,
+    QuestionView,
+    RefutationView,
+    RunView,
+    SessionView,
+    StatusView,
+    Turn,
+)
 from causal_agent.server.settings import Settings
 
 
@@ -39,7 +51,7 @@ class SessionState(Exception):
 
 
 def _now() -> str:
-    return dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
+    return dt.datetime.now(dt.UTC).isoformat(timespec="seconds")
 
 
 @dataclass
@@ -179,7 +191,7 @@ class SessionManager:
     def _step(self, sess: Session, inp: Any) -> None:
         payload: dict | None = None
         try:
-            for ns, mode, chunk in self.graph.stream(inp, sess.cfg, stream_mode=["updates", "tasks"], subgraphs=True):
+            for _ns, mode, chunk in self.graph.stream(inp, sess.cfg, stream_mode=["updates", "tasks"], subgraphs=True):
                 if not isinstance(chunk, dict):
                     continue
                 if mode == "tasks":
@@ -205,7 +217,10 @@ class SessionManager:
                         meta["question"] = q
                 except Exception:
                     pass
-                self._append(sess.name, Turn(role="assistant", text=payload.get("text") or "", phase=payload.get("phase") or "before", at=_now(), figure=payload.get("figure")))
+                self._append(
+                    sess.name,
+                    Turn(role="assistant", text=payload.get("text") or "", phase=payload.get("phase") or "before", at=_now(), figure=payload.get("figure")),
+                )
             DS.write_meta(self.s, sess.name, meta)
         except Exception as e:  # the graph's own retries are inside; this is what got through
             sess.error = f"{type(e).__name__}: {e}"
@@ -291,13 +306,33 @@ class SessionManager:
         else:
             stage = "new"
         phase = values.get("phase") or (prompt_raw or {}).get("phase") or "before"
-        prompt = Prompt(text=(prompt_raw or {}).get("text") or "", status=(prompt_raw or {}).get("status") or "", ready=bool((prompt_raw or {}).get("ready")),
-                        open=list((prompt_raw or {}).get("open") or []), runs=int((prompt_raw or {}).get("runs") or 0), phase=(prompt_raw or {}).get("phase") or "before",
-                        kind=(prompt_raw or {}).get("kind")) if prompt_raw else None
+        prompt = (
+            Prompt(
+                text=(prompt_raw or {}).get("text") or "",
+                status=(prompt_raw or {}).get("status") or "",
+                ready=bool((prompt_raw or {}).get("ready")),
+                open=list((prompt_raw or {}).get("open") or []),
+                runs=int((prompt_raw or {}).get("runs") or 0),
+                phase=(prompt_raw or {}).get("phase") or "before",
+                kind=(prompt_raw or {}).get("kind"),
+            )
+            if prompt_raw
+            else None
+        )
         questions: list[QuestionView] = []
         ask = values.get("ask")
         if phase == "before" and ask is not None and stage == "waiting" and (prompt_raw or {}).get("kind") == "ask":
-            questions = [QuestionView(keys=list(ask.addresses), field=None, kind=ask.kind, text=ask.text, options=list(ask.options or []), evidence_cites=list(ask.evidence or []), because=list(ask.because or []))]
+            questions = [
+                QuestionView(
+                    keys=list(ask.addresses),
+                    field=None,
+                    kind=ask.kind,
+                    text=ask.text,
+                    options=list(ask.options or []),
+                    evidence_cites=list(ask.evidence or []),
+                    because=list(ask.because or []),
+                )
+            ]
         claims: list[ClaimView] = []
         if MS.exists(name, self.s.root):
             try:
@@ -309,24 +344,75 @@ class SessionManager:
         status = StatusView(**st.model_dump()) if st is not None else None
         runs = [run_view(r) for r in values.get("runs") or []]
         activity = Activity(node=sess.activity[0], since=sess.activity[1]) if sess.activity else None
-        return SessionView(name=name, title=title, question=values.get("question") or question, stage=stage, phase=phase, activity=activity,
-                           ready=bool(prompt and prompt.ready) if phase == "before" else True, prompt=prompt, questions=questions, claims=claims, status=status,
-                           runs=runs, brief=values.get("brief") or "", transcript=self.transcript(name), written=None, error=sess.error)
+        return SessionView(
+            name=name,
+            title=title,
+            question=values.get("question") or question,
+            stage=stage,
+            phase=phase,
+            activity=activity,
+            ready=bool(prompt and prompt.ready) if phase == "before" else True,
+            prompt=prompt,
+            questions=questions,
+            claims=claims,
+            status=status,
+            runs=runs,
+            brief=values.get("brief") or "",
+            transcript=self.transcript(name),
+            written=None,
+            error=sess.error,
+        )
 
 
 def run_view(r: RunRecord) -> RunView:
     sr = r.specialist_result or {}
     design = sr.get("design") or {}
     results = (design.get("checks") or {}).get("results") or [] if isinstance(design, dict) else []
-    checks = [CheckView(contrast=c.get("contrast"), name=str(c.get("name")), level=c.get("level"), value=c.get("value"), threshold=c.get("threshold"), detail=c.get("detail")) for c in results]
+    checks = [
+        CheckView(
+            contrast=c.get("contrast"),
+            name=str(c.get("name")),
+            level=c.get("level"),
+            value=c.get("value"),
+            threshold=c.get("threshold"),
+            detail=c.get("detail"),
+        )
+        for c in results
+    ]
     flags = [c for c in checks if c.level != "pass"]
-    refs = [RefutationView(contrast=x.get("contrast"), refuter=str(x.get("refuter")), kind=x.get("kind"), passed=x.get("passed"), p_value=x.get("p_value"), new_effect=x.get("new_effect"), detail=x.get("detail"))
-            for x in (sr.get("refutations") or r.artifacts.get("refutations") or [])]
-    interps = [InterpretationView(contrast=i.get("contrast"), answer=str(i.get("answer") or ""), caveats=list(i.get("caveats") or []), cites=list(i.get("cites") or []))
-               for i in (sr.get("interpretations") or r.artifacts.get("interpretations") or [])]
-    ests = [EstimateView(contrast=e.get("contrast"), method=e.get("method"), value=e.get("value"), ci_low=e.get("ci_low"), ci_high=e.get("ci_high"), n=e.get("n"),
-                         n_treated=e.get("n_treated"), n_control=e.get("n_control"), secondary=bool(e.get("secondary")), error=e.get("error"))
-            for e in (sr.get("estimates") or r.artifacts.get("estimates") or [])]
+    refs = [
+        RefutationView(
+            contrast=x.get("contrast"),
+            refuter=str(x.get("refuter")),
+            kind=x.get("kind"),
+            passed=x.get("passed"),
+            p_value=x.get("p_value"),
+            new_effect=x.get("new_effect"),
+            detail=x.get("detail"),
+        )
+        for x in (sr.get("refutations") or r.artifacts.get("refutations") or [])
+    ]
+    interps = [
+        InterpretationView(
+            contrast=i.get("contrast"), answer=str(i.get("answer") or ""), caveats=list(i.get("caveats") or []), cites=list(i.get("cites") or [])
+        )
+        for i in (sr.get("interpretations") or r.artifacts.get("interpretations") or [])
+    ]
+    ests = [
+        EstimateView(
+            contrast=e.get("contrast"),
+            method=e.get("method"),
+            value=e.get("value"),
+            ci_low=e.get("ci_low"),
+            ci_high=e.get("ci_high"),
+            n=e.get("n"),
+            n_treated=e.get("n_treated"),
+            n_control=e.get("n_control"),
+            secondary=bool(e.get("secondary")),
+            error=e.get("error"),
+        )
+        for e in (sr.get("estimates") or r.artifacts.get("estimates") or [])
+    ]
     run_id = Path(r.run_dir).name if r.run_dir else None
     files = sorted(p.name for p in Path(r.run_dir).iterdir() if p.is_file()) if r.run_dir and Path(r.run_dir).is_dir() else []
     declines = []
@@ -335,8 +421,33 @@ def run_view(r: RunRecord) -> RunView:
             dd = Decline.model_validate(d)
         except Exception:
             continue
-        declines.append(DeclineView(address=dd.address, stage=dd.stage, kind=dd.kind, about=dd.about, pack_value=dd.pack_value, took=dd.took, reason=dd.reason, check=dd.check))
-    return RunView(index=r.index, question=r.question, family=r.family, specialist=r.specialist, status=r.status, run_id=run_id, effect=r.effect, ci_low=r.ci_low,
-                   ci_high=r.ci_high, estimator=r.estimator, decision=dict(r.decision or {}), decision_record=r.decision_record or "", flags=flags, checks=checks,
-                   refutations=refs, interpretations=interps, estimates=ests, feasibility=sr.get("feasibility") or r.artifacts.get("feasibility"), files=files,
-                   what_if=dict(r.what_if or {}), differs=list(r.differs or []), figures=list(r.figures or []), declines=declines)
+        declines.append(
+            DeclineView(
+                address=dd.address, stage=dd.stage, kind=dd.kind, about=dd.about, pack_value=dd.pack_value, took=dd.took, reason=dd.reason, check=dd.check
+            )
+        )
+    return RunView(
+        index=r.index,
+        question=r.question,
+        family=r.family,
+        specialist=r.specialist,
+        status=r.status,
+        run_id=run_id,
+        effect=r.effect,
+        ci_low=r.ci_low,
+        ci_high=r.ci_high,
+        estimator=r.estimator,
+        decision=dict(r.decision or {}),
+        decision_record=r.decision_record or "",
+        flags=flags,
+        checks=checks,
+        refutations=refs,
+        interpretations=interps,
+        estimates=ests,
+        feasibility=sr.get("feasibility") or r.artifacts.get("feasibility"),
+        files=files,
+        what_if=dict(r.what_if or {}),
+        differs=list(r.differs or []),
+        figures=list(r.figures or []),
+        declines=declines,
+    )

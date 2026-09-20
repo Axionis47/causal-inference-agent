@@ -83,7 +83,9 @@ def test_shipped_dataset_shares_its_csv_and_survives_the_other_delete(client, se
     for n in ("one", "two"):
         (root / f"data/profiles/{n}.json").write_text(json.dumps({"dataset": {"rows": 2, "columns": 2}}))
         (root / f"data/context/{n}.md").write_text("# x\n")
-    (root / "data/datasets.yaml").write_text(yaml.safe_dump({n: {"csv": "data/raw/shared/t.csv", "note": f"data/context/{n}.md", "profile": f"data/profiles/{n}.json"} for n in ("one", "two")}))
+    (root / "data/datasets.yaml").write_text(
+        yaml.safe_dump({n: {"csv": "data/raw/shared/t.csv", "note": f"data/context/{n}.md", "profile": f"data/profiles/{n}.json"} for n in ("one", "two")})
+    )
     listed = client.get("/api/datasets").json()["datasets"]
     assert [d["name"] for d in listed] == ["one", "two"] and all(d["shipped"] and d["rows"] == 2 for d in listed)
     assert client.delete("/api/datasets/one").status_code == 204

@@ -16,7 +16,8 @@ from __future__ import annotations
 import copy
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field as PField
+from pydantic import BaseModel
+from pydantic import Field as PField
 
 from causal_agent.common.addresses import key as _key
 from causal_agent.common.contracts import ColumnFacts, Said
@@ -108,7 +109,7 @@ class Memory(BaseModel):
     def fields_of(self, prefix: str) -> dict[str, Field]:
         """The fields under one column or one claim kind, by field name: fields_of('col:lunch'), fields_of('claim:assignment')."""
         p = self.canonical(prefix) + "."
-        return {a[len(p):]: f for a, f in self.fields.items() if a.startswith(p)}
+        return {a[len(p) :]: f for a, f in self.fields.items() if a.startswith(p)}
 
     def values_of(self, prefix: str) -> dict[str, Any]:
         """The known values under one column or one claim kind."""
@@ -151,26 +152,33 @@ class Memory(BaseModel):
         return "\n".join(lines)
 
     # ------------------------------------------------------------- copies
-    def snapshot(self) -> "Memory":
+    def snapshot(self) -> Memory:
         return copy.deepcopy(self)
 
-    def fork(self) -> "Memory":
+    def fork(self) -> Memory:
         m = copy.deepcopy(self)
         m.version += 1
         return m
 
     # ------------------------------------------------------------- the claim table, both ways
     @classmethod
-    def from_claims(cls, name: str, table: ClaimTable, *, profile=None, csv: str | None = None, cat: Catalogue | None = None,
-                    said: list[Said] | None = None) -> "Memory":
+    def from_claims(
+        cls, name: str, table: ClaimTable, *, profile=None, csv: str | None = None, cat: Catalogue | None = None, said: list[Said] | None = None
+    ) -> Memory:
         """Every claim's status and source spread to each of its fields; a column for every profiled column."""
         cat = cat or load_catalogue()
         m = cls(name=name, csv=csv, said=list(said or []))
         if profile is not None:
             dp = profile.dataset
-            m.facts = {"rows": dp.rows, "columns": dp.columns, "duplicate_rows": dp.duplicate_rows, "grain": list(dp.grain or []),
-                       "time_coverage": dp.time_coverage.model_dump() if dp.time_coverage else None,
-                       "entity_summary": dp.entity_summary.model_dump() if dp.entity_summary else None, "format_issues": list(dp.format_issues or [])}
+            m.facts = {
+                "rows": dp.rows,
+                "columns": dp.columns,
+                "duplicate_rows": dp.duplicate_rows,
+                "grain": list(dp.grain or []),
+                "time_coverage": dp.time_coverage.model_dump() if dp.time_coverage else None,
+                "entity_summary": dp.entity_summary.model_dump() if dp.entity_summary else None,
+                "format_issues": list(dp.format_issues or []),
+            }
             for cp in profile.columns:
                 m.columns[cp.key] = Column(name=cp.name, key=cp.key, facts=ColumnFacts.from_profile(cp))
         for claim in table.claims.values():

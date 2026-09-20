@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 import json
-
-import pandas as pd
 import re
 import uuid
 
+import pandas as pd
 import pytest
 from langchain_core.messages import AIMessage
 
@@ -28,14 +27,32 @@ def _memory(name):
 
 def students_handoff() -> Handoff:
     cols = ["math score", "test preparation course", "lunch", "parental level of education", "gender", "race/ethnicity", "reading score", "writing score"]
-    return forced("students", "Did completing the prep course raise math scores?", "adjustment", "math score", "test preparation course", cols,
-                  assumption="nothing beyond lunch and parental education drove both", cite=CITE, memory=_memory("students"))
+    return forced(
+        "students",
+        "Did completing the prep course raise math scores?",
+        "adjustment",
+        "math score",
+        "test preparation course",
+        cols,
+        assumption="nothing beyond lunch and parental education drove both",
+        cite=CITE,
+        memory=_memory("students"),
+    )
 
 
 def uruguay_handoff() -> Handoff:
     cols = ["Support", "Participation", "Income_Centered", "Education", "Age"]
-    return forced("gov_transfers", "Did receiving the transfer raise support for the government?", "adjustment", "Support", "Participation", cols,
-                  assumption="forced into the adjustment lane for the negative case", cite="col:participation.note", memory=_memory("gov_transfers"))
+    return forced(
+        "gov_transfers",
+        "Did receiving the transfer raise support for the government?",
+        "adjustment",
+        "Support",
+        "Participation",
+        cols,
+        assumption="forced into the adjustment lane for the negative case",
+        cite="col:participation.note",
+        memory=_memory("gov_transfers"),
+    )
 
 
 # students: how each column relates (what a careful reader of the note would answer)
@@ -72,8 +89,10 @@ class FakeLLM:
             def invoke(self_, messages):
                 human = messages[-1][1]
                 parsed = fake.answer(schema, human)
-                raw = AIMessage(content=[{"type": "thinking", "thinking": f"thinking about {schema.__name__}"}, "{}"],
-                                usage_metadata={"input_tokens": 10, "output_tokens": 20, "total_tokens": 30, "output_token_details": {"reasoning": 7}})
+                raw = AIMessage(
+                    content=[{"type": "thinking", "thinking": f"thinking about {schema.__name__}"}, "{}"],
+                    usage_metadata={"input_tokens": 10, "output_tokens": 20, "total_tokens": 30, "output_token_details": {"reasoning": 7}},
+                )
                 return {"raw": raw, "parsed": parsed, "parsing_error": None}
 
         return R()
@@ -109,8 +128,13 @@ class FakeLLM:
             value = float(re.search(r"\[estimate:%s\.value\] ([-\d.eE+]+)" % re.escape(contrast), human).group(1))
             bad = self.interpret_bad_first and "PREVIOUS ANSWER WAS REJECTED" not in human
             cites = ["nope:x"] if bad else list(dict.fromkeys(required + addresses[:3]))
-            return Interpretation(contrast=contrast, answer=f"The effect is {value:.3g} points.", effect_stated=value,
-                                  caveats=["bets on the router's assumption"] + [f"flag {a}" for a in required], cites=cites)
+            return Interpretation(
+                contrast=contrast,
+                answer=f"The effect is {value:.3g} points.",
+                effect_stated=value,
+                caveats=["bets on the router's assumption"] + [f"flag {a}" for a in required],
+                cites=cites,
+            )
         raise AssertionError(schema)
 
 
@@ -167,8 +191,12 @@ def test_bad_cites_loop_relate_then_stop():
 
 def test_revision_is_a_delta_and_relate_not_rerun():
     script = [
-        DesignAssessment(action="revise", reason="lunch is imbalanced; exclude it", cites=[],
-                         revisions=[Revision(column="parental_level_of_education", change="exclude", reason="test delta", cites=[CITE])]),
+        DesignAssessment(
+            action="revise",
+            reason="lunch is imbalanced; exclude it",
+            cites=[],
+            revisions=[Revision(column="parental_level_of_education", change="exclude", reason="test delta", cites=[CITE])],
+        ),
         DesignAssessment(action="proceed", reason="fine now", cites=[]),
     ]
     fake = FakeLLM(assess_script=script)
@@ -323,8 +351,17 @@ def _synthetic_memory(csv, *, hidden=True, instrument=None, mediator=None, said_
 
 
 def _synthetic_handoff(memory):
-    return forced("synthetic", "Did the programme raise y?", "adjustment", "y", "treated", ["y", "treated", "z", "m"],
-                  assumption="the instrument and the mediator are as the person says", cite="col:z.note", memory=memory)
+    return forced(
+        "synthetic",
+        "Did the programme raise y?",
+        "adjustment",
+        "y",
+        "treated",
+        ["y", "treated", "z", "m"],
+        assumption="the instrument and the mediator are as the person says",
+        cite="col:z.note",
+        memory=memory,
+    )
 
 
 def test_instrument_and_mediator_open_roads_around_a_hidden_factor(tmp_path):
@@ -377,9 +414,27 @@ def test_no_road_and_the_person_says_so_takes_the_back_door_with_a_sensitivity_r
 def _students3(cols=None, scope=None):
     from causal_agent.common.contracts import Scope
 
-    cols = cols or ["math score", "test preparation course", "lunch", "parental level of education", "gender", "race/ethnicity", "reading score", "writing score"]
-    return forced("students3", "Did completing the prep course raise math scores?", "adjustment", "math score", "test preparation course", cols, cite=CITE,
-                  scope=scope or Scope(), memory=_memory("students3"))
+    cols = cols or [
+        "math score",
+        "test preparation course",
+        "lunch",
+        "parental level of education",
+        "gender",
+        "race/ethnicity",
+        "reading score",
+        "writing score",
+    ]
+    return forced(
+        "students3",
+        "Did completing the prep course raise math scores?",
+        "adjustment",
+        "math score",
+        "test preparation course",
+        cols,
+        cite=CITE,
+        scope=scope or Scope(),
+        memory=_memory("students3"),
+    )
 
 
 def test_a_forbidden_column_never_enters_the_graph_and_the_flags_are_cited():
@@ -391,8 +446,14 @@ def test_a_forbidden_column_never_enters_the_graph_and_the_flags_are_cited():
     class Fake(FakeLLM):
         def answer(self, schema, human):
             if schema is Relation and "for column 'writing_score'" in human:
-                return Relation(column="writing_score", affects_treatment=False, affects_outcome=True, affected_by_treatment=False, is_outcome_measure=False,
-                                reasons=[Cited(reason="writing: moves the outcome", cites=[CITE])])
+                return Relation(
+                    column="writing_score",
+                    affects_treatment=False,
+                    affects_outcome=True,
+                    affected_by_treatment=False,
+                    is_outcome_measure=False,
+                    reasons=[Cited(reason="writing: moves the outcome", cites=[CITE])],
+                )
             return super().answer(schema, human)
 
     fake = Fake()
@@ -404,7 +465,12 @@ def test_a_forbidden_column_never_enters_the_graph_and_the_flags_are_cited():
     assert not any(e.src in ("reading_score", "writing_score") for e in out["graph"].edges)
     # the case reached every relate prompt: the settled block for a column the pack partly settles, the pack's cards and probes
     human = next(m for m in fake.humans_of("Relation") if "for column 'gender'" in m)
-    assert "SETTLED BY THE PACK" in human and "affected_by_treatment = false [col:gender.when]" in human and "[probe:adjustment" in human and "[dataset.profile.rows]" in human
+    assert (
+        "SETTLED BY THE PACK" in human
+        and "affected_by_treatment = false [col:gender.when]" in human
+        and "[probe:adjustment" in human
+        and "[dataset.profile.rows]" in human
+    )
     # the interpretation had to cite every flag, and the artifacts carry the case and the checks
     assert not out.get("interpret_errors")
     arts = json.loads(open(f"{r['run_dir']}/artifacts.json").read())
@@ -457,21 +523,36 @@ def test_a_pack_named_mediator_outside_the_frame_is_loaded_and_a_confirmed_media
     m2.set("claim:mediator.exists", True, status="confirmed", source="user:turn:2", said="it works through something we measured")
     out = _run(FakeLLM(cite="col:z.note"), _synthetic_handoff(m2), question="Did the programme raise y?")
     r = out["specialist_result"]
-    assert r["status"] == "ask" and r["ask"]["address"] == "claim:mediator.column" and "Which column" in r["ask"]["question"] and r["ask"]["stage"] == "identify"
+    assert (
+        r["status"] == "ask" and r["ask"]["address"] == "claim:mediator.column" and "Which column" in r["ask"]["question"] and r["ask"]["stage"] == "identify"
+    )
 
 
 def test_sensitivity_survives_a_revise_loop_and_a_repick_does_not_duplicate_estimates(tmp_path):
     csv = _synthetic(tmp_path)
     h = _synthetic_handoff(_synthetic_memory(csv, hidden=True, said_none=True))
     # z read as a parent of both puts it in the adjustment set; its imbalance is flagged; the assessment revises it out, then proceeds
-    script = [DesignAssessment(action="revise", reason="z is too imbalanced to adjust for", cites=[], revisions=[Revision(column="z", change="exclude", reason="test delta", cites=["col:z.note"])]),
-              DesignAssessment(action="proceed", reason="fine", cites=[])]
+    script = [
+        DesignAssessment(
+            action="revise",
+            reason="z is too imbalanced to adjust for",
+            cites=[],
+            revisions=[Revision(column="z", change="exclude", reason="test delta", cites=["col:z.note"])],
+        ),
+        DesignAssessment(action="proceed", reason="fine", cites=[]),
+    ]
 
     class Fake(FakeLLM):
         def answer(self, schema, human):
             if schema is Relation and "for column 'z'" in human:
-                return Relation(column="z", affects_treatment=True, affects_outcome=True, affected_by_treatment=False, is_outcome_measure=False,
-                                reasons=[Cited(reason="z: fed the decision and moves y", cites=["col:z.note"])])
+                return Relation(
+                    column="z",
+                    affects_treatment=True,
+                    affects_outcome=True,
+                    affected_by_treatment=False,
+                    is_outcome_measure=False,
+                    reasons=[Cited(reason="z: fed the decision and moves y", cites=["col:z.note"])],
+                )
             return super().answer(schema, human)
 
     fake = Fake(assess_script=script, cite="col:z.note", pick_script=["econml_magic", "linear_regression"])
@@ -508,9 +589,19 @@ def test_the_run_leaves_its_graph_and_its_balance_as_figures():
     assert [f["id"] for f in figs] == ["causal_graph", "balance_completed_vs_none", "effect_completed_vs_none"] and r["figures"] == [f["id"] for f in figs]
     g = figs[0]
     roles = {n["id"]: n["role"] for n in g["nodes"]}
-    assert roles["test_preparation_course"] == "treatment" and roles["math_score"] == "outcome" and roles["parental_level_of_education"] == "confounder" and roles["reading_score"] == "excluded"
-    assert any(e["src"] == "parental_level_of_education" and e["dst"] == "test_preparation_course" and "claim:assignment.depends_on" in e["cites"] for e in g["edges"])
+    assert (
+        roles["test_preparation_course"] == "treatment"
+        and roles["math_score"] == "outcome"
+        and roles["parental_level_of_education"] == "confounder"
+        and roles["reading_score"] == "excluded"
+    )
+    assert any(
+        e["src"] == "parental_level_of_education" and e["dst"] == "test_preparation_course" and "claim:assignment.depends_on" in e["cites"] for e in g["edges"]
+    )
     b = figs[1]
-    assert [s["name"] for s in b["series"]] == ["before adjustment", "after weighting on the score"] and set(b["series"][0]["x"]) == {"lunch", "parental level of education"}
+    assert [s["name"] for s in b["series"]] == ["before adjustment", "after weighting on the score"] and set(b["series"][0]["x"]) == {
+        "lunch",
+        "parental level of education",
+    }
     assert all(a is not None and a < 0.3 for a in b["series"][1]["y"])
     assert not any(x["check"] == "figure.check" for x in r["declines"])

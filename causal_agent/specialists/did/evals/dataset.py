@@ -29,7 +29,9 @@ def main() -> None:
     if client.has_dataset(dataset_name=DATASET):
         ds = client.read_dataset(dataset_name=DATASET)
     else:
-        ds = client.create_dataset(dataset_name=DATASET, description="Diff-in-diff lane on pyfixest: Card and Krueger through the router, cigar and marketing forced")
+        ds = client.create_dataset(
+            dataset_name=DATASET, description="Diff-in-diff lane on pyfixest: Card and Krueger through the router, cigar and marketing forced"
+        )
     by_id = {e.metadata.get("case_id"): e for e in client.list_examples(dataset_id=ds.id) if e.metadata}
     changed = 0
     for c in cases:

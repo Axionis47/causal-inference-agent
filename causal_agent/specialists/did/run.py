@@ -1,7 +1,7 @@
 """Run the diff-in-diff lane from the command line.
 
-    uv run python -m causal_agent.specialists.did.run <dataset> "<question>"        # through the desk's routing graph, end to end
-    uv run python -m causal_agent.specialists.did.run --handoff handoff.json         # the specialist alone, from a stored hand-off
+uv run python -m causal_agent.specialists.did.run <dataset> "<question>"        # through the desk's routing graph, end to end
+uv run python -m causal_agent.specialists.did.run --handoff handoff.json         # the specialist alone, from a stored hand-off
 """
 
 from __future__ import annotations

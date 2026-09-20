@@ -46,16 +46,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         try:
             return DS.stage_upload(s, file.filename or "", content)
         except DS.BadUpload as e:
-            raise HTTPException(400, str(e))
+            raise HTTPException(400, str(e)) from e
 
     @app.post("/api/datasets", response_model=DatasetSummary, status_code=201)
     def create_dataset(req: DatasetCreate) -> DatasetSummary:
         try:
             summary, _ = DS.create_dataset(s, req)
         except DS.Conflict as e:
-            raise HTTPException(409, str(e))
+            raise HTTPException(409, str(e)) from e
         except DS.NotFound as e:
-            raise HTTPException(404, str(e))
+            raise HTTPException(404, str(e)) from e
         sess = mgr.start(req.name)
         summary.session = SessionBrief(stage="busy" if sess.busy else "waiting", phase="before", runs=0)
         return summary
@@ -67,11 +67,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             try:
                 run_dirs = mgr.delete(name)
             except SessionBusy:
-                raise HTTPException(409, "the conversation is busy; wait for it to finish, then delete")
+                raise HTTPException(409, "the conversation is busy; wait for it to finish, then delete") from None
         try:
             DS.delete_dataset(s, name, run_dirs)
         except DS.NotFound as e:
-            raise HTTPException(404, str(e))
+            raise HTTPException(404, str(e)) from e
         return Response(status_code=204)
 
     # ------------------------------------------------------------------ sessions
@@ -80,7 +80,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         try:
             return mgr.view(name)
         except DS.NotFound as e:
-            raise HTTPException(404, str(e))
+            raise HTTPException(404, str(e)) from e
 
     @app.get("/api/sessions/{name}", response_model=SessionView)
     def get_session(name: str) -> SessionView:
@@ -91,13 +91,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         try:
             mgr.send(name, msg.text.strip())
         except DS.NotFound as e:
-            raise HTTPException(404, str(e))
+            raise HTTPException(404, str(e)) from e
         except SessionBusy:
-            raise HTTPException(409, "still working on the last message")
+            raise HTTPException(409, "still working on the last message") from None
         except SessionEnded:
-            raise HTTPException(409, "the conversation has ended; start a new one")
+            raise HTTPException(409, "the conversation has ended; start a new one") from None
         except SessionState as e:
-            raise HTTPException(409, str(e))
+            raise HTTPException(409, str(e)) from e
         return _view(name)
 
     @app.post("/api/sessions/{name}/resume", response_model=SessionView, status_code=202)
@@ -105,11 +105,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         try:
             mgr.resume(name)
         except DS.NotFound as e:
-            raise HTTPException(404, str(e))
+            raise HTTPException(404, str(e)) from e
         except SessionBusy:
-            raise HTTPException(409, "already running")
+            raise HTTPException(409, "already running") from None
         except SessionEnded:
-            raise HTTPException(409, "the conversation has ended; start a new one")
+            raise HTTPException(409, "the conversation has ended; start a new one") from None
         return _view(name)
 
     @app.post("/api/sessions/{name}/restart", response_model=SessionView, status_code=202)
@@ -117,11 +117,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         try:
             mgr.restart(name)
         except DS.NotFound as e:
-            raise HTTPException(404, str(e))
+            raise HTTPException(404, str(e)) from e
         except SessionBusy:
-            raise HTTPException(409, "still working; wait for it to finish")
+            raise HTTPException(409, "still working; wait for it to finish") from None
         except SessionState as e:
-            raise HTTPException(409, str(e))
+            raise HTTPException(409, str(e)) from e
         return _view(name)
 
     # ------------------------------------------------------------------ runs
@@ -131,14 +131,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         try:
             return R.list_files(s, run_id)
         except R.NotFound:
-            raise HTTPException(404, "no such run")
+            raise HTTPException(404, "no such run") from None
 
     @app.get("/api/runs/{run_id}/files/{filename}")
     def run_file(run_id: str, filename: str, raw: bool = False):
         try:
             path, media = R.file_path(s, run_id, filename)
         except R.NotFound:
-            raise HTTPException(404, "no such file")
+            raise HTTPException(404, "no such file") from None
         if filename == "report.md":
             return PlainTextResponse(R.report_text(path, raw=raw))
         if media == "text/csv":

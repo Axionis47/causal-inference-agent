@@ -84,12 +84,18 @@ def _gate(reply: AfterReply, mat: M.Material) -> list[str]:
         if bad:
             errors.append(f"cites not in the material: {bad}")
         if not reply.cites:
-            errors.append("an answer must cite at least one address; attach the addresses of the numbers you state, or say the material cannot answer and cite run.question")
+            errors.append(
+                "an answer must cite at least one address; attach the addresses of the numbers you state, or say the material cannot answer and cite run.question"
+            )
         for n in reply.numbers:
             if n.address not in mat.addresses:
                 errors.append(f"number {n.value} attached to {n.address!r}, which is not in the material")
-            elif n.address in mat.numbers and abs(n.value - mat.numbers[n.address]) > max(abs(mat.numbers[n.address]), 1e-9) * TOL and not any(round(mat.numbers[n.address], d) == n.value for d in range(5)) \
-                    and not _in_line(n.value, mat.by_address.get(n.address, "")):
+            elif (
+                n.address in mat.numbers
+                and abs(n.value - mat.numbers[n.address]) > max(abs(mat.numbers[n.address]), 1e-9) * TOL
+                and not any(round(mat.numbers[n.address], d) == n.value for d in range(5))
+                and not _in_line(n.value, mat.by_address.get(n.address, ""))
+            ):
                 errors.append(f"number {n.value} does not match {n.address} = {mat.numbers[n.address]:.6g}, and does not appear in that line's text")
         stated = {round(n.value, 6) for n in reply.numbers}
         for v in _numbers_in(reply.text):
@@ -153,7 +159,17 @@ def talk(state: DeskState) -> Command[Literal["turn", "__end__"]]:
         figure = next((f for f in cur.figures if f"figure:{f.get('id')}" == reply.figure), None)
     elif reply is None and cur is not None and cur.figures:
         figure = cur.figures[min(1, len(cur.figures) - 1)]  # the run's own figure, or the ready-moment one when the run made none
-    payload = {"phase": "after", "kind": "after", "text": text, "status": _status_line(cur), "ready": True, "runs": len(runs), "open": [], "ask": None, "figure": figure}
+    payload = {
+        "phase": "after",
+        "kind": "after",
+        "text": text,
+        "status": _status_line(cur),
+        "ready": True,
+        "runs": len(runs),
+        "open": [],
+        "ask": None,
+        "figure": figure,
+    }
     answer = str(interrupt(payload) or "").strip()
     if answer.lower() in DONE_WORDS:
         return Command(goto="__end__")
@@ -172,15 +188,25 @@ def turn(state: DeskState) -> Command[Literal["turn", "answer", "revise", "what_
     mat = M.render(cur, memory, runs[-2] if len(runs) > 1 else None)
     errs = state.get("after_errors") or []
     errors = ("\nPREVIOUS REPLY WAS REJECTED:\n" + "\n".join(f"- {e}" for e in errs) + "\n") if errs else ""
-    user = P.TURN_USER.format(material=mat.text, memory=memory.render() or "(nothing known)", kinds=kinds_text(), exchanges=_exchanges_text(state),
-                              message=state.get("message", ""), errors=errors)
+    user = P.TURN_USER.format(
+        material=mat.text,
+        memory=memory.render() or "(nothing known)",
+        kinds=kinds_text(),
+        exchanges=_exchanges_text(state),
+        message=state.get("message", ""),
+        errors=errors,
+    )
     out, thought = structured(AfterReply, P.TURN_SYSTEM, user, node=f"turn:{state.get('turn', 0)}")
     gate = _gate(out, mat)
     attempts = int(state.get("after_attempts", 0)) + 1
     if gate and attempts < MAX_ATTEMPTS:
         return Command(goto="turn", update={"after_errors": gate, "after_attempts": attempts, "debug": [thought]})
     if gate:
-        out = AfterReply(kind="answer", text="I cannot ground that in the run's artifacts: " + "; ".join(gate) + ". Ask about what the run left behind, or tell me something to change.", cites=["run.question"])
+        out = AfterReply(
+            kind="answer",
+            text="I cannot ground that in the run's artifacts: " + "; ".join(gate) + ". Ask about what the run left behind, or tell me something to change.",
+            cites=["run.question"],
+        )
         gate = [f"fell back after {attempts} tries: " + "; ".join(gate)]
     ex = Exchange(turn=int(state.get("turn", 0)), user=state.get("message", ""), assistant=out.text, kind=out.kind)
     goto = {"answer": "answer", "revise": "revise", "what_if": "what_if", "requestion": "requestion", "done": "__end__"}[out.kind]
@@ -197,7 +223,10 @@ def revise(state: DeskState) -> Command[Literal["check", "talk"]]:
     memory = F.memory_of(state)
     turn = int(state.get("turn") or 0)
     src = f"user:turn:{turn}"
-    updates = [ops.Update(address=u.address, value=u.value, status="confirmed", source=src, said=u.said or state.get("message", "")[:200], reason=u.reason) for u in reply.updates]
+    updates = [
+        ops.Update(address=u.address, value=u.value, status="confirmed", source=src, said=u.said or state.get("message", "")[:200], reason=u.reason)
+        for u in reply.updates
+    ]
     before = {a: (f.value, f.status) for a, f in memory.fields.items()}
     rejected = ops.apply(memory, updates, CAT)
     settled = [a for a, f in memory.fields.items() if before.get(a) != (f.value, f.status)]
@@ -205,7 +234,9 @@ def revise(state: DeskState) -> Command[Literal["check", "talk"]]:
     if not settled:
         note = "I could not apply that change: " + "; ".join(rejected)
         return Command(goto="talk", update={"after_reply": reply.model_copy(update={"text": note, "kind": "answer"})})
-    return Command(goto="check", update={"phase": "before", "settled_now": settled, "run_requested": False, "infer_errors": [], "infer_attempts": 0, "handoff": None})
+    return Command(
+        goto="check", update={"phase": "before", "settled_now": settled, "run_requested": False, "infer_errors": [], "infer_attempts": 0, "handoff": None}
+    )
 
 
 def what_if(state: DeskState) -> Command[Literal["fit", "talk"]]:
@@ -216,14 +247,19 @@ def what_if(state: DeskState) -> Command[Literal["fit", "talk"]]:
     fork = memory.fork()
     turn = int(state.get("turn") or 0)
     src = f"user:turn:{turn}"
-    updates = [ops.Update(address=u.address, value=u.value, status="confirmed", source=src, said=u.said or state.get("message", "")[:200], reason=u.reason) for u in reply.updates]
+    updates = [
+        ops.Update(address=u.address, value=u.value, status="confirmed", source=src, said=u.said or state.get("message", "")[:200], reason=u.reason)
+        for u in reply.updates
+    ]
     before = {a: (f.value, f.status) for a, f in fork.fields.items()}
     rejected = ops.apply(fork, updates, CAT)
     changed = {a: f.value for a, f in fork.fields.items() if before.get(a) != (f.value, f.status)}
     if not changed:
         note = "I could not suppose that: " + "; ".join(rejected)
         return Command(goto="talk", update={"after_reply": reply.model_copy(update={"text": note, "kind": "answer"})})
-    return Command(goto="fit", update={"fork": fork, "what_if": {a: str(v) for a, v in changed.items()}, "handoff": None, "gate_errors": [], "decide_attempts": 0})
+    return Command(
+        goto="fit", update={"fork": fork, "what_if": {a: str(v) for a, v in changed.items()}, "handoff": None, "gate_errors": [], "decide_attempts": 0}
+    )
 
 
 def requestion(state: DeskState) -> dict:

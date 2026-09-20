@@ -34,7 +34,10 @@ def score_match(run, example):
     ok_cut = o.get("cutoff") is not None and abs(float(o["cutoff"]) - float(exp.get("cutoff", 0))) < 1e-6
     ok_side = exp.get("treated_side") is None or o.get("treated_side") == exp["treated_side"]
     ok = ok_col and ok_cut and ok_side
-    return {"score": int(ok), "comment": f"score {o.get('score_column')} cutoff {o.get('cutoff')} side {o.get('treated_side')} (want {exp['score_column']} {exp.get('cutoff')} {exp.get('treated_side')})"}
+    return {
+        "score": int(ok),
+        "comment": f"score {o.get('score_column')} cutoff {o.get('cutoff')} side {o.get('treated_side')} (want {exp['score_column']} {exp.get('cutoff')} {exp.get('treated_side')})",
+    }
 
 
 def kind_match(run, example):
@@ -147,5 +150,18 @@ def thoughts_present(run, example):
     return {"score": int(bool(nodes)), "comment": f"thoughts from {sorted(nodes)}" if nodes else "no thoughts logged"}
 
 
-ALL = [status_match, score_match, kind_match, cluster_match, estimator_allowed, sign_match, checks_ran, flags_contain, assess_cites, stopped_at,
-       placebo_ran, secondaries_contain, thoughts_present]
+ALL = [
+    status_match,
+    score_match,
+    kind_match,
+    cluster_match,
+    estimator_allowed,
+    sign_match,
+    checks_ran,
+    flags_contain,
+    assess_cites,
+    stopped_at,
+    placebo_ran,
+    secondaries_contain,
+    thoughts_present,
+]

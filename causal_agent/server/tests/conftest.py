@@ -62,12 +62,44 @@ def create_request(prof: dict, name: str = "students_web") -> dict:
 
 
 def canned_run(path, n, dataset, question, decision=None, decision_record="", effect: float = 5.618) -> RunRecord:
-    sr = {"status": "done", "design": {"estimator": "linear_regression", "contrast": {"treated": "completed", "control": "none"},
-                                       "checks": {"results": [{"contrast": "completed_vs_none", "name": "overlap", "level": "pass", "value": 0.9, "threshold": 0.1, "detail": "fine"}]}},
-          "estimates": [{"contrast": "completed_vs_none", "method": "linear_regression", "value": effect, "ci_low": effect - 2, "ci_high": effect + 2, "secondary": False, "error": None}],
-          "refutations": [], "interpretations": [], "feasibility": None}
-    return RunRecord(index=n, dataset=dataset, question=question, family="adjustment", specialist="dowhy", status="done", effect=effect, ci_low=effect - 2, ci_high=effect + 2,
-                     estimator="linear_regression", decision=decision or {}, decision_record=decision_record, specialist_result=sr, design_dir=str(Path(path).parent))
+    sr = {
+        "status": "done",
+        "design": {
+            "estimator": "linear_regression",
+            "contrast": {"treated": "completed", "control": "none"},
+            "checks": {"results": [{"contrast": "completed_vs_none", "name": "overlap", "level": "pass", "value": 0.9, "threshold": 0.1, "detail": "fine"}]},
+        },
+        "estimates": [
+            {
+                "contrast": "completed_vs_none",
+                "method": "linear_regression",
+                "value": effect,
+                "ci_low": effect - 2,
+                "ci_high": effect + 2,
+                "secondary": False,
+                "error": None,
+            }
+        ],
+        "refutations": [],
+        "interpretations": [],
+        "feasibility": None,
+    }
+    return RunRecord(
+        index=n,
+        dataset=dataset,
+        question=question,
+        family="adjustment",
+        specialist="dowhy",
+        status="done",
+        effect=effect,
+        ci_low=effect - 2,
+        ci_high=effect + 2,
+        estimator="linear_regression",
+        decision=decision or {},
+        decision_record=decision_record,
+        specialist_result=sr,
+        design_dir=str(Path(path).parent),
+    )
 
 
 def patch_pipeline(monkeypatch, fn=canned_run):
@@ -76,10 +108,18 @@ def patch_pipeline(monkeypatch, fn=canned_run):
 
 # the answers a person gives to a bare file, one field per turn, in the desk's own address words
 ANSWERS = {
-    "claim:grain.row_is": "one student's exam results", "claim:grain.panel": "false", "claim:sampling.how": "whole",
-    "claim:change.what": "a six-week prep course", "claim:change.to_whom": "students at the school", "claim:change.when": "the six weeks before the exam",
-    "claim:assignment.kind": "own_choice", "claim:assignment.rule": "offered first by lunch and parental education, then anyone who asked",
-    "claim:assignment.treated_level": "completed", "claim:unobserved.exists": "false", "claim:spillover.possible": "false", "claim:exclusion.exists": "false",
+    "claim:grain.row_is": "one student's exam results",
+    "claim:grain.panel": "false",
+    "claim:sampling.how": "whole",
+    "claim:change.what": "a six-week prep course",
+    "claim:change.to_whom": "students at the school",
+    "claim:change.when": "the six weeks before the exam",
+    "claim:assignment.kind": "own_choice",
+    "claim:assignment.rule": "offered first by lunch and parental education, then anyone who asked",
+    "claim:assignment.treated_level": "completed",
+    "claim:unobserved.exists": "false",
+    "claim:spillover.possible": "false",
+    "claim:exclusion.exists": "false",
 }
 WHEN = {"math score": "after", "test preparation course": "at"}
 
@@ -106,7 +146,9 @@ def infer_columns(msg, addrs, human):
     ups = []
     for a in addrs:
         col = a[4:].split(".")[0].replace("_", " ")
-        name = next((n for n in ("math score", "test preparation course", "lunch", "parental level of education") if n.replace(" ", "_") == a[4:].split(".")[0]), col)
+        name = next(
+            (n for n in ("math score", "test preparation course", "lunch", "parental level of education") if n.replace(" ", "_") == a[4:].split(".")[0]), col
+        )
         if a.endswith(".meaning"):
             ups.append(FieldUpdate(address=a, value=f"{name} as recorded", said=msg))
         elif a.endswith(".when"):

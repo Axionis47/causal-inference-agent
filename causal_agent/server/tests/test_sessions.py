@@ -53,7 +53,12 @@ def test_question_journey_run_answer_done_and_restart(client, settings, monkeypa
 
     patch_pipeline(monkeypatch, fake_run)
     after = [
-        AfterReply(kind="answer", text="It raised math scores by 5.618 points.", cites=[f"estimate:{C}.value"], numbers=[NumberStated(address=f"estimate:{C}.value", value=5.618)]),
+        AfterReply(
+            kind="answer",
+            text="It raised math scores by 5.618 points.",
+            cites=[f"estimate:{C}.value"],
+            numbers=[NumberStated(address=f"estimate:{C}.value", value=5.618)],
+        ),
         AfterReply(kind="done", text="Bye."),
     ]
     fake = DeskFake(after=after, infer=infer_columns)
@@ -126,8 +131,21 @@ def test_run_view_carries_where_the_lane_disagreed_with_the_pack():
     from causal_agent.desk.contracts import RunRecord
     from causal_agent.server.sessions import run_view
 
-    sr = {"status": "done", "declines": [{"stage": "load", "kind": "substituted", "about": "scope.target", "pack_value": "on_treated", "took": "effect_at_cutoff",
-                                          "reason": "no average over the treated", "check": "target.effect_at_cutoff"}, {"not": "a decline"}]}
+    sr = {
+        "status": "done",
+        "declines": [
+            {
+                "stage": "load",
+                "kind": "substituted",
+                "about": "scope.target",
+                "pack_value": "on_treated",
+                "took": "effect_at_cutoff",
+                "reason": "no average over the treated",
+                "check": "target.effect_at_cutoff",
+            },
+            {"not": "a decline"},
+        ],
+    }
     v = run_view(RunRecord(index=1, dataset="d", question="q", status="done", specialist_result=sr))
     assert [d.address for d in v.declines] == ["decline:load.scope_target"] and v.declines[0].took == "effect_at_cutoff" and v.declines[0].kind == "substituted"
     assert run_view(RunRecord(index=1, dataset="d", question="q", status="done")).declines == []

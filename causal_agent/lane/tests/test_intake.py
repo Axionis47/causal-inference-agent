@@ -17,7 +17,16 @@ def _run_dir(monkeypatch, tmp_path):
 
 
 def students(scope: Scope | None = None):
-    return forced("students3", "q", "adjustment", "math score", "test preparation course", ["lunch", "gender"], scope=scope, memory=store.migrate("students3", write=False))
+    return forced(
+        "students3",
+        "q",
+        "adjustment",
+        "math score",
+        "test preparation course",
+        ["lunch", "gender"],
+        scope=scope,
+        memory=store.migrate("students3", write=False),
+    )
 
 
 def cigar(scope: Scope | None = None):
@@ -42,7 +51,14 @@ def test_filter_grammar_on_levels_numbers_and_lists():
 def test_a_filter_the_code_cannot_read_is_a_decline_and_keeps_every_row():
     df = pd.DataFrame({"lunch": ["standard", "free/reduced"]})
     kept, d, facts = intake.apply_filter(df, "students at the school")
-    assert len(kept) == 2 and d is not None and d.check == "intake.filter_unparsed" and d.about == "scope.population_filter" and d.pack_value == "students at the school" and facts == {}
+    assert (
+        len(kept) == 2
+        and d is not None
+        and d.check == "intake.filter_unparsed"
+        and d.about == "scope.population_filter"
+        and d.pack_value == "students at the school"
+        and facts == {}
+    )
     kept, d, _ = intake.apply_filter(df, "grade == 12")
     assert len(kept) == 2 and d.check == "intake.filter_unknown_column"
     df2 = pd.DataFrame({"age": [17, 18]})
@@ -56,7 +72,16 @@ def test_a_filter_the_code_cannot_read_is_a_decline_and_keeps_every_row():
 
 def test_window_on_numbers_and_dates():
     df = pd.DataFrame({"year": [70, 80, 89, 92], "y": [1, 2, 3, 4]})
-    for text, want in [("from 80 to 89", [80, 89]), ("80..89", [80, 89]), ("80 to 92", [80, 89, 92]), (">= 89", [89, 92]), ("after 80", [89, 92]), ("before 89", [70, 80]), ("until 80", [70, 80]), ("since 89", [89, 92])]:
+    for text, want in [
+        ("from 80 to 89", [80, 89]),
+        ("80..89", [80, 89]),
+        ("80 to 92", [80, 89, 92]),
+        (">= 89", [89, 92]),
+        ("after 80", [89, 92]),
+        ("before 89", [70, 80]),
+        ("until 80", [70, 80]),
+        ("since 89", [89, 92]),
+    ]:
         kept, d, facts = intake.apply_window(df, text, "year")
         assert d is None and list(kept["year"]) == want, text
         assert facts["time_column"] == "year" and facts["rows_after"] == len(want)

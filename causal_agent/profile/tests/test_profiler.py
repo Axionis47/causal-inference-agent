@@ -36,7 +36,9 @@ def test_panel_varies_over_and_switch(tmp_path):
     for store in (1, 2, 3):
         for week in range(6):
             day = (pd.Timestamp("2024-01-01") + pd.Timedelta(days=7 * week)).date()
-            rows.append({"store": store, "week": str(day), "on": int(store == 1 and week >= 3), "area": store * 100, "sales": 10 + week + store, "same": 10 + week})
+            rows.append(
+                {"store": store, "week": str(day), "on": int(store == 1 and week >= 3), "area": store * 100, "sales": 10 + week + store, "same": 10 + week}
+            )
     f = tmp_path / "panel.csv"
     pd.DataFrame(rows).to_csv(f, index=False)
     p = profile(f, entity_columns=["store"], time_column="week")

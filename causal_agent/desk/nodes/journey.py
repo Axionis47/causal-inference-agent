@@ -23,10 +23,10 @@ from causal_agent.desk.nodes import decide as D
 from causal_agent.desk.nodes import frame as F
 from causal_agent.desk.prompts import journey as P
 from causal_agent.desk.state import Context, DeskState
+from causal_agent.knowledge import Family, load_registry
 from causal_agent.memory import ops, store
 from causal_agent.memory.catalogue import Catalogue, ClaimKind, load_catalogue, load_thresholds
 from causal_agent.memory.records import COLUMN_KIND, Memory
-from causal_agent.knowledge import Family, load_registry
 from causal_agent.profile import data as PD
 from causal_agent.profile import datasets as DS
 from causal_agent.viz.spec import Point
@@ -94,10 +94,34 @@ def _design_line(status, memory: Memory, frame: QuestionFrame | None) -> str:
 
 def load(state: DeskState) -> dict:
     F.memory_of(state)  # raises for an unknown dataset
-    return {"turn": int(state.get("turn") or 0), "phase": "before", "invalid": None, "frame_attempts": 0, "findings": [], "refutations": {}, "settled_now": [],
-            "ask": None, "open": [], "status": None, "infer_errors": [], "infer_attempts": 0, "run_requested": False, "ready": False,
-            "runs": list(state.get("runs") or []), "prefilter_votes": [], "family_verdicts": [], "probes": [], "fit_status": None, "gate_errors": [],
-            "decide_attempts": 0, "debug": [], "after_reply": None, "after_errors": [], "after_attempts": 0, "brief": ""}
+    return {
+        "turn": int(state.get("turn") or 0),
+        "phase": "before",
+        "invalid": None,
+        "frame_attempts": 0,
+        "findings": [],
+        "refutations": {},
+        "settled_now": [],
+        "ask": None,
+        "open": [],
+        "status": None,
+        "infer_errors": [],
+        "infer_attempts": 0,
+        "run_requested": False,
+        "ready": False,
+        "runs": list(state.get("runs") or []),
+        "prefilter_votes": [],
+        "family_verdicts": [],
+        "probes": [],
+        "fit_status": None,
+        "gate_errors": [],
+        "decide_attempts": 0,
+        "debug": [],
+        "after_reply": None,
+        "after_errors": [],
+        "after_attempts": 0,
+        "brief": "",
+    }
 
 
 def ask_question(state: DeskState) -> Command[Literal["mine", "__end__"]]:
@@ -109,8 +133,10 @@ def ask_question(state: DeskState) -> Command[Literal["mine", "__end__"]]:
     else:
         cols = ", ".join(c.name for c in memory.columns.values())
         rows = memory.facts.get("rows")
-        text = (f"What is the causal question you want answered from this file? Say what changed and what it might have affected. "
-                f"The file has {rows} rows and these columns: {cols}.")
+        text = (
+            f"What is the causal question you want answered from this file? Say what changed and what it might have affected. "
+            f"The file has {rows} rows and these columns: {cols}."
+        )
     payload = {"phase": "before", "kind": "question", "text": text, "status": "", "ready": False, "open": [], "ask": None}
     answer = str(interrupt(payload) or "").strip()
     if answer.lower() in QUIT_WORDS:
@@ -125,9 +151,13 @@ def validate(frame: QuestionFrame, memory: Memory) -> list[str]:
     """Whether the question, as read, is one this file can answer. Code over the frame and the file's facts."""
     out: list[str] = []
     if frame.intent != "effect_of_change":
-        out.append({"driver_search": "it asks what drives an outcome rather than what one change did to it",
-                    "root_cause": "it asks why something happened rather than what one change did to an outcome",
-                    "not_causal": "it does not ask what a change did to an outcome"}[frame.intent])
+        out.append(
+            {
+                "driver_search": "it asks what drives an outcome rather than what one change did to it",
+                "root_cause": "it asks why something happened rather than what one change did to an outcome",
+                "not_causal": "it does not ask what a change did to an outcome",
+            }[frame.intent]
+        )
     oc = memory.column(frame.outcome) if frame.outcome else None
     if oc is None:
         out.append("I could not match the outcome to a column in this file")
@@ -153,11 +183,22 @@ def read_question(state: DeskState) -> Command[Literal["ask_question", "check"]]
     attempts = int(state.get("frame_attempts") or 0) + 1
     _writer()({"read_question": {"intent": fr.intent, "outcome": fr.outcome, "cause": fr.cause, "problems": problems}})
     if problems:
-        text = "That is not yet a question I can answer from this file: " + "; ".join(problems) + ". Ask it again, naming the change and the outcome as they appear in the columns."
+        text = (
+            "That is not yet a question I can answer from this file: "
+            + "; ".join(problems)
+            + ". Ask it again, naming the change and the outcome as they appear in the columns."
+        )
         return Command(goto="ask_question", update={"frame": fr, "invalid": text, "frame_attempts": attempts, "debug": out["debug"]})
     note = ""
     old = memory.value("claim:assignment.treatment_column")
-    if state.get("runs") and fr.cause and old and memory.column(old) is not None and memory.column(fr.cause) is not None and memory.column(old).key != memory.column(fr.cause).key:
+    if (
+        state.get("runs")
+        and fr.cause
+        and old
+        and memory.column(old) is not None
+        and memory.column(fr.cause) is not None
+        and memory.column(old).key != memory.column(fr.cause).key
+    ):
         # a new change: everything settled relative to the old one is asked again; what a column is carries over
         dropped = ops.forget_change(memory)
         note = f"The change is not the one before ({old}), so what was settled relative to it is asked again ({len(dropped)} fields); what each column is carries over. "
@@ -244,8 +285,16 @@ def compose_ask(memory: Memory, opened: list, findings: list[Finding], frame: Qu
                 lines.append(f"{col.name if col else o.address}: {o.field} = {_value_words(kind, o.field, f.value)}")
             else:
                 lines.append(f"{o.kind}, {o.field}: {_value_words(kind, o.field, f.value)}")
-        text = "I read these from what was written about the file. Are they right?\n" + "\n".join(f"• {ln}" for ln in lines) + "\nSay yes, or correct any of them."
-        return Ask(addresses=[o.address for o in drafts], kind="confirm", text=text, options=["Yes, all right", "No"], because=sorted({b for o in drafts for b in o.because}))
+        text = (
+            "I read these from what was written about the file. Are they right?\n" + "\n".join(f"• {ln}" for ln in lines) + "\nSay yes, or correct any of them."
+        )
+        return Ask(
+            addresses=[o.address for o in drafts],
+            kind="confirm",
+            text=text,
+            options=["Yes, all right", "No"],
+            because=sorted({b for o in drafts for b in o.because}),
+        )
     cols = [o for o in opened if o.address.startswith("col:") and o.field in ("meaning", "when")]
     if cols:
         names, refuted = [], []
@@ -261,10 +310,15 @@ def compose_ask(memory: Memory, opened: list, findings: list[Finding], frame: Qu
         if refuted:
             text = "The file disagrees with what you said about " + "; ".join(refuted) + ". Which is it?"
         else:
-            text = (f"For each of these columns: what does it record, and was it fixed before {ch}, set at it, or measured after it? "
-                    + ", ".join(names) + ".")
-        return Ask(addresses=[o.address for o in cols], kind="columns", text=text, options=["before", "at", "after", "unknown"],
-                   because=sorted({b for o in cols for b in o.because}), evidence=[by_addr[o.address].evidence for o in cols if o.address in by_addr])
+            text = f"For each of these columns: what does it record, and was it fixed before {ch}, set at it, or measured after it? " + ", ".join(names) + "."
+        return Ask(
+            addresses=[o.address for o in cols],
+            kind="columns",
+            text=text,
+            options=["before", "at", "after", "unknown"],
+            because=sorted({b for o in cols for b in o.because}),
+            evidence=[by_addr[o.address].evidence for o in cols if o.address in by_addr],
+        )
     o = opened[0]
     kind = CAT.kinds[o.kind]
     fd = by_addr.get(o.address)
@@ -297,7 +351,14 @@ def acknowledge(memory: Memory, addresses: list[str]) -> str:
         f = memory.field(a)
         if f is None or f.value is None and f.status != "unknown":
             continue
-        lines.append(f"[{a}] " + ("unknown" if f.status == "unknown" else _value_words(CAT.kinds[Memory.parse(a)[1] if a.startswith('claim:') else COLUMN_KIND], Memory.parse(a)[2], f.value)))
+        lines.append(
+            f"[{a}] "
+            + (
+                "unknown"
+                if f.status == "unknown"
+                else _value_words(CAT.kinds[Memory.parse(a)[1] if a.startswith("claim:") else COLUMN_KIND], Memory.parse(a)[2], f.value)
+            )
+        )
     return ("Noted: " + "; ".join(lines) + "\n\n") if lines else ""
 
 
@@ -311,7 +372,11 @@ def ask(state: DeskState) -> Command[Literal["listen", "fit", "convince"]]:
     if a is None:
         if st.ready:
             return Command(goto="convince", update={"ask": None, "reply": head, "run_requested": False, "figure": None})
-        body = "Nothing more to ask, but no design fits yet: " + "; ".join(f"{f} ({w})" for f, w in st.struck.items()) + ". Tell me what is different about the data, or ask another question."
+        body = (
+            "Nothing more to ask, but no design fits yet: "
+            + "; ".join(f"{f} ({w})" for f, w in st.struck.items())
+            + ". Tell me what is different about the data, or ask another question."
+        )
     else:
         body = a.text
         if state.get("run_requested"):
@@ -350,21 +415,35 @@ def convince(state: DeskState, runtime: Runtime[Context]) -> dict:
     head = state.get("reply") or ""
     verdicts = {v.family: v for v in update.get("family_verdicts") or []}
     if d is None or g.goto == "__end__" or d.chosen not in registry:
-        text = head + "Everything the analysis needs is settled, but no family stands: " + "; ".join(
-            f"{v.family} ({next((n.note for n in v.needs if not n.met), v.concern or 'does not fit')})" for v in verdicts.values()) + ". Tell me what is different about the data."
+        text = (
+            head
+            + "Everything the analysis needs is settled, but no family stands: "
+            + "; ".join(f"{v.family} ({next((n.note for n in v.needs if not n.met), v.concern or 'does not fit')})" for v in verdicts.values())
+            + ". Tell me what is different about the data."
+        )
         return {**update, "reply": text, "figure": None, "handoff": None}
     fam = registry[d.chosen]
     probes = [p for p in update.get("probes") or [] if p.family == fam.name and p.passed is not None]
     evidence = "; ".join(f"{p.detail} [{p.address}]" for p in probes) or "no probe applies"
-    fields = [f"[claim:assignment.kind] {memory.value('claim:assignment.kind')}"] + [f"[{a}]" for a in ("claim:change.what", "claim:grain.panel") if memory.value(a) is not None]
-    struck = [f"{v.family}: {next((n.note for n in v.needs if not n.met), v.concern or 'does not fit')}" for v in verdicts.values() if not v.admissible and v.family != fam.name]
+    fields = [f"[claim:assignment.kind] {memory.value('claim:assignment.kind')}"] + [
+        f"[{a}]" for a in ("claim:change.what", "claim:grain.panel") if memory.value(a) is not None
+    ]
+    struck = [
+        f"{v.family}: {next((n.note for n in v.needs if not n.met), v.concern or 'does not fit')}"
+        for v in verdicts.values()
+        if not v.admissible and v.family != fam.name
+    ]
     figure = None
     fig_line = ""
     try:
         from causal_agent.viz.graph import make
 
-        fig = make(Point(family=fam.name, claim=fam.convince or fam.answers, about=[p.address for p in probes]), memory.name, outcome=fr.outcome if fr else None,
-                   treatment=fr.cause if fr else None)
+        fig = make(
+            Point(family=fam.name, claim=fam.convince or fam.answers, about=[p.address for p in probes]),
+            memory.name,
+            outcome=fr.outcome if fr else None,
+            treatment=fr.cause if fr else None,
+        )
         if fig.made and fig.spec is not None:
             figure = fig.spec.model_dump()
             fig_line = f"The figure shows it: {fig.spec.note} [{fig.spec.address}]"
@@ -372,11 +451,13 @@ def convince(state: DeskState, runtime: Runtime[Context]) -> dict:
             fig_line = f"No figure could make the point: {fig.why}"
     except Exception as e:  # a figure is never a reason to stop
         fig_line = f"No figure could be made ({type(e).__name__})."
-    lines = [head + "Everything the analysis needs is settled.",
-             f"Design: {fam.name.replace('_', ' ')}. {fam.answers[0].upper() + fam.answers[1:]}.",
-             f"It rests on: {_belief_words(memory, fam)}",
-             f"Evidence: {evidence}. " + " ".join(fields),
-             fig_line]
+    lines = [
+        head + "Everything the analysis needs is settled.",
+        f"Design: {fam.name.replace('_', ' ')}. {fam.answers[0].upper() + fam.answers[1:]}.",
+        f"It rests on: {_belief_words(memory, fam)}",
+        f"Evidence: {evidence}. " + " ".join(fields),
+        fig_line,
+    ]
     if struck:
         lines.append("Set aside: " + "; ".join(struck) + ".")
     lines.append("Say run to hand off, or tell me anything to change.")
@@ -386,8 +467,16 @@ def convince(state: DeskState, runtime: Runtime[Context]) -> dict:
 
 def listen(state: DeskState) -> Command[Literal["infer", "fit", "handoff", "check", "__end__"]]:
     st, a = state["status"], state.get("ask")
-    payload = {"phase": "before", "kind": "ask", "text": state.get("reply") or "", "status": st.render(list(CAT.kinds)) if st else "", "ready": bool(st and st.ready),
-               "open": list(st.open) if st else [], "ask": a.model_dump() if a else None, "figure": state.get("figure")}
+    payload = {
+        "phase": "before",
+        "kind": "ask",
+        "text": state.get("reply") or "",
+        "status": st.render(list(CAT.kinds)) if st else "",
+        "ready": bool(st and st.ready),
+        "open": list(st.open) if st else [],
+        "ask": a.model_dump() if a else None,
+        "figure": state.get("figure"),
+    }
     answer = str(interrupt(payload) or "").strip()
     low = answer.lower()
     if low in QUIT_WORDS:
@@ -444,15 +533,28 @@ def infer(state: DeskState) -> Command[Literal["infer", "check"]]:
     errs = state.get("infer_errors") or []
     errors = ("\nPREVIOUS UPDATES WERE REJECTED:\n" + "\n".join(f"- {e}" for e in errs) + "\nFix them and return the set again.\n") if errs else ""
     cols = "\n".join(H.brief_of(memory, c).line() for c in memory.columns.values() if not c.facts.constant)
-    user = P.INFER_USER.format(kinds=kinds_text(), memory=memory.render() or "(nothing known yet)", asked=asked, open=_open_lines(memory, state.get("open") or [], a),
-                               columns=cols, turn=turn, message=state.get("message") or "", errors=errors)
+    user = P.INFER_USER.format(
+        kinds=kinds_text(),
+        memory=memory.render() or "(nothing known yet)",
+        asked=asked,
+        open=_open_lines(memory, state.get("open") or [], a),
+        columns=cols,
+        turn=turn,
+        message=state.get("message") or "",
+        errors=errors,
+    )
     out, thought = structured(Inference, P.INFER_SYSTEM, user, node=f"infer:{turn}")
     src = f"user:turn:{turn}"
-    updates = [ops.Update(address=u.address, value=u.value, status="confirmed", source=src, said=u.said or (state.get("message") or "")[:200], reason=u.reason) for u in out.updates]
+    updates = [
+        ops.Update(address=u.address, value=u.value, status="confirmed", source=src, said=u.said or (state.get("message") or "")[:200], reason=u.reason)
+        for u in out.updates
+    ]
     for addr in out.confirms:
         f = memory.field(addr)
         if f is not None and f.value is not None and f.status in {"drafted", "refuted"}:
-            updates.append(ops.Update(address=addr, value=f.value, status="confirmed", source=src, said=(state.get("message") or "")[:200], reason="confirmed as drafted"))
+            updates.append(
+                ops.Update(address=addr, value=f.value, status="confirmed", source=src, said=(state.get("message") or "")[:200], reason="confirmed as drafted")
+            )
     for addr in out.unknown:
         updates.append(ops.Update(address=addr, status="unknown", source=src, said=(state.get("message") or "")[:200]))
     before = {a: (f.value, f.status) for a, f in memory.fields.items()}
@@ -512,10 +614,24 @@ def run(state: DeskState) -> dict:
     h = state.get("handoff")
     question = state.get("question") or ""
     if h is None:
-        rec = RunRecord(index=n, dataset=state["dataset"], question=question, status="no_handoff", decision=_decision(state), decision_record=state.get("decision_record") or "",
-                        design_dir=state.get("design_dir"))
+        rec = RunRecord(
+            index=n,
+            dataset=state["dataset"],
+            question=question,
+            status="no_handoff",
+            decision=_decision(state),
+            decision_record=state.get("decision_record") or "",
+            design_dir=state.get("design_dir"),
+        )
     else:
-        rec = pipeline.run(Path(state["design_dir"]) / "handoff.json", n, state["dataset"], question, decision=_decision(state), decision_record=state.get("decision_record") or "")
+        rec = pipeline.run(
+            Path(state["design_dir"]) / "handoff.json",
+            n,
+            state["dataset"],
+            question,
+            decision=_decision(state),
+            decision_record=state.get("decision_record") or "",
+        )
     rec.what_if = dict(state.get("what_if") or {})
     rec.figures = _figures(state, rec)
     if state.get("design_dir"):
@@ -579,9 +695,20 @@ def ask_back(state: DeskState) -> dict:
     kind = CAT.kinds.get(kind_name)
     options = [str(o) for o in q.get("options") or []]
     if not options:
-        options = [str(o) for o in kind.fields[field].options] if kind and field in kind.fields and kind.fields[field].type == "choice" else (["yes", "no"] if kind and field in kind.fields and kind.fields[field].type == "bool" else [])
-    a = Ask(addresses=[address], kind="choose" if options else "open", text=q.get("question") or "", options=options, because=[rec.family] if rec.family else [],
-            evidence=[str(e) for e in q.get("evidence") or []], from_lane=True)
+        options = (
+            [str(o) for o in kind.fields[field].options]
+            if kind and field in kind.fields and kind.fields[field].type == "choice"
+            else (["yes", "no"] if kind and field in kind.fields and kind.fields[field].type == "bool" else [])
+        )
+    a = Ask(
+        addresses=[address],
+        kind="choose" if options else "open",
+        text=q.get("question") or "",
+        options=options,
+        because=[rec.family] if rec.family else [],
+        evidence=[str(e) for e in q.get("evidence") or []],
+        from_lane=True,
+    )
     reason = (rec.specialist_result.get("feasibility") or {}).get("reason") or "it needs one more thing"
     because = f"{q['because']}\n" if q.get("because") else ""
     text = f"The analysis stopped before estimating: {reason}.\n\n{because}{a.text}"

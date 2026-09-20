@@ -56,11 +56,28 @@ def brief(key: str, **fields) -> ColumnBrief:
 
 
 def test_provenance_to_weight():
-    assert C.weigh_provenance("confirmed", "user:turn:3") == "fact" and C.weigh_provenance("confirmed", "doc:note") == "fact" and C.weigh_provenance("confirmed", "data") == "fact"
-    assert C.weigh_provenance("drafted", "model:infer") == "draft" and C.weigh_provenance("refuted", "user:turn:2") == "contested" and C.weigh_provenance("contradiction", None) == "contested"
+    assert (
+        C.weigh_provenance("confirmed", "user:turn:3") == "fact"
+        and C.weigh_provenance("confirmed", "doc:note") == "fact"
+        and C.weigh_provenance("confirmed", "data") == "fact"
+    )
+    assert (
+        C.weigh_provenance("drafted", "model:infer") == "draft"
+        and C.weigh_provenance("refuted", "user:turn:2") == "contested"
+        and C.weigh_provenance("contradiction", None) == "contested"
+    )
     assert C.weigh_provenance("unknown", "user:turn:2") == "open" and C.weigh_provenance("empty", None) == "open"
-    b = brief("lunch", when="before", moved_by_change=False, provenance={"when": {"status": "confirmed", "source": "user:turn:4"}, "moved_by_change": {"status": "drafted", "source": "model:infer"}})
-    assert C.settled(b, "when") == ("fact", "before") and C.settled(b, "moved_by_change") == ("draft", False) and C.settled(b, "measures_outcome") == ("open", None)
+    b = brief(
+        "lunch",
+        when="before",
+        moved_by_change=False,
+        provenance={"when": {"status": "confirmed", "source": "user:turn:4"}, "moved_by_change": {"status": "drafted", "source": "model:infer"}},
+    )
+    assert (
+        C.settled(b, "when") == ("fact", "before")
+        and C.settled(b, "moved_by_change") == ("draft", False)
+        and C.settled(b, "measures_outcome") == ("open", None)
+    )
     b = brief("lunch", when="unknown", provenance={"when": {"status": "refuted", "source": "user:turn:4"}})
     assert C.settled(b, "when") == ("contested", None)
 
@@ -79,12 +96,25 @@ def test_belief_status_keys():
 
 def test_weigh_sorts_fields_and_makes_flags_from_beliefs_unknowns_and_contradictions():
     h = cigar()
-    h.columns = [brief("sales", role="outcome"), brief("state", role="treatment"),
-                 brief("price", when="after", moved_by_change=True, provenance={"when": {"status": "confirmed", "source": "user:turn:2", "said": "the tax moved it"}, "moved_by_change": {"status": "confirmed", "source": "user:turn:2"}}),
-                 brief("pop", when="before", provenance={"when": {"status": "drafted", "source": "model:infer"}}),
-                 brief("ndi")]
-    h.beliefs = {"trend_continues": Belief(kind="trend_continues", value=False, status="confirmed", source="user:turn:5", said="the state was already falling"),
-                 "spillover": Belief(kind="spillover", value=True, status="confirmed", source="user:turn:6")}
+    h.columns = [
+        brief("sales", role="outcome"),
+        brief("state", role="treatment"),
+        brief(
+            "price",
+            when="after",
+            moved_by_change=True,
+            provenance={
+                "when": {"status": "confirmed", "source": "user:turn:2", "said": "the tax moved it"},
+                "moved_by_change": {"status": "confirmed", "source": "user:turn:2"},
+            },
+        ),
+        brief("pop", when="before", provenance={"when": {"status": "drafted", "source": "model:infer"}}),
+        brief("ndi"),
+    ]
+    h.beliefs = {
+        "trend_continues": Belief(kind="trend_continues", value=False, status="confirmed", source="user:turn:5", said="the state was already falling"),
+        "spillover": Belief(kind="spillover", value=True, status="confirmed", source="user:turn:6"),
+    }
     h.unknowns = ["col:ndi.when", "claim:change.period_value"]
     h.contradictions = ["col:pop.when"]
     case = C.weigh(h, RULES)
@@ -141,7 +171,13 @@ def test_trend_true_and_a_hard_check_asks_once_then_softens():
     h.beliefs["trend_continues"].said = "yes, the tax was announced early"
     case = C.weigh(h, RULES)
     action, payload, checks = C.decide_by_code(case, _checks("hard"), RULES, h)
-    assert action == "proceed" and payload is None and checks[0].level == "soft" and "kept the belief" in checks[0].detail and "announced early" in checks[0].detail
+    assert (
+        action == "proceed"
+        and payload is None
+        and checks[0].level == "soft"
+        and "kept the belief" in checks[0].detail
+        and "announced early" in checks[0].detail
+    )
     action, _, checks = C.decide_by_code(case, _checks("soft"), RULES, h)
     assert action == "proceed" and checks[0].level == "soft" and "stayed together" in checks[0].detail
 
@@ -175,8 +211,17 @@ def test_harden_unless_a_fact_stands():
 
 def test_a_stop_level_flag_stops_before_any_ask():
     h = cigar()
-    rules = {"beliefs": {"cutoff_only": {"value_field": "believed", "by_status": {"confirmed_false": {"level": "stop", "caveat": "something else switches at the cutoff"},
-                                                                                     "empty": {"level": "soft", "ask": {"question": "q"}}}}}}
+    rules = {
+        "beliefs": {
+            "cutoff_only": {
+                "value_field": "believed",
+                "by_status": {
+                    "confirmed_false": {"level": "stop", "caveat": "something else switches at the cutoff"},
+                    "empty": {"level": "soft", "ask": {"question": "q"}},
+                },
+            }
+        }
+    }
     h.beliefs = {"cutoff_only": Belief(kind="cutoff_only", value=False, status="confirmed")}
     case = C.weigh(h, rules)
     assert C.as_checks(case)[0].level == "hard"

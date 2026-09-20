@@ -3,8 +3,8 @@ Code only. The flag is a cell count."""
 
 from __future__ import annotations
 
-from causal_agent.memory.claims import Cell, ClaimTable, ProbeResult, Status
 from causal_agent.memory.catalogue import Catalogue
+from causal_agent.memory.claims import Cell, ClaimTable, ProbeResult, Status
 
 
 def _measured_keys(table: ClaimTable) -> list[str]:

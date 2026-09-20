@@ -22,7 +22,9 @@ class FakeLLM:
         class R:
             def invoke(self_, messages):
                 fake.calls.append(schema.__name__)
-                raw = AIMessage(content=[{"type": "thinking", "thinking": "t"}, "{}"], usage_metadata={"input_tokens": 1, "output_tokens": 1, "total_tokens": 2})
+                raw = AIMessage(
+                    content=[{"type": "thinking", "thinking": "t"}, "{}"], usage_metadata={"input_tokens": 1, "output_tokens": 1, "total_tokens": 2}
+                )
                 return {"raw": raw, "parsed": G.Choice(function=fake.function, why="the point is about bunching", cites=fake.cites), "parsing_error": None}
 
         return R()
@@ -46,7 +48,9 @@ def _held(monkeypatch):
 def test_one_candidate_is_chosen_by_code_and_drawn():
     fake = FakeLLM()
     set_llm(fake)
-    f = G.make(Point(family="adjustment", claim="both arms exist at every lunch level", about=["claim:assignment.depends_on"]), "students3", outcome="math score")
+    f = G.make(
+        Point(family="adjustment", claim="both arms exist at every lunch level", about=["claim:assignment.depends_on"]), "students3", outcome="math score"
+    )
     assert f.made and f.function == "adjustment.overlap" and fake.calls == []
     assert f.probe.address == "probe:adjustment.overlap" and f.spec.series[0].x[0].startswith("lunch = ")
     assert "figure:overlap_lunch_parental_level_of_education" in f.spec.addresses()

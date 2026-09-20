@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Literal
 
 import pandas as pd
 from langgraph.config import get_stream_writer
@@ -58,11 +57,13 @@ def index_records(memory: Memory) -> list:
 
 
 def context_text(memory: Memory) -> str:
-    return "\n\n".join([
-        render_dataset_text(memory.name, memory.facts, H.fields_of(memory, "grain"), H.fields_of(memory, "sampling"), H.fields_of(memory, "missing")),
-        render_change_text(H.fields_of(memory, "change"), H.fields_of(memory, "assignment")),
-        "BELIEFS\n" + ("\n".join(b.render() for k in H.BELIEF_KINDS if (b := H.belief_of(memory, k)) is not None) or "(none recorded)"),
-    ])
+    return "\n\n".join(
+        [
+            render_dataset_text(memory.name, memory.facts, H.fields_of(memory, "grain"), H.fields_of(memory, "sampling"), H.fields_of(memory, "missing")),
+            render_change_text(H.fields_of(memory, "change"), H.fields_of(memory, "assignment")),
+            "BELIEFS\n" + ("\n".join(b.render() for k in H.BELIEF_KINDS if (b := H.belief_of(memory, k)) is not None) or "(none recorded)"),
+        ]
+    )
 
 
 # ------------------------------------------------------------------ load and mine
@@ -102,8 +103,15 @@ def mine(state: RouteState) -> dict:
     errors = ""
     debug, rejected = [], []
     for _ in range(MINE_ATTEMPTS):
-        user = JP.EXTRACT_USER.format(kinds=kinds_text(), claims=memory.to_claims(cat).render(), cards=cards, asked="(none: this is the description)",
-                                      source=f"doc:{name}", material=text, errors=errors)
+        user = JP.EXTRACT_USER.format(
+            kinds=kinds_text(),
+            claims=memory.to_claims(cat).render(),
+            cards=cards,
+            asked="(none: this is the description)",
+            source=f"doc:{name}",
+            material=text,
+            errors=errors,
+        )
         out, thought = structured(Extraction, JP.EXTRACT_SYSTEM, user, node="mine")
         debug.append(thought)
         updates = []
@@ -137,8 +145,12 @@ def fan_out_prefilter(state: RouteState, then: str = "frame") -> list[Send] | st
 
 
 def prefilter(task: PrefilterTask) -> dict:
-    vote, thought = structured(PrefilterVote, P.PREFILTER_SYSTEM, P.PREFILTER_USER.format(question=task["question"], changes=task["changes"], card=task["card"]),
-                               node=f"prefilter:{task['column']}")
+    vote, thought = structured(
+        PrefilterVote,
+        P.PREFILTER_SYSTEM,
+        P.PREFILTER_USER.format(question=task["question"], changes=task["changes"], card=task["card"]),
+        node=f"prefilter:{task['column']}",
+    )
     vote.column = task["column"]
     return {"prefilter_votes": [vote], "debug": [thought]}
 
@@ -150,7 +162,9 @@ def frame(state: RouteState) -> dict:
     if votes:
         recs = [c for c in recs if votes.get(c.name, True)]
     index = "\n".join(H.brief_of(memory, c).line() for c in recs)
-    fr, thought = structured(QuestionFrame, P.FRAME_SYSTEM, P.FRAME_USER.format(question=state["question"], digest=context_text(memory), column_index=index), node="frame")
+    fr, thought = structured(
+        QuestionFrame, P.FRAME_SYSTEM, P.FRAME_USER.format(question=state["question"], digest=context_text(memory), column_index=index), node="frame"
+    )
     normalise_columns(fr, memory)
     _writer()({"frame": {"intent": fr.intent, "outcome": fr.outcome, "cause": fr.cause, "relevant": [c.column for c in fr.relevant_columns]}})
     return {"frame": fr, "debug": [thought]}

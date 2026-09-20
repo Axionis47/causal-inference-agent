@@ -16,8 +16,13 @@ def rows_by_side(x: pd.Series, cutoff: float) -> tuple[int, int]:
 
 def side_probe(x: pd.Series, cutoff: float, score: str, floor: int) -> Probe:
     below, above = rows_by_side(x, cutoff)
-    return Probe(family="discontinuity", name="rows_by_side", value=float(min(below, above)), passed=min(below, above) >= floor,
-                 detail=f"{below} rows below {cutoff:g} and {above} above on {score!r}; floor {floor} a side")
+    return Probe(
+        family="discontinuity",
+        name="rows_by_side",
+        value=float(min(below, above)),
+        passed=min(below, above) >= floor,
+        detail=f"{below} rows below {cutoff:g} and {above} above on {score!r}; floor {floor} a side",
+    )
 
 
 def _bins(x: pd.Series, cutoff: float, bins: int, window: float | None) -> list[tuple[float, float]]:
@@ -31,10 +36,13 @@ def _bins(x: pd.Series, cutoff: float, bins: int, window: float | None) -> list[
     return [(float(a), float(b)) for a, b in zip(edges[:-1], edges[1:])]
 
 
-def density(df: pd.DataFrame, score: str, cutoff: float, bins: int = 20, window: float | None = None, floor: int = 20, addresses: list[str] | None = None) -> Figure:
+def density(
+    df: pd.DataFrame, score: str | None, cutoff: float, bins: int = 20, window: float | None = None, floor: int = 20, addresses: list[str] | None = None
+) -> Figure:
     """Rows per score bin either side of the cutoff: bunching shows as a jump at the line."""
     if score not in df.columns:
         return Figure.refused(f"{score!r} is not a column in the table", "discontinuity.density")
+    assert score is not None
     x = pd.to_numeric(df[score], errors="coerce").dropna()
     if x.empty:
         return Figure.refused(f"{score!r} does not read as numbers", "discontinuity.density")
@@ -45,18 +53,35 @@ def density(df: pd.DataFrame, score: str, cutoff: float, bins: int = 20, window:
         inside = (x >= a) & (x < b) if b <= cutoff else (x > a) & (x <= b)
         xs.append(float((a + b) / 2))
         ys.append(float(inside.sum()))
-    spec = FigureSpec(id=f"density_{score}".replace(" ", "_"), kind="density", title=f"How many rows sit at each {score}", x_label=score, y_label="rows",
-                      series=[Series(name="rows", x=xs, y=ys)], marks=[Mark(kind="vline", at=cutoff, label="cutoff")],
-                      note=f"{probe.detail}", draws_on=list(addresses or []) + [probe.address])
+    spec = FigureSpec(
+        id=f"density_{score}".replace(" ", "_"),
+        kind="density",
+        title=f"How many rows sit at each {score}",
+        x_label=score,
+        y_label="rows",
+        series=[Series(name="rows", x=xs, y=ys)],
+        marks=[Mark(kind="vline", at=cutoff, label="cutoff")],
+        note=f"{probe.detail}",
+        draws_on=list(addresses or []) + [probe.address],
+    )
     return Figure(made=True, spec=spec, probe=probe, function="discontinuity.density")
 
 
-def outcome_by_bin(df: pd.DataFrame, score: str, cutoff: float, outcome: str, bins: int = 20, window: float | None = None, floor: int = 20,
-                   addresses: list[str] | None = None) -> Figure:
+def outcome_by_bin(
+    df: pd.DataFrame,
+    score: str | None,
+    cutoff: float,
+    outcome: str | None,
+    bins: int = 20,
+    window: float | None = None,
+    floor: int = 20,
+    addresses: list[str] | None = None,
+) -> Figure:
     """Mean outcome per score bin either side of the cutoff: the jump at the line is what the design estimates."""
     for c in (score, outcome):
         if c not in df.columns:
             return Figure.refused(f"{c!r} is not a column in the table", "discontinuity.outcome_by_bin")
+    assert score is not None and outcome is not None
     x = pd.to_numeric(df[score], errors="coerce")
     y = pd.to_numeric(df[outcome], errors="coerce")
     keep = x.notna() & y.notna()
@@ -71,7 +96,15 @@ def outcome_by_bin(df: pd.DataFrame, score: str, cutoff: float, outcome: str, bi
         xs.append(float((a + b) / 2))
         ys.append(float(y[inside].mean()) if n else None)
         ns.append(n)
-    spec = FigureSpec(id=f"outcome_by_bin_{outcome}".replace(" ", "_"), kind="points", title=f"{outcome} by {score}, either side of {cutoff:g}", x_label=score, y_label=f"mean {outcome}",
-                      series=[Series(name=f"mean {outcome}", x=xs, y=ys, n=ns)], marks=[Mark(kind="vline", at=cutoff, label="cutoff")],
-                      note="a jump at the line is the effect the design reads; a smooth curve through it is none", draws_on=list(addresses or []) + [probe.address])
+    spec = FigureSpec(
+        id=f"outcome_by_bin_{outcome}".replace(" ", "_"),
+        kind="points",
+        title=f"{outcome} by {score}, either side of {cutoff:g}",
+        x_label=score,
+        y_label=f"mean {outcome}",
+        series=[Series(name=f"mean {outcome}", x=xs, y=ys, n=ns)],
+        marks=[Mark(kind="vline", at=cutoff, label="cutoff")],
+        note="a jump at the line is the effect the design reads; a smooth curve through it is none",
+        draws_on=list(addresses or []) + [probe.address],
+    )
     return Figure(made=True, spec=spec, probe=probe, function="discontinuity.outcome_by_bin")

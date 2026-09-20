@@ -8,9 +8,8 @@ own folder, register it in BUILT below, flip the family's status in knowledge/fa
 
 from __future__ import annotations
 
-from typing_extensions import TypedDict
-
 from langgraph.graph import END, START, StateGraph
+from typing_extensions import TypedDict
 
 from causal_agent.common.contracts import Handoff
 from causal_agent.knowledge import load_registry

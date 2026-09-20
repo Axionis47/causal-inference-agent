@@ -53,7 +53,11 @@ def controls_ok(run, example):
     bad = want & included
     missing = want - kept_out - included  # neither excluded nor absorbed: the relate step never saw it or said nothing
     ok = not bad and not missing
-    return {"score": int(ok), "comment": (f"should not be controls: {sorted(bad)}; " if bad else "") + (f"not judged at all: {sorted(missing)}" if missing else "kept out as expected")}
+    return {
+        "score": int(ok),
+        "comment": (f"should not be controls: {sorted(bad)}; " if bad else "")
+        + (f"not judged at all: {sorted(missing)}" if missing else "kept out as expected"),
+    }
 
 
 def flags_contain(run, example):

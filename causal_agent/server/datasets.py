@@ -12,9 +12,9 @@ from pathlib import Path
 import pandas as pd
 import yaml
 
+from causal_agent.memory import store as MS
 from causal_agent.profile import data as D
 from causal_agent.profile.profiler import Profile, profile
-from causal_agent.memory import store as MS
 from causal_agent.server.models import ColumnSummary, DatasetCreate, DatasetSummary, DatetimeShape, NumericShape, ProfileOut, Sentinel, TopValue
 from causal_agent.server.settings import Settings
 
@@ -71,7 +71,7 @@ def all_meta(s: Settings) -> dict[str, dict]:
 
 
 def _now() -> str:
-    return dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
+    return dt.datetime.now(dt.UTC).isoformat(timespec="seconds")
 
 
 # ------------------------------------------------------------------ list
@@ -94,9 +94,19 @@ def list_datasets(s: Settings) -> list[DatasetSummary]:
     for name in sorted(set(es) | set(metas), key=lambda n: (n not in metas, (metas.get(n) or {}).get("created_at") or "", n), reverse=False):
         e, m = es.get(name) or {}, metas.get(name)
         rows, cols = _profile_counts(s, e)
-        out.append(DatasetSummary(name=name, title=(m or {}).get("title") or name.replace("_", " "), csv=e.get("csv") or (m or {}).get("csv") or "",
-                                  rows=rows, columns=cols, created_at=(m or {}).get("created_at"), shipped=m is None, has_claims=MS.exists(name, s.root),
-                                  question=(m or {}).get("question")))
+        out.append(
+            DatasetSummary(
+                name=name,
+                title=(m or {}).get("title") or name.replace("_", " "),
+                csv=e.get("csv") or (m or {}).get("csv") or "",
+                rows=rows,
+                columns=cols,
+                created_at=(m or {}).get("created_at"),
+                shipped=m is None,
+                has_claims=MS.exists(name, s.root),
+                question=(m or {}).get("question"),
+            )
+        )
     # newest web datasets first, then the shipped ones by name
     out.sort(key=lambda d: (d.shipped, -(dt.datetime.fromisoformat(d.created_at).timestamp() if d.created_at else 0), d.name))
     return out
@@ -116,12 +126,24 @@ def _examples(c) -> list[str]:
 
 
 def _column(c) -> ColumnSummary:
-    num = NumericShape(min=c.numeric.min, p25=c.numeric.p25, p50=c.numeric.p50, p75=c.numeric.p75, max=c.numeric.max, mean=c.numeric.mean) if c.numeric else None
+    num = (
+        NumericShape(min=c.numeric.min, p25=c.numeric.p25, p50=c.numeric.p50, p75=c.numeric.p75, max=c.numeric.max, mean=c.numeric.mean) if c.numeric else None
+    )
     dt = DatetimeShape(first=c.datetime.first, last=c.datetime.last, frequency=c.datetime.inferred_frequency) if c.datetime else None
     return ColumnSummary(
-        name=c.name, key=c.key, kind=c.kind, nulls=c.nulls, null_rate=c.null_rate, distinct=c.distinct, constant=c.constant, examples=_examples(c),
-        numeric=num, top_values=[TopValue(value=t.value, count=t.count, share=t.share) for t in (c.top_values or [])], datetime=dt,
-        sentinels=[Sentinel(value=x.value, count=x.count, reason=x.reason) for x in c.observed_sentinels], issues=list(c.format_issues),
+        name=c.name,
+        key=c.key,
+        kind=c.kind,
+        nulls=c.nulls,
+        null_rate=c.null_rate,
+        distinct=c.distinct,
+        constant=c.constant,
+        examples=_examples(c),
+        numeric=num,
+        top_values=[TopValue(value=t.value, count=t.count, share=t.share) for t in (c.top_values or [])],
+        datetime=dt,
+        sentinels=[Sentinel(value=x.value, count=x.count, reason=x.reason) for x in c.observed_sentinels],
+        issues=list(c.format_issues),
     )
 
 
@@ -141,8 +163,16 @@ def head_rows(path: Path, n: int = HEAD_ROWS) -> list[list[str]]:
 def profile_out(upload_id: str, path: Path, prof: Profile) -> ProfileOut:
     d = prof.dataset
     return ProfileOut(
-        upload_id=upload_id, filename=path.name, rows=d.rows, columns=summarise(prof), head=head_rows(path),
-        duplicate_rows=d.duplicate_rows, candidate_keys=d.candidate_keys, grain=d.grain, co_missing=d.co_missing, issues=list(d.format_issues),
+        upload_id=upload_id,
+        filename=path.name,
+        rows=d.rows,
+        columns=summarise(prof),
+        head=head_rows(path),
+        duplicate_rows=d.duplicate_rows,
+        candidate_keys=d.candidate_keys,
+        grain=d.grain,
+        co_missing=d.co_missing,
+        issues=list(d.format_issues),
     )
 
 
@@ -197,12 +227,29 @@ def create_dataset(s: Settings, req: DatasetCreate) -> tuple[DatasetSummary, dic
     es = entries(s)
     es[req.name] = {"csv": csv_rel, "profile": profile_rel}
     write_entries(s, es)
-    meta = {"name": req.name, "title": req.title.strip(), "created_at": _now(), "csv": csv_rel, "thread_id": None, "question": None,
-            "last_prompt": None, "ended": False}
+    meta = {
+        "name": req.name,
+        "title": req.title.strip(),
+        "created_at": _now(),
+        "csv": csv_rel,
+        "thread_id": None,
+        "question": None,
+        "last_prompt": None,
+        "ended": False,
+    }
     write_meta(s, req.name, meta)
     D.clear()
-    return DatasetSummary(name=req.name, title=meta["title"], csv=csv_rel, rows=prof.dataset.rows, columns=prof.dataset.columns, created_at=meta["created_at"],
-                          shipped=False, has_claims=False, question=None), meta
+    return DatasetSummary(
+        name=req.name,
+        title=meta["title"],
+        csv=csv_rel,
+        rows=prof.dataset.rows,
+        columns=prof.dataset.columns,
+        created_at=meta["created_at"],
+        shipped=False,
+        has_claims=False,
+        question=None,
+    ), meta
 
 
 # ------------------------------------------------------------------ delete

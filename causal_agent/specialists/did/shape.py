@@ -21,8 +21,15 @@ class ShapeError(Exception):
         self.reason, self.facts, self.fix = reason, facts, fix
 
 
-def canonical(table: pd.DataFrame, groups: Groups, periods: Periods, outcome: str, candidates: list[str], unit_column: str | None = None,
-              cluster_column: str | None = None) -> tuple[pd.DataFrame, ShapeFacts]:
+def canonical(
+    table: pd.DataFrame,
+    groups: Groups,
+    periods: Periods,
+    outcome: str,
+    candidates: list[str],
+    unit_column: str | None = None,
+    cluster_column: str | None = None,
+) -> tuple[pd.DataFrame, ShapeFacts]:
     """unit_column: the entity column for a long panel (from the dataset index); the group column when absent.
     cluster_column: the level the pack says errors cluster at; carried as `cluster` when it is a column of the table."""
     treated = (table[groups.column].astype(str) == str(groups.treated_level)).astype(int)
@@ -35,7 +42,9 @@ def canonical(table: pd.DataFrame, groups: Groups, periods: Periods, outcome: st
         if periods.kind == "wide":
             panel["cluster"] = pd.concat([by_row, by_row], ignore_index=True).to_numpy()
         else:
-            panel["cluster"] = by_row.to_numpy()[panel.index] if len(panel) == len(table) else _cluster_by_unit(table, panel, unit_column or groups.column, cluster_column)
+            panel["cluster"] = (
+                by_row.to_numpy()[panel.index] if len(panel) == len(table) else _cluster_by_unit(table, panel, unit_column or groups.column, cluster_column)
+            )
     return panel, facts
 
 
@@ -73,7 +82,11 @@ def _from_long(table: pd.DataFrame, treated: pd.Series, p: Periods, outcome: str
         raise ShapeError("the time column does not sort", [f"{t!r} has values that are neither numbers nor dates"], "a numeric or date time column")
     first_post = _parse_like(time, p.first_post)
     if first_post is None or not (time.min() <= first_post <= time.max() + 1):
-        raise ShapeError("the first post period is not inside the time range", [f"first_post {p.first_post!r}; range {time.min()} to {time.max()}"], "a change date inside the data's time span")
+        raise ShapeError(
+            "the first post period is not inside the time range",
+            [f"first_post {p.first_post!r}; range {time.min()} to {time.max()}"],
+            "a change date inside the data's time span",
+        )
     df = pd.DataFrame({"y": table[outcome].to_numpy(), "time": time.to_numpy(), "treated": treated.to_numpy()})
     keep = [c for c in candidates if c in table.columns and c not in (t, outcome, unit_column)]
     for c in keep:
@@ -132,9 +145,14 @@ def _facts(df: pd.DataFrame, *, kind: str) -> ShapeFacts:
     first_treated = df[df["treat"] > 0].groupby("unit")["time"].min()
     cohorts = int(first_treated.nunique()) if len(first_treated) else 0
     return ShapeFacts(
-        kind=kind, rows=int(len(df)),
-        units_treated=int((treated_units == 1).sum()), units_control=int((treated_units == 0).sum()),
-        periods_pre=pre, periods_post=post, cohorts=max(cohorts, 1 if post else 0), switching_units=switching,
+        kind=kind,
+        rows=int(len(df)),
+        units_treated=int((treated_units == 1).sum()),
+        units_control=int((treated_units == 0).sum()),
+        periods_pre=pre,
+        periods_post=post,
+        cohorts=max(cohorts, 1 if post else 0),
+        switching_units=switching,
         time_values=[str(v) for v in sorted(df["time"].unique())][:40],
     )
 
@@ -145,6 +163,8 @@ def _guard(f: ShapeFacts) -> None:
     if f.periods_post == 0:
         raise ShapeError("no period after the change", [f"{f.periods_pre} pre periods, 0 post"], "an observation of the outcome from after the change")
     if f.units_treated == 0 or f.units_control == 0:
-        raise ShapeError("one of the groups has no units", [f"{f.units_treated} treated, {f.units_control} control"], "rows from both a treated and an untreated group")
+        raise ShapeError(
+            "one of the groups has no units", [f"{f.units_treated} treated, {f.units_control} control"], "rows from both a treated and an untreated group"
+        )
     if f.switching_units:
         raise ShapeError("units change group over time", [f"{f.switching_units} units switch"], "a group label fixed per unit")

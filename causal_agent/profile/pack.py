@@ -23,7 +23,8 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
-from causal_agent.common.addresses import key as _key, norm_address as _norm_address
+from causal_agent.common.addresses import key as _key
+from causal_agent.common.addresses import norm_address as _norm_address
 from causal_agent.profile.profiler import ColumnProfile, DatasetProfile, Profile
 
 
@@ -73,10 +74,7 @@ class ColumnCard(BaseModel):
             lines.append(f"  [{self.address}.profile.datetime] {p.datetime.first} to {p.datetime.last}, {p.datetime.inferred_frequency}")
         if p.switch:
             s = p.switch
-            lines.append(
-                f"  [{self.address}.profile.switch] {s.entities_that_switch} entities switch, "
-                f"{s.entities_never_on} never on, first on {s.first_on}"
-            )
+            lines.append(f"  [{self.address}.profile.switch] {s.entities_that_switch} entities switch, {s.entities_never_on} never on, first on {s.first_on}")
         if p.observed_sentinels:
             lines.append(f"  [{self.address}.profile.sentinels] " + "; ".join(f"{s.value} x{s.count} ({s.reason})" for s in p.observed_sentinels))
         if p.format_issues:
@@ -270,8 +268,17 @@ def _load_claims(path: str | Path | None) -> tuple[list[ClaimCard], list[ProbeCa
     import yaml
 
     raw = yaml.safe_load(Path(path).read_text()) or {}
-    claims = [ClaimCard(kind=c["kind"], key=c["key"], fields=c.get("fields") or {}, status=c.get("status", "empty"), source=c.get("source"), check_detail=c.get("check_detail"))
-              for c in raw.get("claims") or []]
+    claims = [
+        ClaimCard(
+            kind=c["kind"],
+            key=c["key"],
+            fields=c.get("fields") or {},
+            status=c.get("status", "empty"),
+            source=c.get("source"),
+            check_detail=c.get("check_detail"),
+        )
+        for c in raw.get("claims") or []
+    ]
     probes = [ProbeCard(family=p["family"], name=p["name"], passed=p.get("passed"), detail=p.get("detail", "")) for p in raw.get("probes") or []]
     return claims, probes
 

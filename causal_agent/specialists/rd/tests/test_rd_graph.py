@@ -32,13 +32,37 @@ def memory(pack: str, *, cutoff_only=True, cutoff_only_status="confirmed", said=
 
 
 def handoff(pack: str, outcome: str, treatment: str | None, cols: list[str], cite: str, target: str = "average", memory_=None) -> Handoff:
-    return forced(pack, "Did crossing the cutoff change the outcome?", "discontinuity", outcome, treatment, cols, scope=Scope(target=target),
-                  assumption="units just either side of the cutoff are alike", cite=cite, memory=memory_ or memory(pack))
+    return forced(
+        pack,
+        "Did crossing the cutoff change the outcome?",
+        "discontinuity",
+        outcome,
+        treatment,
+        cols,
+        scope=Scope(target=target),
+        assumption="units just either side of the cutoff are alike",
+        cite=cite,
+        memory=memory_ or memory(pack),
+    )
 
 
-URUGUAY = dict(pack="gov_transfers", outcome="Support", treatment="Participation", cols=["Support", "Participation", "Income_Centered", "Education", "Age"], cite="col:income_centered.note")
-URUGUAY_SCORE = Score(column="income_centered", cutoff=0.0, treated_side="below", cutoff_value_treated=False, takeup_column="participation", takeup_level="1",
-                      reason="the note says households below zero were eligible and every one of them received the transfer", cites=["col:income_centered.note", "change:1.note"])
+URUGUAY = dict(
+    pack="gov_transfers",
+    outcome="Support",
+    treatment="Participation",
+    cols=["Support", "Participation", "Income_Centered", "Education", "Age"],
+    cite="col:income_centered.note",
+)
+URUGUAY_SCORE = Score(
+    column="income_centered",
+    cutoff=0.0,
+    treated_side="below",
+    cutoff_value_treated=False,
+    takeup_column="participation",
+    takeup_level="1",
+    reason="the note says households below zero were eligible and every one of them received the transfer",
+    cites=["col:income_centered.note", "change:1.note"],
+)
 URUGUAY_RELATIONS = {"education": dict(predetermined=True), "age": dict(predetermined=True)}
 
 
@@ -48,7 +72,9 @@ URUGUAY_RELATIONS = {"education": dict(predetermined=True), "age": dict(predeter
 class FakeLLM:
     """Scripted answers: a Score, relations per column, and defaults for the rest that read the material like a careful model would."""
 
-    def __init__(self, score: Score, relations: dict, cite: str, *, bad_cites=False, assess_script=None, pick_script=None, score_script=None, interpret_bad_first=False):
+    def __init__(
+        self, score: Score, relations: dict, cite: str, *, bad_cites=False, assess_script=None, pick_script=None, score_script=None, interpret_bad_first=False
+    ):
         self.score, self.relations, self.cite, self.bad_cites = score, relations, cite, bad_cites
         self.assess_script, self.pick_script, self.score_script = list(assess_script or []), list(pick_script or []), list(score_script or [])
         self.interpret_bad_first = interpret_bad_first
@@ -60,8 +86,10 @@ class FakeLLM:
         class R:
             def invoke(self_, messages):
                 parsed = fake.answer(schema, messages[-1][1])
-                raw = AIMessage(content=[{"type": "thinking", "thinking": f"thinking about {schema.__name__}"}, "{}"],
-                                usage_metadata={"input_tokens": 10, "output_tokens": 20, "total_tokens": 30, "output_token_details": {"reasoning": 7}})
+                raw = AIMessage(
+                    content=[{"type": "thinking", "thinking": f"thinking about {schema.__name__}"}, "{}"],
+                    usage_metadata={"input_tokens": 10, "output_tokens": 20, "total_tokens": 30, "output_token_details": {"reasoning": 7}},
+                )
                 return {"raw": raw, "parsed": parsed, "parsing_error": None}
 
         return R()
@@ -84,7 +112,11 @@ class FakeLLM:
             flags = re.findall(r"\[(check:[^\]]+)\] (\w+):", human.split("FLAGGED CHECKS")[1].split("SCORE CARD")[0])
             if any(level == "HARD" for _, level in flags):
                 return DesignAssessment(action="stop", reason="a hard flag stands", cites=[a for a, _ in flags])
-            return DesignAssessment(action="proceed", reason="the note says the score was set before the programme and could not be moved", cites=[a for a, _ in flags] + [self.cite])
+            return DesignAssessment(
+                action="proceed",
+                reason="the note says the score was set before the programme and could not be moved",
+                cites=[a for a, _ in flags] + [self.cite],
+            )
         if schema is EstimatorPick:
             names = [n.strip() for n in re.search(r"NAMES YOU MAY PICK: (.*)", human).group(1).split(",")]
             return EstimatorPick(name=self.pick_script.pop(0) if self.pick_script else names[0], reason="ranked first", cites=[])
@@ -97,9 +129,19 @@ class FakeLLM:
             h = float(re.search(r"\[estimate:%s\.bandwidth\] h = ([-\d.eE+]+)" % re.escape(c), human).group(1))
             required = human.split("ADDRESSES YOU MUST CITE")[1].split("\n\n")[0].strip().splitlines()
             bad = self.interpret_bad_first and "PREVIOUS ANSWER WAS REJECTED" not in human
-            return RDInterpretation(contrast=c, answer=f"At the cutoff the effect is {value:.3g}, interval {lo:.3g} to {hi:.3g}; local to units at the cutoff.", effect_stated=value,
-                                    caveats=["local to the cutoff"], cites=["nope:x"] if bad else required, estimand=estimand, bandwidth_stated=h,
-                                    n_left_stated=nl, n_right_stated=nr, ci_low_stated=lo, ci_high_stated=hi)
+            return RDInterpretation(
+                contrast=c,
+                answer=f"At the cutoff the effect is {value:.3g}, interval {lo:.3g} to {hi:.3g}; local to units at the cutoff.",
+                effect_stated=value,
+                caveats=["local to the cutoff"],
+                cites=["nope:x"] if bad else required,
+                estimand=estimand,
+                bandwidth_stated=h,
+                n_left_stated=nl,
+                n_right_stated=nr,
+                ci_low_stated=lo,
+                ci_high_stated=hi,
+            )
         raise AssertionError(schema)
 
 
@@ -132,7 +174,9 @@ Each row is one unit. Synthetic data with a known jump. [synthetic]
 """
 
 
-def make_pack(tmp_path, monkeypatch, name: str, df: pd.DataFrame, rule: str, columns: dict[str, str], *, entity: list[str] | None = None, sampled_by_side=False):
+def make_pack(
+    tmp_path, monkeypatch, name: str, df: pd.DataFrame, rule: str, columns: dict[str, str], *, entity: list[str] | None = None, sampled_by_side=False
+):
     csv, md, prof = tmp_path / f"{name}.csv", tmp_path / f"{name}.md", tmp_path / f"{name}.json"
     df.to_csv(csv, index=False)
     md.write_text(NOTE.format(name=name, rule=rule, columns="\n\n".join(f"**{k}** — {v} [synthetic]" for k, v in columns.items())))
@@ -141,7 +185,6 @@ def make_pack(tmp_path, monkeypatch, name: str, df: pd.DataFrame, rule: str, col
     if entity:
         entry["entity"] = entity
     monkeypatch.setattr(N, "dataset_entries", lambda: {name: entry})
-    monkeypatch.setattr(N, "ROOT", Path("/"))
     monkeypatch.setattr(DS, "dataset_entries", lambda *a, **k: {name: entry})  # the builder and the memory store read the index and the root
     monkeypatch.setattr(DS, "ROOT", tmp_path)
 
@@ -199,10 +242,19 @@ def manipulated(n=6000, seed=6) -> pd.DataFrame:
     return pd.DataFrame({"x": x, "y": y})
 
 
-SYNTH_COLS = {"score": "The score the rule was applied to, fixed before the grant.", "y": "The outcome, measured after the grant.",
-              "got": "1 if the unit received the grant, 0 if not.", "z": "A characteristic fixed before the grant.", "later": "The outcome measured again a year later."}
-FUZZY_COLS = {"x": "The score, centred on the cutoff; fixed before the offer.", "y": "The outcome, measured after.", "eligible": "1 if the score was at or above zero.",
-              "received": "1 if the unit actually took the grant up."}
+SYNTH_COLS = {
+    "score": "The score the rule was applied to, fixed before the grant.",
+    "y": "The outcome, measured after the grant.",
+    "got": "1 if the unit received the grant, 0 if not.",
+    "z": "A characteristic fixed before the grant.",
+    "later": "The outcome measured again a year later.",
+}
+FUZZY_COLS = {
+    "x": "The score, centred on the cutoff; fixed before the offer.",
+    "y": "The outcome, measured after.",
+    "eligible": "1 if the score was at or above zero.",
+    "received": "1 if the unit actually took the grant up.",
+}
 
 
 # ------------------------------------------------------------------ tests: the real file
@@ -254,12 +306,21 @@ def test_proceed_without_citing_flags_is_rejected():
 
 def test_proceed_on_density_without_a_note_cite_is_rejected(tmp_path, monkeypatch):
     df = manipulated()
-    make_pack(tmp_path, monkeypatch, "manip", df, "Units with a score at or above zero got the grant.", {"x": "The score, fixed before the grant.", "y": "The outcome, measured after."})
+    make_pack(
+        tmp_path,
+        monkeypatch,
+        "manip",
+        df,
+        "Units with a score at or above zero got the grant.",
+        {"x": "The score, fixed before the grant.", "y": "The outcome, measured after."},
+    )
     sc = Score(column="x", cutoff=0.0, treated_side="above", cutoff_value_treated=True, takeup_column=None, takeup_level=None, reason="r", cites=["col:x.note"])
     # cites the flag addresses but no pack address, three times
     fake = FakeLLM(sc, {}, "col:x.note", assess_script=[DesignAssessment(action="proceed", reason="fine", cites=["check:above_vs_below.density"])] * 3)
     m = memory("manip")
-    m.set("claim:assignment.movable", False, status="confirmed", source="user:turn:1")  # the person says the score could not be moved: the jump is the model's to argue
+    m.set(
+        "claim:assignment.movable", False, status="confirmed", source="user:turn:1"
+    )  # the person says the score could not be moved: the jump is the model's to argue
     out = _run(fake, handoff("manip", "y", None, ["x", "y"], "col:x.note", memory_=m))
     levels = {c.name: c.level for c in out["checks"]}
     assert levels["density"] == "soft", [c.detail for c in out["checks"] if c.name == "density"]
@@ -271,7 +332,11 @@ def test_proceed_on_density_without_a_note_cite_is_rejected(tmp_path, monkeypatc
 
 
 def test_score_gates_reject_then_stop():
-    bad = [URUGUAY_SCORE.model_copy(update={"cutoff": 5.0}), URUGUAY_SCORE.model_copy(update={"takeup_level": "yes"}), URUGUAY_SCORE.model_copy(update={"column": "nope"})]
+    bad = [
+        URUGUAY_SCORE.model_copy(update={"cutoff": 5.0}),
+        URUGUAY_SCORE.model_copy(update={"takeup_level": "yes"}),
+        URUGUAY_SCORE.model_copy(update={"column": "nope"}),
+    ]
     fake = FakeLLM(URUGUAY_SCORE, URUGUAY_RELATIONS, URUGUAY["cite"], score_script=bad)
     out = _run(fake, handoff(**URUGUAY))
     assert out["specialist_result"]["status"] == "infeasible" and out["feasibility"].stage == "score"
@@ -295,7 +360,9 @@ def test_no_cutoff_stated_is_an_honest_stop():
 
 def test_treatment_column_must_be_the_takeup(tmp_path, monkeypatch):
     # the hand-off names `received`, which is not a function of the cutoff; a Score that ignores it is rejected three times
-    make_pack(tmp_path, monkeypatch, "fuzzy", fuzzy_above(), "Units with a score at or above zero were offered the grant; about seven in ten took it up.", FUZZY_COLS)
+    make_pack(
+        tmp_path, monkeypatch, "fuzzy", fuzzy_above(), "Units with a score at or above zero were offered the grant; about seven in ten took it up.", FUZZY_COLS
+    )
     sc = Score(column="x", cutoff=0.0, treated_side="above", cutoff_value_treated=True, takeup_column=None, takeup_level=None, reason="r", cites=["col:x.note"])
     fake = FakeLLM(sc, {}, "col:x.note")
     out = _run(fake, handoff("fuzzy", "y", "received", ["x", "y", "eligible", "received"], "col:x.note"))
@@ -325,7 +392,16 @@ def test_sharp_treated_below_with_ties_at_the_cutoff(tmp_path, monkeypatch):
     df = sharp_below()
     assert (df["score"] == 50).sum() > 0
     make_pack(tmp_path, monkeypatch, "sharp", df, "Units with a score strictly below 50 got the grant; a unit exactly at 50 did not.", SYNTH_COLS)
-    sc = Score(column="score", cutoff=50.0, treated_side="below", cutoff_value_treated=False, takeup_column="got", takeup_level="1", reason="r", cites=["col:score.note"])
+    sc = Score(
+        column="score",
+        cutoff=50.0,
+        treated_side="below",
+        cutoff_value_treated=False,
+        takeup_column="got",
+        takeup_level="1",
+        reason="r",
+        cites=["col:score.note"],
+    )
     fake = FakeLLM(sc, {"z": dict(predetermined=True), "later": dict(is_outcome_measure=True)}, "col:score.note")
     out = _run(fake, handoff("sharp", "y", "got", ["score", "y", "got", "z", "later"], "col:score.note"))
     r = out["specialist_result"]
@@ -346,8 +422,12 @@ def test_sharp_treated_below_with_ties_at_the_cutoff(tmp_path, monkeypatch):
 
 
 def test_fuzzy_with_a_strong_first_stage(tmp_path, monkeypatch):
-    make_pack(tmp_path, monkeypatch, "fuzzy", fuzzy_above(), "Units with a score at or above zero were offered the grant; about seven in ten took it up.", FUZZY_COLS)
-    sc = Score(column="x", cutoff=0.0, treated_side="above", cutoff_value_treated=True, takeup_column="received", takeup_level="1", reason="r", cites=["col:x.note"])
+    make_pack(
+        tmp_path, monkeypatch, "fuzzy", fuzzy_above(), "Units with a score at or above zero were offered the grant; about seven in ten took it up.", FUZZY_COLS
+    )
+    sc = Score(
+        column="x", cutoff=0.0, treated_side="above", cutoff_value_treated=True, takeup_column="received", takeup_level="1", reason="r", cites=["col:x.note"]
+    )
     fake = FakeLLM(sc, {}, "col:x.note")
     out = _run(fake, handoff("fuzzy", "y", "eligible", ["x", "y", "eligible", "received"], "col:x.note"))
     r = out["specialist_result"]
@@ -371,7 +451,9 @@ def test_fuzzy_with_a_strong_first_stage(tmp_path, monkeypatch):
 
 def test_weak_first_stage_leaves_only_itt(tmp_path, monkeypatch):
     make_pack(tmp_path, monkeypatch, "weak", weak_first_stage(), "Units with a score at or above zero were offered the grant; few took it up.", FUZZY_COLS)
-    sc = Score(column="x", cutoff=0.0, treated_side="above", cutoff_value_treated=True, takeup_column="received", takeup_level="1", reason="r", cites=["col:x.note"])
+    sc = Score(
+        column="x", cutoff=0.0, treated_side="above", cutoff_value_treated=True, takeup_column="received", takeup_level="1", reason="r", cites=["col:x.note"]
+    )
     fake = FakeLLM(sc, {}, "col:x.note")
     out = _run(fake, handoff("weak", "y", "eligible", ["x", "y", "eligible", "received"], "col:x.note"))
     status = out["check_facts"]["first_stage_status"]
@@ -383,8 +465,17 @@ def test_weak_first_stage_leaves_only_itt(tmp_path, monkeypatch):
 
 
 def test_no_first_stage_is_a_hard_stop(tmp_path, monkeypatch):
-    make_pack(tmp_path, monkeypatch, "none", no_first_stage(), "Units with a score at or above zero were offered the grant.", {k: v for k, v in FUZZY_COLS.items() if k != "eligible"})
-    sc = Score(column="x", cutoff=0.0, treated_side="above", cutoff_value_treated=True, takeup_column="received", takeup_level="1", reason="r", cites=["col:x.note"])
+    make_pack(
+        tmp_path,
+        monkeypatch,
+        "none",
+        no_first_stage(),
+        "Units with a score at or above zero were offered the grant.",
+        {k: v for k, v in FUZZY_COLS.items() if k != "eligible"},
+    )
+    sc = Score(
+        column="x", cutoff=0.0, treated_side="above", cutoff_value_treated=True, takeup_column="received", takeup_level="1", reason="r", cites=["col:x.note"]
+    )
     fake = FakeLLM(sc, {}, "col:x.note", assess_script=[DesignAssessment(action="proceed", reason="ignore", cites=["check:above_vs_below.no_first_stage"])] * 3)
     out = _run(fake, handoff("none", "y", "received", ["x", "y", "received"], "col:x.note"))
     levels = {c.name: c.level for c in out["checks"]}
@@ -393,7 +484,14 @@ def test_no_first_stage_is_a_hard_stop(tmp_path, monkeypatch):
 
 
 def test_discrete_score_flags_support_and_density(tmp_path, monkeypatch):
-    make_pack(tmp_path, monkeypatch, "disc", discrete(), "Units with a score at or above 7 got the grant.", {"x": "The score, an integer from 1 to 12, fixed before the grant.", "y": "The outcome, measured after."})
+    make_pack(
+        tmp_path,
+        monkeypatch,
+        "disc",
+        discrete(),
+        "Units with a score at or above 7 got the grant.",
+        {"x": "The score, an integer from 1 to 12, fixed before the grant.", "y": "The outcome, measured after."},
+    )
     sc = Score(column="x", cutoff=7.0, treated_side="above", cutoff_value_treated=True, takeup_column=None, takeup_level=None, reason="r", cites=["col:x.note"])
     fake = FakeLLM(sc, {}, "col:x.note")
     out = _run(fake, handoff("disc", "y", None, ["x", "y"], "col:x.note"))
@@ -415,7 +513,16 @@ def test_thin_sides_stop_before_the_library(tmp_path, monkeypatch):
     df = sharp_below(n=60, seed=7)
     df = pd.concat([df[df["score"] < 50].head(15), df[df["score"] >= 50].head(15)])
     make_pack(tmp_path, monkeypatch, "thin", df, "Units with a score strictly below 50 got the grant.", SYNTH_COLS)
-    sc = Score(column="score", cutoff=50.0, treated_side="below", cutoff_value_treated=False, takeup_column="got", takeup_level="1", reason="r", cites=["col:score.note"])
+    sc = Score(
+        column="score",
+        cutoff=50.0,
+        treated_side="below",
+        cutoff_value_treated=False,
+        takeup_column="got",
+        takeup_level="1",
+        reason="r",
+        cites=["col:score.note"],
+    )
     fake = FakeLLM(sc, {}, "col:score.note")
     out = _run(fake, handoff("thin", "y", "got", ["score", "y", "got"], "col:score.note"))
     assert out["specialist_result"]["status"] == "infeasible" and out["feasibility"].stage == "shape_table"
@@ -425,7 +532,16 @@ def test_small_but_legal_sample_never_raises(tmp_path, monkeypatch):
     df = sharp_below(n=200, seed=8)
     df = pd.concat([df[df["score"] < 50].head(22), df[df["score"] >= 50].head(22)])
     make_pack(tmp_path, monkeypatch, "small", df, "Units with a score strictly below 50 got the grant.", SYNTH_COLS)
-    sc = Score(column="score", cutoff=50.0, treated_side="below", cutoff_value_treated=False, takeup_column="got", takeup_level="1", reason="r", cites=["col:score.note"])
+    sc = Score(
+        column="score",
+        cutoff=50.0,
+        treated_side="below",
+        cutoff_value_treated=False,
+        takeup_column="got",
+        takeup_level="1",
+        reason="r",
+        cites=["col:score.note"],
+    )
     fake = FakeLLM(sc, {}, "col:score.note")
     out = _run(fake, handoff("small", "y", "got", ["score", "y", "got"], "col:score.note"))
     assert out["specialist_result"]["status"] in ("done", "infeasible")
@@ -523,7 +639,9 @@ def test_raw_columns_named_like_canonical_ones_do_not_collide(tmp_path, monkeypa
     df = fuzzy_above().rename(columns={"eligible": "t"})
     cols = {"x": FUZZY_COLS["x"], "y": FUZZY_COLS["y"], "t": "1 if the score was at or above zero.", "received": FUZZY_COLS["received"]}
     make_pack(tmp_path, monkeypatch, "collide", df, "Units with a score at or above zero were offered the grant; about seven in ten took it up.", cols)
-    sc = Score(column="x", cutoff=0.0, treated_side="above", cutoff_value_treated=True, takeup_column="received", takeup_level="1", reason="r", cites=["col:x.note"])
+    sc = Score(
+        column="x", cutoff=0.0, treated_side="above", cutoff_value_treated=True, takeup_column="received", takeup_level="1", reason="r", cites=["col:x.note"]
+    )
     fake = FakeLLM(sc, {"t": dict(affected_by_treatment=True)}, "col:x.note")
     out = _run(fake, handoff("collide", "y", "t", ["x", "y", "t", "received"], "col:x.note"))
     assert out["shape"].kind == "fuzzy" and 0.6 < out["shape"].takeup_right < 0.8
@@ -537,7 +655,14 @@ def test_pack_cutoff_block_settles_the_score_without_a_model_call():
     """senate3 carries claims: margin above zero decides who won, so the lane never asks the model for the score."""
     h = handoff("senate3", "vote", None, ["vote", "margin", "state", "year"], "col:margin.note")
     d = h.design
-    assert d.kind == "discontinuity" and d.score == "margin" and d.cutoff == 0.0 and d.treated_side == "above" and d.cutoff_value_treated is True and d.takeup is None
+    assert (
+        d.kind == "discontinuity"
+        and d.score == "margin"
+        and d.cutoff == 0.0
+        and d.treated_side == "above"
+        and d.cutoff_value_treated is True
+        and d.takeup is None
+    )
     assert h.treatment is None and h.assignment["kind"] == "cutoff_rule"
     fake = FakeLLM(URUGUAY_SCORE, {}, "col:margin.note")
     out = _run(fake, h)
@@ -569,11 +694,20 @@ def test_cutoff_only_false_stops_by_code_and_unasked_asks_back():
     fake = FakeLLM(URUGUAY_SCORE, URUGUAY_RELATIONS, URUGUAY["cite"])
     out = _run(fake, handoff(**URUGUAY, memory_=store.migrate("gov_transfers", write=False)))
     r = out["specialist_result"]
-    assert r["status"] == "ask" and r["ask"]["address"] == "claim:cutoff_only.believed" and r["ask"]["options"] == ["yes", "no"] and r["ask"]["stage"] == "assess"
+    assert (
+        r["status"] == "ask" and r["ask"]["address"] == "claim:cutoff_only.believed" and r["ask"]["options"] == ["yes", "no"] and r["ask"]["stage"] == "assess"
+    )
 
 
 def test_movable_true_hardens_a_real_density_jump_unless_the_score_has_a_set_by_fact(tmp_path, monkeypatch):
-    make_pack(tmp_path, monkeypatch, "manip", manipulated(), "Units with a score at or above zero got the grant.", {"x": "The score, fixed before the grant.", "y": "The outcome, measured after."})
+    make_pack(
+        tmp_path,
+        monkeypatch,
+        "manip",
+        manipulated(),
+        "Units with a score at or above zero got the grant.",
+        {"x": "The score, fixed before the grant.", "y": "The outcome, measured after."},
+    )
     m = _rule(memory("manip"), movable=True)
     fake = FakeLLM(URUGUAY_SCORE, {}, "col:x.note")
     out = _run(fake, handoff("manip", "y", None, ["x", "y"], "col:x.note", memory_=m))
@@ -590,11 +724,23 @@ def test_movable_true_hardens_a_real_density_jump_unless_the_score_has_a_set_by_
 
 
 def test_movable_unasked_with_a_real_density_jump_asks_back(tmp_path, monkeypatch):
-    make_pack(tmp_path, monkeypatch, "manip", manipulated(), "Units with a score at or above zero got the grant.", {"x": "The score, fixed before the grant.", "y": "The outcome, measured after."})
+    make_pack(
+        tmp_path,
+        monkeypatch,
+        "manip",
+        manipulated(),
+        "Units with a score at or above zero got the grant.",
+        {"x": "The score, fixed before the grant.", "y": "The outcome, measured after."},
+    )
     fake = FakeLLM(URUGUAY_SCORE, {}, "col:x.note")
     out = _run(fake, handoff("manip", "y", None, ["x", "y"], "col:x.note", memory_=_rule(memory("manip"))))
     r = out["specialist_result"]
-    assert r["status"] == "ask" and r["ask"]["address"] == "claim:assignment.movable" and "density test p = " in r["ask"]["question"] and r["ask"]["evidence"] == ["check:above_cutoff_vs_below_cutoff.density"]
+    assert (
+        r["status"] == "ask"
+        and r["ask"]["address"] == "claim:assignment.movable"
+        and "density test p = " in r["ask"]["question"]
+        and r["ask"]["evidence"] == ["check:above_cutoff_vs_below_cutoff.density"]
+    )
 
 
 def test_a_missing_cutoff_asks_back_instead_of_stopping():
@@ -604,7 +750,9 @@ def test_a_missing_cutoff_asks_back_instead_of_stopping():
     fake = FakeLLM(Score(column=None, reason="no note states a cutoff", cites=[]), {}, URUGUAY["cite"])
     out = _run(fake, handoff(**URUGUAY, memory_=m))
     r = out["specialist_result"]
-    assert r["status"] == "ask" and r["ask"]["address"] == "claim:assignment.cutoff" and "Income_Centered" in r["ask"]["question"] and r["ask"]["stage"] == "score"
+    assert (
+        r["status"] == "ask" and r["ask"]["address"] == "claim:assignment.cutoff" and "Income_Centered" in r["ask"]["question"] and r["ask"]["stage"] == "score"
+    )
 
 
 def test_on_treated_is_substituted_with_a_record_the_interpretation_cites():
@@ -630,7 +778,16 @@ def test_covariates_allowed_is_honoured_and_settled_timing_is_not_asked_again(tm
     m = memory("sharp")
     m.set("col:z.when", "before", status="confirmed", source="user:turn:2")
     m.set("col:later.measures_outcome", True, status="confirmed", source="user:turn:2")
-    sc = Score(column="score", cutoff=50.0, treated_side="below", cutoff_value_treated=False, takeup_column="got", takeup_level="1", reason="r", cites=["col:score.note"])
+    sc = Score(
+        column="score",
+        cutoff=50.0,
+        treated_side="below",
+        cutoff_value_treated=False,
+        takeup_column="got",
+        takeup_level="1",
+        reason="r",
+        cites=["col:score.note"],
+    )
 
     class Fake(FakeLLM):
         def answer(self, schema, human):
@@ -648,7 +805,16 @@ def test_covariates_allowed_is_honoured_and_settled_timing_is_not_asked_again(tm
 def test_a_rejected_score_block_is_recorded_and_the_model_told_why():
     h = handoff("senate3", "vote", None, ["vote", "margin", "state", "year"], "col:margin.note")
     h.design.cutoff = 999.0
-    sc = Score(column="margin", cutoff=0.0, treated_side="above", cutoff_value_treated=True, takeup_column=None, takeup_level=None, reason="r", cites=["col:margin.note"])
+    sc = Score(
+        column="margin",
+        cutoff=0.0,
+        treated_side="above",
+        cutoff_value_treated=True,
+        takeup_column=None,
+        takeup_level=None,
+        reason="r",
+        cites=["col:margin.note"],
+    )
 
     class Fake(FakeLLM):
         def answer(self, schema, human):

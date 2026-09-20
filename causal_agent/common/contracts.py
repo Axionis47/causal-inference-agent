@@ -115,18 +115,24 @@ class ColumnFacts(BaseModel):
     role_hints: list[str] = Field(default_factory=list)
 
     @classmethod
-    def from_profile(cls, p) -> "ColumnFacts":
+    def from_profile(cls, p) -> ColumnFacts:
         """From a profiler ColumnProfile (duck-typed)."""
         num = p.numeric.model_dump() if getattr(p, "numeric", None) else None
         return cls(
-            kind=str(p.kind), nulls=int(p.nulls), null_rate=float(p.null_rate), distinct=int(p.distinct), constant=bool(p.constant),
-            varies_over=str(getattr(p, "varies_over", "unknown")), numeric=num,
+            kind=str(p.kind),
+            nulls=int(p.nulls),
+            null_rate=float(p.null_rate),
+            distinct=int(p.distinct),
+            constant=bool(p.constant),
+            varies_over=str(getattr(p, "varies_over", "unknown")),
+            numeric=num,
             top_values=[t.model_dump() for t in (p.top_values or [])],
             datetime=p.datetime.model_dump() if getattr(p, "datetime", None) else None,
             switch=p.switch.model_dump() if getattr(p, "switch", None) else None,
             sentinels=[f"{s.value} x{s.count} ({s.reason})" for s in (getattr(p, "observed_sentinels", None) or [])],
             format_issues=list(getattr(p, "format_issues", None) or []),
-            binary_like=bool(getattr(p, "binary_like", False)), bounds=list(getattr(p, "bounds", None) or []) or None,
+            binary_like=bool(getattr(p, "binary_like", False)),
+            bounds=list(getattr(p, "bounds", None) or []) or None,
             role_hints=list(getattr(p, "role_hints", None) or []),
         )
 
@@ -184,7 +190,11 @@ class ColumnBrief(BaseModel):
         kind = f.kind + (f" ({', '.join(f.role_hints)})" if f.role_hints else "")
         ex = ", ".join(f.levels()[:3])
         span = f"{f.bounds[0]} to {f.bounds[1]}" if f.bounds else (f"e.g. {ex}" if ex else "")
-        return f"[{self.address}] {self.name!r} · {kind} · {f.distinct} distinct · {f.nulls} null" + (f" · {span}" if span else "") + (f" · {self.first_sentence()}" if self.meaning else "")
+        return (
+            f"[{self.address}] {self.name!r} · {kind} · {f.distinct} distinct · {f.nulls} null"
+            + (f" · {span}" if span else "")
+            + (f" · {self.first_sentence()}" if self.meaning else "")
+        )
 
     def render(self) -> str:
         f = self.facts
@@ -197,9 +207,14 @@ class ColumnBrief(BaseModel):
         if self.set_by:
             lines.append(f"  [{a}.set_by] set by {self.set_by}" + self.how("set_by"))
         if self.moved_by_change is not None:
-            lines.append(f"  [{a}.moved] the change {'could have moved it' if self.moved_by_change else 'could not have moved it'}" + self.how("moved_by_change"))
+            lines.append(
+                f"  [{a}.moved] the change {'could have moved it' if self.moved_by_change else 'could not have moved it'}" + self.how("moved_by_change")
+            )
         if self.measures_outcome is not None:
-            lines.append(f"  [{a}.measures_outcome] {'another measure of the outcome' if self.measures_outcome else 'not a measure of the outcome'}" + self.how("measures_outcome"))
+            lines.append(
+                f"  [{a}.measures_outcome] {'another measure of the outcome' if self.measures_outcome else 'not a measure of the outcome'}"
+                + self.how("measures_outcome")
+            )
         lines.append(f"  [{a}.profile.kind] {f.kind}")
         lines.append(f"  [{a}.profile.nulls] {f.nulls} ({f.null_rate:.1%})")
         lines.append(f"  [{a}.profile.distinct] {f.distinct}{' (constant)' if f.constant else ''}")
@@ -219,7 +234,9 @@ class ColumnBrief(BaseModel):
             lines.append(f"  [{a}.profile.datetime] {d.get('first')} to {d.get('last')}, {d.get('inferred_frequency')}")
         if f.switch:
             s = f.switch
-            lines.append(f"  [{a}.profile.switch] {s.get('entities_that_switch')} entities switch, {s.get('entities_never_on')} never on, first on {s.get('first_on')}")
+            lines.append(
+                f"  [{a}.profile.switch] {s.get('entities_that_switch')} entities switch, {s.get('entities_never_on')} never on, first on {s.get('first_on')}"
+            )
         if f.sentinels:
             lines.append(f"  [{a}.profile.sentinels] " + "; ".join(f.sentinels))
         if f.format_issues:
@@ -248,10 +265,22 @@ class Belief(BaseModel):
 
     def render(self) -> str:
         words = {
-            "unobserved": ("something not in the file drove both who got the change and the outcome", "nothing outside the file drove both who got the change and the outcome"),
-            "exclusion": ("a column pushed units toward the change without touching the outcome any other way", "no column pushed units toward the change without touching the outcome"),
-            "spillover": ("a unit that got the change could affect the outcome of one that did not", "units that got the change could not affect the outcomes of those that did not"),
-            "trend_continues": ("without the change, the treated group would have kept moving with the others", "apart from the change, the treated group would have moved differently"),
+            "unobserved": (
+                "something not in the file drove both who got the change and the outcome",
+                "nothing outside the file drove both who got the change and the outcome",
+            ),
+            "exclusion": (
+                "a column pushed units toward the change without touching the outcome any other way",
+                "no column pushed units toward the change without touching the outcome",
+            ),
+            "spillover": (
+                "a unit that got the change could affect the outcome of one that did not",
+                "units that got the change could not affect the outcomes of those that did not",
+            ),
+            "trend_continues": (
+                "without the change, the treated group would have kept moving with the others",
+                "apart from the change, the treated group would have moved differently",
+            ),
             "cutoff_only": ("nothing else switches at the cutoff", "something else also switches at the cutoff"),
         }.get(self.kind, (f"{self.kind}: yes", f"{self.kind}: no"))
         if self.status == "unknown":
@@ -295,7 +324,9 @@ class AdjustmentDesign(BaseModel):
     """What the adjustment lane must not guess. Every field is optional: an empty field means the desk could not say."""
 
     kind: Literal["adjustment"] = "adjustment"
-    adjustment_candidates: list[str] = Field(default_factory=list, description="columns the offer depended on plus every before-column the change could not have moved")
+    adjustment_candidates: list[str] = Field(
+        default_factory=list, description="columns the offer depended on plus every before-column the change could not have moved"
+    )
     forbidden: list[str] = Field(default_factory=list, description="columns set at or after the change; never a parent of the outcome in the graph")
     instrument: str | None = None
     mediator: str | None = None
@@ -305,14 +336,16 @@ class AdjustmentDesign(BaseModel):
     contrast: str = "switch"
 
     def render(self) -> str:
-        return "\n".join([
-            f"  candidates to adjust for: {', '.join(self.adjustment_candidates) or 'none named'}",
-            f"  never adjust for: {', '.join(self.forbidden) or 'none named'}",
-            f"  instrument: {self.instrument or 'none named'} · mediator: {self.mediator or 'none named'}",
-            f"  hidden confounding: {'yes, per the person' if self.unobserved_confounding else 'no, per the person' if self.unobserved_confounding is False else 'not known'}",
-            f"  uptake: {'voluntary after an offer' if self.voluntary_uptake else 'by a rule' if self.voluntary_uptake is False else 'not known'}",
-            f"  target: {self.target_units}; contrast: {self.contrast}",
-        ])
+        return "\n".join(
+            [
+                f"  candidates to adjust for: {', '.join(self.adjustment_candidates) or 'none named'}",
+                f"  never adjust for: {', '.join(self.forbidden) or 'none named'}",
+                f"  instrument: {self.instrument or 'none named'} · mediator: {self.mediator or 'none named'}",
+                f"  hidden confounding: {'yes, per the person' if self.unobserved_confounding else 'no, per the person' if self.unobserved_confounding is False else 'not known'}",
+                f"  uptake: {'voluntary after an offer' if self.voluntary_uptake else 'by a rule' if self.voluntary_uptake is False else 'not known'}",
+                f"  target: {self.target_units}; contrast: {self.contrast}",
+            ]
+        )
 
 
 class DidDesign(BaseModel):
@@ -335,12 +368,16 @@ class DidDesign(BaseModel):
 
     def render(self) -> str:
         tg = self.treated_group
-        return "\n".join([
-            f"  unit: {self.unit or 'not known'}; time: {self.time or 'not known'} ({self.period_kind or 'kind not known'})",
-            f"  change period: {self.change_period or 'not known'}; treated group: " + (f"{tg.get('column')} = {tg.get('level')!r}" if tg.get("column") else "not known"),
-            f"  staggered: {self.staggered}; never-treated units: {self.never_treated_exists}; pre periods: {self.pre_periods}; post periods: {self.post_periods}",
-            f"  controls allowed: {', '.join(self.controls_allowed) or 'none named'}; cluster at: {self.cluster_level or 'not known'}",
-        ] + [f"  {b.render()}" for b in (self.trend_belief, self.spillover) if b is not None])
+        return "\n".join(
+            [
+                f"  unit: {self.unit or 'not known'}; time: {self.time or 'not known'} ({self.period_kind or 'kind not known'})",
+                f"  change period: {self.change_period or 'not known'}; treated group: "
+                + (f"{tg.get('column')} = {tg.get('level')!r}" if tg.get("column") else "not known"),
+                f"  staggered: {self.staggered}; never-treated units: {self.never_treated_exists}; pre periods: {self.pre_periods}; post periods: {self.post_periods}",
+                f"  controls allowed: {', '.join(self.controls_allowed) or 'none named'}; cluster at: {self.cluster_level or 'not known'}",
+            ]
+            + [f"  {b.render()}" for b in (self.trend_belief, self.spillover) if b is not None]
+        )
 
 
 class RdDesign(BaseModel):
@@ -353,7 +390,9 @@ class RdDesign(BaseModel):
     cutoff_value_treated: bool | None = None
     score_fixed_before: bool | None = None
     movable: bool | None = Field(default=None, description="could a unit change its score after seeing the rule")
-    takeup: dict | None = Field(default=None, description="{column, level} when a column records who took the change (fuzzy); null when the rule is the change (sharp)")
+    takeup: dict | None = Field(
+        default=None, description="{column, level} when a column records who took the change (fuzzy); null when the rule is the change (sharp)"
+    )
     covariates_allowed: list[str] = Field(default_factory=list)
     cluster: str | None = None
     sampled_by_side: bool = False
@@ -362,12 +401,18 @@ class RdDesign(BaseModel):
     def render(self) -> str:
         rule = f"{self.score} {self.treated_side} {self.cutoff:g}" if self.score and self.cutoff is not None and self.treated_side else "not known"
         tk = self.takeup or {}
-        return "\n".join([
-            f"  score and cutoff: {rule}" + (f"; the cutoff value itself is {'treated' if self.cutoff_value_treated else 'not treated'}" if self.cutoff_value_treated is not None else ""),
-            f"  score fixed before the decision: {self.score_fixed_before}; a unit could move it: {self.movable}",
-            f"  take-up: " + (f"{tk.get('column')} = {tk.get('level')!r} (fuzzy)" if tk.get("column") else "none recorded (sharp)"),
-            f"  covariates allowed: {', '.join(self.covariates_allowed) or 'none named'}; cluster: {self.cluster or 'none'}; rows drawn by side: {self.sampled_by_side}",
-        ] + ([f"  {self.cutoff_only.render()}"] if self.cutoff_only is not None else []))
+        return "\n".join(
+            [
+                f"  score and cutoff: {rule}"
+                + (
+                    f"; the cutoff value itself is {'treated' if self.cutoff_value_treated else 'not treated'}" if self.cutoff_value_treated is not None else ""
+                ),
+                f"  score fixed before the decision: {self.score_fixed_before}; a unit could move it: {self.movable}",
+                "  take-up: " + (f"{tk.get('column')} = {tk.get('level')!r} (fuzzy)" if tk.get("column") else "none recorded (sharp)"),
+                f"  covariates allowed: {', '.join(self.covariates_allowed) or 'none named'}; cluster: {self.cluster or 'none'}; rows drawn by side: {self.sampled_by_side}",
+            ]
+            + ([f"  {self.cutoff_only.render()}"] if self.cutoff_only is not None else [])
+        )
 
 
 DesignBlock = Annotated[AdjustmentDesign | DidDesign | RdDesign, Field(discriminator="kind")]
@@ -411,7 +456,10 @@ class Handoff(BaseModel):
     columns: list[ColumnBrief] = Field(default_factory=list)
     # how the change happened
     change: dict = Field(default_factory=dict, description="what, to_whom, when, date_column, period_value")
-    assignment: dict = Field(default_factory=dict, description="kind, rule, depends_on, treatment_column, treated_level, score_column, cutoff, treated_side, cutoff_value_treated, level_column, movable")
+    assignment: dict = Field(
+        default_factory=dict,
+        description="kind, rule, depends_on, treatment_column, treated_level, score_column, cutoff, treated_side, cutoff_value_treated, level_column, movable",
+    )
     # what the person believes and could not say
     beliefs: dict[str, Belief] = Field(default_factory=dict)
     unknowns: list[str] = Field(default_factory=list, description="addresses the person could not settle")
@@ -465,7 +513,10 @@ class Handoff(BaseModel):
         if self.unknowns:
             lines.append("UNKNOWN (the person could not say): " + ", ".join(f"[{a}]" for a in self.unknowns))
         if self.contradictions:
-            lines.append("CONTRADICTION (the file disagrees and the person kept it; weigh it, and say which you took): " + ", ".join(f"[{a}]" for a in self.contradictions))
+            lines.append(
+                "CONTRADICTION (the file disagrees and the person kept it; weigh it, and say which you took): "
+                + ", ".join(f"[{a}]" for a in self.contradictions)
+            )
         return "\n".join(lines)
 
     def render_words(self) -> str:
@@ -477,7 +528,9 @@ class Handoff(BaseModel):
 
     def render_context(self) -> str:
         """The dataset, the change, the beliefs, the family block, the person's words, and what is open: what pack.digest() used to be."""
-        return "\n\n".join([self.render_dataset(), self.render_change(), "BELIEFS\n" + self.render_beliefs(), "FAMILY BLOCK\n" + self.render_design(), self.render_words()])
+        return "\n\n".join(
+            [self.render_dataset(), self.render_change(), "BELIEFS\n" + self.render_beliefs(), "FAMILY BLOCK\n" + self.render_design(), self.render_words()]
+        )
 
     # ------------------------------------------------------------- addresses
     def addresses(self) -> set[str]:
@@ -490,8 +543,18 @@ class Handoff(BaseModel):
         for k, c in self.claims.items():
             out.update({f"claim:{k}", f"claim:{k}.check"})
             out.update(f"claim:{k}.{f}" for f in (c.get("fields") or {}))
-        for b in self.beliefs.values():
-            out.update({b.address, f"{b.address}.exists", f"{b.address}.possible", f"{b.address}.believed", f"{b.address}.column", f"{b.address}.what", f"{b.address}.why"})
+        for bl in self.beliefs.values():
+            out.update(
+                {
+                    bl.address,
+                    f"{bl.address}.exists",
+                    f"{bl.address}.possible",
+                    f"{bl.address}.believed",
+                    f"{bl.address}.column",
+                    f"{bl.address}.what",
+                    f"{bl.address}.why",
+                }
+            )
         out.update(p.address for p in self.probes)
         out.update(f"said:{s.turn}" for s in self.said)
         return out
@@ -598,7 +661,9 @@ class Decline(BaseModel):
     brief and the page can show where the lane and the desk disagreed."""
 
     stage: str = Field(description="the node that declined")
-    kind: Literal["declined", "replaced", "substituted"] = Field(description="declined: could not apply it; replaced: took another value; substituted: answered a near thing")
+    kind: Literal["declined", "replaced", "substituted"] = Field(
+        description="declined: could not apply it; replaced: took another value; substituted: answered a near thing"
+    )
     about: str = Field(description="the pack address: scope.window, design.cluster_level, claim:assignment.cutoff, col:<key>")
     pack_value: str | None = None
     took: str | None = None
@@ -650,13 +715,23 @@ def render_dataset_text(name: str, facts: dict, grain: dict, sampling: dict, mis
     if missing.get("why"):
         about.append(f"missing values: {missing['why']}")
     lines = [f"[dataset] {name}", f"  [dataset.note] {'. '.join(about) if about else docs.get('about') or '(nothing stated about the rows)'}"]
-    lines.append(f"  [dataset.profile.rows] {facts.get('rows', '?')} rows, {facts.get('columns', '?')} columns, {facts.get('duplicate_rows', 0)} duplicate rows")
+    lines.append(
+        f"  [dataset.profile.rows] {facts.get('rows', '?')} rows, {facts.get('columns', '?')} columns, {facts.get('duplicate_rows', 0)} duplicate rows"
+    )
     g = facts.get("grain") or []
     lines.append(f"  [dataset.profile.grain] {' + '.join(g) if g else 'no key column found'}")
     t = facts.get("time_coverage")
-    lines.append(f"  [dataset.profile.time_coverage] {t['column']}: {t['first']} to {t['last']}, {t.get('inferred_frequency')}, {t.get('gaps')} gaps" if t else "  [dataset.profile.time_coverage] no time column")
+    lines.append(
+        f"  [dataset.profile.time_coverage] {t['column']}: {t['first']} to {t['last']}, {t.get('inferred_frequency')}, {t.get('gaps')} gaps"
+        if t
+        else "  [dataset.profile.time_coverage] no time column"
+    )
     e = facts.get("entity_summary")
-    lines.append(f"  [dataset.profile.entity_summary] {' + '.join(e['columns'])}: {e['entities']} entities, {e['rows_per_entity_min']} to {e['rows_per_entity_max']} rows each" if e else "  [dataset.profile.entity_summary] no entity column declared")
+    lines.append(
+        f"  [dataset.profile.entity_summary] {' + '.join(e['columns'])}: {e['entities']} entities, {e['rows_per_entity_min']} to {e['rows_per_entity_max']} rows each"
+        if e
+        else "  [dataset.profile.entity_summary] no entity column declared"
+    )
     if facts.get("format_issues"):
         lines.append("  [dataset.profile.format_issues] " + "; ".join(facts["format_issues"]))
     return "\n".join(lines)
@@ -668,12 +743,20 @@ def render_change_text(ch: dict, a: dict) -> str:
         return "[change:1.note] not stated"
     parts = []
     if ch.get("what"):
-        parts.append(f"{str(ch['what']).rstrip('.')}." + (f" It reached {ch['to_whom']}," if ch.get("to_whom") else "") + (f" {ch['when']}." if ch.get("when") else ""))
+        parts.append(
+            f"{str(ch['what']).rstrip('.')}." + (f" It reached {ch['to_whom']}," if ch.get("to_whom") else "") + (f" {ch['when']}." if ch.get("when") else "")
+        )
     if ch.get("date_column"):
-        parts.append(f"The period column is {ch['date_column']!r}" + (f", the change took effect at {ch['period_value']!r}." if ch.get("period_value") else "."))
-    kind_words = {"lottery": "a random draw decided who got it", "cutoff_rule": "a line on a measured score decided who got it",
-                  "own_choice": "units chose whether to take it, with or without an offer", "date_by_others": "it reached some units on a date by a decision made above them",
-                  "third_party": "someone else picked the units one by one"}
+        parts.append(
+            f"The period column is {ch['date_column']!r}" + (f", the change took effect at {ch['period_value']!r}." if ch.get("period_value") else ".")
+        )
+    kind_words = {
+        "lottery": "a random draw decided who got it",
+        "cutoff_rule": "a line on a measured score decided who got it",
+        "own_choice": "units chose whether to take it, with or without an offer",
+        "date_by_others": "it reached some units on a date by a decision made above them",
+        "third_party": "someone else picked the units one by one",
+    }
     if a.get("kind"):
         parts.append(f"How it was assigned: {kind_words.get(a['kind'], a['kind'])}.")
     if a.get("rule"):
@@ -681,10 +764,15 @@ def render_change_text(ch: dict, a: dict) -> str:
     if a.get("depends_on"):
         parts.append(f"The decision or the offer depended on {', '.join(a['depends_on'])}.")
     if a.get("treatment_column"):
-        parts.append(f"{a['treatment_column']!r} records who got it" + (f", {a['treated_level']!r} meaning yes." if a.get("treated_level") is not None else "."))
+        parts.append(
+            f"{a['treatment_column']!r} records who got it" + (f", {a['treated_level']!r} meaning yes." if a.get("treated_level") is not None else ".")
+        )
     if a.get("score_column"):
         side = a.get("treated_side") or "above"
-        parts.append(f"The score is {a['score_column']!r}, treated {side} {a.get('cutoff')}" + (", the cutoff value itself treated." if a.get("cutoff_value_treated") else "."))
+        parts.append(
+            f"The score is {a['score_column']!r}, treated {side} {a.get('cutoff')}"
+            + (", the cutoff value itself treated." if a.get("cutoff_value_treated") else ".")
+        )
     if a.get("level_column"):
         parts.append(f"It was assigned at the level of {a['level_column']!r}.")
     if a.get("movable") is not None:

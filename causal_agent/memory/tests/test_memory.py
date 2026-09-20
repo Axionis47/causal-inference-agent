@@ -8,11 +8,11 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from causal_agent.memory.store import load_claims
 from causal_agent.memory import ops, store
 from causal_agent.memory.catalogue import load_catalogue
-from causal_agent.memory.claims import Claim, ClaimTable
+from causal_agent.memory.claims import ClaimTable
 from causal_agent.memory.records import Memory
+from causal_agent.memory.store import load_claims
 from causal_agent.profile.datasets import ROOT, dataset_entries
 from causal_agent.profile.profiler import Profile, profile
 
@@ -95,19 +95,22 @@ def test_seed_from_the_profile_alone():
 def test_apply_gates_source_confirmed_beliefs_and_values():
     m, _ = students3()
     U = ops.Update
-    rejected = ops.apply(m, [
-        U(address="col:lunch.when", value="before", status="confirmed", source=""),                       # no source
-        U(address="col:lunch.when", value="before", status="confirmed", source="model:infer"),            # a model may only draft
-        U(address="col:lunch.when", value="before", status="drafted", source="model:infer"),              # confirmed field, model cannot touch
-        U(address="claim:unobserved.exists", value="false", status="drafted", source="model:infer"),      # a belief needs the person
-        U(address="col:lunch.when", value="sometime", status="confirmed", source="user:turn:8"),          # not an option
-        U(address="col:nope.when", value="before", status="confirmed", source="user:turn:8"),             # no such column
-        U(address="claim:assignment.depends_on", value="lunch, nope", status="confirmed", source="user:turn:8"),  # a column list with a stranger
-        U(address="col:lunch.when", value="before", status="confirmed", source="user:turn:8", said="the district set it in September"),  # accepted
-        U(address="col:gender.stands_for", value="sex", status="drafted", source="model:infer"),          # a draft on an empty optional field: accepted
-        U(address="claim:unobserved.exists", value="true", status="confirmed", source="user:turn:8", said="the counsellor knew the kids"),  # accepted
-        U(address="claim:sampling.detail", value=None, status="unknown", source="user:turn:8"),           # unknown: accepted
-    ])
+    rejected = ops.apply(
+        m,
+        [
+            U(address="col:lunch.when", value="before", status="confirmed", source=""),  # no source
+            U(address="col:lunch.when", value="before", status="confirmed", source="model:infer"),  # a model may only draft
+            U(address="col:lunch.when", value="before", status="drafted", source="model:infer"),  # confirmed field, model cannot touch
+            U(address="claim:unobserved.exists", value="false", status="drafted", source="model:infer"),  # a belief needs the person
+            U(address="col:lunch.when", value="sometime", status="confirmed", source="user:turn:8"),  # not an option
+            U(address="col:nope.when", value="before", status="confirmed", source="user:turn:8"),  # no such column
+            U(address="claim:assignment.depends_on", value="lunch, nope", status="confirmed", source="user:turn:8"),  # a column list with a stranger
+            U(address="col:lunch.when", value="before", status="confirmed", source="user:turn:8", said="the district set it in September"),  # accepted
+            U(address="col:gender.stands_for", value="sex", status="drafted", source="model:infer"),  # a draft on an empty optional field: accepted
+            U(address="claim:unobserved.exists", value="true", status="confirmed", source="user:turn:8", said="the counsellor knew the kids"),  # accepted
+            U(address="claim:sampling.detail", value=None, status="unknown", source="user:turn:8"),  # unknown: accepted
+        ],
+    )
     assert len(rejected) == 7, rejected
     assert "no source" in rejected[0] and "may only draft" in rejected[1] and "confirmed by the person" in rejected[2]
     assert "belief" in rejected[3] and "must be one of" in rejected[4] and "not a column" in rejected[5] and "not columns" in rejected[6]

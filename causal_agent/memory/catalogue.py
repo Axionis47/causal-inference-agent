@@ -19,7 +19,9 @@ class FieldSpec(BaseModel):
     about: dict[str, str] = Field(default_factory=dict)  # what each option means, in world terms
     hint: str = ""  # what to put in the field, in world terms
     optional: bool = False
-    required_when: dict[str, list[Any]] = Field(default_factory=dict, description="field -> values of a sibling field under which this optional field is required")
+    required_when: dict[str, list[Any]] = Field(
+        default_factory=dict, description="field -> values of a sibling field under which this optional field is required"
+    )
 
 
 class ClaimKind(BaseModel):

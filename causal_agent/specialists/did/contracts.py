@@ -6,7 +6,7 @@ causal_agent.common.contracts. These are the ones only this lane needs.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -53,8 +53,12 @@ class ControlRelation(BaseModel):
     """One column's fitness as a control in a before-after comparison. Two claims, each cited when true."""
 
     column: str
-    affected_by_treatment: bool = Field(description="the column's value could have been changed by the treatment, so adjusting for it removes part of the effect")
-    usable_as_control: bool = Field(description="the column moves over time within a unit, predates the outcome, and could drive the outcome differently across groups")
+    affected_by_treatment: bool = Field(
+        description="the column's value could have been changed by the treatment, so adjusting for it removes part of the effect"
+    )
+    usable_as_control: bool = Field(
+        description="the column moves over time within a unit, predates the outcome, and could drive the outcome differently across groups"
+    )
     reasons: list[Cited] = Field(description="one entry per claim marked true, each citing the card that supports it")
 
 
@@ -112,19 +116,22 @@ class Design(BaseModel):
     vcov: str | dict
     placebos: list[str]
     target_units: str
-    frozen_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    frozen_at: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     def render(self) -> str:
         p, s = self.periods, self.shape
-        when = (f"long: time {p.time_column}, first post {p.first_post}, window {p.window_start or 'start'} to {p.window_end or 'end'}"
-                if p.kind == "long" else f"wide: before {p.before_column}, after {p.after_column}")
+        when = (
+            f"long: time {p.time_column}, first post {p.first_post}, window {p.window_start or 'start'} to {p.window_end or 'end'}"
+            if p.kind == "long"
+            else f"wide: before {p.before_column}, after {p.after_column}"
+        )
         lines = [
             "DESIGN",
             f"  groups       {self.groups.column} = {self.groups.treated_level!r} treated, every other level control ({self.groups.reason})",
             f"  periods      {when} ({p.reason})",
             f"  shape        {s.rows} rows; {s.units_treated} treated units, {s.units_control} control; {s.periods_pre} pre, {s.periods_post} post; cohorts {s.cohorts}",
         ]
-        lines += ["  " + l for l in self.controls.render().splitlines()]
+        lines += ["  " + ln for ln in self.controls.render().splitlines()]
         for r in self.checks.results:
             lines.append(f"  check        {r.level:4} {r.address}  {r.detail}")
         lines.append(f"  estimator    {self.estimator}: {self.formula}" + (f"   also {self.also_run}: {self.also_formula}" if self.also_run else ""))

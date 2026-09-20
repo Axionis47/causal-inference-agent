@@ -77,7 +77,10 @@ class ClaimUpdate(BaseModel):
 
 class Extraction(BaseModel):
     updates: list[ClaimUpdate]
-    confirmed: list[str] = Field(default_factory=list, description="claim keys the person confirmed as they stand this turn (e.g. change, sampling, col:age); only from the person's words, never from a description")
+    confirmed: list[str] = Field(
+        default_factory=list,
+        description="claim keys the person confirmed as they stand this turn (e.g. change, sampling, col:age); only from the person's words, never from a description",
+    )
     notes: list[Cited] = Field(default_factory=list, description="anything read that fits no claim, with cites")
 
 

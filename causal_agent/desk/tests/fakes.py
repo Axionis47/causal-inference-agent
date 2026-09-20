@@ -17,7 +17,9 @@ QUESTION = "Did completing the prep course raise math scores?"
 
 
 def U(claim_kind, cites, column=None, **values):
-    return ClaimUpdate(kind=claim_kind, column=column, reason="scripted", cites=list(cites), values=[FieldValue(name=k, value=str(v)) for k, v in values.items()])
+    return ClaimUpdate(
+        kind=claim_kind, column=column, reason="scripted", cites=list(cites), values=[FieldValue(name=k, value=str(v)) for k, v in values.items()]
+    )
 
 
 def students_doc_updates(cite="doc:context"):
@@ -26,12 +28,27 @@ def students_doc_updates(cite="doc:context"):
         U("grain", [cite], row_is="one student's exam results", panel="false"),
         U("sampling", [cite], how="whole", detail="every student who sat the exam"),
         U("change", [cite], what="a six-week test preparation course", to_whom="students at the school", when="the six weeks before the May 2026 exam"),
-        U("assignment", [cite], kind="own_choice", rule="offered first by lunch status and parental education, then open to anyone who asked",
-          depends_on="lunch, parental level of education", treatment_column="test preparation course", treated_level="completed"),
+        U(
+            "assignment",
+            [cite],
+            kind="own_choice",
+            rule="offered first by lunch status and parental education, then open to anyone who asked",
+            depends_on="lunch, parental level of education",
+            treatment_column="test preparation course",
+            treated_level="completed",
+        ),
         U("unobserved", [cite], exists="false"),  # a description never sets a belief: this one must be dropped by mine
     ]
-    cols = {"gender": "before", "race/ethnicity": "before", "parental level of education": "before", "lunch": "before",
-            "test preparation course": "at", "math score": "after", "reading score": "after", "writing score": "after"}
+    cols = {
+        "gender": "before",
+        "race/ethnicity": "before",
+        "parental level of education": "before",
+        "lunch": "before",
+        "test preparation course": "at",
+        "math score": "after",
+        "reading score": "after",
+        "writing score": "after",
+    }
     for c, when in cols.items():
         ups.append(U("measured", [cite], column=c, meaning=f"{c} as recorded", when=when))
     return ups
@@ -40,13 +57,17 @@ def students_doc_updates(cite="doc:context"):
 def students_frame() -> QuestionFrame:
     c = lambda col, why, a: Candidate(column=col, reason=why, cites=[a])  # noqa: E731
     return QuestionFrame(
-        intent="effect_of_change", decision_served="whether to keep running the course",
+        intent="effect_of_change",
+        decision_served="whether to keep running the course",
         outcome_candidates=[c("math score", "the question asks about math scores", "col:math_score.note")],
         cause_candidates=[c("test preparation course", "a decision by the counsellor", "col:test_preparation_course.note")],
         scope=Scope(),
-        relevant_columns=[c("math score", "outcome", "col:math_score.note"), c("test preparation course", "cause", "col:test_preparation_course.note"),
-                          c("lunch", "the course note says places depended on it", "col:test_preparation_course.note"),
-                          c("parental level of education", "same", "col:test_preparation_course.note")],
+        relevant_columns=[
+            c("math score", "outcome", "col:math_score.note"),
+            c("test preparation course", "cause", "col:test_preparation_course.note"),
+            c("lunch", "the course note says places depended on it", "col:test_preparation_course.note"),
+            c("parental level of education", "same", "col:test_preparation_course.note"),
+        ],
         reasons=[],
     )
 
@@ -77,8 +98,10 @@ class DeskFake:
             def invoke(self_, messages):
                 human = messages[-1][1]
                 parsed = fake.answer(schema, human)
-                raw = AIMessage(content=[{"type": "thinking", "thinking": f"thinking about {schema.__name__}"}, "{}"],
-                                usage_metadata={"input_tokens": 10, "output_tokens": 20, "total_tokens": 30, "output_token_details": {"reasoning": 7}})
+                raw = AIMessage(
+                    content=[{"type": "thinking", "thinking": f"thinking about {schema.__name__}"}, "{}"],
+                    usage_metadata={"input_tokens": 10, "output_tokens": 20, "total_tokens": 30, "output_token_details": {"reasoning": 7}},
+                )
                 return {"raw": raw, "parsed": parsed, "parsing_error": None}
 
         return R()
@@ -91,10 +114,19 @@ class DeskFake:
         if schema is QuestionFrame:
             q = human.split("QUESTION\n")[1].split("\n")[0].lower()
             if "how many" in q or "what share" in q:
-                return QuestionFrame(intent="not_causal", decision_served="a count", outcome_candidates=[], cause_candidates=[], scope=Scope(), relevant_columns=[], reasons=[])
+                return QuestionFrame(
+                    intent="not_causal", decision_served="a count", outcome_candidates=[], cause_candidates=[], scope=Scope(), relevant_columns=[], reasons=[]
+                )
             if "why" in q and "raise" not in q:
-                return QuestionFrame(intent="root_cause", decision_served="why", outcome_candidates=[Candidate(column="math score", reason="r", cites=["col:math_score.note"])],
-                                     cause_candidates=[], scope=Scope(), relevant_columns=[], reasons=[])
+                return QuestionFrame(
+                    intent="root_cause",
+                    decision_served="why",
+                    outcome_candidates=[Candidate(column="math score", reason="r", cites=["col:math_score.note"])],
+                    cause_candidates=[],
+                    scope=Scope(),
+                    relevant_columns=[],
+                    reasons=[],
+                )
             if "gender" in q:  # a question whose outcome is one the file cannot move: the change is the outcome
                 fr = students_frame()
                 fr.outcome_candidates = [Candidate(column="test preparation course", reason="r", cites=["col:test_preparation_course.note"])]
@@ -108,8 +140,14 @@ class DeskFake:
                     return out
             return infer_by_rule(msg, addrs)
         if schema is FamilyDecision:
-            return FamilyDecision(admissible=["adjustment"], chosen="adjustment", chosen_assumption="nothing else drove both", why_over_alternatives="scripted",
-                                  rejected=[Rejection(family=f, reason="a need is unmet", cites=[]) for f in FAMILIES if f != "adjustment"], cites=[])
+            return FamilyDecision(
+                admissible=["adjustment"],
+                chosen="adjustment",
+                chosen_assumption="nothing else drove both",
+                why_over_alternatives="scripted",
+                rejected=[Rejection(family=f, reason="a need is unmet", cites=[]) for f in FAMILIES if f != "adjustment"],
+                cites=[],
+            )
         if schema is AfterReply:
             return self.after.pop(0)
         raise AssertionError(schema)

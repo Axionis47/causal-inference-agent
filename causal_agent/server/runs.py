@@ -9,8 +9,18 @@ from causal_agent.server.models import FileEntry, RunFiles
 from causal_agent.server.settings import Settings
 
 RUN_ID = re.compile(r"^[A-Za-z0-9_\-]{1,80}$")
-KNOWN = {"artifacts.json": "application/json", "design.json": "application/json", "design.md": "text/markdown", "report.md": "text/plain", "figures.json": "application/json",
-         "table.csv": "text/csv", "bins.csv": "text/csv", "canon.csv": "text/csv", "scores.csv": "text/csv", "panel.csv": "text/csv"}
+KNOWN = {
+    "artifacts.json": "application/json",
+    "design.json": "application/json",
+    "design.md": "text/markdown",
+    "report.md": "text/plain",
+    "figures.json": "application/json",
+    "table.csv": "text/csv",
+    "bins.csv": "text/csv",
+    "canon.csv": "text/csv",
+    "scores.csv": "text/csv",
+    "panel.csv": "text/csv",
+}
 THOUGHTS_MARK = "MODEL THOUGHTS"
 
 

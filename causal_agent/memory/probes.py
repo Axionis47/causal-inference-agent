@@ -5,11 +5,9 @@ from __future__ import annotations
 
 import pandas as pd
 
+from causal_agent.memory.checks import treated_mask as _treated_mask
 from causal_agent.memory.claims import ClaimTable, ProbeResult
 from causal_agent.profile.data import column
-
-
-from causal_agent.memory.checks import treated_mask as _treated_mask
 from causal_agent.viz.previz.adjustment import overlap_probe
 
 
@@ -70,16 +68,30 @@ def run_probes(df: pd.DataFrame, table: ClaimTable, families: list[str], th: dic
             n_above, n_below = int((x > c).sum()), int((x < c).sum())
             floor = int(th["cutoff"]["min_rows_side"])
             ok = min(n_above, n_below) >= floor
-            out.append(ProbeResult(family=fam, name="rows_by_side", value=float(min(n_above, n_below)), passed=ok,
-                                   detail=f"{n_below} rows below {c} and {n_above} above on {sc!r}; floor {floor} a side"))
+            out.append(
+                ProbeResult(
+                    family=fam,
+                    name="rows_by_side",
+                    value=float(min(n_above, n_below)),
+                    passed=ok,
+                    detail=f"{n_below} rows below {c} and {n_above} above on {sc!r}; floor {floor} a side",
+                )
+            )
         elif fam == "adjustment":
             if treated is None:
                 out.append(ProbeResult(family=fam, name="arms", passed=None, detail="treatment column not settled"))
                 continue
             n_t, n_o = int(treated.sum()), int((~treated).sum())
             floor = int(th["arms"]["min_rows_arm"])
-            out.append(ProbeResult(family=fam, name="arms", value=float(min(n_t, n_o)), passed=min(n_t, n_o) >= floor,
-                                   detail=f"{n_t} treated rows and {n_o} others; floor {floor} an arm"))
+            out.append(
+                ProbeResult(
+                    family=fam,
+                    name="arms",
+                    value=float(min(n_t, n_o)),
+                    passed=min(n_t, n_o) >= floor,
+                    detail=f"{n_t} treated rows and {n_o} others; floor {floor} an arm",
+                )
+            )
             deps = [c for d in (a.fields.get("depends_on") or []) if (c := column(df, d)) is not None]
             if deps:  # the same cells the pre-viz draws: both arms present at every level the offer looked at
                 ov = overlap_probe(df, treated, deps, int(th["arms"]["min_rows_cell"]))
@@ -89,23 +101,40 @@ def run_probes(df: pd.DataFrame, table: ClaimTable, families: list[str], th: dic
                 out.append(ProbeResult(family=fam, name="pre_periods", passed=None, detail="period column or change period not settled"))
             else:
                 floor = int(th["probe"]["min_pre_periods"])
-                out.append(ProbeResult(family=fam, name="pre_periods", value=float(pre), passed=pre >= floor,
-                                       detail=f"{pre} distinct periods before the change; floor {floor}"))
+                out.append(
+                    ProbeResult(
+                        family=fam, name="pre_periods", value=float(pre), passed=pre >= floor, detail=f"{pre} distinct periods before the change; floor {floor}"
+                    )
+                )
             if fam == "diff_in_diff" and treated is not None and pre is not None:
                 col, pv = _periods(df, table)
                 num = pd.to_numeric(col, errors="coerce")
                 try:
                     before = num < float(pv)
                     n_tb = int((treated & before).sum())
-                    out.append(ProbeResult(family=fam, name="treated_before", value=float(n_tb), passed=n_tb > 0,
-                                           detail=f"{n_tb} rows of the treated group observed before the change"))
+                    out.append(
+                        ProbeResult(
+                            family=fam,
+                            name="treated_before",
+                            value=float(n_tb),
+                            passed=n_tb > 0,
+                            detail=f"{n_tb} rows of the treated group observed before the change",
+                        )
+                    )
                 except (TypeError, ValueError):
                     pass
             if fam in {"synthetic_control", "interrupted_series"} and treated is not None and unit is not None:
                 n_units = int(df.loc[treated, unit].nunique())
                 cap = int(th["probe"]["max_treated_units_single"])
-                out.append(ProbeResult(family=fam, name="treated_units", value=float(n_units), passed=1 <= n_units <= cap,
-                                       detail=f"{n_units} treated units by {unit!r}; needs one or at most {cap}"))
+                out.append(
+                    ProbeResult(
+                        family=fam,
+                        name="treated_units",
+                        value=float(n_units),
+                        passed=1 <= n_units <= cap,
+                        detail=f"{n_units} treated units by {unit!r}; needs one or at most {cap}",
+                    )
+                )
         elif fam == "instrument":
             ex = table.get("exclusion")
             if not ex or ex.status in {"empty", "refuted", "unknown"} or ex.fields.get("exists") is not True:
@@ -114,6 +143,13 @@ def run_probes(df: pd.DataFrame, table: ClaimTable, families: list[str], th: dic
             if ic is None:
                 out.append(ProbeResult(family=fam, name="instrument_column", passed=False, detail=f"{ex.fields.get('column')!r} is not a column in the file"))
             else:
-                out.append(ProbeResult(family=fam, name="instrument_varies", value=float(df[ic].nunique()), passed=df[ic].nunique() >= 2,
-                                       detail=f"{ic!r} takes {df[ic].nunique()} values"))
+                out.append(
+                    ProbeResult(
+                        family=fam,
+                        name="instrument_varies",
+                        value=float(df[ic].nunique()),
+                        passed=df[ic].nunique() >= 2,
+                        detail=f"{ic!r} takes {df[ic].nunique()} values",
+                    )
+                )
     return out

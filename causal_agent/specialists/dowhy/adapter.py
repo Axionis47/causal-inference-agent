@@ -59,11 +59,15 @@ def identify(model) -> Estimand:
     if not roads:
         return Estimand(kind="none", dowhy_text=str(ide))
     alts = {k: list(v) for k, v in (getattr(ide, "backdoor_variables", {}) or {}).items() if k != "backdoor"}
-    return Estimand(kind=roads[0], roads=roads,
-                    adjustment_set=list(ide.get_backdoor_variables()) if "backdoor" in roads else [],
-                    instruments=[str(v) for v in (ide.get_instrumental_variables() or [])] if "iv" in roads else [],
-                    frontdoor_set=[str(v) for v in (ide.get_frontdoor_variables() or [])] if "frontdoor" in roads else [],
-                    alternatives=alts, dowhy_text=str(ide))
+    return Estimand(
+        kind=roads[0],
+        roads=roads,
+        adjustment_set=list(ide.get_backdoor_variables()) if "backdoor" in roads else [],
+        instruments=[str(v) for v in (ide.get_instrumental_variables() or [])] if "iv" in roads else [],
+        frontdoor_set=[str(v) for v in (ide.get_frontdoor_variables() or [])] if "frontdoor" in roads else [],
+        alternatives=alts,
+        dowhy_text=str(ide),
+    )
 
 
 def estimate(model, entry: EstimatorEntry, contrast_key: str, target_units: str, *, secondary: bool = False) -> tuple[Estimate, Any]:
@@ -89,14 +93,30 @@ def estimate(model, entry: EstimatorEntry, contrast_key: str, target_units: str,
             if arr.size >= 2:
                 lo, hi = float(arr[0]), float(arr[1])
         return (
-            Estimate(contrast=contrast_key, method=entry.name, value=float(est.value), ci_low=lo, ci_high=hi,
-                     n_treated=n_t, n_control=n_c, target_units=target_units, secondary=secondary),
+            Estimate(
+                contrast=contrast_key,
+                method=entry.name,
+                value=float(est.value),
+                ci_low=lo,
+                ci_high=hi,
+                n_treated=n_t,
+                n_control=n_c,
+                target_units=target_units,
+                secondary=secondary,
+            ),
             (ide, est),  # estimate_effect stamps the identifier method on `ide`; refuters need that same object
         )
     except Exception as ex:  # a fit failure is a fact
         return (
-            Estimate(contrast=contrast_key, method=entry.name, n_treated=n_t, n_control=n_c, target_units=target_units,
-                     secondary=secondary, error=f"{type(ex).__name__}: {str(ex)[:300]}"),
+            Estimate(
+                contrast=contrast_key,
+                method=entry.name,
+                n_treated=n_t,
+                n_control=n_c,
+                target_units=target_units,
+                secondary=secondary,
+                error=f"{type(ex).__name__}: {str(ex)[:300]}",
+            ),
             None,
         )
 
@@ -111,15 +131,28 @@ def refute(model, bundle, est: Estimate, entry: RefuterEntry, contrast_key: str)
     if entry.kind == "sensitivity":
         arr = np.asarray(r.new_effect, dtype=float).ravel()
         lo, hi = (float(np.nanmin(arr)), float(np.nanmax(arr))) if arr.size else (float("nan"), float("nan"))
-        return Refutation(contrast=contrast_key, refuter=entry.name, kind="sensitivity", range_low=lo, range_high=hi,
-                          detail=f"estimate ranges {lo:.3g} to {hi:.3g} under simulated confounders of the declared strengths")
+        return Refutation(
+            contrast=contrast_key,
+            refuter=entry.name,
+            kind="sensitivity",
+            range_low=lo,
+            range_high=hi,
+            detail=f"estimate ranges {lo:.3g} to {hi:.3g} under simulated confounders of the declared strengths",
+        )
     new = float(r.new_effect)
     res = r.refutation_result or {}
     p = res.get("p_value")
     p = None if p is None or (isinstance(p, float) and math.isnan(float(p))) else float(p)
     passed = _passes(entry.pass_when, est.value, new, p)
-    return Refutation(contrast=contrast_key, refuter=entry.name, kind="falsification", new_effect=new, p_value=p, passed=passed,
-                      detail=f"new effect {new:.3g}" + (f", p={p:.2f}" if p is not None else ", p not computable") + (" (pass)" if passed else " (FAIL)"))
+    return Refutation(
+        contrast=contrast_key,
+        refuter=entry.name,
+        kind="falsification",
+        new_effect=new,
+        p_value=p,
+        passed=passed,
+        detail=f"new effect {new:.3g}" + (f", p={p:.2f}" if p is not None else ", p not computable") + (" (pass)" if passed else " (FAIL)"),
+    )
 
 
 # ------------------------------------------------------------------ helpers

@@ -25,9 +25,6 @@ dependencies = [
     "langgraph-checkpoint-sqlite>=2.0",
 ]
 
-[project.optional-dependencies]
-dev = ["pytest>=8"]
-
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
@@ -35,6 +32,89 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["causal_agent"]
 
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "import-linter>=2.0",
+    "mypy>=1.11",
+    "pandas-stubs>=2.2",
+    "pre-commit>=3.7",
+    "ruff>=0.6",
+    "types-pyyaml>=6",
+]
+
+# ------------------------------------------------------------------ tests
+
 [tool.pytest.ini_options]
 testpaths = ["causal_agent"]
 python_files = ["test_*.py"]
+
+# ------------------------------------------------------------------ style: ruff lints and formats
+
+[tool.ruff]
+line-length = 160
+target-version = "py312"
+extend-exclude = [".artifacts", ".langgraph_api", "data", "web"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = [
+    "E501",  # the formatter owns line length
+    "B905",  # zip without strict: the pairs here are built to the same length
+    "UP031", # percent formatting inside regex-building test fakes
+    "UP047", # PEP 695 generics are cosmetic here
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["causal_agent"]
+
+# ------------------------------------------------------------------ types: strict where the shared code lives, widened stage by stage
+
+[tool.mypy]
+python_version = "3.12"
+packages = ["causal_agent"]
+ignore_missing_imports = true
+warn_unused_configs = true
+exclude = ["tests/"]
+
+[[tool.mypy.overrides]]
+module = ["causal_agent.common.*", "causal_agent.lane.*", "causal_agent.viz.*"]
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = ["causal_agent.desk.*", "causal_agent.memory.*", "causal_agent.profile.*", "causal_agent.server.*", "causal_agent.specialists.*", "causal_agent.knowledge.*"]
+ignore_errors = true
+
+# ------------------------------------------------------------------ layers: a lower package never imports a higher one
+#
+# Bottom to top. Every listed ignore is a known cycle a later stage removes; an ignore that no longer matches fails the
+# check, so the list only shrinks.
+
+[tool.importlinter]
+root_package = "causal_agent"
+
+[[tool.importlinter.contracts]]
+name = "layers"
+type = "layers"
+layers = [
+    "causal_agent.server",
+    "causal_agent.desk",
+    "causal_agent.specialists",
+    "causal_agent.lane",
+    "causal_agent.viz",
+    "causal_agent.memory",
+    "causal_agent.profile",
+    "causal_agent.knowledge",
+    "causal_agent.common",
+]
+ignore_imports = [
+    "causal_agent.memory.probes -> causal_agent.viz.previz.adjustment",
+    "causal_agent.viz.graph -> causal_agent.desk.nodes.frame",
+    "causal_agent.viz.prompts -> causal_agent.desk.prompts.routing",
+    "causal_agent.viz.postviz -> causal_agent.desk.contracts",
+    "causal_agent.specialists.*.run -> causal_agent.desk.route",
+    "causal_agent.specialists.*.evals.run -> causal_agent.desk.route",
+    "causal_agent.**.tests.** -> causal_agent.desk.**",
+    "causal_agent.**.tests.** -> causal_agent.specialists.**",
+]
+unmatched_ignore_imports_alerting = "error"

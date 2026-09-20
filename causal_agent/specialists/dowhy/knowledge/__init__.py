@@ -35,12 +35,7 @@ class EstimatorEntry(BaseModel):
         return on_road and treatment in w.get("treatment", []) and outcome in w.get("outcome", []) and adjustment_set in w.get("adjustment_set", [])
 
     def render(self) -> str:
-        return (
-            f"estimator: {self.name}\n"
-            f"  what it does: {self.in_words}\n"
-            f"  assumes: {self.assumes}\n"
-            f"  weak when: {self.weak_when}"
-        )
+        return f"estimator: {self.name}\n  what it does: {self.in_words}\n  assumes: {self.assumes}\n  weak when: {self.weak_when}"
 
 
 class RefuterEntry(BaseModel):
@@ -54,8 +49,11 @@ class RefuterEntry(BaseModel):
     def applies(self, *, estimand: str, adjustment_set: str, hidden: bool = False) -> bool:
         w = self.applies_when
         needs_hidden = w.get("hidden")
-        return (estimand in w.get("estimand", []) and adjustment_set in w.get("adjustment_set", ["empty", "nonempty"])
-                and (needs_hidden is None or hidden in needs_hidden))
+        return (
+            estimand in w.get("estimand", [])
+            and adjustment_set in w.get("adjustment_set", ["empty", "nonempty"])
+            and (needs_hidden is None or hidden in needs_hidden)
+        )
 
 
 @lru_cache(maxsize=1)

@@ -14,7 +14,20 @@ from causal_agent.viz.spec import FigureSpec
 def ok_addresses(h: Handoff, state: dict, prefix: str = "refute") -> set[str]:
     """What a figure of this run may draw on: the pack, the design, every check, estimate, refutation and decline."""
     ok = set(h.addresses())
-    ok.update({"design", "design.graph", "design.dynamic", "design.bandwidth", "design.periods", "design.controls", "design.covariates", "design.estimand", "design.assumption", "design.estimand.adjustment_set"})
+    ok.update(
+        {
+            "design",
+            "design.graph",
+            "design.dynamic",
+            "design.bandwidth",
+            "design.periods",
+            "design.controls",
+            "design.covariates",
+            "design.estimand",
+            "design.assumption",
+            "design.estimand.adjustment_set",
+        }
+    )
     d = state.get("design")
     if d is not None:
         dd = d.model_dump() if hasattr(d, "model_dump") else dict(d)

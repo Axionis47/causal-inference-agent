@@ -72,7 +72,11 @@ def render(run: RunRecord, memory: Memory | None = None, previous: RunRecord | N
         m.add(f"run:{previous.index}.question", previous.question)
         m.add(f"run:{previous.index}.family", f"{previous.family or 'none'}; status {previous.status}")
         if previous.effect is not None:
-            m.add(f"run:{previous.index}.effect", f"{_g(previous.effect)}, interval {_g(previous.ci_low)} to {_g(previous.ci_high)} by {previous.estimator}", previous.effect)
+            m.add(
+                f"run:{previous.index}.effect",
+                f"{_g(previous.effect)}, interval {_g(previous.ci_low)} to {_g(previous.ci_high)} by {previous.estimator}",
+                previous.effect,
+            )
             m.numbers[f"run:{previous.index}.ci_low"], m.numbers[f"run:{previous.index}.ci_high"] = float(previous.ci_low), float(previous.ci_high)
             m.addresses.update({f"run:{previous.index}.ci_low", f"run:{previous.index}.ci_high"})
     if dec.get("why"):
@@ -81,7 +85,6 @@ def render(run: RunRecord, memory: Memory | None = None, previous: RunRecord | N
         m.add(f"decision.over:{fam}", why)
     sr = run.specialist_result or {}
     design = sr.get("design") or {}
-    c = _contrast_key(design) or "all"
     if design:
         for k in ("estimator", "estimand", "formula", "inference", "vce", "cluster", "target_units", "sharp_bandwidth_used"):
             if design.get(k) is not None:
@@ -136,7 +139,13 @@ def render(run: RunRecord, memory: Memory | None = None, previous: RunRecord | N
         for j, cv in enumerate(i.get("caveats") or [], start=1):
             m.add(f"interpretation:{i.get('contrast')}.caveat:{j}", str(cv))
     for d in _declines(run):
-        m.add(d.address, f"{d.kind}: {d.about}" + (f" · pack said {d.pack_value!r}" if d.pack_value is not None else "") + (f" · lane took {d.took!r}" if d.took is not None else "") + f" · {d.reason} ({d.check})")
+        m.add(
+            d.address,
+            f"{d.kind}: {d.about}"
+            + (f" · pack said {d.pack_value!r}" if d.pack_value is not None else "")
+            + (f" · lane took {d.took!r}" if d.took is not None else "")
+            + f" · {d.reason} ({d.check})",
+        )
     a = sr.get("ask")
     if a and a.get("address"):
         m.add("ask.address", str(a["address"]))
@@ -169,8 +178,11 @@ def render(run: RunRecord, memory: Memory | None = None, previous: RunRecord | N
         for address, f in memory.fields.items():
             if f.value is None and f.status == "empty":
                 continue
-            m.add(address, f"{f.value} ({f.status}, {f.source})" + (f' said "{f.said}"' if f.said else ""),
-                  float(f.value) if isinstance(f.value, (int, float)) and not isinstance(f.value, bool) else None)
+            m.add(
+                address,
+                f"{f.value} ({f.status}, {f.source})" + (f' said "{f.said}"' if f.said else ""),
+                float(f.value) if isinstance(f.value, (int, float)) and not isinstance(f.value, bool) else None,
+            )
         for a in list(m.addresses):
             m.addresses.add(a.rsplit(".", 1)[0])
     return m
@@ -190,9 +202,13 @@ def brief(run: RunRecord, previous: RunRecord | None, material: Material) -> str
         for j, cv in enumerate(i.get("caveats") or [], start=1):
             lines.append(f"  Keep in mind: {cv} [interpretation:{i.get('contrast')}.caveat:{j}]")
     if run.status == "done" and run.effect is not None:
-        lines.append(f"The number: {_g(run.effect)}, interval {_g(run.ci_low)} to {_g(run.ci_high)}, by {run.estimator}. [estimate:{_contrast_key(sr.get('design') or {}) or 'all'}.value]")
+        lines.append(
+            f"The number: {_g(run.effect)}, interval {_g(run.ci_low)} to {_g(run.ci_high)}, by {run.estimator}. [estimate:{_contrast_key(sr.get('design') or {}) or 'all'}.value]"
+        )
     if run.family:
-        lines.append(f"Design: {run.family} via {run.specialist}." + (f" Why: {run.decision.get('why')}" if run.decision.get("why") else "") + " [decision.family]")
+        lines.append(
+            f"Design: {run.family} via {run.specialist}." + (f" Why: {run.decision.get('why')}" if run.decision.get("why") else "") + " [decision.family]"
+        )
     else:
         lines.append("No design fit what is known and the data. [decision.family]")
     if run.status == "no_handoff" or not run.family:
@@ -217,7 +233,10 @@ def brief(run: RunRecord, previous: RunRecord | None, material: Material) -> str
     failed = [r for r in sr.get("refutations") or [] if r.get("passed") is False]
     if failed:
         prefix = "refute" if run.specialist == "dowhy" else "placebo"
-        lines.append("Tried to break it, and these did: " + "; ".join(f"{r.get('detail') or r['refuter']} ({r['refuter']}) [{prefix}:{r['contrast']}.{r['refuter']}.passed]" for r in failed))
+        lines.append(
+            "Tried to break it, and these did: "
+            + "; ".join(f"{r.get('detail') or r['refuter']} ({r['refuter']}) [{prefix}:{r['contrast']}.{r['refuter']}.passed]" for r in failed)
+        )
     elif sr.get("refutations"):
         lines.append(f"Tried to break it {len(sr['refutations'])} ways; the estimate held every time.")
     declines = _declines(run)
@@ -227,6 +246,8 @@ def brief(run: RunRecord, previous: RunRecord | None, material: Material) -> str
     if made:
         lines.append(f"The run left {len(made)} figure{'s' if len(made) != 1 else ''}: " + ", ".join(f"[figure:{i}]" for i in made))
     if previous is not None:
-        lines.append(f"Then and now: run {previous.index} gave {_g(previous.effect)} ({previous.family or 'no design'}); run {run.index} gives {_g(run.effect)} ({run.family or 'no design'}).")
+        lines.append(
+            f"Then and now: run {previous.index} gave {_g(previous.effect)} ({previous.family or 'no design'}); run {run.index} gives {_g(run.effect)} ({run.family or 'no design'})."
+        )
     lines.append("Ask anything about it, tell me something to change, ask a new question of the same data, or say done.")
     return "\n".join(lines)

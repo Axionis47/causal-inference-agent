@@ -16,8 +16,15 @@ RULES: list[V.Rule] = [
 
 def pack():
     h = forced("cigar", "q", "diff_in_diff", "sales", "state", ["state", "year", "sales", "pop"], memory=store.migrate("cigar", write=False))
-    h.columns = [ColumnBrief(name="pop", key="pop", when="before", moved_by_change=True,
-                             provenance={"when": Provenance(status="confirmed", source="user:turn:2"), "moved_by_change": Provenance(status="confirmed", source="user:turn:2")})]
+    h.columns = [
+        ColumnBrief(
+            name="pop",
+            key="pop",
+            when="before",
+            moved_by_change=True,
+            provenance={"when": Provenance(status="confirmed", source="user:turn:2"), "moved_by_change": Provenance(status="confirmed", source="user:turn:2")},
+        )
+    ]
     return h
 
 

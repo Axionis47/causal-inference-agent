@@ -1,13 +1,13 @@
 """Where a memory lives on disk, and how the older claims files become one.
 
-    data/memory/<name>/meta.yaml          name, version, csv, the dataset facts
-    data/memory/<name>/columns.yaml       the file's facts on every column, by key
-    data/memory/<name>/fields.yaml        the map: address -> value, status, source, said, evidence
-    data/memory/<name>/said.jsonl         the person's words, one turn per line
-    data/memory/<name>/designs/<n>/       memory.json, frame.json, decision.json, handoff.json, run/
+data/memory/<name>/meta.yaml          name, version, csv, the dataset facts
+data/memory/<name>/columns.yaml       the file's facts on every column, by key
+data/memory/<name>/fields.yaml        the map: address -> value, status, source, said, evidence
+data/memory/<name>/said.jsonl         the person's words, one turn per line
+data/memory/<name>/designs/<n>/       memory.json, frame.json, decision.json, handoff.json, run/
 
-    uv run python -m causal_agent.memory.store migrate --all        # every dataset in data/datasets.yaml
-    uv run python -m causal_agent.memory.store show students3
+uv run python -m causal_agent.memory.store migrate --all        # every dataset in data/datasets.yaml
+uv run python -m causal_agent.memory.store show students3
 """
 
 from __future__ import annotations

@@ -45,7 +45,10 @@ def result(state: dict, report: str, extra: dict | None = None) -> dict:
     out = {
         "status": status_of(state),
         "ask": ask_dict(state.get("ask")),
-        "family": h.family, "specialist": h.specialist, "run_dir": state.get("run_dir"), "report": report,
+        "family": h.family,
+        "specialist": h.specialist,
+        "run_dir": state.get("run_dir"),
+        "report": report,
         "design": _dump(d) if d is not None else None,
         "checks": _dump(state.get("checks") or []),
         "declines": _dump(state.get("declines") or []),

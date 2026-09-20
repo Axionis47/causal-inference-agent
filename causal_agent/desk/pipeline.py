@@ -27,7 +27,11 @@ def run_lane(h: Handoff, question: str) -> dict:
     sub = SPECIALISTS.get(h.family)
     if sub is None:
         return {"status": "not_supported", "family": h.family, "message": f"no specialist for {h.family}"}
-    cfg = {"configurable": {"thread_id": str(uuid.uuid4())}, "tags": [f"dataset:{h.pack_name}", f"lane:{h.specialist}", "desk"], "metadata": {"dataset": h.pack_name}}
+    cfg = {
+        "configurable": {"thread_id": str(uuid.uuid4())},
+        "tags": [f"dataset:{h.pack_name}", f"lane:{h.specialist}", "desk"],
+        "metadata": {"dataset": h.pack_name},
+    }
     out = sub.invoke({"question": question, "handoff": h, "dataset": h.pack_name}, cfg)
     return out.get("specialist_result") or {"status": "unknown"}
 
@@ -44,14 +48,23 @@ def run(handoff_path: str | Path, index: int, dataset: str, question: str, decis
     proc = subprocess.run(cmd, cwd=str(ROOT), env=env, capture_output=True, text=True)
     if not out_path.exists():
         tail = (proc.stderr or proc.stdout or "")[-2000:]
-        return RunRecord(index=index, dataset=dataset, question=question, status="pipeline_error", design_dir=str(handoff_path.parent),
-                         decision=decision or {}, decision_record=f"the analysis process exited {proc.returncode} without a record:\n{tail}")
+        return RunRecord(
+            index=index,
+            dataset=dataset,
+            question=question,
+            status="pipeline_error",
+            design_dir=str(handoff_path.parent),
+            decision=decision or {},
+            decision_record=f"the analysis process exited {proc.returncode} without a record:\n{tail}",
+        )
     sr = json.loads(out_path.read_text())
     h = Handoff.model_validate(json.loads(handoff_path.read_text()))
     return record(dataset, question, index, h, sr, decision or {}, decision_record, design_dir=str(handoff_path.parent))
 
 
-def record(dataset: str, question: str, index: int, h: Handoff | None, sr: dict, decision: dict, decision_record: str, design_dir: str | None = None) -> RunRecord:
+def record(
+    dataset: str, question: str, index: int, h: Handoff | None, sr: dict, decision: dict, decision_record: str, design_dir: str | None = None
+) -> RunRecord:
     """A RunRecord from a lane's result, whether live or read back from the file it wrote."""
     design = sr.get("design") or {}
     est = next((e for e in sr.get("estimates") or [] if not e.get("secondary") and e.get("error") is None), None)
@@ -63,11 +76,22 @@ def record(dataset: str, question: str, index: int, h: Handoff | None, sr: dict,
         except Exception:
             artifacts = {}
     return RunRecord(
-        index=index, dataset=dataset, question=question, family=h.family if h else None, specialist=h.specialist if h else None,
-        status=sr.get("status") or ("no_handoff" if h is None else "unknown"), run_dir=run_dir, design_dir=design_dir,
-        effect=est.get("value") if est else None, ci_low=est.get("ci_low") if est else None, ci_high=est.get("ci_high") if est else None,
+        index=index,
+        dataset=dataset,
+        question=question,
+        family=h.family if h else None,
+        specialist=h.specialist if h else None,
+        status=sr.get("status") or ("no_handoff" if h is None else "unknown"),
+        run_dir=run_dir,
+        design_dir=design_dir,
+        effect=est.get("value") if est else None,
+        ci_low=est.get("ci_low") if est else None,
+        ci_high=est.get("ci_high") if est else None,
         estimator=design.get("estimator") if isinstance(design.get("estimator"), str) else (est.get("method") if est else None),
-        decision_record=decision_record, decision=decision, specialist_result=sr, artifacts=artifacts,
+        decision_record=decision_record,
+        decision=decision,
+        specialist_result=sr,
+        artifacts=artifacts,
     )
 
 

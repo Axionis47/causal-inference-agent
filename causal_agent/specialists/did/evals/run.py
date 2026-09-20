@@ -35,7 +35,9 @@ def _summarise(result: dict) -> dict:
         "periods_pre": shape.get("periods_pre"),
         "estimator": d.get("estimator"),
         "controls": (result.get("controls") or {}).get("included"),
-        "controls_excluded": sorted({x["column"] for x in ((result.get("controls") or {}).get("excluded") or []) + ((result.get("controls") or {}).get("dropped_fixed") or [])}),
+        "controls_excluded": sorted(
+            {x["column"] for x in ((result.get("controls") or {}).get("excluded") or []) + ((result.get("controls") or {}).get("dropped_fixed") or [])}
+        ),
         "effect": est[0]["value"] if est else None,
         "flags": sorted({c["name"] for c in checks if c["level"] != "pass"}),
         "hard_flags": sorted({c["name"] for c in checks if c["level"] == "hard"}),

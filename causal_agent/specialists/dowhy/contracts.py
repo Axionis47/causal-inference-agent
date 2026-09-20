@@ -6,7 +6,7 @@ live in causal_agent.common.contracts. These are the ones only this lane needs.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Literal
 
 import networkx as nx
@@ -117,7 +117,7 @@ class Design(BaseModel):
     also_run: str | None = None
     refuters: list[str]
     target_units: str
-    frozen_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    frozen_at: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     def render(self) -> str:
         lines = [
@@ -125,12 +125,19 @@ class Design(BaseModel):
             "  contrasts    " + "; ".join(f"{c.treated} vs {c.control} ({c.reason})" for c in self.contrasts),
             "  graph",
         ]
-        lines += ["    " + l for l in self.graph.render().splitlines()]
+        lines += ["    " + ln for ln in self.graph.render().splitlines()]
         e = self.estimand
-        road = {"backdoor": f"adjust for {', '.join(e.adjustment_set) or 'nothing'}", "iv": f"through the instrument {', '.join(e.instruments)}",
-                "frontdoor": f"through the mediator {', '.join(e.frontdoor_set)}", "none": "nothing identifies it"}[e.kind]
-        lines.append(f"  estimand     {e.kind}; {road}" + (f"; roads open: {', '.join(e.roads)}" if len(e.roads) > 1 else "")
-                     + ("; a hidden factor is believed to exist and no road avoids it" if e.sensitivity_required else ""))
+        road = {
+            "backdoor": f"adjust for {', '.join(e.adjustment_set) or 'nothing'}",
+            "iv": f"through the instrument {', '.join(e.instruments)}",
+            "frontdoor": f"through the mediator {', '.join(e.frontdoor_set)}",
+            "none": "nothing identifies it",
+        }[e.kind]
+        lines.append(
+            f"  estimand     {e.kind}; {road}"
+            + (f"; roads open: {', '.join(e.roads)}" if len(e.roads) > 1 else "")
+            + ("; a hidden factor is believed to exist and no road avoids it" if e.sensitivity_required else "")
+        )
         for r in self.checks.results:
             lines.append(f"  check        {r.level:4} {r.address}  {r.detail}")
         lines.append(f"  estimator    {self.estimator}" + (f" (+ {self.also_run} as secondary)" if self.also_run else "") + f"  params {self.params}")

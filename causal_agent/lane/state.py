@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import operator
-from typing import Annotated, Any, Callable
+from collections.abc import Callable
+from typing import Annotated, Any
 
 from typing_extensions import TypedDict
 

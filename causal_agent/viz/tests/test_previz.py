@@ -12,8 +12,9 @@ SENATE = pd.read_csv(ROOT / "data/raw/senate-incumbency/senate.csv")
 
 
 def test_overlap_shares_by_arm_and_the_probe_from_the_same_cells():
-    f = adjustment.overlap(STUDENTS, "test preparation course", "completed", ["lunch", "parental level of education"], floor=5,
-                           addresses=["claim:assignment.depends_on"])
+    f = adjustment.overlap(
+        STUDENTS, "test preparation course", "completed", ["lunch", "parental level of education"], floor=5, addresses=["claim:assignment.depends_on"]
+    )
     assert f.made and f.function == "adjustment.overlap" and f.spec.kind == "bars"
     treated, control = f.spec.series
     assert treated.x == control.x and treated.x[:2] == ["lunch = free/reduced", "lunch = standard"]

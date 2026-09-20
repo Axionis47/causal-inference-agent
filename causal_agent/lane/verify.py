@@ -29,5 +29,7 @@ def contradictions(claims: dict[str, Any], column_key: str, case: Case, rules: l
             continue
         if norm_address(addr) in cited and any(norm_address(a) == norm_address(addr) for a in h.contradictions):
             continue
-        errors.append(f"{claim} = {claim_value} contradicts [{addr}] = {case.fact(addr)!r}, which the pack settled; leave the claim {not claim_value} or cite that address if the pack marks it contested")
+        errors.append(
+            f"{claim} = {claim_value} contradicts [{addr}] = {case.fact(addr)!r}, which the pack settled; leave the claim {not claim_value} or cite that address if the pack marks it contested"
+        )
     return errors

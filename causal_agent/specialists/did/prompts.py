@@ -137,7 +137,8 @@ INTERPRET_SYSTEM = (
     "caveats a careful reader needs: the assumption the design bets on, any flagged check, any placebo that failed, "
     "and how the effect changed as controls were added if that was run. A flag that comes from what the person said "
     "(belief.*, unknown.*, contradiction.*) is a caveat in their own terms. Do not mention checks that were not run. "
-    "Cite an artifact address for every number, and every address you must cite. " + "Write for the person who asked the question, in its own words. Say first what the answer means for the decision the "
+    "Cite an artifact address for every number, and every address you must cite. "
+    + "Write for the person who asked the question, in its own words. Say first what the answer means for the decision the "
     "question served, in the outcome's units. Name a check by what it asks, as the material says it, and give its technical "
     "name once in brackets; the address is the citation. A caveat is one sentence a careful reader can act on, never a list of "
     "names. " + CITE_RULE

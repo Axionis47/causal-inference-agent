@@ -20,7 +20,7 @@ def test_brief_renders_every_field_with_status_source_and_said():
     lunch = h.brief("lunch")
     assert lunch.provenance["when"].status == "confirmed" and lunch.provenance["set_by"].said == "the district sets it each September"
     text = lunch.render()
-    assert "[col:lunch.set_by] set by the district · confirmed · user:turn:9 · said \"the district sets it each September\"" in text
+    assert '[col:lunch.set_by] set by the district · confirmed · user:turn:9 · said "the district sets it each September"' in text
     assert "[col:gender.stands_for] sex as recorded · drafted · model:infer" in h.brief("gender").render()
     assert h.memory_version == m.version and h.design_id == 0
     assert h.resolve("col:lunch.set_by") and h.resolve("col:gender.stands_for")

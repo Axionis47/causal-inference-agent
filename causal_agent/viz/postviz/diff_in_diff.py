@@ -34,19 +34,37 @@ def paths_with_counterfactual(panel: pd.DataFrame, contrast: str, estimate: floa
 
     def series(name: str, flag: int) -> Series:
         rows = by[by["treated"] == flag].set_index("time")
-        return Series(name=name, x=[_x(t) for t in times], y=[float(rows.loc[t, "mean"]) if t in rows.index else None for t in times],
-                      n=[int(rows.loc[t, "size"]) if t in rows.index else 0 for t in times])
+        return Series(
+            name=name,
+            x=[_x(t) for t in times],
+            y=[float(rows.loc[t, "mean"]) if t in rows.index else None for t in times],
+            n=[int(rows.loc[t, "size"]) if t in rows.index else 0 for t in times],
+        )
 
     got, not_ = series("got the change", 1), series("did not", 0)
-    cf = Series(name="the treated group without the change", x=[_x(t) for t in times],
-                y=[(t_pre + (c - c_pre)) if (p and c is not None) else None for t, c, p in zip(times, not_.y, [bool(panel.loc[panel["time"] == t, "post"].max()) for t in times])])
+    cf = Series(
+        name="the treated group without the change",
+        x=[_x(t) for t in times],
+        y=[
+            (t_pre + (c - c_pre)) if (p and c is not None) else None
+            for t, c, p in zip(times, not_.y, [bool(panel.loc[panel["time"] == t, "post"].max()) for t in times])
+        ],
+    )
     marks = [Mark(kind="vline", at=_x(first_post), label="the change")] if first_post is not None else []
     gap = None
     if estimate is not None:
         gap = f"the design's estimate is {estimate:.3g}, the gap between the treated path and its path without the change"
-    return FigureSpec(id=f"paths_{contrast}", kind="lines", title="The two groups over time, and the treated group's path without the change", x_label="period", y_label="outcome",
-                      series=[got, not_, cf], marks=marks, note=gap or "the two paths before the change are the parallel-paths assumption made visible",
-                      draws_on=["design.periods"] + ([f"estimate:{contrast}.value"] if estimate is not None else []))
+    return FigureSpec(
+        id=f"paths_{contrast}",
+        kind="lines",
+        title="The two groups over time, and the treated group's path without the change",
+        x_label="period",
+        y_label="outcome",
+        series=[got, not_, cf],
+        marks=marks,
+        note=gap or "the two paths before the change are the parallel-paths assumption made visible",
+        draws_on=["design.periods"] + ([f"estimate:{contrast}.value"] if estimate is not None else []),
+    )
 
 
 def placebo_distribution(draws: list[float], observed: float | None, p: float | None, contrast: str, bins: int = 30) -> FigureSpec | None:
@@ -61,6 +79,14 @@ def placebo_distribution(draws: list[float], observed: float | None, p: float | 
     centres = [(float(edges[i]) + float(edges[i + 1])) / 2 for i in range(len(counts))]
     marks = [Mark(kind="vline", at=float(observed), label="observed")] if observed is not None else []
     share = f"share of reassignments with an effect at least as large: {p:.2f}" if p is not None else "no p-value"
-    return FigureSpec(id=f"placebo_{contrast}", kind="density", title="The observed effect among effects from reassigning the treated label", x_label="placebo effect", y_label="count",
-                      series=[Series(name="placebo effects", x=centres, y=[float(c) for c in counts])], marks=marks, note=f"{len(vals)} reassignments; {share}",
-                      draws_on=[f"placebo:{contrast}.placebo_group.p_value"] + ([f"estimate:{contrast}.value"] if observed is not None else []))
+    return FigureSpec(
+        id=f"placebo_{contrast}",
+        kind="density",
+        title="The observed effect among effects from reassigning the treated label",
+        x_label="placebo effect",
+        y_label="count",
+        series=[Series(name="placebo effects", x=centres, y=[float(c) for c in counts])],
+        marks=marks,
+        note=f"{len(vals)} reassignments; {share}",
+        draws_on=[f"placebo:{contrast}.placebo_group.p_value"] + ([f"estimate:{contrast}.value"] if observed is not None else []),
+    )

@@ -40,16 +40,28 @@ def test_density_either_side():
 
 
 def test_continuity_bandwidths_and_placebo_cutoffs():
-    f = R.covariate_continuity({"age": {"jump": 0.1, "ci_low": -0.2, "ci_high": 0.4, "p": 0.5}, "education": {"jump": 0.9, "ci_low": 0.3, "ci_high": 1.5, "p": 0.01}}, "c", {"education": "years of schooling"})
+    f = R.covariate_continuity(
+        {"age": {"jump": 0.1, "ci_low": -0.2, "ci_high": 0.4, "p": 0.5}, "education": {"jump": 0.9, "ci_low": 0.3, "ci_high": 1.5, "p": 0.01}},
+        "c",
+        {"education": "years of schooling"},
+    )
     assert f.kind == "interval" and f.series[0].x == ["age", "years of schooling"] and f.series[0].lo == [-0.2, 0.3] and "years of schooling differ" in f.note
-    pts = [{"label": "h_cer = 0.3", "at": 0.3, "value": 2.1, "lo": 1.5, "hi": 2.7, "n_l": 300, "n_r": 300, "informative": True},
-           {"label": "2h_mse = 1.0", "at": 1.0, "value": 1.9, "lo": 1.6, "hi": 2.2, "n_l": 1000, "n_r": 1000, "informative": True},
-           {"label": "h_mse = 0.5", "at": 0.5, "value": 2.0, "lo": 1.6, "hi": 2.4, "n_l": 500, "n_r": 500, "informative": True},
-           {"label": "none", "informative": False, "note": "no coverage-error bandwidth", "at": None}]
+    pts = [
+        {"label": "h_cer = 0.3", "at": 0.3, "value": 2.1, "lo": 1.5, "hi": 2.7, "n_l": 300, "n_r": 300, "informative": True},
+        {"label": "2h_mse = 1.0", "at": 1.0, "value": 1.9, "lo": 1.6, "hi": 2.2, "n_l": 1000, "n_r": 1000, "informative": True},
+        {"label": "h_mse = 0.5", "at": 0.5, "value": 2.0, "lo": 1.6, "hi": 2.4, "n_l": 500, "n_r": 500, "informative": True},
+        {"label": "none", "informative": False, "note": "no coverage-error bandwidth", "at": None},
+    ]
     g = R.bandwidth_curve(pts, 0.5, "c")
     assert g.series[0].x == [0.3, 0.5, 1.0] and g.series[0].y == [2.1, 2.0, 1.9] and g.marks[0].at == 0.5 and g.series[0].n == [600, 1000, 2000]
     assert set(g.draws_on) == {"placebo:c.bandwidth_grid.detail", "design.bandwidth"}
-    pc = R.placebo_cutoffs([{"label": "control side at -0.5", "at": -0.5, "value": 0.05, "lo": -0.2, "hi": 0.3}, {"label": "treated side at 0.5", "at": 0.5, "value": -0.1, "lo": -0.4, "hi": 0.2}],
-                           {"value": 2.0, "ci_low": 1.6, "ci_high": 2.4}, "c")
+    pc = R.placebo_cutoffs(
+        [
+            {"label": "control side at -0.5", "at": -0.5, "value": 0.05, "lo": -0.2, "hi": 0.3},
+            {"label": "treated side at 0.5", "at": 0.5, "value": -0.1, "lo": -0.4, "hi": 0.2},
+        ],
+        {"value": 2.0, "ci_low": 1.6, "ci_high": 2.4},
+        "c",
+    )
     assert pc.series[0].x == ["control side at -0.5", "the cutoff", "treated side at 0.5"] and pc.series[0].y[1] == 2.0
     assert R.bandwidth_curve([], 0.5, "c") is None and R.placebo_cutoffs([], {}, "c") is None and R.covariate_continuity({}, "c") is None

@@ -20,11 +20,17 @@ from langgraph.config import get_stream_writer
 from langgraph.types import Command, Send
 
 from causal_agent.common.addresses import key as _key
-from causal_agent.common.contracts import CheckResult, Checks, Cited, Contrast, Decline, Estimate, Feasibility, Handoff, LaneAsk, RdDesign, Refutation
+from causal_agent.common.contracts import Checks, Cited, Contrast, Decline, Estimate, Feasibility, Handoff, LaneAsk, RdDesign, Refutation
 from causal_agent.common.llm import structured
-from causal_agent.lane import asks, case as C, figures as LF, intake, records, words as W
-from causal_agent.profile.datasets import ROOT, dataset_entries
-from causal_agent.specialists.rd import adapter, checks as CK, prompts as P, shape as SH
+from causal_agent.lane import asks, intake, records
+from causal_agent.lane import case as C
+from causal_agent.lane import figures as LF
+from causal_agent.lane import words as W
+from causal_agent.profile.datasets import dataset_entries
+from causal_agent.specialists.rd import adapter
+from causal_agent.specialists.rd import checks as CK
+from causal_agent.specialists.rd import prompts as P
+from causal_agent.specialists.rd import shape as SH
 from causal_agent.specialists.rd.contracts import (
     Bandwidths,
     CovariateRelation,
@@ -38,14 +44,18 @@ from causal_agent.specialists.rd.contracts import (
 )
 from causal_agent.specialists.rd.knowledge import (
     EstimatorEntry,
-    estimator as estimator_entry,
     load_beliefs,
     load_checks,
     load_estimators,
     load_placebos,
     pick_inference,
-    placebo as placebo_entry,
     render_preferences,
+)
+from causal_agent.specialists.rd.knowledge import (
+    estimator as estimator_entry,
+)
+from causal_agent.specialists.rd.knowledge import (
+    placebo as placebo_entry,
 )
 from causal_agent.specialists.rd.state import PlaceboTask, RelateTask, SpecialistState
 from causal_agent.viz.postviz import common as PV
@@ -56,6 +66,7 @@ MAX_PICK_ATTEMPTS = 2
 CLAIMS = ("predetermined", "affected_by_treatment", "is_outcome_measure")
 
 # ------------------------------------------------------------------ helpers
+
 
 def _writer():
     try:
@@ -95,9 +106,11 @@ def _cites(h: Handoff, *addresses: str) -> list[str]:
 def _frame_text(state: SpecialistState) -> str:
     h = state["handoff"]
     s = h.scope
-    lines = [f"family: {h.family}; outcome: {h.outcome}; treatment: {h.treatment or 'none named (the change may be the cutoff rule itself)'}; "
-             f"filter={s.population_filter or 'none'}; window={s.window or 'none'}; target={s.target}",
-             f"assumption the router bet on: {h.chosen_assumption}"]
+    lines = [
+        f"family: {h.family}; outcome: {h.outcome}; treatment: {h.treatment or 'none named (the change may be the cutoff rule itself)'}; "
+        f"filter={s.population_filter or 'none'}; window={s.window or 'none'}; target={s.target}",
+        f"assumption the router bet on: {h.chosen_assumption}",
+    ]
     if _block(h):
         lines.append("what the pack settled:\n" + h.design.render())
     if h.probes:
@@ -108,7 +121,10 @@ def _frame_text(state: SpecialistState) -> str:
     sc = state.get("score")
     if sc and sc.column:
         rule = f"{'at or ' if sc.cutoff_value_treated else ''}{sc.treated_side} {sc.cutoff:g}"
-        lines.append(f"score: {sc.column}, treated when {rule}" + (f"; take-up {sc.takeup_column} = {sc.takeup_level!r}" if sc.takeup_column else "; treatment is the cutoff rule itself"))
+        lines.append(
+            f"score: {sc.column}, treated when {rule}"
+            + (f"; take-up {sc.takeup_column} = {sc.takeup_level!r}" if sc.takeup_column else "; treatment is the cutoff rule itself")
+        )
     sh = state.get("shape")
     if sh:
         lines.append(f"shape: {sh.kind}; {sh.n_left} rows on the control side, {sh.n_right} on the treated side")
@@ -177,19 +193,56 @@ def load(state: SpecialistState) -> Command:
         return _stop("load", "the outcome is not numeric", [f"outcome {y} is {it.table[y].dtype}"], "a numeric outcome", {"declines": it.declines})
     target = _cfg()["target_units"].get(h.scope.target)
     if target is None:
-        return _stop("load", f"target '{h.scope.target}' is not supported by this lane", [], "a question asking for the average effect, or the effect on the treated", {"declines": it.declines})
+        return _stop(
+            "load",
+            f"target '{h.scope.target}' is not supported by this lane",
+            [],
+            "a question asking for the average effect, or the effect on the treated",
+            {"declines": it.declines},
+        )
     declines = list(it.declines)
     if h.scope.target == "on_treated":  # a cutoff design has no average over the treated: it answers with the effect at the cutoff, and says so
-        declines.append(Decline(stage="load", kind="substituted", about="scope.target", pack_value="on_treated", took=target, check="target.effect_at_cutoff",
-                                reason="a cutoff design estimates the effect for units at the cutoff; it has no average over every treated unit"))
-    _writer()({"load": {"rows": len(it.table), "columns": list(it.columns), "target_units": target, "cluster_column": cluster, "run_dir": str(it.run_dir),
-                        "declines": [d.render() for d in declines], **it.facts}})
-    return Command(goto="case", update={
-        "run_dir": str(it.run_dir), "table_path": str(it.table_path), "columns": it.columns, "cluster_column": cluster, "declines": declines,
-        "check_facts": {"intake": it.facts} if it.facts else {},
-        "sampled_by_side": bool(b.sampled_by_side) if b else bool(entry.get("sampled_by_side", False)), "target_units": target,
-        "relate_attempts": 0, "pick_attempts": 0, "relate_errors": {}, "excluded_estimators": [],
-    })
+        declines.append(
+            Decline(
+                stage="load",
+                kind="substituted",
+                about="scope.target",
+                pack_value="on_treated",
+                took=target,
+                check="target.effect_at_cutoff",
+                reason="a cutoff design estimates the effect for units at the cutoff; it has no average over every treated unit",
+            )
+        )
+    _writer()(
+        {
+            "load": {
+                "rows": len(it.table),
+                "columns": list(it.columns),
+                "target_units": target,
+                "cluster_column": cluster,
+                "run_dir": str(it.run_dir),
+                "declines": [d.render() for d in declines],
+                **it.facts,
+            }
+        }
+    )
+    return Command(
+        goto="case",
+        update={
+            "run_dir": str(it.run_dir),
+            "table_path": str(it.table_path),
+            "columns": it.columns,
+            "cluster_column": cluster,
+            "declines": declines,
+            "check_facts": {"intake": it.facts} if it.facts else {},
+            "sampled_by_side": bool(b.sampled_by_side) if b else bool(entry.get("sampled_by_side", False)),
+            "target_units": target,
+            "relate_attempts": 0,
+            "pick_attempts": 0,
+            "relate_errors": {},
+            "excluded_estimators": [],
+        },
+    )
 
 
 def case(state: SpecialistState) -> dict:
@@ -207,10 +260,16 @@ def _block_score(h: Handoff) -> Score | None:
     if not (b and b.score and b.cutoff is not None and b.treated_side):
         return None
     tk = b.takeup or {}
-    return Score(column=_key(b.score), cutoff=float(b.cutoff), treated_side=b.treated_side, cutoff_value_treated=True if b.cutoff_value_treated is None else bool(b.cutoff_value_treated),
-                 takeup_column=_key(tk["column"]) if tk.get("column") else None, takeup_level=str(tk["level"]) if tk.get("column") and tk.get("level") is not None else None,
-                 reason="the pack names the score, the cutoff, the treated side, and who took the change up",
-                 cites=_cites(h, "claim:assignment.score_column", "claim:assignment.cutoff", "claim:assignment.treated_side", "claim:assignment.treatment_column"))
+    return Score(
+        column=_key(b.score),
+        cutoff=float(b.cutoff),
+        treated_side=b.treated_side,
+        cutoff_value_treated=True if b.cutoff_value_treated is None else bool(b.cutoff_value_treated),
+        takeup_column=_key(tk["column"]) if tk.get("column") else None,
+        takeup_level=str(tk["level"]) if tk.get("column") and tk.get("level") is not None else None,
+        reason="the pack names the score, the cutoff, the treated side, and who took the change up",
+        cites=_cites(h, "claim:assignment.score_column", "claim:assignment.cutoff", "claim:assignment.treated_side", "claim:assignment.treatment_column"),
+    )
 
 
 def _block_about(errors: list[str]) -> str:
@@ -233,12 +292,31 @@ def _ask_score(h: Handoff, state: SpecialistState, errors: list[str], debug: lis
     names = state.get("columns") or {}
     if a.get("score_column") and a.get("cutoff") is None:
         sc = a["score_column"]
-        ask = LaneAsk(address="claim:assignment.cutoff", question=f"Which value of {names.get(_key(sc), sc)!r} was the line drawn at, in its own units?",
-                      because="the notes name the score but not the line")
-        return asks.ask_back("score", ask, reason="the notes name the score but not the cutoff value that decided who got the change", facts=errors, extra={"debug": debug, "declines": declines})
+        ask = LaneAsk(
+            address="claim:assignment.cutoff",
+            question=f"Which value of {names.get(_key(sc), sc)!r} was the line drawn at, in its own units?",
+            because="the notes name the score but not the line",
+        )
+        return asks.ask_back(
+            "score",
+            ask,
+            reason="the notes name the score but not the cutoff value that decided who got the change",
+            facts=errors,
+            extra={"debug": debug, "declines": declines},
+        )
     if not a.get("score_column"):
-        ask = LaneAsk(address="claim:assignment.score_column", question="Which column holds the score the line was drawn on?", because="the notes say a line on a score decided the change but not which column")
-        return asks.ask_back("score", ask, reason="the notes say a cutoff rule decided the change but not which column carries the score", facts=errors, extra={"debug": debug, "declines": declines})
+        ask = LaneAsk(
+            address="claim:assignment.score_column",
+            question="Which column holds the score the line was drawn on?",
+            because="the notes say a line on a score decided the change but not which column",
+        )
+        return asks.ask_back(
+            "score",
+            ask,
+            reason="the notes say a cutoff rule decided the change but not which column carries the score",
+            facts=errors,
+            extra={"debug": debug, "declines": declines},
+        )
     return None
 
 
@@ -256,8 +334,15 @@ def score(state: SpecialistState) -> Command:
         if block is not None and attempt == 0:  # a fact from the pack; the same checks apply, and the model is asked only if they fail
             parsed = block
         else:
-            user = P.SCORE_USER.format(question=_question(state), frame=_frame_text(state), dataset_card=h.render_dataset(), changes=h.render_change(),
-                                       treatment_card=treatment_card, cards=cards, errors=_rejected(errors))
+            user = P.SCORE_USER.format(
+                question=_question(state),
+                frame=_frame_text(state),
+                dataset_card=h.render_dataset(),
+                changes=h.render_change(),
+                treatment_card=treatment_card,
+                cards=cards,
+                errors=_rejected(errors),
+            )
             parsed, th = structured(Score, P.SCORE_SYSTEM, user, node="score")
             debug.append(th)
         errors = []
@@ -266,8 +351,13 @@ def score(state: SpecialistState) -> Command:
             asked = _ask_score(h, state, [f"the model's reading: {parsed.reason}"], debug, declines)
             if asked is not None:
                 return asked
-            return _stop("score", "no cutoff rule on a numeric score is stated", [f"the model's reading: {parsed.reason}"],
-                         "a note naming the score column and the cutoff value that decided who got the change", {"score": parsed, "debug": debug, "declines": declines})
+            return _stop(
+                "score",
+                "no cutoff rule on a numeric score is stated",
+                [f"the model's reading: {parsed.reason}"],
+                "a note naming the score column and the cutoff value that decided who got the change",
+                {"score": parsed, "debug": debug, "declines": declines},
+            )
         parsed.column = _key(parsed.column)
         # the model sometimes writes the word null instead of a null; that is a null
         if str(parsed.takeup_column).strip().lower() in ("", "null", "none"):
@@ -308,11 +398,21 @@ def score(state: SpecialistState) -> Command:
             x = pd.to_numeric(table[parsed.column], errors="coerce")
             identical = _side_rule_identical(table[t], x, float(parsed.cutoff), parsed.treated_side == "above", parsed.cutoff_value_treated)
             if not identical and parsed.takeup_column != t:
-                errors.append(f"the hand-off names {t!r} as the treatment and it is not a function of the cutoff; name it as the take-up column with its treated level, or name the score differently")
+                errors.append(
+                    f"the hand-off names {t!r} as the treatment and it is not a function of the cutoff; name it as the take-up column with its treated level, or name the score differently"
+                )
         if errors:
             if parsed is block:  # the pack's answer failed the file's checks: recorded, and the model is told why
-                declines.append(Decline(stage="score", kind="replaced", about=_block_about(errors), pack_value=f"{block.column} {block.treated_side} {block.cutoff:g}",
-                                        check="score.rule_in_file", reason="; ".join(errors)))
+                declines.append(
+                    Decline(
+                        stage="score",
+                        kind="replaced",
+                        about=_block_about(errors),
+                        pack_value=f"{block.column} {block.treated_side} {block.cutoff:g}",
+                        check="score.rule_in_file",
+                        reason="; ".join(errors),
+                    )
+                )
                 _writer()({"score": {"pack_block_rejected": errors}})
             continue
         # facts that end the judgement rather than retry it
@@ -324,9 +424,13 @@ def score(state: SpecialistState) -> Command:
             other_mask = (x < parsed.cutoff) if parsed.treated_side == "above" else (x > parsed.cutoff)
             s_t, s_o = float(tu[treated_mask].mean()), float(tu[other_mask].mean())
             if not (s_t > s_o):
-                return _stop("score", "the notes and the data disagree about which side got the change",
-                             [f"take-up {s_t:.2f} on the side the notes call treated ({parsed.treated_side} {parsed.cutoff:g}), {s_o:.2f} on the other side"],
-                             "a note whose account of the rule matches the take-up recorded in the data", {"score": parsed, "debug": debug, "declines": declines})
+                return _stop(
+                    "score",
+                    "the notes and the data disagree about which side got the change",
+                    [f"take-up {s_t:.2f} on the side the notes call treated ({parsed.treated_side} {parsed.cutoff:g}), {s_o:.2f} on the other side"],
+                    "a note whose account of the rule matches the take-up recorded in the data",
+                    {"score": parsed, "debug": debug, "declines": declines},
+                )
             at = tu[x == parsed.cutoff]
             if len(at):
                 share_at = float(at.mean())
@@ -336,15 +440,29 @@ def score(state: SpecialistState) -> Command:
                     errors.append(f"cutoff_value_treated is false but {share_at:.2f} of the {len(at)} units exactly at the cutoff received the change")
                 if errors:
                     if parsed is block:
-                        declines.append(Decline(stage="score", kind="replaced", about="claim:assignment.cutoff_value_treated", pack_value=str(block.cutoff_value_treated),
-                                                check="score.cutoff_value_takeup", reason="; ".join(errors)))
+                        declines.append(
+                            Decline(
+                                stage="score",
+                                kind="replaced",
+                                about="claim:assignment.cutoff_value_treated",
+                                pack_value=str(block.cutoff_value_treated),
+                                check="score.cutoff_value_takeup",
+                                reason="; ".join(errors),
+                            )
+                        )
                     continue
         _writer()({"score": parsed.model_dump()})
         return Command(goto="shape_table", update={"score": parsed, "debug": debug, "declines": declines})
     asked = _ask_score(h, state, errors, debug, declines)
     if asked is not None:
         return asked
-    return _stop("score", "could not name the score and cutoff", errors, "a note that names the score column, the cutoff value, and which side got the change", {"debug": debug, "declines": declines})
+    return _stop(
+        "score",
+        "could not name the score and cutoff",
+        errors,
+        "a note that names the score column, the cutoff value, and which side got the change",
+        {"debug": debug, "declines": declines},
+    )
 
 
 # ------------------------------------------------------------------ shape (fact)
@@ -380,8 +498,17 @@ def shape_table(state: SpecialistState) -> Command:
             lane = min(facts.n_left, facts.n_right)
             slack = facts.rows_at_cutoff + (facts.rows_score - facts.rows_primary)
             if abs(int(pr.value) - lane) > slack:
-                declines.append(Decline(stage="shape_table", kind="replaced", about=pr.address, pack_value=str(int(pr.value)), took=str(lane), check="shape.rows_by_side",
-                                        reason="the desk counted on the whole file; the lane counts the rows with an outcome after the filter"))
+                declines.append(
+                    Decline(
+                        stage="shape_table",
+                        kind="replaced",
+                        about=pr.address,
+                        pack_value=str(int(pr.value)),
+                        took=str(lane),
+                        check="shape.rows_by_side",
+                        reason="the desk counted on the whole file; the lane counts the rows with an outcome after the filter",
+                    )
+                )
     _writer()({"shape": facts.model_dump(), "declines": [d.render() for d in declines]})
     update = {"canon_path": str(canon_path), "xall_path": str(xall_path), "shape": facts, "contrast": contrast, "candidates": candidates, "declines": declines}
     sends = _relate_sends(state, candidates)
@@ -420,7 +547,9 @@ def fact_relation(h: Handoff, k: str, case: C.Case) -> CovariateRelation | None:
         full = {c: bool(claims.get(c, False)) for c in CLAIMS}
         if full["affected_by_treatment"] or full["is_outcome_measure"]:
             full["predetermined"] = False
-        return CovariateRelation(column=k, reasons=[Cited(reason=f"{name}: {c} settled by the pack", cites=[cites[c]]) for c in CLAIMS if full[c] and c in cites], **full)
+        return CovariateRelation(
+            column=k, reasons=[Cited(reason=f"{name}: {c} settled by the pack", cites=[cites[c]]) for c in CLAIMS if full[c] and c in cites], **full
+        )
     return None
 
 
@@ -428,7 +557,9 @@ def _settled_text(h: Handoff, k: str, case: C.Case) -> str:
     claims, cites = settled_claims(h, k, case)
     if not claims:
         return ""
-    return "\nSETTLED BY THE PACK (copy these answers; cite the address)\n" + "\n".join(f"  {c} = {str(v).lower()} [{cites[c]}]" for c, v in claims.items()) + "\n"
+    return (
+        "\nSETTLED BY THE PACK (copy these answers; cite the address)\n" + "\n".join(f"  {c} = {str(v).lower()} [{cites[c]}]" for c, v in claims.items()) + "\n"
+    )
 
 
 def apply_settled(r: CovariateRelation, h: Handoff, case: C.Case) -> CovariateRelation:
@@ -457,9 +588,20 @@ def _relate_sends(state: SpecialistState, candidates: list[str], errors: dict[st
     case = _case(state)
     errs = errors or {}
     targets = [k for k in candidates if k in errs] if errs else [k for k in candidates if fact_relation(h, k, case) is None]
-    return [Send("relate", RelateTask(question=_question(state), frame=_frame_text(state), column=k, card=_card(h, k), settled=_settled_text(h, k, case),
-                                      errors=_rejected(errs.get(k, []))))
-            for k in targets]
+    return [
+        Send(
+            "relate",
+            RelateTask(
+                question=_question(state),
+                frame=_frame_text(state),
+                column=k,
+                card=_card(h, k),
+                settled=_settled_text(h, k, case),
+                errors=_rejected(errs.get(k, [])),
+            ),
+        )
+        for k in targets
+    ]
 
 
 def relate(task: RelateTask) -> dict:
@@ -491,10 +633,22 @@ def merge_covariates(state: SpecialistState) -> dict:
             excluded.append(Excluded(column=k, why="an identifier names a unit; it is not a characteristic that could be continuous or jump at the cutoff"))
             continue
         if r.is_outcome_measure:
-            excluded.append(Excluded(column=k, why="another measure of the outcome, or a later one; not a covariate" + (f" [col:{k}.measures_outcome]" if case.is_fact(f"col:{k}.measures_outcome") else "")))
+            excluded.append(
+                Excluded(
+                    column=k,
+                    why="another measure of the outcome, or a later one; not a covariate"
+                    + (f" [col:{k}.measures_outcome]" if case.is_fact(f"col:{k}.measures_outcome") else ""),
+                )
+            )
         elif r.affected_by_treatment:
-            excluded.append(Excluded(column=k, why=("the person says the change could have moved it [col:%s.moved]" % k) if case.fact(f"col:{k}.moved_by_change") is True
-                                     else "could be changed by the treatment; adjusting for it would remove part of the effect"))
+            excluded.append(
+                Excluded(
+                    column=k,
+                    why=("the person says the change could have moved it [col:%s.moved]" % k)
+                    if case.fact(f"col:{k}.moved_by_change") is True
+                    else "could be changed by the treatment; adjusting for it would remove part of the effect",
+                )
+            )
         elif not r.predetermined:
             excluded.append(Excluded(column=k, why="not judged fixed before the score was set; nothing says it should be continuous at the cutoff"))
         elif SH.covcol(k) not in numeric:
@@ -533,8 +687,13 @@ def verify(state: SpecialistState) -> Command:
     attempts = state.get("relate_attempts", 0) + 1
     if errs:
         if attempts >= MAX_RELATE_ATTEMPTS:
-            return _stop("verify", "the covariate relations could not be made to pass verification", [f"{k}: {'; '.join(v)}" for k, v in errs.items()],
-                         "clearer column notes about when each column was fixed and what the treatment touches", {"relate_attempts": attempts})
+            return _stop(
+                "verify",
+                "the covariate relations could not be made to pass verification",
+                [f"{k}: {'; '.join(v)}" for k, v in errs.items()],
+                "clearer column notes about when each column was fixed and what the treatment touches",
+                {"relate_attempts": attempts},
+            )
         _writer()({"verify": {"attempt": attempts, "errors": errs}})
         return Command(goto=_relate_sends(state, state.get("candidates") or [], errs), update={"relate_errors": errs, "relate_attempts": attempts})
     _writer()({"verify": "ok"})
@@ -549,15 +708,26 @@ def check_design(state: SpecialistState) -> dict:
     x_all = pd.read_csv(state["xall_path"])["x"]
     shape = state["shape"]
     inf = pick_inference(cluster_column=bool(shape.cluster_column))
-    results, extra = CK.run_checks(canon, x_all, shape, state["covariates"], state["contrast"].key, _cfg(),
-                                   cluster=bool(shape.cluster_column), vce=inf.vce, sampled_by_side=bool(state.get("sampled_by_side")))
+    results, extra = CK.run_checks(
+        canon,
+        x_all,
+        shape,
+        state["covariates"],
+        state["contrast"].key,
+        _cfg(),
+        cluster=bool(shape.cluster_column),
+        vce=inf.vce,
+        sampled_by_side=bool(state.get("sampled_by_side")),
+    )
     W.say(results, _cfg(), state.get("columns") or {})  # the sentence before the number, for the reader
     results += C.as_checks(_case(state))
     _writer()({"checks": [f"{r.level} {r.address} {r.detail}" for r in results]})
     facts = {k: v for k, v in extra.items() if k != "first_stage"}
     fs = extra.get("first_stage")
     if fs is not None:
-        facts["first_stage"] = None if fs.error else dict(value=fs.value, ci_low=fs.ci_low, ci_high=fs.ci_high, se=fs.se, n_h_left=fs.n_h_left, n_h_right=fs.n_h_right, h=fs.h)
+        facts["first_stage"] = (
+            None if fs.error else dict(value=fs.value, ci_low=fs.ci_low, ci_high=fs.ci_high, se=fs.se, n_h_left=fs.n_h_left, n_h_right=fs.n_h_right, h=fs.h)
+        )
     return {"checks": results, "check_facts": facts}
 
 
@@ -579,7 +749,13 @@ def assess(state: SpecialistState) -> Command:
     if action == "stop":
         return _stop("assess", payload["reason"], payload["facts"], payload["what_would_fix"], {"checks": results})
     if action == "ask":
-        return asks.ask_back("assess", payload, reason=payload.because or "the design needs one more thing from the person", facts=[f"[{a}]" for a in payload.evidence], extra={"checks": results})
+        return asks.ask_back(
+            "assess",
+            payload,
+            reason=payload.because or "the design needs one more thing from the person",
+            facts=[f"[{a}]" for a in payload.evidence],
+            extra={"checks": results},
+        )
     checks = Checks(results=results)
     flags, hard = checks.flags, checks.hard
     if not flags:
@@ -603,14 +779,23 @@ def assess(state: SpecialistState) -> Command:
             if missing:
                 errors.append("proceed does not address: " + ", ".join(missing))
             if any(r.name in argue for r in flags) and not any(h.resolve(c) for c in parsed.cites):
-                errors.append("no note cited for the argument about " + ", ".join(sorted({r.name for r in flags if r.name in argue})) + "; cite the card that says how the score was set or that the covariate was fixed before the change")
+                errors.append(
+                    "no note cited for the argument about "
+                    + ", ".join(sorted({r.name for r in flags if r.name in argue}))
+                    + "; cite the card that says how the score was set or that the covariate was fixed before the change"
+                )
         if errors:
             continue
         _writer()({"assess": parsed.model_dump()})
         if parsed.action == "proceed":
             return Command(goto="pick_estimator", update={"assessment": parsed, "debug": debug, "checks": results})
-        return _stop("assess", parsed.reason, [f"{r.address}: {r.detail}" for r in flags],
-                     "units on both sides of the cutoff that are alike in everything the notes call fixed, and a score no unit could move", {"assessment": parsed, "debug": debug, "checks": results})
+        return _stop(
+            "assess",
+            parsed.reason,
+            [f"{r.address}: {r.detail}" for r in flags],
+            "units on both sides of the cutoff that are alike in everything the notes call fixed, and a score no unit could move",
+            {"assessment": parsed, "debug": debug, "checks": results},
+        )
     return _stop("assess", "the design assessment could not be validated", errors, "see the gate errors", {"debug": debug, "checks": results})
 
 
@@ -620,31 +805,51 @@ def assess(state: SpecialistState) -> Command:
 def _facts(state: SpecialistState) -> dict[str, Any]:
     s = state["shape"]
     cf = state.get("check_facts") or {}
-    return {"kind": s.kind, "n_left": s.n_left, "n_right": s.n_right, "distinct_scores": s.distinct_scores, "first_stage": cf.get("first_stage_status"),
-            "first_stage_F": cf.get("first_stage_F"), "adjusted_covariates": state["covariates"].adjusted, "cluster": s.cluster_column}
+    return {
+        "kind": s.kind,
+        "n_left": s.n_left,
+        "n_right": s.n_right,
+        "distinct_scores": s.distinct_scores,
+        "first_stage": cf.get("first_stage_status"),
+        "first_stage_F": cf.get("first_stage_F"),
+        "adjusted_covariates": state["covariates"].adjusted,
+        "cluster": s.cluster_column,
+    }
 
 
 def _allowed(state: SpecialistState) -> list[EstimatorEntry]:
     s = state["shape"]
     excluded = set(state.get("excluded_estimators") or [])
     status = (state.get("check_facts") or {}).get("first_stage_status")
-    return [e for e in load_estimators() if e.pickable and e.applies(kind=s.kind, first_stage=status, distinct_scores=s.distinct_scores) and e.name not in excluded]
+    return [
+        e for e in load_estimators() if e.pickable and e.applies(kind=s.kind, first_stage=status, distinct_scores=s.distinct_scores) and e.name not in excluded
+    ]
 
 
 def pick_estimator(state: SpecialistState) -> Command:
     facts = _facts(state)
     allowed = _allowed(state)
     if not allowed:
-        return _stop("pick_estimator", "no estimator in the catalogue applies to this design", [f"facts: {json.dumps(facts, default=str)}", f"excluded after failures: {sorted(state.get('excluded_estimators') or [])}"],
-                     "an estimator entry for this kind of design")
+        return _stop(
+            "pick_estimator",
+            "no estimator in the catalogue applies to this design",
+            [f"facts: {json.dumps(facts, default=str)}", f"excluded after failures: {sorted(state.get('excluded_estimators') or [])}"],
+            "an estimator entry for this kind of design",
+        )
     names = [e.name for e in allowed]
     check_text = "\n".join(f"[{r.address}] {r.level}: {r.detail}" for r in state["checks"])
     check_addresses = {r.address for r in state["checks"]}
     errors: list[str] = []
     debug = []
     for _ in range(MAX_MODEL_RETRIES):
-        user = P.PICK_USER.format(facts=json.dumps(facts, default=str), checks=check_text, estimators="\n\n".join(e.render() for e in allowed),
-                                  preferences=render_preferences(allowed), names=", ".join(names), errors=_rejected(errors))
+        user = P.PICK_USER.format(
+            facts=json.dumps(facts, default=str),
+            checks=check_text,
+            estimators="\n\n".join(e.render() for e in allowed),
+            preferences=render_preferences(allowed),
+            names=", ".join(names),
+            errors=_rejected(errors),
+        )
         parsed, th = structured(EstimatorPick, P.PICK_SYSTEM, user, node="pick_estimator")
         debug.append(th)
         errors = []
@@ -655,8 +860,10 @@ def pick_estimator(state: SpecialistState) -> Command:
                 errors.append(f"{c} is not a check or pack address")
         if not errors:
             _writer()({"estimator": parsed.model_dump()})
-            return Command(goto="freeze_design", update={"estimator": parsed.name, "estimator_pick": parsed, "debug": debug,
-                                                         "pick_attempts": state.get("pick_attempts", 0) + 1})
+            return Command(
+                goto="freeze_design",
+                update={"estimator": parsed.name, "estimator_pick": parsed, "debug": debug, "pick_attempts": state.get("pick_attempts", 0) + 1},
+            )
     return _stop("pick_estimator", "the estimator pick could not be validated", errors, "see the gate errors", {"debug": debug})
 
 
@@ -672,18 +879,32 @@ def freeze_design(state: SpecialistState) -> Command:
     canon = _canon(state)
     plan = CK.bandwidth_plan(entry.params, canon, s, _cfg(), fuzzy=fuzzy, cluster=bool(s.cluster_column), vce=inf.vce)
     if "error" in plan:
-        return _stop("freeze_design", "bandwidth selection failed for the picked estimator", [plan["error"]], "an estimator whose bandwidth can be selected on this data")
+        return _stop(
+            "freeze_design", "bandwidth selection failed for the picked estimator", [plan["error"]], "an estimator whose bandwidth can be selected on this data"
+        )
     status = (state.get("check_facts") or {}).get("first_stage_status")
     also = [n for n in entry.also_run if estimator_entry(n).applies(kind=s.kind, first_stage=status, distinct_scores=s.distinct_scores)]
     for e in load_estimators():
         if not e.pickable and e.runs_when.get("adjusted_covariates") and covs.adjusted and e.name not in also:
             also.append(e.name)
-    d = Design(contrast=state["contrast"], score=state["score"], shape=s, covariates=covs, checks=Checks(results=state["checks"]),
-               estimator=entry.name, estimand=entry.estimand, spec=dict(entry.params), also_run=also, inference=inf.name, vce=inf.vce,
-               cluster=s.cluster_column if inf.cluster else None,
-               bandwidths=Bandwidths(h=plan["h"], b=plan["b"], h_cer=plan["h_cer"], rule=plan["rule"], n_h_left=plan["n_h_left"], n_h_right=plan["n_h_right"]),
-               sharp_bandwidth_used=bool(fuzzy and (s.takeup_left == 0.0 or s.takeup_right == 1.0)),
-               placebos=[p.name for p in load_placebos() if p.applies()], target_units=state["target_units"])
+    d = Design(
+        contrast=state["contrast"],
+        score=state["score"],
+        shape=s,
+        covariates=covs,
+        checks=Checks(results=state["checks"]),
+        estimator=entry.name,
+        estimand=entry.estimand,
+        spec=dict(entry.params),
+        also_run=also,
+        inference=inf.name,
+        vce=inf.vce,
+        cluster=s.cluster_column if inf.cluster else None,
+        bandwidths=Bandwidths(h=plan["h"], b=plan["b"], h_cer=plan["h_cer"], rule=plan["rule"], n_h_left=plan["n_h_left"], n_h_right=plan["n_h_right"]),
+        sharp_bandwidth_used=bool(fuzzy and (s.takeup_left == 0.0 or s.takeup_right == 1.0)),
+        placebos=[p.name for p in load_placebos() if p.applies()],
+        target_units=state["target_units"],
+    )
     run_dir = Path(state["run_dir"])
     (run_dir / "design.json").write_text(d.model_dump_json(indent=2))
     (run_dir / "design.md").write_text(d.render())
@@ -702,8 +923,15 @@ def _pinned(d: Design) -> dict:
 
 
 def _fit_entry(d: Design, entry: EstimatorEntry, canon: pd.DataFrame, primary_fuzzy: bool) -> adapter.Fit:
-    return adapter.fit(entry.params, canon, fuzzy=_is_fuzzy(entry, primary_fuzzy), covs=[SH.covcol(k) for k in d.covariates.adjusted] if entry.covs else None,
-                       cluster=bool(d.cluster), vce=d.vce, **_pinned(d))
+    return adapter.fit(
+        entry.params,
+        canon,
+        fuzzy=_is_fuzzy(entry, primary_fuzzy),
+        covs=[SH.covcol(k) for k in d.covariates.adjusted] if entry.covs else None,
+        cluster=bool(d.cluster),
+        vce=d.vce,
+        **_pinned(d),
+    )
 
 
 def estimate(state: SpecialistState) -> Command:
@@ -726,10 +954,34 @@ def estimate(state: SpecialistState) -> Command:
         ests.append(adapter.to_estimate(_fit_entry(d, e2, canon, primary_fuzzy), key, name, d.target_units, secondary=True))
     if f.first_stage:
         fs = f.first_stage
-        ests.append(Estimate(contrast=key, method="first_stage", value=fs["value"], ci_low=fs["ci_low"], ci_high=fs["ci_high"],
-                             n_treated=f.n_h_right, n_control=f.n_h_left, target_units="take_up_jump", secondary=True))
-    primary = dict(value=f.value, ci_low=f.ci_low, ci_high=f.ci_high, p=f.p, h=f.h, b=f.b, n_h_left=f.n_h_left, n_h_right=f.n_h_right,
-                   n_left=f.n_left, n_right=f.n_right, vce=f.vce, model=f.model, notes=f.notes)
+        ests.append(
+            Estimate(
+                contrast=key,
+                method="first_stage",
+                value=fs["value"],
+                ci_low=fs["ci_low"],
+                ci_high=fs["ci_high"],
+                n_treated=f.n_h_right,
+                n_control=f.n_h_left,
+                target_units="take_up_jump",
+                secondary=True,
+            )
+        )
+    primary = dict(
+        value=f.value,
+        ci_low=f.ci_low,
+        ci_high=f.ci_high,
+        p=f.p,
+        h=f.h,
+        b=f.b,
+        n_h_left=f.n_h_left,
+        n_h_right=f.n_h_right,
+        n_left=f.n_left,
+        n_right=f.n_right,
+        vce=f.vce,
+        model=f.model,
+        notes=f.notes,
+    )
     update["primary"] = primary
     _writer()({"estimate": [e.model_dump(exclude_none=True) for e in ests]})
     sends = [Send("placebo", PlaceboTask(name=n, design=d.model_dump(), canon_path=state["canon_path"], primary=primary)) for n in d.placebos]
@@ -840,8 +1092,14 @@ def placebo(task: PlaceboTask) -> dict:
             points.append((label, f, ok, note))
     passed, detail = _refit_rule(points, prim, entry)
     values = [f.value for _, f, ok, _ in points if f is not None and not f.error and ok]
-    r = Refutation(contrast=key, refuter=entry.name, kind="falsification", new_effect=float(np.mean(values)) if values else None, passed=passed,
-                   detail=detail + ("" if passed is None else " (pass)" if passed else " (FAIL)"))
+    r = Refutation(
+        contrast=key,
+        refuter=entry.name,
+        kind="falsification",
+        new_effect=float(np.mean(values)) if values else None,
+        passed=passed,
+        detail=detail + ("" if passed is None else " (pass)" if passed else " (FAIL)"),
+    )
     _writer()({"placebo": {r.refuter: r.detail}})
     return {"refutations": [r], "placebo_points": {entry.name: _points_record(points, at)}}
 
@@ -852,7 +1110,11 @@ def placebo(task: PlaceboTask) -> dict:
 def _addresses(state: SpecialistState) -> list[str]:
     d: Design = state["design"]
     c = d.contrast.key
-    out = ["design.assumption", "design.score", "design.bandwidth"] + [b.address for b in state["handoff"].beliefs.values() if b.known() or b.status == "unknown"] + [r.address for r in d.checks.results]
+    out = (
+        ["design.assumption", "design.score", "design.bandwidth"]
+        + [b.address for b in state["handoff"].beliefs.values() if b.known() or b.status == "unknown"]
+        + [r.address for r in d.checks.results]
+    )
     out += [x.address for x in state.get("declines") or []]
     for e in state.get("estimates") or []:
         if e.error is None:
@@ -883,7 +1145,8 @@ def _material(state: SpecialistState) -> str:
     lines = [
         f"[design.assumption] the design bets on: units just either side of the cutoff are alike in everything except the change; the score's density and every predetermined characteristic are continuous at the cutoff; router's reading: {state['handoff'].chosen_assumption}",
         *[b.render() for b in state["handoff"].beliefs.values() if b.known() or b.status == "unknown"],
-        f"[design.score] score {names.get(sc.column, sc.column)}, treated when {rule}" + (f"; take-up recorded in {names.get(sc.takeup_column, sc.takeup_column)}" if sc.takeup_column else "; treatment is the cutoff rule itself")
+        f"[design.score] score {names.get(sc.column, sc.column)}, treated when {rule}"
+        + (f"; take-up recorded in {names.get(sc.takeup_column, sc.takeup_column)}" if sc.takeup_column else "; treatment is the cutoff rule itself")
         + f"; {d.shape.kind} design; scores run from {d.shape.score_min:.4g} to {d.shape.score_max:.4g}",
         f"[design.bandwidth] estimation bandwidth h = {d.bandwidths.h:.4g} in the score's units (bias bandwidth b = {d.bandwidths.b:.4g}); the effect is estimated from rows within h of the cutoff",
         f"comparison: {d.contrast.treated} versus {d.contrast.control}; outcome: {state['handoff'].outcome}",
@@ -903,8 +1166,12 @@ def _material(state: SpecialistState) -> str:
             lines.append(f"[{tag}.bandwidth] h = {prim.get('h', d.bandwidths.h):.4g}")
         else:
             tag = f"estimate:{c}.{e.method}"
-            what = {"first_stage": "the jump in take-up at the cutoff", "local_linear_adjusted": "with the adjusted covariates partialled out",
-                    "local_quadratic": "quadratic on each side", "local_linear_itt": "effect of crossing the cutoff, whatever was taken up"}.get(e.method, "secondary")
+            what = {
+                "first_stage": "the jump in take-up at the cutoff",
+                "local_linear_adjusted": "with the adjusted covariates partialled out",
+                "local_quadratic": "quadratic on each side",
+                "local_linear_itt": "effect of crossing the cutoff, whatever was taken up",
+            }.get(e.method, "secondary")
             lines.append(f"[{tag}.value] {e.value:.4g} ({what}: {e.method})")
             lines.append(f"[{tag}.ci] 95% robust interval {e.ci_low:.4g} to {e.ci_high:.4g}" if e.ci_low is not None else f"[{tag}.ci] no interval")
             lines.append(f"[{tag}.n] {e.n_control} control-side and {e.n_treated} treated-side rows")
@@ -924,8 +1191,14 @@ def interpret(state: SpecialistState) -> dict:
     debug = []
     parsed = None
     for _ in range(MAX_MODEL_RETRIES):
-        user = P.INTERPRET_USER.format(question=_question(state), contrast=d.contrast.key, material=_material(state), addresses="\n".join(sorted(allowed)),
-                                       required="\n".join(required), errors=_rejected(errors))
+        user = P.INTERPRET_USER.format(
+            question=_question(state),
+            contrast=d.contrast.key,
+            material=_material(state),
+            addresses="\n".join(sorted(allowed)),
+            required="\n".join(required),
+            errors=_rejected(errors),
+        )
         parsed, th = structured(RDInterpretation, P.INTERPRET_SYSTEM, user, node="interpret")
         debug.append(th)
         parsed.contrast = d.contrast.key
@@ -983,7 +1256,9 @@ def figures(state: SpecialistState) -> dict:
         specs.append(PR.covariate_continuity(cf.get("continuity"), c, names, float(_cfg()["covariate_continuity"]["p_value"]["soft"])))
         specs.append(PR.bandwidth_curve(pts.get("bandwidth_grid"), d.bandwidths.h if d is not None else None, c))
         specs.append(PR.placebo_cutoffs(pts.get("placebo_cutoffs"), state.get("primary"), c))
-    specs.append(PV.effect_and_refutations([e.model_dump() for e in state.get("estimates") or []], [r.model_dump() for r in state.get("refutations") or []], "placebo"))
+    specs.append(
+        PV.effect_and_refutations([e.model_dump() for e in state.get("estimates") or []], [r.model_dump() for r in state.get("refutations") or []], "placebo")
+    )
     kept, declines = LF.write(state.get("run_dir"), specs, LF.ok_addresses(h, state, "placebo"))
     _writer()({"figures": [s.id for s in kept]})
     return {"figures": [s.model_dump() for s in kept], "declines": declines}
@@ -994,7 +1269,12 @@ def assemble(state: SpecialistState) -> dict:
     names = state.get("columns") or {}
     d: Design | None = state.get("design")
     f: Feasibility | None = state.get("feasibility")
-    lines = [f"QUESTION     {_question(state)}", f"LANE         {h.family} → {h.specialist}", f"OUTCOME      {h.outcome}    TREATMENT   {h.treatment or '(the cutoff rule)'}", ""]
+    lines = [
+        f"QUESTION     {_question(state)}",
+        f"LANE         {h.family} → {h.specialist}",
+        f"OUTCOME      {h.outcome}    TREATMENT   {h.treatment or '(the cutoff rule)'}",
+        "",
+    ]
     if d:
         lines += d.render().splitlines() + ["", "RESULTS"]
         for e in state.get("estimates") or []:
@@ -1016,7 +1296,10 @@ def assemble(state: SpecialistState) -> dict:
         sc, s = state.get("score"), state.get("shape")
         if sc and sc.column:
             rule = f"{'at or ' if sc.cutoff_value_treated else ''}{sc.treated_side} {sc.cutoff:g}"
-            lines.append(f"SCORE        {names.get(sc.column, sc.column)} treated when {rule}" + (f"; take-up {names.get(sc.takeup_column, sc.takeup_column)} = {sc.takeup_level!r}" if sc.takeup_column else ""))
+            lines.append(
+                f"SCORE        {names.get(sc.column, sc.column)} treated when {rule}"
+                + (f"; take-up {names.get(sc.takeup_column, sc.takeup_column)} = {sc.takeup_level!r}" if sc.takeup_column else "")
+            )
         if s:
             lines.append(f"SHAPE        {s.kind}; {s.n_left} rows on the control side, {s.n_right} on the treated side; {s.distinct_scores} distinct scores")
         for r in state.get("checks") or []:
@@ -1031,9 +1314,17 @@ def assemble(state: SpecialistState) -> dict:
     if any(t.text for t in debug):
         lines += ["", "MODEL THOUGHTS (debug only)"] + [f"  [{t.node}] {t.text.strip()[:2000]}" for t in debug if t.text]
     report = "\n".join(lines)
-    extra = {"score": state.get("score"), "shape": state.get("shape"), "covariates": state.get("covariates"), "assessment": state.get("assessment"),
-             "primary": state.get("primary"), "placebo_points": state.get("placebo_points") or {}}
+    extra = {
+        "score": state.get("score"),
+        "shape": state.get("shape"),
+        "covariates": state.get("covariates"),
+        "assessment": state.get("assessment"),
+        "primary": state.get("primary"),
+        "placebo_points": state.get("placebo_points") or {},
+    }
     records.write(state.get("run_dir"), records.artifacts(state, extra), report)
-    result = records.result(state, report, {"score": state.get("score"), "shape": state.get("shape"), "covariates": state.get("covariates"), "assessment": state.get("assessment")})
+    result = records.result(
+        state, report, {"score": state.get("score"), "shape": state.get("shape"), "covariates": state.get("covariates"), "assessment": state.get("assessment")}
+    )
     _writer()({"report": report})
     return {"report": report, "specialist_result": result}

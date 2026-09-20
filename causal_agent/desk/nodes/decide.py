@@ -56,7 +56,7 @@ def verdicts_from(memory: Memory, status: Status, probes: list[ProbeResult], reg
         cells = status.table.get(fam.name, {})
         needs: list[NeedCheck] = []
         blocking = False
-        for kind in (needs_spec.requires if needs_spec else []):
+        for kind in needs_spec.requires if needs_spec else []:
             cell = cells.get(kind, "not_needed")
             spec = cat.kinds[kind]
             if spec.per_column:
@@ -122,26 +122,42 @@ def decide(state: RouteState, runtime: Runtime[Context]) -> dict:
     fr = state["frame"]
     assert fr is not None
     verdicts = state.get("family_verdicts", [])
-    probes = state.get("probes") or []
     admissible = [v.family for v in verdicts if v.admissible]
     if len(admissible) == 1 and not state.get("gate_errors"):  # one family stands: no judgement to make
         fam = admissible[0]
         family = next(f for f in _registry(runtime) if f.name == fam)
         unmet = [n.note for v in verdicts if v.family == fam for n in v.needs if not n.met]
-        decision = FamilyDecision(admissible=[fam], chosen=fam, chosen_assumption=family.assumes + ((" Not yet asked: " + "; ".join(unmet)) if unmet else ""),
-                                  why_over_alternatives="only admissible family",
-                                  rejected=[Rejection(family=v.family, reason=next((n.note for n in v.needs if not n.met), v.concern or "does not fit"), cites=[])
-                                            for v in verdicts if not v.admissible], cites=[])
+        decision = FamilyDecision(
+            admissible=[fam],
+            chosen=fam,
+            chosen_assumption=family.assumes + ((" Not yet asked: " + "; ".join(unmet)) if unmet else ""),
+            why_over_alternatives="only admissible family",
+            rejected=[
+                Rejection(family=v.family, reason=next((n.note for n in v.needs if not n.met), v.concern or "does not fit"), cites=[])
+                for v in verdicts
+                if not v.admissible
+            ],
+            cites=[],
+        )
         return {"decision": decision}
     errors = state.get("gate_errors") or []
     prev = ("PREVIOUS ATTEMPT FAILED THESE CHECKS; fix them:\n" + "\n".join(f"- {e}" for e in errors)) if errors else ""
     addresses = sorted(a for v in verdicts for n in v.needs for a in n.cites) + ["dataset.note", "change:1.note"]
     decision, thought = structured(
-        FamilyDecision, P.DECIDE_SYSTEM,
-        P.DECIDE_USER.format(question=state["question"], intent=fr.intent, outcome=fr.outcome or "none", cause=fr.cause or "none", scope=_scope_text(fr),
-                             changes=render_change_text(H.fields_of(memory, "change"), H.fields_of(memory, "assignment")),
-                             preferences=render_preferences(_registry(runtime)), verdicts=_render_verdicts(verdicts),
-                             addresses=", ".join(dict.fromkeys(addresses)), previous_errors=prev),
+        FamilyDecision,
+        P.DECIDE_SYSTEM,
+        P.DECIDE_USER.format(
+            question=state["question"],
+            intent=fr.intent,
+            outcome=fr.outcome or "none",
+            cause=fr.cause or "none",
+            scope=_scope_text(fr),
+            changes=render_change_text(H.fields_of(memory, "change"), H.fields_of(memory, "assignment")),
+            preferences=render_preferences(_registry(runtime)),
+            verdicts=_render_verdicts(verdicts),
+            addresses=", ".join(dict.fromkeys(addresses)),
+            previous_errors=prev,
+        ),
         node="decide",
     )
     return {"decision": decision, "debug": [thought]}
@@ -161,7 +177,9 @@ def gate(state: RouteState, runtime: Runtime[Context]) -> Command[Literal["decid
     for r in d.rejected:
         for a in r.cites:
             if not resolves(a, memory, probes):
-                errors.append(f"rejection of {r.family} cites {a!r}, which is not a pack address; cite only addresses from the list given, or leave cites empty")
+                errors.append(
+                    f"rejection of {r.family} cites {a!r}, which is not a pack address; cite only addresses from the list given, or leave cites empty"
+                )
     no_family = not d.admissible and str(d.chosen).strip().lower() in {"none", ""}
     if not no_family and d.chosen not in d.admissible:
         errors.append(f"chosen family {d.chosen!r} is not in admissible {d.admissible}; if nothing is admissible, set chosen to 'none'")
@@ -222,12 +240,19 @@ def decision_record(state: RouteState, h: Handoff | None) -> str:
     ]
     for v in sorted(state.get("family_verdicts", []), key=lambda v: (not v.admissible, v.family)):
         met = sum(n.met for n in v.needs)
-        lines.append(f"  {v.family:20} {'admissible' if v.admissible else 'not admissible':15} {met}/{len(v.needs)} needs met" + (f"   concern: {v.concern}" if v.concern else ""))
+        lines.append(
+            f"  {v.family:20} {'admissible' if v.admissible else 'not admissible':15} {met}/{len(v.needs)} needs met"
+            + (f"   concern: {v.concern}" if v.concern else "")
+        )
         for n in v.needs:
             lines.append(f"      {'met  ' if n.met else 'UNMET'} {n.need}   [{', '.join(n.cites) or '-'}] {n.note}")
     lines += [
         "",
-        (f"CHOSEN       {d.chosen} → {h.specialist}{'' if h.supported_now else ' (not supported yet)'}" if h else "CHOSEN       none: no family is admissible for this question on this data"),
+        (
+            f"CHOSEN       {d.chosen} → {h.specialist}{'' if h.supported_now else ' (not supported yet)'}"
+            if h
+            else "CHOSEN       none: no family is admissible for this question on this data"
+        ),
         f"BETS ON      {d.chosen_assumption}",
         f"WHY          {d.why_over_alternatives}",
     ]

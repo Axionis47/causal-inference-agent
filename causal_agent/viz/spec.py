@@ -6,6 +6,7 @@ also a probe address the desk already has (probe:<family>.<name>), from the same
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -22,11 +23,11 @@ class Series(BaseModel):
     """One drawn set of values. `x` is a level, a period, or a bin; `y` the number; `lo`/`hi` an interval; `n` the rows behind each point."""
 
     name: str
-    x: list[str | float] = Field(default_factory=list)
-    y: list[float | None] = Field(default_factory=list)
-    lo: list[float | None] | None = None
-    hi: list[float | None] | None = None
-    n: list[int] | None = None
+    x: Sequence[str | float] = Field(default_factory=list)
+    y: Sequence[float | None] = Field(default_factory=list)
+    lo: Sequence[float | None] | None = None
+    hi: Sequence[float | None] | None = None
+    n: Sequence[int] | None = None
 
     @property
     def key(self) -> str:
@@ -85,7 +86,9 @@ class FigureSpec(BaseModel):
 
     def render(self) -> str:
         """The figure as lines with addresses, for the chat's material."""
-        lines = [f"[{self.address}] {self.kind}: {self.title}" + (f" — {self.note}" if self.note else "") + (" (before the run)" if self.moment == "ready" else "")]
+        lines = [
+            f"[{self.address}] {self.kind}: {self.title}" + (f" — {self.note}" if self.note else "") + (" (before the run)" if self.moment == "ready" else "")
+        ]
         for i, n in enumerate(self.nodes):
             lines.append(f"  [{self.address}.node.{i}] {n.label or n.id} ({n.role})")
         for i, e in enumerate(self.edges):
@@ -125,5 +128,5 @@ class Figure(BaseModel):
     function: str = ""
 
     @classmethod
-    def refused(cls, why: str, function: str = "") -> "Figure":
+    def refused(cls, why: str, function: str = "") -> Figure:
         return cls(made=False, why=why, function=function)

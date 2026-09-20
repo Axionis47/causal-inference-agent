@@ -199,7 +199,7 @@ def _kind(s: pd.Series, name: str, rows: int, parsed_dt: pd.Series | None) -> Ki
     return "categorical"
 
 
-def _role_hints(cp: "ColumnProfile", nonnull: pd.Series, rows: int) -> list[str]:
+def _role_hints(cp: ColumnProfile, nonnull: pd.Series, rows: int) -> list[str]:
     """What a column's shape allows, by code. Hints, never roles: the frame and the person say what a column is."""
     out: list[str] = []
     if cp.constant:
@@ -274,9 +274,7 @@ def _format_issues(s: pd.Series, name: str) -> list[str]:
     return issues
 
 
-def _varies_over(
-    s: pd.Series, df: pd.DataFrame, entity_cols: list[str], time_col: str | None
-) -> VariesOver:
+def _varies_over(s: pd.Series, df: pd.DataFrame, entity_cols: list[str], time_col: str | None) -> VariesOver:
     if not entity_cols and time_col is None:
         return "unknown"
     if s.nunique(dropna=True) <= 1:
@@ -322,10 +320,8 @@ def _switch_profile(
     any_on = g.any()
     all_on = g.all()
     first_on = work.loc[work["on"], "t"].min() if work["on"].any() else None
-    last_on_first = (
-        work[work["on"]].groupby(entity_cols, dropna=False)["t"].min().max() if work["on"].any() else None
-    )
-    fmt = lambda v: (str(pd.Timestamp(v).date()) if time_parsed is not None and v is not None else (str(v) if v is not None else None))  # noqa: E731
+    last_on_first = work[work["on"]].groupby(entity_cols, dropna=False)["t"].min().max() if work["on"].any() else None
+    fmt = lambda v: str(pd.Timestamp(v).date()) if time_parsed is not None and v is not None else (str(v) if v is not None else None)  # noqa: E731
     return SwitchProfile(
         entities_that_switch=int((switches > 0).sum()),
         entities_never_on=int((~any_on).sum()),
@@ -422,8 +418,14 @@ def profile(
             if not num.empty:
                 q = num.quantile([0.01, 0.25, 0.5, 0.75, 0.99])
                 cp.numeric = NumericStats(
-                    min=float(num.min()), max=float(num.max()), mean=float(round(num.mean(), 6)),
-                    p01=float(q[0.01]), p25=float(q[0.25]), p50=float(q[0.5]), p75=float(q[0.75]), p99=float(q[0.99]),
+                    min=float(num.min()),
+                    max=float(num.max()),
+                    mean=float(round(num.mean(), 6)),
+                    p01=float(q[0.01]),
+                    p25=float(q[0.25]),
+                    p50=float(q[0.5]),
+                    p75=float(q[0.75]),
+                    p99=float(q[0.99]),
                 )
         if kind in {"categorical", "boolean"}:
             vc = nonnull.astype(str).value_counts().head(8)
@@ -446,8 +448,13 @@ def profile(
         uniq = np.sort(time_parsed.dropna().unique())
         step = int(pd.Series(np.diff(uniq)).mode().iloc[0]) if len(uniq) > 1 else 1
         expected = (int(uniq.max()) - int(uniq.min())) // step + 1
-        time_cov = TimeCoverage(column=time_column, first=str(int(uniq.min())), last=str(int(uniq.max())),
-                                inferred_frequency=f"integer period, step {step}", gaps=int(expected - len(uniq)))
+        time_cov = TimeCoverage(
+            column=time_column,
+            first=str(int(uniq.min())),
+            last=str(int(uniq.max())),
+            inferred_frequency=f"integer period, step {step}",
+            gaps=int(expected - len(uniq)),
+        )
     elif time_column and time_parsed is not None:
         d = time_parsed.dropna()
         freq = _infer_frequency(d)
@@ -463,8 +470,11 @@ def profile(
     if entity_cols:
         sizes = df.groupby(entity_cols, dropna=False).size()
         entity_summary = EntitySummary(
-            columns=entity_cols, entities=int(len(sizes)),
-            rows_per_entity_min=int(sizes.min()), rows_per_entity_median=float(sizes.median()), rows_per_entity_max=int(sizes.max()),
+            columns=entity_cols,
+            entities=int(len(sizes)),
+            rows_per_entity_min=int(sizes.min()),
+            rows_per_entity_median=float(sizes.median()),
+            rows_per_entity_max=int(sizes.max()),
         )
 
     keys = _candidate_keys(df, {cp.name: cp.kind for cp in columns})

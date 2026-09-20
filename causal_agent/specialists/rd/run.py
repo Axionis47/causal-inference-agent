@@ -1,7 +1,7 @@
 """Run the discontinuity lane from the command line.
 
-    uv run python -m causal_agent.specialists.rd.run <dataset> "<question>"        # through the desk's routing graph, end to end
-    uv run python -m causal_agent.specialists.rd.run --handoff handoff.json         # the specialist alone, from a stored hand-off
+uv run python -m causal_agent.specialists.rd.run <dataset> "<question>"        # through the desk's routing graph, end to end
+uv run python -m causal_agent.specialists.rd.run --handoff handoff.json         # the specialist alone, from a stored hand-off
 """
 
 from __future__ import annotations

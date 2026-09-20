@@ -116,22 +116,52 @@ def apply_filter(table: pd.DataFrame, text: str | None, stage: str = "load") -> 
     """The rows the filter keeps, or the table unchanged with a Decline saying why."""
     if blank(text):
         return table, None, {}
-    clauses = parse_filter(text)
+    clauses = parse_filter(text or "")
     if clauses is None:
-        return table, Decline(stage=stage, kind="declined", about="scope.population_filter", pack_value=text, check="intake.filter_unparsed",
-                              reason="the filter is not in a form the code can apply (col == v, !=, >=, <=, >, <, in [a, b], joined by and); every row was kept"), {}
+        return (
+            table,
+            Decline(
+                stage=stage,
+                kind="declined",
+                about="scope.population_filter",
+                pack_value=text,
+                check="intake.filter_unparsed",
+                reason="the filter is not in a form the code can apply (col == v, !=, >=, <=, >, <, in [a, b], joined by and); every row was kept",
+            ),
+            {},
+        )
     mask = pd.Series(True, index=table.index)
     for col, op, vals in clauses:
         k = _key(col)
         if k not in table.columns:
-            return table, Decline(stage=stage, kind="declined", about="scope.population_filter", pack_value=text, check="intake.filter_unknown_column",
-                                  reason=f"the filter names {col!r}, which is not a column in the table; every row was kept"), {}
+            return (
+                table,
+                Decline(
+                    stage=stage,
+                    kind="declined",
+                    about="scope.population_filter",
+                    pack_value=text,
+                    check="intake.filter_unknown_column",
+                    reason=f"the filter names {col!r}, which is not a column in the table; every row was kept",
+                ),
+                {},
+            )
         s = table[k]
         try:
             typed = [_typed(s, v) for v in vals]
         except ValueError:
-            return table, Decline(stage=stage, kind="declined", about="scope.population_filter", pack_value=text, check="intake.filter_value_type",
-                                  reason=f"the filter compares {col!r} with {vals}, which is not a number like the column; every row was kept"), {}
+            return (
+                table,
+                Decline(
+                    stage=stage,
+                    kind="declined",
+                    about="scope.population_filter",
+                    pack_value=text,
+                    check="intake.filter_value_type",
+                    reason=f"the filter compares {col!r} with {vals}, which is not a number like the column; every row was kept",
+                ),
+                {},
+            )
         left = s if pd.api.types.is_numeric_dtype(s) else s.astype(str)
         if op == "in":
             m = left.isin(typed)
@@ -182,20 +212,50 @@ def apply_window(table: pd.DataFrame, text: str | None, time_key: str | None, st
     if blank(text):
         return table, None, {}
     if not time_key or time_key not in table.columns:
-        return table, Decline(stage=stage, kind="declined", about="scope.window", pack_value=text, check="intake.window_no_time_column",
-                              reason="the question names a time window but the pack names no time column in the table; every row was kept"), {}
-    parsed = parse_window(text)
+        return (
+            table,
+            Decline(
+                stage=stage,
+                kind="declined",
+                about="scope.window",
+                pack_value=text,
+                check="intake.window_no_time_column",
+                reason="the question names a time window but the pack names no time column in the table; every row was kept",
+            ),
+            {},
+        )
+    parsed = parse_window(text or "")
     if parsed is None:
-        return table, Decline(stage=stage, kind="declined", about="scope.window", pack_value=text, check="intake.window_unparsed",
-                              reason="the window is not in a form the code can apply (from A to B, A..B, >= A, <= A, after A, before A); every row was kept"), {}
+        return (
+            table,
+            Decline(
+                stage=stage,
+                kind="declined",
+                about="scope.window",
+                pack_value=text,
+                check="intake.window_unparsed",
+                reason="the window is not in a form the code can apply (from A to B, A..B, >= A, <= A, after A, before A); every row was kept",
+            ),
+            {},
+        )
     lo, lo_op, hi, hi_op = parsed
     t = table[time_key]
     if not pd.api.types.is_numeric_dtype(t):
         try:
             t = pd.to_datetime(t)
         except Exception:
-            return table, Decline(stage=stage, kind="declined", about="scope.window", pack_value=text, check="intake.window_time_unparsed",
-                                  reason=f"{time_key!r} is neither numeric nor a date the code can read; every row was kept"), {}
+            return (
+                table,
+                Decline(
+                    stage=stage,
+                    kind="declined",
+                    about="scope.window",
+                    pack_value=text,
+                    check="intake.window_time_unparsed",
+                    reason=f"{time_key!r} is neither numeric nor a date the code can read; every row was kept",
+                ),
+                {},
+            )
     try:
         mask = pd.Series(True, index=table.index)
         if lo is not None:
@@ -205,8 +265,18 @@ def apply_window(table: pd.DataFrame, text: str | None, time_key: str | None, st
             v = _parse_like(t, hi)
             mask &= (t <= v) if hi_op == "le" else (t < v)
     except Exception:
-        return table, Decline(stage=stage, kind="declined", about="scope.window", pack_value=text, check="intake.window_value_type",
-                              reason=f"the window's bounds are not like the values of {time_key!r}; every row was kept"), {}
+        return (
+            table,
+            Decline(
+                stage=stage,
+                kind="declined",
+                about="scope.window",
+                pack_value=text,
+                check="intake.window_value_type",
+                reason=f"the window's bounds are not like the values of {time_key!r}; every row was kept",
+            ),
+            {},
+        )
     kept = table[mask.fillna(False)]
     return kept, None, {"window": text, "time_column": time_key, "rows_before": int(len(table)), "rows_after": int(len(kept))}
 
@@ -230,7 +300,9 @@ def load(h: Handoff, tag: str, *, extra: list[str] | None = None, dropna: bool =
     entry = DS.dataset_entries().get(h.pack_name) or {}  # through the module, so a test can point it at its own index
     csv = h.csv or entry.get("csv")
     if not csv:
-        raise IntakeStop(Feasibility(stage=stage, reason="the hand-off names no file", facts=[f"pack {h.pack_name!r}"], what_would_fix="a hand-off with a csv path"))
+        raise IntakeStop(
+            Feasibility(stage=stage, reason="the hand-off names no file", facts=[f"pack {h.pack_name!r}"], what_would_fix="a hand-off with a csv path")
+        )
     raw = pd.read_csv(Path(DS.ROOT) / csv)
     columns = {_key(c): c for c in raw.columns}
     raw.columns = [_key(c) for c in raw.columns]
@@ -238,10 +310,25 @@ def load(h: Handoff, tag: str, *, extra: list[str] | None = None, dropna: bool =
     declines: list[Decline] = []
     if y not in raw.columns or (t and t not in raw.columns):
         missing = [k for k in (t, y) if k and k not in raw.columns]
-        raise IntakeStop(Feasibility(stage=stage, reason="a column the hand-off names is not in the file", facts=[f"missing: {missing}"], what_would_fix="a hand-off whose columns exist in the file"))
+        raise IntakeStop(
+            Feasibility(
+                stage=stage,
+                reason="a column the hand-off names is not in the file",
+                facts=[f"missing: {missing}"],
+                what_would_fix="a hand-off whose columns exist in the file",
+            )
+        )
     wanted = wanted_columns(h, extra)
     for k in [k for k in wanted if k not in raw.columns]:
-        declines.append(Decline(stage=stage, kind="declined", about=f"col:{k}", check="intake.column_missing", reason="the pack names it and the file has no such column; it was not loaded"))
+        declines.append(
+            Decline(
+                stage=stage,
+                kind="declined",
+                about=f"col:{k}",
+                check="intake.column_missing",
+                reason="the pack names it and the file has no such column; it was not loaded",
+            )
+        )
     wanted = [k for k in wanted if k in raw.columns]
     table = raw[wanted]
     facts: dict = {}

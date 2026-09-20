@@ -161,7 +161,13 @@ def _belief(h: Handoff, kind: str, spec: dict) -> Belief | None:
         value = d.get(fld) if isinstance(d, dict) else None
         addr = f"claim:{claim}.{fld}"
         own = (c.get("fields_status") or {}).get(fld)  # the field's own status when the pack carries it; the claim's is a poor proxy
-        status = "unknown" if addr in h.unknowns else "contradiction" if addr in h.contradictions else own or ("empty" if value is None else c.get("status") or "confirmed")
+        status = (
+            "unknown"
+            if addr in h.unknowns
+            else "contradiction"
+            if addr in h.contradictions
+            else own or ("empty" if value is None else c.get("status") or "confirmed")
+        )
         return Belief(kind=kind, value=bool(value) if value is not None else None, status=status, source=c.get("source"))
     return h.beliefs.get(kind)
 
@@ -186,8 +192,13 @@ def _fill(text: str, h: Handoff, **extra) -> str:
 
 def _ask(spec: dict, address: str, h: Handoff, *, because: str = "", evidence: list[str] | None = None, **fill) -> LaneAsk:
     options = ["yes" if o is True else "no" if o is False else str(o) for o in spec.get("options") or []]  # yaml reads a bare yes as True
-    return LaneAsk(address=address, question=_fill(str(spec.get("question") or ""), h, **fill), options=options,
-                   because=_fill(because or str(spec.get("because") or ""), h, **fill), evidence=list(evidence or []))
+    return LaneAsk(
+        address=address,
+        question=_fill(str(spec.get("question") or ""), h, **fill),
+        options=options,
+        because=_fill(because or str(spec.get("because") or ""), h, **fill),
+        evidence=list(evidence or []),
+    )
 
 
 def weigh(h: Handoff, rules: dict | None) -> Case:
@@ -209,15 +220,15 @@ def weigh(h: Handoff, rules: dict | None) -> Case:
             elif fld != "set_by":
                 case.open.append(addr)
     for kind, spec in (rules.get("beliefs") or {}).items():
-        b = _belief(h, kind, spec)
-        st = belief_status(b)
+        bel = _belief(h, kind, spec)
+        st = belief_status(bel)
         case.beliefs[kind] = st
         addr = _address(kind, spec)
-        if st.startswith("confirmed") and b is not None:
-            case.facts[addr] = b.value
+        if st.startswith("confirmed") and bel is not None:
+            case.facts[addr] = bel.value
         by = (spec.get("by_status") or {}).get(st) or {}
         if by:
-            said = (b.said if b else None) or ""
+            said = (bel.said if bel else None) or ""
             caveat = _fill(str(by.get("caveat") or ""), h, said=said, column="")
             ask = _ask(by["ask"], addr, h, said=said) if by.get("ask") else None
             case.flags.append(Flag(name=f"belief.{kind}", level=by.get("level", "soft"), caveat=caveat, cites=[addr], ask=ask, address=addr, status=st))
@@ -226,12 +237,31 @@ def weigh(h: Handoff, rules: dict | None) -> Case:
         if spec:
             col = addr.split(":", 1)[-1].split(".")[0] if addr.startswith("col:") else ""
             ask = _ask(spec["ask"], addr, h, column=col) if spec.get("ask") else None
-            case.flags.append(Flag(name=f"unknown.{addr}", level=spec.get("level", "soft"), caveat=_fill(str(spec.get("caveat") or ""), h, column=col, check=""), cites=[addr], ask=ask, address=addr, status="unknown"))
+            case.flags.append(
+                Flag(
+                    name=f"unknown.{addr}",
+                    level=spec.get("level", "soft"),
+                    caveat=_fill(str(spec.get("caveat") or ""), h, column=col, check=""),
+                    cites=[addr],
+                    ask=ask,
+                    address=addr,
+                    status="unknown",
+                )
+            )
     for addr in h.contradictions:
         spec = _match(rules.get("contradictions") or {}, addr)
         if spec:
             col = addr.split(":", 1)[-1].split(".")[0] if addr.startswith("col:") else ""
-            case.flags.append(Flag(name=f"contradiction.{addr}", level=spec.get("level", "soft"), caveat=_fill(str(spec.get("caveat") or ""), h, column=col, check=""), cites=[addr], address=addr, status="contradiction"))
+            case.flags.append(
+                Flag(
+                    name=f"contradiction.{addr}",
+                    level=spec.get("level", "soft"),
+                    caveat=_fill(str(spec.get("caveat") or ""), h, column=col, check=""),
+                    cites=[addr],
+                    address=addr,
+                    status="contradiction",
+                )
+            )
     return case
 
 
@@ -266,7 +296,7 @@ def decide_by_code(case: Case, checks: list[CheckResult], rules: dict | None, h:
     the checks re-levelled. Order: stops, then asks, then level edits and caveats."""
     rules = rules or {}
     checks = [c.model_copy() for c in checks]
-    by_name = {}
+    by_name: dict[str, list[CheckResult]] = {}
     for c in checks:
         by_name.setdefault(c.name, []).append(c)
     stops: list[dict] = []
@@ -274,7 +304,15 @@ def decide_by_code(case: Case, checks: list[CheckResult], rules: dict | None, h:
     edits: list[tuple[CheckResult, str, str]] = []
     for f in case.flags:
         if f.level == "stop":
-            stops.append({"stage": "assess", "reason": f.caveat, "facts": [f"[{f.address}] {f.status}"], "what_would_fix": f"a different answer at [{f.address}]", "flag": f.name})
+            stops.append(
+                {
+                    "stage": "assess",
+                    "reason": f.caveat,
+                    "facts": [f"[{f.address}] {f.status}"],
+                    "what_would_fix": f"a different answer at [{f.address}]",
+                    "flag": f.name,
+                }
+            )
     for kind, spec in (rules.get("beliefs") or {}).items():
         st = case.beliefs.get(kind, "empty")
         addr = _address(kind, spec)
@@ -299,9 +337,15 @@ def decide_by_code(case: Case, checks: list[CheckResult], rules: dict | None, h:
                     then = row.get("then")
                     if then == "stop":
                         flag = case.flag(f"belief.{kind}")
-                        stops.append({"stage": "assess", "reason": _fill(str(row.get("reason") or (flag.caveat if flag else "")), h, **fill),
-                                      "facts": [f"[{c.address}] {c.level}: {c.detail}", f"[{addr}] {st}" + (f' said "{said}"' if said else "")],
-                                      "what_would_fix": f"a different answer at [{addr}], or data on which [{c.address}] passes", "flag": f"belief.{kind}"})
+                        stops.append(
+                            {
+                                "stage": "assess",
+                                "reason": _fill(str(row.get("reason") or (flag.caveat if flag else "")), h, **fill),
+                                "facts": [f"[{c.address}] {c.level}: {c.detail}", f"[{addr}] {st}" + (f' said "{said}"' if said else "")],
+                                "what_would_fix": f"a different answer at [{addr}], or data on which [{c.address}] passes",
+                                "flag": f"belief.{kind}",
+                            }
+                        )
                     elif then == "ask":
                         asks.append(_ask(row, addr, h, because=row.get("because") or f"[{c.address}] {c.detail}", evidence=[c.address], **fill))
                     elif then in ("soften", "harden", "caveat"):

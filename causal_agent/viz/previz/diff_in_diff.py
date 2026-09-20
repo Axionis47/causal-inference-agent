@@ -16,11 +16,20 @@ def _periods(s: pd.Series) -> pd.Series:
     return pd.to_datetime(s, errors="coerce")
 
 
-def by_group_over_time(df: pd.DataFrame, outcome: str, time: str, treatment: str, treated_level: str, change_period: str | float | None,
-                       floor: int = 2, addresses: list[str] | None = None) -> Figure:
+def by_group_over_time(
+    df: pd.DataFrame,
+    outcome: str | None,
+    time: str | None,
+    treatment: str | None,
+    treated_level: str,
+    change_period: str | float | None,
+    floor: int = 2,
+    addresses: list[str] | None = None,
+) -> Figure:
     for c, what in ((outcome, "outcome"), (time, "time"), (treatment, "treatment")):
         if c not in df.columns:
             return Figure.refused(f"the {what} column {c!r} is not in the table", "diff_in_diff.by_group_over_time")
+    assert outcome is not None and time is not None and treatment is not None
     treated = df[treatment].astype(str) == str(treated_level)
     if treated.sum() == 0 or (~treated).sum() == 0:
         return Figure.refused("one group is empty", "diff_in_diff.by_group_over_time")
@@ -34,18 +43,36 @@ def by_group_over_time(df: pd.DataFrame, outcome: str, time: str, treatment: str
     series = []
     for g in ("got the change", "did not"):
         part = means[means["g"] == g].set_index("t")
-        series.append(Series(name=g, x=[str(p.date()) if hasattr(p, "date") else float(p) for p in periods],
-                             y=[float(part["mean"].get(p)) if p in part.index else None for p in periods],
-                             n=[int(part["size"].get(p, 0)) for p in periods]))
+        series.append(
+            Series(
+                name=g,
+                x=[str(p.date()) if hasattr(p, "date") else float(p) for p in periods],
+                y=[float(part["mean"][p]) if p in part.index else None for p in periods],
+                n=[int(part["size"].get(p, 0)) for p in periods],
+            )
+        )
     marks, pre = [], None
     if change_period is not None:
         cp = _periods(pd.Series([change_period])).iloc[0]
         if pd.notna(cp):
             pre = int(sum(1 for p in periods if p < cp))
             marks.append(Mark(kind="vline", at=str(cp.date()) if hasattr(cp, "date") else float(cp), label="the change"))
-    probe = Probe(family="diff_in_diff", name="pre_periods", value=None if pre is None else float(pre), passed=None if pre is None else pre >= floor,
-                  detail=f"{pre} distinct periods before the change; floor {floor}" if pre is not None else "change period not settled")
-    spec = FigureSpec(id=f"by_group_over_time_{outcome}".replace(" ", "_"), kind="lines", title=f"{outcome} by group over {time}", x_label=time, y_label=f"mean {outcome}",
-                      series=series, marks=marks, note=(f"{pre} periods before the change to compare movement on" if pre is not None else "the change period is not marked"),
-                      draws_on=list(addresses or []) + [probe.address])
+    probe = Probe(
+        family="diff_in_diff",
+        name="pre_periods",
+        value=None if pre is None else float(pre),
+        passed=None if pre is None else pre >= floor,
+        detail=f"{pre} distinct periods before the change; floor {floor}" if pre is not None else "change period not settled",
+    )
+    spec = FigureSpec(
+        id=f"by_group_over_time_{outcome}".replace(" ", "_"),
+        kind="lines",
+        title=f"{outcome} by group over {time}",
+        x_label=time,
+        y_label=f"mean {outcome}",
+        series=series,
+        marks=marks,
+        note=(f"{pre} periods before the change to compare movement on" if pre is not None else "the change period is not marked"),
+        draws_on=list(addresses or []) + [probe.address],
+    )
     return Figure(made=True, spec=spec, probe=probe, function="diff_in_diff.by_group_over_time")

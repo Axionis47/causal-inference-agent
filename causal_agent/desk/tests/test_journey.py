@@ -43,12 +43,32 @@ def _held(monkeypatch, tmp_path):
 
 
 def canned_run(path, n, dataset, question, decision=None, decision_record=""):
-    sr = {"status": "done", "design": {"estimator": "linear_regression", "contrast": {"treated": "completed", "control": "none"}, "checks": {"results": []}},
-          "estimates": [{"contrast": "completed_vs_none", "method": "linear_regression", "value": 5.6, "ci_low": 3.7, "ci_high": 7.5, "secondary": False, "error": None}],
-          "refutations": [{"contrast": "completed_vs_none", "refuter": "placebo_treatment_refuter", "kind": "falsification", "new_effect": 0.05, "passed": True}],
-          "interpretations": [], "feasibility": None}
-    return RunRecord(index=n, dataset=dataset, question=question, family="adjustment", specialist="dowhy", status="done", effect=5.6, ci_low=3.7, ci_high=7.5,
-                     estimator="linear_regression", decision=decision or {}, decision_record=decision_record, specialist_result=sr, design_dir=str(path.parent))
+    sr = {
+        "status": "done",
+        "design": {"estimator": "linear_regression", "contrast": {"treated": "completed", "control": "none"}, "checks": {"results": []}},
+        "estimates": [
+            {"contrast": "completed_vs_none", "method": "linear_regression", "value": 5.6, "ci_low": 3.7, "ci_high": 7.5, "secondary": False, "error": None}
+        ],
+        "refutations": [{"contrast": "completed_vs_none", "refuter": "placebo_treatment_refuter", "kind": "falsification", "new_effect": 0.05, "passed": True}],
+        "interpretations": [],
+        "feasibility": None,
+    }
+    return RunRecord(
+        index=n,
+        dataset=dataset,
+        question=question,
+        family="adjustment",
+        specialist="dowhy",
+        status="done",
+        effect=5.6,
+        ci_low=3.7,
+        ci_high=7.5,
+        estimator="linear_regression",
+        decision=decision or {},
+        decision_record=decision_record,
+        specialist_result=sr,
+        design_dir=str(path.parent),
+    )
 
 
 class Desk:
@@ -60,7 +80,7 @@ class Desk:
 
     def _drive(self, inp):
         payload = None
-        for mode, chunk in self.g.stream(inp, self.cfg, stream_mode=["updates"]):
+        for _mode, chunk in self.g.stream(inp, self.cfg, stream_mode=["updates"]):
             if "__interrupt__" in chunk:
                 payload = chunk["__interrupt__"][0].value
         return payload
@@ -124,7 +144,9 @@ def test_students_reaches_ready_in_the_frame_plus_a_few_questions_then_runs():
     runs = d.values["runs"]
     # the run's figures: the ready-moment overlap first, then the estimate against its falsifications; the brief shows the run's own
     assert [f["id"] for f in runs[0].figures][1] == "effect_completed_vs_none" and runs[0].figures[0]["id"].startswith("overlap_")
-    assert p["figure"]["id"] == "effect_completed_vs_none" and (tmp_dir := runs[0].design_dir) and (__import__("pathlib").Path(tmp_dir) / "figures.json").exists()
+    assert (
+        p["figure"]["id"] == "effect_completed_vs_none" and (tmp_dir := runs[0].design_dir) and (__import__("pathlib").Path(tmp_dir) / "figures.json").exists()
+    )
     assert len(runs) == 1 and runs[0].effect == 5.6 and runs[0].family == "adjustment" and d.values["phase"] == "after"
     assert fake.calls.count("FamilyDecision") == 0 and fake.calls.count("Choice") == 0  # one family stood, one figure fit: both by code
     assert (d.values["design_dir"]) and d.values["handoff"].design_id == 1
@@ -142,11 +164,16 @@ def test_a_timing_answer_the_file_refutes_is_asked_again_then_stands_as_a_contra
     assert m.field("col:lunch.when").value == "before" and m.field("col:lunch.when").status == "confirmed"
     p = d.say("actually lunch was after the course")
     assert m.field("col:lunch.when").value == "after" and m.field("col:lunch.when").status == "refuted"
-    assert p["ask"]["kind"] == "columns" and "lunch" in p["ask"]["addresses"][0] and "The file disagrees" in p["text"] and "check:col:lunch.when.depends_on_before" in p["text"]
+    assert (
+        p["ask"]["kind"] == "columns"
+        and "lunch" in p["ask"]["addresses"][0]
+        and "The file disagrees" in p["text"]
+        and "check:col:lunch.when.depends_on_before" in p["text"]
+    )
     p = d.say("no, lunch was after, I am sure")
     assert m.field("col:lunch.when").status == "contradiction" and m.field("col:lunch.when").value == "after"
     assert "col:lunch.when" not in [a for a in (p["ask"] or {}).get("addresses", [])]  # a contradiction is settled: not asked a third time
-    turns = d.to_ready()
+    d.to_ready()
     assert d.payload["ready"]
     d.say("run")
     assert "col:lunch.when" in d.values["handoff"].contradictions
@@ -166,9 +193,18 @@ def test_run_before_ready_takes_the_drafts_on_their_word_and_asks_the_rest():
 
 def test_after_the_run_a_revision_goes_back_through_the_gate_and_the_checks():
     after = [
-        AfterReply(kind="answer", text="It raised math scores by 5.6 points; the figure shows the estimate against the placebo.", cites=["estimate:completed_vs_none.value"],
-                   numbers=[NumberStated(address="estimate:completed_vs_none.value", value=5.6)], figure="figure:effect_completed_vs_none"),
-        AfterReply(kind="revise", text="I will re-check with the offer depending on lunch only.", updates=[FieldUpdate(address="claim:assignment.depends_on", value="lunch", said="only lunch")]),
+        AfterReply(
+            kind="answer",
+            text="It raised math scores by 5.6 points; the figure shows the estimate against the placebo.",
+            cites=["estimate:completed_vs_none.value"],
+            numbers=[NumberStated(address="estimate:completed_vs_none.value", value=5.6)],
+            figure="figure:effect_completed_vs_none",
+        ),
+        AfterReply(
+            kind="revise",
+            text="I will re-check with the offer depending on lunch only.",
+            updates=[FieldUpdate(address="claim:assignment.depends_on", value="lunch", said="only lunch")],
+        ),
         AfterReply(kind="done", text="Bye."),
     ]
     fake = DeskFake(after=after)
@@ -190,7 +226,11 @@ def test_after_the_run_a_revision_goes_back_through_the_gate_and_the_checks():
 
 def test_a_what_if_runs_on_a_copy_and_leaves_the_memory_alone():
     after = [
-        AfterReply(kind="what_if", text="Suppose places had been drawn by lot.", updates=[FieldUpdate(address="claim:assignment.kind", value="lottery", said="if it had been a lottery")]),
+        AfterReply(
+            kind="what_if",
+            text="Suppose places had been drawn by lot.",
+            updates=[FieldUpdate(address="claim:assignment.kind", value="lottery", said="if it had been a lottery")],
+        ),
         AfterReply(kind="done", text="Bye."),
     ]
     d = Desk(DeskFake(after=after))
@@ -250,9 +290,20 @@ def test_a_lane_that_asks_back_gets_its_answer_and_runs_again(monkeypatch):
     def asking_run(path, n, dataset, question, decision=None, decision_record=""):
         calls.append(n)
         if n == 1:
-            return RunRecord(index=n, dataset=dataset, question=question, family="adjustment", specialist="dowhy", status="ask", design_dir=str(path.parent),
-                             specialist_result={"status": "ask", "ask": {"address": "claim:mediator.exists", "question": "Is there a column the change altered, through which its whole effect runs?"},
-                                                "feasibility": {"stage": "ask", "reason": "nothing identifies the effect while a hidden factor stands"}})
+            return RunRecord(
+                index=n,
+                dataset=dataset,
+                question=question,
+                family="adjustment",
+                specialist="dowhy",
+                status="ask",
+                design_dir=str(path.parent),
+                specialist_result={
+                    "status": "ask",
+                    "ask": {"address": "claim:mediator.exists", "question": "Is there a column the change altered, through which its whole effect runs?"},
+                    "feasibility": {"stage": "ask", "reason": "nothing identifies the effect while a hidden factor stands"},
+                },
+            )
         return canned_run(path, n, dataset, question, decision, decision_record)
 
     monkeypatch.setattr(pipeline, "run", asking_run)
@@ -281,12 +332,25 @@ def test_a_lane_that_asks_back_gets_its_answer_and_runs_again(monkeypatch):
 
 def test_a_lane_ask_with_options_and_evidence_reaches_the_page_and_is_asked_once(monkeypatch):
     """A lane's own options and evidence are shown; the same address asked by two runs in a row goes to the brief."""
-    ask = {"address": "claim:trend_continues.believed", "question": "Is there a reason the groups would have moved differently?", "options": ["yes", "no"],
-           "because": "[check:c.pre_trends] hard: the leads differ", "evidence": ["check:c.pre_trends"]}
+    ask = {
+        "address": "claim:trend_continues.believed",
+        "question": "Is there a reason the groups would have moved differently?",
+        "options": ["yes", "no"],
+        "because": "[check:c.pre_trends] hard: the leads differ",
+        "evidence": ["check:c.pre_trends"],
+    }
 
     def asking_run(path, n, dataset, question, decision=None, decision_record=""):
-        return RunRecord(index=n, dataset=dataset, question=question, family="adjustment", specialist="dowhy", status="ask", design_dir=str(path.parent),
-                         specialist_result={"status": "ask", "ask": ask, "feasibility": {"stage": "ask", "reason": "the groups were already moving apart"}})
+        return RunRecord(
+            index=n,
+            dataset=dataset,
+            question=question,
+            family="adjustment",
+            specialist="dowhy",
+            status="ask",
+            design_dir=str(path.parent),
+            specialist_result={"status": "ask", "ask": ask, "feasibility": {"stage": "ask", "reason": "the groups were already moving apart"}},
+        )
 
     monkeypatch.setattr(pipeline, "run", asking_run)
 
@@ -299,7 +363,12 @@ def test_a_lane_ask_with_options_and_evidence_reaches_the_page_and_is_asked_once
     d.say(QUESTION)
     d.to_ready()
     p = d.say("run")
-    assert p["kind"] == "ask" and p["ask"]["addresses"] == ["claim:trend_continues.believed"] and p["ask"]["options"] == ["yes", "no"] and p["ask"]["evidence"] == ["check:c.pre_trends"]
+    assert (
+        p["kind"] == "ask"
+        and p["ask"]["addresses"] == ["claim:trend_continues.believed"]
+        and p["ask"]["options"] == ["yes", "no"]
+        and p["ask"]["evidence"] == ["check:c.pre_trends"]
+    )
     assert "the leads differ" in p["text"] and "moving apart" in p["text"]
     p = d.say("yes there is")
     while p and p["kind"] == "ask" and not p["ready"]:
@@ -313,7 +382,16 @@ def test_a_lane_ask_with_options_and_evidence_reaches_the_page_and_is_asked_once
 def test_the_brief_lists_where_the_lane_disagreed_with_the_pack(monkeypatch):
     def declining_run(path, n, dataset, question, decision=None, decision_record=""):
         rec = canned_run(path, n, dataset, question, decision, decision_record)
-        rec.specialist_result["declines"] = [{"stage": "load", "kind": "declined", "about": "scope.window", "pack_value": "the spring term", "reason": "the window is not in a form the code can apply; every row was kept", "check": "intake.window_unparsed"}]
+        rec.specialist_result["declines"] = [
+            {
+                "stage": "load",
+                "kind": "declined",
+                "about": "scope.window",
+                "pack_value": "the spring term",
+                "reason": "the window is not in a form the code can apply; every row was kept",
+                "check": "intake.window_unparsed",
+            }
+        ]
         return rec
 
     monkeypatch.setattr(pipeline, "run", declining_run)
@@ -336,11 +414,32 @@ def test_the_desk_shows_what_the_lane_drew_and_marks_the_ready_figure(monkeypatc
         rec = canned_run(path, n, dataset, question, decision, decision_record)
         run_dir = tmp_path / "run"
         run_dir.mkdir(exist_ok=True)
-        (run_dir / "figures.json").write_text(json.dumps([
-            {"id": "causal_graph", "kind": "graph", "title": "g", "series": [], "marks": [], "note": "", "draws_on": ["design.graph"],
-             "nodes": [{"id": "a", "label": "a", "role": "treatment"}, {"id": "b", "label": "b", "role": "outcome"}], "edges": [{"src": "a", "dst": "b", "cites": []}]},
-            {"id": "effect_completed_vs_none", "kind": "interval", "title": "e", "series": [{"name": "effect", "x": ["lr"], "y": [5.6]}], "marks": [], "note": "", "draws_on": []},
-        ]))
+        (run_dir / "figures.json").write_text(
+            json.dumps(
+                [
+                    {
+                        "id": "causal_graph",
+                        "kind": "graph",
+                        "title": "g",
+                        "series": [],
+                        "marks": [],
+                        "note": "",
+                        "draws_on": ["design.graph"],
+                        "nodes": [{"id": "a", "label": "a", "role": "treatment"}, {"id": "b", "label": "b", "role": "outcome"}],
+                        "edges": [{"src": "a", "dst": "b", "cites": []}],
+                    },
+                    {
+                        "id": "effect_completed_vs_none",
+                        "kind": "interval",
+                        "title": "e",
+                        "series": [{"name": "effect", "x": ["lr"], "y": [5.6]}],
+                        "marks": [],
+                        "note": "",
+                        "draws_on": [],
+                    },
+                ]
+            )
+        )
         rec.run_dir = str(run_dir)
         return rec
 
@@ -361,10 +460,27 @@ def test_the_desk_shows_what_the_lane_drew_and_marks_the_ready_figure(monkeypatc
 def test_the_brief_reads_first_and_names_a_flag_by_its_sentence(monkeypatch):
     def worded_run(path, n, dataset, question, decision=None, decision_record=""):
         rec = canned_run(path, n, dataset, question, decision, decision_record)
-        rec.specialist_result["design"]["checks"] = {"results": [{"contrast": "completed_vs_none", "name": "balance.lunch", "level": "soft", "value": 0.16, "threshold": 0.1,
-                                                                   "detail": "how alike the two arms are on lunch before the adjustment, and after weighting: standardised mean difference 0.16"}]}
-        rec.specialist_result["interpretations"] = [{"contrast": "completed_vs_none", "answer": "Completing the course raised math scores by about 5.6 points.", "effect_stated": 5.6,
-                                                     "caveats": ["The two arms differed on lunch before the adjustment [check:completed_vs_none.balance.lunch]."], "cites": ["estimate:completed_vs_none.value"]}]
+        rec.specialist_result["design"]["checks"] = {
+            "results": [
+                {
+                    "contrast": "completed_vs_none",
+                    "name": "balance.lunch",
+                    "level": "soft",
+                    "value": 0.16,
+                    "threshold": 0.1,
+                    "detail": "how alike the two arms are on lunch before the adjustment, and after weighting: standardised mean difference 0.16",
+                }
+            ]
+        }
+        rec.specialist_result["interpretations"] = [
+            {
+                "contrast": "completed_vs_none",
+                "answer": "Completing the course raised math scores by about 5.6 points.",
+                "effect_stated": 5.6,
+                "caveats": ["The two arms differed on lunch before the adjustment [check:completed_vs_none.balance.lunch]."],
+                "cites": ["estimate:completed_vs_none.value"],
+            }
+        ]
         return rec
 
     monkeypatch.setattr(pipeline, "run", worded_run)
@@ -374,7 +490,7 @@ def test_the_brief_reads_first_and_names_a_flag_by_its_sentence(monkeypatch):
     text = d.say("run")["text"]
     lines = text.splitlines()
     assert lines[1].startswith("Completing the course raised") and lines[2].startswith("  Keep in mind:")
-    assert lines.index(next(l for l in lines if l.startswith("The number:"))) < lines.index(next(l for l in lines if l.startswith("Design:")))
-    flag = next(l for l in lines if l.endswith("[check:completed_vs_none.balance.lunch]"))
+    assert lines.index(next(ln for ln in lines if ln.startswith("The number:"))) < lines.index(next(ln for ln in lines if ln.startswith("Design:")))
+    flag = next(ln for ln in lines if ln.endswith("[check:completed_vs_none.balance.lunch]"))
     assert flag.startswith("  how alike the two arms are on lunch") and "(soft; balance.lunch)" in flag
     assert "the estimate held every time" in text and "[estimate:completed_vs_none.value]" in text

@@ -53,7 +53,11 @@ def run_case(inputs: dict) -> dict:
         raw.pop("question", None)
         h = Handoff.model_validate(raw)
         g = compile_local()
-        cfg = {"configurable": {"thread_id": str(uuid.uuid4())}, "tags": [f"dataset:{h.pack_name}", "lane:dowhy", "forced"], "metadata": {"dataset": h.pack_name}}
+        cfg = {
+            "configurable": {"thread_id": str(uuid.uuid4())},
+            "tags": [f"dataset:{h.pack_name}", "lane:dowhy", "forced"],
+            "metadata": {"dataset": h.pack_name},
+        }
         out = g.invoke({"question": inputs["question"], "handoff": h, "dataset": h.pack_name}, cfg)
         result = out.get("specialist_result") or {}
         checks = out.get("checks") or []

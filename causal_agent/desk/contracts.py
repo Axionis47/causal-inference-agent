@@ -69,13 +69,17 @@ AfterKind = Literal["answer", "revise", "what_if", "requestion", "done"]
 
 
 class AfterReply(BaseModel):
-    kind: AfterKind = Field(description="answer: reply from the material; revise: the person changed something about the data; what_if: the person asks what the answer would be if the data had been different, without changing what is known; requestion: a new causal question of the same data; done: they are finished")
+    kind: AfterKind = Field(
+        description="answer: reply from the material; revise: the person changed something about the data; what_if: the person asks what the answer would be if the data had been different, without changing what is known; requestion: a new causal question of the same data; done: they are finished"
+    )
     text: str = Field(description="the message to the person")
     cites: list[str] = Field(default_factory=list, description="material addresses the message rests on")
     numbers: list[NumberStated] = Field(default_factory=list, description="every number stated in the text, with its address")
     updates: list[FieldUpdate] = Field(default_factory=list, description="for revise and what_if: the field updates the person's words imply")
     question: str | None = Field(default=None, description="for requestion: the new question, in full")
-    figure: str | None = Field(default=None, description="the address of a figure in the material to show beside the text (figure:<id>), when one makes the point")
+    figure: str | None = Field(
+        default=None, description="the address of a figure in the material to show beside the text (figure:<id>), when one makes the point"
+    )
 
 
 class Exchange(BaseModel):
@@ -95,5 +99,5 @@ class Finding(BaseModel):
     evidence: str
 
     @classmethod
-    def of(cls, f: Any) -> "Finding":
+    def of(cls, f: Any) -> Finding:
         return cls(address=f.address, rule=f.rule, passed=f.passed, detail=f.detail, evidence=f.evidence)

@@ -40,7 +40,9 @@ def fit(formula: str, panel: pd.DataFrame, vcov: Any):
     return pf.feols(formula, panel, vcov=vcov)
 
 
-def estimate(entry: EstimatorEntry, formula: str, panel: pd.DataFrame, vcov: Any, contrast_key: str, target_units: str, *, secondary: bool = False) -> tuple[list[Estimate], Any]:
+def estimate(
+    entry: EstimatorEntry, formula: str, panel: pd.DataFrame, vcov: Any, contrast_key: str, target_units: str, *, secondary: bool = False
+) -> tuple[list[Estimate], Any]:
     """Returns one Estimate per fitted model (csw0 yields several: no controls, then each added) and the primary fit object
     for follow-ups. Under csw0 the primary is the full formula the design advertises, the last model; the steps are secondary,
     labelled by how many controls they carry."""
@@ -56,19 +58,48 @@ def estimate(entry: EstimatorEntry, formula: str, panel: pd.DataFrame, vcov: Any
             label = entry.name if i == primary_i else f"{entry.name}+{i}"
             if COEF in m.coef().index:
                 lo, hi = (float(x) for x in m.confint().loc[COEF].to_numpy())
-                out.append(Estimate(contrast=contrast_key, method=label, value=float(m.coef()[COEF]), ci_low=lo, ci_high=hi,
-                                    n_treated=n_t, n_control=n_c, target_units=target_units, secondary=secondary or i != primary_i))
+                out.append(
+                    Estimate(
+                        contrast=contrast_key,
+                        method=label,
+                        value=float(m.coef()[COEF]),
+                        ci_low=lo,
+                        ci_high=hi,
+                        n_treated=n_t,
+                        n_control=n_c,
+                        target_units=target_units,
+                        secondary=secondary or i != primary_i,
+                    )
+                )
             else:  # dynamic model: the effect is the mean of post-period coefficients; each period is reported separately
                 names = [n for n in m.coef().index if DYNAMIC.search(n)]
                 lags = [n for n in names if int(DYNAMIC.search(n).group(1)) >= 0]
                 if lags:
                     vals = m.coef()[lags]
-                    out.append(Estimate(contrast=contrast_key, method=label, value=float(vals.mean()), n_treated=n_t, n_control=n_c,
-                                        target_units=target_units, secondary=True))
+                    out.append(
+                        Estimate(
+                            contrast=contrast_key,
+                            method=label,
+                            value=float(vals.mean()),
+                            n_treated=n_t,
+                            n_control=n_c,
+                            target_units=target_units,
+                            secondary=True,
+                        )
+                    )
         return out, models[primary_i]
     except Exception as ex:
-        return [Estimate(contrast=contrast_key, method=entry.name, n_treated=n_t, n_control=n_c, target_units=target_units,
-                         secondary=secondary, error=f"{type(ex).__name__}: {str(ex)[:300]}")], None
+        return [
+            Estimate(
+                contrast=contrast_key,
+                method=entry.name,
+                n_treated=n_t,
+                n_control=n_c,
+                target_units=target_units,
+                secondary=secondary,
+                error=f"{type(ex).__name__}: {str(ex)[:300]}",
+            )
+        ], None
 
 
 def dynamic_coefficients(model) -> dict[int, tuple[float, float, float]]:
@@ -127,8 +158,16 @@ def placebo_group(formula: str, panel: pd.DataFrame, observed: float, entry: Pla
         return Refutation(contrast=contrast_key, refuter=entry.name, kind="falsification", detail="no placebo fit succeeded"), []
     p = float(np.mean(np.abs(effects) >= abs(observed)))
     passed = p < float(entry.pass_when.get("p_value_lt", 0.05))
-    return Refutation(contrast=contrast_key, refuter=entry.name, kind="falsification", new_effect=float(np.mean(effects)), p_value=p, passed=passed,
-                      detail=f"{len(effects)} reassignments; share with an effect at least as large: {p:.2f}" + (" (pass)" if passed else " (FAIL: the observed effect is not unusual)")), effects
+    return Refutation(
+        contrast=contrast_key,
+        refuter=entry.name,
+        kind="falsification",
+        new_effect=float(np.mean(effects)),
+        p_value=p,
+        passed=passed,
+        detail=f"{len(effects)} reassignments; share with an effect at least as large: {p:.2f}"
+        + (" (pass)" if passed else " (FAIL: the observed effect is not unusual)"),
+    ), effects
 
 
 def placebo_timing(formula: str, panel: pd.DataFrame, entry: PlaceboEntry, contrast_key: str) -> Refutation:
@@ -149,5 +188,11 @@ def placebo_timing(formula: str, panel: pd.DataFrame, entry: PlaceboEntry, contr
     except Exception as ex:
         return Refutation(contrast=contrast_key, refuter=entry.name, kind="falsification", detail=f"{type(ex).__name__}: {str(ex)[:200]}")
     passed = lo <= 0 <= hi
-    return Refutation(contrast=contrast_key, refuter=entry.name, kind="falsification", new_effect=val, passed=passed,
-                      detail=f"fake change at {cut:g}: effect {val:.3g} [{lo:.3g}, {hi:.3g}]" + (" (pass)" if passed else " (FAIL: a pre-period 'effect' that is not zero)"))
+    return Refutation(
+        contrast=contrast_key,
+        refuter=entry.name,
+        kind="falsification",
+        new_effect=val,
+        passed=passed,
+        detail=f"fake change at {cut:g}: effect {val:.3g} [{lo:.3g}, {hi:.3g}]" + (" (pass)" if passed else " (FAIL: a pre-period 'effect' that is not zero)"),
+    )

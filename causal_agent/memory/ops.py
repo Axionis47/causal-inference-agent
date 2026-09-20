@@ -11,7 +11,8 @@ from __future__ import annotations
 from typing import Any, Literal
 
 import pandas as pd
-from pydantic import BaseModel, Field as PField
+from pydantic import BaseModel
+from pydantic import Field as PField
 
 from causal_agent.common.addresses import key as _key
 from causal_agent.memory import checks as C
@@ -35,8 +36,12 @@ def seed_facts(m: Memory, profile) -> None:
         if m.value("claim:grain.panel") is None:
             m.set("claim:grain.panel", bool(es.rows_per_entity_max > 1), status="confirmed", source="data")
         if m.value("claim:grain.key_columns") is None:
-            m.set("claim:grain.key_columns", list(es.columns) + ([profile.dataset.time_coverage.column] if profile.dataset.time_coverage else []),
-                  status="drafted", source="data")
+            m.set(
+                "claim:grain.key_columns",
+                list(es.columns) + ([profile.dataset.time_coverage.column] if profile.dataset.time_coverage else []),
+                status="drafted",
+                source="data",
+            )
 
 
 def seed(name: str, profile, csv: str | None = None, cat: Catalogue | None = None) -> Memory:
@@ -161,8 +166,11 @@ RELATIVE_KINDS = ("change", "assignment", "unobserved", "exclusion", "spillover"
 def forget_change(memory: Memory) -> list[str]:
     """A new question about a different change: every field that was relative to the old change goes; what a column is, the
     grain, the sampling, and the gaps carry over. Returns the addresses dropped."""
-    dropped = [a for a in memory.fields if (a.startswith("claim:") and Memory.parse(a)[1] in RELATIVE_KINDS)
-               or (a.startswith("col:") and Memory.parse(a)[2] in RELATIVE_COLUMN_FIELDS)]
+    dropped = [
+        a
+        for a in memory.fields
+        if (a.startswith("claim:") and Memory.parse(a)[1] in RELATIVE_KINDS) or (a.startswith("col:") and Memory.parse(a)[2] in RELATIVE_COLUMN_FIELDS)
+    ]
     for a in dropped:
         del memory.fields[a]
     if dropped:
@@ -219,9 +227,14 @@ class Finding(BaseModel):
 
 
 _CHECK_FIELD = {  # which field a legacy check speaks about
-    "key_unique": ("grain", "key_columns"), "date_column": ("change", "date_column"), "period_value": ("change", "period_value"),
-    "treatment_column": ("assignment", "treatment_column"), "treated_level": ("assignment", "treated_level"),
-    "rows_by_side": ("assignment", "cutoff"), "takeup_by_side": ("assignment", "cutoff"), "treatment_varies": ("assignment", "treatment_column"),
+    "key_unique": ("grain", "key_columns"),
+    "date_column": ("change", "date_column"),
+    "period_value": ("change", "period_value"),
+    "treatment_column": ("assignment", "treatment_column"),
+    "treated_level": ("assignment", "treated_level"),
+    "rows_by_side": ("assignment", "cutoff"),
+    "takeup_by_side": ("assignment", "cutoff"),
+    "treatment_varies": ("assignment", "treatment_column"),
     "fixed_within_unit": (COLUMN_KIND, "when"),
 }
 
@@ -244,22 +257,47 @@ def consistency(memory: Memory, outcome: str | None = None, treatment: str | Non
         v = memory.values_of(c.address)
         when, moved, r = v.get("when"), v.get("moved_by_change"), role.get(c.key)
         if r == "depends_on" and when in ("after", "at"):
-            fd = Finding(address=f"{c.address}.when", rule="depends_on_before", passed=False, detail=f"the offer or the rule looked at {c.name!r}, so it was set before the change, not {when}")
-            out.append(fd); _refute(memory, fd.address, fd)
+            fd = Finding(
+                address=f"{c.address}.when",
+                rule="depends_on_before",
+                passed=False,
+                detail=f"the offer or the rule looked at {c.name!r}, so it was set before the change, not {when}",
+            )
+            out.append(fd)
+            _refute(memory, fd.address, fd)
         if r == "score" and when in ("after", "at"):
-            fd = Finding(address=f"{c.address}.when", rule="score_before", passed=False, detail=f"{c.name!r} is the score the rule was applied to, so it was set before the decision, not {when}")
-            out.append(fd); _refute(memory, fd.address, fd)
+            fd = Finding(
+                address=f"{c.address}.when",
+                rule="score_before",
+                passed=False,
+                detail=f"{c.name!r} is the score the rule was applied to, so it was set before the decision, not {when}",
+            )
+            out.append(fd)
+            _refute(memory, fd.address, fd)
         if r == "outcome" and when in ("before", "at"):
-            fd = Finding(address=f"{c.address}.when", rule="outcome_after", passed=False, detail=f"{c.name!r} is the outcome, so it was measured after the change, not {when}")
-            out.append(fd); _refute(memory, fd.address, fd)
+            fd = Finding(
+                address=f"{c.address}.when",
+                rule="outcome_after",
+                passed=False,
+                detail=f"{c.name!r} is the outcome, so it was measured after the change, not {when}",
+            )
+            out.append(fd)
+            _refute(memory, fd.address, fd)
         if moved is True and when == "before":
-            fd = Finding(address=f"{c.address}.moved_by_change", rule="moved_not_before", passed=False, detail=f"{c.name!r} is fixed before the change, so the change could not have moved it")
-            out.append(fd); _refute(memory, fd.address, fd)
+            fd = Finding(
+                address=f"{c.address}.moved_by_change",
+                rule="moved_not_before",
+                passed=False,
+                detail=f"{c.name!r} is fixed before the change, so the change could not have moved it",
+            )
+            out.append(fd)
+            _refute(memory, fd.address, fd)
     return out
 
 
-def check(memory: Memory, df: pd.DataFrame, profile, th: dict | None = None, cat: Catalogue | None = None,
-          outcome: str | None = None, treatment: str | None = None) -> list[Finding]:
+def check(
+    memory: Memory, df: pd.DataFrame, profile, th: dict | None = None, cat: Catalogue | None = None, outcome: str | None = None, treatment: str | None = None
+) -> list[Finding]:
     """The data facts on every drafted or confirmed field the file can check, then the consistency rules."""
     cat, th = cat or load_catalogue(), th or load_thresholds()
     table = memory.to_claims(cat)
@@ -338,12 +376,22 @@ def open(memory: Memory, status: Status, cat: Catalogue | None = None) -> list[O
         required = set(kind.required({n: f.value for n, f in fields.items()}))
         because = [f for f in status.surviving if kind.name in needs.get(f, [])]
         here: list[Open] = []
-        for name, spec in kind.fields.items():
+        for name in kind.fields:
             f = fields.get(name) or Field()
             vague = (blocking and f.status in {"empty", "refuted"} and name in required) or f.status == "drafted"
             if vague:
-                here.append(Open(address=f"{prefix}.{name}", kind=kind.name, field=name, status=f.status, options=_options(kind, name),
-                                 optional=name not in required, because=because, frame=kind.frame))
+                here.append(
+                    Open(
+                        address=f"{prefix}.{name}",
+                        kind=kind.name,
+                        field=name,
+                        status=f.status,
+                        options=_options(kind, name),
+                        optional=name not in required,
+                        because=because,
+                        frame=kind.frame,
+                    )
+                )
         here.sort(key=lambda o: (o.optional, o.status == "drafted"))  # within a claim: required and empty first, then drafts
         out.extend(here)
     return out

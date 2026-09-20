@@ -39,7 +39,14 @@ from causal_agent.memory.records import COLUMN_KIND, Column, Memory
 from causal_agent.profile import datasets as DS
 
 BELIEF_KINDS = ("unobserved", "exclusion", "spillover", "trend_continues", "cutoff_only", "mediator")
-_VALUE_FIELD = {"unobserved": "exists", "exclusion": "exists", "spillover": "possible", "trend_continues": "believed", "cutoff_only": "believed", "mediator": "exists"}
+_VALUE_FIELD = {
+    "unobserved": "exists",
+    "exclusion": "exists",
+    "spillover": "possible",
+    "trend_continues": "believed",
+    "cutoff_only": "believed",
+    "mediator": "exists",
+}
 
 
 # ------------------------------------------------------------------ pieces
@@ -55,9 +62,21 @@ def brief_of(memory: Memory, col: Column, role: str | None = None) -> ColumnBrie
     v = {n: f.value for n, f in fs.items() if f.value is not None}
     src = next((fs[n].source for n in ("meaning", "when") if n in v and fs[n].source), None)
     prov = {n: Provenance(status=f.status, source=f.source, said=f.said) for n, f in fs.items() if f.value is not None or f.status != "empty"}
-    return ColumnBrief(name=col.name, key=col.key, role=role or "candidate", meaning=v.get("meaning"), stands_for=v.get("stands_for"), proxy=v.get("proxy"),
-                       when=v.get("when") or "unknown", set_by=v.get("set_by"), moved_by_change=v.get("moved_by_change"), measures_outcome=v.get("measures_outcome"),
-                       source=src, provenance=prov, facts=col.facts)
+    return ColumnBrief(
+        name=col.name,
+        key=col.key,
+        role=role or "candidate",
+        meaning=v.get("meaning"),
+        stands_for=v.get("stands_for"),
+        proxy=v.get("proxy"),
+        when=v.get("when") or "unknown",
+        set_by=v.get("set_by"),
+        moved_by_change=v.get("moved_by_change"),
+        measures_outcome=v.get("measures_outcome"),
+        source=src,
+        provenance=prov,
+        facts=col.facts,
+    )
 
 
 def belief_of(memory: Memory, kind: str) -> Belief | None:
@@ -66,8 +85,16 @@ def belief_of(memory: Memory, kind: str) -> Belief | None:
         return None
     vf = fs.get(_VALUE_FIELD[kind]) or next(iter(fs.values()))
     known = {n: f.value for n, f in fs.items() if f.value is not None}
-    return Belief(kind=kind, value=known.get(_VALUE_FIELD[kind]), what=known.get("what"), why=known.get("why") or known.get("why_believed"),
-                  column=known.get("column"), status=vf.status, source=vf.source, said=vf.said)
+    return Belief(
+        kind=kind,
+        value=known.get(_VALUE_FIELD[kind]),
+        what=known.get("what"),
+        why=known.get("why") or known.get("why_believed"),
+        column=known.get("column"),
+        status=vf.status,
+        source=vf.source,
+        said=vf.said,
+    )
 
 
 def said_of(memory: Memory) -> list[Said]:
@@ -90,9 +117,15 @@ def in_play(memory: Memory, frame: QuestionFrame | None, entry: dict | None = No
     a, ch, g = memory.values_of("claim:assignment"), memory.values_of("claim:change"), memory.values_of("claim:grain")
     names: list[str] = []
     cands = ([frame.outcome, frame.cause] + [c.column for c in frame.relevant_columns]) if frame else []
-    for n in cands + [a.get("treatment_column")] + list(a.get("depends_on") or []) + \
-            [a.get("score_column"), ch.get("date_column"), a.get("level_column"), memory.value("claim:exclusion.column"), memory.value("claim:mediator.column")] + \
-            list(g.get("key_columns") or []) + [entry.get("time")] + list(entry.get("entity") or []):
+    for n in (
+        cands
+        + [a.get("treatment_column")]
+        + list(a.get("depends_on") or [])
+        + [a.get("score_column"), ch.get("date_column"), a.get("level_column"), memory.value("claim:exclusion.column"), memory.value("claim:mediator.column")]
+        + list(g.get("key_columns") or [])
+        + [entry.get("time")]
+        + list(entry.get("entity") or [])
+    ):
         c = memory.column(n) if n else None
         if c is not None and c.name not in names:
             names.append(c.name)
@@ -111,45 +144,90 @@ def _adjustment(briefs: list[ColumnBrief], a: dict, beliefs: dict[str, Belief], 
     mediator = key(med.column) if med and med.known() and med.value and med.column else None
     kind = a.get("kind")
     voluntary = True if kind == "own_choice" else False if kind in ("cutoff_rule", "date_by_others", "lottery") else (True if a.get("movable") else None)
-    return AdjustmentDesign(adjustment_candidates=list(dict.fromkeys(dep + before)), forbidden=list(dict.fromkeys(forbidden)),
-                            instrument=instrument, mediator=mediator, unobserved_confounding=unob.value if unob and unob.known() else None,
-                            voluntary_uptake=voluntary, target_units=scope.target, contrast=scope.contrast)
+    return AdjustmentDesign(
+        adjustment_candidates=list(dict.fromkeys(dep + before)),
+        forbidden=list(dict.fromkeys(forbidden)),
+        instrument=instrument,
+        mediator=mediator,
+        unobserved_confounding=unob.value if unob and unob.known() else None,
+        voluntary_uptake=voluntary,
+        target_units=scope.target,
+        contrast=scope.contrast,
+    )
 
 
-def _did(briefs: list[ColumnBrief], a: dict, ch: dict, g: dict, beliefs: dict[str, Belief], probes: list[Probe], entry: dict, treatment: str | None) -> DidDesign:
+def _did(
+    briefs: list[ColumnBrief], a: dict, ch: dict, g: dict, beliefs: dict[str, Belief], probes: list[Probe], entry: dict, treatment: str | None
+) -> DidDesign:
     time = ch.get("date_column") or entry.get("time")
     tkey = key(time) if time else None
     units = [c for c in (g.get("key_columns") or []) if key(c) != tkey] if g.get("panel") is True else []
     unit = units[0] if units else (entry.get("entity") or [None])[0]
     tb = next((b for b in briefs if tkey and b.key == tkey), None)
     period_kind = ("date" if tb.facts.kind == "datetime" else "integer") if tb else None
-    treated_group = {"column": a["treatment_column"], "level": a["treated_level"]} if a.get("treatment_column") and a.get("treated_level") is not None else \
-        ({"column": treatment, "level": a["treated_level"]} if treatment and a.get("treated_level") is not None else {})
+    treated_group = (
+        {"column": a["treatment_column"], "level": a["treated_level"]}
+        if a.get("treatment_column") and a.get("treated_level") is not None
+        else ({"column": treatment, "level": a["treated_level"]} if treatment and a.get("treated_level") is not None else {})
+    )
     pre = next((p for p in probes if p.family == "diff_in_diff" and p.name == "pre_periods"), None)
-    controls = [b.key for b in briefs if b.role == "candidate" and b.moved_by_change is not True and (b.when == "before" or b.facts.varies_over in ("entity", "time", "both"))]
-    return DidDesign(unit=key(unit) if unit else None, time=tkey, period_kind=period_kind, change_period=str(ch["period_value"]) if ch.get("period_value") is not None else None,
-                     treated_group=treated_group, pre_periods=int(pre.value) if pre and pre.value is not None else None, controls_allowed=controls,
-                     cluster_level=key(a["level_column"]) if a.get("level_column") else (key(unit) if unit else None),
-                     trend_belief=beliefs.get("trend_continues"), spillover=beliefs.get("spillover"))
+    controls = [
+        b.key
+        for b in briefs
+        if b.role == "candidate" and b.moved_by_change is not True and (b.when == "before" or b.facts.varies_over in ("entity", "time", "both"))
+    ]
+    return DidDesign(
+        unit=key(unit) if unit else None,
+        time=tkey,
+        period_kind=period_kind,
+        change_period=str(ch["period_value"]) if ch.get("period_value") is not None else None,
+        treated_group=treated_group,
+        pre_periods=int(pre.value) if pre and pre.value is not None else None,
+        controls_allowed=controls,
+        cluster_level=key(a["level_column"]) if a.get("level_column") else (key(unit) if unit else None),
+        trend_belief=beliefs.get("trend_continues"),
+        spillover=beliefs.get("spillover"),
+    )
 
 
 def _rd(briefs: list[ColumnBrief], a: dict, samp: dict, beliefs: dict[str, Belief], entry: dict, treatment: str | None) -> RdDesign:
     score = key(a["score_column"]) if a.get("score_column") else None
     sb = next((b for b in briefs if score and b.key == score), None)
-    takeup = {"column": treatment, "level": a.get("treated_level")} if treatment and (not score or key(treatment) != score) and a.get("treated_level") is not None else None
+    takeup = (
+        {"column": treatment, "level": a.get("treated_level")}
+        if treatment and (not score or key(treatment) != score) and a.get("treated_level") is not None
+        else None
+    )
     covs = [b.key for b in briefs if b.role == "candidate" and b.when == "before" and b.moved_by_change is not True]
     cluster = a.get("level_column") or (entry.get("entity") or [None])[0]
-    return RdDesign(score=score, cutoff=float(a["cutoff"]) if a.get("cutoff") is not None else None, treated_side=a.get("treated_side"), cutoff_value_treated=a.get("cutoff_value_treated"),
-                    score_fixed_before=(sb.when == "before") if sb and sb.when != "unknown" else None, movable=a.get("movable"), takeup=takeup, covariates_allowed=covs,
-                    cluster=key(cluster) if cluster else None, sampled_by_side=samp.get("how") == "by_side" or bool(entry.get("sampled_by_side", False)),
-                    cutoff_only=beliefs.get("cutoff_only"))
+    return RdDesign(
+        score=score,
+        cutoff=float(a["cutoff"]) if a.get("cutoff") is not None else None,
+        treated_side=a.get("treated_side"),
+        cutoff_value_treated=a.get("cutoff_value_treated"),
+        score_fixed_before=(sb.when == "before") if sb and sb.when != "unknown" else None,
+        movable=a.get("movable"),
+        takeup=takeup,
+        covariates_allowed=covs,
+        cluster=key(cluster) if cluster else None,
+        sampled_by_side=samp.get("how") == "by_side" or bool(entry.get("sampled_by_side", False)),
+        cutoff_only=beliefs.get("cutoff_only"),
+    )
 
 
 # ------------------------------------------------------------------ the builder
 
 
-def build(*, question: str, frame: QuestionFrame, decision: FamilyDecision, family: Family, memory: Memory,
-          probes: list[ProbeResult] | list[Probe] = (), design_id: int = 0) -> Handoff:
+def build(
+    *,
+    question: str,
+    frame: QuestionFrame,
+    decision: FamilyDecision,
+    family: Family,
+    memory: Memory,
+    probes: list[ProbeResult] | list[Probe] = (),
+    design_id: int = 0,
+) -> Handoff:
     """The one hand-off, projected from the memory. The memory is not changed."""
     m = memory
     entry = DS.dataset_entries().get(m.name) or {}
@@ -191,23 +269,70 @@ def build(*, question: str, frame: QuestionFrame, decision: FamilyDecision, fami
     unknowns = [address for address, f in m.fields.items() if f.status == "unknown"]
     contradictions = [address for address, f in m.fields.items() if f.status == "contradiction"]
     return Handoff(
-        family=family.name, specialist=family.specialist, supported_now=family.status == "built",
-        outcome=outcome, treatment=treatment, scope=frame.scope, pack_name=m.name, relevant_columns=list(frame.relevant_columns),
+        family=family.name,
+        specialist=family.specialist,
+        supported_now=family.status == "built",
+        outcome=outcome,
+        treatment=treatment,
+        scope=frame.scope,
+        pack_name=m.name,
+        relevant_columns=list(frame.relevant_columns),
         chosen_assumption=decision.chosen_assumption,
         reasons=[Candidate(column=c.column, reason=c.reason, cites=c.cites) for c in frame.outcome_candidates[:1] + frame.cause_candidates[:1]],
-        question=question, intent=frame.intent, design_id=design_id, memory_version=m.version, why=decision.why_over_alternatives, over={r.family: r.reason for r in decision.rejected},
-        csv=m.csv or entry.get("csv"), docs={}, dataset_facts=m.facts, grain=g, sampling=samp, missing=miss,
-        treated_level=treated_level, control_level=control_level, columns=briefs,
-        change=ch, assignment=a, beliefs=beliefs, unknowns=unknowns, contradictions=contradictions, said=said_of(m), probes=probe_list,
-        claims={c.key: {"kind": c.kind, "fields": {k: v for k, v in c.fields.items() if v is not None}, "status": c.status, "source": c.source,
-                        "fields_status": {n: f.status for n, f in m.fields_of(c.key if c.kind == COLUMN_KIND else f"claim:{c.kind}").items() if f.value is not None or f.status != "empty"}}
-                for c in table.claims.values() if c.status != "empty"},
+        question=question,
+        intent=frame.intent,
+        design_id=design_id,
+        memory_version=m.version,
+        why=decision.why_over_alternatives,
+        over={r.family: r.reason for r in decision.rejected},
+        csv=m.csv or entry.get("csv"),
+        docs={},
+        dataset_facts=m.facts,
+        grain=g,
+        sampling=samp,
+        missing=miss,
+        treated_level=treated_level,
+        control_level=control_level,
+        columns=briefs,
+        change=ch,
+        assignment=a,
+        beliefs=beliefs,
+        unknowns=unknowns,
+        contradictions=contradictions,
+        said=said_of(m),
+        probes=probe_list,
+        claims={
+            c.key: {
+                "kind": c.kind,
+                "fields": {k: v for k, v in c.fields.items() if v is not None},
+                "status": c.status,
+                "source": c.source,
+                "fields_status": {
+                    n: f.status
+                    for n, f in m.fields_of(c.key if c.kind == COLUMN_KIND else f"claim:{c.kind}").items()
+                    if f.value is not None or f.status != "empty"
+                },
+            }
+            for c in table.claims.values()
+            if c.status != "empty"
+        },
         design=design,
     )
 
 
-def forced(pack_name: str, question: str, family: str, outcome: str, treatment: str | None, columns: list[str], *,
-           scope: Scope | None = None, assumption: str = "forced hand-off", cite: str | None = None, memory: Memory | None = None) -> Handoff:
+def forced(
+    pack_name: str,
+    question: str,
+    family: str,
+    outcome: str,
+    treatment: str | None,
+    columns: list[str],
+    *,
+    scope: Scope | None = None,
+    assumption: str = "forced hand-off",
+    cite: str | None = None,
+    memory: Memory | None = None,
+) -> Handoff:
     """A hand-off without a frame or a decision: the family, the outcome, the treatment, and the columns are given.
     For tests and evals. The memory on disk, when the dataset has one, fills the briefs and the family block."""
     import pandas as pd
@@ -216,9 +341,15 @@ def forced(pack_name: str, question: str, family: str, outcome: str, treatment: 
     m = memory or store.memory_for(pack_name)
     cite_of = lambda c: [cite] if cite else [f"col:{key(c)}.note"]  # noqa: E731
     cands = [Candidate(column=c, reason="named in the forced hand-off", cites=cite_of(c)) for c in columns]
-    frame = QuestionFrame(intent="effect_of_change", decision_served="a forced run", outcome_candidates=[Candidate(column=outcome, reason="the outcome the question names", cites=cite_of(outcome))],
-                          cause_candidates=[Candidate(column=treatment, reason="the change asked about", cites=cite_of(treatment))] if treatment else [],
-                          scope=scope or Scope(), relevant_columns=cands, reasons=[])
+    frame = QuestionFrame(
+        intent="effect_of_change",
+        decision_served="a forced run",
+        outcome_candidates=[Candidate(column=outcome, reason="the outcome the question names", cites=cite_of(outcome))],
+        cause_candidates=[Candidate(column=treatment, reason="the change asked about", cites=cite_of(treatment))] if treatment else [],
+        scope=scope or Scope(),
+        relevant_columns=cands,
+        reasons=[],
+    )
     decision = FamilyDecision(admissible=[family], chosen=family, chosen_assumption=assumption, why_over_alternatives="forced", rejected=[])
     csv = m.csv or (DS.dataset_entries().get(pack_name) or {}).get("csv")
     path = Path(csv) if csv and Path(csv).is_absolute() else (Path(DS.ROOT) / csv if csv else None)
@@ -241,7 +372,9 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--contrast", default="switch")
     ap.add_argument("--window", default=None)
     ap.add_argument("--assumption", default="forced hand-off")
-    ap.add_argument("--mine", action="store_true", help="read the attached note into drafts first, when the memory holds only the file's facts (one model call)")
+    ap.add_argument(
+        "--mine", action="store_true", help="read the attached note into drafts first, when the memory holds only the file's facts (one model call)"
+    )
     ap.add_argument("-o", "--out", default=None)
     args = ap.parse_args(argv)
     if args.mine:
@@ -249,7 +382,16 @@ def main(argv: list[str] | None = None) -> None:
 
         mine({"dataset": args.dataset, "question": args.question})
     cols = [c.strip() for c in args.columns.split(",") if c.strip()]
-    h = forced(args.dataset, args.question, args.family, args.outcome, args.treatment, cols, scope=Scope(target=args.target, window=args.window, contrast=args.contrast), assumption=args.assumption)
+    h = forced(
+        args.dataset,
+        args.question,
+        args.family,
+        args.outcome,
+        args.treatment,
+        cols,
+        scope=Scope(target=args.target, window=args.window, contrast=args.contrast),
+        assumption=args.assumption,
+    )
     text = json.dumps(h.model_dump(), indent=2, default=str)
     if args.out:
         Path(args.out).write_text(text + "\n")

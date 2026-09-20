@@ -28,22 +28,46 @@ def memory(pack: str, *, trend=None, trend_status="unknown", spillover=False, sa
 
 
 def handoff(pack: str, outcome: str, treatment: str, cols: list[str], cite: str, memory_=None) -> Handoff:
-    return forced(pack, "q", "diff_in_diff", outcome, treatment, cols, assumption="parallel movement absent the change", cite=cite,
-                  memory=memory_ or memory(pack))
+    return forced(
+        pack, "q", "diff_in_diff", outcome, treatment, cols, assumption="parallel movement absent the change", cite=cite, memory=memory_ or memory(pack)
+    )
 
 
 CK = dict(pack="card_krueger", outcome="total_emp_nov", treatment="state", cols=["state", "total_emp_feb", "total_emp_nov"], cite="col:state.note")
 CIGAR = dict(pack="cigar", outcome="sales", treatment="state", cols=["state", "year", "sales", "price", "pimin", "ndi", "pop", "cpi"], cite="col:state.note")
-MARKETING = dict(pack="marketing", outcome="SalesInThousands", treatment="Promotion", cols=["Promotion", "week", "SalesInThousands", "MarketSize", "LocationID"], cite="col:promotion.note")
+MARKETING = dict(
+    pack="marketing",
+    outcome="SalesInThousands",
+    treatment="Promotion",
+    cols=["Promotion", "week", "SalesInThousands", "MarketSize", "LocationID"],
+    cite="col:promotion.note",
+)
 
 # scripted answers per dataset, what a careful reader of the notes would say
 SCRIPT = {
-    "card_krueger": dict(groups=("state", "1"), periods=Periods(kind="wide", before_column="total_emp_feb", after_column="total_emp_nov", reason="the notes name the two waves", cites=["col:total_emp_feb.note"]),
-                         relations={}),
-    "cigar": dict(groups=("state", "5"), periods=Periods(kind="long", time_column="year", first_post="89", reason="Proposition 99 from January 1989", cites=["change:1.note"]),
-                  relations={"price": dict(affected_by_treatment=True), "pimin": dict(usable_as_control=True), "ndi": dict(usable_as_control=True), "pop": dict(usable_as_control=True), "cpi": dict(usable_as_control=True)}),
-    "marketing": dict(groups=("promotion", "2"), periods=Periods(kind="long", time_column="week", first_post="1", reason="every row is under the promotion", cites=["change:1.note"]),
-                      relations={"marketsize": dict(usable_as_control=True)}),
+    "card_krueger": dict(
+        groups=("state", "1"),
+        periods=Periods(
+            kind="wide", before_column="total_emp_feb", after_column="total_emp_nov", reason="the notes name the two waves", cites=["col:total_emp_feb.note"]
+        ),
+        relations={},
+    ),
+    "cigar": dict(
+        groups=("state", "5"),
+        periods=Periods(kind="long", time_column="year", first_post="89", reason="Proposition 99 from January 1989", cites=["change:1.note"]),
+        relations={
+            "price": dict(affected_by_treatment=True),
+            "pimin": dict(usable_as_control=True),
+            "ndi": dict(usable_as_control=True),
+            "pop": dict(usable_as_control=True),
+            "cpi": dict(usable_as_control=True),
+        },
+    ),
+    "marketing": dict(
+        groups=("promotion", "2"),
+        periods=Periods(kind="long", time_column="week", first_post="1", reason="every row is under the promotion", cites=["change:1.note"]),
+        relations={"marketsize": dict(usable_as_control=True)},
+    ),
 }
 
 
@@ -59,8 +83,10 @@ class FakeLLM:
         class R:
             def invoke(self_, messages):
                 parsed = fake.answer(schema, messages[-1][1])
-                raw = AIMessage(content=[{"type": "thinking", "thinking": f"thinking about {schema.__name__}"}, "{}"],
-                                usage_metadata={"input_tokens": 10, "output_tokens": 20, "total_tokens": 30, "output_token_details": {"reasoning": 7}})
+                raw = AIMessage(
+                    content=[{"type": "thinking", "thinking": f"thinking about {schema.__name__}"}, "{}"],
+                    usage_metadata={"input_tokens": 10, "output_tokens": 20, "total_tokens": 30, "output_token_details": {"reasoning": 7}},
+                )
                 return {"raw": raw, "parsed": parsed, "parsing_error": None}
 
         return R()
@@ -92,8 +118,13 @@ class FakeLLM:
             required = [a for a in human.split("ADDRESSES YOU MUST CITE")[1].split("\n\n")[0].strip().splitlines()[1:] if a and a != "(none)"]
             contrast = re.search(r"COMPARISON: (\S+)", human).group(1)
             value = float(re.search(r"\[estimate:%s\.value\] ([-\d.eE+]+)" % re.escape(contrast), human).group(1))
-            return Interpretation(contrast=contrast, answer=f"The effect on the treated is {value:.3g}.", effect_stated=value,
-                                  caveats=["parallel trends assumed"] + [f"flag {a}" for a in required], cites=list(dict.fromkeys(required + addresses[:3])))
+            return Interpretation(
+                contrast=contrast,
+                answer=f"The effect on the treated is {value:.3g}.",
+                effect_stated=value,
+                caveats=["parallel trends assumed"] + [f"flag {a}" for a in required],
+                cites=list(dict.fromkeys(required + addresses[:3])),
+            )
         raise AssertionError(schema)
 
 
@@ -190,8 +221,12 @@ def test_relate_bad_cites_only():
 
 
 def test_revision_is_a_delta():
-    script = [DesignAssessment(action="revise", reason="drop pop", cites=[], revisions=[Revision(column="pop", change="remove_control", reason="test", cites=["col:pop.note"])]),
-              DesignAssessment(action="stop", reason="pre-trends still fail", cites=[])]
+    script = [
+        DesignAssessment(
+            action="revise", reason="drop pop", cites=[], revisions=[Revision(column="pop", change="remove_control", reason="test", cites=["col:pop.note"])]
+        ),
+        DesignAssessment(action="stop", reason="pre-trends still fail", cites=[]),
+    ]
     fake = FakeLLM(SCRIPT["cigar"], CIGAR["cite"], assess_script=script)
     out = _run(fake, handoff(**CIGAR))
     assert out["revisions"] == 1 and "pop" not in out["controls"].included
@@ -217,7 +252,7 @@ def test_catalogues_parse_on_a_toy_panel():
     toy["treat"] = (toy["treated"] * toy["post"]).astype(float)
     toy["rel_time"] = toy["time"] - 5
     toy["cohort"] = toy["treated"] * 5
-    toy["x1"] = (toy["time"] * 0.3 + toy["unit"].astype(int) * 0.1)
+    toy["x1"] = toy["time"] * 0.3 + toy["unit"].astype(int) * 0.1
     toy["y"] = 1.0 + 2.0 * toy["treat"] + toy["x1"] + toy["unit"].astype(int) * 0.5
     for e in load_estimators():
         if e.formula in ("did2s", "lpdid"):
@@ -255,23 +290,63 @@ def test_pack_panel_block_settles_groups_and_periods_without_a_model_call():
     from causal_agent.profile.datasets import ROOT, dataset_entries
     from causal_agent.profile.profiler import Profile
 
-    table = ClaimTable(claims={
-        "grain": Claim(kind="grain", key="grain", fields={"row_is": "one state in one year", "key_columns": ["state", "year"], "panel": True}, status="confirmed", source="user:turn:1"),
-        "change": Claim(kind="change", key="change", fields={"what": "Proposition 99", "to_whom": "California", "when": "January 1989", "date_column": "year", "period_value": "89"}, status="confirmed", source="user:turn:1"),
-        "assignment": Claim(kind="assignment", key="assignment", fields={"kind": "date_by_others", "rule": "a ballot vote in one state", "treatment_column": "state", "treated_level": "5"}, status="confirmed", source="user:turn:1"),
-        "trend_continues": Claim(kind="trend_continues", key="trend_continues", fields={"believed": True, "why": "sales moved together before 1989"}, status="confirmed", source="user:turn:2"),
-    })
+    table = ClaimTable(
+        claims={
+            "grain": Claim(
+                kind="grain",
+                key="grain",
+                fields={"row_is": "one state in one year", "key_columns": ["state", "year"], "panel": True},
+                status="confirmed",
+                source="user:turn:1",
+            ),
+            "change": Claim(
+                kind="change",
+                key="change",
+                fields={"what": "Proposition 99", "to_whom": "California", "when": "January 1989", "date_column": "year", "period_value": "89"},
+                status="confirmed",
+                source="user:turn:1",
+            ),
+            "assignment": Claim(
+                kind="assignment",
+                key="assignment",
+                fields={"kind": "date_by_others", "rule": "a ballot vote in one state", "treatment_column": "state", "treated_level": "5"},
+                status="confirmed",
+                source="user:turn:1",
+            ),
+            "trend_continues": Claim(
+                kind="trend_continues",
+                key="trend_continues",
+                fields={"believed": True, "why": "sales moved together before 1989"},
+                status="confirmed",
+                source="user:turn:2",
+            ),
+        }
+    )
     cols = ["sales", "state", "year", "price", "pimin", "ndi", "pop", "cpi"]
-    frame = QuestionFrame(intent="effect_of_change", decision_served="", outcome_candidates=[Candidate(column="sales", reason="r", cites=["col:sales.note"])],
-                          cause_candidates=[Candidate(column="state", reason="r", cites=["col:state.note"])], scope=Scope(target="on_treated"),
-                          relevant_columns=[Candidate(column=c, reason="r", cites=["col:state.note"]) for c in cols], reasons=[])
-    decision = FamilyDecision(admissible=["diff_in_diff"], chosen="diff_in_diff", chosen_assumption="parallel movement absent the change", why_over_alternatives="only one", rejected=[])
+    frame = QuestionFrame(
+        intent="effect_of_change",
+        decision_served="",
+        outcome_candidates=[Candidate(column="sales", reason="r", cites=["col:sales.note"])],
+        cause_candidates=[Candidate(column="state", reason="r", cites=["col:state.note"])],
+        scope=Scope(target="on_treated"),
+        relevant_columns=[Candidate(column=c, reason="r", cites=["col:state.note"]) for c in cols],
+        reasons=[],
+    )
+    decision = FamilyDecision(
+        admissible=["diff_in_diff"],
+        chosen="diff_in_diff",
+        chosen_assumption="parallel movement absent the change",
+        why_over_alternatives="only one",
+        rejected=[],
+    )
     fam = next(f for f in load_registry() if f.name == "diff_in_diff")
     e = dataset_entries()["cigar"]
     memory = Memory.from_claims("cigar", table, profile=Profile.model_validate(json.loads((ROOT / e["profile"]).read_text())), csv=e["csv"])
     h = build(question="q", frame=frame, decision=decision, family=fam, memory=memory)
     d = h.design
-    assert d.kind == "diff_in_diff" and d.unit == "state" and d.time == "year" and d.change_period == "89" and d.treated_group == {"column": "state", "level": "5"}
+    assert (
+        d.kind == "diff_in_diff" and d.unit == "state" and d.time == "year" and d.change_period == "89" and d.treated_group == {"column": "state", "level": "5"}
+    )
     assert d.trend_belief is not None and d.trend_belief.value is True
     assert h.resolve("claim:change.period_value") and h.resolve("claim:trend_continues")
     fake = FakeLLM(SCRIPT["cigar"], CIGAR["cite"], assess_script=[DesignAssessment(action="stop", reason="pre-trends", cites=[])])
@@ -304,7 +379,11 @@ def test_trend_true_and_a_hard_check_asks_back_once_then_softens_and_the_primary
     out = _run(fake, _cigar(trend=True, trend_status="confirmed", said="they moved together for decades"))
     r = out["specialist_result"]
     assert r["status"] == "ask" and r["ask"]["address"] == "claim:trend_continues.believed" and r["ask"]["options"] == ["yes", "no"]
-    assert "p = " in r["ask"]["question"] and "moved together for decades" in r["ask"]["question"] and r["ask"]["evidence"] == [f"check:{out['contrast'].key}.pre_trends"]
+    assert (
+        "p = " in r["ask"]["question"]
+        and "moved together for decades" in r["ask"]["question"]
+        and r["ask"]["evidence"] == [f"check:{out['contrast'].key}.pre_trends"]
+    )
     assert "DesignAssessment" not in fake.calls and "ASKS BACK" in r["report"]
     # the person answered once: the flag softens with their reason, the assessment sees a soft flag, and the run goes on
     m = memory("cigar", trend=True, trend_status="confirmed", said="the tax was announced years earlier")
@@ -319,7 +398,11 @@ def test_trend_true_and_a_hard_check_asks_back_once_then_softens_and_the_primary
     d = out["design"]
     assert d.controls.included == ["pimin", "ndi", "pop"] and "csw0" in d.formula
     primary = next(e for e in out["estimates"] if not e.secondary)
-    assert primary.method == "twfe_static" and {e.method for e in out["estimates"] if e.method.startswith("twfe_static+")} == {"twfe_static+0", "twfe_static+1", "twfe_static+2"}
+    assert primary.method == "twfe_static" and {e.method for e in out["estimates"] if e.method.startswith("twfe_static+")} == {
+        "twfe_static+0",
+        "twfe_static+1",
+        "twfe_static+2",
+    }
     assert pre.address in out["interpretations"][0].cites and not out.get("interpret_errors")
     assert "placebo_group" in out["placebo_draws"] and len(out["placebo_draws"]["placebo_group"]) > 100
     ids = [f["id"] for f in json.loads(open(f"{r['run_dir']}/figures.json").read())]

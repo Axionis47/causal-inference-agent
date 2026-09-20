@@ -7,11 +7,25 @@ from causal_agent.viz import postviz
 
 
 def _rec(**kw) -> RunRecord:
-    sr = {"status": "done", "estimates": [{"contrast": "completed_vs_none", "method": "linear_regression", "value": 5.6, "ci_low": 3.7, "ci_high": 7.5, "secondary": False, "error": None},
-                                          {"contrast": "completed_vs_none", "method": "psw", "value": 5.9, "ci_low": 3.9, "ci_high": 7.9, "secondary": True, "error": None}],
-          "refutations": [{"contrast": "completed_vs_none", "refuter": "placebo_treatment_refuter", "kind": "falsification", "new_effect": 0.1, "passed": True},
-                          {"contrast": "completed_vs_none", "refuter": "data_subset_refuter", "kind": "falsification", "new_effect": 5.4, "passed": True},
-                          {"contrast": "completed_vs_none", "refuter": "add_unobserved_common_cause", "kind": "sensitivity", "range_low": 4.1, "range_high": 6.8, "passed": None}]}
+    sr = {
+        "status": "done",
+        "estimates": [
+            {"contrast": "completed_vs_none", "method": "linear_regression", "value": 5.6, "ci_low": 3.7, "ci_high": 7.5, "secondary": False, "error": None},
+            {"contrast": "completed_vs_none", "method": "psw", "value": 5.9, "ci_low": 3.9, "ci_high": 7.9, "secondary": True, "error": None},
+        ],
+        "refutations": [
+            {"contrast": "completed_vs_none", "refuter": "placebo_treatment_refuter", "kind": "falsification", "new_effect": 0.1, "passed": True},
+            {"contrast": "completed_vs_none", "refuter": "data_subset_refuter", "kind": "falsification", "new_effect": 5.4, "passed": True},
+            {
+                "contrast": "completed_vs_none",
+                "refuter": "add_unobserved_common_cause",
+                "kind": "sensitivity",
+                "range_low": 4.1,
+                "range_high": 6.8,
+                "passed": None,
+            },
+        ],
+    }
     sr.update(kw)
     return RunRecord(index=1, dataset="d", question="q", family="adjustment", specialist="dowhy", status="done", effect=5.6, specialist_result=sr)
 
@@ -25,7 +39,11 @@ def test_effect_against_refutations():
     assert s.x[3] == "add_unobserved_common_cause" and s.lo[3] == 4.1 and s.hi[3] == 6.8
     assert f.marks[0].kind == "hline" and "every falsification passed" in f.note
     assert "estimate:completed_vs_none.value" in f.draws_on and "refute:completed_vs_none.placebo_treatment_refuter.new_effect" in f.draws_on
-    assert "figure:effect_completed_vs_none.effect.1" in f.spec_addresses() if hasattr(f, "spec_addresses") else "figure:effect_completed_vs_none.effect.1" in f.addresses()
+    assert (
+        "figure:effect_completed_vs_none.effect.1" in f.spec_addresses()
+        if hasattr(f, "spec_addresses")
+        else "figure:effect_completed_vs_none.effect.1" in f.addresses()
+    )
 
 
 def test_dynamic_effects_only_when_the_lane_left_them():

@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
-from langgraph.graph import END, START, StateGraph
+from langgraph.graph import START, StateGraph
 from langgraph.types import RetryPolicy
 
 from causal_agent.desk.nodes import after as A
@@ -79,20 +79,43 @@ def build() -> StateGraph:
 
 graph = build().compile()  # for `langgraph dev`: the platform injects its own checkpointer
 
-_CONTRACTS = [
-    ("causal_agent.common.contracts", n) for n in (
-        "Thought", "Cited", "Candidate", "Scope", "QuestionFrame", "PrefilterVote", "NeedCheck", "FamilyVerdict", "Rejection", "FamilyDecision",
-        "Handoff", "ColumnBrief", "ColumnFacts", "Provenance", "Belief", "Said", "Probe", "AdjustmentDesign", "DidDesign", "RdDesign",
-        "Decline", "LaneAsk",
-    )
-] + [
-    ("causal_agent.desk.contracts", n) for n in ("Ask", "FieldUpdate", "Inference", "RunRecord", "NumberStated", "AfterReply", "Exchange", "Finding")
-] + [
-    ("causal_agent.memory.claims", n) for n in ("ProbeResult", "Status")
-] + [
-    ("causal_agent.memory.ops", "Open"),
-    ("causal_agent.memory.records", "Memory"), ("causal_agent.memory.records", "Field"), ("causal_agent.memory.records", "Column"),
-]
+_CONTRACTS = (
+    [
+        ("causal_agent.common.contracts", n)
+        for n in (
+            "Thought",
+            "Cited",
+            "Candidate",
+            "Scope",
+            "QuestionFrame",
+            "PrefilterVote",
+            "NeedCheck",
+            "FamilyVerdict",
+            "Rejection",
+            "FamilyDecision",
+            "Handoff",
+            "ColumnBrief",
+            "ColumnFacts",
+            "Provenance",
+            "Belief",
+            "Said",
+            "Probe",
+            "AdjustmentDesign",
+            "DidDesign",
+            "RdDesign",
+            "Decline",
+            "LaneAsk",
+        )
+    ]
+    + [("causal_agent.desk.contracts", n) for n in ("Ask", "FieldUpdate", "Inference", "RunRecord", "NumberStated", "AfterReply", "Exchange", "Finding")]
+    + [("causal_agent.memory.claims", n) for n in ("ProbeResult", "Status")]
+    + [
+        ("causal_agent.memory.ops", "Open"),
+        ("causal_agent.memory.records", "Memory"),
+        ("causal_agent.memory.records", "Field"),
+        ("causal_agent.memory.records", "Column"),
+    ]
+)
 
 serde = JsonPlusSerializer(allowed_msgpack_modules=_CONTRACTS)
 
