@@ -11,14 +11,12 @@ from __future__ import annotations
 
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
-from langgraph.types import RetryPolicy
 
+from causal_agent.common.llm import RETRY as _retry
 from causal_agent.desk.nodes import decide as D
 from causal_agent.desk.nodes import frame as F
 from causal_agent.desk.state import Context, RouteState
 from causal_agent.families import registry as R
-
-_retry = RetryPolicy(max_attempts=3, initial_interval=1.0)
 
 
 def build() -> StateGraph:

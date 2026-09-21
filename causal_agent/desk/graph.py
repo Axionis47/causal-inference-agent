@@ -17,7 +17,6 @@ from __future__ import annotations
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from langgraph.graph import START, StateGraph
-from langgraph.types import RetryPolicy
 
 from causal_agent.common.contracts import (
     DESIGNS,
@@ -42,6 +41,7 @@ from causal_agent.common.contracts import (
     Scope,
     Thought,
 )
+from causal_agent.common.llm import RETRY as _retry
 from causal_agent.desk.contracts import AfterReply, Ask, Exchange, FieldUpdate, Finding, Inference, NumberStated
 from causal_agent.desk.nodes import after as A
 from causal_agent.desk.nodes import decide as D
@@ -51,8 +51,6 @@ from causal_agent.desk.state import Context, DeskState
 from causal_agent.memory.claims import ProbeResult, Status
 from causal_agent.memory.ops import Open
 from causal_agent.memory.records import Column, Field, Memory
-
-_retry = RetryPolicy(max_attempts=3, initial_interval=1.0)
 
 
 def build() -> StateGraph:

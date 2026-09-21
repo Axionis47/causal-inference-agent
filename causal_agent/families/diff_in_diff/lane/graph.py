@@ -10,14 +10,12 @@ merge_controls (3 times). estimate may re-pick once on a fit failure. Nothing lo
 
 from __future__ import annotations
 
-from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
-from langgraph.types import RetryPolicy
 
 from causal_agent.families.diff_in_diff.lane import nodes as N
 from causal_agent.families.diff_in_diff.lane.state import SpecialistState
-
-_retry = RetryPolicy(max_attempts=3, initial_interval=1.0)
+from causal_agent.lane import graph as G
+from causal_agent.lane.graph import RETRY as _retry
 
 
 def build() -> StateGraph:
@@ -65,12 +63,12 @@ def build() -> StateGraph:
 
 def compile_subgraph():
     """As a node inside the desk's graphs: no checkpointer of its own, no interrupts."""
-    return build().compile(checkpointer=False)
+    return G.compile_subgraph(build)
 
 
 def compile_local():
-    """Standalone, for tests and the CLI: in-memory checkpointer, thread_id per run."""
-    return build().compile(checkpointer=InMemorySaver())
+    """Standalone, for tests and the command line: an in-memory checkpointer, a thread_id per run."""
+    return G.compile_local(build)
 
 
 graph = build().compile()

@@ -11,6 +11,7 @@ from functools import lru_cache
 from typing import Any, TypeVar
 
 from dotenv import load_dotenv
+from langgraph.types import RetryPolicy
 from pydantic import BaseModel
 
 from causal_agent.common import config
@@ -19,6 +20,9 @@ from causal_agent.common.contracts import Thought
 load_dotenv()
 
 T = TypeVar("T", bound=BaseModel)
+
+# the retry policy for a graph node that calls the model: three tries, a second apart at first
+RETRY = RetryPolicy(max_attempts=3, initial_interval=1.0)
 
 
 def _gcloud_project() -> str | None:

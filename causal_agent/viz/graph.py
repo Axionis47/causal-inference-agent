@@ -20,12 +20,12 @@ from typing import Annotated
 import pandas as pd
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
-from langgraph.types import RetryPolicy
 from pydantic import BaseModel, Field
 from typing_extensions import TypedDict
 
 from causal_agent.common.addresses import norm_address
 from causal_agent.common.contracts import Thought
+from causal_agent.common.llm import RETRY as _retry
 from causal_agent.common.llm import structured
 from causal_agent.memory import store
 from causal_agent.memory.catalogue import load_thresholds
@@ -35,7 +35,6 @@ from causal_agent.viz import prompts as P
 from causal_agent.viz.spec import Figure, FigureSpec, Point
 
 PICK_ATTEMPTS = 3
-_retry = RetryPolicy(max_attempts=3, initial_interval=1.0)
 
 
 class FigureDecl(BaseModel):

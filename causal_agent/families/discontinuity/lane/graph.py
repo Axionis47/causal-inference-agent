@@ -10,14 +10,12 @@ Nothing loops after an estimate exists.
 
 from __future__ import annotations
 
-from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
-from langgraph.types import RetryPolicy
 
 from causal_agent.families.discontinuity.lane import nodes as N
 from causal_agent.families.discontinuity.lane.state import SpecialistState
-
-_retry = RetryPolicy(max_attempts=3, initial_interval=1.0)
+from causal_agent.lane import graph as G
+from causal_agent.lane.graph import RETRY as _retry
 
 
 def build() -> StateGraph:
@@ -63,12 +61,12 @@ def build() -> StateGraph:
 
 def compile_subgraph():
     """As a node inside the desk's graphs: no checkpointer of its own, no interrupts."""
-    return build().compile(checkpointer=False)
+    return G.compile_subgraph(build)
 
 
 def compile_local():
-    """Standalone, for tests and the CLI: in-memory checkpointer, thread_id per run."""
-    return build().compile(checkpointer=InMemorySaver())
+    """Standalone, for tests and the command line: an in-memory checkpointer, a thread_id per run."""
+    return G.compile_local(build)
 
 
 graph = build().compile()
