@@ -13,7 +13,6 @@ from pathlib import Path
 from typing import Any, Literal
 
 import pandas as pd
-from langgraph.config import get_stream_writer
 from langgraph.types import Command, Send
 
 from causal_agent.common.addresses import key as _key
@@ -61,63 +60,39 @@ from causal_agent.families.adjustment.lane.state import ContrastTask, InterpretT
 from causal_agent.lane import asks, intake, records
 from causal_agent.lane import case as C
 from causal_agent.lane import figures as LF
+from causal_agent.lane import nodes as L
 from causal_agent.lane import verify as V
 from causal_agent.lane import words as W
+from causal_agent.lane.nodes import MAX_MODEL_RETRIES, MAX_PICK_ATTEMPTS, MAX_RELATE_ATTEMPTS, MAX_REVISIONS
 from causal_agent.viz.postviz import common as PV
 
-MAX_RELATE_ATTEMPTS = 3
-MAX_REVISIONS = 3
-MAX_MODEL_RETRIES = 3
-MAX_PICK_ATTEMPTS = 2
 MAX_DOSE_LEVELS = 12
 CLAIMS = ("affects_treatment", "affects_outcome", "affected_by_treatment", "is_outcome_measure")
 # a model claim that contradicts a pack fact on a claim the pack did not itself settle
 CONTRADICTION_RULES: list[V.Rule] = [("affects_treatment", True, "when", ("after",))]
 
 
+_writer, _question, _stop, _card, _case, _cites, _rejected, _keys, _table = (
+    L.writer,
+    L.question,
+    L.stop,
+    L.card,
+    L.case_of,
+    L.cites,
+    L.rejected,
+    L.keys,
+    L.table,
+)
+after_checks, feasibility = L.after_checks, L.feasibility
+case = L.make_case(load_beliefs)
+relate = L.make_relate(P, Relation)
+
+
 # ------------------------------------------------------------------ helpers
-
-
-def _writer():
-    try:
-        return get_stream_writer()
-    except Exception:  # outside a graph run
-        return lambda _x: None
-
-
-def _table(state: SpecialistState) -> pd.DataFrame:
-    return pd.read_csv(state["table_path"])
-
-
-def _keys(state: SpecialistState) -> tuple[str, str, list[str]]:
-    """The treatment, the outcome, and every other loaded column: the frame's and the ones the family block names."""
-    h = state["handoff"]
-    t, y = _key(h.treatment or ""), _key(h.outcome)
-    return t, y, [k for k in state.get("columns", {}) if k not in (t, y)]
-
-
-def _stop(stage: str, reason: str, facts: list[str], fix: str, extra: dict | None = None) -> Command:
-    f = Feasibility(stage=stage, reason=reason, facts=facts, what_would_fix=fix)
-    return Command(goto="feasibility", update={"feasibility": f, **(extra or {})})
-
-
-def _card(h: Handoff, key: str) -> str:
-    return h.brief_text(key)
 
 
 def _block(h: Handoff) -> AdjustmentDesign | None:
     return h.design if isinstance(h.design, AdjustmentDesign) else None
-
-
-def _case(state: SpecialistState) -> C.Case:
-    c = state.get("case")
-    return c if isinstance(c, C.Case) else C.Case()
-
-
-def _cites(h: Handoff, *addresses: str) -> list[str]:
-    """The claim addresses that resolve in the pack, else the change card."""
-    ok = [a for a in addresses if h.resolve(a)]
-    return ok or ["change:1.note"]
 
 
 def _frame_text(state: SpecialistState) -> str:
@@ -142,10 +117,6 @@ def _frame_text(state: SpecialistState) -> str:
 def _thought(t, node: str):
     t.node = node
     return t
-
-
-def _question(state: SpecialistState) -> str:
-    return state.get("question") or ""
 
 
 # ------------------------------------------------------------------ load (fact) and the case (fact)
@@ -233,13 +204,6 @@ def load(state: SpecialistState) -> Command:
     )
 
 
-def case(state: SpecialistState) -> dict:
-    """The pack weighed by code: facts, open fields, flags from what the person said."""
-    c = C.weigh(state["handoff"], load_beliefs())
-    _writer()({"case": c.render()})
-    return {"case": c}
-
-
 # ------------------------------------------------------------------ contrast (judgement, unless the pack settles it)
 
 
@@ -268,7 +232,7 @@ def contrast(state: SpecialistState) -> dict:
     for _ in range(MAX_MODEL_RETRIES):
         user = P.CONTRAST_USER.format(question=_question(state), scope=scope, treatment_card=_card(h, t), levels=", ".join(repr(v) for v in levels))
         if errors:
-            user += "\nPREVIOUS ANSWER WAS REJECTED\n" + "\n".join(f"- {e}" for e in errors) + "\n"
+            user += _rejected(errors)
         parsed, th = structured(Contrasts, P.CONTRAST_SYSTEM, user, node="contrast")
         debug.append(th)
         errors = _validate_contrasts(parsed.items, levels)
@@ -368,26 +332,7 @@ def fact_relation(h: Handoff, k: str, case: C.Case | None = None) -> Relation | 
     return None
 
 
-def _settled_text(h: Handoff, k: str, case: C.Case) -> str:
-    claims, cites = settled_claims(h, k, case)
-    if not claims:
-        return ""
-    return (
-        "\nSETTLED BY THE PACK (copy these answers; cite the address)\n" + "\n".join(f"  {c} = {str(v).lower()} [{cites[c]}]" for c, v in claims.items()) + "\n"
-    )
-
-
-def apply_settled(r: Relation, h: Handoff, case: C.Case) -> Relation:
-    """The model's relation with every claim the pack settles overwritten, and a cited reason for each settled claim."""
-    claims, cites = settled_claims(h, r.column, case)
-    if not claims:
-        return r
-    out = r.model_copy(deep=True)
-    for c, v in claims.items():
-        setattr(out, c, v)
-        if v and not any(cites[c] in reason.cites for reason in out.reasons):
-            out.reasons.append(Cited(reason=f"{r.column}: {c} settled by the pack", cites=[cites[c]]))
-    return out
+_settled_text, apply_settled = L.make_settled(settled_claims)
 
 
 def _latest(state: SpecialistState) -> dict[str, Relation]:
@@ -414,7 +359,7 @@ def _relate_send(state: SpecialistState, k: str, errors: list[str] | None = None
             column=k,
             card=_card(h, k),
             settled=_settled_text(h, k, _case(state)),
-            errors=("\nPREVIOUS ANSWER WAS REJECTED\n" + "\n".join(f"- {e}" for e in errors) + "\n") if errors else "",
+            errors=_rejected(errors),
         ),
     )
 
@@ -430,13 +375,6 @@ def fan_out_relate(state: SpecialistState):
     if not targets:
         return "merge_graph"
     return [_relate_send(state, k, errs.get(k)) for k in targets]
-
-
-def relate(task: RelateTask) -> dict:
-    user = P.RELATE_USER.format(**task)
-    parsed, th = structured(Relation, P.RELATE_SYSTEM, user, node=f"relate:{task['column']}")
-    parsed.column = task["column"]
-    return {"relations": [parsed], "debug": [th]}
 
 
 # ------------------------------------------------------------------ merge + verify (facts)
@@ -669,10 +607,6 @@ def check_design(state: SpecialistState) -> dict:
     return {"checks": results, "check_facts": facts}
 
 
-def after_checks(state: SpecialistState) -> str:
-    return "assess" if any(r.level != "pass" for r in state["checks"]) else "pick_estimator"
-
-
 # ------------------------------------------------------------------ assess (the yaml first, then a judgement, repair loop)
 
 
@@ -708,7 +642,7 @@ def assess(state: SpecialistState) -> Command:
             graph=g.render(),
             estimand=(", ".join(est.adjustment_set) or "nothing") if est.kind == "backdoor" else "none found",
             flags=flag_text,
-            errors=("\nPREVIOUS ANSWER WAS REJECTED\n" + "\n".join(f"- {e}" for e in errors) + "\n") if errors else "",
+            errors=_rejected(errors),
         )
         parsed, th = structured(DesignAssessment, P.ASSESS_SYSTEM, user, node="assess")
         debug.append(th)
@@ -819,7 +753,7 @@ def pick_estimator(state: SpecialistState) -> Command:
             estimators="\n\n".join(e.render() for e in allowed),
             preferences=render_preferences(allowed),
             names=", ".join(names),
-            errors=("\nPREVIOUS ANSWER WAS REJECTED\n" + "\n".join(f"- {e}" for e in errors) + "\n") if errors else "",
+            errors=_rejected(errors),
         )
         parsed, th = structured(EstimatorPick, P.PICK_SYSTEM, user, node="pick_estimator")
         debug.append(th)
@@ -1012,7 +946,7 @@ def interpret(task: InterpretTask) -> dict:
             material=task["material"],
             addresses=task["addresses"],
             required="\n".join(required) or "(none)",
-            errors=("\nPREVIOUS ANSWER WAS REJECTED\n" + "\n".join(f"- {e}" for e in errors) + "\n") if errors else "",
+            errors=_rejected(errors),
         )
         parsed, th = structured(Interpretation, P.INTERPRET_SYSTEM, user, node=f"interpret:{task['contrast']}")
         debug.append(th)
@@ -1035,12 +969,6 @@ def interpret(task: InterpretTask) -> dict:
 
 
 # ------------------------------------------------------------------ feasibility, figures, assemble (facts)
-
-
-def feasibility(state: SpecialistState) -> dict:
-    f: Feasibility = state["feasibility"]
-    _writer()({"feasibility": f.model_dump()})
-    return {}
 
 
 def figures(state: SpecialistState) -> dict:

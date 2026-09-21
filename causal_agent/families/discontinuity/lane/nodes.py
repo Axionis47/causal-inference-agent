@@ -16,7 +16,6 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from langgraph.config import get_stream_writer
 from langgraph.types import Command, Send
 
 from causal_agent.common.addresses import key as _key
@@ -57,51 +56,35 @@ from causal_agent.families.discontinuity.lane.state import PlaceboTask, RelateTa
 from causal_agent.lane import asks, intake, records
 from causal_agent.lane import case as C
 from causal_agent.lane import figures as LF
+from causal_agent.lane import nodes as L
 from causal_agent.lane import words as W
+from causal_agent.lane.nodes import MAX_MODEL_RETRIES, MAX_PICK_ATTEMPTS, MAX_RELATE_ATTEMPTS
 from causal_agent.profile.datasets import dataset_entries
 from causal_agent.viz.postviz import common as PV
 
-MAX_RELATE_ATTEMPTS = 3
-MAX_MODEL_RETRIES = 3
-MAX_PICK_ATTEMPTS = 2
 CLAIMS = ("predetermined", "affected_by_treatment", "is_outcome_measure")
+
+_writer, _question, _stop, _card, _case, _cites, _rejected, _keys, _table = (
+    L.writer,
+    L.question,
+    L.stop,
+    L.card,
+    L.case_of,
+    L.cites,
+    L.rejected,
+    L.keys,
+    L.table,
+)
+after_checks, feasibility = L.after_checks, L.feasibility
+case = L.make_case(load_beliefs)
+relate = L.make_relate(P, CovariateRelation)
+
 
 # ------------------------------------------------------------------ helpers
 
 
-def _writer():
-    try:
-        return get_stream_writer()
-    except Exception:
-        return lambda _x: None
-
-
-def _question(state: SpecialistState) -> str:
-    return state.get("question") or ""
-
-
-def _stop(stage: str, reason: str, facts: list[str], fix: str, extra: dict | None = None) -> Command:
-    f = Feasibility(stage=stage, reason=reason, facts=facts, what_would_fix=fix)
-    return Command(goto="feasibility", update={"feasibility": f, **(extra or {})})
-
-
-def _card(h: Handoff, key: str) -> str:
-    return h.brief_text(key)
-
-
 def _block(h: Handoff) -> RdDesign | None:
     return h.design if isinstance(h.design, RdDesign) else None
-
-
-def _case(state: SpecialistState) -> C.Case:
-    c = state.get("case")
-    return c if isinstance(c, C.Case) else C.Case()
-
-
-def _cites(h: Handoff, *addresses: str) -> list[str]:
-    """The claim addresses that resolve in the pack, else the change card."""
-    ok = [a for a in addresses if h.resolve(a)]
-    return ok or ["change:1.note"]
 
 
 def _frame_text(state: SpecialistState) -> str:
@@ -130,22 +113,6 @@ def _frame_text(state: SpecialistState) -> str:
     if sh:
         lines.append(f"shape: {sh.kind}; {sh.n_left} rows on the control side, {sh.n_right} on the treated side")
     return "\n".join(lines)
-
-
-def _rejected(errors: list[str]) -> str:
-    return ("\nPREVIOUS ANSWER WAS REJECTED\n" + "\n".join(f"- {e}" for e in errors) + "\n") if errors else ""
-
-
-def _keys(state: SpecialistState) -> tuple[str | None, str, list[str]]:
-    """The treatment, the outcome, and every other loaded column: the frame's and the ones the family block names."""
-    h = state["handoff"]
-    t = _key(h.treatment) if h.treatment else None
-    y = _key(h.outcome)
-    return t, y, [k for k in state.get("columns", {}) if k not in (t, y)]
-
-
-def _table(state: SpecialistState) -> pd.DataFrame:
-    return pd.read_csv(state["table_path"])
 
 
 def _canon(state_or_path) -> pd.DataFrame:
@@ -244,13 +211,6 @@ def load(state: SpecialistState) -> Command:
             "excluded_estimators": [],
         },
     )
-
-
-def case(state: SpecialistState) -> dict:
-    """The pack weighed by code: facts, open fields, flags from what the person said."""
-    c = C.weigh(state["handoff"], load_beliefs())
-    _writer()({"case": c.render()})
-    return {"case": c}
 
 
 # ------------------------------------------------------------------ score (a fact from the pack, else a judgement, else a question back)
@@ -554,25 +514,7 @@ def fact_relation(h: Handoff, k: str, case: C.Case) -> CovariateRelation | None:
     return None
 
 
-def _settled_text(h: Handoff, k: str, case: C.Case) -> str:
-    claims, cites = settled_claims(h, k, case)
-    if not claims:
-        return ""
-    return (
-        "\nSETTLED BY THE PACK (copy these answers; cite the address)\n" + "\n".join(f"  {c} = {str(v).lower()} [{cites[c]}]" for c, v in claims.items()) + "\n"
-    )
-
-
-def apply_settled(r: CovariateRelation, h: Handoff, case: C.Case) -> CovariateRelation:
-    claims, cites = settled_claims(h, r.column, case)
-    if not claims:
-        return r
-    out = r.model_copy(deep=True)
-    for c, v in claims.items():
-        setattr(out, c, v)
-        if v and not any(cites[c] in reason.cites for reason in out.reasons):
-            out.reasons.append(Cited(reason=f"{r.column}: {c} settled by the pack", cites=[cites[c]]))
-    return out
+_settled_text, apply_settled = L.make_settled(settled_claims)
 
 
 def _latest(state: SpecialistState) -> dict[str, CovariateRelation]:
@@ -603,13 +545,6 @@ def _relate_sends(state: SpecialistState, candidates: list[str], errors: dict[st
         )
         for k in targets
     ]
-
-
-def relate(task: RelateTask) -> dict:
-    user = P.RELATE_USER.format(**task)
-    parsed, th = structured(CovariateRelation, P.RELATE_SYSTEM, user, node=f"relate:{task['column']}")
-    parsed.column = task["column"]
-    return {"relations": [parsed], "debug": [th]}
 
 
 # ------------------------------------------------------------------ merge + verify (facts)
@@ -730,10 +665,6 @@ def check_design(state: SpecialistState) -> dict:
             None if fs.error else dict(value=fs.value, ci_low=fs.ci_low, ci_high=fs.ci_high, se=fs.se, n_h_left=fs.n_h_left, n_h_right=fs.n_h_right, h=fs.h)
         )
     return {"checks": results, "check_facts": facts}
-
-
-def after_checks(state: SpecialistState) -> str:
-    return "assess" if any(r.level != "pass" for r in state["checks"]) else "pick_estimator"
 
 
 # ------------------------------------------------------------------ assess (the yaml first, then a judgement)
@@ -1227,11 +1158,6 @@ def interpret(state: SpecialistState) -> dict:
 
 
 # ------------------------------------------------------------------ feasibility, figures, assemble (facts)
-
-
-def feasibility(state: SpecialistState) -> dict:
-    _writer()({"feasibility": state["feasibility"].model_dump()})
-    return {}
 
 
 def figures(state: SpecialistState) -> dict:
