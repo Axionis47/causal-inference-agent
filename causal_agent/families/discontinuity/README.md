@@ -37,8 +37,8 @@ Runs write to `RUN_DIR/<dataset>-rd-<id>/`: `table.csv` (the whole file), `canon
 ## Run it
 
 ```bash
-uv run python -m causal_agent.families.discontinuity.lane.run gov_transfers "Did receiving the transfer raise support for the government?"
-uv run python -m causal_agent.families.discontinuity.lane.run --handoff causal_agent/families/discontinuity/evals/handoffs/students_forced.json
+uv run python -m causal_agent.evals.lane discontinuity gov_transfers "Did receiving the transfer raise support for the government?"
+uv run python -m causal_agent.evals.lane discontinuity --handoff causal_agent/families/discontinuity/evals/handoffs/students_forced.json
 uv run pytest causal_agent/families/discontinuity/lane -q
 ```
 

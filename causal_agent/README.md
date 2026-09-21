@@ -16,6 +16,6 @@ specialists/  one subgraph per family, each turns a hand-off into a runnable ana
 
 Order of the graph: desk (the journey, then the routing) → specialist, in its own process on the pack. The registry is read by the routing and lists the specialists.
 
-End to end: `uv run python -m causal_agent.families.adjustment.lane.run students "Did completing the prep course raise math scores?"`.
+End to end: `uv run python -m causal_agent.evals.lane adjustment students "Did completing the prep course raise math scores?"`.
 
 Run all tests: `uv run pytest -q`. Run one step's tests: `uv run pytest causal_agent/desk -q`.

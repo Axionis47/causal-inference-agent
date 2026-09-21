@@ -44,8 +44,8 @@ Runs write to `RUN_DIR` (default `.artifacts/runs/<dataset>-<id>/`): `table.csv`
 ## Run it
 
 ```bash
-uv run python -m causal_agent.families.adjustment.lane.run students "Did completing the prep course raise math scores?"
-uv run python -m causal_agent.families.adjustment.lane.run --handoff causal_agent/families/adjustment/evals/handoffs/gov_transfers_forced.json
+uv run python -m causal_agent.evals.lane adjustment students "Did completing the prep course raise math scores?"
+uv run python -m causal_agent.evals.lane adjustment --handoff causal_agent/families/adjustment/evals/handoffs/gov_transfers_forced.json
 uv run pytest causal_agent/specialists -q
 ```
 

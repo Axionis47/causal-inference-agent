@@ -114,8 +114,6 @@ layers = [
     "causal_agent.common",
 ]
 ignore_imports = [
-    "causal_agent.families.*.lane.run -> causal_agent.desk.route",
-    "causal_agent.families.*.evals.run -> causal_agent.desk.route",
     "causal_agent.**.tests.** -> causal_agent.desk.**",
     "causal_agent.**.tests.** -> causal_agent.families.**",
 ]

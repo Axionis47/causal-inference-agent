@@ -42,6 +42,6 @@ build-web: ## the web bundle the API serves
 	npm run $(WEB) build
 
 evals: ## run one family's evals: make evals FAMILY=discontinuity
-	$(UV) python -m causal_agent.families.$(FAMILY).evals.run
+	$(UV) python -m causal_agent.evals.run $(FAMILY)
 
 .PHONY: help lint fmt types test test-web check dev-api dev-web build-web evals

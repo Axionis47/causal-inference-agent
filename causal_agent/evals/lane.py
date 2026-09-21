@@ -1,7 +1,9 @@
-"""Run the discontinuity lane from the command line.
+"""One run of a family's lane from the command line.
 
-uv run python -m causal_agent.families.discontinuity.lane.run <dataset> "<question>"        # through the desk's routing graph, end to end
-uv run python -m causal_agent.families.discontinuity.lane.run --handoff handoff.json         # the specialist alone, from a stored hand-off
+    uv run python -m causal_agent.evals.lane <family> <dataset> "<question>"     # through the desk's routing graph, end to end
+    uv run python -m causal_agent.evals.lane <family> --handoff handoff.json      # the lane alone, from a stored hand-off
+
+Streams progress, prints the report, and says where the run directory is.
 """
 
 from __future__ import annotations
@@ -13,18 +15,22 @@ from pathlib import Path
 
 import causal_agent.families.registry  # noqa: F401  (registers every family's block before a pack is read)
 from causal_agent.common.contracts import Handoff
+from causal_agent.evals.families import spec
+from causal_agent.evals.spec import EvalSpec
 
 
-def run_from_handoff(handoff: Handoff, question: str) -> dict:
-    from causal_agent.families.discontinuity.lane.graph import compile_local
-
-    g = compile_local()
-    cfg = {"configurable": {"thread_id": str(uuid.uuid4())}, "tags": [f"dataset:{handoff.pack_name}", "lane:rd"], "metadata": {"dataset": handoff.pack_name}}
+def run_from_handoff(s: EvalSpec, handoff: Handoff, question: str) -> dict:
+    g = s.lane_graph()
+    cfg = {
+        "configurable": {"thread_id": str(uuid.uuid4())},
+        "tags": [f"dataset:{handoff.pack_name}", f"lane:{s.prefix}"],
+        "metadata": {"dataset": handoff.pack_name},
+    }
     final = None
     for mode, chunk in g.stream({"question": question, "handoff": handoff, "dataset": handoff.pack_name}, cfg, stream_mode=["custom", "values"]):
         if mode == "custom":
             key = next(iter(chunk))
-            if key in ("report", "design", "covariates"):
+            if key in s.skip_keys:
                 continue
             print(f"· {key}: {json.dumps(chunk[key], default=str)[:400]}")
         else:
@@ -35,15 +41,18 @@ def run_from_handoff(handoff: Handoff, question: str) -> dict:
 
 def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser()
+    ap.add_argument("family")
     ap.add_argument("dataset", nargs="?")
     ap.add_argument("question", nargs="?")
-    ap.add_argument("--handoff", help="path to a hand-off JSON; runs the specialist alone")
-    ap.add_argument("--json", action="store_true")
+    ap.add_argument("--handoff", help="path to a hand-off JSON; runs the lane alone")
+    ap.add_argument("--json", action="store_true", help="print the lane's result as JSON")
     args = ap.parse_args(argv)
+    s = spec(args.family)
+
     if args.handoff:
         raw = json.loads(Path(args.handoff).read_text())
         question = raw.pop("question", args.question or "")
-        result = run_from_handoff(Handoff.model_validate(raw), question)
+        result = run_from_handoff(s, Handoff.model_validate(raw), question)
     else:
         if not (args.dataset and args.question):
             ap.error("give <dataset> and <question>, or --handoff")
