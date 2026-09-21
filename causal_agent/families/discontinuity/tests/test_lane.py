@@ -127,7 +127,7 @@ class FakeLLM:
             lo, hi = (float(v) for v in re.search(r"\[estimate:%s\.ci\] 95%% robust interval ([-\d.eE+]+) to ([-\d.eE+]+)" % re.escape(c), human).groups())
             nl, nr = (int(v) for v in re.search(r"\[estimate:%s\.n\] (\d+) control-side and (\d+) treated-side" % re.escape(c), human).groups())
             h = float(re.search(r"\[estimate:%s\.bandwidth\] h = ([-\d.eE+]+)" % re.escape(c), human).group(1))
-            required = human.split("ADDRESSES YOU MUST CITE")[1].split("\n\n")[0].strip().splitlines()
+            required = [a for a in human.split("ADDRESSES YOU MUST CITE")[1].split("\n\n")[0].strip().splitlines()[1:] if a and a != "(none)"]
             bad = self.interpret_bad_first and "PREVIOUS ANSWER WAS REJECTED" not in human
             return RDInterpretation(
                 contrast=c,

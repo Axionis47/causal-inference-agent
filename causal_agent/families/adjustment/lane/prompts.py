@@ -1,6 +1,8 @@
 """Prompts for the five judgements. Method-free and column-free: everything specific arrives as data."""
 
-from causal_agent.lane.prompts import cite_rule
+from causal_agent.lane.prompts import INTERPRET_USER as INTERPRET_USER  # the lane's nodes read these here
+from causal_agent.lane.prompts import PICK_USER as PICK_USER
+from causal_agent.lane.prompts import PLAIN_WORDS, cite_rule
 
 CITE_RULE = cite_rule("col:lunch.note", "check:completed_vs_none.overlap")
 
@@ -91,23 +93,6 @@ PICK_SYSTEM = (
     "If the ranked preference does not apply here, say why not. " + CITE_RULE
 )
 
-PICK_USER = """DESIGN FACTS
-{facts}
-
-CHECKS
-{checks}
-
-ESTIMATORS THAT CAN RUN ON THIS DESIGN
-{estimators}
-
-PREFERENCES (method knowledge, not citable)
-{preferences}
-
-NAMES YOU MAY PICK: {names}
-{errors}
-Pick one.
-"""
-
 INTERPRET_SYSTEM = (
     "You write the answer to a causal question for one comparison, from the artifacts of a finished analysis. "
     "State the effect in the outcome's units, copied exactly from the estimate. List the caveats a careful reader "
@@ -115,26 +100,5 @@ INTERPRET_SYSTEM = (
     "is among the artifacts, say that the person believes a hidden factor exists, that no road around it was open, and that "
     "the effect holds only if that factor is no stronger than the simulated ones, quoting the range. A flag that comes from "
     "what the person said (belief.*, unknown.*, contradiction.*) is a caveat in their own terms. Do not mention "
-    "checks that were not run. Cite an artifact address for every number, and every address you must cite. "
-    + "Write for the person who asked the question, in its own words. Say first what the answer means for the decision the "
-    "question served, in the outcome's units. Name a check by what it asks, as the material says it, and give its technical "
-    "name once in brackets; the address is the citation. A caveat is one sentence a careful reader can act on, never a list of "
-    "names. " + CITE_RULE
+    "checks that were not run. Cite an artifact address for every number, and every address you must cite. " + PLAIN_WORDS + CITE_RULE
 )
-
-INTERPRET_USER = """QUESTION
-{question}
-
-COMPARISON: {contrast}
-
-ARTIFACTS
-{material}
-
-ADDRESSES YOU MUST CITE (every one; each is a flag or a number the reader needs)
-{required}
-
-ADDRESSES YOU MAY CITE
-{addresses}
-{errors}
-Write the interpretation.
-"""

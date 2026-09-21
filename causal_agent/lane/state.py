@@ -55,3 +55,28 @@ class LaneState(TypedDict, total=False):
     feasibility: Feasibility | None
     figures: list[dict]
     report: str
+
+
+class RelateTask(TypedDict):
+    """Input to one relate worker: the question, the frame, one column's card, what the pack settles, and the errors of the
+    last attempt; never the parent state. A lane that shows more cards subclasses this."""
+
+    question: str
+    frame: str
+    column: str
+    card: str
+    settled: str
+    errors: str
+
+
+class InterpretTask(TypedDict):
+    """Input to one interpret worker: the artifacts of one comparison and the addresses it must and may cite."""
+
+    question: str
+    contrast: str
+    material: str
+    addresses: str
+    required: str
+    errors: str
+    primary_value: float | None
+    tolerance: float

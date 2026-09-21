@@ -24,6 +24,7 @@ from causal_agent.families.diff_in_diff.lane.contracts import (
     ShapeFacts,
 )
 from causal_agent.lane.state import LaneState, by_key, merge_dicts
+from causal_agent.lane.state import RelateTask as RelateTask
 
 
 class SpecialistState(LaneState, total=False):
@@ -56,27 +57,8 @@ class SpecialistState(LaneState, total=False):
     interpret_errors: Annotated[dict[str, list[str]], merge_dicts]
 
 
-class RelateTask(TypedDict):
-    question: str
-    frame: str
-    column: str
-    card: str
-    settled: str
-    errors: str
-
-
 class PlaceboTask(TypedDict):
     name: str
     design: dict
     panel_path: str
     observed: float
-
-
-class InterpretTask(TypedDict):
-    question: str
-    contrast: str
-    material: str
-    addresses: str
-    errors: str
-    primary_value: float | None
-    tolerance: float

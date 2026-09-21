@@ -23,6 +23,7 @@ from causal_agent.families.discontinuity.lane.contracts import (
     ShapeFacts,
 )
 from causal_agent.lane.state import LaneState, by_key, merge_dicts
+from causal_agent.lane.state import RelateTask as RelateTask
 
 
 class SpecialistState(LaneState, total=False):
@@ -51,15 +52,6 @@ class SpecialistState(LaneState, total=False):
     placebo_points: Annotated[dict, merge_dicts]  # placebo name -> every refit, so the curve and the cutoffs can be drawn
     interpretations: Annotated[list[RDInterpretation], operator.add]
     interpret_errors: Annotated[dict[str, list[str]], merge_dicts]
-
-
-class RelateTask(TypedDict):
-    question: str
-    frame: str
-    column: str
-    card: str
-    settled: str
-    errors: str
 
 
 class PlaceboTask(TypedDict):

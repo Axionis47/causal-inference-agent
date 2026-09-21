@@ -1,6 +1,8 @@
 """Prompts for the five judgements. Method-free and column-free: everything specific arrives as data."""
 
-from causal_agent.lane.prompts import cite_rule
+from causal_agent.lane.prompts import INTERPRET_USER as INTERPRET_USER  # the lane's nodes read these here
+from causal_agent.lane.prompts import PICK_USER as PICK_USER
+from causal_agent.lane.prompts import PLAIN_WORDS, cite_rule
 
 CITE_RULE = cite_rule("col:score.note", "check:above_vs_below.density")
 
@@ -101,23 +103,6 @@ PICK_SYSTEM = (
     "list. Say why, citing the check addresses whose numbers support the pick. " + CITE_RULE
 )
 
-PICK_USER = """DESIGN FACTS
-{facts}
-
-CHECKS
-{checks}
-
-ESTIMATORS THAT CAN RUN ON THIS DESIGN
-{estimators}
-
-PREFERENCES (method knowledge, not citable)
-{preferences}
-
-NAMES YOU MAY PICK: {names}
-{errors}
-Pick one.
-"""
-
 INTERPRET_SYSTEM = (
     "You write the answer to a causal question for a cutoff design, from the artifacts of a finished analysis. State, in "
     "the outcome's units and copied exactly from the estimate: the effect, its robust interval, the bandwidth, and the "
@@ -126,26 +111,5 @@ INTERPRET_SYSTEM = (
     "cutoff whatever was taken up. Say in one sentence that the effect is local to units at the cutoff, in the score's units, "
     "and does not speak to units far from it. List the caveats a careful reader needs: the assumption the design bets on, "
     "every flagged check, every falsification that failed, and how the estimate moved when covariates or the polynomial "
-    "order changed if that was run. Do not mention checks that were not run. Cite an artifact address for every number. "
-    + "Write for the person who asked the question, in its own words. Say first what the answer means for the decision the "
-    "question served, in the outcome's units. Name a check by what it asks, as the material says it, and give its technical "
-    "name once in brackets; the address is the citation. A caveat is one sentence a careful reader can act on, never a list of "
-    "names. " + CITE_RULE
+    "order changed if that was run. Do not mention checks that were not run. Cite an artifact address for every number. " + PLAIN_WORDS + CITE_RULE
 )
-
-INTERPRET_USER = """QUESTION
-{question}
-
-COMPARISON: {contrast}
-
-ARTIFACTS
-{material}
-
-ADDRESSES YOU MAY CITE
-{addresses}
-
-ADDRESSES YOU MUST CITE
-{required}
-{errors}
-Write the interpretation.
-"""

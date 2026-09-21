@@ -13,7 +13,9 @@ from typing_extensions import TypedDict
 
 from causal_agent.common.contracts import Contrast, Estimate, Interpretation, Refutation
 from causal_agent.families.adjustment.lane.contracts import Design, DesignAssessment, Estimand, EstimatorPick, Graph, Relation, Revision
+from causal_agent.lane.state import InterpretTask as InterpretTask
 from causal_agent.lane.state import LaneState, by_key, merge_dicts
+from causal_agent.lane.state import RelateTask as BaseRelateTask
 
 
 class SpecialistState(LaneState, total=False):
@@ -42,17 +44,11 @@ class SpecialistState(LaneState, total=False):
     interpret_attempts: int
 
 
-class RelateTask(TypedDict):
-    """Input to one relate worker. Three cards, what the pack settles, and the question; never the parent state."""
+class RelateTask(BaseRelateTask):
+    """The adjustment lane shows the treatment's and the outcome's cards beside the column's."""
 
-    question: str
-    frame: str
     treatment_card: str
     outcome_card: str
-    column: str
-    card: str
-    settled: str
-    errors: str
 
 
 class ContrastTask(TypedDict):
@@ -61,14 +57,3 @@ class ContrastTask(TypedDict):
     contrast: str  # contrast key
     design: dict
     table_path: str
-
-
-class InterpretTask(TypedDict):
-    question: str
-    contrast: str
-    material: str
-    addresses: str
-    required: str
-    errors: str
-    primary_value: float | None
-    tolerance: float
