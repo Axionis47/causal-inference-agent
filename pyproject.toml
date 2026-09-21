@@ -78,18 +78,20 @@ warn_unused_configs = true
 exclude = ["tests/"]
 
 [[tool.mypy.overrides]]
-module = ["causal_agent.common.*", "causal_agent.lane.*", "causal_agent.viz.*"]
-check_untyped_defs = true
-
-[[tool.mypy.overrides]]
 module = [
-    "causal_agent.desk.*",
+    "causal_agent.common.*",
+    "causal_agent.lane.*",
+    "causal_agent.viz.*",
     "causal_agent.memory.*",
     "causal_agent.profile.*",
     "causal_agent.server.*",
-    "causal_agent.families.*.lane.*",
-    "causal_agent.families.*.evals.*",
+    "causal_agent.families.*",
 ]
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+# still untyped: the desk and the lanes; see docs/architecture.md
+module = ["causal_agent.desk.*", "causal_agent.families.*.lane.*", "causal_agent.families.*.evals.*"]
 ignore_errors = true
 
 # ------------------------------------------------------------------ layers: a lower package never imports a higher one

@@ -1,4 +1,5 @@
 # The three lanes on one harness: the pack weighed by code, the model for what is open, an ask-back, and a figure tail
+> Paths in this plan are as they stood when it was written; the lanes have since moved under `causal_agent/families/<family>/lane/` (see `architecture.md`).
 
 Status, 19 Sept: every stage landed, one commit each: the harness (`causal_agent/lane/`), the figure contract and the graph kind, the three lanes on the harness with their beliefs files and ask-backs, the three figure tails, and the page showing the pair and the declines.
 
@@ -42,7 +43,7 @@ never drawn. This plan fixes each of those the same way in every lane.
 - The person's statement is evidence. In a lane it moves a flag level or opens an ask. It never writes a value.
 - Every artifact has an address. A lane that overrides a pack field writes a `Decline` with an address, and the brief shows it.
 - Nothing is drawn or stated that the run did not compute. Every figure's `draws_on` addresses must resolve or the figure is dropped.
-- DoWhy stays in `specialists/dowhy/`, pyfixest in `did/adapter.py`, rdrobust in `rd/adapter.py`. The harness holds shape, not method.
+- DoWhy stays in `families/adjustment/lane/`, pyfixest in `families/diff_in_diff/lane/adapter.py`, rdrobust in `families/discontinuity/lane/adapter.py`. The harness holds shape, not method.
 - Prompt wording is load-bearing for the lane fakes (`for column '…'`, `NAMES YOU MAY PICK:`, `[estimate:<c>.value]`). Keep those
   anchors; new anchors (`SETTLED BY THE PACK`, `ADDRESSES YOU MUST CITE`) land with their fake in the same commit.
 
@@ -191,7 +192,7 @@ contradictions:
 
 ## 3. Per lane
 
-### Adjustment (`specialists/dowhy/`)
+### Adjustment (`families/adjustment/lane/`)
 
 Node order after: `load → case → contrast → relate×N → merge_graph → verify_graph → identify → check_design → assess →
 pick_estimator → freeze_design → analyse×C → after_analyse → interpret×C → figures → assemble`; `feasibility → figures → assemble`.
@@ -217,11 +218,11 @@ pick_estimator → freeze_design → analyse×C → after_analyse → interpret�
 - `interpret`: `ADDRESSES YOU MUST CITE` (every flagged check, including belief flags, and the interval); the gate enforces it.
 - Reducers on `estimates`, `refutations`, `interpret_errors`, `declines`, `check_facts`.
 - `assemble` through `lane.records`; `artifacts.json` gains the design, the graph, the checks, the declines, the case.
-- Figures (stage 5, `viz/postviz/adjustment.py`): `causal_graph` (kind graph, roles from the graph, edges with their cites,
+- Figures (stage 5, `families/adjustment/postviz.py`): `causal_graph` (kind graph, roles from the graph, edges with their cites,
   excluded columns as nodes with no edges, `draws_on=["design.graph"] + cites`); `balance_<c>` (bars, before and after adjustment
   per column, an hline at the threshold, `draws_on` the balance check); `effect_<c>`.
 
-### Diff-in-diff (`specialists/did/`)
+### Diff-in-diff (`families/diff_in_diff/lane/`)
 
 Node order after: `load → case → groups → periods → shape_table → relate×N → merge_controls → verify → check_design → assess →
 pick_estimator → freeze_design → estimate → placebo×K → interpret → figures → assemble`.
@@ -255,7 +256,7 @@ pick_estimator → freeze_design → estimate → placebo×K → interpret → f
   lags, always when `dynamic` exists); `placebo_<c>` (density of the draws, vline at the observed effect, the p in the note);
   `effect_<c>`.
 
-### Discontinuity (`specialists/rd/`)
+### Discontinuity (`families/discontinuity/lane/`)
 
 Node order after: `load → case → score → shape_table → relate×N → merge_covariates → verify → check_design → assess →
 pick_estimator → freeze_design → estimate → placebo×K → interpret → figures → assemble`.
@@ -339,7 +340,7 @@ pick_estimator → freeze_design → estimate → placebo×K → interpret → f
   report says the test and the person agree;
   senate, run, the RD plot, the density and the bandwidth curve appear; a forced pack with `target=on_treated` shows the
   substitution in the brief and the inspector.
-- Review greps: no `dowhy` import outside `specialists/dowhy/`; no dataset name in any `beliefs.yaml`; every figure written passes
+- Review greps: no `dowhy` import outside `families/adjustment/`; no dataset name in any `beliefs.yaml`; every figure written passes
   `check_spec`.
 
 ## 8. Choices worth flagging

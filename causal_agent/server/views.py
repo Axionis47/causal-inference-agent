@@ -4,7 +4,7 @@ fails here and not on the page."""
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from causal_agent.common.contracts import Decline, RunRecord
 from causal_agent.memory import store as MS
@@ -25,6 +25,7 @@ from causal_agent.server.models import (
     SessionView,
     StatusView,
 )
+from causal_agent.viz.spec import FigureSpec
 
 if TYPE_CHECKING:
     from causal_agent.server.sessions import SessionManager
@@ -54,6 +55,7 @@ def session_view(mgr: SessionManager, name: str) -> SessionView:
                 break
     if prompt_raw is None:
         prompt_raw = meta.get("last_prompt")
+    stage: Literal["busy", "waiting", "ended", "stale", "error", "new"]
     if sess.busy:
         stage = "busy"
     elif sess.error:
@@ -207,6 +209,6 @@ def run_view(r: RunRecord) -> RunView:
         files=files,
         what_if=dict(r.what_if or {}),
         differs=list(r.differs or []),
-        figures=list(r.figures or []),
+        figures=[FigureSpec.model_validate(f) for f in r.figures or []],
         declines=declines,
     )

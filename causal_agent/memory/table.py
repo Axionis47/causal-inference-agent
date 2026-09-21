@@ -16,8 +16,9 @@ def _measured_keys(table: ClaimTable) -> list[str]:
 def _cell(kind: str, fam, table: ClaimTable) -> Cell:
     if kind not in fam.requires:
         return "not_needed"
-    claims = table.of_kind(kind) if kind == "measured" else [table.get(kind)] if table.get(kind) else []
-    if not claims or any(c is None for c in claims):
+    found = table.of_kind(kind) if kind == "measured" else [table.get(kind)]
+    claims = [c for c in found if c is not None]
+    if not claims:
         return "unknown"
     if any(c.status in {"empty", "refuted"} for c in claims):
         return "unknown"

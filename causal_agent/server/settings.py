@@ -2,29 +2,28 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from pathlib import Path
 
 from causal_agent.common import config
 
 
-@dataclass
 class Settings:
-    root: Path = field(default_factory=lambda: config.ROOT)
-    run_root: Path | None = None  # .artifacts/runs (or RUN_DIR)
-    web_root: Path | None = None  # data/web/<name>/meta.json, transcript.jsonl
-    uploads: Path | None = None  # .artifacts/web/uploads/<id>/
-    checkpoint_db: Path | None = None  # .artifacts/web/checkpoints.sqlite
-    dist: Path | None = None  # web/dist
-
-    def __post_init__(self) -> None:
-        self.root = Path(self.root)
+    def __init__(
+        self,
+        root: Path | str | None = None,
+        run_root: Path | str | None = None,
+        web_root: Path | str | None = None,
+        uploads: Path | str | None = None,
+        checkpoint_db: Path | str | None = None,
+        dist: Path | str | None = None,
+    ) -> None:
+        self.root: Path = Path(root or config.ROOT)
         paths = config.load(root=self.root).paths
-        self.run_root = Path(self.run_root) if self.run_root else paths.runs
-        self.web_root = Path(self.web_root) if self.web_root else paths.web
-        self.uploads = Path(self.uploads) if self.uploads else paths.uploads
-        self.checkpoint_db = Path(self.checkpoint_db) if self.checkpoint_db else paths.checkpoint_db
-        self.dist = Path(self.dist) if self.dist else paths.dist
+        self.run_root: Path = Path(run_root) if run_root else paths.runs  # .artifacts/runs (or RUN_DIR)
+        self.web_root: Path = Path(web_root) if web_root else paths.web  # data/web/<name>/meta.json, transcript.jsonl
+        self.uploads: Path = Path(uploads) if uploads else paths.uploads  # .artifacts/web/uploads/<id>/
+        self.checkpoint_db: Path = Path(checkpoint_db) if checkpoint_db else paths.checkpoint_db  # .artifacts/web/checkpoints.sqlite
+        self.dist: Path = Path(dist) if dist else paths.dist  # web/dist
 
     @property
     def index(self) -> Path:

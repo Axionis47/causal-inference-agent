@@ -3,11 +3,11 @@ words, the columns in play, and the memory as text. Nothing here writes the memo
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 import pandas as pd
 
-from causal_agent.common.contracts import Belief, ColumnBrief, Provenance, QuestionFrame, Said, render_change_text, render_dataset_text
+from causal_agent.common.contracts import Belief, ColumnBrief, Provenance, QuestionFrame, Role, Said, render_change_text, render_dataset_text
 from causal_agent.memory.records import Column, Memory
 from causal_agent.profile import datasets as DS
 
@@ -35,7 +35,7 @@ def brief_of(memory: Memory, col: Column, role: str | None = None) -> ColumnBrie
     return ColumnBrief(
         name=col.name,
         key=col.key,
-        role=role or "candidate",
+        role=cast(Role, role or "candidate"),
         meaning=v.get("meaning"),
         stands_for=v.get("stands_for"),
         proxy=v.get("proxy"),

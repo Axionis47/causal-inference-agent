@@ -241,11 +241,11 @@ def create_dataset(s: Settings, req: DatasetCreate) -> tuple[DatasetSummary, dic
     D.clear()
     return DatasetSummary(
         name=req.name,
-        title=meta["title"],
+        title=str(meta["title"]),
         csv=csv_rel,
         rows=prof.dataset.rows,
         columns=prof.dataset.columns,
-        created_at=meta["created_at"],
+        created_at=str(meta["created_at"]) if meta.get("created_at") else None,
         shipped=False,
         has_claims=False,
         question=None,

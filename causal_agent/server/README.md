@@ -17,7 +17,7 @@ Both are in `.claude/launch.json` as `api` and `web`.
 |---|---|
 | `GET /api/datasets` | every entry in `data/datasets.yaml` plus the web-made ones, with the conversation's stage |
 | `POST /api/profile` (multipart `file`) | stage a CSV under `.artifacts/web/uploads/<id>/` and profile it; returns the columns with kinds and examples |
-| `POST /api/datasets` | move the upload to `data/raw/<name>/`, write the profile, the description note, the index entry, and `data/web/<name>/meta.json`; start the conversation |
+| `POST /api/datasets` | move the upload to `data/raw/<name>/`, write the profile, the index entry, and `data/web/<name>/meta.json`; start the conversation |
 | `DELETE /api/datasets/{name}` | remove the claims, note, profile, entry, meta, the checkpoint thread, the run directories, and the raw folder when no other entry shares the file |
 | `GET /api/sessions/{name}` | the view: stage, phase, prompt, questions, claims, status, runs, brief, transcript |
 | `POST /api/sessions/{name}/messages` | resume the graph with the text; 409 while busy or after the end |
@@ -40,15 +40,12 @@ Stages: `busy` (a step is running), `waiting` (the graph is interrupted), `ended
 `stale` (a checkpoint with a pending node and no worker: the process died mid-step; Resume continues it),
 `error` (the step raised; Try again resumes), `new` (a dataset with no thread yet).
 
-## The description
-
-The form's paragraphs and column lines become the same three-heading note the hand-written datasets use
-(`context.py`), so the router can load the dataset before the interview rewrites the note from the claims. The
-person's original words stay in `meta.json`.
-
 ## Tests
 
-`uv run pytest causal_agent/server -q`: the context template against the pack loader; upload, create, list,
+`uv run pytest causal_agent/server -q`: upload, create, list,
 delete with the caches popped and a shared CSV kept; a scripted interview through run, answer, done, and restart
 with the interview and desk fakes and a canned pipeline; the view surviving a second server over the same
 checkpoint file; the run-file guards.
+
+The manager (`sessions.py`) drives the graph; the transcript on disk is `transcript.py`; the projection into the view
+models is `views.py`. The schema the web's types are generated from: `python -m causal_agent.server --openapi`.

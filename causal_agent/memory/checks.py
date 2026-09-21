@@ -42,9 +42,10 @@ def key_unique(claim: Claim, table: ClaimTable, df: pd.DataFrame, prof: Profile,
     keys = claim.fields.get("key_columns") or []
     if not keys:
         return None
-    cols = [column(df, k) for k in keys]
-    if any(c is None for c in cols):
-        return Outcome("key_unique", False, f"key column not in the file: {[k for k, c in zip(keys, cols) if c is None]}")
+    found = [column(df, k) for k in keys]
+    if any(c is None for c in found):
+        return Outcome("key_unique", False, f"key column not in the file: {[k for k, c in zip(keys, found) if c is None]}")
+    cols = [c for c in found if c is not None]
     dups = int(df.duplicated(subset=cols).sum())
     if dups:
         return Outcome("key_unique", False, f"{' + '.join(cols)} does not identify a row: {dups} rows share a key with another row")

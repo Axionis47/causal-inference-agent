@@ -237,16 +237,16 @@ def _sentinels(s: pd.Series, kind: Kind) -> list[Sentinel]:
         # a repeated negative value in a column that is otherwise non-negative
         if lo < 0 and num.quantile(0.01) >= 0:
             neg = num[num < 0]
-            for v, c in neg.value_counts().head(3).items():
-                if c >= 2 and str(v) not in {o.value for o in out}:
-                    out.append(Sentinel(value=str(v), count=int(c), reason="negative among non-negative values"))
+            for val, cnt in neg.value_counts().head(3).items():
+                if int(cnt) >= 2 and str(val) not in {o.value for o in out}:
+                    out.append(Sentinel(value=str(val), count=int(cnt), reason="negative among non-negative values"))
         # repeated extreme far outside the bulk
         if len(num) >= 50:
             p99, p01, p50 = num.quantile(0.99), num.quantile(0.01), num.quantile(0.5)
-            spread = max(p99 - p50, p50 - p01, 1e-9)
-            for v, c in ((hi, counts.get(hi, 0)), (lo, counts.get(lo, 0))):
-                if c >= max(3, 0.005 * len(num)) and abs(v - p50) > 3 * spread and str(v) not in {o.value for o in out}:
-                    out.append(Sentinel(value=str(v), count=int(c), reason="repeated extreme far from the bulk"))
+            spread = max(float(p99 - p50), float(p50 - p01), 1e-9)
+            for edge, n_edge in ((hi, int(counts.get(hi, 0))), (lo, int(counts.get(lo, 0)))):
+                if n_edge >= max(3, 0.005 * len(num)) and abs(float(edge) - float(p50)) > 3 * spread and str(edge) not in {o.value for o in out}:
+                    out.append(Sentinel(value=str(edge), count=n_edge, reason="repeated extreme far from the bulk"))
     else:
         strs = nonnull.astype(str)
         low = strs.str.strip().str.lower()
@@ -282,10 +282,10 @@ def _varies_over(s: pd.Series, df: pd.DataFrame, entity_cols: list[str], time_co
     across_entity = False
     within_entity = False
     if entity_cols:
-        per_entity = df.groupby(entity_cols, dropna=False)[s.name].nunique(dropna=True)
+        per_entity = df.groupby(entity_cols, dropna=False)[str(s.name)].nunique(dropna=True)
         within_entity = bool((per_entity > 1).any())
         # entities differ if their sets of values differ, not just their first values
-        value_sets = df.groupby(entity_cols, dropna=False)[s.name].agg(lambda x: frozenset(x.dropna().astype(str)))
+        value_sets = df.groupby(entity_cols, dropna=False)[str(s.name)].agg(lambda x: frozenset(x.dropna().astype(str)))  # type: ignore[type-var]
         across_entity = value_sets.nunique() > 1
     if time_col is not None and not entity_cols:
         # single entity: anything that changes is changing over time
@@ -345,7 +345,7 @@ def _candidate_keys(df: pd.DataFrame, kinds: dict[str, Kind], max_pair_cols: int
     order = {c: i for i, c in enumerate(df.columns)}
     for a, b in combinations(cands, 2):
         if df.groupby([a, b], dropna=False).ngroups == rows:
-            keys.append(sorted([a, b], key=order.get))
+            keys.append(sorted([a, b], key=lambda k: order[k]))
     return keys
 
 
@@ -430,8 +430,9 @@ def profile(
         if kind in {"categorical", "boolean"}:
             vc = nonnull.astype(str).value_counts().head(8)
             cp.top_values = [TopValue(value=str(v), count=int(n), share=float(round(n / max(rows, 1), 4))) for v, n in vc.items()]
-        if kind == "datetime" and parsed[c] is not None:
-            d = parsed[c].dropna()
+        pc = parsed[c]
+        if kind == "datetime" and pc is not None:
+            d = pc.dropna()
             cp.datetime = DatetimeStats(first=str(d.min().date()), last=str(d.max().date()), inferred_frequency=_infer_frequency(d))
         if cp.numeric is not None:
             cp.bounds = [f"{cp.numeric.min:g}", f"{cp.numeric.max:g}"]
@@ -461,9 +462,9 @@ def profile(
         gaps = 0
         if freq in {"daily", "weekly"}:
             step = 1 if freq == "daily" else 7
-            uniq = d.sort_values().drop_duplicates()
-            expected = (uniq.max() - uniq.min()).days // step + 1
-            gaps = int(expected - len(uniq))
+            days = d.sort_values().drop_duplicates()
+            n_expected = (days.max() - days.min()).days // step + 1
+            gaps = int(n_expected - len(days))
         time_cov = TimeCoverage(column=time_column, first=str(d.min().date()), last=str(d.max().date()), inferred_frequency=freq, gaps=gaps)
 
     entity_summary = None

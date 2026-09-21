@@ -97,7 +97,8 @@ def _coerce(kind: ClaimKind, name: str, raw: Any, columns: dict[str, str]) -> tu
         return (c, None) if c is not None else (None, f"{kind.name}.{name}: {s!r} is not a column in the file")
     if spec.type == "columns":
         parts = s if isinstance(s, list) else [p.strip() for p in str(s).split(",") if p.strip()]
-        cols, bad = [], []
+        cols: list[str] = []
+        bad: list[str] = []
         for part in parts:
             c = columns.get(_key(str(part)))
             (cols if c is not None else bad).append(c or part)
@@ -129,10 +130,11 @@ def apply(memory: Memory, updates: list[Update], cat: Catalogue | None = None) -
                 continue
             kind = cat.kinds[COLUMN_KIND]
         else:
-            kind = cat.kinds.get(name)
-            if kind is None:
+            found = cat.kinds.get(name)
+            if found is None:
                 rejected.append(f"{up.address}: unknown claim kind {name!r}")
                 continue
+            kind = found
         if field not in kind.fields:
             rejected.append(f"{up.address}: {kind.name} has no field {field!r}")
             continue
@@ -191,8 +193,9 @@ def roles(memory: Memory, outcome: str | None = None, treatment: str | None = No
     out: dict[str, str] = {}
 
     def put(col: str | None, role: str) -> None:
-        if col and memory.column(col) is not None:
-            out.setdefault(memory.column(col).key, role)
+        c = memory.column(col) if col else None
+        if c is not None:
+            out.setdefault(c.key, role)
 
     time = ch.get("date_column") or time
     put(outcome, "outcome")
