@@ -29,7 +29,10 @@ function Quartiles({ q }: { q: NonNullable<ColumnSummary["numeric"]> }) {
   const at = (v: number) => `${((v - q.min) / span) * 100}%`;
   return (
     <div className="shape">
-      <div className="qbar" title={`min ${num(q.min)} · p25 ${num(q.p25)} · median ${num(q.p50)} · p75 ${num(q.p75)} · max ${num(q.max)} · mean ${num(q.mean)}`}>
+      <div
+        className="qbar"
+        title={`min ${num(q.min)} · p25 ${num(q.p25)} · median ${num(q.p50)} · p75 ${num(q.p75)} · max ${num(q.max)} · mean ${num(q.mean)}`}
+      >
         <span className="box" style={{ left: at(q.p25), width: `calc(${at(q.p75)} - ${at(q.p25)})` }} />
         <span className="mid" style={{ left: at(q.p50) }} />
       </div>

@@ -6,6 +6,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from causal_agent.viz.spec import FigureSpec
+
 NAME_RE = r"^[a-z][a-z0-9_]{1,39}$"
 
 
@@ -115,7 +117,6 @@ class QuestionView(BaseModel):
     """The one question the desk asks this turn, as the page shows it: the field addresses it settles, its form, its chips."""
 
     keys: list[str]
-    field: str | None = None
     kind: str
     text: str
     options: list[str] = Field(default_factory=list)
@@ -198,6 +199,24 @@ class DeclineView(BaseModel):
     check: str
 
 
+class DecisionView(BaseModel):
+    """The routing's decision as the page shows it."""
+
+    chosen: str | None = None
+    chosen_assumption: str | None = None
+    why: str | None = None
+    over: dict[str, str] = Field(default_factory=dict, description="rejected family -> reason")
+
+
+class FeasibilityView(BaseModel):
+    """Where and why a lane stopped."""
+
+    stage: str
+    reason: str
+    facts: list[str] = Field(default_factory=list)
+    what_would_fix: str = ""
+
+
 class RunView(BaseModel):
     index: int
     question: str
@@ -209,18 +228,18 @@ class RunView(BaseModel):
     ci_low: float | None = None
     ci_high: float | None = None
     estimator: str | None = None
-    decision: dict[str, Any] = Field(default_factory=dict)
+    decision: DecisionView = Field(default_factory=DecisionView)
     decision_record: str = ""
     flags: list[CheckView] = Field(default_factory=list)
     checks: list[CheckView] = Field(default_factory=list)
     refutations: list[RefutationView] = Field(default_factory=list)
     interpretations: list[InterpretationView] = Field(default_factory=list)
     estimates: list[EstimateView] = Field(default_factory=list)
-    feasibility: dict[str, Any] | None = None
+    feasibility: FeasibilityView | None = None
     files: list[str] = Field(default_factory=list)
     what_if: dict[str, str] = Field(default_factory=dict)
     differs: list[str] = Field(default_factory=list)
-    figures: list[dict] = Field(default_factory=list)
+    figures: list[FigureSpec] = Field(default_factory=list, description="the ready-moment figure first, then what the run left")
     declines: list[DeclineView] = Field(default_factory=list)
 
 
@@ -230,7 +249,7 @@ class Turn(BaseModel):
     phase: str = "before"
     at: str
     kind: str | None = None
-    figure: dict | None = Field(default=None, description="a FigureSpec (causal_agent/viz/spec.py) shown under the text")
+    figure: FigureSpec | None = Field(default=None, description="shown under the text")
 
 
 class Prompt(BaseModel):
@@ -263,7 +282,6 @@ class SessionView(BaseModel):
     runs: list[RunView] = Field(default_factory=list)
     brief: str = ""
     transcript: list[Turn] = Field(default_factory=list)
-    written: dict[str, Any] | None = None
     error: str | None = None
 
 

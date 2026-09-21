@@ -1,20 +1,55 @@
 import { describe, expect, it } from "vitest";
-import { LABEL_W, bars, categorical, categories, categoryLabels, extent, fmtTick, graphLayout, markX, path, plotBox, points, ticks, yExtent, type FigureSpec } from "./figure";
+import {
+  LABEL_W,
+  bars,
+  categorical,
+  categories,
+  categoryLabels,
+  extent,
+  fmtTick,
+  graphLayout,
+  markX,
+  path,
+  plotBox,
+  points,
+  series,
+  ticks,
+  yExtent,
+  type FigureSpec,
+} from "./figure";
 
 const barSpec: FigureSpec = {
-  id: "overlap_lunch", kind: "bars", title: "t", x_label: "", y_label: "", note: "", draws_on: [],
+  id: "overlap_lunch",
+  kind: "bars",
+  nodes: [],
+  edges: [],
+  moment: "run",
+  title: "t",
+  x_label: "",
+  y_label: "",
+  note: "",
+  draws_on: [],
   series: [
-    { name: "completed", x: ["lunch = free", "lunch = standard"], y: [0.3, 0.7], n: [100, 250] },
-    { name: "none", x: ["lunch = free", "lunch = standard"], y: [0.4, 0.6], n: [260, 390] },
+    series({ name: "completed", x: ["lunch = free", "lunch = standard"], y: [0.3, 0.7], n: [100, 250] }),
+    series({ name: "none", x: ["lunch = free", "lunch = standard"], y: [0.4, 0.6], n: [260, 390] }),
   ],
   marks: [],
 };
 
 const lineSpec: FigureSpec = {
-  id: "by_group", kind: "lines", title: "t", x_label: "year", y_label: "y", note: "", draws_on: [],
+  id: "by_group",
+  kind: "lines",
+  nodes: [],
+  edges: [],
+  moment: "run",
+  title: "t",
+  x_label: "year",
+  y_label: "y",
+  note: "",
+  draws_on: [],
   series: [
-    { name: "got the change", x: [2000, 2001, 2002, 2003], y: [1, 2, 3, 7] },
-    { name: "did not", x: [2000, 2001, 2002, 2003], y: [1, 2, 3, 4] },
+    series({ name: "got the change", x: [2000, 2001, 2002, 2003], y: [1, 2, 3, 7] }),
+    series({ name: "did not", x: [2000, 2001, 2002, 2003], y: [1, 2, 3, 4] }),
   ],
   marks: [{ kind: "vline", at: 2002, label: "the change" }],
 };
@@ -78,7 +113,7 @@ describe("points and marks", () => {
     expect(markX(barSpec, box, { kind: "vline", at: "lunch = standard", label: "" })).toBeGreaterThan(box.left);
   });
   it("intervals carry lo and hi in pixels", () => {
-    const spec: FigureSpec = { ...lineSpec, kind: "interval", series: [{ name: "e", x: [1, 2], y: [5, 6], lo: [4, 5], hi: [6, 7] }], marks: [] };
+    const spec: FigureSpec = { ...lineSpec, kind: "interval", series: [series({ name: "e", x: [1, 2], y: [5, 6], lo: [4, 5], hi: [6, 7] })], marks: [] };
     const ps = points(spec, plotBox(), yExtent(spec));
     expect(ps[0].lo).toBeGreaterThan(ps[0].y);
     expect(ps[0].hi).toBeLessThan(ps[0].y);
@@ -87,7 +122,16 @@ describe("points and marks", () => {
 
 describe("graph layout", () => {
   const graph: FigureSpec = {
-    id: "causal_graph", kind: "graph", title: "g", x_label: "", y_label: "", note: "", draws_on: ["design.graph"], series: [], marks: [],
+    id: "causal_graph",
+    kind: "graph",
+    moment: "run",
+    title: "g",
+    x_label: "",
+    y_label: "",
+    note: "",
+    draws_on: ["design.graph"],
+    series: [],
+    marks: [],
     nodes: [
       { id: "course", label: "test preparation course", role: "treatment" },
       { id: "math", label: "math score", role: "outcome" },
@@ -95,7 +139,12 @@ describe("graph layout", () => {
       { id: "gender", label: "gender", role: "driver" },
       { id: "reading", label: "reading score", role: "excluded" },
     ],
-    edges: [{ src: "course", dst: "math", cites: [] }, { src: "lunch", dst: "course", cites: ["col:lunch.when"] }, { src: "lunch", dst: "math", cites: [] }, { src: "nope", dst: "math", cites: [] }],
+    edges: [
+      { src: "course", dst: "math", cites: [] },
+      { src: "lunch", dst: "course", cites: ["col:lunch.when"] },
+      { src: "lunch", dst: "math", cites: [] },
+      { src: "nope", dst: "math", cites: [] },
+    ],
   };
   it("puts the treatment left of the outcome, drivers above, excluded below, and drops an arrow to a missing node", () => {
     const box = plotBox();
@@ -118,13 +167,28 @@ describe("labels that fit", () => {
     const box = plotBox();
     const few = categoryLabels(["lunch = free/reduced", "lunch = standard"], box);
     expect(few.every((l) => !l.slant)).toBe(true);
-    const many = categoryLabels(Array.from({ length: 12 }, (_, i) => `lunch = free/reduced, parental level of education = level ${i}`), box);
+    const many = categoryLabels(
+      Array.from({ length: 12 }, (_, i) => `lunch = free/reduced, parental level of education = level ${i}`),
+      box,
+    );
     expect(many.every((l) => l.slant && l.text.length <= 22)).toBe(true);
   });
   it("alternates node labels when a row is crowded and uses the whole width", () => {
     const nodes = Array.from({ length: 7 }, (_, i) => ({ id: `c${i}`, label: `confounder ${i}`, role: "confounder" as const }));
-    const spec: FigureSpec = { id: "g", kind: "graph", title: "", x_label: "", y_label: "", note: "", draws_on: [], series: [], marks: [],
-      nodes: [{ id: "t", label: "t", role: "treatment" }, { id: "y", label: "y", role: "outcome" }, ...nodes], edges: [] };
+    const spec: FigureSpec = {
+      id: "g",
+      kind: "graph",
+      moment: "run",
+      title: "",
+      x_label: "",
+      y_label: "",
+      note: "",
+      draws_on: [],
+      series: [],
+      marks: [],
+      nodes: [{ id: "t", label: "t", role: "treatment" }, { id: "y", label: "y", role: "outcome" }, ...nodes],
+      edges: [],
+    };
     const box = plotBox();
     const laid = graphLayout(spec, box).nodes.filter((n) => n.role === "confounder");
     expect(laid[1].x - laid[0].x).toBeLessThan(LABEL_W);

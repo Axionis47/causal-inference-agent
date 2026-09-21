@@ -9,14 +9,16 @@ help:  ## list the targets
 
 # ------------------------------------------------------------------ checks
 
-lint: ## ruff and the layer contract
+lint: ## ruff, the layer contract, eslint and prettier
 	$(UV) ruff check causal_agent
 	$(UV) ruff format --check causal_agent
 	$(UV) lint-imports
+	npm run $(WEB) lint
 
-fmt: ## ruff fixes and formats in place
+fmt: ## ruff and prettier, in place
 	$(UV) ruff check --fix causal_agent
 	$(UV) ruff format causal_agent
+	npm run $(WEB) format
 
 types: ## mypy on the package, tsc on the web
 	$(UV) mypy
@@ -28,7 +30,11 @@ test: ## the Python suite
 test-web: ## the web suite
 	npm test $(WEB) -- --run
 
-check: lint types test test-web ## everything CI runs
+schema: ## regenerate the OpenAPI schema and the web's types from it
+	$(UV) python -m causal_agent.server --openapi > web/openapi.json
+	npm run $(WEB) types
+
+check: lint types test test-web schema ## everything CI runs
 
 # ------------------------------------------------------------------ running
 
@@ -44,4 +50,4 @@ build-web: ## the web bundle the API serves
 evals: ## run one family's evals: make evals FAMILY=discontinuity
 	$(UV) python -m causal_agent.evals.run $(FAMILY)
 
-.PHONY: help lint fmt types test test-web check dev-api dev-web build-web evals
+.PHONY: help lint fmt types test test-web schema check dev-api dev-web build-web evals

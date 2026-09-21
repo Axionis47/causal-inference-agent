@@ -36,7 +36,12 @@ export default function Sidebar({
         <ul className="side-list">
           {items?.map((d) => (
             <li key={d.name}>
-              <NavLink to={`/d/${encodeURIComponent(d.name)}`} className={d.name === current ? "on" : undefined} aria-current={d.name === current ? "page" : undefined} onClick={onNav}>
+              <NavLink
+                to={`/d/${encodeURIComponent(d.name)}`}
+                className={d.name === current ? "on" : undefined}
+                aria-current={d.name === current ? "page" : undefined}
+                onClick={onNav}
+              >
                 <span className="t">{d.title}</span>
                 <StagePill d={d} />
               </NavLink>

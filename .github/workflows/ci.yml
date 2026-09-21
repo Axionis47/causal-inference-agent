@@ -22,6 +22,8 @@ jobs:
       - run: uv run pytest causal_agent -q
         env:
           LANGSMITH_TRACING: "false"
+      - name: the OpenAPI schema the web's types are generated from is committed as the server declares it
+        run: uv run python -m causal_agent.server --openapi > web/openapi.json && git diff --exit-code web/openapi.json
 
   web:
     runs-on: ubuntu-latest
@@ -36,6 +38,9 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
       - run: npm ci
+      - name: the generated types match the committed schema
+        run: npm run types && git diff --exit-code src/generated/schema.ts
+      - run: npm run lint
       - run: npm run typecheck
       - run: npm test -- --run
       - run: npm run build

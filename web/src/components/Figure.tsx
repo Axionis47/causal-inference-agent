@@ -1,4 +1,20 @@
-import { NODE_R, bars, categorical, categories, categoryLabels, fmtTick, graphLayout, markX, path, plotBox, points, ticks, yExtent, type FigureSpec } from "../figure";
+import {
+  NODE_R,
+  bars,
+  categorical,
+  categories,
+  categoryLabels,
+  fmtTick,
+  graphLayout,
+  markX,
+  path,
+  plotBox,
+  points,
+  ticks,
+  yExtent,
+  type FigureSpec,
+  series,
+} from "../figure";
 
 const COLORS = ["var(--accent)", "var(--declared)", "var(--ink-3)", "var(--accent-ink)"];
 
@@ -12,7 +28,7 @@ export default function Figure({ spec }: { spec: FigureSpec }) {
   const yTicks = ticks(yd);
   const cat = categorical(spec);
   const cats = cat ? categories(spec) : [];
-  const addr = (si: number, i: number) => `figure:${spec.id}.${spec.series[si].name.toLowerCase().replace(/[^0-9a-z]+/g, "_").replace(/^_|_$/g, "")}.${i}`;
+  const addr = (si: number, i: number) => `figure:${spec.id}.${spec.series[si].key}.${i}`;
   const width = box.left + box.width + 12;
   const height = box.top + box.height + 46;
   return (
@@ -42,7 +58,11 @@ export default function Figure({ spec }: { spec: FigureSpec }) {
               <g key={s.name} fill={COLORS[si % COLORS.length]} stroke={COLORS[si % COLORS.length]}>
                 {(spec.kind === "lines" || spec.kind === "density") && <path d={path(ps)} fill="none" strokeWidth={1.6} />}
                 {spec.kind === "density" && ps.length > 1 && (
-                  <path d={`${path(ps)} L${ps[ps.length - 1].x.toFixed(1)} ${(box.top + box.height).toFixed(1)} L${ps[0].x.toFixed(1)} ${(box.top + box.height).toFixed(1)} Z`} opacity={0.15} stroke="none" />
+                  <path
+                    d={`${path(ps)} L${ps[ps.length - 1].x.toFixed(1)} ${(box.top + box.height).toFixed(1)} L${ps[0].x.toFixed(1)} ${(box.top + box.height).toFixed(1)} Z`}
+                    opacity={0.15}
+                    stroke="none"
+                  />
                 )}
                 {ps.map((p) => (
                   <g key={p.i}>
@@ -73,14 +93,21 @@ export default function Figure({ spec }: { spec: FigureSpec }) {
               const x = box.left + (i + 0.5) * (box.width / cats.length);
               const y = box.top + box.height + 14;
               return (
-                <text key={cats[i]} x={x} y={y} className="tick" textAnchor={l.slant ? "end" : "middle"} transform={l.slant ? `rotate(-35 ${x} ${y})` : undefined}>
+                <text
+                  key={cats[i]}
+                  x={x}
+                  y={y}
+                  className="tick"
+                  textAnchor={l.slant ? "end" : "middle"}
+                  transform={l.slant ? `rotate(-35 ${x} ${y})` : undefined}
+                >
                   <title>{cats[i]}</title>
                   {l.text}
                 </text>
               );
             })
           : ticks([Math.min(...spec.series.flatMap((s) => s.x.map(Number))), Math.max(...spec.series.flatMap((s) => s.x.map(Number)))], 6).map((t) => {
-              const xs = points({ ...spec, series: [{ name: "_", x: [t], y: [yd[0]] }] }, box, yd);
+              const xs = points({ ...spec, series: [series({ name: "_", x: [t], y: [yd[0]] })] }, box, yd);
               return xs.length ? (
                 <text key={t} x={xs[0].x} y={box.top + box.height + 14} className="tick" textAnchor="middle">
                   {fmtTick(t)}
@@ -111,8 +138,15 @@ export default function Figure({ spec }: { spec: FigureSpec }) {
 }
 
 const NODE_FILL: Record<string, string> = {
-  treatment: "var(--accent)", outcome: "var(--accent-ink)", mediator: "var(--declared)", instrument: "var(--declared)",
-  confounder: "var(--ink-3)", driver: "var(--ink-3)", hidden: "var(--panel)", excluded: "var(--rule)", other: "var(--ink-3)",
+  treatment: "var(--accent)",
+  outcome: "var(--accent-ink)",
+  mediator: "var(--declared)",
+  instrument: "var(--declared)",
+  confounder: "var(--ink-3)",
+  driver: "var(--ink-3)",
+  hidden: "var(--panel)",
+  excluded: "var(--rule)",
+  other: "var(--ink-3)",
 };
 
 // A causal graph: nodes by role, arrows with the addresses they rest on. The hidden factor is dashed; what the lane set
@@ -142,7 +176,14 @@ function GraphFigure({ spec }: { spec: FigureSpec }) {
         ))}
         {nodes.map((n, i) => (
           <g key={n.id} className={`node ${n.role}`}>
-            <circle cx={n.x} cy={n.y} r={NODE_R} fill={NODE_FILL[n.role] ?? NODE_FILL.other} strokeDasharray={n.role === "hidden" ? "3 3" : undefined} opacity={n.role === "excluded" ? 0.5 : 0.9}>
+            <circle
+              cx={n.x}
+              cy={n.y}
+              r={NODE_R}
+              fill={NODE_FILL[n.role] ?? NODE_FILL.other}
+              strokeDasharray={n.role === "hidden" ? "3 3" : undefined}
+              opacity={n.role === "excluded" ? 0.5 : 0.9}
+            >
               <title>{`[figure:${spec.id}.node.${i}] ${n.label || n.id} (${n.role})`}</title>
             </circle>
             <text x={n.x} y={n.labelBelow === false ? n.y - NODE_R - 4 : n.y + NODE_R + 11} className="tick" textAnchor="middle">

@@ -42,7 +42,14 @@ export default function Inspector({
       <div className="insp-head">
         <div className="tabs" role="tablist">
           {TABS.map((t) => (
-            <button key={t} type="button" role="tab" aria-selected={sel.tab === t} className={`tab${sel.tab === t ? " on" : ""}`} onClick={() => onSelect({ tab: t })}>
+            <button
+              key={t}
+              type="button"
+              role="tab"
+              aria-selected={sel.tab === t}
+              className={`tab${sel.tab === t ? " on" : ""}`}
+              onClick={() => onSelect({ tab: t })}
+            >
               <span>{LABEL[t]}</span>
               {counts[t] && <span className="badge">{counts[t]}</span>}
             </button>

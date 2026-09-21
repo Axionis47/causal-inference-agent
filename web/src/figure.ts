@@ -1,49 +1,27 @@
 // A figure is data with addresses (see causal_agent/viz/spec.py). This module turns a spec into the numbers an SVG
 // needs: scales, ticks, bar and point positions. Pure functions, tested; Figure.tsx only draws what comes out.
 
-export type Kind = "bars" | "lines" | "points" | "density" | "interval" | "graph";
-export type Role = "treatment" | "outcome" | "confounder" | "driver" | "mediator" | "instrument" | "hidden" | "excluded" | "other";
+export type { FigureSpec, GraphEdge, GraphNode, Kind, Mark, Role, Series } from "./types";
+import type { FigureSpec, GraphNode, Mark, Role, Series } from "./types";
 
-export interface GraphNode {
-  id: string;
-  label: string;
-  role: Role;
+/** A series with every field the wire carries; for series the page builds itself and for tests. */
+export function series(s: Pick<Series, "name" | "x" | "y"> & Partial<Series>): Series {
+  return {
+    lo: null,
+    hi: null,
+    n: null,
+    key:
+      s.name
+        .toLowerCase()
+        .replace(/[^0-9a-z]+/g, "_")
+        .replace(/^_|_$/g, "") || "col",
+    ...s,
+  };
 }
 
-export interface GraphEdge {
-  src: string;
-  dst: string;
-  cites: string[];
-}
-
-export interface Series {
-  name: string;
-  x: (string | number)[];
-  y: (number | null)[];
-  lo?: (number | null)[] | null;
-  hi?: (number | null)[] | null;
-  n?: number[] | null;
-}
-
-export interface Mark {
-  kind: "vline" | "hline";
-  at: string | number;
-  label: string;
-}
-
-export interface FigureSpec {
-  id: string;
-  kind: Kind;
-  title: string;
-  x_label: string;
-  y_label: string;
-  series: Series[];
-  marks: Mark[];
-  nodes?: GraphNode[];
-  edges?: GraphEdge[];
-  moment?: "ready" | "run";
-  note: string;
-  draws_on: string[];
+/** A figure with every field the wire carries, for tests. */
+export function figure(f: Pick<FigureSpec, "id" | "kind" | "title"> & Partial<FigureSpec>): FigureSpec {
+  return { x_label: "", y_label: "", series: [], marks: [], nodes: [], edges: [], moment: "run", note: "", draws_on: [], ...f };
 }
 
 export interface Box {
@@ -246,7 +224,12 @@ export function graphLayout(spec: FigureSpec, box: Box): { nodes: LaidNode[]; ed
   const yMid = box.top + box.height * 0.58;
   const tx = box.left + box.width * 0.2;
   const ox = box.left + box.width * 0.86;
-  const fixed: Record<string, [number, number]> = { instrument: [box.left + box.width * 0.04, yMid], treatment: [tx, yMid], mediator: [(tx + ox) / 2, yMid], outcome: [ox, yMid] };
+  const fixed: Record<string, [number, number]> = {
+    instrument: [box.left + box.width * 0.04, yMid],
+    treatment: [tx, yMid],
+    mediator: [(tx + ox) / 2, yMid],
+    outcome: [ox, yMid],
+  };
   const above = nodes.filter((n) => ["confounder", "driver", "hidden", "other"].includes(n.role));
   const below = nodes.filter((n) => n.role === "excluded");
   // The rows above and below use the whole width, so their labels have room; a row's labels alternate up and down when

@@ -34,7 +34,13 @@ export default function Chat() {
     return (
       <div className="wrap">
         <TopBar crumb={<Link to="/">Datasets</Link>} />
-        {error ? <p className="err">{error}</p> : <p className="muted" style={{ padding: "40px 0" }}>Loading…</p>}
+        {error ? (
+          <p className="err">{error}</p>
+        ) : (
+          <p className="muted" style={{ padding: "40px 0" }}>
+            Loading…
+          </p>
+        )}
       </div>
     );
   }
@@ -61,7 +67,13 @@ export default function Chat() {
         }
         right={
           <span className="pill">
-            {view.stage === "busy" ? "working" : view.stage === "waiting" ? (view.phase === "after" ? `after run ${view.runs.length}` : "interviewing") : view.stage}
+            {view.stage === "busy"
+              ? "working"
+              : view.stage === "waiting"
+                ? view.phase === "after"
+                  ? `after run ${view.runs.length}`
+                  : "interviewing"
+                : view.stage}
           </span>
         }
       />
@@ -110,11 +122,19 @@ export default function Chat() {
         {busy && view.activity && <Activity node={view.activity.node} />}
         {view.phase === "before" && <StatusStrip claims={view.claims} status={view.status} onOpen={() => select({ tab: "claims" })} />}
       </main>
-      {sel ? <Inspector view={view} sel={sel} counts={counts} width={width} splitterProps={splitterProps} onSelect={select} onClose={close} /> : <TabStrip counts={counts} onPick={(t) => select({ tab: t })} />}
+      {sel ? (
+        <Inspector view={view} sel={sel} counts={counts} width={width} splitterProps={splitterProps} onSelect={select} onClose={close} />
+      ) : (
+        <TabStrip counts={counts} onPick={(t) => select({ tab: t })} />
+      )}
       <ConfirmDialog
         open={ending}
         title="End the conversation?"
-        body={view.phase === "after" ? "The runs and their files stay. You can start a new conversation on this dataset later." : "Nothing has been written for the analysis yet. The claims settled so far are kept in the conversation's checkpoint only."}
+        body={
+          view.phase === "after"
+            ? "The runs and their files stay. You can start a new conversation on this dataset later."
+            : "Nothing has been written for the analysis yet. The claims settled so far are kept in the conversation's checkpoint only."
+        }
         confirmLabel="End conversation"
         onConfirm={() => {
           setEnding(false);

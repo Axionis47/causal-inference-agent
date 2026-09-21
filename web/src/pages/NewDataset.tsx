@@ -66,11 +66,19 @@ export default function NewDataset() {
 
   return (
     <div className="wrap">
-      <TopBar crumb={<><Link to="/">Datasets</Link> / new</>} />
+      <TopBar
+        crumb={
+          <>
+            <Link to="/">Datasets</Link> / new
+          </>
+        }
+      />
       <section className="hero">
         <div>
           <h1>New dataset</h1>
-          <p className="lede">Upload the table. The conversation starts by asking what you want to know; everything about the data is settled in it, one question at a time.</p>
+          <p className="lede">
+            Upload the table. The conversation starts by asking what you want to know; everything about the data is settled in it, one question at a time.
+          </p>
         </div>
       </section>
       <div className="form">
@@ -127,7 +135,11 @@ export default function NewDataset() {
                     }}
                     aria-invalid={!nameOk}
                   />
-                  <small>{nameOk ? "Lowercase letters, digits and underscores; used for the files." : "Start with a letter; lowercase letters, digits and underscores only; 2 to 40 characters."}</small>
+                  <small>
+                    {nameOk
+                      ? "Lowercase letters, digits and underscores; used for the files."
+                      : "Start with a letter; lowercase letters, digits and underscores only; 2 to 40 characters."}
+                  </small>
                 </label>
               </div>
             </section>

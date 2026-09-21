@@ -50,7 +50,11 @@ export default function Landing() {
           {newButton}
         </div>
       )}
-      <div className="grid">{items?.map((d) => <DatasetCard key={d.name} d={d} onDelete={setVictim} />)}</div>
+      <div className="grid">
+        {items?.map((d) => (
+          <DatasetCard key={d.name} d={d} onDelete={setVictim} />
+        ))}
+      </div>
       <ConfirmDialog
         open={victim !== null}
         title={`Delete ${victim?.title ?? ""}?`}

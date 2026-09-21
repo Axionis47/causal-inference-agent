@@ -42,8 +42,17 @@ export function statusMatrix(status: StatusView | null, claims: ClaimView[]): Ma
   if (!familyNames.length) return null;
   const kinds: string[] = [];
   const seen = new Set<string>();
-  for (const c of claims) if (!seen.has(c.kind)) { seen.add(c.kind); kinds.push(c.kind); }
-  for (const f of familyNames) for (const k of Object.keys(status.table[f])) if (!seen.has(k)) { seen.add(k); kinds.push(k); }
+  for (const c of claims)
+    if (!seen.has(c.kind)) {
+      seen.add(c.kind);
+      kinds.push(c.kind);
+    }
+  for (const f of familyNames)
+    for (const k of Object.keys(status.table[f]))
+      if (!seen.has(k)) {
+        seen.add(k);
+        kinds.push(k);
+      }
   return {
     families: familyNames.map((name) => ({ name, struck: status.struck[name] ?? null })),
     rows: kinds.map((kind) => ({ kind, cells: Object.fromEntries(familyNames.map((f) => [f, status.table[f][kind] ?? "not_needed"])) })),
@@ -95,7 +104,14 @@ export interface CheckRow {
 }
 
 export function checkRows(checks: CheckView[]): CheckRow[] {
-  return checks.map((c) => ({ contrast: c.contrast ?? "—", name: c.name, level: c.level ?? "—", value: cell(c.value), threshold: cell(c.threshold), detail: c.detail ?? "" }));
+  return checks.map((c) => ({
+    contrast: c.contrast ?? "—",
+    name: c.name,
+    level: c.level ?? "—",
+    value: cell(c.value),
+    threshold: cell(c.threshold),
+    detail: c.detail ?? "",
+  }));
 }
 
 export interface RefutationRow {
@@ -143,5 +159,13 @@ export interface DeclineRow {
 
 // Where the lane did not take the pack as given, one row each, in the order the lane recorded them.
 export function declineRows(run: RunView): DeclineRow[] {
-  return (run.declines ?? []).map((d) => ({ address: d.address, about: d.about, kind: d.kind, packValue: d.pack_value ?? "—", took: d.took ?? "—", reason: d.reason, check: d.check }));
+  return (run.declines ?? []).map((d) => ({
+    address: d.address,
+    about: d.about,
+    kind: d.kind,
+    packValue: d.pack_value ?? "—",
+    took: d.took ?? "—",
+    reason: d.reason,
+    check: d.check,
+  }));
 }

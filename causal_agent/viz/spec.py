@@ -9,7 +9,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
 
 from causal_agent.common.addresses import key as _key
 from causal_agent.common.contracts import Probe
@@ -29,8 +29,10 @@ class Series(BaseModel):
     hi: Sequence[float | None] | None = None
     n: Sequence[int] | None = None
 
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def key(self) -> str:
+        """The series' address segment, computed here once so the page never rebuilds it."""
         return _key(self.name)
 
 

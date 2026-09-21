@@ -48,7 +48,13 @@ export default function StatusStrip({ claims, status, onOpen }: { claims: ClaimV
           <b>
             settled {settled}/{total}
           </b>
-          {status.open.length > 0 && <> · open: {status.open.slice(0, 6).join(", ")}{status.open.length > 6 ? ` +${status.open.length - 6} more` : ""}</>}
+          {status.open.length > 0 && (
+            <>
+              {" "}
+              · open: {status.open.slice(0, 6).join(", ")}
+              {status.open.length > 6 ? ` +${status.open.length - 6} more` : ""}
+            </>
+          )}
           {" · "}
           {status.surviving.length ? <>in play: {status.surviving.join(", ")}</> : "no design fits yet"}
           {" · "}

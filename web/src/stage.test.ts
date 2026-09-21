@@ -2,7 +2,19 @@ import { describe, expect, it } from "vitest";
 import { stageLabel } from "./stage";
 import type { DatasetSummary } from "./types";
 
-const d = (over: Partial<DatasetSummary>): DatasetSummary => ({ name: "x", title: "X", csv: "x.csv", rows: null, columns: null, created_at: null, shipped: false, has_claims: false, question: null, session: null, ...over });
+const d = (over: Partial<DatasetSummary>): DatasetSummary => ({
+  name: "x",
+  title: "X",
+  csv: "x.csv",
+  rows: null,
+  columns: null,
+  created_at: null,
+  shipped: false,
+  has_claims: false,
+  question: null,
+  session: null,
+  ...over,
+});
 
 describe("stageLabel", () => {
   it("covers every branch", () => {

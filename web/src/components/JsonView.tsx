@@ -12,7 +12,13 @@ function Node({ k, v, depth }: { k: string | null; v: unknown; depth: number }) 
     return (
       <div className="kv">
         {key}
-        <span className="num">{Number.isInteger(v) ? v : Number(v).toPrecision(6).replace(/\.?0+$/, "")}</span>
+        <span className="num">
+          {Number.isInteger(v)
+            ? v
+            : Number(v)
+                .toPrecision(6)
+                .replace(/\.?0+$/, "")}
+        </span>
       </div>
     );
   }

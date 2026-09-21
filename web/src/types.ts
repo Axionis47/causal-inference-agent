@@ -1,238 +1,47 @@
-import type { FigureSpec } from "./figure";
+// The wire, as the server declares it. Every name here is derived from src/generated/schema.ts, which `npm run types`
+// generates from the API's OpenAPI schema; nothing is typed by hand. The server always emits every field of a response
+// (pydantic fills the defaults), so the optional marks OpenAPI puts on defaulted fields are lifted here.
 
-// Mirrors of causal_agent/server/models.py.
+import type { components } from "./generated/schema";
 
-export interface NumericShape {
-  min: number;
-  p25: number;
-  p50: number;
-  p75: number;
-  max: number;
-  mean: number;
-}
+type DeepRequired<T> = T extends (infer U)[] ? DeepRequired<U>[] : T extends object ? { [K in keyof T]-?: DeepRequired<T[K]> } : T;
+type S<K extends keyof components["schemas"]> = DeepRequired<components["schemas"][K]>;
 
-export interface TopValue {
-  value: string;
-  count: number;
-  share: number;
-}
+export type NumericShape = S<"NumericShape">;
+export type TopValue = S<"TopValue">;
+export type DatetimeShape = S<"DatetimeShape">;
+export type Sentinel = S<"Sentinel">;
+export type ColumnSummary = S<"ColumnSummary">;
+export type ProfileOut = S<"ProfileOut">;
+export type SessionBrief = S<"SessionBrief">;
+export type DatasetSummary = S<"DatasetSummary">;
+export type DatasetList = S<"DatasetList">;
+export type DatasetCreate = S<"DatasetCreate">;
+export type MessageIn = S<"MessageIn">;
+export type QuestionView = S<"QuestionView">;
+export type ClaimView = S<"ClaimView">;
+export type StatusView = S<"StatusView">;
+export type CheckView = S<"CheckView">;
+export type RefutationView = S<"RefutationView">;
+export type InterpretationView = S<"InterpretationView">;
+export type EstimateView = S<"EstimateView">;
+export type DeclineView = S<"DeclineView">;
+export type DecisionView = S<"DecisionView">;
+export type FeasibilityView = S<"FeasibilityView">;
+export type RunView = S<"RunView">;
+export type Turn = S<"Turn">;
+export type Prompt = S<"Prompt">;
+export type Activity = S<"Activity">;
+export type SessionView = S<"SessionView">;
+export type Stage = SessionView["stage"];
+export type FileEntry = S<"FileEntry">;
+export type RunFiles = S<"RunFiles">;
 
-export interface DatetimeShape {
-  first: string;
-  last: string;
-  frequency: string | null;
-}
-
-export interface Sentinel {
-  value: string;
-  count: number;
-  reason: string;
-}
-
-export interface ColumnSummary {
-  name: string;
-  key: string;
-  kind: string;
-  nulls: number;
-  null_rate: number;
-  distinct: number;
-  constant: boolean;
-  examples: string[];
-  numeric: NumericShape | null;
-  top_values: TopValue[];
-  datetime: DatetimeShape | null;
-  sentinels: Sentinel[];
-  issues: string[];
-}
-
-export interface ProfileOut {
-  upload_id: string;
-  filename: string;
-  rows: number;
-  columns: ColumnSummary[];
-  head: string[][];
-  duplicate_rows: number;
-  candidate_keys: string[][];
-  grain: string[] | null;
-  co_missing: string[][];
-  issues: string[];
-}
-
-export interface SessionBrief {
-  stage: string;
-  phase: string;
-  runs: number;
-}
-
-export interface DatasetSummary {
-  name: string;
-  title: string;
-  csv: string;
-  rows: number | null;
-  columns: number | null;
-  created_at: string | null;
-  shipped: boolean;
-  has_claims: boolean;
-  question: string | null;
-  session: SessionBrief | null;
-}
-
-export interface DatasetCreate {
-  name: string;
-  title: string;
-  upload_id: string;
-}
-
-export interface QuestionView {
-  keys: string[];
-  field: string | null;
-  kind: "confirm" | "choose" | "open" | "columns" | string;
-  text: string;
-  options: string[];
-  evidence_cites: string[];
-  because: string[];
-}
-
-export interface ClaimView {
-  key: string;
-  kind: string;
-  status: "empty" | "drafted" | "confirmed" | "refuted" | "unknown" | "contradiction" | string;
-  fields: Record<string, unknown>;
-  source: string | null;
-  evidence: string[];
-  check_detail: string | null;
-  asked: number;
-  refutations: number;
-}
-
-export interface StatusView {
-  table: Record<string, Record<string, string>>;
-  surviving: string[];
-  struck: Record<string, string>;
-  required: string[];
-  settled: string[];
-  open: string[];
-  ready: boolean;
-  contradictions: string[];
-}
-
-export interface CheckView {
-  contrast: string | null;
-  name: string;
-  level: string | null;
-  value: unknown;
-  threshold: unknown;
-  detail: string | null;
-}
-
-export interface RefutationView {
-  contrast: string | null;
-  refuter: string;
-  kind: string | null;
-  passed: boolean | null;
-  p_value: number | null;
-  new_effect: number | null;
-  detail: string | null;
-}
-
-export interface InterpretationView {
-  contrast: string | null;
-  answer: string;
-  caveats: string[];
-  cites: string[];
-}
-
-export interface EstimateView {
-  contrast: string | null;
-  method: string | null;
-  value: number | null;
-  ci_low: number | null;
-  ci_high: number | null;
-  n: number | null;
-  n_treated: number | null;
-  n_control: number | null;
-  secondary: boolean;
-  error: string | null;
-}
-
-export interface RunView {
-  index: number;
-  question: string;
-  family: string | null;
-  specialist: string | null;
-  status: string;
-  run_id: string | null;
-  effect: number | null;
-  ci_low: number | null;
-  ci_high: number | null;
-  estimator: string | null;
-  decision: Record<string, unknown>;
-  decision_record: string;
-  flags: CheckView[];
-  checks: CheckView[];
-  refutations: RefutationView[];
-  interpretations: InterpretationView[];
-  estimates: EstimateView[];
-  feasibility: Record<string, unknown> | null;
-  files: string[];
-  what_if: Record<string, string>;
-  differs: string[];
-  figures: FigureSpec[];
-  declines: DeclineView[];
-}
-
-export interface DeclineView {
-  address: string;
-  stage: string;
-  kind: string;
-  about: string;
-  pack_value: string | null;
-  took: string | null;
-  reason: string;
-  check: string;
-}
-
-export interface Turn {
-  role: "user" | "assistant" | "system";
-  text: string;
-  phase: string;
-  at: string;
-  kind: string | null;
-  figure?: FigureSpec | null;
-}
-
-export interface Prompt {
-  text: string;
-  status: string;
-  ready: boolean;
-  open: string[];
-  runs: number;
-  phase: string;
-  kind?: string | null;
-}
-
-export type Stage = "busy" | "waiting" | "ended" | "stale" | "error" | "new";
-
-export interface SessionView {
-  name: string;
-  title: string;
-  question: string | null;
-  stage: Stage;
-  phase: string;
-  activity: { node: string; since: string } | null;
-  ready: boolean;
-  prompt: Prompt | null;
-  questions: QuestionView[];
-  claims: ClaimView[];
-  status: StatusView | null;
-  runs: RunView[];
-  brief: string;
-  transcript: Turn[];
-  written: Record<string, unknown> | null;
-  error: string | null;
-}
-
-export interface RunFiles {
-  run_id: string;
-  files: { name: string; size: number }[];
-}
+// figures
+export type FigureSpec = S<"FigureSpec">;
+export type Series = S<"Series">;
+export type Mark = S<"Mark">;
+export type GraphNode = S<"Node">;
+export type GraphEdge = S<"Edge">;
+export type Kind = FigureSpec["kind"];
+export type Role = GraphNode["role"];

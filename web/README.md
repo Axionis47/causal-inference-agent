@@ -17,3 +17,5 @@ npm run build    # web/dist, served by `python -m causal_agent.server`
 The page talks to `causal_agent/server` only. It polls the session view every 1.5 s while a step runs. Chips answer
 the interview's typed questions; `src/compose.ts` quotes each answered question beside its answer so the graph still
 reads plain prose. Tokens in `src/styles/tokens.css` are the project's, shared with `docs/design.html`.
+
+The wire is one definition: `src/types.ts` derives every shape from `src/generated/schema.ts`, which `npm run types` generates from `openapi.json`, which `make schema` dumps from the API. CI fails when either file is stale.

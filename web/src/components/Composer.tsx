@@ -27,7 +27,10 @@ export default function Composer({
   }, [promptKey]);
 
   const picked = Object.entries(answers).map(([i, a]) => ({ i: Number(i), question: questions[Number(i)]?.text ?? "", answer: a }));
-  const text = composeAnswer(free, picked.map((p) => ({ question: p.question, answer: p.answer })));
+  const text = composeAnswer(
+    free,
+    picked.map((p) => ({ question: p.question, answer: p.answer })),
+  );
   const canSend = !disabled && text.length > 0;
 
   const send = () => {
@@ -78,7 +81,13 @@ export default function Composer({
           ref={ta}
           value={free}
           disabled={disabled}
-          placeholder={!before ? "Ask what it found, why this design, what a flag means, or say what to change." : view.prompt?.kind === "question" ? "What changed, and what might it have affected? Name them as they appear in the columns." : "Answer in your own words, or pick a chip above and add what it misses."}
+          placeholder={
+            !before
+              ? "Ask what it found, why this design, what a flag means, or say what to change."
+              : view.prompt?.kind === "question"
+                ? "What changed, and what might it have affected? Name them as they appear in the columns."
+                : "Answer in your own words, or pick a chip above and add what it misses."
+          }
           onChange={(e) => setFree(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send();
@@ -90,7 +99,12 @@ export default function Composer({
               Send
             </button>
             {before && (
-              <button className="btn sm" disabled={disabled || !view.ready} onClick={() => onSend("run")} title={view.ready ? "Hand off to the analysis" : "Settle the open claims first"}>
+              <button
+                className="btn sm"
+                disabled={disabled || !view.ready}
+                onClick={() => onSend("run")}
+                title={view.ready ? "Hand off to the analysis" : "Settle the open claims first"}
+              >
                 Run the analysis
               </button>
             )}

@@ -24,8 +24,10 @@ from causal_agent.server.models import (
     Activity,
     CheckView,
     ClaimView,
+    DecisionView,
     DeclineView,
     EstimateView,
+    FeasibilityView,
     InterpretationView,
     Prompt,
     QuestionView,
@@ -325,7 +327,6 @@ class SessionManager:
             questions = [
                 QuestionView(
                     keys=list(ask.addresses),
-                    field=None,
                     kind=ask.kind,
                     text=ask.text,
                     options=list(ask.options or []),
@@ -359,7 +360,6 @@ class SessionManager:
             runs=runs,
             brief=values.get("brief") or "",
             transcript=self.transcript(name),
-            written=None,
             error=sess.error,
         )
 
@@ -437,14 +437,14 @@ def run_view(r: RunRecord) -> RunView:
         ci_low=r.ci_low,
         ci_high=r.ci_high,
         estimator=r.estimator,
-        decision=dict(r.decision or {}),
+        decision=DecisionView.model_validate({k: v for k, v in (r.decision or {}).items() if k in DecisionView.model_fields}),
         decision_record=r.decision_record or "",
         flags=flags,
         checks=checks,
         refutations=refs,
         interpretations=interps,
         estimates=ests,
-        feasibility=sr.get("feasibility") or r.artifacts.get("feasibility"),
+        feasibility=FeasibilityView.model_validate(feas) if (feas := sr.get("feasibility") or r.artifacts.get("feasibility")) else None,
         files=files,
         what_if=dict(r.what_if or {}),
         differs=list(r.differs or []),

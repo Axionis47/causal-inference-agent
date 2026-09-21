@@ -1,0 +1,2326 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Causal desk",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/health": {
+      "get": {
+        "summary": "Health",
+        "operationId": "health_api_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Health Api Health Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/datasets": {
+      "get": {
+        "summary": "List Datasets",
+        "operationId": "list_datasets_api_datasets_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetList"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create Dataset",
+        "operationId": "create_dataset_api_datasets_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DatasetCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/profile": {
+      "post": {
+        "summary": "Profile Upload",
+        "operationId": "profile_upload_api_profile_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_profile_upload_api_profile_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/datasets/{name}": {
+      "delete": {
+        "summary": "Delete Dataset",
+        "operationId": "delete_dataset_api_datasets__name__delete",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{name}": {
+      "get": {
+        "summary": "Get Session",
+        "operationId": "get_session_api_sessions__name__get",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{name}/messages": {
+      "post": {
+        "summary": "Post Message",
+        "operationId": "post_message_api_sessions__name__messages_post",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MessageIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{name}/resume": {
+      "post": {
+        "summary": "Resume Session",
+        "operationId": "resume_session_api_sessions__name__resume_post",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{name}/restart": {
+      "post": {
+        "summary": "Restart Session",
+        "operationId": "restart_session_api_sessions__name__restart_post",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/runs/{run_id}": {
+      "get": {
+        "summary": "Run Files",
+        "operationId": "run_files_api_runs__run_id__get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunFiles"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/runs/{run_id}/files/{filename}": {
+      "get": {
+        "summary": "Run File",
+        "operationId": "run_file_api_runs__run_id__files__filename__get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "filename",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Filename"
+            }
+          },
+          {
+            "name": "raw",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Raw"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Activity": {
+        "properties": {
+          "node": {
+            "type": "string",
+            "title": "Node"
+          },
+          "since": {
+            "type": "string",
+            "title": "Since"
+          }
+        },
+        "type": "object",
+        "required": [
+          "node",
+          "since"
+        ],
+        "title": "Activity"
+      },
+      "Body_profile_upload_api_profile_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_profile_upload_api_profile_post"
+      },
+      "CheckView": {
+        "properties": {
+          "contrast": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contrast"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "level": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Level"
+          },
+          "value": {
+            "title": "Value"
+          },
+          "threshold": {
+            "title": "Threshold"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "CheckView"
+      },
+      "ClaimView": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "fields": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Fields"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "evidence": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidence"
+          },
+          "check_detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check Detail"
+          },
+          "asked": {
+            "type": "integer",
+            "title": "Asked",
+            "default": 0
+          },
+          "refutations": {
+            "type": "integer",
+            "title": "Refutations",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "kind",
+          "status"
+        ],
+        "title": "ClaimView"
+      },
+      "ColumnSummary": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "nulls": {
+            "type": "integer",
+            "title": "Nulls"
+          },
+          "null_rate": {
+            "type": "number",
+            "title": "Null Rate",
+            "default": 0.0
+          },
+          "distinct": {
+            "type": "integer",
+            "title": "Distinct"
+          },
+          "constant": {
+            "type": "boolean",
+            "title": "Constant",
+            "default": false
+          },
+          "examples": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Examples"
+          },
+          "numeric": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NumericShape"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "top_values": {
+            "items": {
+              "$ref": "#/components/schemas/TopValue"
+            },
+            "type": "array",
+            "title": "Top Values"
+          },
+          "datetime": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DatetimeShape"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sentinels": {
+            "items": {
+              "$ref": "#/components/schemas/Sentinel"
+            },
+            "type": "array",
+            "title": "Sentinels"
+          },
+          "issues": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Issues"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "key",
+          "kind",
+          "nulls",
+          "distinct",
+          "examples"
+        ],
+        "title": "ColumnSummary",
+        "description": "One column as the profiler read it. Facts only: shape, missingness, and anything odd."
+      },
+      "DatasetCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{1,39}$",
+            "title": "Name"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Title"
+          },
+          "upload_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}$",
+            "title": "Upload Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "title",
+          "upload_id"
+        ],
+        "title": "DatasetCreate",
+        "description": "CSV only. The conversation starts with the causal question; nothing about the data is typed into a form."
+      },
+      "DatasetList": {
+        "properties": {
+          "datasets": {
+            "items": {
+              "$ref": "#/components/schemas/DatasetSummary"
+            },
+            "type": "array",
+            "title": "Datasets"
+          }
+        },
+        "type": "object",
+        "required": [
+          "datasets"
+        ],
+        "title": "DatasetList"
+      },
+      "DatasetSummary": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "csv": {
+            "type": "string",
+            "title": "Csv"
+          },
+          "rows": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rows"
+          },
+          "columns": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Columns"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "shipped": {
+            "type": "boolean",
+            "title": "Shipped"
+          },
+          "has_claims": {
+            "type": "boolean",
+            "title": "Has Claims"
+          },
+          "question": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Question"
+          },
+          "session": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SessionBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "title",
+          "csv",
+          "shipped",
+          "has_claims"
+        ],
+        "title": "DatasetSummary"
+      },
+      "DatetimeShape": {
+        "properties": {
+          "first": {
+            "type": "string",
+            "title": "First"
+          },
+          "last": {
+            "type": "string",
+            "title": "Last"
+          },
+          "frequency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frequency"
+          }
+        },
+        "type": "object",
+        "required": [
+          "first",
+          "last"
+        ],
+        "title": "DatetimeShape"
+      },
+      "DecisionView": {
+        "properties": {
+          "chosen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chosen"
+          },
+          "chosen_assumption": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chosen Assumption"
+          },
+          "why": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Why"
+          },
+          "over": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Over",
+            "description": "rejected family -> reason"
+          }
+        },
+        "type": "object",
+        "title": "DecisionView",
+        "description": "The routing's decision as the page shows it."
+      },
+      "DeclineView": {
+        "properties": {
+          "address": {
+            "type": "string",
+            "title": "Address"
+          },
+          "stage": {
+            "type": "string",
+            "title": "Stage"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "about": {
+            "type": "string",
+            "title": "About"
+          },
+          "pack_value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pack Value"
+          },
+          "took": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Took"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "check": {
+            "type": "string",
+            "title": "Check"
+          }
+        },
+        "type": "object",
+        "required": [
+          "address",
+          "stage",
+          "kind",
+          "about",
+          "reason",
+          "check"
+        ],
+        "title": "DeclineView",
+        "description": "Where the lane did not take the pack as given."
+      },
+      "Edge": {
+        "properties": {
+          "src": {
+            "type": "string",
+            "title": "Src"
+          },
+          "dst": {
+            "type": "string",
+            "title": "Dst"
+          },
+          "cites": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Cites"
+          }
+        },
+        "type": "object",
+        "required": [
+          "src",
+          "dst"
+        ],
+        "title": "Edge",
+        "description": "One arrow of a graph figure, with the addresses it rests on."
+      },
+      "EstimateView": {
+        "properties": {
+          "contrast": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contrast"
+          },
+          "method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Method"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "ci_low": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ci Low"
+          },
+          "ci_high": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ci High"
+          },
+          "n": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N"
+          },
+          "n_treated": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N Treated"
+          },
+          "n_control": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N Control"
+          },
+          "secondary": {
+            "type": "boolean",
+            "title": "Secondary",
+            "default": false
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "title": "EstimateView"
+      },
+      "FeasibilityView": {
+        "properties": {
+          "stage": {
+            "type": "string",
+            "title": "Stage"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "facts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Facts"
+          },
+          "what_would_fix": {
+            "type": "string",
+            "title": "What Would Fix",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "stage",
+          "reason"
+        ],
+        "title": "FeasibilityView",
+        "description": "Where and why a lane stopped."
+      },
+      "FigureSpec": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "bars",
+              "lines",
+              "points",
+              "density",
+              "interval",
+              "graph"
+            ],
+            "title": "Kind"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "x_label": {
+            "type": "string",
+            "title": "X Label",
+            "default": ""
+          },
+          "y_label": {
+            "type": "string",
+            "title": "Y Label",
+            "default": ""
+          },
+          "series": {
+            "items": {
+              "$ref": "#/components/schemas/Series"
+            },
+            "type": "array",
+            "title": "Series"
+          },
+          "marks": {
+            "items": {
+              "$ref": "#/components/schemas/Mark"
+            },
+            "type": "array",
+            "title": "Marks"
+          },
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/Node"
+            },
+            "type": "array",
+            "title": "Nodes",
+            "description": "for kind graph: the nodes"
+          },
+          "edges": {
+            "items": {
+              "$ref": "#/components/schemas/Edge"
+            },
+            "type": "array",
+            "title": "Edges",
+            "description": "for kind graph: the arrows"
+          },
+          "moment": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "run"
+            ],
+            "title": "Moment",
+            "description": "ready: made at the ready moment, before the run; run: made by the run",
+            "default": "run"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note",
+            "description": "one sentence on what the figure shows, in the question's words",
+            "default": ""
+          },
+          "draws_on": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Draws On",
+            "description": "the memory and probe addresses the figure rests on"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "title"
+        ],
+        "title": "FigureSpec"
+      },
+      "FileEntry": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "size"
+        ],
+        "title": "FileEntry"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "InterpretationView": {
+        "properties": {
+          "contrast": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contrast"
+          },
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "caveats": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Caveats"
+          },
+          "cites": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Cites"
+          }
+        },
+        "type": "object",
+        "required": [
+          "answer"
+        ],
+        "title": "InterpretationView"
+      },
+      "Mark": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "vline",
+              "hline"
+            ],
+            "title": "Kind",
+            "default": "vline"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "At"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "at"
+        ],
+        "title": "Mark",
+        "description": "A reference line: the cutoff, the change period, a floor."
+      },
+      "MessageIn": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "MessageIn"
+      },
+      "Node": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "default": ""
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "treatment",
+              "outcome",
+              "confounder",
+              "driver",
+              "mediator",
+              "instrument",
+              "hidden",
+              "excluded",
+              "other"
+            ],
+            "title": "Role",
+            "default": "other"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "Node",
+        "description": "One node of a graph figure: a column, or the hidden factor."
+      },
+      "NumericShape": {
+        "properties": {
+          "min": {
+            "type": "number",
+            "title": "Min"
+          },
+          "p25": {
+            "type": "number",
+            "title": "P25"
+          },
+          "p50": {
+            "type": "number",
+            "title": "P50"
+          },
+          "p75": {
+            "type": "number",
+            "title": "P75"
+          },
+          "max": {
+            "type": "number",
+            "title": "Max"
+          },
+          "mean": {
+            "type": "number",
+            "title": "Mean"
+          }
+        },
+        "type": "object",
+        "required": [
+          "min",
+          "p25",
+          "p50",
+          "p75",
+          "max",
+          "mean"
+        ],
+        "title": "NumericShape"
+      },
+      "ProfileOut": {
+        "properties": {
+          "upload_id": {
+            "type": "string",
+            "title": "Upload Id"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "rows": {
+            "type": "integer",
+            "title": "Rows"
+          },
+          "columns": {
+            "items": {
+              "$ref": "#/components/schemas/ColumnSummary"
+            },
+            "type": "array",
+            "title": "Columns"
+          },
+          "head": {
+            "items": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Head"
+          },
+          "duplicate_rows": {
+            "type": "integer",
+            "title": "Duplicate Rows",
+            "default": 0
+          },
+          "candidate_keys": {
+            "items": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Candidate Keys"
+          },
+          "grain": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grain"
+          },
+          "co_missing": {
+            "items": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Co Missing"
+          },
+          "issues": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Issues"
+          }
+        },
+        "type": "object",
+        "required": [
+          "upload_id",
+          "filename",
+          "rows",
+          "columns"
+        ],
+        "title": "ProfileOut"
+      },
+      "Prompt": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "default": ""
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": ""
+          },
+          "ready": {
+            "type": "boolean",
+            "title": "Ready",
+            "default": false
+          },
+          "open": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Open"
+          },
+          "runs": {
+            "type": "integer",
+            "title": "Runs",
+            "default": 0
+          },
+          "phase": {
+            "type": "string",
+            "title": "Phase",
+            "default": "before"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind",
+            "description": "question: the causal question is being asked; ask: a field; after: the chat after a run"
+          }
+        },
+        "type": "object",
+        "title": "Prompt"
+      },
+      "QuestionView": {
+        "properties": {
+          "keys": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Keys"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "options": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Options"
+          },
+          "evidence_cites": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidence Cites"
+          },
+          "because": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Because",
+            "description": "the families that need these fields"
+          }
+        },
+        "type": "object",
+        "required": [
+          "keys",
+          "kind",
+          "text"
+        ],
+        "title": "QuestionView",
+        "description": "The one question the desk asks this turn, as the page shows it: the field addresses it settles, its form, its chips."
+      },
+      "RefutationView": {
+        "properties": {
+          "contrast": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contrast"
+          },
+          "refuter": {
+            "type": "string",
+            "title": "Refuter"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "passed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Passed"
+          },
+          "p_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P Value"
+          },
+          "new_effect": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Effect"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "refuter"
+        ],
+        "title": "RefutationView"
+      },
+      "RunFiles": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/FileEntry"
+            },
+            "type": "array",
+            "title": "Files"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id",
+          "files"
+        ],
+        "title": "RunFiles"
+      },
+      "RunView": {
+        "properties": {
+          "index": {
+            "type": "integer",
+            "title": "Index"
+          },
+          "question": {
+            "type": "string",
+            "title": "Question"
+          },
+          "family": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Family"
+          },
+          "specialist": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Specialist"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "effect": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effect"
+          },
+          "ci_low": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ci Low"
+          },
+          "ci_high": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ci High"
+          },
+          "estimator": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimator"
+          },
+          "decision": {
+            "$ref": "#/components/schemas/DecisionView"
+          },
+          "decision_record": {
+            "type": "string",
+            "title": "Decision Record",
+            "default": ""
+          },
+          "flags": {
+            "items": {
+              "$ref": "#/components/schemas/CheckView"
+            },
+            "type": "array",
+            "title": "Flags"
+          },
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/CheckView"
+            },
+            "type": "array",
+            "title": "Checks"
+          },
+          "refutations": {
+            "items": {
+              "$ref": "#/components/schemas/RefutationView"
+            },
+            "type": "array",
+            "title": "Refutations"
+          },
+          "interpretations": {
+            "items": {
+              "$ref": "#/components/schemas/InterpretationView"
+            },
+            "type": "array",
+            "title": "Interpretations"
+          },
+          "estimates": {
+            "items": {
+              "$ref": "#/components/schemas/EstimateView"
+            },
+            "type": "array",
+            "title": "Estimates"
+          },
+          "feasibility": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FeasibilityView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "files": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Files"
+          },
+          "what_if": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "What If"
+          },
+          "differs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Differs"
+          },
+          "figures": {
+            "items": {
+              "$ref": "#/components/schemas/FigureSpec"
+            },
+            "type": "array",
+            "title": "Figures",
+            "description": "the ready-moment figure first, then what the run left"
+          },
+          "declines": {
+            "items": {
+              "$ref": "#/components/schemas/DeclineView"
+            },
+            "type": "array",
+            "title": "Declines"
+          }
+        },
+        "type": "object",
+        "required": [
+          "index",
+          "question",
+          "status"
+        ],
+        "title": "RunView"
+      },
+      "Sentinel": {
+        "properties": {
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "value",
+          "count",
+          "reason"
+        ],
+        "title": "Sentinel"
+      },
+      "Series": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "x": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "X"
+          },
+          "y": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Y"
+          },
+          "lo": {
+            "anyOf": [
+              {
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lo"
+          },
+          "hi": {
+            "anyOf": [
+              {
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hi"
+          },
+          "n": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N"
+          },
+          "key": {
+            "type": "string",
+            "title": "Key",
+            "description": "The series' address segment, computed here once so the page never rebuilds it.",
+            "readOnly": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "key"
+        ],
+        "title": "Series",
+        "description": "One drawn set of values. `x` is a level, a period, or a bin; `y` the number; `lo`/`hi` an interval; `n` the rows behind each point."
+      },
+      "SessionBrief": {
+        "properties": {
+          "stage": {
+            "type": "string",
+            "title": "Stage"
+          },
+          "phase": {
+            "type": "string",
+            "title": "Phase"
+          },
+          "runs": {
+            "type": "integer",
+            "title": "Runs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "stage",
+          "phase",
+          "runs"
+        ],
+        "title": "SessionBrief"
+      },
+      "SessionView": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "question": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Question"
+          },
+          "stage": {
+            "type": "string",
+            "enum": [
+              "busy",
+              "waiting",
+              "ended",
+              "stale",
+              "error",
+              "new"
+            ],
+            "title": "Stage"
+          },
+          "phase": {
+            "type": "string",
+            "title": "Phase",
+            "default": "before"
+          },
+          "activity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Activity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ready": {
+            "type": "boolean",
+            "title": "Ready",
+            "default": false
+          },
+          "prompt": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Prompt"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "questions": {
+            "items": {
+              "$ref": "#/components/schemas/QuestionView"
+            },
+            "type": "array",
+            "title": "Questions"
+          },
+          "claims": {
+            "items": {
+              "$ref": "#/components/schemas/ClaimView"
+            },
+            "type": "array",
+            "title": "Claims"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StatusView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/RunView"
+            },
+            "type": "array",
+            "title": "Runs"
+          },
+          "brief": {
+            "type": "string",
+            "title": "Brief",
+            "default": ""
+          },
+          "transcript": {
+            "items": {
+              "$ref": "#/components/schemas/Turn"
+            },
+            "type": "array",
+            "title": "Transcript"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "title",
+          "stage"
+        ],
+        "title": "SessionView"
+      },
+      "StatusView": {
+        "properties": {
+          "table": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "type": "object",
+            "title": "Table"
+          },
+          "surviving": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Surviving"
+          },
+          "struck": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Struck"
+          },
+          "required": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Required"
+          },
+          "settled": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Settled"
+          },
+          "open": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Open"
+          },
+          "ready": {
+            "type": "boolean",
+            "title": "Ready"
+          },
+          "contradictions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Contradictions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "table",
+          "surviving",
+          "struck",
+          "required",
+          "settled",
+          "open",
+          "ready",
+          "contradictions"
+        ],
+        "title": "StatusView"
+      },
+      "TopValue": {
+        "properties": {
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "share": {
+            "type": "number",
+            "title": "Share"
+          }
+        },
+        "type": "object",
+        "required": [
+          "value",
+          "count",
+          "share"
+        ],
+        "title": "TopValue"
+      },
+      "Turn": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "assistant",
+              "system"
+            ],
+            "title": "Role"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "phase": {
+            "type": "string",
+            "title": "Phase",
+            "default": "before"
+          },
+          "at": {
+            "type": "string",
+            "title": "At"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "figure": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FigureSpec"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "shown under the text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "role",
+          "text",
+          "at"
+        ],
+        "title": "Turn"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

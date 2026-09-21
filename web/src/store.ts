@@ -43,23 +43,20 @@ export function useSession(name: string) {
     };
   }, [view, refresh]);
 
-  const act = useCallback(
-    async (fn: () => Promise<SessionView>) => {
-      setSending(true);
-      try {
-        const v = await fn();
-        if (alive.current) {
-          setView(v);
-          setError(null);
-        }
-      } catch (e) {
-        if (alive.current) setError(e instanceof ApiError ? e.message : String(e));
-      } finally {
-        if (alive.current) setSending(false);
+  const act = useCallback(async (fn: () => Promise<SessionView>) => {
+    setSending(true);
+    try {
+      const v = await fn();
+      if (alive.current) {
+        setView(v);
+        setError(null);
       }
-    },
-    [],
-  );
+    } catch (e) {
+      if (alive.current) setError(e instanceof ApiError ? e.message : String(e));
+    } finally {
+      if (alive.current) setSending(false);
+    }
+  }, []);
 
   return {
     view,
