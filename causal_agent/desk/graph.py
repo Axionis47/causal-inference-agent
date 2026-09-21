@@ -14,6 +14,8 @@ The lane runs in its own process on the pack. After the run the chat is free: an
 
 from __future__ import annotations
 
+from inspect import isclass
+
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from langgraph.graph import START, StateGraph
@@ -142,6 +144,7 @@ _CONTRACTS: list = [
     # where a class used to live, so a checkpoint written then still loads
     ("causal_agent.desk.contracts", "RunRecord"),
 ]
+_CONTRACTS += [("causal_agent.common.contracts", c.__name__) for c in _CONTRACTS if isclass(c) and c.__module__.startswith("causal_agent.common.contracts.")]
 
 serde = JsonPlusSerializer(allowed_msgpack_modules=_CONTRACTS)
 
