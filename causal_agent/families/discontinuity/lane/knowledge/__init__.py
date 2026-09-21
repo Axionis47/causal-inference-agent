@@ -1,13 +1,13 @@
-"""Loaders for the four knowledge files. Read once, rendered for the model, filtered by facts."""
+"""The lane's knowledge files: the entry models, and the shared loader bound to this folder. Read once, rendered for the model, filtered by facts."""
 
 from __future__ import annotations
 
-from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-import yaml
 from pydantic import BaseModel, Field
+
+from causal_agent.lane.knowledge import Knowledge
 
 _HERE = Path(__file__).parent
 
@@ -72,57 +72,8 @@ class PlaceboEntry(BaseModel):
         return True
 
 
-@lru_cache(maxsize=1)
-def load_estimators() -> list[EstimatorEntry]:
-    raw = yaml.safe_load((_HERE / "estimators.yaml").read_text())
-    return sorted((EstimatorEntry(name=k, **v) for k, v in raw.items()), key=lambda e: e.rank)
+# ------------------------------------------------------------------ the files, through the shared loader
 
-
-@lru_cache(maxsize=1)
-def load_inference() -> list[InferenceEntry]:
-    raw = yaml.safe_load((_HERE / "inference.yaml").read_text())
-    return [InferenceEntry(name=k, **v) for k, v in raw.items()]  # file order is precedence
-
-
-@lru_cache(maxsize=1)
-def load_placebos() -> list[PlaceboEntry]:
-    raw = yaml.safe_load((_HERE / "placebos.yaml").read_text())
-    return [PlaceboEntry(name=k, **v) for k, v in raw.items()]
-
-
-@lru_cache(maxsize=1)
-def load_checks() -> dict[str, Any]:
-    return yaml.safe_load((_HERE / "checks.yaml").read_text())
-
-
-@lru_cache(maxsize=1)
-def load_beliefs() -> dict[str, Any]:
-    """What the person's beliefs, the unknowns, and the contradictions mean to this lane (see lane.case)."""
-    return yaml.safe_load((_HERE / "beliefs.yaml").read_text()) or {}
-
-
-def estimator(name: str) -> EstimatorEntry:
-    for e in load_estimators():
-        if e.name == name:
-            return e
-    raise KeyError(name)
-
-
-def placebo(name: str) -> PlaceboEntry:
-    for p in load_placebos():
-        if p.name == name:
-            return p
-    raise KeyError(name)
-
-
-def pick_inference(*, cluster_column: bool) -> InferenceEntry:
-    for entry in load_inference():
-        if entry.applies(cluster_column=cluster_column):
-            return entry
-    raise LookupError("no inference entry applies")
-
-
-def render_preferences(entries: list[EstimatorEntry]) -> str:
-    names = {e.name for e in entries}
-    lines = [f"- prefer {e.name} over {o}: {why}" for e in entries for o, why in e.prefer_over.items() if o in names]
-    return "\n".join(lines) or "(none recorded among these)"
+K = Knowledge(_HERE, estimator=EstimatorEntry, inference=InferenceEntry, placebo=PlaceboEntry)
+load_estimators, load_inference, load_placebos, load_checks, load_beliefs = K.estimators, K.inference, K.placebos, K.checks, K.beliefs
+estimator, placebo, pick_inference, render_preferences = K.estimator, K.placebo, K.pick_inference, K.render_preferences
