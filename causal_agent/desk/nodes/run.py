@@ -48,17 +48,6 @@ def handoff(state: DeskState, runtime: Runtime[Context]) -> dict:
     return {**out, "design_dir": str(d)}
 
 
-def _decision(state: DeskState) -> dict:
-    d, h = state.get("decision"), state.get("handoff")
-    out: dict = {}
-    if d is not None:
-        out = {"chosen": d.chosen, "chosen_assumption": d.chosen_assumption, "why": d.why_over_alternatives, "over": {r.family: r.reason for r in d.rejected}}
-    if h is not None:
-        out.setdefault("chosen", h.family)
-        out.setdefault("chosen_assumption", h.chosen_assumption)
-    return out
-
-
 def run(state: DeskState) -> dict:
     runs = list(state.get("runs") or [])
     n = int(Path(state["design_dir"]).name) if state.get("design_dir") else len(runs) + 1
@@ -70,7 +59,7 @@ def run(state: DeskState) -> dict:
             dataset=state["dataset"],
             question=question,
             status="no_handoff",
-            decision=_decision(state),
+            decision=pipeline.decision_dict(state.get("decision"), state.get("handoff")),
             decision_record=state.get("decision_record") or "",
             design_dir=state.get("design_dir"),
         )
@@ -80,7 +69,7 @@ def run(state: DeskState) -> dict:
             n,
             state["dataset"],
             question,
-            decision=_decision(state),
+            decision=pipeline.decision_dict(state.get("decision"), state.get("handoff")),
             decision_record=state.get("decision_record") or "",
         )
     rec.what_if = dict(state.get("what_if") or {})
@@ -89,6 +78,7 @@ def run(state: DeskState) -> dict:
         import json
 
         (Path(state["design_dir"]) / "figures.json").write_text(json.dumps(rec.figures, indent=2, default=str))
+    pipeline.save_record(rec)
     return {"runs": runs + [rec], "phase": "after"}
 
 

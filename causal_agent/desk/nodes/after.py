@@ -11,6 +11,7 @@ from langgraph.types import Command, interrupt
 from causal_agent.common.contracts import Said
 from causal_agent.common.llm import structured
 from causal_agent.desk import material as M
+from causal_agent.desk import pipeline
 from causal_agent.desk.contracts import AfterReply, Exchange, RunRecord
 from causal_agent.desk.nodes import frame as F
 from causal_agent.desk.nodes.journey import CAT, QUIT_WORDS, kinds_text
@@ -122,6 +123,7 @@ def brief(state: DeskState) -> dict:
     memory = F.memory_of(state)
     if prev is not None:  # then and now: which fields differed between the two designs
         cur.differs = design_differences(prev.design_dir, cur.design_dir)
+        pipeline.save_record(cur)
     mat = M.render(cur, memory, prev)
     text = M.brief(cur, prev, mat)
     if cur.what_if:

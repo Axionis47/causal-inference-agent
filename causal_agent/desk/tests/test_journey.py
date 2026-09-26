@@ -182,6 +182,36 @@ def test_a_second_conversation_on_the_same_memory_numbers_its_design_after_the_f
     )
 
 
+def test_the_run_record_is_written_beside_its_design_and_reads_back(tmp_path):
+    what_if = AfterReply(
+        kind="what_if",
+        text="Suppose places had been drawn by lot.",
+        updates=[FieldUpdate(address="claim:assignment.kind", value="lottery", said="if it had been a lottery")],
+    )
+    d = Desk(DeskFake(after=[what_if]))
+    d.say(QUESTION)
+    d.to_ready()
+    d.say("run")
+    rec = d.values["runs"][0]
+    back = pipeline.load_record(rec.design_dir)
+    assert back is not None and back.model_dump() == rec.model_dump() and back.figures and back.index == 1
+    # a what-if is a second design; its record carries the fork's change and what differed, saved once the brief knew them
+    d.say("what if the places had been drawn by lot?")
+    rec2 = d.values["runs"][1]
+    back2 = pipeline.load_record(rec2.design_dir)
+    assert back2 is not None and back2.what_if == {"claim:assignment.kind": "lottery"} and back2.differs == rec2.differs and back2.differs
+    # a design dir from before records were written: rebuilt from the lane's own result file
+    (__import__("pathlib").Path(rec.design_dir) / "record.json").unlink()
+    (__import__("pathlib").Path(rec.design_dir) / "result.json").write_text(__import__("json").dumps(rec.specialist_result))
+    rebuilt = pipeline.load_record(rec.design_dir)
+    assert rebuilt is not None and rebuilt.question == QUESTION and rebuilt.effect == 5.6 and rebuilt.family == "adjustment" and rebuilt.index == 1
+    assert rebuilt.figures and rebuilt.decision.get("chosen") == "adjustment"
+    # a design that never ran has no record
+    empty = tmp_path / "designs" / "9"
+    empty.mkdir(parents=True)
+    assert pipeline.load_record(empty) is None
+
+
 # ------------------------------------------------------------------ the file talks back
 
 

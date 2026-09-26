@@ -17,7 +17,7 @@ import uuid
 from pathlib import Path
 
 import causal_agent.families.registry  # noqa: F401  (registers every family's block before a pack is read)
-from causal_agent.common.contracts import Handoff, RunRecord
+from causal_agent.common.contracts import FamilyDecision, Handoff, RunRecord
 
 
 def run_lane(h: Handoff, question: str) -> dict:
@@ -93,6 +93,52 @@ def record(
         specialist_result=sr,
         artifacts=artifacts,
     )
+
+
+# ------------------------------------------------------------------ the record on disk
+
+
+def decision_dict(d: FamilyDecision | None, h: Handoff | None) -> dict:
+    """The decision as a RunRecord carries it: chosen, chosen_assumption, why, over."""
+    out: dict = {}
+    if d is not None:
+        out = {"chosen": d.chosen, "chosen_assumption": d.chosen_assumption, "why": d.why_over_alternatives, "over": {r.family: r.reason for r in d.rejected}}
+    if h is not None:
+        out.setdefault("chosen", h.family)
+        out.setdefault("chosen_assumption", h.chosen_assumption)
+    return out
+
+
+def save_record(rec: RunRecord) -> Path | None:
+    """The record beside the design it came from, so a later conversation can list the run."""
+    if not rec.design_dir:
+        return None
+    p = Path(rec.design_dir) / "record.json"
+    p.write_text(rec.model_dump_json(indent=2))
+    return p
+
+
+def load_record(design_dir: str | Path) -> RunRecord | None:
+    """The record a design dir holds: record.json when the run wrote one, else rebuilt from the lane's result file; None for a
+    design that never ran."""
+    d = Path(design_dir)
+    if (d / "record.json").exists():
+        return RunRecord.model_validate_json((d / "record.json").read_text())
+    if not (d / "result.json").exists():
+        return None
+    sr = json.loads((d / "result.json").read_text())
+    h = Handoff.model_validate(json.loads((d / "handoff.json").read_text())) if (d / "handoff.json").exists() else None
+    dec = FamilyDecision.model_validate_json((d / "decision.json").read_text()) if (d / "decision.json").exists() else None
+    note = (d / "record.md").read_text() if (d / "record.md").exists() else ""
+    index = int(d.name) if d.name.isdigit() else 0
+    dataset = h.pack_name if h else d.parents[1].name
+    rec = record(dataset, h.question if h else "", index, h, sr, decision_dict(dec, h), note, design_dir=str(d))
+    if (d / "figures.json").exists():
+        try:
+            rec.figures = [f for f in json.loads((d / "figures.json").read_text()) if isinstance(f, dict)]
+        except ValueError:
+            rec.figures = []
+    return rec
 
 
 def main(argv: list[str] | None = None) -> None:
