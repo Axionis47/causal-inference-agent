@@ -274,7 +274,10 @@ def test_a_question_to_the_desk_is_answered_beside_the_next_ask_and_an_update_in
             )
         return None
 
-    answer = DeskAnswer(text="Own choice means the student decided whether to take the place once offered.", cites=["adjustment", "claim:assignment.kind"])
+    # the cites as a model spells them: a family as family:<name>, an address in brackets; the gate reads both
+    answer = DeskAnswer(
+        text="Own choice means the student decided whether to take the place once offered.", cites=["family:adjustment", "[claim:assignment.kind]"]
+    )
     fake = DeskFake(infer=curious, explain=[answer])
     d = Desk(fake)
     d.say(QUESTION)
@@ -283,7 +286,10 @@ def test_a_question_to_the_desk_is_answered_beside_the_next_ask_and_an_update_in
     m = HELD["students"]
     assert m.field("claim:unobserved.exists").value is False  # the update in the same message landed first
     assert (
-        p["text"].startswith(answer.text) and "[claim:assignment.kind]" in p["text"] and p["ask"] is not None and p["text"].rstrip().endswith(p["ask"]["text"])
+        p["text"].startswith(answer.text)
+        and "[adjustment] [claim:assignment.kind]" in p["text"]
+        and p["ask"] is not None
+        and p["text"].rstrip().endswith(p["ask"]["text"])
     )
     assert fake.calls.count("DeskAnswer") == 1 and "THE PERSON ASKS\nwhat does own choice mean here?" in fake.humans["DeskAnswer"][0]
     assert d.values["explained"] is None and d.values["desk_question"] is None  # said once

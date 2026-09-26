@@ -453,6 +453,12 @@ def infer(state: DeskState) -> Command[Literal["infer", "check", "explain"]]:
 MAX_EXPLAIN_ATTEMPTS = 3
 
 
+def _plain_cite(c: str) -> str:
+    """A cite as the gate reads it: without brackets, and a family named as family:<name> by its name alone."""
+    c = c.strip().strip("[]").strip()
+    return c[len("family:") :] if c.startswith("family:") else c
+
+
 def explain(state: DeskState) -> Command[Literal["explain", "check"]]:
     """The person asked the desk something: one answer from the families' knowledge, the fit grid, and the memory, every cite
     checked by code; three tries, then the honest fallback. Shown before the next thing asked."""
@@ -475,7 +481,8 @@ def explain(state: DeskState) -> Command[Literal["explain", "check"]]:
     out, thought = structured(DeskAnswer, P.EXPLAIN_SYSTEM, user, node="explain")
     names = {f.name for f in R.knowledge()}
     probes = state.get("probes") or []
-    bad = [c for c in out.cites if c not in names and not D.resolves(c, memory, probes)]
+    cites = [_plain_cite(c) for c in out.cites]
+    bad = [c for c in cites if c not in names and not D.resolves(c, memory, probes)]
     problems = []
     if bad:
         problems.append(f"cites that are neither a family name nor an address in the memory: {bad}")
@@ -488,5 +495,5 @@ def explain(state: DeskState) -> Command[Literal["explain", "check"]]:
     if problems:
         text = "I can only answer that from what is settled. " + (_design_line(st, memory, state.get("frame")) if st else "")
     else:
-        text = out.text.strip() + (" " + " ".join(f"[{c}]" for c in out.cites if c not in out.text) if out.cites else "")
+        text = out.text.strip() + (" " + " ".join(f"[{c}]" for c in dict.fromkeys(cites) if c not in out.text) if cites else "")
     return Command(goto="check", update={"explained": text.strip(), "desk_question": None, "explain_errors": [], "explain_attempts": 0, "debug": [thought]})
