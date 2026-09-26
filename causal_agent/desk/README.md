@@ -11,7 +11,9 @@ The one conversation from a CSV to a routed context pack, and back after the run
   what each still needs, which are struck and why, and that the person may narrow the interview to the ones they care about;
   then one question, composed by code: the drafts to confirm in one go, the in-play columns in one tick, else one dataset
   field, with why it is asked), `listen`, `infer` (one judgement: what the message settles, with the
-  person's words), and the gate in `memory.ops.apply`. A refuted answer is asked again with the check that refuted it; kept twice,
+  person's words, and whether it asks the desk something), the gate in `memory.ops.apply`, and `explain` (when the person asked
+  something: one answer from the families' knowledge, the fit grid and the memory, its cites checked by code, shown before the
+  next thing asked). A refuted answer is asked again with the check that refuted it; kept twice,
   it stands as a contradiction and reaches the lane. "run" while drafts are open takes them on the person's word. After the run:
   `brief`, `talk`, `turn` (answer, revise, requestion, done), with a revision going through the same gate and back to the checks.
 - `pipeline.py` — the lane in its own process on `designs/<n>/handoff.json`; `material.py` — everything a run left behind as lines

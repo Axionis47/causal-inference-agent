@@ -68,6 +68,7 @@ def build() -> StateGraph:
     b.add_node("convince", J.convince, retry_policy=_retry)
     b.add_node("listen", J.listen)
     b.add_node("infer", J.infer, retry_policy=_retry)
+    b.add_node("explain", J.explain, retry_policy=_retry)
     b.add_node("fit", D.fit)
     b.add_node("decide", D.decide, retry_policy=_retry)
     b.add_node("gate", J.gate)
@@ -89,7 +90,7 @@ def build() -> StateGraph:
     # read_question → ask_question | check, via Command
     b.add_edge("check", "probe_fit")
     b.add_edge("probe_fit", "ask")
-    # ask → listen | convince | fit; listen → infer | fit | handoff | check | END; infer → infer | check, via Command
+    # ask → listen | convince | fit; listen → infer | fit | handoff | check | END; infer → infer | check | explain; explain → explain | check, via Command
     b.add_edge("convince", "listen")
     b.add_edge("fit", "decide")
     b.add_edge("decide", "gate")

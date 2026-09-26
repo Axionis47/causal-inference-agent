@@ -53,6 +53,10 @@ class DeskState(RouteState, total=False):
     ask: Ask | None
     reply: str  # the desk's message this turn
     oriented: bool  # the map of what the file could answer has been shown for this question
+    desk_question: str | None  # what the person asked the desk this turn, to answer beside the next ask
+    explained: str | None  # the desk's answer, shown before the next ask
+    explain_errors: list[str]
+    explain_attempts: int
     design_dir: str | None  # designs/<n>/ once the pack is written
     infer_errors: list[str]
     infer_attempts: int

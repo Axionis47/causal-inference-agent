@@ -8,7 +8,7 @@ import re
 from langchain_core.messages import AIMessage
 
 from causal_agent.common.contracts import Candidate, FamilyDecision, QuestionFrame, Rejection, Scope
-from causal_agent.desk.contracts import AfterReply, FieldUpdate, Inference
+from causal_agent.desk.contracts import AfterReply, DeskAnswer, FieldUpdate, Inference
 from causal_agent.families import registry as R
 from causal_agent.memory.claims import ClaimUpdate, Extraction, FieldValue
 
@@ -85,9 +85,10 @@ def asked_addresses(human: str) -> list[str]:
 class DeskFake:
     """Answers by rule from the person's words. `after` is a queue of AfterReply objects for the chat after a run."""
 
-    def __init__(self, *, after: list[AfterReply] | None = None, infer=None):
+    def __init__(self, *, after: list[AfterReply] | None = None, infer=None, explain: list[DeskAnswer] | None = None):
         self.after = list(after or [])
         self.infer = infer  # optional callable(message, asked_addresses, human) -> Inference | None
+        self.explain = list(explain or [])  # a queue of DeskAnswer for questions asked before the run
         self.calls: list[str] = []
         self.humans: dict[str, list[str]] = {}
 
@@ -150,6 +151,8 @@ class DeskFake:
             )
         if schema is AfterReply:
             return self.after.pop(0)
+        if schema is DeskAnswer:
+            return self.explain.pop(0) if self.explain else DeskAnswer(text="A scripted answer.", cites=["adjustment"])
         raise AssertionError(schema)
 
 

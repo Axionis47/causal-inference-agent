@@ -10,7 +10,7 @@ from langgraph.types import Command, interrupt
 
 from causal_agent.common.contracts import QuestionFrame
 from causal_agent.common.llm import structured
-from causal_agent.desk.contracts import Ask, Finding, Inference
+from causal_agent.desk.contracts import Ask, DeskAnswer, Finding, Inference
 from causal_agent.desk.nodes import decide as D
 from causal_agent.desk.nodes import frame as F
 from causal_agent.desk.nodes.shared import (
@@ -21,6 +21,7 @@ from causal_agent.desk.nodes.shared import (
     TH,
     _columns_in_play,
     _csv_path,
+    _design_line,
     _remember,
     _writer,
     focused_needs,
@@ -223,9 +224,11 @@ def ask(state: DeskState) -> Command[Literal["listen", "fit", "convince"]]:
     head = (state.get("reply") or "" if not state.get("ask") and not state.get("settled_now") else "") + acknowledge(memory, state.get("settled_now") or [])
     if not state.get("oriented"):  # the first reply after the question is read: the map of what the file could answer
         head = compose_map(st, memory, state.get("frame")) + "\n\n" + head
+    if state.get("explained"):  # the person asked the desk something last turn: the answer comes first, then what is asked next
+        head = state["explained"] + "\n\n" + head
     if a is None:
         if st.ready:
-            return Command(goto="convince", update={"ask": None, "reply": head, "run_requested": False, "figure": None, "oriented": True})
+            return Command(goto="convince", update={"ask": None, "reply": head, "run_requested": False, "figure": None, "oriented": True, "explained": None})
         body = (
             "Nothing more to ask, but no design fits yet: "
             + "; ".join(f"{f} ({w})" for f, w in st.struck.items())
@@ -235,7 +238,7 @@ def ask(state: DeskState) -> Command[Literal["listen", "fit", "convince"]]:
         body = a.text
         if state.get("run_requested"):
             body = "Before I can run, this still has to be settled. " + body
-    return Command(goto="listen", update={"ask": a, "reply": head + body, "run_requested": False, "figure": None, "oriented": True})
+    return Command(goto="listen", update={"ask": a, "reply": head + body, "run_requested": False, "figure": None, "oriented": True, "explained": None})
 
 
 # ------------------------------------------------------------------ convince (the ready moment)
@@ -379,7 +382,7 @@ def _open_lines(memory: Memory, opened: list, asked: Ask | None) -> str:
     return "\n".join(lines) or "(nothing open)"
 
 
-def infer(state: DeskState) -> Command[Literal["infer", "check"]]:
+def infer(state: DeskState) -> Command[Literal["infer", "check", "explain"]]:
     memory = F.memory_of(state)
     turn = int(state.get("turn") or 0)
     a = state.get("ask")
@@ -423,8 +426,67 @@ def infer(state: DeskState) -> Command[Literal["infer", "check"]]:
         else:
             focus_update = {"focus": list(dict.fromkeys(out.focus))}
     attempts = int(state.get("infer_attempts") or 0) + 1
+    asked_desk = (out.question or "").strip() or state.get("desk_question") or None  # kept across retries
     _writer()({"infer": {"settled": settled, "rejected": rejected, "attempt": attempts, **({"focus": focus_update["focus"]} if focus_update else {})}})
     store.save(memory)
     if rejected and attempts < INFER_ATTEMPTS:
-        return Command(goto="infer", update={"infer_errors": rejected, "infer_attempts": attempts, "settled_now": settled, "debug": [thought], **focus_update})
-    return Command(goto="check", update={"infer_errors": rejected, "infer_attempts": 0, "settled_now": settled, "debug": [thought], **focus_update})
+        return Command(
+            goto="infer",
+            update={
+                "infer_errors": rejected,
+                "infer_attempts": attempts,
+                "settled_now": settled,
+                "debug": [thought],
+                "desk_question": asked_desk,
+                **focus_update,
+            },
+        )
+    update = {"infer_errors": rejected, "infer_attempts": 0, "settled_now": settled, "debug": [thought], "desk_question": asked_desk, **focus_update}
+    if asked_desk:
+        return Command(goto="explain", update={**update, "explain_errors": [], "explain_attempts": 0})
+    return Command(goto="check", update=update)
+
+
+# ------------------------------------------------------------------ explain (judgement), gated by the cites
+
+
+MAX_EXPLAIN_ATTEMPTS = 3
+
+
+def explain(state: DeskState) -> Command[Literal["explain", "check"]]:
+    """The person asked the desk something: one answer from the families' knowledge, the fit grid, and the memory, every cite
+    checked by code; three tries, then the honest fallback. Shown before the next thing asked."""
+    memory = F.memory_of(state)
+    st = state.get("status")
+    a = state.get("ask")
+    question = state.get("desk_question") or ""
+    errs = state.get("explain_errors") or []
+    errors = ("\nTHE LAST ANSWER WAS REFUSED:\n" + "\n".join(f"- {e}" for e in errs) + "\nAnswer again.\n") if errs else ""
+    families = "\n\n".join(f.render() for f in R.knowledge())
+    user = P.EXPLAIN_USER.format(
+        families=families,
+        status=st.render(list(CAT.kinds)) if st else "(not fitted yet)",
+        kinds=kinds_text(),
+        memory=memory.render() or "(nothing known yet)",
+        asked=a.text if a else "(nothing yet)",
+        question=question,
+        errors=errors,
+    )
+    out, thought = structured(DeskAnswer, P.EXPLAIN_SYSTEM, user, node="explain")
+    names = {f.name for f in R.knowledge()}
+    probes = state.get("probes") or []
+    bad = [c for c in out.cites if c not in names and not D.resolves(c, memory, probes)]
+    problems = []
+    if bad:
+        problems.append(f"cites that are neither a family name nor an address in the memory: {bad}")
+    if not out.cites:
+        problems.append("an answer cites at least one family name or memory address")
+    attempts = int(state.get("explain_attempts") or 0) + 1
+    _writer()({"explain": {"question": question, "attempt": attempts, "problems": problems}})
+    if problems and attempts < MAX_EXPLAIN_ATTEMPTS:
+        return Command(goto="explain", update={"explain_errors": problems, "explain_attempts": attempts, "debug": [thought]})
+    if problems:
+        text = "I can only answer that from what is settled. " + (_design_line(st, memory, state.get("frame")) if st else "")
+    else:
+        text = out.text.strip() + (" " + " ".join(f"[{c}]" for c in out.cites if c not in out.text) if out.cites else "")
+    return Command(goto="check", update={"explained": text.strip(), "desk_question": None, "explain_errors": [], "explain_attempts": 0, "debug": [thought]})

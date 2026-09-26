@@ -21,7 +21,9 @@ INFER_SYSTEM = (
     "person states it. The person may say anything; you decide what their words support, and the desk decides what "
     "is written. When the message says which families of analysis they care about (only adjustment; forget the "
     "discontinuity; every one again), put the family names in focus, spelled as the memory's fit grid spells them; "
-    "otherwise leave focus null. " + UPDATE_RULE
+    "otherwise leave focus null. When the message asks the desk something (what a family is, why this is asked, what "
+    "a term means, what the file could answer), put the question in question, in their words; the desk answers it "
+    "beside the next thing asked. A question fills no field. " + UPDATE_RULE
 )
 
 INFER_USER = """KINDS OF FIELD
@@ -43,6 +45,37 @@ THE PERSON SAYS
 [user:turn:{turn}] {message}
 {errors}
 Return what the message settles.
+"""
+
+EXPLAIN_SYSTEM = (
+    "The person who knows this data asked the desk something before the analysis runs. You are given the families of "
+    "analysis the desk knows (what each answers, needs, and assumes), the fit grid over this file (which families stand, "
+    "which are struck and why, what is still to settle), the kinds of field with their legal values, the memory as it "
+    "stands, the question the desk was about to ask, and what the person asked. Answer from that material only, in a "
+    "few plain sentences, in the question's own words. Cite what the answer rests on: family names as the grid spells "
+    "them, or claim:/col: addresses from the memory. Do not settle any field, do not choose a family, and do not "
+    "promise a result. If the material cannot answer, say so and cite the nearest family or address."
+)
+
+EXPLAIN_USER = """THE FAMILIES OF ANALYSIS
+{families}
+
+THE FIT GRID OVER THIS FILE
+{status}
+
+KINDS OF FIELD
+{kinds}
+
+THE MEMORY AS IT STANDS
+{memory}
+
+WHAT THE DESK WAS ABOUT TO ASK
+{asked}
+
+THE PERSON ASKS
+{question}
+{errors}
+Answer.
 """
 
 EXTRACT_SYSTEM = (

@@ -42,7 +42,19 @@ class Inference(BaseModel):
         description="the families the person said they only care about, by name as the map listed them, when the message says so; "
         "an empty list when they say every family is back in play; null when the message says nothing about it",
     )
+    question: str | None = Field(
+        default=None,
+        description="what the person asked the desk, in their words, when the message asks something (what a family is, why a question "
+        "is asked, what a term means, what the file could answer); null when it asks nothing. A question is never an update",
+    )
     note: str = Field(default="", description="anything said that fits no field, one sentence, or empty")
+
+
+class DeskAnswer(BaseModel):
+    """The desk's answer to something the person asked before the run, from the families' knowledge, the fit grid, and the memory."""
+
+    text: str = Field(description="the answer, in the question's own words, a few sentences at most")
+    cites: list[str] = Field(default_factory=list, description="what it rests on: family names as the grid spells them, or claim:/col: addresses in the memory")
 
 
 class NumberStated(BaseModel):

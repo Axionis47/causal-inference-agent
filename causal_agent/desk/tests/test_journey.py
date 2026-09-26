@@ -11,7 +11,7 @@ from langgraph.types import Command
 from causal_agent.common.llm import set_llm
 from causal_agent.desk import graph as G
 from causal_agent.desk import pipeline
-from causal_agent.desk.contracts import AfterReply, FieldUpdate, Inference, NumberStated, RunRecord
+from causal_agent.desk.contracts import AfterReply, DeskAnswer, FieldUpdate, Inference, NumberStated, RunRecord
 from causal_agent.desk.tests.fakes import QUESTION, DeskFake, answer_ask
 from causal_agent.families import registry as R
 from causal_agent.memory import store
@@ -260,6 +260,48 @@ def test_a_family_the_grid_does_not_know_is_refused_and_the_focus_stays():
     p = d.say("only magic, please")
     assert len(calls) == 2 and "focus: magic is not a family the fit grid knows" in calls[1]  # refused, asked again with the reason
     assert not d.values.get("focus") and p["kind"] == "ask" and len(d.values["status"].surviving) > 1
+
+
+# ------------------------------------------------------------------ asking the desk before the run
+
+
+def test_a_question_to_the_desk_is_answered_beside_the_next_ask_and_an_update_in_the_same_message_still_lands():
+    def curious(msg, addrs, human):
+        if msg.startswith("what does own choice mean"):
+            return Inference(
+                question="what does own choice mean here?",
+                updates=[FieldUpdate(address="claim:unobserved.exists", value="false", said="nothing hidden either way")],
+            )
+        return None
+
+    answer = DeskAnswer(text="Own choice means the student decided whether to take the place once offered.", cites=["adjustment", "claim:assignment.kind"])
+    fake = DeskFake(infer=curious, explain=[answer])
+    d = Desk(fake)
+    d.say(QUESTION)
+    d.say("yes, all right")
+    p = d.say("what does own choice mean here? nothing hidden either way")
+    m = HELD["students"]
+    assert m.field("claim:unobserved.exists").value is False  # the update in the same message landed first
+    assert (
+        p["text"].startswith(answer.text) and "[claim:assignment.kind]" in p["text"] and p["ask"] is not None and p["text"].rstrip().endswith(p["ask"]["text"])
+    )
+    assert fake.calls.count("DeskAnswer") == 1 and "THE PERSON ASKS\nwhat does own choice mean here?" in fake.humans["DeskAnswer"][0]
+    assert d.values["explained"] is None and d.values["desk_question"] is None  # said once
+    p = d.say(answer_ask(p))
+    assert not p["text"].startswith(answer.text)
+
+
+def test_an_answer_that_cites_nothing_real_is_refused_three_times_then_falls_back():
+    def curious(msg, addrs, human):
+        return Inference(question="why do you ask that?") if msg.startswith("why") else None
+
+    bad = DeskAnswer(text="Because.", cites=["nonsense:thing"])
+    fake = DeskFake(infer=curious, explain=[bad, bad, bad])
+    d = Desk(fake)
+    d.say(QUESTION)
+    p = d.say("why do you ask that?")
+    assert fake.calls.count("DeskAnswer") == 3 and "THE LAST ANSWER WAS REFUSED" in fake.humans["DeskAnswer"][2]
+    assert p["text"].startswith("I can only answer that from what is settled.") and "can be answered by adjustment" in p["text"] and p["ask"] is not None
 
 
 # ------------------------------------------------------------------ the file talks back
