@@ -266,4 +266,4 @@ def what_if(state: DeskState) -> Command[Literal["fit", "talk"]]:
 
 def requestion(state: DeskState) -> dict:
     q = state["after_reply"].question or ""
-    return {"question": q, "message": q, "phase": "before", "handoff": None, "invalid": None, "prefilter_votes": [], "oriented": False}
+    return {"question": q, "message": q, "phase": "before", "handoff": None, "invalid": None, "prefilter_votes": [], "oriented": False, "focus": []}

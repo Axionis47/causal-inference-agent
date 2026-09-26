@@ -220,6 +220,48 @@ def test_the_run_record_is_written_beside_its_design_and_reads_back(tmp_path):
     assert pipeline.load_record(empty) is None
 
 
+# ------------------------------------------------------------------ focus: the families the person cares about
+
+
+def test_naming_the_families_you_care_about_drops_the_questions_the_others_need():
+    def only_adjustment(msg, addrs, human):
+        if msg.startswith("only adjustment"):
+            return Inference(focus=["adjustment"])
+        return None
+
+    fake = DeskFake(infer=only_adjustment)
+    d = Desk(fake)
+    p = d.say(QUESTION)
+    assert "instrument:" in p["text"]  # the map lists instrument beside adjustment
+    p = d.say("only adjustment, please")
+    assert d.values["focus"] == ["adjustment"] and d.values["status"].surviving == ["adjustment"]
+    assert "exclusion" not in d.values["status"].required  # the instrument family's need is no longer asked
+    d.to_ready(max_turns=6)
+    asked = "\n".join(fake.humans["Inference"])
+    assert "settles: claim:exclusion" not in asked and d.payload["ready"]
+    assert "Set aside: " in d.payload["text"] and "instrument: not asked for" in d.payload["text"]
+    assert d.values["decision"].chosen == "adjustment" and {r.family: r.reason for r in d.values["decision"].rejected}["instrument"] == "not asked for"
+    d.say("run")
+    assert d.values["runs"][0].family == "adjustment"
+
+
+def test_a_family_the_grid_does_not_know_is_refused_and_the_focus_stays():
+    calls = []
+
+    def magic(msg, addrs, human):
+        if msg.startswith("only magic"):
+            calls.append(human)
+            return Inference(focus=["magic"]) if len(calls) == 1 else Inference()
+        return None
+
+    fake = DeskFake(infer=magic)
+    d = Desk(fake)
+    d.say(QUESTION)
+    p = d.say("only magic, please")
+    assert len(calls) == 2 and "focus: magic is not a family the fit grid knows" in calls[1]  # refused, asked again with the reason
+    assert not d.values.get("focus") and p["kind"] == "ask" and len(d.values["status"].surviving) > 1
+
+
 # ------------------------------------------------------------------ the file talks back
 
 

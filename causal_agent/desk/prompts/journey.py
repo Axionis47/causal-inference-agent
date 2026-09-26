@@ -19,7 +19,9 @@ INFER_SYSTEM = (
     "fixed before the change; a mark from the exam sat after the course was measured after it.\n"
     "Never fill a field from the file's numbers alone. Never fill a belief (a field marked uncheckable) unless the "
     "person states it. The person may say anything; you decide what their words support, and the desk decides what "
-    "is written. " + UPDATE_RULE
+    "is written. When the message says which families of analysis they care about (only adjustment; forget the "
+    "discontinuity; every one again), put the family names in focus, spelled as the memory's fit grid spells them; "
+    "otherwise leave focus null. " + UPDATE_RULE
 )
 
 INFER_USER = """KINDS OF FIELD

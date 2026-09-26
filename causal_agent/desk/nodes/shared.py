@@ -8,6 +8,7 @@ from pathlib import Path
 from langgraph.config import get_stream_writer
 
 from causal_agent.common.contracts import QuestionFrame, Said
+from causal_agent.families import registry as R
 from causal_agent.memory import views as V
 from causal_agent.memory.catalogue import Catalogue, load_catalogue, load_thresholds
 from causal_agent.memory.records import Memory
@@ -57,6 +58,13 @@ def _entry(memory: Memory) -> dict:
 
 def _columns_in_play(memory: Memory, frame: QuestionFrame | None) -> list[str]:
     return V.in_play(memory, frame, _entry(memory))
+
+
+def focused_needs(state) -> dict:
+    """The families' needs the interview and the fit read: every family's, or only those of the families the person named."""
+    needs = R.needs()
+    focus = [f for f in (state.get("focus") or []) if f in needs]
+    return {k: v for k, v in needs.items() if k in focus} if focus else needs
 
 
 def _remember(memory: Memory, turn: int, about: str, text: str) -> None:

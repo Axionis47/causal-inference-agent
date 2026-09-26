@@ -37,6 +37,11 @@ class Inference(BaseModel):
     updates: list[FieldUpdate] = Field(default_factory=list)
     confirms: list[str] = Field(default_factory=list, description="addresses of drafted fields the person said are right, as they stand")
     unknown: list[str] = Field(default_factory=list, description="addresses the person said they cannot say")
+    focus: list[str] | None = Field(
+        default=None,
+        description="the families the person said they only care about, by name as the map listed them, when the message says so; "
+        "an empty list when they say every family is back in play; null when the message says nothing about it",
+    )
     note: str = Field(default="", description="anything said that fits no field, one sentence, or empty")
 
 

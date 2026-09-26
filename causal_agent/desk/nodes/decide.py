@@ -14,6 +14,7 @@ from causal_agent.common.contracts import FamilyDecision, FamilyVerdict, Handoff
 from causal_agent.common.llm import structured
 from causal_agent.desk import handoff as H
 from causal_agent.desk.nodes.frame import memory_of
+from causal_agent.desk.nodes.shared import focused_needs
 from causal_agent.desk.prompts import routing as P
 from causal_agent.desk.state import Context, RouteState
 from causal_agent.families import registry as R
@@ -47,14 +48,18 @@ def _scope_text(frame: QuestionFrame) -> str:
 # ------------------------------------------------------------------ fit (fact)
 
 
-def verdicts_from(memory: Memory, status: Status, probes: list[ProbeResult], registry: list[Family]) -> list[FamilyVerdict]:
+def verdicts_from(memory: Memory, status: Status, probes: list[ProbeResult], registry: list[Family], focus: list[str] | None = None) -> list[FamilyVerdict]:
     """One verdict per family, by code, from the fit table. A family stands when nothing struck it and every need the file or the
     person could have settled is settled and fits. A belief not asked yet is listed unmet but does not strike the family: only the
-    person can give it, and the routing before the interview cannot wait for it. The assumption bet on must name it."""
+    person can give it, and the routing before the interview cannot wait for it. The assumption bet on must name it. A family
+    outside the person's focus is not admissible and says so."""
     cat = load_catalogue()
     all_needs = R.needs()
     out = []
     for fam in registry:
+        if focus and fam.name not in focus:
+            out.append(FamilyVerdict(family=fam.name, admissible=False, needs=[], concern="not asked for"))
+            continue
         needs_spec = all_needs.get(fam.name)
         cells = status.table.get(fam.name, {})
         needs: list[NeedCheck] = []
@@ -91,8 +96,8 @@ def fit(state: RouteState, runtime: Runtime[Context]) -> dict:
     probes = ops.probe(memory, df, R.REGISTRY.values())
     from causal_agent.profile import datasets as DS
 
-    status = ops.fit(memory, probes, R.needs(), columns=V.in_play(memory, state.get("frame"), DS.dataset_entries().get(memory.name) or {}))
-    verdicts = verdicts_from(memory, status, probes, _registry(runtime))
+    status = ops.fit(memory, probes, focused_needs(state), columns=V.in_play(memory, state.get("frame"), DS.dataset_entries().get(memory.name) or {}))
+    verdicts = verdicts_from(memory, status, probes, _registry(runtime), focus=list(state.get("focus") or []))
     _writer()({"fit": {"surviving": status.surviving, "struck": status.struck, "admissible": [v.family for v in verdicts if v.admissible]}})
     return {"family_verdicts": verdicts, "probes": probes, "fit_status": status.model_dump()}
 

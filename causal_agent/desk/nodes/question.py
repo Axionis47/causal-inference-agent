@@ -29,6 +29,7 @@ def load(state: DeskState) -> dict:
         "settled_now": [],
         "ask": None,
         "oriented": False,
+        "focus": [],
         "open": [],
         "status": None,
         "infer_errors": [],

@@ -25,6 +25,7 @@ class RouteState(TypedDict, total=False):
     dataset: str
     prefilter_votes: Annotated[list[PrefilterVote], operator.add]
     frame: QuestionFrame | None
+    focus: list[str]  # the families the person said they only care about; empty means every one is in play
     family_verdicts: list[FamilyVerdict]  # by code, from the fit over the memory
     probes: list  # ProbeResult
     fit_status: dict | None

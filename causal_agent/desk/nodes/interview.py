@@ -13,7 +13,19 @@ from causal_agent.common.llm import structured
 from causal_agent.desk.contracts import Ask, Finding, Inference
 from causal_agent.desk.nodes import decide as D
 from causal_agent.desk.nodes import frame as F
-from causal_agent.desk.nodes.shared import CAT, INFER_ATTEMPTS, QUIT_WORDS, RUN_WORDS, TH, _columns_in_play, _csv_path, _remember, _writer, kinds_text
+from causal_agent.desk.nodes.shared import (
+    CAT,
+    INFER_ATTEMPTS,
+    QUIT_WORDS,
+    RUN_WORDS,
+    TH,
+    _columns_in_play,
+    _csv_path,
+    _remember,
+    _writer,
+    focused_needs,
+    kinds_text,
+)
 from causal_agent.desk.prompts import journey as P
 from causal_agent.desk.state import Context, DeskState
 from causal_agent.families import registry as R
@@ -53,8 +65,9 @@ def probe_fit(state: DeskState) -> dict:
     df = V.table_of(memory)
     fr = state.get("frame")
     probes = ops.probe(memory, df, R.REGISTRY.values(), TH, CAT)
-    status = ops.fit(memory, probes, R.needs(), columns=_columns_in_play(memory, fr), cat=CAT)
-    opened = ops.open(memory, status, R.needs(), CAT)
+    needs = focused_needs(state)
+    status = ops.fit(memory, probes, needs, columns=_columns_in_play(memory, fr), cat=CAT)
+    opened = ops.open(memory, status, needs, CAT)
     _writer()({"fit": {"surviving": status.surviving, "struck": status.struck, "open": [o.address for o in opened], "ready": status.ready}})
     return {"probes": probes, "status": status, "fit_status": status.model_dump(), "open": opened, "ready": status.ready}
 
@@ -401,9 +414,17 @@ def infer(state: DeskState) -> Command[Literal["infer", "check"]]:
     before = {a: (f.value, f.status) for a, f in memory.fields.items()}
     rejected = ops.apply(memory, updates, CAT)
     settled = [a for a, f in memory.fields.items() if before.get(a) != (f.value, f.status)]
+    focus_update: dict = {}
+    if out.focus is not None:  # the person named the families they care about: known names narrow the interview, unknown ones are refused
+        known = R.needs()
+        bad = [n for n in out.focus if n not in known]
+        if bad:
+            rejected.append(f"focus: {', '.join(bad)} is not a family the fit grid knows; one of: {', '.join(known)}")
+        else:
+            focus_update = {"focus": list(dict.fromkeys(out.focus))}
     attempts = int(state.get("infer_attempts") or 0) + 1
-    _writer()({"infer": {"settled": settled, "rejected": rejected, "attempt": attempts}})
+    _writer()({"infer": {"settled": settled, "rejected": rejected, "attempt": attempts, **({"focus": focus_update["focus"]} if focus_update else {})}})
     store.save(memory)
     if rejected and attempts < INFER_ATTEMPTS:
-        return Command(goto="infer", update={"infer_errors": rejected, "infer_attempts": attempts, "settled_now": settled, "debug": [thought]})
-    return Command(goto="check", update={"infer_errors": rejected, "infer_attempts": 0, "settled_now": settled, "debug": [thought]})
+        return Command(goto="infer", update={"infer_errors": rejected, "infer_attempts": attempts, "settled_now": settled, "debug": [thought], **focus_update})
+    return Command(goto="check", update={"infer_errors": rejected, "infer_attempts": 0, "settled_now": settled, "debug": [thought], **focus_update})
