@@ -35,7 +35,7 @@ def handoff(state: DeskState, runtime: Runtime[Context]) -> dict:
     out = D.handoff(state, runtime)
     h = out.get("handoff")
     memory = F.memory_of(state)
-    n = len(state.get("runs") or []) + 1
+    n = store.next_design_id(state["dataset"])
     d = store.snapshot(memory, n)
     if h is not None:
         h.design_id = n
@@ -61,7 +61,7 @@ def _decision(state: DeskState) -> dict:
 
 def run(state: DeskState) -> dict:
     runs = list(state.get("runs") or [])
-    n = len(runs) + 1
+    n = int(Path(state["design_dir"]).name) if state.get("design_dir") else len(runs) + 1
     h = state.get("handoff")
     question = state.get("question") or ""
     if h is None:

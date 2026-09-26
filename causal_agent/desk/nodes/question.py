@@ -17,9 +17,10 @@ from causal_agent.memory.records import Memory
 
 
 def load(state: DeskState) -> dict:
-    F.memory_of(state)  # raises for an unknown dataset
+    memory = F.memory_of(state)  # raises for an unknown dataset
+    # the turn counter continues from the last word the memory holds, so a new conversation never reuses a number and loses a turn
     return {
-        "turn": int(state.get("turn") or 0),
+        "turn": max(int(state.get("turn") or 0), max((s.turn for s in memory.said), default=0)),
         "phase": "before",
         "invalid": None,
         "frame_attempts": 0,

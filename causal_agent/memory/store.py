@@ -69,6 +69,13 @@ def snapshot(memory: Memory, design_id: int, root: Path | None = None) -> Path:
     return d
 
 
+def next_design_id(name: str, root: Path | None = None) -> int:
+    """One past the highest designs/<n> on disk, so a new conversation on the same memory never writes over an old design."""
+    d = home(name, root) / "designs"
+    taken = [int(p.name) for p in d.iterdir() if p.is_dir() and p.name.isdigit()] if d.is_dir() else []
+    return max(taken, default=0) + 1
+
+
 # ------------------------------------------------------------------ the claims files, and a memory by name
 
 

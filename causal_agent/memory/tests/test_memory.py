@@ -209,6 +209,14 @@ def test_store_round_trip_and_migration(tmp_path):
         store.migrate("nope", root)
 
 
+def test_the_next_design_id_skips_every_design_on_disk(tmp_path):
+    assert store.next_design_id("fresh", tmp_path) == 1
+    for n in (1, 2, 7):
+        (tmp_path / "data/memory/fresh/designs" / str(n)).mkdir(parents=True)
+    (tmp_path / "data/memory/fresh/designs" / "notes").mkdir()
+    assert store.next_design_id("fresh", tmp_path) == 8
+
+
 # ------------------------------------------------------------------ what each assignment kind needs
 
 

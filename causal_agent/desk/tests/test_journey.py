@@ -36,7 +36,13 @@ def _held(monkeypatch, tmp_path):
 
     monkeypatch.setattr(store, "memory_for", memory_for)
     monkeypatch.setattr(store, "save", lambda m, root=None: None)
+
+    def next_design_id(name, root=None):
+        d = tmp_path / "designs"
+        return max((int(p.name) for p in d.iterdir() if p.name.isdigit()), default=0) + 1 if d.is_dir() else 1
+
     monkeypatch.setattr(store, "snapshot", snapshot)
+    monkeypatch.setattr(store, "next_design_id", next_design_id)
     monkeypatch.setattr(pipeline, "run", canned_run)
     yield
     set_llm(None)
@@ -150,6 +156,30 @@ def test_students_reaches_ready_in_the_frame_plus_a_few_questions_then_runs():
     assert len(runs) == 1 and runs[0].effect == 5.6 and runs[0].family == "adjustment" and d.values["phase"] == "after"
     assert fake.calls.count("FamilyDecision") == 0 and fake.calls.count("Choice") == 0  # one family stood, one figure fit: both by code
     assert (d.values["design_dir"]) and d.values["handoff"].design_id == 1
+
+
+def test_a_second_conversation_on_the_same_memory_numbers_its_design_after_the_first_and_keeps_every_word():
+    d = Desk(DeskFake())
+    d.say(QUESTION)
+    d.to_ready()
+    d.say("run")
+    m = HELD["students"]
+    last_turn = max(s.turn for s in m.said)
+    assert d.values["handoff"].design_id == 1 and last_turn >= 3
+    # a new thread on the same dataset: the desk starts a fresh conversation over the memory as it stands
+    d2 = Desk(DeskFake())
+    assert d2.payload["kind"] == "question"
+    d2.say("How many students passed?")
+    assert m.said[-1].turn == last_turn + 1 and m.said[-1].text == "How many students passed?"  # not skipped as a repeat turn number
+    d2.say(QUESTION)
+    d2.to_ready()
+    d2.say("run")
+    assert d2.values["handoff"].design_id == 2 and d2.values["runs"][0].index == 2  # design 1 is not written over
+    assert (
+        (tmp := __import__("pathlib").Path(d.values["design_dir"])).exists()
+        and tmp.name == "1"
+        and __import__("pathlib").Path(d2.values["design_dir"]).name == "2"
+    )
 
 
 # ------------------------------------------------------------------ the file talks back
