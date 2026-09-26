@@ -262,6 +262,16 @@ def test_a_family_the_grid_does_not_know_is_refused_and_the_focus_stays():
     assert not d.values.get("focus") and p["kind"] == "ask" and len(d.values["status"].surviving) > 1
 
 
+def test_a_turn_that_settles_nothing_at_the_ready_moment_does_not_repeat_the_last_reply():
+    d = Desk(DeskFake())
+    d.say(QUESTION)
+    d.to_ready()
+    first = d.payload["text"]
+    p = d.say("thanks, one moment")  # settles nothing: the ready moment is said again, once, without the map or the reply before
+    assert p["ready"] and p["text"].count("Everything the analysis needs is settled.") == 1 and "could be answered" not in p["text"]
+    assert first.count("Everything the analysis needs is settled.") == 1
+
+
 # ------------------------------------------------------------------ asking the desk before the run
 
 
@@ -441,6 +451,7 @@ def test_a_new_question_about_a_different_change_asks_the_relative_fields_again(
     assert m.value("col:lunch.meaning") and m.value("claim:grain.row_is")  # what a column is, and the grain, carry over
     assert m.value("claim:assignment.treatment_column") == "lunch" and "asked again" in p["text"]
     assert "could be answered" in p["text"] and p["text"].index("could be answered") < p["text"].index("asked again")  # the map again, per question
+    assert p["text"].count("asked again") == 1 and "asked again" not in d.say("yes, all right")["text"]  # the note is said once
 
 
 def test_a_lane_that_asks_back_gets_its_answer_and_runs_again(monkeypatch):

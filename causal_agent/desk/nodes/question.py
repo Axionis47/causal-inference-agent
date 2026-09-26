@@ -29,6 +29,7 @@ def load(state: DeskState) -> dict:
         "settled_now": [],
         "ask": None,
         "oriented": False,
+        "note": "",
         "focus": [],
         "desk_question": None,
         "explained": None,
@@ -136,4 +137,4 @@ def read_question(state: DeskState) -> Command[Literal["ask_question", "check"]]
     if fr.cause and memory.value("claim:assignment.treatment_column") is None:  # the frame's reading, as a draft the person confirms
         ops.apply(memory, [ops.Update(address="claim:assignment.treatment_column", value=fr.cause, status="drafted", source="code:frame")], CAT)
     store.save(memory)
-    return Command(goto="check", update={"frame": fr, "invalid": None, "frame_attempts": attempts, "debug": out["debug"], "settled_now": [], "reply": note})
+    return Command(goto="check", update={"frame": fr, "invalid": None, "frame_attempts": attempts, "debug": out["debug"], "settled_now": [], "note": note})

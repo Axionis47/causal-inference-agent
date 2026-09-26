@@ -52,6 +52,7 @@ class DeskState(RouteState, total=False):
     settled_now: list[str]  # addresses written this turn, for the acknowledgement
     ask: Ask | None
     reply: str  # the desk's message this turn
+    note: str  # what reading the question has to say before the first ask (a change not the one before), said once
     oriented: bool  # the map of what the file could answer has been shown for this question
     desk_question: str | None  # what the person asked the desk this turn, to answer beside the next ask
     explained: str | None  # the desk's answer, shown before the next ask

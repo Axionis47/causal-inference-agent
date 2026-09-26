@@ -221,14 +221,16 @@ def ask(state: DeskState) -> Command[Literal["listen", "fit", "convince"]]:
         return Command(goto="fit", update={"run_requested": False, "ask": None})
     memory = F.memory_of(state)
     a = compose_ask(memory, state.get("open") or [], state.get("findings") or [], state.get("frame"))
-    head = (state.get("reply") or "" if not state.get("ask") and not state.get("settled_now") else "") + acknowledge(memory, state.get("settled_now") or [])
+    head = (state.get("note") or "") + acknowledge(memory, state.get("settled_now") or [])
     if not state.get("oriented"):  # the first reply after the question is read: the map of what the file could answer
         head = compose_map(st, memory, state.get("frame")) + "\n\n" + head
     if state.get("explained"):  # the person asked the desk something last turn: the answer comes first, then what is asked next
         head = state["explained"] + "\n\n" + head
     if a is None:
         if st.ready:
-            return Command(goto="convince", update={"ask": None, "reply": head, "run_requested": False, "figure": None, "oriented": True, "explained": None})
+            return Command(
+                goto="convince", update={"ask": None, "reply": head, "run_requested": False, "figure": None, "oriented": True, "explained": None, "note": ""}
+            )
         body = (
             "Nothing more to ask, but no design fits yet: "
             + "; ".join(f"{f} ({w})" for f, w in st.struck.items())
@@ -238,7 +240,9 @@ def ask(state: DeskState) -> Command[Literal["listen", "fit", "convince"]]:
         body = a.text
         if state.get("run_requested"):
             body = "Before I can run, this still has to be settled. " + body
-    return Command(goto="listen", update={"ask": a, "reply": head + body, "run_requested": False, "figure": None, "oriented": True, "explained": None})
+    return Command(
+        goto="listen", update={"ask": a, "reply": head + body, "run_requested": False, "figure": None, "oriented": True, "explained": None, "note": ""}
+    )
 
 
 # ------------------------------------------------------------------ convince (the ready moment)
