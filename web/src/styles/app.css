@@ -625,6 +625,22 @@ textarea.input {
 .turn.system.error {
   color: #a13a2f;
 }
+.turn.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0 6px;
+  color: var(--ink-3);
+  font-family: var(--mono);
+  font-size: 12.5px;
+  letter-spacing: 0.02em;
+}
+.turn.divider::before,
+.turn.divider::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid var(--rule);
+}
 .turn .body {
   white-space: pre-wrap;
   overflow-wrap: anywhere;

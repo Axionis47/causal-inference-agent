@@ -26,5 +26,6 @@ describe("stageLabel", () => {
     expect(stageLabel(d({ session: { stage: "error", phase: "before", runs: 0 } }))).toEqual({ text: "error", tone: "strike" });
     expect(stageLabel(d({ session: { stage: "waiting", phase: "after", runs: 1 } }))).toEqual({ text: "1 run", tone: "teal" });
     expect(stageLabel(d({ session: { stage: "waiting", phase: "before", runs: 0 } }))).toEqual({ text: "interviewing", tone: "amber" });
+    expect(stageLabel(d({ session: { stage: "waiting", phase: "before", runs: 2 } }))).toEqual({ text: "interviewing · 2 runs", tone: "amber" });
   });
 });

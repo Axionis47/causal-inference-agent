@@ -42,7 +42,7 @@ export const api = {
   session: (name: string) => call<SessionView>(`/api/sessions/${encodeURIComponent(name)}`),
   send: (name: string, text: string) => call<SessionView>(`/api/sessions/${encodeURIComponent(name)}/messages`, json("POST", { text })),
   resume: (name: string) => call<SessionView>(`/api/sessions/${encodeURIComponent(name)}/resume`, json("POST")),
-  restart: (name: string) => call<SessionView>(`/api/sessions/${encodeURIComponent(name)}/restart`, json("POST")),
+  newAnalysis: (name: string) => call<SessionView>(`/api/sessions/${encodeURIComponent(name)}/analyses`, json("POST")),
   runFiles: (runId: string) => call<RunFiles>(`/api/runs/${encodeURIComponent(runId)}`),
   fileUrl: (runId: string, name: string, raw = false) => `/api/runs/${encodeURIComponent(runId)}/files/${encodeURIComponent(name)}${raw ? "?raw=1" : ""}`,
   fileText: async (runId: string, name: string, raw = false) => {

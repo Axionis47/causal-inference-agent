@@ -46,6 +46,13 @@ function when(at: string): string {
 
 export default function Message({ t }: { t: Turn }) {
   if (t.role === "system") {
+    if (t.kind === "divider") {
+      return (
+        <div className="turn divider" role="separator">
+          <span>{t.text}</span>
+        </div>
+      );
+    }
     return <div className={`turn system${t.kind === "error" ? " error" : ""}`}>{t.text}</div>;
   }
   return (

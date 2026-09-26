@@ -13,5 +13,5 @@ export function stageLabel(d: DatasetSummary): { text: string; tone: Tone } {
   if (s.stage === "ended") return { text: s.runs ? `ended · ${runs(s.runs)}` : "ended", tone: "" };
   if (s.stage === "error") return { text: "error", tone: "strike" };
   if (s.phase === "after") return { text: runs(s.runs), tone: "teal" };
-  return { text: "interviewing", tone: "amber" };
+  return { text: s.runs ? `interviewing · ${runs(s.runs)}` : "interviewing", tone: "amber" };
 }

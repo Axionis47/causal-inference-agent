@@ -17,6 +17,7 @@ export default function RunsView({ view, run, onSelect }: { view: SessionView; r
               role="tab"
               aria-selected={x.index === r.index}
               className={`chip${x.index === r.index ? " on" : ""}`}
+              title={x.question}
               onClick={() => onSelect({ tab: "runs", run: x.index })}
             >
               {Object.keys(x.what_if ?? {}).length ? "What if " : "Design "}

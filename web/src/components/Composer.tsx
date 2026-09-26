@@ -8,11 +8,13 @@ export default function Composer({
   disabled,
   onSend,
   onEnd,
+  onNew,
 }: {
   view: SessionView;
   disabled: boolean;
   onSend: (text: string) => void;
   onEnd: () => void;
+  onNew: () => void;
 }) {
   const [free, setFree] = useState("");
   const [answers, setAnswers] = useState<Record<number, string>>({});
@@ -108,6 +110,9 @@ export default function Composer({
                 Run the analysis
               </button>
             )}
+            <button className="btn quiet sm" disabled={disabled} onClick={onNew} title="A new question of the same file; what is known carries over">
+              New question
+            </button>
             <button className="btn quiet sm" disabled={disabled} onClick={onEnd}>
               End conversation
             </button>

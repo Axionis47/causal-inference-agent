@@ -65,6 +65,6 @@ export function useSession(name: string) {
     refresh,
     send: (text: string) => act(() => api.send(name, text)),
     resume: () => act(() => api.resume(name)),
-    restart: () => act(() => api.restart(name)),
+    newAnalysis: () => act(() => api.newAnalysis(name)),
   };
 }

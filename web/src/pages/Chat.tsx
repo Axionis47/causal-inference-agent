@@ -16,10 +16,11 @@ import { useSession } from "../store";
 
 export default function Chat() {
   const { name = "" } = useParams();
-  const { view, error, sending, send, resume, restart } = useSession(name);
+  const { view, error, sending, send, resume, newAnalysis } = useSession(name);
   const { refresh } = useDatasets();
   const { sel: raw, set: select, close } = useSelection();
   const [ending, setEnding] = useState(false);
+  const [asking, setAsking] = useState(false);
   const deskRef = useRef<HTMLDivElement>(null);
   const { width, splitterProps } = usePaneResize(deskRef);
 
@@ -104,21 +105,23 @@ export default function Chat() {
         )}
         {view.stage === "ended" && (
           <div className="banner">
-            <span>This conversation ended. Start a new one on the same dataset and question.</span>
-            <button className="btn sm" onClick={restart}>
-              New conversation
+            <span>This conversation ended. Ask a new question of the same file; what is known about it carries over.</span>
+            <button className="btn sm" onClick={newAnalysis}>
+              New question
             </button>
           </div>
         )}
         {view.stage === "new" && (
           <div className="banner">
             <span>Not started yet.</span>
-            <button className="btn sm" onClick={restart}>
+            <button className="btn sm" onClick={newAnalysis}>
               Start
             </button>
           </div>
         )}
-        {(view.stage === "waiting" || view.stage === "busy") && <Composer view={view} disabled={!canTalk} onSend={send} onEnd={() => setEnding(true)} />}
+        {(view.stage === "waiting" || view.stage === "busy") && (
+          <Composer view={view} disabled={!canTalk} onSend={send} onEnd={() => setEnding(true)} onNew={() => setAsking(true)} />
+        )}
         {busy && view.activity && <Activity node={view.activity.node} />}
         {view.phase === "before" && <StatusStrip claims={view.claims} status={view.status} onOpen={() => select({ tab: "claims" })} />}
       </main>
@@ -141,6 +144,21 @@ export default function Chat() {
           send(endWord);
         }}
         onCancel={() => setEnding(false)}
+      />
+      <ConfirmDialog
+        open={asking}
+        title="Ask a new question of this file?"
+        body={
+          view.phase === "after"
+            ? "This conversation closes and a new one starts on the same file. What is known about the columns carries over; the runs and their files stay listed."
+            : "This conversation closes before a run. The claims settled so far carry over to the new question where they still apply."
+        }
+        confirmLabel="New question"
+        onConfirm={() => {
+          setAsking(false);
+          newAnalysis();
+        }}
+        onCancel={() => setAsking(false)}
       />
     </div>
   );
