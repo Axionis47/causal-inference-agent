@@ -463,6 +463,15 @@ def _plain_cite(c: str) -> str:
     return c[len("family:") :] if c.startswith("family:") else c
 
 
+def _canonical_cite(c: str, names: set[str], memory: Memory, probes: list) -> str | None:
+    """The cite as the memory spells it, or None: a family name, an address as given, or one missing its claim:/col: prefix."""
+    plain = _plain_cite(c)
+    for cand in (plain, f"claim:{plain}", f"col:{plain}"):
+        if cand in names or D.resolves(cand, memory, probes):
+            return cand
+    return None
+
+
 def explain(state: DeskState) -> Command[Literal["explain", "check"]]:
     """The person asked the desk something: one answer from the families' knowledge, the fit grid, and the memory, every cite
     checked by code; three tries, then the honest fallback. Shown before the next thing asked."""
@@ -485,8 +494,9 @@ def explain(state: DeskState) -> Command[Literal["explain", "check"]]:
     out, thought = structured(DeskAnswer, P.EXPLAIN_SYSTEM, user, node="explain")
     names = {f.name for f in R.knowledge()}
     probes = state.get("probes") or []
-    cites = [_plain_cite(c) for c in out.cites]
-    bad = [c for c in cites if c not in names and not D.resolves(c, memory, probes)]
+    found = {c: _canonical_cite(c, names, memory, probes) for c in out.cites}
+    cites = [a for a in found.values() if a is not None]
+    bad = [c for c, a in found.items() if a is None]
     problems = []
     if bad:
         problems.append(f"cites that are neither a family name nor an address in the memory: {bad}")
