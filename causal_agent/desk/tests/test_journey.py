@@ -286,7 +286,8 @@ def test_a_question_to_the_desk_is_answered_beside_the_next_ask_and_an_update_in
 
     # the cites as a model spells them: a family as family:<name>, an address in brackets; the gate reads both
     answer = DeskAnswer(
-        text="Own choice means the student decided whether to take the place once offered.", cites=["family:adjustment", "[claim:assignment.kind]"]
+        text="Own choice means the student decided whether to take the place once offered.",
+        cites=["family:adjustment", "[claim:assignment.kind]", "assignment.rule"],  # spelled as a model spells them; the gate reads each
     )
     fake = DeskFake(infer=curious, explain=[answer])
     d = Desk(fake)
@@ -297,7 +298,7 @@ def test_a_question_to_the_desk_is_answered_beside_the_next_ask_and_an_update_in
     assert m.field("claim:unobserved.exists").value is False  # the update in the same message landed first
     assert (
         p["text"].startswith(answer.text)
-        and "[adjustment] [claim:assignment.kind]" in p["text"]
+        and "[adjustment] [claim:assignment.kind] [claim:assignment.rule]" in p["text"]
         and p["ask"] is not None
         and p["text"].rstrip().endswith(p["ask"]["text"])
     )
