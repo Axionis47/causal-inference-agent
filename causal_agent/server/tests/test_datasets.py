@@ -91,3 +91,12 @@ def test_shipped_dataset_shares_its_csv_and_survives_the_other_delete(client, se
     assert client.delete("/api/datasets/one").status_code == 204
     assert (raw / "t.csv").exists() and not (root / "data/context/one.md").exists()
     assert [d["name"] for d in client.get("/api/datasets").json()["datasets"]] == ["two"]
+
+
+def test_meta_is_written_whole_and_leaves_no_temp_file(settings):
+    from causal_agent.server import datasets as DS
+
+    DS.write_meta(settings, "x", {"name": "x", "question": None})
+    DS.write_meta(settings, "x", {"name": "x", "question": "did it?"})
+    assert DS.read_meta(settings, "x") == {"name": "x", "question": "did it?"}
+    assert [p.name for p in DS.meta_path(settings, "x").parent.iterdir()] == ["meta.json"]
