@@ -162,6 +162,28 @@ def compose_ask(memory: Memory, opened: list, findings: list[Finding], frame: Qu
     return Ask(addresses=[o.address], kind=kind_word, text=text, options=list(o.options), because=because, evidence=[fd.evidence] if fd else [])
 
 
+def compose_map(status, memory: Memory, frame: QuestionFrame | None) -> str:
+    """What the file could answer, said once after the question is read: each family in play with what it answers and what is
+    still to settle for it, each family struck already with why, and that the person may narrow the interview to the ones
+    they care about. By code, from the fit grid and the families' knowledge."""
+    registry = {f.name: f for f in R.knowledge()}
+    q = f"{frame.outcome} against {frame.cause}" if frame and frame.outcome and frame.cause else "the question"
+    lines = []
+    if status.surviving:
+        lines.append(f"With this file, {q} could be answered {len(status.surviving)} way{'s' if len(status.surviving) != 1 else ''}:")
+        for fam in status.surviving:
+            know = registry.get(fam)
+            answers = (know.answers[0].upper() + know.answers[1:]) if know else "a family the registry does not describe"
+            todo = [("the columns" if kind == "measured" else kind.replace("_", " ")) for kind, cell in status.table.get(fam, {}).items() if cell == "unknown"]
+            lines.append(f"- {fam.replace('_', ' ')}: {answers}." + (f" Still to settle: {', '.join(todo)}." if todo else " Nothing left to settle."))
+    else:
+        lines.append(f"With this file, no family stands yet for {q}.")
+    if status.struck:
+        lines.append("Struck already: " + "; ".join(f"{fam.replace('_', ' ')} ({why})" for fam, why in status.struck.items()) + ".")
+    lines.append("Say which of these you care about and I will only ask what they need; or answer as we go and every one stays in play.")
+    return "\n".join(lines)
+
+
 def acknowledge(memory: Memory, addresses: list[str]) -> str:
     lines = []
     for a in addresses:
@@ -186,9 +208,11 @@ def ask(state: DeskState) -> Command[Literal["listen", "fit", "convince"]]:
     memory = F.memory_of(state)
     a = compose_ask(memory, state.get("open") or [], state.get("findings") or [], state.get("frame"))
     head = (state.get("reply") or "" if not state.get("ask") and not state.get("settled_now") else "") + acknowledge(memory, state.get("settled_now") or [])
+    if not state.get("oriented"):  # the first reply after the question is read: the map of what the file could answer
+        head = compose_map(st, memory, state.get("frame")) + "\n\n" + head
     if a is None:
         if st.ready:
-            return Command(goto="convince", update={"ask": None, "reply": head, "run_requested": False, "figure": None})
+            return Command(goto="convince", update={"ask": None, "reply": head, "run_requested": False, "figure": None, "oriented": True})
         body = (
             "Nothing more to ask, but no design fits yet: "
             + "; ".join(f"{f} ({w})" for f, w in st.struck.items())
@@ -198,7 +222,7 @@ def ask(state: DeskState) -> Command[Literal["listen", "fit", "convince"]]:
         body = a.text
         if state.get("run_requested"):
             body = "Before I can run, this still has to be settled. " + body
-    return Command(goto="listen", update={"ask": a, "reply": head + body, "run_requested": False, "figure": None})
+    return Command(goto="listen", update={"ask": a, "reply": head + body, "run_requested": False, "figure": None, "oriented": True})
 
 
 # ------------------------------------------------------------------ convince (the ready moment)

@@ -51,6 +51,7 @@ class DeskState(RouteState, total=False):
     settled_now: list[str]  # addresses written this turn, for the acknowledgement
     ask: Ask | None
     reply: str  # the desk's message this turn
+    oriented: bool  # the map of what the file could answer has been shown for this question
     design_dir: str | None  # designs/<n>/ once the pack is written
     infer_errors: list[str]
     infer_attempts: int

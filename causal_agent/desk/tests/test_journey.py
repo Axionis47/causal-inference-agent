@@ -13,6 +13,7 @@ from causal_agent.desk import graph as G
 from causal_agent.desk import pipeline
 from causal_agent.desk.contracts import AfterReply, FieldUpdate, Inference, NumberStated, RunRecord
 from causal_agent.desk.tests.fakes import QUESTION, DeskFake, answer_ask
+from causal_agent.families import registry as R
 from causal_agent.memory import store
 from causal_agent.memory.records import Memory
 
@@ -128,11 +129,18 @@ def test_students_reaches_ready_in_the_frame_plus_a_few_questions_then_runs():
     fake = DeskFake()
     d = Desk(fake)
     p = d.say(QUESTION)
+    # the first reply is the map: what the file could answer the question with, what each family still needs, what is struck and why
+    text = p["text"]
+    assert text.startswith("With this file, math score against test preparation course could be answered")
+    adj = next(f for f in R.knowledge() if f.name == "adjustment")
+    assert f"- adjustment: {adj.answers[0].upper() + adj.answers[1:]}. Still to settle: unobserved, spillover." in text  # the note settled the rest
+    assert "Struck already: " in text and "discontinuity (assignment does not fit)" in text and "Say which of these you care about" in text
+    assert text.index("Say which of these") < text.index("I read these from what was written")  # the map, then the question
     # the note was mined once into drafts; the first question confirms them in one go
     assert p["ask"]["kind"] == "confirm" and "claim:assignment.kind" in p["ask"]["addresses"] and fake.calls.count("Extraction") == 1
     assert HELD["students"].field("claim:assignment.kind").status == "drafted" and HELD["students"].field("claim:unobserved.exists") is None
     turns = d.to_ready(max_turns=6)
-    assert turns <= 5 and d.payload["ready"] and "Say run" in d.payload["text"]
+    assert turns <= 5 and d.payload["ready"] and "Say run" in d.payload["text"] and "could be answered" not in d.payload["text"]  # the map was said once
     # the ready moment: the design in the question's words, the evidence with addresses, the figure, the struck families with a reason each
     text = d.payload["text"]
     assert "Design: adjustment" in text and "[probe:adjustment.overlap]" in text and "[probe:adjustment.arms]" in text
@@ -342,6 +350,7 @@ def test_a_new_question_about_a_different_change_asks_the_relative_fields_again(
     assert m.value("col:lunch.when") is None and m.value("claim:assignment.kind") is None  # relative to the old change: gone
     assert m.value("col:lunch.meaning") and m.value("claim:grain.row_is")  # what a column is, and the grain, carry over
     assert m.value("claim:assignment.treatment_column") == "lunch" and "asked again" in p["text"]
+    assert "could be answered" in p["text"] and p["text"].index("could be answered") < p["text"].index("asked again")  # the map again, per question
 
 
 def test_a_lane_that_asks_back_gets_its_answer_and_runs_again(monkeypatch):

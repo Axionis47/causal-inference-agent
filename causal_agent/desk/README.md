@@ -7,8 +7,10 @@ The one conversation from a CSV to a routed context pack, and back after the run
   thing asked is the causal question; `read_question` frames it (one judgement) and validates it against the file by code: an effect
   of a change on an outcome, the outcome a column, the change a column the file can tell apart. A question that fails is refused
   with which test it failed. Then `check` (the data checks and the consistency rules), `probe_fit` (the families over the memory,
-  counting only the columns in play), `ask` (one question, composed by code: the drafts to confirm in one go, the in-play columns
-  in one tick, else one dataset field, with why it is asked), `listen`, `infer` (one judgement: what the message settles, with the
+  counting only the columns in play), `ask` (the map first, once per question: which families the file could answer it with,
+  what each still needs, which are struck and why, and that the person may narrow the interview to the ones they care about;
+  then one question, composed by code: the drafts to confirm in one go, the in-play columns in one tick, else one dataset
+  field, with why it is asked), `listen`, `infer` (one judgement: what the message settles, with the
   person's words), and the gate in `memory.ops.apply`. A refuted answer is asked again with the check that refuted it; kept twice,
   it stands as a contradiction and reaches the lane. "run" while drafts are open takes them on the person's word. After the run:
   `brief`, `talk`, `turn` (answer, revise, requestion, done), with a revision going through the same gate and back to the checks.
