@@ -22,7 +22,7 @@ Both are in `.claude/launch.json` as `api` and `web`.
 | `GET /api/sessions/{name}` | the view: stage, phase, prompt, questions, claims, status, runs, brief, transcript |
 | `POST /api/sessions/{name}/messages` | resume the graph with the text; 409 while busy or after the end |
 | `POST /api/sessions/{name}/resume` | continue a checkpoint whose step died with the process |
-| `POST /api/sessions/{name}/restart` | a new thread after the conversation ended |
+| `POST /api/sessions/{name}/analyses` | a new question on the same file: a new thread over the memory as it stands, whenever the desk is not working; the runs of every thread stay listed (`/restart` is the old name) |
 | `GET /api/runs/{id}` and `/files/{name}` | the run directory's known files; `report.md` is cut before the model thoughts unless `?raw=1` |
 
 Everything else serves `web/dist`.
@@ -43,7 +43,7 @@ Stages: `busy` (a step is running), `waiting` (the graph is interrupted), `ended
 ## Tests
 
 `uv run pytest causal_agent/server -q`: upload, create, list,
-delete with the caches popped and a shared CSV kept; a scripted interview through run, answer, done, and restart
+delete with the caches popped and a shared CSV kept; a scripted interview through run, answer, done, and a new analysis
 with the interview and desk fakes and a canned pipeline; the view surviving a second server over the same
 checkpoint file; the run-file guards.
 

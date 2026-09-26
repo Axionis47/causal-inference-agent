@@ -1,5 +1,7 @@
-"""One conversation per dataset: the desk graph on a persistent checkpointer, stepped in a worker thread. The manager drives;
-it never judges. The transcript on disk is transcript.py; the projection for the page is views.py."""
+"""One conversation at a time per dataset, any number in turn: the desk graph on a persistent checkpointer, stepped in a
+worker thread. A new analysis is a new thread over the same memory; the designs every thread ran stay on disk and stay
+listed. The manager drives; it never judges. The transcript on disk is transcript.py; the projection for the page is
+views.py."""
 
 from __future__ import annotations
 
@@ -95,14 +97,36 @@ class SessionManager:
         with sess.lock:
             if sess.busy:
                 raise SessionBusy(name)
-            sess.thread_id = str(uuid.uuid4())
-            sess.ended, sess.error, sess.last_payload = False, None, None
-            meta.update({"thread_id": sess.thread_id, "ended": False, "last_prompt": None})
-            DS.write_meta(self.s, name, meta)
-            inp = {"dataset": name}
             self._append(name, Turn(role="system", text="Conversation started.", at=_now()))
-            self._launch(sess, inp)
+            self._begin(sess, meta)
         return sess
+
+    def new_analysis(self, name: str) -> Session:
+        """A new thread over the same memory, whenever the desk is not working: mid-interview, after a run, after the end, or
+        before any thread. The thread so far is listed under the meta's analyses and its designs stay on disk."""
+        meta = DS.read_meta(self.s, name)
+        if meta is None:
+            raise DS.NotFound(f"no dataset named {name!r}")
+        sess = self.get(name)
+        with sess.lock:
+            if sess.busy:
+                raise SessionBusy(name)
+            if sess.thread_id:
+                past = list(meta.get("analyses") or [])
+                past.append({"thread_id": sess.thread_id, "question": meta.get("question"), "started_at": meta.get("started_at"), "ended": True})
+                meta["analyses"] = past
+            meta["question"] = None
+            self._append(name, Turn(role="system", kind="divider", text="New analysis.", at=_now()))
+            self._begin(sess, meta)
+        return sess
+
+    def _begin(self, sess: Session, meta: dict) -> None:
+        """A fresh thread for the session, under its lock."""
+        sess.thread_id = str(uuid.uuid4())
+        sess.ended, sess.error, sess.last_payload = False, None, None
+        meta.update({"thread_id": sess.thread_id, "ended": False, "last_prompt": None, "started_at": _now()})
+        DS.write_meta(self.s, sess.name, meta)
+        self._launch(sess, {"dataset": sess.name})
 
     def send(self, name: str, text: str) -> Session:
         sess = self.get(name)
@@ -131,29 +155,31 @@ class SessionManager:
         return sess
 
     def restart(self, name: str) -> Session:
-        """A new thread after the conversation ended; same description and question."""
-        sess = self.get(name)
-        if sess.busy:
-            raise SessionBusy(name)
-        if not sess.ended and sess.thread_id:
-            raise SessionState("the conversation has not ended")
-        self._append(name, Turn(role="system", text="New conversation.", at=_now()))
-        return self.start(name)
+        """The old name for a new analysis."""
+        return self.new_analysis(name)
+
+    def threads(self, name: str) -> list[str]:
+        """Every thread the dataset has had: the ones listed as past analyses, then the current one."""
+        meta = DS.read_meta(self.s, name) or {}
+        past = [str(a.get("thread_id")) for a in meta.get("analyses") or [] if a.get("thread_id")]
+        cur = self.get(name).thread_id
+        return past + ([cur] if cur and cur not in past else [])
 
     def delete(self, name: str) -> list[str]:
-        """Forget the session and its checkpoints; return the run directories the conversation produced."""
+        """Forget the session and every thread's checkpoints; return the run directories the dataset's designs produced."""
         sess = self.get(name)
         if sess.busy:
             raise SessionBusy(name)
-        run_dirs: list[str] = []
+        run_dirs = [r.run_dir for r in V.disk_records(self.s, name) if r.run_dir]
         if sess.thread_id:
             try:
                 vals = self._values(sess)
-                run_dirs = [r.run_dir for r in vals.get("runs") or [] if getattr(r, "run_dir", None)]
+                run_dirs += [r.run_dir for r in vals.get("runs") or [] if getattr(r, "run_dir", None) and r.run_dir not in run_dirs]
             except Exception:
                 pass
+        for tid in self.threads(name):
             try:
-                self.saver.delete_thread(sess.thread_id)
+                self.saver.delete_thread(tid)
             except Exception:
                 pass
         self.forget(name)

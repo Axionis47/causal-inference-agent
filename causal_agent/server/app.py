@@ -112,17 +112,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(409, "the conversation has ended; start a new one") from None
         return _view(name)
 
-    @app.post("/api/sessions/{name}/restart", response_model=SessionView, status_code=202)
-    def restart_session(name: str) -> SessionView:
+    @app.post("/api/sessions/{name}/analyses", response_model=SessionView, status_code=202)
+    def new_analysis(name: str) -> SessionView:
+        """A new question on the same file: a new thread over the memory as it stands; every run so far stays listed."""
         try:
-            mgr.restart(name)
+            mgr.new_analysis(name)
         except DS.NotFound as e:
             raise HTTPException(404, str(e)) from e
         except SessionBusy:
             raise HTTPException(409, "still working; wait for it to finish") from None
-        except SessionState as e:
-            raise HTTPException(409, str(e)) from e
         return _view(name)
+
+    @app.post("/api/sessions/{name}/restart", response_model=SessionView, status_code=202, include_in_schema=False)
+    def restart_session(name: str) -> SessionView:
+        return new_analysis(name)
 
     # ------------------------------------------------------------------ runs
 

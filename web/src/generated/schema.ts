@@ -124,7 +124,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/sessions/{name}/restart": {
+    "/api/sessions/{name}/analyses": {
         parameters: {
             query?: never;
             header?: never;
@@ -133,8 +133,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Restart Session */
-        post: operations["restart_session_api_sessions__name__restart_post"];
+        /**
+         * New Analysis
+         * @description A new question on the same file: a new thread over the memory as it stands; every run so far stays listed.
+         */
+        post: operations["new_analysis_api_sessions__name__analyses_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1105,7 +1108,7 @@ export interface operations {
             };
         };
     };
-    restart_session_api_sessions__name__restart_post: {
+    new_analysis_api_sessions__name__analyses_post: {
         parameters: {
             query?: never;
             header?: never;

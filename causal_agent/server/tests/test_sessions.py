@@ -77,12 +77,46 @@ def test_question_journey_run_answer_done_and_restart(client, settings, monkeypa
     v = _say(client, "students_web", "done")
     assert v["stage"] == "ended" and v["transcript"][-1]["role"] == "system"
     assert client.post("/api/sessions/students_web/messages", json={"text": "hi"}).status_code == 409
-    # a new conversation on the same dataset starts with the question again; the memory stays
-    r = client.post("/api/sessions/students_web/restart")
+    # a new analysis on the same dataset starts with the question again; the memory stays, and so does the run it made
+    r = client.post("/api/sessions/students_web/analyses")
     assert r.status_code == 202
     v = wait_idle(client, "students_web")
-    assert v["stage"] == "waiting" and v["phase"] == "before" and v["runs"] == [] and v["prompt"]["kind"] == "question"
+    assert v["stage"] == "waiting" and v["phase"] == "before" and v["prompt"]["kind"] == "question" and v["question"] is None
+    assert [r["index"] for r in v["runs"]] == [1] and v["runs"][0]["question"] == QUESTION and v["runs"][0]["effect"] == 5.618
     assert any(c["key"] == "assignment" and c["status"] == "confirmed" for c in v["claims"])
+    assert [t["kind"] for t in v["transcript"] if t["role"] == "system"][-2:] == [None, "divider"]  # ended, then the divider
+
+
+def test_a_new_analysis_can_start_while_the_desk_waits_and_every_run_stays_listed(client, settings, monkeypatch):
+    patch_pipeline(monkeypatch)
+    fake = DeskFake(infer=infer_columns)
+    _to_ready(client, fake)
+    v = _say(client, "students_web", "run")
+    assert v["phase"] == "after" and [r["index"] for r in v["runs"]] == [1]
+    old_thread = client.app.state.sessions.get("students_web").thread_id
+    assert client.post("/api/sessions/students_web/messages", json={"text": "x"}).status_code == 202  # still waiting after a run
+    wait_idle(client, "students_web")
+    # a new analysis without saying done: the thread so far ends, the run stays listed from disk
+    r = client.post("/api/sessions/students_web/analyses")
+    assert r.status_code == 202
+    v = wait_idle(client, "students_web")
+    assert v["stage"] == "waiting" and v["prompt"]["kind"] == "question" and v["transcript"][-2]["kind"] == "divider"
+    assert [r["index"] for r in v["runs"]] == [1] and (settings.root / "data/memory/students_web/designs/1/record.json").exists()
+    v = _say(client, "students_web", QUESTION)
+    while not v["ready"]:
+        v = _say(client, "students_web", reply_for(v))
+    v = _say(client, "students_web", "run")
+    assert [r["index"] for r in v["runs"]] == [1, 2] and v["runs"][1]["question"] == QUESTION and v["prompt"]["text"].startswith("Run 2")
+    assert (settings.root / "data/memory/students_web/designs/2/record.json").exists() and (
+        settings.root / "data/memory/students_web/designs/1/handoff.json"
+    ).exists()
+    listed = next(d for d in client.get("/api/datasets").json()["datasets"] if d["name"] == "students_web")
+    assert listed["session"]["runs"] == 2
+    # the same dataset in a new server lists both runs before any thread is touched; delete drops every thread's checkpoints
+    mgr = client.app.state.sessions
+    assert mgr.threads("students_web") == [old_thread, mgr.get("students_web").thread_id]
+    assert client.delete("/api/datasets/students_web").status_code == 204
+    assert mgr.saver.get_tuple({"configurable": {"thread_id": old_thread}}) is None
 
 
 def test_busy_rejects_a_second_message(client, monkeypatch):

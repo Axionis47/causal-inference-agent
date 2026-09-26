@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 from causal_agent.common.contracts import Decline, RunRecord
+from causal_agent.desk import pipeline
 from causal_agent.memory import store as MS
 from causal_agent.server import datasets as DS
 from causal_agent.server.models import (
@@ -29,6 +30,30 @@ from causal_agent.viz.spec import FigureSpec
 
 if TYPE_CHECKING:
     from causal_agent.server.sessions import SessionManager
+    from causal_agent.server.settings import Settings
+
+
+def disk_records(s: Settings, name: str) -> list[RunRecord]:
+    """Every design the dataset ran, from the records beside them, in design order."""
+    d = MS.home(name, s.root) / "designs"
+    if not d.is_dir():
+        return []
+    out = []
+    for p in sorted((p for p in d.iterdir() if p.is_dir() and p.name.isdigit()), key=lambda p: int(p.name)):
+        try:
+            rec = pipeline.load_record(p)
+        except Exception:
+            rec = None
+        if rec is not None:
+            out.append(rec)
+    return out
+
+
+def all_runs(s: Settings, name: str, live: list[RunRecord]) -> list[RunRecord]:
+    """The dataset's runs across every analysis: the records on disk, the live thread's winning for the same design."""
+    by_index = {r.index: r for r in disk_records(s, name)}
+    by_index.update({r.index: r for r in live})
+    return [by_index[i] for i in sorted(by_index)]
 
 
 def session_view(mgr: SessionManager, name: str) -> SessionView:
@@ -37,7 +62,8 @@ def session_view(mgr: SessionManager, name: str) -> SessionView:
     meta = DS.read_meta(mgr.s, name) or {}
     title, question = meta.get("title") or name, meta.get("question")
     if not sess.thread_id:
-        return SessionView(name=name, title=title, question=question, stage="new", transcript=mgr.transcript(name))
+        runs0 = [run_view(r) for r in all_runs(mgr.s, name, [])]
+        return SessionView(name=name, title=title, question=question, stage="new", runs=runs0, transcript=mgr.transcript(name))
     snap = mgr._snapshot(sess)
     values = dict(snap.values or {})
     interrupted = False
@@ -104,7 +130,7 @@ def session_view(mgr: SessionManager, name: str) -> SessionView:
             claims = []
     st = values.get("status")
     status = StatusView(**st.model_dump()) if st is not None else None
-    runs = [run_view(r) for r in values.get("runs") or []]
+    runs = [run_view(r) for r in all_runs(mgr.s, name, list(values.get("runs") or []))]
     activity = Activity(node=sess.activity[0], since=sess.activity[1]) if sess.activity else None
     return SessionView(
         name=name,

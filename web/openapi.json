@@ -276,10 +276,11 @@
         }
       }
     },
-    "/api/sessions/{name}/restart": {
+    "/api/sessions/{name}/analyses": {
       "post": {
-        "summary": "Restart Session",
-        "operationId": "restart_session_api_sessions__name__restart_post",
+        "summary": "New Analysis",
+        "description": "A new question on the same file: a new thread over the memory as it stands; every run so far stays listed.",
+        "operationId": "new_analysis_api_sessions__name__analyses_post",
         "parameters": [
           {
             "name": "name",
