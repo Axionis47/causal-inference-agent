@@ -97,8 +97,10 @@ an inherited claim.
 ### Designs: `designs/<n>/`
 
 A design is a frozen snapshot: `memory.json` (the map and the facts as they stood), `frame.json` (the question read), `decision.json`
-(family, assumption, why, over), `handoff.json` (the pack as sent), and `run/` (the lane's artifacts). Designs are numbered per
-dataset. A what-if forks the memory into design n+1 without touching design n; a correction edits the memory and makes design n+1
+(family, assumption, why, over), `handoff.json` (the pack as sent), `record.md`, then the lane's `result.json`, `figures.json` and
+`record.json` once it ran; the lane's own artifacts live under `.artifacts/runs/<id>/`, named in the record. Designs are numbered per
+dataset. Which conversation made a design, and what it looked at first, is in that conversation's journal
+(`analyses/<id>/journal.jsonl`, see docs/architecture.md). A what-if forks the memory into design n+1 without touching design n; a correction edits the memory and makes design n+1
 the same way. Then-and-now compares two designs by address.
 
 ### Operations: `causal_agent/memory/`
@@ -328,7 +330,7 @@ Each lane's design changes only as much as it takes to use the pack well:
   identifies, citing the belief it rests on; with a hidden factor kept and only backdoor available, a sensitivity refuter runs and
   the caveat says so. This is the lane's own follow-on and does not block the hand-off point.
 
-## 6. Artifacts of a run, under `designs/<n>/run/`
+## 6. Artifacts of a run, under `.artifacts/runs/<id>/` (named by `designs/<n>/record.json`)
 
 | file | what | addresses |
 |---|---|---|

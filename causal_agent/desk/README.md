@@ -16,6 +16,11 @@ The one conversation from a CSV to a routed context pack, and back after the run
   next thing asked). A refuted answer is asked again with the check that refuted it; kept twice,
   it stands as a contradiction and reaches the lane. "run" while drafts are open takes them on the person's word. After the run:
   `brief`, `talk`, `turn` (answer, revise, requestion, done), with a revision going through the same gate and back to the checks.
+  Every step writes itself into the conversation's journal (`memory.journal`, through `nodes/shared.record`): the question read,
+  each claim settled and on whose word, each explanation, the design, the run, the brief, each answer, each what-if, revision and
+  new question, with the memory version at that moment, what it read, and what it left under `designs/<n>/`. A step's address is
+  `step:<n>`; the after-run chat and explain read the steps as lines and may cite one. The unit of the record is the design run:
+  the steps that led to design n, the design, the run, and what was said about it until the next design.
 - `pipeline.py` — the lane in its own process on `designs/<n>/handoff.json`; `material.py` — everything a run left behind as lines
   with addresses, what the chat after cites.
 - `route.py`, `nodes/frame.py`, `nodes/decide.py`, `prompts/routing.py` — the routing, also usable alone (`desk.route`):

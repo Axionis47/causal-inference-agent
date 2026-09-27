@@ -55,13 +55,18 @@ interpret prompts and the plain-words rule (`prompts`), and the knowledge loader
 [lane-harness.md](lane-harness.md) for the plan that built it and [adr/0001-lanes-stay-distinct.md](adr/0001-lanes-stay-distinct.md)
 for why a lane keeps its own engine.
 
-## The three stores at run time
+## The four stores at run time
 
 | store | where | written by | read by |
 |---|---|---|---|
-| the memory | `data/memory/<name>/` (`meta.yaml`, `columns.yaml`, `fields.yaml`, `said.jsonl`, `designs/<n>/`) | `memory.store.save`, through `memory.ops.apply` only | the desk, the pack builder, the viz tool |
-| the checkpoints | `.artifacts/web/checkpoints.sqlite` | the desk graph through `SqliteSaver`; `desk/graph.py` `_CONTRACTS` lists the classes a checkpoint may hold | the server's session manager |
+| the memory | `data/memory/<name>/` (`meta.yaml`, `columns.yaml`, `fields.yaml`, `said.jsonl`): what is known about the file | `memory.store.save`, through `memory.ops.apply` only | the desk, the pack builder, the viz tool, the server's view |
+| the designs | `data/memory/<name>/designs/<n>/`, one folder per design run: the memory snapshot, the pack, the frame, the decision, then the lane's result, the figures and the run record | `memory.store.snapshot` and `desk.nodes.run` for the design, the lane's process for `result.json`, `desk.pipeline.save_record` for the record | the lane, the brief, the server's runs list |
+| the journal | `data/memory/<name>/analyses/<id>/journal.jsonl`: one conversation's steps, each with its address `step:<n>`, what it read, what it left, and the design run it belongs to | `memory.journal`, from the desk nodes as they run | the after-run chat and explain (citable lines), the server's Journal tab |
+| the checkpoints | `.artifacts/web/checkpoints.sqlite`: where each thread's conversation is | the desk graph through `SqliteSaver`; `desk/graph.py` `_CONTRACTS` lists the classes a checkpoint may hold | the server's session manager |
 | the run artifacts | `.artifacts/runs/<dataset>-<tag>-<id>/` (table, design, estimates, report, figures.json) | a lane, through `lane.records` | the desk's brief and the server's file routes |
+
+The memory is what is known, the journal is what was done, the checkpoint is where the conversation is. A conversation can be
+thrown away and the knowledge survives; the knowledge can be revised and every design still shows what it was made from.
 
 The transcript the page shows is `data/web/<name>/transcript.jsonl`; `meta.json` beside it holds the thread and the
 last prompt. `common.config` reads every path and knob from the environment in one place.

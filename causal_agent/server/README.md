@@ -19,10 +19,10 @@ Both are in `.claude/launch.json` as `api` and `web`.
 | `POST /api/profile` (multipart `file`) | stage a CSV under `.artifacts/web/uploads/<id>/` and profile it; returns the columns with kinds and examples |
 | `POST /api/datasets` | move the upload to `data/raw/<name>/`, write the profile, the index entry, and `data/web/<name>/meta.json`; start the conversation |
 | `DELETE /api/datasets/{name}` | remove the claims, note, profile, entry, meta, the checkpoint thread, the run directories, and the raw folder when no other entry shares the file |
-| `GET /api/sessions/{name}` | the view: stage, phase, prompt, questions, claims, status, runs, brief, transcript |
+| `GET /api/sessions/{name}` | the view: stage, phase, prompt, questions, claims, status, runs, brief, transcript, the analysis id and its journal |
 | `POST /api/sessions/{name}/messages` | resume the graph with the text; 409 while busy or after the end |
 | `POST /api/sessions/{name}/resume` | continue a checkpoint whose step died with the process |
-| `POST /api/sessions/{name}/analyses` | a new question on the same file: a new thread over the memory as it stands, whenever the desk is not working; the runs of every thread stay listed |
+| `POST /api/sessions/{name}/analyses` | a new question on the same file: a new thread over the memory as it stands, with its own journal (`a<k>`), whenever the desk is not working; the runs of every thread stay listed |
 | `GET /api/runs/{id}` and `/files/{name}` | the run directory's known files; `report.md` is cut before the model thoughts unless `?raw=1` |
 
 Everything else serves `web/dist`.
@@ -33,8 +33,8 @@ Everything else serves `web/dist`.
 graph's own serializer so the claim table and the run records round-trip. Each step is the CLI's drain loop run in
 a worker thread: stream until the next interrupt, keep the node names as the activity line, keep the interrupt
 payload as the prompt. The page polls the view every 1.5 s while the stage is `busy`. The transcript is appended to
-`data/web/<name>/transcript.jsonl`; the last prompt and the thread id live in `meta.json`, so a reload or a new
-server process shows the same conversation.
+`data/web/<name>/transcript.jsonl`; the last prompt, the thread id and the analysis id live in `meta.json`, so a reload or a
+new server process shows the same conversation, and the past analyses are listed there with their ids.
 
 Stages: `busy` (a step is running), `waiting` (the graph is interrupted), `ended` (the graph reached END),
 `stale` (a checkpoint with a pending node and no worker: the process died mid-step; Resume continues it),
