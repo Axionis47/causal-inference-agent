@@ -4,6 +4,7 @@ Everything is answered from the run's artifacts and the memory; a change goes th
 from __future__ import annotations
 
 import re
+from pathlib import Path
 from typing import Literal
 
 from langgraph.types import Command, interrupt
@@ -15,6 +16,7 @@ from causal_agent.desk import pipeline
 from causal_agent.desk.contracts import AfterReply, Exchange
 from causal_agent.desk.nodes import frame as F
 from causal_agent.desk.nodes.journey import CAT, QUIT_WORDS, kinds_text
+from causal_agent.desk.nodes.shared import design_now, journal_of, record
 from causal_agent.desk.prompts import journey as P
 from causal_agent.desk.state import DeskState
 from causal_agent.memory import ops, store
@@ -130,6 +132,17 @@ def brief(state: DeskState) -> dict:
         text += "\nThis was a what-if: nothing you told me changed. The copy differed in " + ", ".join(f"[{a}] = {v}" for a, v in cur.what_if.items()) + "."
     elif cur.differs:
         text += "\nWhat differed from the design before: " + ", ".join(f"[{a}]" for a in cur.differs) + "."
+    run_step = journal_of(state).last("run")
+    record(
+        state,
+        "brief",
+        by="code",
+        memory=memory,
+        design=int(cur.index),
+        read=[run_step.address] if run_step else [],
+        left=[str(Path(cur.design_dir) / "record.json")] if prev is not None and cur.design_dir else [],
+        note=text.splitlines()[0] if text else "",
+    )
     return {"brief": text, "after_reply": None, "after_errors": [], "after_attempts": 0, "reply": text, "runs": runs, "fork": None, "what_if": {}}
 
 
@@ -187,7 +200,7 @@ def turn(state: DeskState) -> Command[Literal["turn", "answer", "revise", "what_
     runs = state.get("runs") or []
     cur = runs[-1]
     memory = F.memory_of(state)
-    mat = M.render(cur, memory, runs[-2] if len(runs) > 1 else None)
+    mat = M.render(cur, memory, runs[-2] if len(runs) > 1 else None, steps=journal_of(state).steps())
     errs = state.get("after_errors") or []
     errors = ("\nPREVIOUS REPLY WAS REJECTED:\n" + "\n".join(f"- {e}" for e in errs) + "\n") if errs else ""
     user = P.TURN_USER.format(
@@ -216,6 +229,16 @@ def turn(state: DeskState) -> Command[Literal["turn", "answer", "revise", "what_
 
 
 def answer(state: DeskState) -> dict:
+    reply = state["after_reply"]
+    record(
+        state,
+        "answer",
+        by="model",
+        memory=F.memory_of(state),
+        design=design_now(state),
+        read=list(reply.cites) + ([reply.figure] if reply.figure else []),
+        note=state.get("message") or "",
+    )
     return {}
 
 
@@ -236,6 +259,7 @@ def revise(state: DeskState) -> Command[Literal["check", "talk"]]:
     if not settled:
         note = "I could not apply that change: " + "; ".join(rejected)
         return Command(goto="talk", update={"after_reply": reply.model_copy(update={"text": note, "kind": "answer"})})
+    record(state, "revise", by="person", memory=memory, design=design_now(state), read=[src], note=", ".join(settled))
     return Command(
         goto="check", update={"phase": "before", "settled_now": settled, "run_requested": False, "infer_errors": [], "infer_attempts": 0, "handoff": None}
     )
@@ -259,6 +283,7 @@ def what_if(state: DeskState) -> Command[Literal["fit", "talk"]]:
     if not changed:
         note = "I could not suppose that: " + "; ".join(rejected)
         return Command(goto="talk", update={"after_reply": reply.model_copy(update={"text": note, "kind": "answer"})})
+    record(state, "what_if", by="person", memory=memory, design=design_now(state), read=[src], note=", ".join(f"{a} = {v}" for a, v in changed.items()))
     return Command(
         goto="fit", update={"fork": fork, "what_if": {a: str(v) for a, v in changed.items()}, "handoff": None, "gate_errors": [], "decide_attempts": 0}
     )
@@ -266,4 +291,5 @@ def what_if(state: DeskState) -> Command[Literal["fit", "talk"]]:
 
 def requestion(state: DeskState) -> dict:
     q = state["after_reply"].question or ""
+    record(state, "requestion", by="person", memory=F.memory_of(state), design=design_now(state), read=[f"user:turn:{int(state.get('turn') or 0)}"], note=q)
     return {"question": q, "message": q, "phase": "before", "handoff": None, "invalid": None, "prefilter_votes": [], "oriented": False, "focus": []}

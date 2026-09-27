@@ -7,6 +7,7 @@ import re
 from dataclasses import dataclass, field
 
 from causal_agent.common.contracts import Decline, RunRecord
+from causal_agent.memory.journal import Step
 from causal_agent.memory.records import Memory
 
 
@@ -59,7 +60,7 @@ def _declines(run: RunRecord) -> list[Decline]:
     return out
 
 
-def render(run: RunRecord, memory: Memory | None = None, previous: RunRecord | None = None) -> Material:
+def render(run: RunRecord, memory: Memory | None = None, previous: RunRecord | None = None, steps: list[Step] | None = None) -> Material:
     m = Material()
     dec = run.decision or {}
     m.add("run.question", run.question)
@@ -173,6 +174,8 @@ def render(run: RunRecord, memory: Memory | None = None, previous: RunRecord | N
             for i, (x, y) in enumerate(zip(s_.x, s_.y)):
                 if y is not None:
                     m.add(f"{spec.address}.{s_.key}.{i}", f"{s_.name} · {x}: {y:.4g}", float(y))
+    for s in steps or []:  # how the conversation got here, each step citable by its address
+        m.add(s.address, s.line())
     if memory is not None:  # every field the memory holds, so the chat can cite what the design rested on
         for address, f in memory.fields.items():
             if f.value is None and f.status == "empty":

@@ -26,6 +26,7 @@ from causal_agent.desk.nodes.shared import (
     _writer,
     design_now,
     focused_needs,
+    journal_of,
     kinds_text,
     record,
 )
@@ -477,9 +478,12 @@ def _plain_cite(c: str) -> str:
     return c[len("family:") :] if c.startswith("family:") else c
 
 
-def _canonical_cite(c: str, names: set[str], memory: Memory, probes: list) -> str | None:
-    """The cite as the memory spells it, or None: a family name, an address as given, or one missing its claim:/col: prefix."""
+def _canonical_cite(c: str, names: set[str], memory: Memory, probes: list, journal=None) -> str | None:
+    """The cite as the memory spells it, or None: a family name, a step the journal holds, an address as given, or one missing its
+    claim:/col: prefix."""
     plain = _plain_cite(c)
+    if journal is not None and plain.startswith("step:") and journal.resolve(plain) is not None:
+        return plain
     for cand in (plain, f"claim:{plain}", f"col:{plain}"):
         if cand in names or D.resolves(cand, memory, probes):
             return cand
@@ -496,11 +500,13 @@ def explain(state: DeskState) -> Command[Literal["explain", "check"]]:
     errs = state.get("explain_errors") or []
     errors = ("\nTHE LAST ANSWER WAS REFUSED:\n" + "\n".join(f"- {e}" for e in errs) + "\nAnswer again.\n") if errs else ""
     families = "\n\n".join(f.render() for f in R.knowledge())
+    journal = journal_of(state)
     user = P.EXPLAIN_USER.format(
         families=families,
         status=st.render(list(CAT.kinds)) if st else "(not fitted yet)",
         kinds=kinds_text(),
         memory=memory.render() or "(nothing known yet)",
+        steps="\n".join(f"[{s.address}] {s.line()}" for s in journal.steps()) or "(none yet)",
         asked=a.text if a else "(nothing yet)",
         question=question,
         errors=errors,
@@ -508,7 +514,7 @@ def explain(state: DeskState) -> Command[Literal["explain", "check"]]:
     out, thought = structured(DeskAnswer, P.EXPLAIN_SYSTEM, user, node="explain")
     names = {f.name for f in R.knowledge()}
     probes = state.get("probes") or []
-    found = {c: _canonical_cite(c, names, memory, probes) for c in out.cites}
+    found = {c: _canonical_cite(c, names, memory, probes, journal) for c in out.cites}
     cites = [a for a in found.values() if a is not None]
     bad = [c for c, a in found.items() if a is None]
     problems = []

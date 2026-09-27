@@ -53,7 +53,7 @@ EXPLAIN_SYSTEM = (
     "which are struck and why, what is still to settle), the kinds of field with their legal values, the memory as it "
     "stands, the question the desk was about to ask, and what the person asked. Answer from that material only, in a "
     "few plain sentences, in the question's own words. Cite what the answer rests on: family names as the grid spells "
-    "them, or claim:/col: addresses from the memory. Do not settle any field, do not choose a family, and do not "
+    "them, claim:/col: addresses from the memory, or step:<n> for something the conversation did. Do not settle any field, do not choose a family, and do not "
     "promise a result. If the material cannot answer, say so and cite the nearest family or address."
 )
 
@@ -68,6 +68,9 @@ KINDS OF FIELD
 
 THE MEMORY AS IT STANDS
 {memory}
+
+THE STEPS SO FAR
+{steps}
 
 WHAT THE DESK WAS ABOUT TO ASK
 {asked}
@@ -131,6 +134,8 @@ TURN_SYSTEM = (
     "If the material cannot answer, say so plainly. Do not name a kind of study or a method the material does not name. "
     "When a figure in the material makes the point (its address starts with figure:), name it in figure and the person sees it; "
     "prefer one when they ask why something holds.\n"
+    "The lines whose address starts with step: are how the conversation got here, in order: the question read, each claim "
+    "settled and by whom, each design and run. When the person asks what was settled, when, or on whose word, cite the step.\n"
     "Write in the question's own words. Say a check by what it asks, as its line says it, before its technical name, and give "
     "that name once; the address is the citation. One idea per sentence, in the outcome's units."
 )

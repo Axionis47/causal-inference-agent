@@ -184,7 +184,8 @@ def test_students_reaches_ready_in_the_frame_plus_a_few_questions_then_runs():
     assert fake.calls.count("FamilyDecision") == 0 and fake.calls.count("Choice") == 0  # one family stood, one figure fit: both by code
     assert (d.values["design_dir"]) and d.values["handoff"].design_id == 1
     # the journal: the design written from the memory, then the run that read it, both on this design's group
-    design, run = d.journal.steps()[-2:]
+    design, run, brief = d.journal.steps()[-3:]
+    assert brief.kind == "brief"
     assert (
         design.kind == "design"
         and design.by == "code"
@@ -382,6 +383,28 @@ def test_saying_run_over_open_drafts_is_a_claim_step_on_the_persons_word():
     assert claim is not None and claim.by == "person" and claim.note.startswith("confirmed as drafted: claim:") and claim.read == ["user:turn:2"]
 
 
+def test_the_chat_after_a_run_can_cite_a_step_of_the_conversation():
+    after = [AfterReply(kind="answer", text="As we settled at the start.", cites=["step:1"]), AfterReply(kind="done", text="Bye.")]
+    fake = DeskFake(after=after)
+    d = Desk(fake)
+    d.say(QUESTION)
+    d.to_ready()
+    d.say("run")
+    p = d.say("what did we settle first?")
+    assert p["text"] == "As we settled at the start." and fake.calls.count("AfterReply") == 1  # the gate took the step cite first time
+    assert "[step:1] question by model" in fake.humans["AfterReply"][0] and d.journal.last("answer").read == ["step:1"]
+
+
+def test_material_lists_the_steps_as_addresses_without_numbers():
+    from causal_agent.desk import material as M
+    from causal_agent.memory.journal import Step
+
+    rec = RunRecord(index=1, dataset="students", question="q", family="adjustment", specialist="dowhy", status="done", effect=5.6)
+    steps = [Step(n=1, kind="question", by="model", at="t", memory_version=3, read=["user:turn:1"], note="effect: y against x")]
+    mat = M.render(rec, None, None, steps=steps)
+    assert "step:1" in mat.addresses and "step:1" not in mat.numbers and "[step:1] question by model · v3 · read user:turn:1 · effect: y against x" in mat.text
+
+
 # ------------------------------------------------------------------ the file talks back
 
 
@@ -444,12 +467,21 @@ def test_after_the_run_a_revision_goes_back_through_the_gate_and_the_checks():
     d.say("run")
     p = d.say("what did you find?")
     assert p["kind"] == "after" and "5.6" in p["text"] and p["figure"]["id"] == "effect_completed_vs_none"
+    steps = d.journal.steps()
+    brief, ans = steps[-2], steps[-1]
+    assert brief.kind == "brief" and brief.by == "code" and brief.design == 1 and brief.read == [d.journal.last("run").address] and brief.left == []
+    assert ans.kind == "answer" and ans.by == "model" and ans.design == 1 and ans.note == "what did you find?"
+    assert ans.read == ["estimate:completed_vs_none.value", "figure:effect_completed_vs_none"]
     p = d.say("the offer only depended on lunch, not on parents")
     m = HELD["students"]
     assert m.value("claim:assignment.depends_on") == ["lunch"] and m.field("claim:assignment.depends_on").source.startswith("user:turn:")
     assert p["kind"] == "ask" and p["ready"] and d.values["phase"] == "before"  # everything still settled: back at the ready point
+    rev = d.journal.last("revise")
+    assert rev is not None and rev.by == "person" and rev.design == 1 and rev.note == "claim:assignment.depends_on"  # the person's response to run 1
     p = d.say("run")
     assert p["kind"] == "after" and len(d.values["runs"]) == 2 and "Then and now" in p["text"]
+    kinds = [s.kind for s in d.journal.steps()]
+    assert kinds[-4:] == ["revise", "design", "run", "brief"] and d.journal.last("brief").left == ["designs/2/record.json"]  # differs was written
     p = d.say("done")
     assert p is None
 
@@ -476,6 +508,11 @@ def test_a_what_if_runs_on_a_copy_and_leaves_the_memory_alone():
     assert p["kind"] == "after" and "what-if" in p["text"] and "[claim:assignment.kind] = lottery" in p["text"] and "Then and now" in p["text"]
     assert "claim:assignment.kind" in runs[1].differs and d.values["fork"] is None
     assert d.values["handoff"].design_id == 2 and d.values["handoff"].assignment["kind"] == "lottery"
+    steps = d.journal.steps()
+    assert [s.kind for s in steps[-4:]] == ["what_if", "design", "run", "brief"]
+    wi, des = steps[-4], steps[-3]
+    assert wi.by == "person" and wi.design == 1 and wi.note == "claim:assignment.kind = lottery"  # the person's response to run 1
+    assert des.design == 2 and des.note == "what-if: design 2: adjustment via dowhy" and des.memory_version > wi.memory_version  # the fork's version
 
 
 def test_a_new_question_about_a_different_change_asks_the_relative_fields_again():
@@ -514,6 +551,8 @@ def test_a_new_question_about_a_different_change_asks_the_relative_fields_again(
     assert m.value("claim:assignment.treatment_column") == "lunch" and "asked again" in p["text"]
     assert "could be answered" in p["text"] and p["text"].index("could be answered") < p["text"].index("asked again")  # the map again, per question
     assert p["text"].count("asked again") == 1 and "asked again" not in d.say("yes, all right")["text"]  # the note is said once
+    kinds = [s.kind for s in d.journal.steps()]
+    assert kinds[-3:] == ["requestion", "question", "claim"] and d.journal.last("requestion").note == "Did a standard lunch raise math scores?"
 
 
 def test_a_lane_that_asks_back_gets_its_answer_and_runs_again(monkeypatch):
