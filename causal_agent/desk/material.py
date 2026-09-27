@@ -177,6 +177,8 @@ def render(run: RunRecord, memory: Memory | None = None, previous: RunRecord | N
     for s in steps or []:  # how the conversation got here, each step citable by its address
         m.add(s.address, s.line())
     if memory is not None:  # every field the memory holds, so the chat can cite what the design rested on
+        for said in memory.said:  # the person's own words, by turn, so "on whose word" has an address
+            m.add(f"user:turn:{said.turn}", f'"{said.text}"' + (f" (about {said.about})" if said.about else ""))
         for address, f in memory.fields.items():
             if f.value is None and f.status == "empty":
                 continue

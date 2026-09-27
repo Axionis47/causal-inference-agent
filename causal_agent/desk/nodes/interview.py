@@ -484,6 +484,8 @@ def _canonical_cite(c: str, names: set[str], memory: Memory, probes: list, journ
     plain = _plain_cite(c)
     if journal is not None and plain.startswith("step:") and journal.resolve(plain) is not None:
         return plain
+    if plain.startswith("user:turn:") and any(f"user:turn:{s.turn}" == plain for s in memory.said):
+        return plain
     for cand in (plain, f"claim:{plain}", f"col:{plain}"):
         if cand in names or D.resolves(cand, memory, probes):
             return cand

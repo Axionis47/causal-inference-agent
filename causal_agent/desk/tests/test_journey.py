@@ -383,8 +383,12 @@ def test_saying_run_over_open_drafts_is_a_claim_step_on_the_persons_word():
     assert claim is not None and claim.by == "person" and claim.note.startswith("confirmed as drafted: claim:") and claim.read == ["user:turn:2"]
 
 
-def test_the_chat_after_a_run_can_cite_a_step_of_the_conversation():
-    after = [AfterReply(kind="answer", text="As we settled at the start.", cites=["step:1"]), AfterReply(kind="done", text="Bye.")]
+def test_the_chat_after_a_run_can_cite_a_step_of_the_conversation_and_the_persons_own_words():
+    after = [
+        AfterReply(kind="answer", text="As we settled at the start.", cites=["step:1"]),
+        AfterReply(kind="answer", text="On your word.", cites=["user:turn:2"]),
+        AfterReply(kind="done", text="Bye."),
+    ]
     fake = DeskFake(after=after)
     d = Desk(fake)
     d.say(QUESTION)
@@ -393,6 +397,9 @@ def test_the_chat_after_a_run_can_cite_a_step_of_the_conversation():
     p = d.say("what did we settle first?")
     assert p["text"] == "As we settled at the start." and fake.calls.count("AfterReply") == 1  # the gate took the step cite first time
     assert "[step:1] question by model" in fake.humans["AfterReply"][0] and d.journal.last("answer").read == ["step:1"]
+    p = d.say("and on whose word?")
+    assert p["text"] == "On your word." and fake.calls.count("AfterReply") == 2  # a turn of the person's is an address too
+    assert '[user:turn:2] "' in fake.humans["AfterReply"][1] and d.journal.last("answer").read == ["user:turn:2"]
 
 
 def test_material_lists_the_steps_as_addresses_without_numbers():
