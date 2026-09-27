@@ -31,12 +31,12 @@ const run = (index: number, files: string[] = []): RunView =>
 
 describe("selection hash", () => {
   it("round-trips every form", () => {
-    for (const h of ["", "#claims", "#runs", "#runs/2", "#files", "#files/2", "#files/2/report.md", "#files/1/a%20b.csv"]) {
+    for (const h of ["", "#claims", "#journal", "#runs", "#runs/2", "#files", "#files/2", "#files/2/report.md", "#files/1/a%20b.csv"]) {
       expect(serialiseSelection(parseSelection(h))).toBe(h);
     }
   });
   it("rejects anything else", () => {
-    for (const h of ["#x", "#claims/1", "#runs/a", "#runs/1/x", "#files/1/", "#files/1/a/b", "#files/%E0"]) expect(parseSelection(h)).toBeNull();
+    for (const h of ["#x", "#claims/1", "#journal/1", "#runs/a", "#runs/1/x", "#files/1/", "#files/1/a/b", "#files/%E0"]) expect(parseSelection(h)).toBeNull();
   });
   it("keeps dots and encoded characters in file names", () => {
     expect(parseSelection("#files/3/design.json")).toEqual({ tab: "files", run: 3, file: "design.json" });

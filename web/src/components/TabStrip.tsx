@@ -1,6 +1,6 @@
 import { TABS, type Tab } from "../selection";
 
-export const LABEL: Record<Tab, string> = { claims: "Claims", runs: "Results", files: "Files" };
+export const LABEL: Record<Tab, string> = { claims: "Claims", runs: "Results", files: "Files", journal: "Journal" };
 export type Counts = Partial<Record<Tab, string>>;
 
 /** The slim strip that stands in for the inspector while it is closed. */

@@ -56,6 +56,7 @@ export default function Chat() {
     claims: view.status ? (openClaims ? `${openClaims} open` : "settled") : view.claims.length ? String(view.claims.length) : undefined,
     runs: view.runs.length ? String(view.runs.length) : undefined,
     files: fileCount ? String(fileCount) : undefined,
+    journal: view.journal.length ? String(view.journal.length) : undefined,
   };
 
   return (

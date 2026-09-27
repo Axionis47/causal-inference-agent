@@ -1,17 +1,17 @@
 // What the inspector shows, kept in the URL hash: "", #claims, #runs, #runs/2, #files, #files/2, #files/2/report.md.
 import type { RunView } from "./types";
 
-export type Tab = "claims" | "runs" | "files";
-export type Selection = { tab: "claims" } | { tab: "runs"; run?: number } | { tab: "files"; run?: number; file?: string } | null;
+export type Tab = "claims" | "runs" | "files" | "journal";
+export type Selection = { tab: "claims" } | { tab: "journal" } | { tab: "runs"; run?: number } | { tab: "files"; run?: number; file?: string } | null;
 
-export const TABS: Tab[] = ["claims", "runs", "files"];
+export const TABS: Tab[] = ["claims", "runs", "files", "journal"];
 
 export function parseSelection(hash: string): Selection {
   const h = hash.startsWith("#") ? hash.slice(1) : hash;
   if (!h) return null;
   const parts = h.split("/");
   const tab = parts[0];
-  if (tab === "claims") return parts.length === 1 ? { tab } : null;
+  if (tab === "claims" || tab === "journal") return parts.length === 1 ? { tab } : null;
   if (tab !== "runs" && tab !== "files") return null;
   if (parts.length === 1) return { tab };
   if (!/^\d+$/.test(parts[1])) return null;
@@ -29,7 +29,7 @@ export function parseSelection(hash: string): Selection {
 
 export function serialiseSelection(sel: Selection): string {
   if (!sel) return "";
-  if (sel.tab === "claims") return "#claims";
+  if (sel.tab === "claims" || sel.tab === "journal") return `#${sel.tab}`;
   let s = `#${sel.tab}`;
   if (sel.run === undefined) return s;
   s += `/${sel.run}`;
@@ -39,7 +39,7 @@ export function serialiseSelection(sel: Selection): string {
 
 /** Clamp a selection to what the session has: a run that is gone becomes the last run, a file the run lacks is dropped. */
 export function resolveSelection(sel: Selection, runs: RunView[]): Selection {
-  if (!sel || sel.tab === "claims") return sel;
+  if (!sel || sel.tab === "claims" || sel.tab === "journal") return sel;
   if (!runs.length) return { tab: sel.tab };
   const indices = runs.map((r) => r.index);
   const run = sel.run !== undefined && indices.includes(sel.run) ? sel.run : indices[indices.length - 1];

@@ -1,6 +1,6 @@
 // Row shaping for the inspector's tables. Pure: takes the session's views, returns plain rows.
 import { cell, num } from "../fmt";
-import type { CheckView, ClaimView, RunView, StatusView } from "../types";
+import type { CheckView, ClaimView, RunView, StatusView, StepView } from "../types";
 
 export interface ClaimRow {
   key: string;
@@ -168,4 +168,57 @@ export function declineRows(run: RunView): DeclineRow[] {
     reason: d.reason,
     check: d.check,
   }));
+}
+
+// ------------------------------------------------------------------ the journal, grouped by design run
+
+export interface JournalRow {
+  n: number;
+  address: string;
+  kind: string;
+  by: string;
+  at: string;
+  note: string;
+  run: number | null;
+  hasFiles: boolean;
+}
+export interface JournalGroup {
+  /** The design run the steps belong to; null for steps that led nowhere yet (no design written after them). */
+  design: number | null;
+  rows: JournalRow[];
+}
+
+/** Steps grouped by design run. A step before a design belongs to the design that follows it; a step after a run belongs to that
+ * run, as the server marks it. Steps after the last run that lead to no design yet form a trailing group of their own. */
+export function journalGroups(steps: StepView[]): JournalGroup[] {
+  const groups: JournalGroup[] = [];
+  let pending: JournalRow[] = [];
+  const row = (s: StepView): JournalRow => ({
+    n: s.n,
+    address: s.address,
+    kind: s.kind,
+    by: s.by,
+    at: s.at,
+    note: s.note,
+    run: s.run,
+    hasFiles: !!s.run_id,
+  });
+  for (const s of steps) {
+    if (s.design === null) {
+      pending.push(row(s));
+      continue;
+    }
+    let g = groups.find((x) => x.design === s.design);
+    if (!g) {
+      g = { design: s.design, rows: [] };
+      groups.push(g);
+    }
+    if (pending.length) {
+      g.rows.push(...pending);
+      pending = [];
+    }
+    g.rows.push(row(s));
+  }
+  if (pending.length) groups.push({ design: null, rows: pending });
+  return groups;
 }

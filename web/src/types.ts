@@ -30,6 +30,7 @@ export type DecisionView = S<"DecisionView">;
 export type FeasibilityView = S<"FeasibilityView">;
 export type RunView = S<"RunView">;
 export type Turn = S<"Turn">;
+export type StepView = S<"StepView">;
 export type Prompt = S<"Prompt">;
 export type Activity = S<"Activity">;
 export type SessionView = S<"SessionView">;

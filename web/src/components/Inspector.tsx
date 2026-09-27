@@ -4,6 +4,7 @@ import { TABS, type Selection } from "../selection";
 import type { SessionView } from "../types";
 import ClaimsTable from "./inspector/ClaimsTable";
 import FilesView from "./inspector/FilesView";
+import JournalView from "./inspector/JournalView";
 import RunsView from "./inspector/RunsView";
 import StatusMatrix from "./inspector/StatusMatrix";
 import Splitter from "./Splitter";
@@ -68,6 +69,7 @@ export default function Inspector({
         )}
         {sel.tab === "runs" && <RunsView view={view} run={sel.run} onSelect={onSelect} />}
         {sel.tab === "files" && <FilesView view={view} run={sel.run} file={sel.file} onSelect={onSelect} />}
+        {sel.tab === "journal" && <JournalView steps={view.journal} onSelect={onSelect} />}
       </div>
     </aside>
   );
