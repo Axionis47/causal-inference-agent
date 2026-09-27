@@ -183,6 +183,17 @@ def test_students_reaches_ready_in_the_frame_plus_a_few_questions_then_runs():
     assert len(runs) == 1 and runs[0].effect == 5.6 and runs[0].family == "adjustment" and d.values["phase"] == "after"
     assert fake.calls.count("FamilyDecision") == 0 and fake.calls.count("Choice") == 0  # one family stood, one figure fit: both by code
     assert (d.values["design_dir"]) and d.values["handoff"].design_id == 1
+    # the journal: the design written from the memory, then the run that read it, both on this design's group
+    design, run = d.journal.steps()[-2:]
+    assert (
+        design.kind == "design"
+        and design.by == "code"
+        and design.design == 1
+        and design.left == ["designs/1"]
+        and design.note == "design 1: adjustment via dowhy"
+    )
+    assert run.kind == "run" and run.design == 1 and run.read == [design.address] and run.left == ["designs/1/record.json", "designs/1/figures.json"]
+    assert run.note.startswith("done, effect 5.6 [3.7, 7.5] by linear_regression") and run.memory_version == design.memory_version
 
 
 def test_a_second_conversation_on_the_same_memory_numbers_its_design_after_the_first_and_keeps_every_word():
@@ -202,6 +213,10 @@ def test_a_second_conversation_on_the_same_memory_numbers_its_design_after_the_f
     d2.to_ready()
     d2.say("run")
     assert d2.values["handoff"].design_id == 2 and d2.values["runs"][0].index == 2  # design 1 is not written over
+    # each conversation keeps its own journal: the second starts at step 1 with its own design, the first is untouched by it
+    first_before = d.journal.path.read_text()
+    assert d2.values["analysis"] == "a2" and d2.journal.steps()[0].n == 1 and d2.journal.last("design").left == ["designs/2"]
+    assert d.journal.path.read_text() == first_before and d.journal.last("design").left == ["designs/1"]
     assert (
         (tmp := __import__("pathlib").Path(d.values["design_dir"])).exists()
         and tmp.name == "1"

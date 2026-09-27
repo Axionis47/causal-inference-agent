@@ -14,7 +14,7 @@ from causal_agent.desk import pipeline
 from causal_agent.desk.contracts import Ask
 from causal_agent.desk.nodes import decide as D
 from causal_agent.desk.nodes import frame as F
-from causal_agent.desk.nodes.shared import CAT
+from causal_agent.desk.nodes.shared import CAT, journal_of, record
 from causal_agent.desk.state import Context, DeskState
 from causal_agent.families import registry as R
 from causal_agent.memory import store
@@ -46,6 +46,19 @@ def handoff(state: DeskState, runtime: Runtime[Context]) -> dict:
         (d / "frame.json").write_text(state["frame"].model_dump_json(indent=2))
     if state.get("decision") is not None:
         (d / "decision.json").write_text(state["decision"].model_dump_json(indent=2))
+    dec = state.get("decision")
+    met = [c for v in (state.get("family_verdicts") or []) if h is not None and v.family == h.family for nd in v.needs if nd.met for c in nd.cites]
+    label = f"design {n}: {h.family} via {h.specialist}" if h is not None else f"design {n}: no family admissible"
+    record(
+        state,
+        "design",
+        by="code",
+        memory=memory,
+        design=n,
+        read=(list(dec.cites) if dec is not None else []) + met[:12],
+        left=[d],
+        note=("what-if: " if state.get("what_if") else "") + label,
+    )
     return {**out, "design_dir": str(d)}
 
 
@@ -80,7 +93,19 @@ def run(state: DeskState) -> dict:
 
         (Path(state["design_dir"]) / "figures.json").write_text(json.dumps(rec.figures, indent=2, default=str))
     pipeline.save_record(rec)
+    design_step = journal_of(state).last("design")
+    left = ([rec.run_dir] if rec.run_dir else []) + (
+        [Path(state["design_dir"]) / "record.json", Path(state["design_dir"]) / "figures.json"] if state.get("design_dir") else []
+    )
+    note = rec.status
+    if rec.effect is not None:
+        note += f", effect {rec.effect:g} [{_g(rec.ci_low)}, {_g(rec.ci_high)}] by {rec.estimator}"
+    record(state, "run", by="code", memory=F.memory_of(state), design=n, read=[design_step.address] if design_step else [], left=left, note=note)
     return {"runs": runs + [rec], "phase": "after"}
+
+
+def _g(x: float | None) -> str:
+    return "?" if x is None else f"{x:g}"
 
 
 def _figures(state: DeskState, rec: RunRecord) -> list[dict]:
