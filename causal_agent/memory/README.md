@@ -14,7 +14,10 @@ against the file, projected into every run's context pack. See docs/desk-redesig
   `check` (the data checks plus the consistency rules: a column the offer looked at is set before it, a score is before,
   the outcome is after, a before-column cannot be moved by the change; a failed rule marks the field refuted and never
   overwrites the value); `probe`; `fit`; `open` (what is still vague, the question engine's input).
-- `store.py` — `data/memory/<name>/` (meta, columns, fields, said, designs/); `migrate` from the older claims files.
+- `store.py` — `data/memory/<name>/` (meta, columns, fields, said, designs/<n>/ one folder per design run); `migrate` from a
+  fixture's claims file.
+- `journal.py` — `analyses/<id>/journal.jsonl`, one conversation's record: a step per line with its address (`step:<n>`), what
+  it read, what it left, and the design run it belongs to. It records what was done and seen; it never writes what is known.
 - `fields.yaml`, `checks.yaml`, `catalogue.py` — the field catalogue: kinds, fields, options, frames, checks, family needs, thresholds.
 - `claims.py`, `table.py`, `checks.py`, `probes.py` — the claim-table view and the code that still runs on it.
 
