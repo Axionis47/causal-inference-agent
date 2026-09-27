@@ -10,6 +10,7 @@ from causal_agent.common.contracts import QuestionFrame
 from causal_agent.desk.nodes import frame as F
 from causal_agent.desk.nodes.shared import CAT, QUIT_WORDS, _remember, _writer
 from causal_agent.desk.state import DeskState
+from causal_agent.memory import journal as J
 from causal_agent.memory import ops, store
 from causal_agent.memory.records import Memory
 
@@ -20,6 +21,7 @@ def load(state: DeskState) -> dict:
     memory = F.memory_of(state)  # raises for an unknown dataset
     # the turn counter continues from the last word the memory holds, so a new conversation never reuses a number and loses a turn
     return {
+        "analysis": state.get("analysis") or J.next_analysis_id(state["dataset"]),
         "turn": max(int(state.get("turn") or 0), max((s.turn for s in memory.said), default=0)),
         "phase": "before",
         "invalid": None,

@@ -9,6 +9,7 @@ from langgraph.config import get_stream_writer
 
 from causal_agent.common.contracts import QuestionFrame, Said
 from causal_agent.families import registry as R
+from causal_agent.memory import journal as J
 from causal_agent.memory import views as V
 from causal_agent.memory.catalogue import Catalogue, load_catalogue, load_thresholds
 from causal_agent.memory.records import Memory
@@ -65,6 +66,16 @@ def focused_needs(state) -> dict:
     needs = R.needs()
     focus = [f for f in (state.get("focus") or []) if f in needs]
     return {k: v for k, v in needs.items() if k in focus} if focus else needs
+
+
+def journal_of(state) -> J.Journal:
+    """This conversation's journal."""
+    return J.open_journal(state["dataset"], state["analysis"])
+
+
+def record(state, kind: J.StepKind, *, by: J.By, memory: Memory, design: int | None = None, read=(), left=(), note: str = "") -> J.Step:
+    """One step into this conversation's journal: what was done, by whom, at which memory version, reading and leaving what."""
+    return journal_of(state).append(kind, by=by, memory_version=memory.version, design=design, read=read, left=left, note=note)
 
 
 def _remember(memory: Memory, turn: int, about: str, text: str) -> None:

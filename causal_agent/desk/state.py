@@ -41,6 +41,7 @@ class RouteState(TypedDict, total=False):
 class DeskState(RouteState, total=False):
     """The whole conversation: the question first, the journey to ready, the run, and the chat after."""
 
+    analysis: str  # a<k>: the journal this conversation appends to, under data/memory/<name>/analyses/
     turn: int
     message: str  # the person's last message
     invalid: str | None  # why the last question did not pass, or None

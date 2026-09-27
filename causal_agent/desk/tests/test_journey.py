@@ -15,6 +15,7 @@ from causal_agent.desk import pipeline
 from causal_agent.desk.contracts import AfterReply, DeskAnswer, FieldUpdate, Inference, NumberStated
 from causal_agent.desk.tests.fakes import QUESTION, DeskFake, answer_ask
 from causal_agent.families import registry as R
+from causal_agent.memory import journal as J
 from causal_agent.memory import store
 from causal_agent.memory.records import Memory
 
@@ -45,6 +46,11 @@ def _held(monkeypatch, tmp_path):
 
     monkeypatch.setattr(store, "snapshot", snapshot)
     monkeypatch.setattr(store, "next_design_id", next_design_id)
+    # the journal is a second write path: it goes under tmp_path too, so a test never writes into the repo's data/
+    monkeypatch.setattr(J, "open_journal", lambda name, a, root=None: J.Journal(tmp_path / "analyses" / a / "journal.jsonl"))
+    monkeypatch.setattr(
+        J, "next_analysis_id", lambda name, root=None: f"a{len(list((tmp_path / 'analyses').iterdir())) + 1 if (tmp_path / 'analyses').is_dir() else 1}"
+    )
     monkeypatch.setattr(pipeline, "run", canned_run)
     yield
     set_llm(None)
@@ -80,11 +86,15 @@ def canned_run(path, n, dataset, question, decision=None, decision_record=""):
 
 
 class Desk:
-    def __init__(self, fake, dataset="students"):
+    def __init__(self, fake, dataset="students", analysis=None):
         set_llm(fake)
         self.fake, self.g = fake, G.compile_local()
         self.cfg = {"configurable": {"thread_id": str(uuid.uuid4())}}
-        self.payload = self._drive({"dataset": dataset})
+        self.payload = self._drive({"dataset": dataset, **({"analysis": analysis} if analysis else {})})
+
+    @property
+    def journal(self):
+        return J.open_journal(self.values["dataset"], self.values["analysis"])
 
     def _drive(self, inp):
         payload = None
@@ -314,6 +324,21 @@ def test_an_answer_that_cites_nothing_real_is_refused_three_times_then_falls_bac
     p = d.say("why do you ask that?")
     assert fake.calls.count("DeskAnswer") == 3 and "THE LAST ANSWER WAS REFUSED" in fake.humans["DeskAnswer"][2]
     assert p["text"].startswith("I can only answer that from what is settled.") and "can be answered by adjustment" in p["text"] and p["ask"] is not None
+
+
+# ------------------------------------------------------------------ the journal
+
+
+def test_each_conversation_has_its_own_analysis_id_that_survives_every_resume():
+    d = Desk(DeskFake())
+    assert d.values["analysis"] == "a1"  # minted by load when the caller gave none
+    d.say(QUESTION)
+    d.to_ready()
+    assert d.values["analysis"] == "a1"
+    d2 = Desk(DeskFake(), analysis="a7")  # the caller's id wins
+    assert d2.values["analysis"] == "a7"
+    d2.say(QUESTION)
+    assert d2.values["analysis"] == "a7" and d.values["analysis"] == "a1"
 
 
 # ------------------------------------------------------------------ the file talks back
