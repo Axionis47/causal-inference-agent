@@ -8,10 +8,11 @@ import uuid
 import pytest
 from langgraph.types import Command
 
+from causal_agent.common.contracts import RunRecord
 from causal_agent.common.llm import set_llm
 from causal_agent.desk import graph as G
 from causal_agent.desk import pipeline
-from causal_agent.desk.contracts import AfterReply, DeskAnswer, FieldUpdate, Inference, NumberStated, RunRecord
+from causal_agent.desk.contracts import AfterReply, DeskAnswer, FieldUpdate, Inference, NumberStated
 from causal_agent.desk.tests.fakes import QUESTION, DeskFake, answer_ask
 from causal_agent.families import registry as R
 from causal_agent.memory import store
@@ -208,12 +209,6 @@ def test_the_run_record_is_written_beside_its_design_and_reads_back(tmp_path):
     rec2 = d.values["runs"][1]
     back2 = pipeline.load_record(rec2.design_dir)
     assert back2 is not None and back2.what_if == {"claim:assignment.kind": "lottery"} and back2.differs == rec2.differs and back2.differs
-    # a design dir from before records were written: rebuilt from the lane's own result file
-    (__import__("pathlib").Path(rec.design_dir) / "record.json").unlink()
-    (__import__("pathlib").Path(rec.design_dir) / "result.json").write_text(__import__("json").dumps(rec.specialist_result))
-    rebuilt = pipeline.load_record(rec.design_dir)
-    assert rebuilt is not None and rebuilt.question == QUESTION and rebuilt.effect == 5.6 and rebuilt.family == "adjustment" and rebuilt.index == 1
-    assert rebuilt.figures and rebuilt.decision.get("chosen") == "adjustment"
     # a design that never ran has no record
     empty = tmp_path / "designs" / "9"
     empty.mkdir(parents=True)

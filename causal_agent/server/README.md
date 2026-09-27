@@ -22,7 +22,7 @@ Both are in `.claude/launch.json` as `api` and `web`.
 | `GET /api/sessions/{name}` | the view: stage, phase, prompt, questions, claims, status, runs, brief, transcript |
 | `POST /api/sessions/{name}/messages` | resume the graph with the text; 409 while busy or after the end |
 | `POST /api/sessions/{name}/resume` | continue a checkpoint whose step died with the process |
-| `POST /api/sessions/{name}/analyses` | a new question on the same file: a new thread over the memory as it stands, whenever the desk is not working; the runs of every thread stay listed (`/restart` is the old name) |
+| `POST /api/sessions/{name}/analyses` | a new question on the same file: a new thread over the memory as it stands, whenever the desk is not working; the runs of every thread stay listed |
 | `GET /api/runs/{id}` and `/files/{name}` | the run directory's known files; `report.md` is cut before the model thoughts unless `?raw=1` |
 
 Everything else serves `web/dist`.

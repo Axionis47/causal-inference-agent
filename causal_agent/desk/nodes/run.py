@@ -9,8 +9,9 @@ from typing import Literal
 from langgraph.runtime import Runtime
 from langgraph.types import Command
 
+from causal_agent.common.contracts import RunRecord
 from causal_agent.desk import pipeline
-from causal_agent.desk.contracts import Ask, RunRecord
+from causal_agent.desk.contracts import Ask
 from causal_agent.desk.nodes import decide as D
 from causal_agent.desk.nodes import frame as F
 from causal_agent.desk.nodes.shared import CAT

@@ -9,8 +9,8 @@ from typing import Annotated
 
 from typing_extensions import TypedDict
 
-from causal_agent.common.contracts import FamilyDecision, FamilyVerdict, Handoff, PrefilterVote, QuestionFrame, Thought
-from causal_agent.desk.contracts import AfterReply, Ask, Exchange, Finding, RunRecord
+from causal_agent.common.contracts import FamilyDecision, FamilyVerdict, Handoff, PrefilterVote, QuestionFrame, RunRecord, Thought
+from causal_agent.desk.contracts import AfterReply, Ask, Exchange, Finding
 
 
 @dataclass
@@ -83,6 +83,3 @@ class PrefilterTask(TypedDict):
     changes: str
     column: str
     card: str
-
-
-RouterState = RouteState  # the older name

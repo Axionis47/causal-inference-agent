@@ -1,10 +1,11 @@
-"""Where a memory lives on disk, and how the older claims files become one.
+"""Where a memory lives on disk, and how a fixture's claims file becomes one.
 
 data/memory/<name>/meta.yaml          name, version, csv, the dataset facts
 data/memory/<name>/columns.yaml       the file's facts on every column, by key
 data/memory/<name>/fields.yaml        the map: address -> value, status, source, said, evidence
 data/memory/<name>/said.jsonl         the person's words, one turn per line
-data/memory/<name>/designs/<n>/       memory.json, frame.json, decision.json, handoff.json, run/
+data/memory/<name>/designs/<n>/       one design run: memory.json, handoff.json, frame.json, decision.json, record.md, then the
+                                      lane's result.json, and figures.json and record.json once it ran
 
 uv run python -m causal_agent.memory.store migrate --all        # every dataset in data/datasets.yaml
 uv run python -m causal_agent.memory.store show students3
@@ -18,12 +19,9 @@ from pathlib import Path
 
 import yaml
 
-from causal_agent.common.contracts import Said
 from causal_agent.memory.claims import Claim, ClaimTable, ProbeResult
 from causal_agent.memory.records import Memory
 from causal_agent.profile import datasets as DS
-
-LEGACY = ("dataset.yaml", "transcript.jsonl")  # the nested layout, replaced by fields.yaml and said.jsonl
 
 
 def home(name: str, root: Path | None = None) -> Path:
@@ -43,8 +41,6 @@ def save(memory: Memory, root: Path | None = None) -> Path:
     (d / "columns.yaml").write_text(yaml.safe_dump(dump["columns"], sort_keys=False, allow_unicode=True))
     (d / "fields.yaml").write_text(yaml.safe_dump(dump["fields"], sort_keys=False, allow_unicode=True))
     (d / "said.jsonl").write_text("".join(json.dumps(s, ensure_ascii=False) + "\n" for s in dump["said"]))
-    for legacy in LEGACY:
-        (d / legacy).unlink(missing_ok=True)
     return d
 
 
@@ -97,25 +93,8 @@ def memory_for(name: str, root: Path | None = None) -> Memory:
 # ------------------------------------------------------------------ migration from the claims files
 
 
-def _said(name: str, root: Path) -> list[Said]:
-    """The web desk's transcript, user turns numbered as the interview numbered them."""
-    p = Path(root) / "data" / "web" / name / "transcript.jsonl"
-    if not p.exists():
-        return []
-    out, turn = [], 0
-    for line in p.read_text().splitlines():
-        try:
-            d = json.loads(line)
-        except ValueError:
-            continue
-        if d.get("role") == "user" and d.get("text"):
-            turn += 1
-            out.append(Said(turn=turn, about="", text=str(d["text"])))
-    return out
-
-
 def migrate(name: str, root: Path | None = None, *, write: bool = True) -> Memory:
-    """A memory from a datasets.yaml entry: the profile for the facts, the claims file for the fields, the transcript for the words."""
+    """A memory from a datasets.yaml entry: the profile for the facts, the claims file for the fields."""
     from causal_agent.profile.profiler import Profile
 
     root = Path(root or DS.ROOT)
@@ -125,7 +104,7 @@ def migrate(name: str, root: Path | None = None, *, write: bool = True) -> Memor
     e = entries[name]
     prof = Profile.model_validate(json.loads((root / e["profile"]).read_text()))
     table, _ = load_claims(root / e["claims"]) if e.get("claims") and (root / e["claims"]).exists() else (ClaimTable(), [])
-    m = Memory.from_claims(name, table, profile=prof, csv=e.get("csv"), said=_said(name, root))
+    m = Memory.from_claims(name, table, profile=prof, csv=e.get("csv"))
     from causal_agent.memory.ops import seed_facts
 
     seed_facts(m, prof)

@@ -44,7 +44,7 @@ def _to_ready(client, fake, name="students_web", max_turns=20):
     return v
 
 
-def test_question_journey_run_answer_done_and_restart(client, settings, monkeypatch):
+def test_question_journey_run_answer_done_and_a_new_analysis(client, settings, monkeypatch):
     calls = []
 
     def fake_run(path, n, dataset, question, decision=None, decision_record=""):
@@ -162,7 +162,7 @@ def test_run_files_are_guarded(client, settings):
 
 
 def test_run_view_carries_where_the_lane_disagreed_with_the_pack():
-    from causal_agent.desk.contracts import RunRecord
+    from causal_agent.common.contracts import RunRecord
     from causal_agent.server.sessions import run_view
 
     sr = {

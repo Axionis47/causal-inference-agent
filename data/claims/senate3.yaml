@@ -83,7 +83,7 @@ claims:
     meaning: Democratic margin of victory at the election, in points, minus 100 to
       100
     when: at
-    affected_by_treatment: false
+    moved_by_change: false
   status: confirmed
   source: user:turn:1
   evidence:
@@ -98,7 +98,7 @@ claims:
     meaning: Democratic vote share at the next election for the same seat six years
       later
     when: after
-    affected_by_treatment: true
+    moved_by_change: true
   status: confirmed
   source: user:turn:1
   evidence:

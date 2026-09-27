@@ -76,7 +76,7 @@ class LaneAsk(BaseModel):
     stage: str = ""
 ```
 
-Both go into the desk's serde allowlist (`desk/graph.py` `_CONTRACTS`).
+Both go into the desk's serde allowlist (`desk/graph.py` `_CONTRACTS`), the classes a checkpoint may hold.
 
 ### `lane/state.py`
 

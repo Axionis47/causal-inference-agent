@@ -123,10 +123,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(409, "still working; wait for it to finish") from None
         return _view(name)
 
-    @app.post("/api/sessions/{name}/restart", response_model=SessionView, status_code=202, include_in_schema=False)
-    def restart_session(name: str) -> SessionView:
-        return new_analysis(name)
-
     # ------------------------------------------------------------------ runs
 
     @app.get("/api/runs/{run_id}", response_model=RunFiles)

@@ -60,7 +60,7 @@ for why a lane keeps its own engine.
 | store | where | written by | read by |
 |---|---|---|---|
 | the memory | `data/memory/<name>/` (`meta.yaml`, `columns.yaml`, `fields.yaml`, `said.jsonl`, `designs/<n>/`) | `memory.store.save`, through `memory.ops.apply` only | the desk, the pack builder, the viz tool |
-| the checkpoints | `.artifacts/web/checkpoints.sqlite` | the desk graph through `SqliteSaver`, with the allowlist in `desk/graph.py` | the server's session manager |
+| the checkpoints | `.artifacts/web/checkpoints.sqlite` | the desk graph through `SqliteSaver`; `desk/graph.py` `_CONTRACTS` lists the classes a checkpoint may hold | the server's session manager |
 | the run artifacts | `.artifacts/runs/<dataset>-<tag>-<id>/` (table, design, estimates, report, figures.json) | a lane, through `lane.records` | the desk's brief and the server's file routes |
 
 The transcript the page shows is `data/web/<name>/transcript.jsonl`; `meta.json` beside it holds the thread and the

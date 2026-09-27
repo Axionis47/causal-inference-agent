@@ -130,7 +130,7 @@ claims:
   fields:
     meaning: student's math exam mark
     when: after
-    affected_by_treatment: true
+    moved_by_change: true
   status: confirmed
   source: user:turn:1
   evidence:
@@ -145,7 +145,7 @@ claims:
   fields:
     meaning: student's reading exam mark
     when: after
-    affected_by_treatment: true
+    moved_by_change: true
   status: confirmed
   source: user:turn:1
   evidence:
@@ -160,7 +160,7 @@ claims:
   fields:
     meaning: student's writing exam mark
     when: after
-    affected_by_treatment: true
+    moved_by_change: true
   status: confirmed
   source: user:turn:1
   evidence:

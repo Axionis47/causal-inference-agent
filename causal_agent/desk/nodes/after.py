@@ -8,11 +8,11 @@ from typing import Literal
 
 from langgraph.types import Command, interrupt
 
-from causal_agent.common.contracts import Said
+from causal_agent.common.contracts import RunRecord, Said
 from causal_agent.common.llm import structured
 from causal_agent.desk import material as M
 from causal_agent.desk import pipeline
-from causal_agent.desk.contracts import AfterReply, Exchange, RunRecord
+from causal_agent.desk.contracts import AfterReply, Exchange
 from causal_agent.desk.nodes import frame as F
 from causal_agent.desk.nodes.journey import CAT, QUIT_WORDS, kinds_text
 from causal_agent.desk.prompts import journey as P

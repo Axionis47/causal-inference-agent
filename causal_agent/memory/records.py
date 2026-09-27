@@ -27,7 +27,6 @@ from causal_agent.memory.claims import Claim, ClaimTable
 Status = Literal["empty", "drafted", "confirmed", "refuted", "unknown", "contradiction"]
 SETTLED = {"confirmed", "unknown", "contradiction"}
 COLUMN_KIND = "measured"
-LEGACY_NAMES = {"affected_by_treatment": "moved_by_change"}
 
 
 class Field(BaseModel):
@@ -189,7 +188,7 @@ class Memory(BaseModel):
                 prefix = f"col:{k}"
             else:
                 prefix = f"claim:{claim.kind}"
-            values = {LEGACY_NAMES.get(n, n): v for n, v in claim.fields.items() if v is not None}
+            values = {n: v for n, v in claim.fields.items() if v is not None}
             status: Status = claim.status if claim.status != "empty" else "drafted"
             for n, v in values.items():
                 m.fields[f"{prefix}.{n}"] = Field(value=v, status=status, source=claim.source, evidence=list(claim.evidence))

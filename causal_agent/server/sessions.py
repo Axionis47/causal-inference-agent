@@ -154,10 +154,6 @@ class SessionManager:
             self._launch(sess, None)
         return sess
 
-    def restart(self, name: str) -> Session:
-        """The old name for a new analysis."""
-        return self.new_analysis(name)
-
     def threads(self, name: str) -> list[str]:
         """Every thread the dataset has had: the ones listed as past analyses, then the current one."""
         meta = DS.read_meta(self.s, name) or {}

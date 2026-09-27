@@ -7,8 +7,6 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from causal_agent.common.contracts import RunRecord as RunRecord  # moved to common; kept here for old checkpoints
-
 AskKind = Literal["confirm", "choose", "open", "columns"]
 
 

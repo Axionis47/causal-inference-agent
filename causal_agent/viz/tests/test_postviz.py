@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from causal_agent.desk.contracts import RunRecord
+from causal_agent.common.contracts import RunRecord
 from causal_agent.viz import postviz
 
 

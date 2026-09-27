@@ -230,7 +230,7 @@ class Finding(BaseModel):
         return f"check:{self.address.removeprefix('claim:')}.{self.rule}"
 
 
-_CHECK_FIELD = {  # which field a legacy check speaks about
+_CHECK_FIELD = {  # the field each data check speaks about, by the check's name
     "key_unique": ("grain", "key_columns"),
     "date_column": ("change", "date_column"),
     "period_value": ("change", "period_value"),

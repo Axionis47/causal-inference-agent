@@ -6,8 +6,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-from causal_agent.common.contracts import Decline
-from causal_agent.desk.contracts import RunRecord
+from causal_agent.common.contracts import Decline, RunRecord
 from causal_agent.memory.records import Memory
 
 

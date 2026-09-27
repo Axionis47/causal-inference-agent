@@ -119,26 +119,9 @@ def save_record(rec: RunRecord) -> Path | None:
 
 
 def load_record(design_dir: str | Path) -> RunRecord | None:
-    """The record a design dir holds: record.json when the run wrote one, else rebuilt from the lane's result file; None for a
-    design that never ran."""
-    d = Path(design_dir)
-    if (d / "record.json").exists():
-        return RunRecord.model_validate_json((d / "record.json").read_text())
-    if not (d / "result.json").exists():
-        return None
-    sr = json.loads((d / "result.json").read_text())
-    h = Handoff.model_validate(json.loads((d / "handoff.json").read_text())) if (d / "handoff.json").exists() else None
-    dec = FamilyDecision.model_validate_json((d / "decision.json").read_text()) if (d / "decision.json").exists() else None
-    note = (d / "record.md").read_text() if (d / "record.md").exists() else ""
-    index = int(d.name) if d.name.isdigit() else 0
-    dataset = h.pack_name if h else d.parents[1].name
-    rec = record(dataset, h.question if h else "", index, h, sr, decision_dict(dec, h), note, design_dir=str(d))
-    if (d / "figures.json").exists():
-        try:
-            rec.figures = [f for f in json.loads((d / "figures.json").read_text()) if isinstance(f, dict)]
-        except ValueError:
-            rec.figures = []
-    return rec
+    """The record a design dir holds, or None for a design that never ran."""
+    p = Path(design_dir) / "record.json"
+    return RunRecord.model_validate_json(p.read_text()) if p.exists() else None
 
 
 def main(argv: list[str] | None = None) -> None:

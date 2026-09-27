@@ -19,11 +19,7 @@ def roundtrip(obj):
 
 def test_every_listed_class_is_importable_by_its_own_path():
     for entry in _CONTRACTS:
-        if inspect.isclass(entry):
-            assert entry.__module__.startswith("causal_agent."), entry
-        else:
-            module, name = entry
-            assert isinstance(module, str) and isinstance(name, str)
+        assert inspect.isclass(entry) and entry.__module__.startswith("causal_agent."), entry
 
 
 def test_the_records_the_desk_checkpoints_come_back_as_themselves():
@@ -38,8 +34,3 @@ def test_the_records_the_desk_checkpoints_come_back_as_themselves():
     back = roundtrip(h)
     assert isinstance(back, Handoff) and back.design is not None and back.design.kind == "adjustment"
     assert isinstance(roundtrip(store.migrate("students3", write=False)), Memory)
-
-
-def test_the_legacy_path_of_a_moved_class_still_loads():
-    """A checkpoint written before RunRecord moved names causal_agent.desk.contracts; that pair stays on the list."""
-    assert ("causal_agent.desk.contracts", "RunRecord") in _CONTRACTS
