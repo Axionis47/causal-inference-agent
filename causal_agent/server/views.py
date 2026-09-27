@@ -3,11 +3,13 @@ fails here and not on the page."""
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 from causal_agent.common.contracts import Decline, RunRecord
 from causal_agent.desk import pipeline
+from causal_agent.memory import journal as J
 from causal_agent.memory import store as MS
 from causal_agent.server import datasets as DS
 from causal_agent.server.models import (
@@ -25,6 +27,7 @@ from causal_agent.server.models import (
     RunView,
     SessionView,
     StatusView,
+    StepView,
 )
 from causal_agent.viz.spec import FigureSpec
 
@@ -54,6 +57,32 @@ def all_runs(s: Settings, name: str, live: list[RunRecord]) -> list[RunRecord]:
     by_index = {r.index: r for r in disk_records(s, name)}
     by_index.update({r.index: r for r in live})
     return [by_index[i] for i in sorted(by_index)]
+
+
+_DESIGN_DIR = re.compile(r"^designs/(\d+)(?:/|$)")
+
+
+def step_view(s: J.Step) -> StepView:
+    run = next((int(m.group(1)) for p in s.left if (m := _DESIGN_DIR.match(p))), None)
+    run_id = next((Path(p).name for p in s.left if Path(p).is_absolute()), None)
+    return StepView(
+        n=s.n,
+        address=s.address,
+        kind=s.kind,
+        by=s.by,
+        at=s.at,
+        memory_version=s.memory_version,
+        design=s.design,
+        read=list(s.read),
+        left=list(s.left),
+        note=s.note,
+        run=run,
+        run_id=run_id,
+    )
+
+
+def journal_view(s: Settings, name: str, analysis: str | None) -> list[StepView]:
+    return [step_view(x) for x in J.open_journal(name, analysis, s.root).steps()] if analysis else []
 
 
 def session_view(mgr: SessionManager, name: str) -> SessionView:
@@ -132,6 +161,7 @@ def session_view(mgr: SessionManager, name: str) -> SessionView:
     status = StatusView(**st.model_dump()) if st is not None else None
     runs = [run_view(r) for r in all_runs(mgr.s, name, list(values.get("runs") or []))]
     activity = Activity(node=sess.activity[0], since=sess.activity[1]) if sess.activity else None
+    analysis = values.get("analysis") or sess.analysis or None
     return SessionView(
         name=name,
         title=title,
@@ -148,6 +178,8 @@ def session_view(mgr: SessionManager, name: str) -> SessionView:
         brief=values.get("brief") or "",
         transcript=mgr.transcript(name),
         error=sess.error,
+        analysis=analysis,
+        journal=journal_view(mgr.s, name, analysis),
     )
 
 

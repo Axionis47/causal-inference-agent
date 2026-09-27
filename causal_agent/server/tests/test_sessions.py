@@ -68,6 +68,11 @@ def test_question_journey_run_answer_done_and_a_new_analysis(client, settings, m
     assert v["phase"] == "after" and v["stage"] == "waiting" and v["ready"] is True
     assert v["runs"][0]["effect"] == 5.618 and v["runs"][0]["family"] == "adjustment" and v["runs"][0]["checks"]
     assert f"[estimate:{C}.value]" in v["brief"] and v["prompt"]["text"] == v["brief"]
+    # the journal: the steps that led to design 1, then the design, the run and the brief, on this conversation's record
+    assert v["analysis"] == "a1" and [s["kind"] for s in v["journal"]][-3:] == ["design", "run", "brief"]
+    design = v["journal"][-3]
+    assert design["run"] == 1 and design["design"] == 1 and design["address"] == f"step:{design['n']}" and v["journal"][0]["kind"] == "question"
+    assert (settings.root / "data/memory/students_web/analyses/a1/journal.jsonl").exists()
     assert (settings.root / "data/memory/students_web/fields.yaml").exists() and (settings.root / "data/memory/students_web/designs/1/handoff.json").exists()
     listed = next(d for d in client.get("/api/datasets").json()["datasets"] if d["name"] == "students_web")
     assert listed["has_claims"] is True and listed["question"] == QUESTION and listed["session"] == {"stage": "waiting", "phase": "after", "runs": 1}
@@ -85,6 +90,12 @@ def test_question_journey_run_answer_done_and_a_new_analysis(client, settings, m
     assert [r["index"] for r in v["runs"]] == [1] and v["runs"][0]["question"] == QUESTION and v["runs"][0]["effect"] == 5.618
     assert any(c["key"] == "assignment" and c["status"] == "confirmed" for c in v["claims"])
     assert [t["kind"] for t in v["transcript"] if t["role"] == "system"][-2:] == [None, "divider"]  # ended, then the divider
+    # the new conversation has its own journal, empty until it does something; the one before is listed as a past analysis
+    assert v["analysis"] == "a2" and v["journal"] == []
+    from causal_agent.server import datasets as DS
+
+    past = DS.read_meta(settings, "students_web")["analyses"]
+    assert [a["analysis"] for a in past] == ["a1"] and past[0]["question"] == QUESTION
 
 
 def test_a_new_analysis_can_start_while_the_desk_waits_and_every_run_stays_listed(client, settings, monkeypatch):
@@ -144,6 +155,7 @@ def test_state_survives_a_new_server_over_the_same_checkpoints(client, settings)
         v2 = c2.get("/api/sessions/students_web").json()
     assert v2["stage"] == "waiting" and v2["claims"] == v1["claims"] and v2["prompt"] == v1["prompt"] and v2["questions"] == v1["questions"]
     assert [t["text"] for t in v2["transcript"]] == [t["text"] for t in v1["transcript"]]
+    assert v2["analysis"] == v1["analysis"] == "a1" and v2["journal"] == v1["journal"] and v1["journal"][0]["kind"] == "question"
 
 
 def test_run_files_are_guarded(client, settings):

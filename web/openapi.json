@@ -2122,6 +2122,26 @@
               }
             ],
             "title": "Error"
+          },
+          "analysis": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Analysis",
+            "description": "a<k>: this conversation's journal"
+          },
+          "journal": {
+            "items": {
+              "$ref": "#/components/schemas/StepView"
+            },
+            "type": "array",
+            "title": "Journal",
+            "description": "the conversation's steps, in order"
           }
         },
         "type": "object",
@@ -2203,6 +2223,100 @@
           "contradictions"
         ],
         "title": "StatusView"
+      },
+      "StepView": {
+        "properties": {
+          "n": {
+            "type": "integer",
+            "title": "N"
+          },
+          "address": {
+            "type": "string",
+            "title": "Address"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "by": {
+            "type": "string",
+            "title": "By"
+          },
+          "at": {
+            "type": "string",
+            "title": "At"
+          },
+          "memory_version": {
+            "type": "integer",
+            "title": "Memory Version"
+          },
+          "design": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Design",
+            "description": "the design run the step belongs to; null for the steps leading to the first design"
+          },
+          "read": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Read"
+          },
+          "left": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Left"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note",
+            "default": ""
+          },
+          "run": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run",
+            "description": "the design index a left entry names, when one does"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id",
+            "description": "the lane run dir's name, when a left entry is one"
+          }
+        },
+        "type": "object",
+        "required": [
+          "n",
+          "address",
+          "kind",
+          "by",
+          "at",
+          "memory_version"
+        ],
+        "title": "StepView",
+        "description": "One step of the conversation's journal, with the run it names resolved for the page."
       },
       "TopValue": {
         "properties": {

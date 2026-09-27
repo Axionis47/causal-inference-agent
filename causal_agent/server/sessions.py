@@ -17,6 +17,7 @@ from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.types import Command
 
 from causal_agent.desk import graph as desk_graph
+from causal_agent.memory import journal as J
 from causal_agent.server import datasets as DS
 from causal_agent.server import transcript as T
 from causal_agent.server import views as V
@@ -45,6 +46,7 @@ def _now() -> str:
 class Session:
     name: str
     thread_id: str
+    analysis: str = ""  # a<k>: the journal this thread appends to
     busy: bool = False
     future: Future | None = None
     activity: tuple[str, str] | None = None
@@ -55,7 +57,11 @@ class Session:
 
     @property
     def cfg(self) -> dict:
-        return {"configurable": {"thread_id": self.thread_id}, "tags": [f"dataset:{self.name}", "desk", "web"], "metadata": {"dataset": self.name}}
+        return {
+            "configurable": {"thread_id": self.thread_id},
+            "tags": [f"dataset:{self.name}", f"analysis:{self.analysis or '-'}", "desk", "web"],
+            "metadata": {"dataset": self.name, "analysis": self.analysis},
+        }
 
 
 class SessionManager:
@@ -78,7 +84,13 @@ class SessionManager:
             meta = DS.read_meta(self.s, name)
             if meta is None:
                 raise DS.NotFound(f"no dataset named {name!r}")
-            sess = Session(name=name, thread_id=meta.get("thread_id") or "", last_payload=meta.get("last_prompt"), ended=bool(meta.get("ended")))
+            sess = Session(
+                name=name,
+                thread_id=meta.get("thread_id") or "",
+                analysis=meta.get("analysis") or "",
+                last_payload=meta.get("last_prompt"),
+                ended=bool(meta.get("ended")),
+            )
             self.sessions[name] = sess
             return sess
 
@@ -113,7 +125,15 @@ class SessionManager:
                 raise SessionBusy(name)
             if sess.thread_id:
                 past = list(meta.get("analyses") or [])
-                past.append({"thread_id": sess.thread_id, "question": meta.get("question"), "started_at": meta.get("started_at"), "ended": True})
+                past.append(
+                    {
+                        "thread_id": sess.thread_id,
+                        "analysis": sess.analysis,
+                        "question": meta.get("question"),
+                        "started_at": meta.get("started_at"),
+                        "ended": True,
+                    }
+                )
                 meta["analyses"] = past
             meta["question"] = None
             self._append(name, Turn(role="system", kind="divider", text="New analysis.", at=_now()))
@@ -123,10 +143,11 @@ class SessionManager:
     def _begin(self, sess: Session, meta: dict) -> None:
         """A fresh thread for the session, under its lock."""
         sess.thread_id = str(uuid.uuid4())
+        sess.analysis = J.next_analysis_id(sess.name, self.s.root)
         sess.ended, sess.error, sess.last_payload = False, None, None
-        meta.update({"thread_id": sess.thread_id, "ended": False, "last_prompt": None, "started_at": _now()})
+        meta.update({"thread_id": sess.thread_id, "analysis": sess.analysis, "ended": False, "last_prompt": None, "started_at": _now()})
         DS.write_meta(self.s, sess.name, meta)
-        self._launch(sess, {"dataset": sess.name})
+        self._launch(sess, {"dataset": sess.name, "analysis": sess.analysis})
 
     def send(self, name: str, text: str) -> Session:
         sess = self.get(name)

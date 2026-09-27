@@ -252,6 +252,23 @@ class Turn(BaseModel):
     figure: FigureSpec | None = Field(default=None, description="shown under the text")
 
 
+class StepView(BaseModel):
+    """One step of the conversation's journal, with the run it names resolved for the page."""
+
+    n: int
+    address: str
+    kind: str
+    by: str
+    at: str
+    memory_version: int
+    design: int | None = Field(default=None, description="the design run the step belongs to; null for the steps leading to the first design")
+    read: list[str] = Field(default_factory=list)
+    left: list[str] = Field(default_factory=list)
+    note: str = ""
+    run: int | None = Field(default=None, description="the design index a left entry names, when one does")
+    run_id: str | None = Field(default=None, description="the lane run dir's name, when a left entry is one")
+
+
 class Prompt(BaseModel):
     text: str = ""
     status: str = ""
@@ -283,6 +300,8 @@ class SessionView(BaseModel):
     brief: str = ""
     transcript: list[Turn] = Field(default_factory=list)
     error: str | None = None
+    analysis: str | None = Field(default=None, description="a<k>: this conversation's journal")
+    journal: list[StepView] = Field(default_factory=list, description="the conversation's steps, in order")
 
 
 # ------------------------------------------------------------------ runs

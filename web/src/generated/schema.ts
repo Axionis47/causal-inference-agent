@@ -796,6 +796,16 @@ export interface components {
             transcript?: components["schemas"]["Turn"][];
             /** Error */
             error?: string | null;
+            /**
+             * Analysis
+             * @description a<k>: this conversation's journal
+             */
+            analysis?: string | null;
+            /**
+             * Journal
+             * @description the conversation's steps, in order
+             */
+            journal?: components["schemas"]["StepView"][];
         };
         /** StatusView */
         StatusView: {
@@ -821,6 +831,48 @@ export interface components {
             ready: boolean;
             /** Contradictions */
             contradictions: string[];
+        };
+        /**
+         * StepView
+         * @description One step of the conversation's journal, with the run it names resolved for the page.
+         */
+        StepView: {
+            /** N */
+            n: number;
+            /** Address */
+            address: string;
+            /** Kind */
+            kind: string;
+            /** By */
+            by: string;
+            /** At */
+            at: string;
+            /** Memory Version */
+            memory_version: number;
+            /**
+             * Design
+             * @description the design run the step belongs to; null for the steps leading to the first design
+             */
+            design?: number | null;
+            /** Read */
+            read?: string[];
+            /** Left */
+            left?: string[];
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /**
+             * Run
+             * @description the design index a left entry names, when one does
+             */
+            run?: number | null;
+            /**
+             * Run Id
+             * @description the lane run dir's name, when a left entry is one
+             */
+            run_id?: string | null;
         };
         /** TopValue */
         TopValue: {
