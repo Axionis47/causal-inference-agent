@@ -24,8 +24,10 @@ from causal_agent.desk.nodes.shared import (
     _design_line,
     _remember,
     _writer,
+    design_now,
     focused_needs,
     kinds_text,
+    record,
 )
 from causal_agent.desk.prompts import journey as P
 from causal_agent.desk.state import Context, DeskState
@@ -359,6 +361,16 @@ def listen(state: DeskState) -> Command[Literal["infer", "fit", "handoff", "chec
                 memory.set(o.address, f.value, status="confirmed", source=f"user:turn:{turn}", said=answer)
                 confirmed.append(o.address)
         store.save(memory)
+        if confirmed:
+            record(
+                state,
+                "claim",
+                by="person",
+                memory=memory,
+                design=design_now(state),
+                read=[f"user:turn:{turn}"],
+                note="confirmed as drafted: " + ", ".join(confirmed),
+            )
         return Command(goto="check", update={"turn": turn, "message": answer, "run_requested": True, "settled_now": confirmed})
     store.save(memory)
     return Command(goto="infer", update={"turn": turn, "message": answer, "infer_errors": [], "infer_attempts": 0, "settled_now": []})
@@ -446,6 +458,8 @@ def infer(state: DeskState) -> Command[Literal["infer", "check", "explain"]]:
             },
         )
     update = {"infer_errors": rejected, "infer_attempts": 0, "settled_now": settled, "debug": [thought], "desk_question": asked_desk, **focus_update}
+    if settled:
+        record(state, "claim", by="person", memory=memory, design=design_now(state), read=[src], note=", ".join(settled))
     if asked_desk:
         return Command(goto="explain", update={**update, "explain_errors": [], "explain_attempts": 0})
     return Command(goto="check", update=update)
@@ -510,4 +524,13 @@ def explain(state: DeskState) -> Command[Literal["explain", "check"]]:
         text = "I can only answer that from what is settled. " + (_design_line(st, memory, state.get("frame")) if st else "")
     else:
         text = out.text.strip() + (" " + " ".join(f"[{c}]" for c in dict.fromkeys(cites) if c not in out.text) if cites else "")
+    record(
+        state,
+        "explain",
+        by="model",
+        memory=memory,
+        design=design_now(state),
+        read=[] if problems else list(dict.fromkeys(cites)),
+        note=question + (" (unanswered)" if problems else ""),
+    )
     return Command(goto="check", update={"explained": text.strip(), "desk_question": None, "explain_errors": [], "explain_attempts": 0, "debug": [thought]})

@@ -78,6 +78,13 @@ def record(state, kind: J.StepKind, *, by: J.By, memory: Memory, design: int | N
     return journal_of(state).append(kind, by=by, memory_version=memory.version, design=design, read=read, left=left, note=note)
 
 
+def design_now(state) -> int | None:
+    """The design run a step belongs to: the last design written when the conversation is after a run; none before one, since
+    the design it leads to is not written yet."""
+    runs = state.get("runs") or []
+    return int(runs[-1].index) if state.get("phase") == "after" and runs else None
+
+
 def _remember(memory: Memory, turn: int, about: str, text: str) -> None:
     if text and not any(s.turn == turn for s in memory.said):
         memory.said.append(Said(turn=turn, about=about, text=text))

@@ -8,7 +8,7 @@ from langgraph.types import Command, interrupt
 
 from causal_agent.common.contracts import QuestionFrame
 from causal_agent.desk.nodes import frame as F
-from causal_agent.desk.nodes.shared import CAT, QUIT_WORDS, _remember, _writer
+from causal_agent.desk.nodes.shared import CAT, QUIT_WORDS, _remember, _writer, record
 from causal_agent.desk.state import DeskState
 from causal_agent.memory import journal as J
 from causal_agent.memory import ops, store
@@ -139,4 +139,13 @@ def read_question(state: DeskState) -> Command[Literal["ask_question", "check"]]
     if fr.cause and memory.value("claim:assignment.treatment_column") is None:  # the frame's reading, as a draft the person confirms
         ops.apply(memory, [ops.Update(address="claim:assignment.treatment_column", value=fr.cause, status="drafted", source="code:frame")], CAT)
     store.save(memory)
+    cols = [f"col:{memory.column(c).key}" for c in (fr.outcome, fr.cause) if c and memory.column(c) is not None]
+    record(
+        state,
+        "question",
+        by="model",
+        memory=memory,
+        read=[f"user:turn:{int(state.get('turn') or 0)}", *cols],
+        note=f"{fr.intent}: {fr.outcome} against {fr.cause}. {note}",
+    )
     return Command(goto="check", update={"frame": fr, "invalid": None, "frame_attempts": attempts, "debug": out["debug"], "settled_now": [], "note": note})

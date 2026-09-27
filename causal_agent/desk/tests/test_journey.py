@@ -152,6 +152,14 @@ def test_students_reaches_ready_in_the_frame_plus_a_few_questions_then_runs():
     assert HELD["students"].field("claim:assignment.kind").status == "drafted" and HELD["students"].field("claim:unobserved.exists") is None
     turns = d.to_ready(max_turns=6)
     assert turns <= 5 and d.payload["ready"] and "Say run" in d.payload["text"] and "could be answered" not in d.payload["text"]  # the map was said once
+    # the journal so far: the question read, then one claim step per turn that settled something, each on the person's word
+    steps = d.journal.steps()
+    assert steps[0].kind == "question" and steps[0].by == "model" and steps[0].design is None
+    assert {"user:turn:1", "col:math_score", "col:test_preparation_course"} <= set(steps[0].read)
+    assert steps[0].note.startswith("effect_of_change: math score against test preparation course")
+    assert [s.kind for s in steps[1:]] == ["claim"] * (len(steps) - 1) and all(s.by == "person" and s.design is None for s in steps[1:])
+    assert all(s.read == [f"user:turn:{n}"] for s, n in zip(steps[1:], range(2, len(steps) + 1)))
+    assert [s.memory_version for s in steps] == sorted(s.memory_version for s in steps) and "claim:assignment.kind" in steps[1].note
     # the ready moment: the design in the question's words, the evidence with addresses, the figure, the struck families with a reason each
     text = d.payload["text"]
     assert "Design: adjustment" in text and "[probe:adjustment.overlap]" in text and "[probe:adjustment.arms]" in text
@@ -309,6 +317,13 @@ def test_a_question_to_the_desk_is_answered_beside_the_next_ask_and_an_update_in
     )
     assert fake.calls.count("DeskAnswer") == 1 and "THE PERSON ASKS\nwhat does own choice mean here?" in fake.humans["DeskAnswer"][0]
     assert d.values["explained"] is None and d.values["desk_question"] is None  # said once
+    tail = d.journal.steps()[-2:]
+    assert [s.kind for s in tail] == ["claim", "explain"] and "claim:unobserved.exists" in tail[0].note
+    assert (
+        tail[1].by == "model"
+        and tail[1].read == ["adjustment", "claim:assignment.kind", "claim:assignment.rule"]
+        and tail[1].note == "what does own choice mean here?"
+    )
     p = d.say(answer_ask(p))
     assert not p["text"].startswith(answer.text)
 
@@ -324,6 +339,8 @@ def test_an_answer_that_cites_nothing_real_is_refused_three_times_then_falls_bac
     p = d.say("why do you ask that?")
     assert fake.calls.count("DeskAnswer") == 3 and "THE LAST ANSWER WAS REFUSED" in fake.humans["DeskAnswer"][2]
     assert p["text"].startswith("I can only answer that from what is settled.") and "can be answered by adjustment" in p["text"] and p["ask"] is not None
+    last = d.journal.last("explain")
+    assert last is not None and last.read == [] and last.note == "why do you ask that? (unanswered)"
 
 
 # ------------------------------------------------------------------ the journal
@@ -339,6 +356,15 @@ def test_each_conversation_has_its_own_analysis_id_that_survives_every_resume():
     assert d2.values["analysis"] == "a7"
     d2.say(QUESTION)
     assert d2.values["analysis"] == "a7" and d.values["analysis"] == "a1"
+
+
+def test_saying_run_over_open_drafts_is_a_claim_step_on_the_persons_word():
+    d = Desk(DeskFake())
+    d.say(QUESTION)  # the drafts from the note are open, to be confirmed
+    p = d.say("run")
+    assert "Before I can run" in p["text"] or p["ready"]
+    claim = d.journal.last("claim")
+    assert claim is not None and claim.by == "person" and claim.note.startswith("confirmed as drafted: claim:") and claim.read == ["user:turn:2"]
 
 
 # ------------------------------------------------------------------ the file talks back
