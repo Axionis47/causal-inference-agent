@@ -4,7 +4,6 @@
   ],
   "graphs": {
     "desk": "./causal_agent/desk/graph.py:graph",
-    "routing": "./causal_agent/desk/route.py:graph",
     "viz": "./causal_agent/viz/graph.py:graph"
   },
   "env": "./.env",

@@ -1,54 +1,62 @@
-"""The routing graph: from a memory and a question to a hand-off and a lane. Nodes are constant; the prefilter workers scale
-with columns on a wide table.
+"""The routing alone: from a question and a memory to a hand-off, without the interview. The same node functions the desk
+runs, called in order on a plain dict; the caller runs the lane.
 
-    START ─ load ─ mine ─(prefilter × N, wide only)─ frame ─ fit ─ decide ─ gate ─ handoff ─ specialist:<family> ─ END
-
-`fit` is code over the memory; `decide` is a judgement only when more than one family stands. This graph is what the old
-router became; it goes into the one desk graph at stage 4.
+    load ─ mine ─(prefilter × N, wide only)─ frame ─ fit ─ decide ─ gate ─ handoff
 """
 
 from __future__ import annotations
 
-from langgraph.checkpoint.memory import InMemorySaver
-from langgraph.graph import END, START, StateGraph
+from pydantic import BaseModel
 
-from causal_agent.common.llm import RETRY as _retry
+from causal_agent.common.contracts import FamilyDecision, FamilyVerdict, Handoff, QuestionFrame, Thought
 from causal_agent.desk.nodes import decide as D
 from causal_agent.desk.nodes import frame as F
-from causal_agent.desk.state import Context, RouteState
-from causal_agent.families import registry as R
+
+APPENDED = {"prefilter_votes", "debug"}  # the RouteState keys with an add reducer; every other key replaces
 
 
-def build() -> StateGraph:
-    b = StateGraph(RouteState, context_schema=Context)
-    b.add_node("load", F.load)
-    b.add_node("mine", F.mine, retry_policy=_retry)
-    b.add_node("prefilter", F.prefilter, retry_policy=_retry)
-    b.add_node("frame", F.frame, retry_policy=_retry)
-    b.add_node("fit", D.fit)
-    b.add_node("decide", D.decide, retry_policy=_retry)
-    b.add_node("gate", D.gate)
-    b.add_node("handoff", D.handoff)
-    lanes = R.lanes()
-    for name, sub in lanes.items():
-        b.add_node(f"specialist_{name}", sub)
-    b.add_edge(START, "load")
-    b.add_edge("load", "mine")
-    b.add_conditional_edges("mine", F.fan_out_prefilter, ["prefilter", "frame"])
-    b.add_edge("prefilter", "frame")
-    b.add_edge("frame", "fit")
-    b.add_edge("fit", "decide")
-    b.add_edge("decide", "gate")
-    # gate returns Command(goto=decide | handoff | END)
-    b.add_conditional_edges("handoff", D.route_specialist, [f"specialist_{n}" for n in lanes] + [END])
-    for name in lanes:
-        b.add_edge(f"specialist_{name}", END)
-    return b
+class RouteResult(BaseModel):
+    handoff: Handoff | None
+    decision: FamilyDecision | None
+    frame: QuestionFrame | None
+    family_verdicts: list[FamilyVerdict]
+    probes: list  # ProbeResult
+    decision_record: str
+    debug: list[Thought]
 
 
-graph = build().compile()  # for `langgraph dev`: the platform injects its own checkpointer
+def _merge(state: dict, update: dict | None) -> None:
+    """Fold a node's return into the state as the graph would."""
+    for k, v in (update or {}).items():
+        state[k] = state.get(k, []) + v if k in APPENDED else v
 
 
-def compile_local():
-    """For tests and scripts: in-memory checkpointer; pass a thread_id per run."""
-    return build().compile(checkpointer=InMemorySaver())
+def route(question: str, dataset: str) -> RouteResult:
+    """From a question and a memory to a hand-off, without the interview: mine the note once when the memory is bare, skim the
+    columns when the table is wide, read the question, fit, decide, gate (up to three tries), and build the pack. The same node
+    functions the desk runs, called in order. After three failed gates there is no hand-off; the decision record is still written."""
+    state: dict = {"question": question, "dataset": dataset}
+    _merge(state, F.load(state))
+    _merge(state, F.mine(state))
+    sends = F.fan_out_prefilter(state)
+    if isinstance(sends, list):
+        for send in sends:
+            _merge(state, F.prefilter(send.arg))
+    _merge(state, F.frame(state))
+    _merge(state, D.fit(state, None))
+    while True:
+        _merge(state, D.decide(state, None))
+        cmd = D.gate(state, None)
+        _merge(state, cmd.update)
+        if cmd.goto != "decide":
+            break
+    _merge(state, D.handoff(state, None))
+    return RouteResult(
+        handoff=state["handoff"] if cmd.goto == "handoff" else None,
+        decision=state.get("decision"),
+        frame=state.get("frame"),
+        family_verdicts=state.get("family_verdicts", []),
+        probes=state.get("probes", []),
+        decision_record=state.get("decision_record", ""),
+        debug=state.get("debug", []),
+    )

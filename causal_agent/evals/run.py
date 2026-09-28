@@ -1,7 +1,7 @@
 """Run a family's cases against its LangSmith dataset and score them.
 
-A case with a stored hand-off runs the lane alone; every other case goes through the desk's routing graph end to end.
-Each output carries the model's thoughts.
+A case with a stored hand-off runs the lane alone; every other case is routed first, then the family's lane runs on the
+hand-off. Each output carries the model's thoughts.
 
     uv run python -m causal_agent.evals.run <family>
 """
@@ -15,13 +15,14 @@ from functools import partial
 from langsmith import evaluate
 
 import causal_agent.families.registry  # noqa: F401  (registers every family's block before a pack is read)
-from causal_agent.common.contracts import Handoff
+from causal_agent.common.contracts import Handoff, Thought
+from causal_agent.desk.route import route
 from causal_agent.evals.families import spec
 from causal_agent.evals.spec import EvalSpec
 
 
-def thoughts(out: dict) -> list[dict]:
-    return [{"node": t.node, "text": t.text} for t in out.get("debug") or [] if t.text]
+def thoughts(debug: list[Thought]) -> list[dict]:
+    return [{"node": t.node, "text": t.text} for t in debug if t.text]
 
 
 def run_case(s: EvalSpec, inputs: dict) -> dict:
@@ -39,21 +40,23 @@ def run_case(s: EvalSpec, inputs: dict) -> dict:
         summary = s.summarise(out.get("specialist_result") or {})
         checks = out.get("checks") or []  # the lane's own check results, when the result carried none
         summary["hard_flags"] = sorted({c.name for c in checks if c.level == "hard"}) or summary.get("hard_flags") or []
-        summary["thoughts"] = thoughts(out)
+        summary["thoughts"] = thoughts(out.get("debug") or [])
         return summary
-    from causal_agent.desk.route import compile_local as route_local
-
-    g = route_local()
+    r = route(inputs["question"], inputs["dataset"])
+    routed = r.handoff
+    if routed is None or routed.family != s.family:  # no family stands, or another family's: reported, not run through this lane
+        return {"routed_family": routed.family if routed else None, "decision_record": r.decision_record, "thoughts": thoughts(r.debug)}
+    h = routed
+    g = s.lane_graph()
     cfg = {
         "configurable": {"thread_id": str(uuid.uuid4())},
         "tags": [f"dataset:{inputs['dataset']}", f"lane:{s.prefix}"],
         "metadata": {"dataset": inputs["dataset"]},
     }
-    out = g.invoke({"question": inputs["question"], "dataset": inputs["dataset"]}, cfg)
+    out = g.invoke({"question": inputs["question"], "handoff": h, "dataset": h.pack_name}, cfg)
     summary = s.summarise(out.get("specialist_result") or {})
-    h = out.get("handoff")
-    summary["routed_family"] = h.family if h else None
-    summary["thoughts"] = thoughts(out)
+    summary["routed_family"] = h.family
+    summary["thoughts"] = thoughts(r.debug) + thoughts(out.get("debug") or [])
     return summary
 
 

@@ -7,13 +7,32 @@ import re
 
 from langchain_core.messages import AIMessage
 
-from causal_agent.common.contracts import Candidate, FamilyDecision, QuestionFrame, Rejection, Scope
+from causal_agent.common.contracts import Candidate, FamilyDecision, PrefilterVote, QuestionFrame, Rejection, Scope
 from causal_agent.desk.contracts import AfterReply, DeskAnswer, FieldUpdate, Inference
 from causal_agent.families import registry as R
 from causal_agent.memory.claims import ClaimUpdate, Extraction, FieldValue
+from causal_agent.viz.draw import DrawCode
 
 FAMILIES = [f.name for f in R.knowledge()]
 QUESTION = "Did completing the prep course raise math scores?"
+
+# a script the drawing tool can run on the students file: mean math score by lunch, two numbers kept
+DRAW_SCRIPT = """
+import json, os
+import pandas as pd
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+
+df = pd.read_csv(os.environ["VIZ_CSV"])
+means = df.groupby("lunch")["math score"].mean()
+fig, ax = plt.subplots()
+ax.bar(means.index, means.values)
+ax.set_ylabel("mean math score")
+fig.savefig("figure.png")
+json.dump({"mean_standard": float(means["standard"]), "mean_free_reduced": float(means["free/reduced"])}, open("facts.json", "w"))
+"""
+DRAW = DrawCode(code=DRAW_SCRIPT, caption="Mean math score by lunch, standard against free or reduced.", facts=["mean_standard", "mean_free_reduced"])
 
 
 def U(claim_kind, cites, column=None, **values):
@@ -83,10 +102,21 @@ def asked_addresses(human: str) -> list[str]:
 
 
 class DeskFake:
-    """Answers by rule from the person's words. `after` is a queue of AfterReply objects for the chat after a run."""
+    """Answers by rule from the person's words. `after` is a queue of AfterReply objects for the chat after a run; `cites` is what
+    the family decision cites, for the gate."""
 
-    def __init__(self, *, after: list[AfterReply] | None = None, infer=None, explain: list[DeskAnswer] | None = None):
+    def __init__(
+        self,
+        *,
+        after: list[AfterReply] | None = None,
+        infer=None,
+        explain: list[DeskAnswer] | None = None,
+        cites: list[str] | None = None,
+        draw: list[DrawCode] | None = None,
+    ):
         self.after = list(after or [])
+        self.draw = list(draw or [])  # a queue of scripts for the drawing tool; empty means the one that draws math score by lunch
+        self.cites = list(cites or [])
         self.infer = infer  # optional callable(message, asked_addresses, human) -> Inference | None
         self.explain = list(explain or [])  # a queue of DeskAnswer for questions asked before the run
         self.calls: list[str] = []
@@ -140,19 +170,23 @@ class DeskFake:
                 if out is not None:
                     return out
             return infer_by_rule(msg, addrs)
+        if schema is PrefilterVote:
+            return PrefilterVote(column="x", relevant=True, reason="r", cites=["dataset.note"])
         if schema is FamilyDecision:
             return FamilyDecision(
                 admissible=["adjustment"],
                 chosen="adjustment",
                 chosen_assumption="nothing else drove both",
                 why_over_alternatives="scripted",
-                rejected=[Rejection(family=f, reason="a need is unmet", cites=[]) for f in FAMILIES if f != "adjustment"],
-                cites=[],
+                rejected=[Rejection(family=f, reason="a need is unmet", cites=self.cites) for f in FAMILIES if f != "adjustment"],
+                cites=self.cites,
             )
         if schema is AfterReply:
             return self.after.pop(0)
         if schema is DeskAnswer:
             return self.explain.pop(0) if self.explain else DeskAnswer(text="A scripted answer.", cites=["adjustment"])
+        if schema is DrawCode:
+            return self.draw.pop(0) if self.draw else DRAW
         raise AssertionError(schema)
 
 

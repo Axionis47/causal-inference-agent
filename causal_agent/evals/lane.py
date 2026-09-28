@@ -1,6 +1,6 @@
 """One run of a family's lane from the command line.
 
-    uv run python -m causal_agent.evals.lane <family> <dataset> "<question>"     # through the desk's routing graph, end to end
+    uv run python -m causal_agent.evals.lane <family> <dataset> "<question>"     # routed first, then the lane on the hand-off
     uv run python -m causal_agent.evals.lane <family> --handoff handoff.json      # the lane alone, from a stored hand-off
 
 Streams progress, prints the report, and says where the run directory is.
@@ -15,6 +15,7 @@ from pathlib import Path
 
 import causal_agent.families.registry  # noqa: F401  (registers every family's block before a pack is read)
 from causal_agent.common.contracts import Handoff
+from causal_agent.desk.route import route
 from causal_agent.evals.families import spec
 from causal_agent.evals.spec import EvalSpec
 
@@ -56,12 +57,11 @@ def main(argv: list[str] | None = None) -> None:
     else:
         if not (args.dataset and args.question):
             ap.error("give <dataset> and <question>, or --handoff")
-        from causal_agent.desk.route import compile_local as route_local
-
-        g = route_local()
-        cfg = {"configurable": {"thread_id": str(uuid.uuid4())}, "tags": [f"dataset:{args.dataset}"], "metadata": {"dataset": args.dataset}}
-        out = g.invoke({"question": args.question, "dataset": args.dataset}, cfg)
-        result = out.get("specialist_result") or {}
+        r = route(args.question, args.dataset)
+        if r.handoff is None or r.handoff.family != s.family:
+            print(r.decision_record)
+            raise SystemExit(f"routed to {r.handoff.family if r.handoff else 'no family'}, not {s.family}: nothing run")
+        result = run_from_handoff(s, r.handoff, args.question)
     print()
     print(result.get("report", "(no report)"))
     print(f"\nrun directory: {result.get('run_dir')}")

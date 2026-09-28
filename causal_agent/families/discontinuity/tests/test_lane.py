@@ -624,7 +624,6 @@ def adapter_sharp() -> dict:
 
 
 def test_the_desk_reaches_three_specialists():
-    from causal_agent.desk.route import graph as route_graph
     from causal_agent.families.registry import lanes
 
     SPECIALISTS = lanes()
@@ -632,7 +631,6 @@ def test_the_desk_reaches_three_specialists():
     assert "score" in SPECIALISTS["discontinuity"].get_graph().nodes
     assert "shape_table" in SPECIALISTS["diff_in_diff"].get_graph().nodes and "score" not in SPECIALISTS["diff_in_diff"].get_graph().nodes
     assert "relate" not in SPECIALISTS["synthetic_control"].get_graph().nodes  # still a stub
-    assert "specialist_discontinuity" in route_graph.get_graph().nodes
 
 
 def test_raw_columns_named_like_canonical_ones_do_not_collide(tmp_path, monkeypatch):

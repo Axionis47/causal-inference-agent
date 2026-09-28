@@ -266,14 +266,12 @@ def test_catalogues_parse_on_a_toy_panel():
 
 
 def test_the_desk_reaches_both_specialists():
-    from causal_agent.desk.route import graph as route_graph
     from causal_agent.families.registry import lanes
 
     SPECIALISTS = lanes()
 
     assert "shape_table" in SPECIALISTS["diff_in_diff"].get_graph().nodes
     assert "freeze_design" in SPECIALISTS["adjustment"].get_graph().nodes and "shape_table" not in SPECIALISTS["adjustment"].get_graph().nodes
-    assert "specialist_diff_in_diff" in route_graph.get_graph().nodes
 
 
 # ------------------------------------------------------------------ the pack's facts end judgements
