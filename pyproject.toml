@@ -23,6 +23,7 @@ dependencies = [
     "uvicorn>=0.30",
     "python-multipart>=0.0.9",
     "langgraph-checkpoint-sqlite>=2.0",
+    "matplotlib>=3.9",
 ]
 
 [build-system]
