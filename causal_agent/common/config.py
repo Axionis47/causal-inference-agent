@@ -39,11 +39,18 @@ class Model:
 
 
 @dataclass(frozen=True)
+class Sandbox:
+    kind: str  # subprocess | docker: where a drawing script runs
+    image: str  # the container image, when docker
+
+
+@dataclass(frozen=True)
 class Config:
     paths: Paths
     model: Model
     width_budget: int  # columns beyond this trigger the prefilter fan-out
     port: int
+    sandbox: Sandbox
 
 
 def _flag(env: Mapping[str, str], name: str, default: bool) -> bool:
@@ -74,7 +81,8 @@ def load(env: Mapping[str, str] | None = None, root: Path | None = None) -> Conf
         include_thoughts=_flag(env, "INCLUDE_THOUGHTS", True),
         thinking_budget=int(env.get("THINKING_BUDGET", "1024")),
     )
-    return Config(paths=paths, model=model, width_budget=int(env.get("FRAME_WIDTH_BUDGET", "150")), port=int(env.get("PORT", "8000")))
+    sandbox = Sandbox(kind=env.get("VIZ_SANDBOX", "subprocess"), image=env.get("VIZ_IMAGE", "causal-desk-viz"))
+    return Config(paths=paths, model=model, width_budget=int(env.get("FRAME_WIDTH_BUDGET", "150")), port=int(env.get("PORT", "8000")), sandbox=sandbox)
 
 
 def get() -> Config:

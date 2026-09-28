@@ -50,4 +50,7 @@ build-web: ## the web bundle the API serves
 evals: ## run one family's evals: make evals FAMILY=discontinuity
 	$(UV) python -m causal_agent.evals.run $(FAMILY)
 
-.PHONY: help lint fmt types test test-web schema check dev-api dev-web build-web evals
+viz-image: ## build the drawing tool's container image (VIZ_SANDBOX=docker uses it)
+	docker build -t causal-desk-viz -f docker/viz.Dockerfile docker
+
+.PHONY: help lint fmt types test test-web schema check dev-api dev-web build-web evals viz-image
