@@ -56,7 +56,6 @@
   "why": "forced",
   "over": {},
   "csv": "data/raw/card-krueger-minimum-wage/employment.csv",
-  "docs": {},
   "dataset_facts": {
     "rows": 384,
     "columns": 3,

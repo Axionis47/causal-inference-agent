@@ -99,13 +99,15 @@ def record(
 
 
 def decision_dict(d: FamilyDecision | None, h: Handoff | None) -> dict:
-    """The decision as a RunRecord carries it: chosen, chosen_assumption, why, over."""
+    """The decision as a RunRecord carries it: chosen, chosen_assumption, why, over, and the design brief when there is one."""
     out: dict = {}
     if d is not None:
         out = {"chosen": d.chosen, "chosen_assumption": d.chosen_assumption, "why": d.why_over_alternatives, "over": {r.family: r.reason for r in d.rejected}}
     if h is not None:
         out.setdefault("chosen", h.family)
-        out.setdefault("chosen_assumption", h.chosen_assumption)
+        out["chosen_assumption"] = h.chosen_assumption
+        if h.brief is not None:
+            out["brief"] = h.brief.model_dump()
     return out
 
 

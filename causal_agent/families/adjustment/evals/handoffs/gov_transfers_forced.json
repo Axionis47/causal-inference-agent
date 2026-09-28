@@ -70,7 +70,6 @@
   "why": "forced",
   "over": {},
   "csv": "data/raw/gov-transfers-uruguay/gov_transfers.csv",
-  "docs": {},
   "dataset_facts": {
     "rows": 1948,
     "columns": 5,

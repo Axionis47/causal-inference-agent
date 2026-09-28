@@ -23,6 +23,7 @@ from causal_agent.memory import ops
 from causal_agent.memory import views as V
 from causal_agent.memory.catalogue import load_catalogue
 from causal_agent.memory.claims import ProbeResult, Status
+from causal_agent.memory.matrix import Matrix
 from causal_agent.memory.records import Memory
 from causal_agent.memory.views import table_of
 
@@ -96,10 +97,14 @@ def fit(state: RouteState, runtime: Runtime[Context]) -> dict:
     probes = ops.probe(memory, df, R.REGISTRY.values())
     from causal_agent.profile import datasets as DS
 
-    status = ops.fit(memory, probes, focused_needs(state), columns=V.in_play(memory, state.get("frame"), DS.dataset_entries().get(memory.name) or {}))
+    needs = focused_needs(state)
+    columns = V.in_play(memory, state.get("frame"), DS.dataset_entries().get(memory.name) or {})
+    status = ops.fit(memory, probes, needs, columns=columns)
     verdicts = verdicts_from(memory, status, probes, _registry(runtime), focus=list(state.get("focus") or []))
+    prev = state.get("matrix") if isinstance(state.get("matrix"), Matrix) else Matrix()
+    matrix = prev.update(memory, probes, needs, columns=columns)  # the record the hand-off writes: as the memory (or the fork) stands now
     _writer()({"fit": {"surviving": status.surviving, "struck": status.struck, "admissible": [v.family for v in verdicts if v.admissible]}})
-    return {"family_verdicts": verdicts, "probes": probes, "fit_status": status.model_dump()}
+    return {"family_verdicts": verdicts, "probes": probes, "fit_status": status.model_dump(), "matrix": matrix}
 
 
 # ------------------------------------------------------------------ decide (judgement) and gate
@@ -171,7 +176,7 @@ def decide(state: RouteState, runtime: Runtime[Context]) -> dict:
     return {"decision": decision, "debug": [thought]}
 
 
-def gate(state: RouteState, runtime: Runtime[Context]) -> Command[Literal["decide", "handoff", "__end__"]]:
+def gate(state: RouteState, runtime: Runtime[Context]) -> Command[Literal["decide", "design", "__end__"]]:
     memory = memory_of(state)
     fr, d = state["frame"], state["decision"]
     assert fr is not None and d is not None
@@ -212,7 +217,7 @@ def gate(state: RouteState, runtime: Runtime[Context]) -> Command[Literal["decid
     attempts = state.get("decide_attempts", 0) + 1
     _writer()({"gate": {"passed": not errors, "errors": errors, "attempt": attempts}})
     if not errors:
-        return Command(update={"gate_errors": [], "decide_attempts": attempts}, goto="handoff")
+        return Command(update={"gate_errors": [], "decide_attempts": attempts}, goto="design")
     if attempts < MAX_DECIDE_ATTEMPTS:
         return Command(update={"gate_errors": errors, "decide_attempts": attempts}, goto="decide")
     return Command(update={"gate_errors": errors, "decide_attempts": attempts, "handoff": None}, goto="__end__")
@@ -230,7 +235,7 @@ def handoff(state: RouteState, runtime: Runtime[Context]) -> dict:
         record = decision_record(state, None)
         _writer()({"handoff": None, "decision_record": record})
         return {"handoff": None, "decision_record": record}
-    h = H.build(question=state["question"], frame=fr, decision=d, family=fam, memory=memory, probes=state.get("probes") or [])
+    h = H.build(question=state["question"], frame=fr, decision=d, family=fam, memory=memory, probes=state.get("probes") or [], brief=state.get("brief"))
     record = decision_record(state, h)
     _writer()({"handoff": h.model_dump(), "decision_record": record})
     return {"handoff": h, "decision_record": record}
@@ -261,9 +266,11 @@ def decision_record(state: RouteState, h: Handoff | None) -> str:
             if h
             else "CHOSEN       none: no family is admissible for this question on this data"
         ),
-        f"BETS ON      {d.chosen_assumption}",
-        f"WHY          {d.why_over_alternatives}",
+        f"BETS ON      {h.chosen_assumption if h else d.chosen_assumption}",
     ]
+    if h is not None and h.brief is not None:
+        lines += ["             " + ln for ln in h.brief.render().splitlines()]
+    lines.append(f"WHY          {d.why_over_alternatives}")
     for r in d.rejected:
         lines.append(f"OVER         {r.family}: {r.reason}   [{', '.join(r.cites) or '-'}]")
     debug = state.get("debug") or []

@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 
-def render_dataset_text(name: str, facts: dict, grain: dict, sampling: dict, missing: dict, docs: dict | None = None) -> str:
+def render_dataset_text(name: str, facts: dict, grain: dict, sampling: dict, missing: dict) -> str:
     """The dataset card: what the memory says about the rows, then the profile's facts, every line addressed."""
-    docs = docs or {}
     about = []
     if grain.get("row_is"):
         about.append(f"each row is {str(grain['row_is']).rstrip('.')}")
@@ -17,7 +16,7 @@ def render_dataset_text(name: str, facts: dict, grain: dict, sampling: dict, mis
         about.append(f"rows were chosen: {sampling['how']}" + (f", {sampling['detail']}" if sampling.get("detail") else ""))
     if missing.get("why"):
         about.append(f"missing values: {missing['why']}")
-    lines = [f"[dataset] {name}", f"  [dataset.note] {'. '.join(about) if about else docs.get('about') or '(nothing stated about the rows)'}"]
+    lines = [f"[dataset] {name}", f"  [dataset.note] {'. '.join(about) if about else '(nothing stated about the rows)'}"]
     lines.append(
         f"  [dataset.profile.rows] {facts.get('rows', '?')} rows, {facts.get('columns', '?')} columns, {facts.get('duplicate_rows', 0)} duplicate rows"
     )

@@ -129,16 +129,16 @@ def reply_for(view: dict) -> str:
     addrs = q.get("keys") or []
     if q.get("kind") == "confirm":
         return "yes, all right"
-    if q.get("kind") == "columns":
+    if addrs and addrs[0].startswith("col:"):
         return "cols"
-    if addrs and addrs[0] in ANSWERS:
+    if addrs and addrs[0] in ANSWERS:  # the story turn and a gap question alike: one field, in the desk's own words
         return f"{addrs[0]} = {ANSWERS[addrs[0]]}"
     return "I don't know"
 
 
 def infer_columns(msg, addrs, human):
-    """The scripted model's answer to the columns tick: what each in-play column records and when it was set."""
-    from causal_agent.desk.contracts import FieldUpdate, Inference
+    """The scripted model's answer to a question over columns: what each in-play column records and when it was set."""
+    from causal_agent.desk.contracts import FieldUpdate, Reading
 
     if msg != "cols":
         return None
@@ -152,4 +152,4 @@ def infer_columns(msg, addrs, human):
             ups.append(FieldUpdate(address=a, value=f"{name} as recorded", said=msg))
         elif a.endswith(".when"):
             ups.append(FieldUpdate(address=a, value=WHEN.get(name, "before"), said=msg))
-    return Inference(updates=ups)
+    return Reading(updates=ups)

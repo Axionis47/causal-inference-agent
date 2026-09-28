@@ -18,6 +18,7 @@ from pathlib import Path
 from causal_agent.common.addresses import key
 from causal_agent.common.contracts import (
     Candidate,
+    DesignBrief,
     FamilyDecision,
     Handoff,
     Probe,
@@ -44,8 +45,10 @@ def build(
     memory: Memory,
     probes: list[ProbeResult] | list[Probe] = (),
     design_id: int = 0,
+    brief: DesignBrief | None = None,
 ) -> Handoff:
-    """The one hand-off, projected from the memory. The memory is not changed."""
+    """The one hand-off, projected from the memory. The memory is not changed. The brief, when there is one, is what the design
+    bets on; without one the decision's assumption stands."""
     m = memory
     entry = DS.dataset_entries().get(m.name) or {}
     a, ch, g, samp, miss = (fields_of(m, k) for k in ("assignment", "change", "grain", "sampling", "missing"))
@@ -96,7 +99,7 @@ def build(
         scope=frame.scope,
         pack_name=m.name,
         relevant_columns=list(frame.relevant_columns),
-        chosen_assumption=decision.chosen_assumption,
+        chosen_assumption=brief.bets_on if brief is not None else decision.chosen_assumption,
         reasons=[Candidate(column=c.column, reason=c.reason, cites=c.cites) for c in frame.outcome_candidates[:1] + frame.cause_candidates[:1]],
         question=question,
         intent=frame.intent,
@@ -105,7 +108,6 @@ def build(
         why=decision.why_over_alternatives,
         over={r.family: r.reason for r in decision.rejected},
         csv=m.csv or entry.get("csv"),
-        docs={},
         dataset_facts=m.facts,
         grain=g,
         sampling=samp,
@@ -136,6 +138,7 @@ def build(
             if c.status != "empty"
         },
         design=design,
+        brief=brief,
     )
 
 

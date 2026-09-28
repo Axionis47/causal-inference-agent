@@ -43,7 +43,7 @@ from causal_agent.common.contracts import Belief, CheckResult, ColumnBrief, Hand
 
 Weight = Literal["fact", "draft", "open", "contested"]
 Level = Literal["pass", "soft", "hard", "stop"]
-FIELDS = ("when", "moved_by_change", "measures_outcome", "set_by")
+FIELDS = ("when", "feeds_treatment", "moves_outcome", "moved_by_change", "measures_outcome", "set_by")
 _FIELD_ADDRESS = {"moved_by_change": "moved"}  # the brief renders col:x.moved; the memory holds col:x.moved_by_change
 
 

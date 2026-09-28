@@ -22,6 +22,11 @@ from causal_agent.common.contracts.base import (
     Scope,
     Thought,
 )
+from causal_agent.common.contracts.brief import (
+    DecisionMade,
+    DesignBrief,
+    Road,
+)
 from causal_agent.common.contracts.frame import (
     FamilyDecision,
     FamilyVerdict,
@@ -60,8 +65,10 @@ __all__ = [
     "ColumnBrief",
     "ColumnFacts",
     "Contrast",
+    "DecisionMade",
     "Decline",
     "Design",
+    "DesignBrief",
     "Estimate",
     "FamilyDecision",
     "FamilyVerdict",
@@ -77,6 +84,7 @@ __all__ = [
     "QuestionFrame",
     "Refutation",
     "Rejection",
+    "Road",
     "Role",
     "RunRecord",
     "Said",

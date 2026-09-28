@@ -10,15 +10,12 @@ from langgraph.config import get_stream_writer
 from langgraph.types import Send
 
 from causal_agent.common import config
-from causal_agent.common.addresses import key as _key
 from causal_agent.common.contracts import PrefilterVote, QuestionFrame, render_change_text
 from causal_agent.common.llm import structured
 from causal_agent.desk.prompts import routing as P
 from causal_agent.desk.state import PrefilterTask, RouteState
-from causal_agent.memory import ops, store
+from causal_agent.memory import store
 from causal_agent.memory import views as V
-from causal_agent.memory.catalogue import load_catalogue
-from causal_agent.memory.claims import Extraction
 from causal_agent.memory.records import Memory
 from causal_agent.memory.views import context_text, index_records
 from causal_agent.profile import datasets as DS
@@ -63,44 +60,23 @@ def _doc(memory: Memory) -> tuple[str, str] | None:
 
 
 def mine(state: RouteState) -> dict:
-    """Once, when the memory holds nothing but the file's facts and a document is attached: read it into drafts, source doc:<name>.
-    A description drafts; it never confirms, and it never sets a belief."""
+    """Once, when the memory holds nothing but the file's facts and a document is attached: the Reader reads it into drafts, source
+    doc:<name>. A description drafts; it never confirms, and it never sets a belief (the Reader drops those, the gate refuses them)."""
     memory = memory_of(state)
     doc = _doc(memory)
     if not _bare(memory) or doc is None:
         return {}
-    from causal_agent.desk.nodes.journey import kinds_text
-    from causal_agent.desk.prompts import journey as JP
+    from causal_agent.desk import reader as RD
 
     name, text = doc
-    cat = load_catalogue()
-    cards = "\n".join(V.brief_of(memory, c).line() for c in memory.columns.values())
-    errors = ""
     debug, rejected = [], []
+    errors: list[str] = []
     for _ in range(MINE_ATTEMPTS):
-        user = JP.EXTRACT_USER.format(
-            kinds=kinds_text(),
-            claims=memory.to_claims(cat).render(),
-            cards=cards,
-            asked="(none: this is the description)",
-            source=f"doc:{name}",
-            material=text,
-            errors=errors,
-        )
-        out, thought = structured(Extraction, JP.EXTRACT_SYSTEM, user, node="mine")
-        debug.append(thought)
-        updates = []
-        for up in out.updates:
-            kind = cat.kinds.get(up.kind)
-            if kind is None or kind.uncheckable or up.unknown:
-                continue
-            for fv in up.values:
-                address = f"col:{_key(up.column)}.{fv.name}" if kind.per_column and up.column else f"claim:{up.kind}.{fv.name}"
-                updates.append(ops.Update(address=address, value=fv.value, status="drafted", source=f"doc:{name}", reason=up.reason))
-        rejected = ops.apply(memory, updates, cat)
+        _, thoughts, rejected = RD.read_words(memory, f"doc:{name}", text, RD.DESCRIPTION, [], 0, errors=errors)
+        debug.extend(thoughts)
         if not rejected:
             break
-        errors = "\nPREVIOUS UPDATES WERE REJECTED:\n" + "\n".join(f"- {e}" for e in rejected) + "\nFix them and return the full set again.\n"
+        errors = rejected
     store.save(memory)
     _writer()({"mine": {"drafted": memory.version, "rejected": rejected}})
     return {"debug": debug}

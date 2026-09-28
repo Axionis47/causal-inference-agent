@@ -8,6 +8,7 @@ from typing import Literal
 from pydantic import BaseModel, Field, SerializeAsAny, field_validator
 
 from causal_agent.common.contracts.base import Candidate, Cited, Intent, Scope
+from causal_agent.common.contracts.brief import DesignBrief
 from causal_agent.common.contracts.text import render_change_text, render_dataset_text
 
 # ----------------------------------------------------------------- the context pack
@@ -99,6 +100,8 @@ class ColumnBrief(BaseModel):
     proxy: str | None = None
     when: When = "unknown"
     set_by: str | None = None
+    feeds_treatment: bool | None = None
+    moves_outcome: bool | None = None
     moved_by_change: bool | None = None
     measures_outcome: bool | None = None
     source: str | None = Field(default=None, description="where the meaning and timing came from: user:turn:<n>, doc:<name>, or data")
@@ -142,6 +145,16 @@ class ColumnBrief(BaseModel):
         lines.append(f"  [{a}.when] {_WHEN_WORDS[self.when]}" + self.how("when"))
         if self.set_by:
             lines.append(f"  [{a}.set_by] set by {self.set_by}" + self.how("set_by"))
+        if self.feeds_treatment is not None:
+            lines.append(
+                f"  [{a}.feeds_treatment] {'fed the decision or the offer that set who got the change' if self.feeds_treatment else 'did not feed the decision or the offer'}"
+                + self.how("feeds_treatment")
+            )
+        if self.moves_outcome is not None:
+            lines.append(
+                f"  [{a}.moves_outcome] {'could move the outcome on its own' if self.moves_outcome else 'could not move the outcome on its own'}"
+                + self.how("moves_outcome")
+            )
         if self.moved_by_change is not None:
             lines.append(
                 f"  [{a}.moved] the change {'could have moved it' if self.moved_by_change else 'could not have moved it'}" + self.how("moved_by_change")
@@ -322,7 +335,6 @@ class Handoff(BaseModel):
     over: dict[str, str] = Field(default_factory=dict, description="rejected family -> reason")
     # the data
     csv: str | None = None
-    docs: dict[str, str] = Field(default_factory=dict)
     dataset_facts: dict = Field(default_factory=dict, description="rows, columns, duplicate_rows, grain, time_coverage, entity_summary, format_issues")
     grain: dict = Field(default_factory=dict)
     sampling: dict = Field(default_factory=dict)
@@ -345,8 +357,9 @@ class Handoff(BaseModel):
     # evidence and the record
     probes: list[Probe] = Field(default_factory=list)
     claims: dict = Field(default_factory=dict, description="claim key -> {kind, fields, status, source}")
-    # the family block
+    # the family block, and the brief: what the design rests on, in the dataset's terms
     design: SerializeAsAny[Design] | None = None
+    brief: DesignBrief | None = None
 
     @field_validator("design", mode="before")
     @classmethod
@@ -354,7 +367,7 @@ class Handoff(BaseModel):
         return parse_design(v)
 
     # ------------------------------------------------------------- columns
-    def brief(self, name_or_key: str) -> ColumnBrief | None:
+    def column(self, name_or_key: str) -> ColumnBrief | None:
         from causal_agent.common.addresses import key as _k
 
         k = _k(name_or_key)
@@ -364,7 +377,7 @@ class Handoff(BaseModel):
         return None
 
     def brief_text(self, name_or_key: str) -> str:
-        b = self.brief(name_or_key)
+        b = self.column(name_or_key)
         return b.render() if b else f"[col:{name_or_key}] (no brief)"
 
     def render_columns(self) -> str:
@@ -375,7 +388,7 @@ class Handoff(BaseModel):
 
     # ------------------------------------------------------------- context
     def render_dataset(self) -> str:
-        return render_dataset_text(self.pack_name, self.dataset_facts, self.grain, self.sampling, self.missing, self.docs)
+        return render_dataset_text(self.pack_name, self.dataset_facts, self.grain, self.sampling, self.missing)
 
     def render_change(self) -> str:
         return render_change_text(self.change, self.assignment)
@@ -388,6 +401,9 @@ class Handoff(BaseModel):
 
     def render_design(self) -> str:
         return self.design.render() if self.design else "(no family block)"
+
+    def render_brief(self) -> str:
+        return self.brief.render() if self.brief else "(no design brief)"
 
     def render_open(self) -> str:
         """What the memory could not settle: the fields the person could not say, and the ones the data refuted and they kept."""
@@ -409,9 +425,16 @@ class Handoff(BaseModel):
         return "\n\n".join(parts)
 
     def render_context(self) -> str:
-        """The dataset, the change, the beliefs, the family block, the person's words, and what is open: what pack.digest() used to be."""
+        """The dataset, the change, the beliefs, the family block, the design brief, the person's words, and what is open."""
         return "\n\n".join(
-            [self.render_dataset(), self.render_change(), "BELIEFS\n" + self.render_beliefs(), "FAMILY BLOCK\n" + self.render_design(), self.render_words()]
+            [
+                self.render_dataset(),
+                self.render_change(),
+                "BELIEFS\n" + self.render_beliefs(),
+                "FAMILY BLOCK\n" + self.render_design(),
+                "DESIGN BRIEF\n" + self.render_brief(),
+                self.render_words(),
+            ]
         )
 
     # ------------------------------------------------------------- addresses
@@ -420,7 +443,20 @@ class Handoff(BaseModel):
         out.update(f"dataset.profile.{f}" for f in _DATASET_FACETS)
         for b in self.columns:
             a = b.address
-            out.update({a, f"{a}.note", f"{a}.stands_for", f"{a}.when", f"{a}.set_by", f"{a}.moved", f"{a}.measures_outcome", f"{a}.role"})
+            out.update(
+                {
+                    a,
+                    f"{a}.note",
+                    f"{a}.stands_for",
+                    f"{a}.when",
+                    f"{a}.set_by",
+                    f"{a}.feeds_treatment",
+                    f"{a}.moves_outcome",
+                    f"{a}.moved",
+                    f"{a}.measures_outcome",
+                    f"{a}.role",
+                }
+            )
             out.update(f"{a}.profile.{f}" for f in _COLUMN_FACETS)
         for k, c in self.claims.items():
             out.update({f"claim:{k}", f"claim:{k}.check"})
@@ -439,6 +475,8 @@ class Handoff(BaseModel):
             )
         out.update(p.address for p in self.probes)
         out.update(f"said:{s.turn}" for s in self.said)
+        if self.brief is not None:
+            out.update(self.brief.addresses())
         return out
 
     def resolve(self, address: str) -> bool:

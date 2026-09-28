@@ -11,8 +11,8 @@ from causal_agent.common.contracts import QuestionFrame, Said
 from causal_agent.families import registry as R
 from causal_agent.memory import journal as J
 from causal_agent.memory import views as V
-from causal_agent.memory.catalogue import Catalogue, load_catalogue, load_thresholds
-from causal_agent.memory.records import Memory
+from causal_agent.memory.catalogue import Catalogue, ClaimKind, load_catalogue, load_thresholds
+from causal_agent.memory.records import COLUMN_KIND, Memory
 from causal_agent.profile import datasets as DS
 
 CAT: Catalogue = load_catalogue()
@@ -45,6 +45,33 @@ def kinds_text() -> str:
         cues = f" Reading their words: {k.cues}" if k.cues else ""
         out.append(f"- {k.name}{tag}: {k.about}. Fields: {fields}.{cues}")
     return "\n".join(out)
+
+
+def kind_of(address: str) -> ClaimKind:
+    """The catalogue kind an address belongs to: the column kind for col:, the named kind for claim:."""
+    return CAT.kinds[Memory.parse(address)[1] if address.startswith("claim:") else COLUMN_KIND]
+
+
+def options_text(kind: ClaimKind, field: str) -> str:
+    """The legal answers of a field, in the world's words: each option with what it means, or yes or no."""
+    spec = kind.fields[field]
+    if spec.type == "choice":
+        return "; ".join(f"{o} ({spec.about[str(o)]})" if str(o) in spec.about else str(o) for o in spec.options)
+    if spec.type == "bool":
+        return "yes or no"
+    return ""
+
+
+def value_words(kind: ClaimKind, field: str, value) -> str:
+    """A field's value as the person reads it: an option with what it means, a list, yes or no."""
+    spec = kind.fields.get(field)
+    if spec and spec.type == "choice" and str(value) in spec.about:
+        return f"{value} ({spec.about[str(value)]})"
+    if isinstance(value, list):
+        return ", ".join(str(v) for v in value)
+    if isinstance(value, bool):
+        return "yes" if value else "no"
+    return str(value)
 
 
 def _csv_path(memory: Memory) -> Path:

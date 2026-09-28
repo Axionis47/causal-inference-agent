@@ -1,8 +1,8 @@
 """Prompts for the five judgements. Method-free and column-free: everything specific arrives as data."""
 
+from causal_agent.lane.prompts import INTERPRET_CASE, PICK_CASE, PLAIN_WORDS, cite_rule
 from causal_agent.lane.prompts import INTERPRET_USER as INTERPRET_USER  # the lane's nodes read these here
 from causal_agent.lane.prompts import PICK_USER as PICK_USER
-from causal_agent.lane.prompts import PLAIN_WORDS, cite_rule
 
 CITE_RULE = cite_rule("col:lunch.note", "check:completed_vs_none.overlap")
 
@@ -37,6 +37,8 @@ RELATE_SYSTEM = (
     "unless the note rules it out; cite the note that says it was fixed before.\n"
     "When a block SETTLED BY THE PACK gives one of the four, the person has already said it: copy that answer and cite the "
     "address shown; do not argue with it.\n"
+    "When a block THE LAST READING gives one, an earlier run read it so and nobody has confirmed it: keep that answer unless "
+    "the cards give a reason to depart, and then cite the card that does.\n"
     "  affected_by_treatment: this column's value was recorded after the treatment began, so the treatment could "
     "have changed it. A measurement taken at the same time as the outcome counts as yes.\n"
     "  is_outcome_measure: this column measures the same quantity as the outcome, so it is a result, not a cause.\n"
@@ -71,7 +73,10 @@ ASSESS_SYSTEM = (
     "A hard flag never permits proceed. A revision must touch a column named in a flag. " + CITE_RULE
 )
 
-ASSESS_USER = """QUESTION
+ASSESS_USER = """THE CASE
+{frame}
+
+QUESTION
 {question}
 
 GRAPH
@@ -90,7 +95,7 @@ PICK_SYSTEM = (
     "You choose an estimator for a causal comparison whose design is fixed. You are given the facts of the design "
     "and the estimators that can run on it, with what each assumes and when it is weak, plus preferences between them. "
     "Pick one by name from the list. Say why, citing the check addresses whose numbers support the pick. "
-    "If the ranked preference does not apply here, say why not. " + CITE_RULE
+    "If the ranked preference does not apply here, say why not. " + PICK_CASE + CITE_RULE
 )
 
 INTERPRET_SYSTEM = (
@@ -100,5 +105,5 @@ INTERPRET_SYSTEM = (
     "is among the artifacts, say that the person believes a hidden factor exists, that no road around it was open, and that "
     "the effect holds only if that factor is no stronger than the simulated ones, quoting the range. A flag that comes from "
     "what the person said (belief.*, unknown.*, contradiction.*) is a caveat in their own terms. Do not mention "
-    "checks that were not run. Cite an artifact address for every number, and every address you must cite. " + PLAIN_WORDS + CITE_RULE
+    "checks that were not run. Cite an artifact address for every number, and every address you must cite. " + INTERPRET_CASE + PLAIN_WORDS + CITE_RULE
 )

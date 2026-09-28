@@ -15,19 +15,22 @@ from causal_agent.desk.contracts import Ask
 from causal_agent.desk.nodes import decide as D
 from causal_agent.desk.nodes import frame as F
 from causal_agent.desk.nodes.shared import CAT, journal_of, record
+from causal_agent.desk.relations import absorb_relations
 from causal_agent.desk.state import Context, DeskState
 from causal_agent.families import registry as R
 from causal_agent.memory import store
+from causal_agent.memory.matrix import Matrix
 from causal_agent.memory.records import COLUMN_KIND, Memory
 
 # ------------------------------------------------------------------ the hand-off and the run
 
 
-def gate(state: DeskState, runtime: Runtime[Context]) -> Command[Literal["decide", "handoff"]]:
-    """The routing gate; a choice that fails its checks three times still reaches handoff, which records the honest stop."""
+def gate(state: DeskState, runtime: Runtime[Context]) -> Command[Literal["decide", "design"]]:
+    """The routing gate; a choice that fails its checks three times still reaches the design and the handoff, which records
+    the honest stop."""
     cmd = D.gate(state, runtime)
     if cmd.goto == "__end__":
-        return Command(update=cmd.update, goto="handoff")
+        return Command(update=cmd.update, goto="design")
     return cmd
 
 
@@ -41,11 +44,15 @@ def handoff(state: DeskState, runtime: Runtime[Context]) -> dict:
     if h is not None:
         h.design_id = n
         (d / "handoff.json").write_text(h.model_dump_json(indent=2))
+        if h.brief is not None:
+            (d / "brief.json").write_text(h.brief.model_dump_json(indent=2))
     (d / "record.md").write_text(out.get("decision_record") or "")
     if state.get("frame") is not None:
         (d / "frame.json").write_text(state["frame"].model_dump_json(indent=2))
     if state.get("decision") is not None:
         (d / "decision.json").write_text(state["decision"].model_dump_json(indent=2))
+    if isinstance(state.get("matrix"), Matrix):
+        (d / "matrix.json").write_text(state["matrix"].model_dump_json(indent=2))
     dec = state.get("decision")
     met = [c for v in (state.get("family_verdicts") or []) if h is not None and v.family == h.family for nd in v.needs if nd.met for c in nd.cites]
     label = f"design {n}: {h.family} via {h.specialist}" if h is not None else f"design {n}: no family admissible"
@@ -100,7 +107,13 @@ def run(state: DeskState) -> dict:
     note = rec.status
     if rec.effect is not None:
         note += f", effect {rec.effect:g} [{_g(rec.ci_low)}, {_g(rec.ci_high)}] by {rec.estimator}"
-    record(state, "run", by="code", memory=F.memory_of(state), design=n, read=[design_step.address] if design_step else [], left=left, note=note)
+    memory = F.memory_of(state)
+    record(state, "run", by="code", memory=memory, design=n, read=[design_step.address] if design_step else [], left=left, note=note)
+    if h is not None and rec.specialist_result:  # the lane's relations come back as drafts, for the person to confirm or correct
+        written = absorb_relations(memory, rec.specialist_result, h, CAT)
+        if written:
+            store.save(memory)
+            record(state, "claim", by="model", memory=memory, design=n, read=written, note="drafted from the run's graph: " + ", ".join(written))
     return {"runs": runs + [rec], "phase": "after"}
 
 
@@ -178,4 +191,4 @@ def ask_back(state: DeskState) -> dict:
     reason = (rec.specialist_result.get("feasibility") or {}).get("reason") or "it needs one more thing"
     because = f"{q['because']}\n" if q.get("because") else ""
     text = f"The analysis stopped before estimating: {reason}.\n\n{because}{a.text}"
-    return {"ask": a, "reply": text, "phase": "before", "run_requested": False, "fork": None, "what_if": {}, "handoff": None}
+    return {"ask": a, "reply": text, "phase": "before", "run_requested": False, "fork": None, "what_if": {}, "handoff": None, "brief": None}

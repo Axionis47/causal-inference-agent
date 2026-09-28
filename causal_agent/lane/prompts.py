@@ -18,7 +18,17 @@ PLAIN_WORDS = (
     "names. "
 )
 
-PICK_USER = """DESIGN FACTS
+# What the pick and the interpretation are told about the case block they now see.
+PICK_CASE = "THE CASE is shown so the pick is made for this dataset and this change, not by habit; cites still come from the checks and the pack. "
+INTERPRET_CASE = (
+    "THE CASE is shown so the caveats are written in the dataset's terms, naming what the person said and what the data is; "
+    "cites still come from the artifact addresses only. "
+)
+
+PICK_USER = """THE CASE
+{frame}
+
+DESIGN FACTS
 {facts}
 
 CHECKS
@@ -35,7 +45,10 @@ NAMES YOU MAY PICK: {names}
 Pick one.
 """
 
-INTERPRET_USER = """QUESTION
+INTERPRET_USER = """THE CASE
+{frame}
+
+QUESTION
 {question}
 
 COMPARISON: {contrast}

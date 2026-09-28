@@ -2,14 +2,15 @@
 
     START ─ load ─ ask_question ─(interrupt)─ mine ─ read_question ─┬─ (invalid) ─ ask_question
                                                                    └─ check ─ probe_fit ─ ask ─(convince, when ready)─ listen ─(interrupt)─┬─ infer ─ check …
-                                                                                                                   └─ (run, ready) ─ fit ─ decide ─ gate ─ handoff ─ run ─ brief ─ talk ─(interrupt)─ turn ─┬─ answer ─ talk
+                                                                                                                   └─ (run, ready) ─ fit ─ decide ─ gate ─ design ─ handoff ─ run ─ brief ─ talk ─(interrupt)─ turn ─┬─ answer ─ talk
                                                                                                                                                                                                            ├─ revise ─ check …
                                                                                                                                                                                                            ├─ what_if ─ fit ─ … ─ run (on a copy)
                                                                                                                                                                                                            ├─ requestion ─ read_question …
                                                                                                                                                                                                            ├─ draw_after ─ talk
                                                                                                                                                                                                            └─ done ─ END
 
-The first thing asked is the causal question, validated against the file. Then one question per turn until nothing a
+The first thing asked is the causal question, validated against the file. Then the story (unless a note told it), the
+readback of what was read from it, and one gap question per turn, asked because a decision needs it, until nothing a
 surviving family needs is vague. At any point the person may ask the desk something or ask for a picture; the answer or the
 picture comes before the next thing asked. The routing is code over the memory, one judgement only when more than one family stands.
 The lane runs in its own process on the pack. After the run the chat is free: answer, revise, requestion, done."""
@@ -27,7 +28,9 @@ from causal_agent.common.contracts import (
     Cited,
     ColumnBrief,
     ColumnFacts,
+    DecisionMade,
     Decline,
+    DesignBrief,
     FamilyDecision,
     FamilyVerdict,
     Handoff,
@@ -44,13 +47,15 @@ from causal_agent.common.contracts import (
     Thought,
 )
 from causal_agent.common.llm import RETRY as _retry
-from causal_agent.desk.contracts import AfterReply, Ask, Exchange, FieldUpdate, Finding, Inference, NumberStated
+from causal_agent.desk import designer as DG
+from causal_agent.desk.contracts import AfterReply, Ask, Exchange, FieldUpdate, Finding, NumberStated, Reading
 from causal_agent.desk.nodes import after as A
 from causal_agent.desk.nodes import decide as D
 from causal_agent.desk.nodes import frame as F
 from causal_agent.desk.nodes import journey as J
 from causal_agent.desk.state import Context, DeskState
 from causal_agent.memory.claims import ProbeResult, Status
+from causal_agent.memory.matrix import Cell, Matrix
 from causal_agent.memory.ops import Open
 from causal_agent.memory.records import Column, Field, Memory
 
@@ -73,6 +78,7 @@ def build() -> StateGraph:
     b.add_node("fit", D.fit)
     b.add_node("decide", D.decide, retry_policy=_retry)
     b.add_node("gate", J.gate)
+    b.add_node("design", DG.design_brief, retry_policy=_retry)
     b.add_node("handoff", J.handoff)
     b.add_node("run", J.run)
     b.add_node("ask_back", J.ask_back)
@@ -93,11 +99,12 @@ def build() -> StateGraph:
     b.add_edge("check", "probe_fit")
     b.add_edge("probe_fit", "ask")
     # ask → listen | convince | fit; listen → infer | fit | handoff | check | END; infer → infer | draw | explain | check;
-    # draw → explain | check; explain → explain | check, via Command
+    # draw → explain | check; explain → explain | draw | check, via Command
     b.add_edge("convince", "listen")
     b.add_edge("fit", "decide")
     b.add_edge("decide", "gate")
-    # gate → decide | handoff, via Command
+    # gate → decide | design, via Command
+    b.add_edge("design", "handoff")
     b.add_edge("handoff", "run")
     b.add_conditional_edges("run", J.after_run, ["ask_back", "brief"])
     b.add_edge("ask_back", "listen")
@@ -122,6 +129,8 @@ _CONTRACTS: list = [
     FamilyVerdict,
     Rejection,
     FamilyDecision,
+    DecisionMade,
+    DesignBrief,
     Handoff,
     ColumnBrief,
     ColumnFacts,
@@ -135,13 +144,15 @@ _CONTRACTS: list = [
     *DESIGNS.values(),
     Ask,
     FieldUpdate,
-    Inference,
+    Reading,
     NumberStated,
     AfterReply,
     Exchange,
     Finding,
     ProbeResult,
     Status,
+    Matrix,
+    Cell,
     Open,
     Memory,
     Field,

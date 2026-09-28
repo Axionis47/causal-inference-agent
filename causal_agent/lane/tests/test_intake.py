@@ -154,3 +154,7 @@ def test_a_scope_written_as_words_for_nothing_is_not_a_decline():
         kept, d, _ = intake.apply_window(df, text, "year")
         assert d is None and len(kept) == 2, text
     assert intake.blank("gender == female") is False and intake.blank("from 80 to 89") is False and intake.blank("all") is True
+    assert intake.blank("all students who sat the May 2026 exam at the school") is True  # the whole table, in a sentence
+    assert intake.blank("all rows with lunch == standard") is False  # starts like the whole table, but carries a comparison
+    kept, d, _ = intake.apply_filter(df, "all students who sat the May 2026 exam at the school")
+    assert d is None and len(kept) == 2

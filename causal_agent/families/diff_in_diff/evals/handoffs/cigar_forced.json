@@ -91,7 +91,6 @@
   "why": "forced",
   "over": {},
   "csv": "data/raw/cigarette-sales-prop99/Cigar.csv",
-  "docs": {},
   "dataset_facts": {
     "rows": 1380,
     "columns": 10,

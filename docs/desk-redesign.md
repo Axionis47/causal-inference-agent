@@ -138,7 +138,7 @@ and said; the column's new fields are in the brief (`stands_for`, `proxy`, `meas
 ```
 Handoff
   question, intent, scope                     the question as read
-  family, specialist, chosen_assumption, why, over                 the decision
+  family, specialist, chosen_assumption, why, over, brief          the decision, and the design brief it bets on
   design_id, memory_version, pack_name, csv
   dataset: grain, nesting, sampling, missing, change, assignment    each field with status and source
   beliefs: {kind: Belief(value, what, why, column, status, source, said)}

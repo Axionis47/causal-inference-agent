@@ -17,6 +17,17 @@ def cites_resolve(cites: list[str], h: Handoff) -> list[str]:
     return [f"citation {c!r} does not resolve in the pack" for c in cites if not h.resolve(c)]
 
 
+def departures(claims: dict[str, Any], drafted: dict[str, Any], cites: list[str]) -> list[str]:
+    """Errors for every claim that departs from the last reading (a drafted field) while the answer cites nothing at all."""
+    if cites:
+        return []
+    return [
+        f"{claim} = {claims.get(claim)!r} departs from the last reading {value!r}, which cites nothing; keep the reading or cite what changed it"
+        for claim, value in drafted.items()
+        if claim in claims and claims[claim] != value
+    ]
+
+
 def contradictions(claims: dict[str, Any], column_key: str, case: Case, rules: list[Rule], cites: list[str], h: Handoff) -> list[str]:
     """Errors for every claim that contradicts a settled fact on this column without citing the contested address."""
     errors = []

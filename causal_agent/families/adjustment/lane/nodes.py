@@ -95,25 +95,6 @@ def _block(h: Handoff) -> AdjustmentDesign | None:
     return h.design if isinstance(h.design, AdjustmentDesign) else None
 
 
-def _frame_text(state: SpecialistState) -> str:
-    """What every judgement of this lane reads beside its own cards: the question as read, the dataset and the change,
-    the family block, the probes, the case the code made of the pack, and the person's words."""
-    h = state["handoff"]
-    s = h.scope
-    parts = [
-        f"family: {h.family}; outcome: {h.outcome}; treatment: {h.treatment}; "
-        f"filter={s.population_filter or 'none'}; window={s.window or 'none'}; contrast={s.contrast}; target={s.target}\n"
-        f"assumption the router bet on: {h.chosen_assumption}",
-        h.render_dataset(),
-        h.render_change(),
-        (f"what the pack settled:\n{h.design.render()}" if _block(h) else ""),
-        ("PROBES\n" + "\n".join(p.render() for p in h.probes)) if h.probes else "",
-        _case(state).render() if state.get("case") else "",
-        h.render_words(),
-    ]
-    return "\n".join(x for x in parts if x)
-
-
 def _thought(t, node: str):
     t.node = node
     return t
@@ -274,7 +255,7 @@ def settled_claims(h: Handoff, k: str, case: C.Case) -> tuple[dict[str, bool], d
     """The claims about a column the pack settles, each with the address it rests on. The instrument and the mediator the
     person named settle all four; a column the offer depended on fed the treatment; a column fixed before the change was not
     moved by it; a column the person called a measure of the outcome is one; the person's word on `moved_by_change` stands."""
-    b = h.brief(k)
+    b = h.column(k)
     if b is None:
         return {}, {}
     a = b.address
@@ -289,6 +270,10 @@ def settled_claims(h: Handoff, k: str, case: C.Case) -> tuple[dict[str, bool], d
     cites: dict[str, str] = {}
     if b.role == "depends_on":
         claims["affects_treatment"], cites["affects_treatment"] = True, "claim:assignment.depends_on"
+    elif case.is_fact(f"{a}.feeds_treatment"):
+        claims["affects_treatment"], cites["affects_treatment"] = bool(case.fact(f"{a}.feeds_treatment")), f"{a}.feeds_treatment"
+    if case.is_fact(f"{a}.moves_outcome"):
+        claims["affects_outcome"], cites["affects_outcome"] = bool(case.fact(f"{a}.moves_outcome")), f"{a}.moves_outcome"
     if case.is_fact(f"{a}.measures_outcome"):
         claims["is_outcome_measure"], cites["is_outcome_measure"] = bool(case.fact(f"{a}.measures_outcome")), f"{a}.measures_outcome"
     if case.is_fact(f"{a}.moved_by_change"):
@@ -302,7 +287,7 @@ def fact_relation(h: Handoff, k: str, case: C.Case | None = None) -> Relation | 
     """A column's relation when the pack settles every claim, so no judgement is made: the instrument, the mediator, a measure
     of the outcome, and a column the rule or the offer looked at that was fixed before the change (a parent of both)."""
     case = case or C.Case()
-    b = h.brief(k)
+    b = h.column(k)
     if b is None:
         return None
     claims, cites = settled_claims(h, k, case)
@@ -332,7 +317,31 @@ def fact_relation(h: Handoff, k: str, case: C.Case | None = None) -> Relation | 
     return None
 
 
+_DRAFT_FIELDS = {
+    "feeds_treatment": "affects_treatment",
+    "moves_outcome": "affects_outcome",
+    "moved_by_change": "affected_by_treatment",
+    "measures_outcome": "is_outcome_measure",
+}
+
+
+def drafted_claims(h: Handoff, k: str, case: C.Case) -> tuple[dict[str, bool], dict[str, str]]:
+    """The claims about a column an earlier run read and nobody has confirmed: the last reading, each with its address."""
+    b = h.column(k)
+    if b is None:
+        return {}, {}
+    settled, _ = settled_claims(h, k, case)
+    claims: dict[str, bool] = {}
+    cites: dict[str, str] = {}
+    for field, claim in _DRAFT_FIELDS.items():
+        addr = f"{b.address}.{field}"
+        if claim not in settled and addr in case.drafts and case.drafts[addr] is not None:
+            claims[claim], cites[claim] = bool(case.drafts[addr]), addr if field != "moved_by_change" else f"{b.address}.moved"
+    return claims, cites
+
+
 _settled_text, apply_settled = L.make_settled(settled_claims)
+_drafted_text = L.make_drafted(drafted_claims)
 
 
 def _latest(state: SpecialistState) -> dict[str, Relation]:
@@ -353,12 +362,12 @@ def _relate_send(state: SpecialistState, k: str, errors: list[str] | None = None
         "relate",
         RelateTask(
             question=_question(state),
-            frame=_frame_text(state),
+            frame=L.frame_text(state),
             treatment_card=_card(h, t),
             outcome_card=_card(h, y),
             column=k,
             card=_card(h, k),
-            settled=_settled_text(h, k, _case(state)),
+            settled=_settled_text(h, k, _case(state)) + _drafted_text(h, k, _case(state)),
             errors=_rejected(errors),
         ),
     )
@@ -472,7 +481,11 @@ def verify_graph(state: SpecialistState) -> Command:
             errs.setdefault(k, []).append("cannot both feed the treatment and be changed by it")
         settled, _ = settled_claims(h, k, case)
         rules = [rule for rule in CONTRADICTION_RULES if rule[0] not in settled]
-        for e in V.contradictions({c: getattr(r, c) for c in CLAIMS}, k, case, rules, [c for reason in r.reasons for c in reason.cites], h):
+        cited = [c for reason in r.reasons for c in reason.cites]
+        for e in V.contradictions({c: getattr(r, c) for c in CLAIMS}, k, case, rules, cited, h):
+            errs.setdefault(k, []).append(e)
+        drafted, _ = drafted_claims(h, k, case)
+        for e in V.departures({c: getattr(r, c) for c in CLAIMS}, drafted, cited):
             errs.setdefault(k, []).append(e)
     attempts = state.get("relate_attempts", 0) + 1
     if errs or general:
@@ -567,6 +580,17 @@ def identify(state: SpecialistState) -> Command[Literal["check_design", "feasibi
         return Command(goto="check_design", update={"estimand": est, "graph": g2, "hidden_dropped": True, "declines": declines})
     if state.get("hidden_dropped"):
         est.sensitivity_required = True  # a revise loop re-identifies without the hidden node; the range and the caveat stay
+    road = h.brief.road if h.brief is not None else None
+    if road is not None:  # the design brief names the road: the graph must have it, and the design takes it
+        if road not in est.roads:
+            return _stop(
+                "identify",
+                f"the design brief names the {road} road and the graph has no such road",
+                [f"roads found: {', '.join(est.roads) or 'none'}", f"graph: {g.render().splitlines()[0]}"],
+                "a brief whose road the graph opens, or a graph with that road",
+                {"estimand": est},
+            )
+        est = est.model_copy(update={"kind": road})
     _writer()({"estimand": est.model_dump(exclude={"dowhy_text"})})
     return Command(goto="check_design", update={"estimand": est})
 
@@ -638,6 +662,7 @@ def assess(state: SpecialistState) -> Command:
     debug = []
     for _ in range(MAX_MODEL_RETRIES):
         user = P.ASSESS_USER.format(
+            frame=L.frame_text(state),
             question=_question(state),
             graph=g.render(),
             estimand=(", ".join(est.adjustment_set) or "nothing") if est.kind == "backdoor" else "none found",
@@ -703,10 +728,12 @@ def _design_facts(state: SpecialistState) -> dict[str, Any]:
     est: Estimand = state["estimand"]
     checks: list[CheckResult] = state["checks"]
     arms = [r for r in checks if r.name == "arms"]
-    b = _block(state["handoff"])
+    h = state["handoff"]
+    b = _block(h)
     return {
         "estimand": est.kind,
         "roads": est.roads,
+        "road_from_brief": h.brief.road if h.brief is not None else None,
         "instruments": est.instruments,
         "frontdoor_set": est.frontdoor_set,
         "sensitivity_required": est.sensitivity_required,
@@ -725,14 +752,14 @@ def _design_facts(state: SpecialistState) -> dict[str, Any]:
 
 
 def pick_estimator(state: SpecialistState) -> Command:
+    """The catalogue filtered by the facts; when the brief names the road, only that road's estimators are offered."""
     facts = _design_facts(state)
     excluded = set(state.get("excluded_estimators") or [])
+    roads = [facts["road_from_brief"]] if facts["road_from_brief"] else facts["roads"]
     allowed = [
         e
         for e in load_estimators()
-        if e.applies(
-            estimand=facts["estimand"], treatment=facts["treatment"], outcome=facts["outcome"], adjustment_set=facts["adjustment_set"], roads=facts["roads"]
-        )
+        if e.applies(estimand=facts["estimand"], treatment=facts["treatment"], outcome=facts["outcome"], adjustment_set=facts["adjustment_set"], roads=roads)
         and e.name not in excluded
     ]
     if not allowed:
@@ -748,6 +775,7 @@ def pick_estimator(state: SpecialistState) -> Command:
     debug = []
     for _ in range(MAX_MODEL_RETRIES):
         user = P.PICK_USER.format(
+            frame=L.frame_text(state),
             facts=json.dumps(facts),
             checks=check_text,
             estimators="\n\n".join(e.render() for e in allowed),
@@ -863,6 +891,8 @@ def after_analyse(state: SpecialistState) -> Command:
 def _addresses(state: SpecialistState, contrast_key: str) -> list[str]:
     d: Design = state["design"]
     out = ["design.estimand.adjustment_set", "design.assumption"] + [b.address for b in state["handoff"].beliefs.values() if b.known() or b.status == "unknown"]
+    if state["handoff"].brief is not None:
+        out += sorted(state["handoff"].brief.addresses())
     out += [r.address for r in d.checks.results if r.contrast in (contrast_key, "all")]
     out += [x.address for x in state.get("declines") or []]
     for e in state.get("estimates") or []:
@@ -889,6 +919,8 @@ def _material(state: SpecialistState, contrast_key: str) -> str:
     c = next(x for x in d.contrasts if x.key == contrast_key)
     names = state.get("columns") or {}
     lines = [f"[design.assumption] the design bets on: {state['handoff'].chosen_assumption}"]
+    if state["handoff"].brief is not None:
+        lines.append(state["handoff"].brief.render())
     lines += [b.render() for b in state["handoff"].beliefs.values() if b.known() or b.status == "unknown"]
     lines += [
         f"[design.estimand.adjustment_set] adjusted for: {', '.join(names.get(k, k) for k in d.estimand.adjustment_set) or 'nothing (no confounders in the graph)'}",
@@ -919,6 +951,7 @@ def fan_out_interpret(state: SpecialistState):
             "interpret",
             InterpretTask(
                 question=_question(state),
+                frame=L.frame_text(state),
                 contrast=c.key,
                 material=_material(state, c.key),
                 addresses="\n".join(_addresses(state, c.key)),
@@ -941,6 +974,7 @@ def interpret(task: InterpretTask) -> dict:
     parsed = None
     for _ in range(MAX_MODEL_RETRIES):
         user = P.INTERPRET_USER.format(
+            frame=task["frame"],
             question=task["question"],
             contrast=task["contrast"],
             material=task["material"],

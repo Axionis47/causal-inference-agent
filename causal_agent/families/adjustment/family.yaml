@@ -16,6 +16,27 @@ convince: both arms are present at every level of what the offer depended on, so
 specialist: dowhy
 status: built
 
+# The decisions the Designer fills for this family, each with the addresses it should rest on. From ADR 0006.
+decisions:
+  - name: who_is_treated
+    asks: who is treated, versus whom
+    rests_on: [claim:assignment.treatment_column, claim:assignment.treated_level, claim:sampling.how]
+  - name: road
+    asks: "the road: back door, front door, or instrument"
+    rests_on: [claim:unobserved.exists, claim:exclusion.exists, claim:exclusion.column, claim:mediator.exists, claim:mediator.column]
+  - name: adjustment_set
+    asks: what enters the adjustment set
+    rests_on: [claim:assignment.depends_on, "col:<column>.when", "col:<column>.moved_by_change", "col:<column>.stands_for"]
+  - name: forbidden
+    asks: what is forbidden
+    rests_on: ["col:<column>.when", "col:<column>.moved_by_change", "col:<column>.measures_outcome"]
+  - name: target
+    asks: "the target: the average effect or the effect on the treated, from how the change was assigned and the question's scope"
+    rests_on: [claim:assignment.kind]
+  - name: run_at_all
+    asks: whether to run at all
+    rests_on: [probe:adjustment.overlap, claim:spillover.possible, claim:missing.why]
+
 needs_claims:
     requires: [grain, sampling, change, assignment, measured, missing, unobserved, spillover]
     fits:

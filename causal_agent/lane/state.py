@@ -70,9 +70,10 @@ class RelateTask(TypedDict):
 
 
 class InterpretTask(TypedDict):
-    """Input to one interpret worker: the artifacts of one comparison and the addresses it must and may cite."""
+    """Input to one interpret worker: the case, the artifacts of one comparison and the addresses it must and may cite."""
 
     question: str
+    frame: str
     contrast: str
     material: str
     addresses: str

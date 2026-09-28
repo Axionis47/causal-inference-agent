@@ -19,6 +19,17 @@ from causal_agent.memory.catalogue import FamilyNeeds
 from causal_agent.memory.claims import ClaimTable, ProbeResult
 
 
+class Decision(BaseModel):
+    """One decision the Designer fills for a family: its name, what it asks, and the addresses it should rest on."""
+
+    name: str
+    asks: str
+    rests_on: list[str] = Field(default_factory=list, description="claim, col or probe address patterns; <column> stands for any column")
+
+    def render(self) -> str:
+        return f"    - {self.name}: {self.asks}" + (f"  (rests on {', '.join(self.rests_on)})" if self.rests_on else "")
+
+
 class Family(BaseModel):
     """What the routing knows about a family: written as method knowledge it judges the data against, never as rules."""
 
@@ -31,11 +42,16 @@ class Family(BaseModel):
     weak_when: str
     prefer_over: dict[str, str] = Field(default_factory=dict)
     convince: str = Field(default="", description="the point a figure makes at the ready moment, in the question's words")
+    decisions: list[Decision] = Field(default_factory=list, description="the decisions the Designer fills; a declared family lists none")
     specialist: str
     status: Literal["built", "declared"]
 
+    def decision(self, name: str) -> Decision | None:
+        return next((d for d in self.decisions if d.name == name), None)
+
     def render(self) -> str:
         needs = "\n".join(f"    - {n}" for n in self.needs)
+        decisions = "\n".join(d.render() for d in self.decisions)
         return (
             f"family: {self.name}  (status: {self.status})\n"
             f"  applies to questions of kind: {', '.join(self.applies_to)}\n"
@@ -43,7 +59,7 @@ class Family(BaseModel):
             f"  needs:\n{needs}\n"
             f"  where the evidence usually lives: {self.look_for}\n"
             f"  assumes: {self.assumes}\n"
-            f"  weak when: {self.weak_when}"
+            f"  weak when: {self.weak_when}" + (f"\n  decisions the design must make:\n{decisions}" if decisions else "")
         )
 
 

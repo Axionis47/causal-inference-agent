@@ -175,6 +175,8 @@ def test_students_happy_path():
     assert "DesignAssessment" in fake.calls  # students has a soft balance flag, so assess ran
     nodes = {t.node for t in out["debug"]}
     assert {"contrast", "relate:lunch", "assess", "pick_estimator", "interpret:completed_vs_none"} <= nodes
+    for name in ("DesignAssessment", "EstimatorPick", "Interpretation"):  # every judgement after relate sees the case
+        assert fake.humans_of(name) and all("THE CASE" in p and "[change:1.note]" in p for p in fake.humans_of(name)), name
     assert (json.loads(open(f"{r['run_dir']}/design.json").read())["estimator"]) == "propensity_score_stratification"
 
 
@@ -293,7 +295,9 @@ def test_pack_treated_level_settles_the_contrast_without_a_model_call():
     parental = next(e for e in out["graph"].edges if e.src == "parental_level_of_education" and e.dst == "test_preparation_course")
     assert "claim:assignment.depends_on" in parental.cites
     # the person's words reach every judgement the lane makes (students3 ships no transcript, so the section is there and empty)
-    assert "WHAT THE PERSON SAID" in N._frame_text(out)
+    from causal_agent.lane import nodes as L
+
+    assert "WHAT THE PERSON SAID" in L.frame_text(out)
 
 
 # ------------------------------------------------------------------ the other roads: a hidden factor, an instrument, a mediator
@@ -410,7 +414,7 @@ def test_no_road_and_the_person_says_so_takes_the_back_door_with_a_sensitivity_r
 # ------------------------------------------------------------------ the lane on the harness: the pack weighed by code
 
 
-def _students3(cols=None, scope=None):
+def _students3(cols=None, scope=None, memory=None):
     from causal_agent.common.contracts import Scope
 
     cols = cols or [
@@ -432,7 +436,7 @@ def _students3(cols=None, scope=None):
         cols,
         cite=CITE,
         scope=scope or Scope(),
-        memory=_memory("students3"),
+        memory=memory or _memory("students3"),
     )
 
 
@@ -492,6 +496,64 @@ def test_relate_is_skipped_when_the_pack_settles_every_claim():
     assert claims == {"affected_by_treatment": False} and cites == {"affected_by_treatment": "col:gender.when"}
     claims, _ = N.settled_claims(h, "lunch", out["case"])
     assert claims.get("affects_treatment") is True  # the offer depended on it, whatever the timing says
+
+
+def test_a_confirmed_relation_settles_the_claim_without_a_model_call_and_a_drafted_one_is_the_last_reading():
+    """The relationships are memory claims: gender's four, confirmed by the person, make its relation a fact the lane takes with no
+    judgement; race's `feeds_treatment`, drafted by an earlier run, is shown to the model as the last reading."""
+    from causal_agent.families.adjustment.lane import nodes as N
+
+    m = _memory("students3")
+    for field, value in (("feeds_treatment", False), ("moves_outcome", True), ("measures_outcome", False)):
+        m.set(f"col:gender.{field}", value, status="confirmed", source="user:turn:5", said="gender never fed the offer but marks differ by it")
+    m.set("col:race_ethnicity.feeds_treatment", True, status="drafted", source="model:relate", reason="the run's graph drew this edge")
+    h = _students3(memory=m)
+    assert "[col:gender.feeds_treatment] did not feed the decision or the offer · confirmed · user:turn:5" in h.brief_text("gender")
+    fake = FakeLLM()
+    out = _run(fake, h)
+    assert out["specialist_result"]["status"] == "done", out["specialist_result"].get("feasibility")
+    asked = {t.node.split(":", 1)[1] for t in out["debug"] if t.node.startswith("relate:")}
+    assert "gender" not in asked and "race_ethnicity" in asked
+    claims, cites = N.settled_claims(h, "gender", out["case"])
+    assert claims == {"affects_treatment": False, "affects_outcome": True, "affected_by_treatment": False, "is_outcome_measure": False}
+    assert cites["affects_treatment"] == "col:gender.feeds_treatment" and cites["affects_outcome"] == "col:gender.moves_outcome"
+    assert any(e.src == "gender" and e.dst == "math_score" for e in out["graph"].edges) and not any(
+        e.src == "gender" and e.dst == "test_preparation_course" for e in out["graph"].edges
+    )
+    human = next(mm for mm in fake.humans_of("Relation") if "for column 'race_ethnicity'" in mm)
+    assert (
+        "THE LAST READING (drafted; depart from it only with a cited reason)" in human
+        and "affects_treatment = true [col:race_ethnicity.feeds_treatment]" in human
+    )
+    assert N.drafted_claims(h, "race_ethnicity", out["case"]) == ({"affects_treatment": True}, {"affects_treatment": "col:race_ethnicity.feeds_treatment"})
+    assert "THE LAST READING" not in next(mm for mm in fake.humans_of("Relation") if "for column 'lunch'" in mm)
+
+
+def test_a_departure_from_the_last_reading_that_cites_nothing_is_refused_once():
+    m = _memory("students3")
+    m.set("col:race_ethnicity.feeds_treatment", True, status="drafted", source="model:relate", reason="the run's graph drew this edge")
+    h = _students3(memory=m)
+    seen = []
+
+    class Fake(FakeLLM):
+        def answer(self, schema, human):
+            if schema is Relation and "for column 'race_ethnicity'" in human:
+                seen.append(human)
+                if len(seen) == 1:  # departs from the drafted reading and cites nothing at all
+                    return Relation(
+                        column="race_ethnicity",
+                        affects_treatment=False,
+                        affects_outcome=False,
+                        affected_by_treatment=False,
+                        is_outcome_measure=False,
+                        reasons=[],
+                    )
+            return super().answer(schema, human)
+
+    out = _run(Fake(), h)
+    assert out["specialist_result"]["status"] == "done"
+    assert len(seen) == 2 and "affects_treatment = False departs from the last reading True, which cites nothing" in seen[1]
+    assert any(e.src == "race_ethnicity" and e.dst == "math_score" for e in out["graph"].edges)  # the second answer, cited, stood
 
 
 def test_the_filter_is_applied_by_code_and_a_prose_filter_is_a_recorded_decline():
@@ -604,3 +666,57 @@ def test_the_run_leaves_its_graph_and_its_balance_as_figures():
     }
     assert all(a is not None and a < 0.3 for a in b["series"][1]["y"])
     assert not any(x["check"] == "figure.check" for x in r["declines"])
+
+
+# ------------------------------------------------------------------ the design brief names the road
+
+
+def _with_road(h: Handoff, road: str) -> Handoff:
+    from causal_agent.common.contracts import DecisionMade, DesignBrief
+
+    h.brief = DesignBrief(
+        family="adjustment",
+        road=road,
+        decisions=[DecisionMade(name="road", choice=f"the {road} road", rests_on=["claim:assignment.kind"], reason="scripted")],
+        bets_on="the brief's own sentence",
+    )
+    h.chosen_assumption = h.brief.bets_on
+    return h
+
+
+def test_a_brief_naming_a_road_the_graph_does_not_open_stops_at_identify():
+    """students has no instrument: a brief that names the iv road is an honest stop, with the roads found as the facts."""
+    fake = FakeLLM()
+    out = _run(fake, _with_road(students_handoff(), "iv"))
+    r = out["specialist_result"]
+    assert r["status"] == "infeasible" and out["feasibility"].stage == "identify"
+    assert out["feasibility"].reason == "the design brief names the iv road and the graph has no such road"
+    assert out["feasibility"].facts[0] == "roads found: backdoor" and out.get("design") is None and fake.calls.count("EstimatorPick") == 0
+    assert "DESIGN BRIEF" in fake.humans_of("Relation")[0] and "[design.brief.road] iv: the iv road" in fake.humans_of("Relation")[0]
+
+
+def test_a_brief_naming_the_back_door_keeps_it_and_the_pick_sees_it():
+    fake = FakeLLM()
+    out = _run(fake, _with_road(students_handoff(), "backdoor"))
+    r = out["specialist_result"]
+    assert r["status"] == "done", r.get("feasibility")
+    d = out["design"]
+    assert d.estimand.kind == "backdoor" and set(d.estimand.adjustment_set) == {"lunch", "parental_level_of_education"}
+    assert '"road_from_brief": "backdoor"' in fake.humans_of("EstimatorPick")[0]
+    from causal_agent.families.adjustment.lane import nodes as N
+
+    c = out["contrasts"][0]
+    assert "[design.brief.bets_on] the brief's own sentence" in N._material(out, c.key) and "design.brief.bets_on" in N._addresses(out, c.key)
+
+
+def test_a_brief_naming_the_front_door_takes_it_over_the_instrument(tmp_path):
+    """Both roads are open around the hidden factor; the brief says which the design takes, so the catalogue offers only that road."""
+    csv = _synthetic(tmp_path)
+    h = _with_road(_synthetic_handoff(_synthetic_memory(csv, hidden=True, instrument="z", mediator="m")), "frontdoor")
+    fake = FakeLLM(cite="col:z.note")
+    out = _run(fake, h, question="Did the programme raise y?")
+    r = out["specialist_result"]
+    assert r["status"] == "done", r.get("feasibility")
+    assert {"iv", "frontdoor"} <= set(out["estimand"].roads) and out["estimand"].kind == "frontdoor"
+    assert out["design"].estimator == "frontdoor_two_stage" and out["design"].estimand.kind == "frontdoor"
+    assert "NAMES YOU MAY PICK: frontdoor_two_stage" in fake.humans_of("EstimatorPick")[0]

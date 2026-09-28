@@ -7,7 +7,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-AskKind = Literal["confirm", "choose", "open", "columns"]
+AskKind = Literal["story", "confirm", "choose", "open"]
 
 
 class Ask(BaseModel):
@@ -18,6 +18,7 @@ class Ask(BaseModel):
     text: str
     options: list[str] = Field(default_factory=list, description="for choose: the legal answers")
     because: list[str] = Field(default_factory=list, description="the families that need these fields")
+    decision: str = Field(default="", description="the family decision the question serves, when one rests on these fields")
     evidence: list[str] = Field(default_factory=list, description="check addresses shown beside the question, when the file refuted an answer")
     from_lane: bool = Field(default=False, description="a lane asked it back after a run; the turn is remembered as about lane:<address> so it is asked once")
 
@@ -29,8 +30,9 @@ class FieldUpdate(BaseModel):
     reason: str = Field(default="", description="one sentence: how the words give this value")
 
 
-class Inference(BaseModel):
-    """What one message settles: the fields it fills, the fields the person confirmed as drafted, and the ones they cannot say."""
+class Reading(BaseModel):
+    """What the Reader made of one piece of the person's words, a message or a note: the fields it fills, the drafted fields
+    the person confirmed, the ones they cannot say, and what else the words did."""
 
     updates: list[FieldUpdate] = Field(default_factory=list)
     confirms: list[str] = Field(default_factory=list, description="addresses of drafted fields the person said are right, as they stand")
@@ -53,13 +55,6 @@ class Inference(BaseModel):
     note: str = Field(default="", description="anything said that fits no field, one sentence, or empty")
 
 
-class DeskAnswer(BaseModel):
-    """The desk's answer to something the person asked before the run, from the families' knowledge, the fit grid, and the memory."""
-
-    text: str = Field(description="the answer, in the question's own words, a few sentences at most")
-    cites: list[str] = Field(default_factory=list, description="what it rests on: family names as the grid spells them, or claim:/col: addresses in the memory")
-
-
 class NumberStated(BaseModel):
     address: str = Field(description="the artifact address the number comes from, exactly as shown in the material")
     value: float = Field(description="the number as you state it in the text")
@@ -69,6 +64,8 @@ AfterKind = Literal["answer", "revise", "what_if", "requestion", "draw", "done"]
 
 
 class AfterReply(BaseModel):
+    """The Explainer's reply, before or after the run. Before the run only answer and draw are legal; the gate refuses the rest."""
+
     kind: AfterKind = Field(
         description="answer: reply from the material; revise: the person changed something about the data; what_if: the person asks what the answer would be if the data had been different, without changing what is known; requestion: a new causal question of the same data; draw: they ask for a picture, plot or chart of the data or the run; done: they are finished"
     )

@@ -79,6 +79,10 @@ class FakeLLM:
         self.assess_script, self.pick_script, self.score_script = list(assess_script or []), list(pick_script or []), list(score_script or [])
         self.interpret_bad_first = interpret_bad_first
         self.calls: list[str] = []
+        self.humans: list[tuple[str, str]] = []
+
+    def humans_of(self, name: str) -> list[str]:
+        return [h for n, h in self.humans if n == name]
 
     def with_structured_output(self, schema, include_raw=False):
         fake = self
@@ -96,6 +100,7 @@ class FakeLLM:
 
     def answer(self, schema, human):
         self.calls.append(schema.__name__)
+        self.humans.append((schema.__name__, human))
         cite = "col:nope.note" if self.bad_cites else self.cite
         if schema is Score:
             s = (self.score_script.pop(0) if self.score_script else self.score).model_copy()
@@ -282,6 +287,8 @@ def test_uruguay_happy_path():
     assert out["interpretations"][0].estimand == "effect_at_cutoff"
     assert "DESIGN" in r["report"] and "ANSWER" in r["report"]
     assert fake.calls.count("CovariateRelation") == 2 and fake.calls.count("Score") == 1 and "DesignAssessment" in fake.calls
+    for name in ("DesignAssessment", "EstimatorPick", "RDInterpretation"):  # every judgement after the score sees the case
+        assert fake.humans_of(name) and all("THE CASE" in p and "[change:1.note]" in p for p in fake.humans_of(name)), name
     run = Path(r["run_dir"])
     assert (run / "design.json").exists() and (run / "bins.csv").exists() and (run / "canon.csv").exists()
 

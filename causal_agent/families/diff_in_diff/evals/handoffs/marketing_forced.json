@@ -70,7 +70,6 @@
   "why": "forced",
   "over": {},
   "csv": "data/raw/fast-food-marketing-campaign-ab-test/WA_Marketing-Campaign.csv",
-  "docs": {},
   "dataset_facts": {
     "rows": 548,
     "columns": 7,

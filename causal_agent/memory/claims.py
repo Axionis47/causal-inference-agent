@@ -1,13 +1,11 @@
-"""Typed artifacts of the interview. Model outputs (Extraction, Reply) are flat so any structured-output backend
-accepts them; the claim table and the status are code-owned."""
+"""The claim-table view of a memory, the probes, and the fit status. Code-owned; the checks, the probes and the fit table
+run on the view until they are rewritten on the memory itself."""
 
 from __future__ import annotations
 
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
-
-from causal_agent.common.contracts import Cited
 
 ClaimStatus = Literal["empty", "drafted", "confirmed", "refuted", "unknown", "contradiction"]
 Cell = Literal["fits", "does_not_fit", "unknown", "not_needed"]
@@ -61,46 +59,6 @@ class ClaimTable(BaseModel):
         return "\n".join(c.render() for c in cs) or "(no claims yet)"
 
 
-class FieldValue(BaseModel):
-    name: str = Field(description="the field name, exactly as listed for the kind")
-    value: str = Field(description="the value as text; true/false for yes-no fields; a column name for column fields; comma-separated names for column lists")
-
-
-class ClaimUpdate(BaseModel):
-    kind: str = Field(description="one of the claim kinds")
-    column: str | None = Field(default=None, description="for the per-column kind, the column this claim is about; otherwise null")
-    values: list[FieldValue] = Field(default_factory=list)
-    unknown: bool = Field(default=False, description="true when the person said they do not know; values are then ignored")
-    reason: str = Field(description="one sentence: what in the material says this")
-    cites: list[str] = Field(description="doc:<name>, user:turn:<n>, or a card address the reason rests on")
-
-
-class Extraction(BaseModel):
-    updates: list[ClaimUpdate]
-    confirmed: list[str] = Field(
-        default_factory=list,
-        description="claim keys the person confirmed as they stand this turn (e.g. change, sampling, col:age); only from the person's words, never from a description",
-    )
-    notes: list[Cited] = Field(default_factory=list, description="anything read that fits no claim, with cites")
-
-
-QuestionKind = Literal["confirm", "choose", "open"]
-
-
-class Question(BaseModel):
-    keys: list[str] = Field(description="the claim keys this question settles, e.g. assignment or col:age")
-    field: str | None = Field(default=None, description="the field asked about, or null when the whole claim is")
-    kind: QuestionKind = Field(description="confirm a draft; choose among options; open one-sentence answer")
-    text: str
-    options: list[str] = Field(default_factory=list, description="for choose: the legal options, exactly")
-    evidence_cites: list[str] = Field(default_factory=list, description="addresses of the draft, the check, or the card shown beside the question")
-
-
-class Reply(BaseModel):
-    questions: list[Question]
-    text: str = Field(description="the whole message to the person: what was settled this turn, then the questions")
-
-
 class ProbeResult(BaseModel):
     family: str
     name: str
@@ -119,6 +77,7 @@ class ProbeResult(BaseModel):
 
 class Status(BaseModel):
     table: dict[str, dict[str, Cell]]
+    set_by: dict[str, dict[str, str | None]] = Field(default_factory=dict, description="family -> kind -> the address that decided the cell")
     surviving: list[str]
     struck: dict[str, str] = Field(default_factory=dict)
     required: list[str]

@@ -49,6 +49,24 @@ def case_of(state: LaneState) -> C.Case:
     return c if isinstance(c, C.Case) else C.Case()
 
 
+def frame_text(state: LaneState) -> str:
+    """The case every judgement of a lane reads before its own material: the decision the desk made, the pack's context (the
+    dataset, the change, the beliefs, the family block, the design brief, the person's words), the probes, and the case as the
+    code weighed it. Method-free and column-free; a lane appends only what it found itself."""
+    h = state["handoff"]
+    assert h is not None
+    s = h.scope
+    parts = [
+        f"family: {h.family}; outcome: {h.outcome}; treatment: {h.treatment or 'none named'}; "
+        f"filter={s.population_filter or 'none'}; window={s.window or 'none'}; contrast={s.contrast}; target={s.target}\n"
+        f"assumption the router bet on: {h.chosen_assumption}",
+        h.render_context(),
+        ("PROBES\n" + "\n".join(p.render() for p in h.probes)) if h.probes else "",
+        case_of(state).render() if state.get("case") else "",
+    ]
+    return "\n\n".join(x for x in parts if x)
+
+
 def cites(h: Handoff, *addresses: str) -> list[str]:
     """The claim addresses that resolve in the pack, else the change card."""
     ok = [a for a in addresses if h.resolve(a)]
@@ -129,6 +147,26 @@ def make_settled(settled_claims: SettledClaims) -> tuple[Callable[[Handoff, str,
         return out
 
     return settled_text, apply_settled
+
+
+DraftedClaims = Callable[[Handoff, str, C.Case], tuple[dict[str, bool], dict[str, str]]]
+
+
+def make_drafted(drafted_claims: DraftedClaims) -> Callable[[Handoff, str, C.Case], str]:
+    """`drafted_text`, the block a relate prompt shows for what an earlier run read and nobody has confirmed: the last reading,
+    to depart from only with a cited reason."""
+
+    def drafted_text(h: Handoff, k: str, case: C.Case) -> str:
+        claims, cites_ = drafted_claims(h, k, case)
+        if not claims:
+            return ""
+        return (
+            "\nTHE LAST READING (drafted; depart from it only with a cited reason)\n"
+            + "\n".join(f"  {c} = {str(v).lower()} [{cites_[c]}]" for c, v in claims.items())
+            + "\n"
+        )
+
+    return drafted_text
 
 
 def make_relate(prompts: Any, relation_cls: type[Any]) -> Callable[[dict], dict]:

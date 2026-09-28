@@ -77,7 +77,6 @@
   "why": "forced",
   "over": {},
   "csv": "data/raw/students-performance-in-exams/StudentsPerformance.csv",
-  "docs": {},
   "dataset_facts": {
     "rows": 1000,
     "columns": 8,

@@ -31,6 +31,8 @@ def load(state: DeskState) -> dict:
         "settled_now": [],
         "ask": None,
         "oriented": False,
+        "story_asked": False,
+        "readback_done": False,
         "note": "",
         "focus": [],
         "desk_question": None,
@@ -42,6 +44,7 @@ def load(state: DeskState) -> dict:
         "explain_attempts": 0,
         "open": [],
         "status": None,
+        "matrix": None,
         "infer_errors": [],
         "infer_attempts": 0,
         "run_requested": False,
@@ -53,11 +56,12 @@ def load(state: DeskState) -> dict:
         "fit_status": None,
         "gate_errors": [],
         "decide_attempts": 0,
+        "brief": None,
         "debug": [],
         "after_reply": None,
         "after_errors": [],
         "after_attempts": 0,
-        "brief": "",
+        "opening": "",
     }
 
 

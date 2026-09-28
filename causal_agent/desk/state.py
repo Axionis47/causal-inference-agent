@@ -9,7 +9,7 @@ from typing import Annotated
 
 from typing_extensions import TypedDict
 
-from causal_agent.common.contracts import FamilyDecision, FamilyVerdict, Handoff, PrefilterVote, QuestionFrame, RunRecord, Thought
+from causal_agent.common.contracts import DesignBrief, FamilyDecision, FamilyVerdict, Handoff, PrefilterVote, QuestionFrame, RunRecord, Thought
 from causal_agent.desk.contracts import AfterReply, Ask, Exchange, Finding
 
 
@@ -32,6 +32,7 @@ class RouteState(TypedDict, total=False):
     decision: FamilyDecision | None
     gate_errors: list[str]
     decide_attempts: int
+    brief: DesignBrief | None  # the Designer's brief: what the design rests on, in the dataset's terms
     handoff: Handoff | None
     decision_record: str
     specialist_result: dict | None
@@ -47,6 +48,7 @@ class DeskState(RouteState, total=False):
     invalid: str | None  # why the last question did not pass, or None
     frame_attempts: int
     status: object | None  # memory.claims.Status: the fit
+    matrix: object | None  # memory.matrix.Matrix: the fit as a record, each cell with what set it and when
     open: list  # ops.Open: what is still vague
     findings: list[Finding]  # the checks' verdicts this turn
     refutations: dict[str, int]  # address -> how many times the file refuted the person's answer
@@ -55,6 +57,8 @@ class DeskState(RouteState, total=False):
     reply: str  # the desk's message this turn
     note: str  # what reading the question has to say before the first ask (a change not the one before), said once
     oriented: bool  # the map of what the file could answer has been shown for this question
+    story_asked: bool  # the story turn has been asked for this question, or a note told it
+    readback_done: bool  # the drafts have been read back once for this question
     desk_question: str | None  # what the person asked the desk this turn, to answer beside the next ask
     explained: str | None  # the desk's answer, shown before the next ask
     draw_request: str | None  # what the person asked to see drawn this turn, in their words
@@ -76,7 +80,7 @@ class DeskState(RouteState, total=False):
     after_reply: AfterReply | None
     after_errors: list[str]
     after_attempts: int
-    brief: str
+    opening: str  # the desk's first message after a run
 
 
 class PrefilterTask(TypedDict):

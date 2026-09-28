@@ -17,6 +17,27 @@ convince: the two groups moved together before the change, so their paths can be
 specialist: pyfixest
 status: built
 
+# The decisions the Designer fills for this family, each with the addresses it should rest on. From ADR 0006.
+decisions:
+  - name: groups
+    asks: the treated group and the comparison group
+    rests_on: [claim:assignment.treatment_column, claim:assignment.treated_level, claim:assignment.level_column]
+  - name: periods
+    asks: the periods, long or wide
+    rests_on: [claim:grain.panel, claim:grain.key_columns, claim:change.date_column, claim:change.period_value, "col:<column>.when"]
+  - name: comparison_holds
+    asks: whether the comparison holds
+    rests_on: [claim:trend_continues.believed, claim:assignment.kind, claim:sampling.how]
+  - name: controls
+    asks: the controls
+    rests_on: ["col:<column>.when", "col:<column>.moved_by_change"]
+  - name: cluster
+    asks: where to cluster
+    rests_on: [claim:assignment.level_column, claim:grain.nesting]
+  - name: run_at_all
+    asks: whether to run at all
+    rests_on: [probe:diff_in_diff.pre_periods, claim:spillover.possible, probe:diff_in_diff.treated_units]
+
 needs_claims:
     requires: [grain, sampling, change, assignment, measured, missing, spillover, trend_continues]
     fits:

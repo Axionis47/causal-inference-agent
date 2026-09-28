@@ -96,12 +96,16 @@ def parse_filter(text: str) -> list[tuple[str, str, list[str]]] | None:
     return out or None
 
 
-_BLANK = re.compile(r"^\s*(null|none|n/?a|no filter|no window|whole|all( \w+){0,3}|every \w+( \w+){0,2})\s*\.?\s*$", re.IGNORECASE)
+_BLANK = re.compile(r"^\s*(?:null|none|n/?a|no filter|no window|whole|the whole|all|every|everyone)\b", re.IGNORECASE)
 
 
 def blank(text: str | None) -> bool:
-    """A scope the frame wrote as words for 'nothing': the word null, none, all students, every row. Not a decline; there is nothing to apply."""
-    return not text or bool(_BLANK.match(str(text)))
+    """A scope the frame wrote as words for the whole table: null, none, every row, all students who sat the exam. Not a decline;
+    there is nothing to apply. A sentence that starts so but carries a comparison (all rows with lunch == standard) is a filter."""
+    if not text:
+        return True
+    t = str(text)
+    return bool(_BLANK.match(t)) and not any(op in t for op in _OPS)
 
 
 def apply_filter(table: pd.DataFrame, text: str | None, stage: str = "load") -> tuple[pd.DataFrame, Decline | None, dict]:

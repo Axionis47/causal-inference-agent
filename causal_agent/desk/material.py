@@ -5,9 +5,11 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from pathlib import Path
 
-from causal_agent.common.contracts import Decline, RunRecord
+from causal_agent.common.contracts import Decline, DesignBrief, Handoff, RunRecord
 from causal_agent.memory.journal import Step
+from causal_agent.memory.matrix import Matrix
 from causal_agent.memory.records import Memory
 from causal_agent.viz import store as VS
 
@@ -49,6 +51,15 @@ def _slug(s) -> str:
     return re.sub(r"[^0-9a-zA-Z]+", "_", str(s or "")).strip("_").lower() or "x"
 
 
+def _brief(run: RunRecord) -> DesignBrief | None:
+    """The design brief the run carried, or None."""
+    raw = (run.decision or {}).get("brief")
+    try:
+        return DesignBrief.model_validate(raw) if raw else None
+    except Exception:
+        return None
+
+
 def _declines(run: RunRecord) -> list[Decline]:
     """Where the lane did not take the pack as given, from the result or the artifacts on disk."""
     raw = (run.specialist_result or {}).get("declines") or run.artifacts.get("declines") or []
@@ -61,14 +72,51 @@ def _declines(run: RunRecord) -> list[Decline]:
     return out
 
 
-def render(run: RunRecord, memory: Memory | None = None, previous: RunRecord | None = None, steps: list[Step] | None = None) -> Material:
+def _scale(run: RunRecord, m: Material) -> None:
+    """The outcome's and the treatment's scale from the run's pack, so a number can be judged against it: the bounds when the
+    column has them, and min, p50, max and mean when it is numeric, each number under its own address."""
+    if not run.design_dir or not (Path(run.design_dir) / "handoff.json").exists():
+        return
+    h = Handoff.model_validate_json((Path(run.design_dir) / "handoff.json").read_text())
+    for name in (h.outcome, h.treatment):
+        b = h.column(name) if name else None
+        if b is None:
+            continue
+        f = b.facts
+        if f.bounds:
+            m.add(f"{b.address}.profile.bounds", f"{f.bounds[0]} to {f.bounds[1]}")
+            for tag, v in zip(("low", "high"), f.bounds):
+                try:
+                    m.numbers[f"{b.address}.profile.bounds.{tag}"] = float(v)
+                    m.addresses.add(f"{b.address}.profile.bounds.{tag}")
+                except ValueError:
+                    continue
+        if f.numeric:
+            n = f.numeric
+            m.add(f"{b.address}.profile.numeric", ", ".join(f"{k} {n[k]:g}" for k in ("min", "p50", "max", "mean") if k in n))
+            for k in ("min", "p50", "max", "mean"):
+                if k in n:
+                    m.numbers[f"{b.address}.profile.numeric.{k}"] = float(n[k])
+                    m.addresses.add(f"{b.address}.profile.numeric.{k}")
+
+
+def render(
+    run: RunRecord, memory: Memory | None = None, previous: RunRecord | None = None, steps: list[Step] | None = None, matrix: Matrix | None = None
+) -> Material:
     m = Material()
+    for line in matrix.render() if matrix is not None else []:  # the fit as a record: matrix:<family>.<kind>, with what set each cell
+        address, _, text = line[1:].partition("] ")
+        m.add(address, text)
     dec = run.decision or {}
     m.add("run.question", run.question)
     m.add("decision.family", f"{run.family or 'none'} via {run.specialist or 'none'}; status {run.status}")
     if dec.get("chosen_assumption"):
         m.add("decision.assumption", dec["chosen_assumption"])
         m.add("design.assumption", dec["chosen_assumption"])
+    brief = _brief(run)
+    if brief is not None:  # what the design rested on, each line citable
+        for address, text in brief.lines():
+            m.add(address, text)
     if previous is not None:
         m.add(f"run:{previous.index}.question", previous.question)
         m.add(f"run:{previous.index}.family", f"{previous.family or 'none'}; status {previous.status}")
@@ -193,6 +241,7 @@ def render(run: RunRecord, memory: Memory | None = None, previous: RunRecord | N
                 f"{f.value} ({f.status}, {f.source})" + (f' said "{f.said}"' if f.said else ""),
                 float(f.value) if isinstance(f.value, (int, float)) and not isinstance(f.value, bool) else None,
             )
+        _scale(run, m)
         for a in list(m.addresses):
             m.addresses.add(a.rsplit(".", 1)[0])
     return m
@@ -216,9 +265,16 @@ def brief(run: RunRecord, previous: RunRecord | None, material: Material) -> str
             f"The number: {_g(run.effect)}, interval {_g(run.ci_low)} to {_g(run.ci_high)}, by {run.estimator}. [estimate:{_contrast_key(sr.get('design') or {}) or 'all'}.value]"
         )
     if run.family:
+        brief_ = _brief(run)
+        road = f" By the {brief_.road} road." if brief_ is not None and brief_.road else ""
         lines.append(
-            f"Design: {run.family} via {run.specialist}." + (f" Why: {run.decision.get('why')}" if run.decision.get("why") else "") + " [decision.family]"
+            f"Design: {run.family} via {run.specialist}.{road}"
+            + (f" Why: {run.decision.get('why')}" if run.decision.get("why") else "")
+            + " [decision.family]"
+            + (" [design.brief.road]" if road else "")
         )
+        if brief_ is not None:
+            lines.append(f"It bets on: {brief_.bets_on} [design.brief.bets_on]")
     else:
         lines.append("No design fit what is known and the data. [decision.family]")
     if run.status == "no_handoff" or not run.family:

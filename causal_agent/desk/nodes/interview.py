@@ -1,16 +1,20 @@
-"""The interview before the run: check and probe the memory, compose one question per turn, the ready moment, listen, and
-infer what a message settles."""
+"""The interview before the run: check and probe the memory, the story, the readback, one gap question per turn asked because a
+decision needs it, the ready moment, listen, the Reader over what was said, the drawing tool, and the Explainer."""
 
 from __future__ import annotations
 
+import re
+from fnmatch import fnmatchcase
 from typing import Literal
 
 from langgraph.runtime import Runtime
 from langgraph.types import Command, interrupt
 
 from causal_agent.common.contracts import QuestionFrame
-from causal_agent.common.llm import structured
-from causal_agent.desk.contracts import Ask, DeskAnswer, Finding, Inference
+from causal_agent.desk import designer as DG
+from causal_agent.desk import explainer as X
+from causal_agent.desk import reader as RD
+from causal_agent.desk.contracts import Ask, Finding
 from causal_agent.desk.nodes import decide as D
 from causal_agent.desk.nodes import frame as F
 from causal_agent.desk.nodes.shared import (
@@ -27,19 +31,26 @@ from causal_agent.desk.nodes.shared import (
     design_now,
     focused_needs,
     journal_of,
-    kinds_text,
+    kind_of,
+    options_text,
     record,
+    value_words,
 )
-from causal_agent.desk.prompts import journey as P
+from causal_agent.desk.readback import compose_readback
 from causal_agent.desk.state import Context, DeskState
 from causal_agent.families import registry as R
-from causal_agent.families.base import Family
+from causal_agent.families.base import Decision, Family
 from causal_agent.memory import ops, store
 from causal_agent.memory import views as V
-from causal_agent.memory.catalogue import ClaimKind
-from causal_agent.memory.records import COLUMN_KIND, Memory
+from causal_agent.memory.matrix import Matrix
+from causal_agent.memory.records import Memory
 from causal_agent.profile import data as PD
 from causal_agent.viz import draw as VD
+
+STORY_TEXT = (
+    "Tell me the story: what the change was, who could get it and how that was decided, what each column records and when it "
+    "was set, and what one row is. Paste a note if you have one."
+)
 
 # ------------------------------------------------------------------ check, probe, fit (facts)
 
@@ -70,113 +81,167 @@ def probe_fit(state: DeskState) -> dict:
     fr = state.get("frame")
     probes = ops.probe(memory, df, R.REGISTRY.values(), TH, CAT)
     needs = focused_needs(state)
-    status = ops.fit(memory, probes, needs, columns=_columns_in_play(memory, fr), cat=CAT)
+    columns = _columns_in_play(memory, fr)
+    status = ops.fit(memory, probes, needs, columns=columns, cat=CAT)
     opened = ops.open(memory, status, needs, CAT)
+    prev = state.get("matrix") if isinstance(state.get("matrix"), Matrix) else Matrix()
+    matrix = prev.update(memory, probes, needs, columns=columns, cat=CAT)
+    changed = matrix.diff(prev)
+    if changed:  # the matrix is a record: a cell that moved is a step of the conversation, with what moved it
+        record(
+            state,
+            "fit",
+            by="code",
+            memory=memory,
+            design=design_now(state),
+            read=list(dict.fromkeys(c.set_by for c in changed if c.set_by))[:12],
+            note="; ".join(c.line() for c in changed),
+        )
     _writer()({"fit": {"surviving": status.surviving, "struck": status.struck, "open": [o.address for o in opened], "ready": status.ready}})
-    return {"probes": probes, "status": status, "fit_status": status.model_dump(), "open": opened, "ready": status.ready}
+    return {"probes": probes, "status": status, "fit_status": status.model_dump(), "matrix": matrix, "open": opened, "ready": status.ready}
 
 
 # ------------------------------------------------------------------ ask (code)
-
-
-def _options_text(kind: ClaimKind, field: str) -> str:
-    spec = kind.fields[field]
-    if spec.type == "choice":
-        return "; ".join(f"{o} ({spec.about[str(o)]})" if str(o) in spec.about else str(o) for o in spec.options)
-    if spec.type == "bool":
-        return "yes or no"
-    return ""
-
-
-def _value_words(kind: ClaimKind, field: str, value) -> str:
-    spec = kind.fields.get(field)
-    if spec and spec.type == "choice" and str(value) in spec.about:
-        return f"{value} ({spec.about[str(value)]})"
-    if isinstance(value, list):
-        return ", ".join(str(v) for v in value)
-    if isinstance(value, bool):
-        return "yes" if value else "no"
-    return str(value)
 
 
 def _change_words(memory: Memory) -> str:
     return memory.value("claim:change.what") or "the change"
 
 
-def compose_ask(memory: Memory, opened: list, findings: list[Finding], frame: QuestionFrame | None) -> Ask | None:
-    """One question from what is open: the drafts to confirm first, then the columns in one tick, then one dataset field."""
-    if not opened:
-        return None
-    by_addr = {f.address: f for f in findings if f.passed is False}
-    drafts = [o for o in opened if o.status == "drafted"]
-    if drafts:
-        lines = []
-        for o in drafts:
-            kind = CAT.kinds[o.kind]
-            f = memory.field(o.address)
-            if o.address.startswith("col:"):
-                col = memory.column(o.address[4:].split(".")[0])
-                lines.append(f"{col.name if col else o.address}: {o.field} = {_value_words(kind, o.field, f.value)}")
-            else:
-                lines.append(f"{o.kind}, {o.field}: {_value_words(kind, o.field, f.value)}")
-        text = (
-            "I read these from what was written about the file. Are they right?\n" + "\n".join(f"• {ln}" for ln in lines) + "\nSay yes, or correct any of them."
-        )
-        return Ask(
-            addresses=[o.address for o in drafts],
-            kind="confirm",
-            text=text,
-            options=["Yes, all right", "No"],
-            because=sorted({b for o in drafts for b in o.because}),
-        )
-    cols = [o for o in opened if o.address.startswith("col:") and o.field in ("meaning", "when")]
-    if cols:
-        names, refuted = [], []
-        for o in cols:
-            col = memory.column(o.address[4:].split(".")[0])
-            name = col.name if col else o.address
-            if name not in names:
-                names.append(name)
-            fd = by_addr.get(o.address)
-            if fd is not None:
-                refuted.append(f"{name}: you said {memory.value(o.address)}, but {fd.detail} [{fd.evidence}]")
-        ch = _change_words(memory)
-        if refuted:
-            text = "The file disagrees with what you said about " + "; ".join(refuted) + ". Which is it?"
-        else:
-            text = f"For each of these columns: what does it record, and was it fixed before {ch}, set at it, or measured after it? " + ", ".join(names) + "."
-        return Ask(
-            addresses=[o.address for o in cols],
-            kind="columns",
-            text=text,
-            options=["before", "at", "after", "unknown"],
-            because=sorted({b for o in cols for b in o.because}),
-            evidence=[by_addr[o.address].evidence for o in cols if o.address in by_addr],
-        )
-    o = opened[0]
+def _pattern(p: str) -> str:
+    """A decision's rests_on pattern as fnmatch reads it: <column> and its kin stand for any column."""
+    return re.sub(r"<[^>]*>", "*", p)
+
+
+def rests_on(decision: Decision, address: str) -> bool:
+    return any(fnmatchcase(address, _pattern(p)) for p in decision.rests_on)
+
+
+def decision_for(address: str, families: list[str]) -> tuple[Family, Decision] | None:
+    """The first decision, among the families given in order, that rests on this address."""
+    registry = {f.name: f for f in R.knowledge()}
+    for name in families:
+        fam = registry.get(name)
+        if fam is None:
+            continue
+        for d in fam.decisions:
+            if rests_on(d, address):
+                return fam, d
+    return None
+
+
+def _col_ask(field: str, change: str) -> str:
+    """What a per-column field asks, in the world's words."""
+    if field == "when":
+        return f"was it fixed before {change}, set at it, or measured after it"
+    spec = CAT.kinds["measured"].fields[field]
+    return spec.hint or field.replace("_", " ")
+
+
+def _refuted_line(memory: Memory, o, fd: Finding) -> str:
     kind = CAT.kinds[o.kind]
-    fd = by_addr.get(o.address)
-    because = list(o.because)
     if o.address.startswith("col:"):
         col = memory.column(o.address[4:].split(".")[0])
-        name = col.name if col else o.address
-        hint = kind.fields[o.field].hint or o.field
-        text = f"About '{name}': {hint}?"
-    elif fd is not None:
-        text = f"You said {o.kind}, {o.field} = {_value_words(kind, o.field, memory.value(o.address))}, but {fd.detail} [{fd.evidence}]. Which is it?"
+        who = f"'{col.name if col else o.address}'"
     else:
-        hint = kind.fields[o.field].hint
-        required = kind.required(memory.values_of(o.address.rsplit(".", 1)[0]))
-        text = kind.frame[0].upper() + kind.frame[1:] + "?"
-        if len(required) > 1 or o.field not in required:  # the frame covers several fields: say which one this turn settles
-            text += f" This turn: {o.field.replace('_', ' ')}" + (f", {hint}" if hint else "") + "."
-        elif hint:
-            text += f" ({hint})"
-    opts = _options_text(kind, o.field)
-    if opts:
-        text += f" Answer {opts}." if opts == "yes or no" else f" One of: {opts}."
-    kind_word: str = "confirm" if fd is not None else ("choose" if o.options else "open")
-    return Ask(addresses=[o.address], kind=kind_word, text=text, options=list(o.options), because=because, evidence=[fd.evidence] if fd else [])
+        who = f"{o.kind.replace('_', ' ')}, {o.field.replace('_', ' ')}"
+    said = value_words(kind, o.field, memory.value(o.address))
+    return f"The file disagrees with what you said about {who}: you said {said}, but {fd.detail} [{fd.evidence}]. Which is it?"
+
+
+def _claim_line(o, lone: bool) -> str:
+    """One claim field as a question: its hint, or the kind's frame when it has none; the legal values after."""
+    kind = CAT.kinds[o.kind]
+    hint = kind.fields[o.field].hint
+    head = f"{o.kind.replace('_', ' ')}, {o.field.replace('_', ' ')}"
+    body = hint or (kind.frame if lone else "")
+    opts = options_text(kind, o.field)
+    tail = (" Answer yes or no." if opts == "yes or no" else f" One of: {opts}.") if opts else ""
+    return f"{head}: {body}." + tail if body else f"{head}." + tail
+
+
+def _belief_text(fam: Family | None, beliefs: list, memory: Memory) -> str:
+    """A belief asked as what the design would bet on, with the person's own relevant facts beside it."""
+    assumes = fam.assumes if fam is not None else ""
+    frames = []
+    for o in beliefs:
+        kind = CAT.kinds[o.kind]
+        q = kind.frame[0].upper() + kind.frame[1:] + "?"
+        if q not in frames:
+            frames.append(q)
+    facts = []
+    rule, dep = memory.value("claim:assignment.rule"), memory.value("claim:assignment.depends_on")
+    if rule:
+        facts.append(f"you said the rule was: {rule}")
+    if dep:
+        facts.append(f"it depended on {', '.join(dep)}")
+    return (f"The design will assume {assumes}. " if assumes else "") + " ".join(frames) + (f" ({'; '.join(facts)}.)" if facts else "")
+
+
+def compose_ask(memory: Memory, opened: list, findings: list[Finding], frame: QuestionFrame | None, surviving: list[str] | None = None) -> Ask | None:
+    """One question from what is open: the readback of the drafts first; then the first open field, asked because a decision
+    needs it, together with every open field that decision rests on. A field no decision rests on is asked with the rest of
+    its claim, or with the same field of every other column. A refuted field is asked first, with the check that refuted it.
+    A belief is asked as what the design would bet on."""
+    if not opened:
+        return None
+    readback = compose_readback(memory, opened)
+    if readback is not None:
+        return readback
+    by_addr = {f.address: f for f in findings if f.passed is False}
+    gaps = sorted((o for o in opened if o.status != "drafted"), key=lambda o: o.address not in by_addr)
+    if not gaps:
+        return None
+    o = gaps[0]
+    families = list(o.because) or list(surviving or [])
+    found = decision_for(o.address, families)
+    fam, dec = found if found else (None, None)
+    if dec is not None:
+        group = [x for x in gaps if rests_on(dec, x.address)]
+    elif CAT.kinds[o.kind].per_column:
+        group = [x for x in gaps if x.kind == o.kind and x.field == o.field]
+    else:
+        prefix = o.address.rsplit(".", 1)[0]
+        group = [x for x in gaps if x.address.rsplit(".", 1)[0] == prefix]
+    if fam is None and o.because:
+        fam = next((f for f in R.knowledge() if f.name == o.because[0]), None)
+    ch = _change_words(memory)
+    beliefs = [x for x in group if CAT.kinds[x.kind].uncheckable]
+    plain = [x for x in group if x not in beliefs]
+    lines: list[str] = []
+    by_field: dict[str, list[str]] = {}
+    for x in plain:
+        fd = by_addr.get(x.address)
+        if fd is not None:
+            lines.append(_refuted_line(memory, x, fd))
+        elif x.address.startswith("col:"):
+            col = memory.column(x.address[4:].split(".")[0])
+            by_field.setdefault(x.field, []).append(col.name if col else x.address)
+        else:
+            lines.append(_claim_line(x, lone=len(group) == 1 or dec is None))
+    for field, names in by_field.items():
+        lines.append(f"for each of these columns, {_col_ask(field, ch)}: {', '.join(names)}")
+    if dec is None and not beliefs and plain and not any(x.address.startswith("col:") for x in plain) and len(plain) > 1:
+        kind = CAT.kinds[o.kind]  # one claim, several fields: the frame once, then which fields this turn settles
+        lines = [kind.frame[0].upper() + kind.frame[1:] + "? This turn: " + ", ".join(x.field.replace("_", " ") for x in plain) + "."]
+    head = f"To settle {dec.asks}, I need: " if dec is not None else ""
+    body = " ".join(ln if ln.endswith((".", "?")) else ln + "." for ln in lines)
+    if beliefs:
+        body = (body + " " if body else "") + _belief_text(fam, beliefs, memory)
+    text = head + body
+    if not any(x.address in by_addr for x in group):
+        text += " Say don't know for anything you cannot say."
+    lone = len(group) == 1
+    kind_word: Literal["choose", "open"] = "choose" if lone and group[0].options else "open"
+    return Ask(
+        addresses=[x.address for x in group],
+        kind=kind_word,
+        text=text,
+        options=list(group[0].options) if lone else [],
+        because=sorted({b for x in group for b in x.because}),
+        decision=dec.name if dec is not None else "",
+        evidence=[by_addr[x.address].evidence for x in group if x.address in by_addr],
+    )
 
 
 def compose_map(status, memory: Memory, frame: QuestionFrame | None) -> str:
@@ -207,23 +272,38 @@ def acknowledge(memory: Memory, addresses: list[str]) -> str:
         f = memory.field(a)
         if f is None or f.value is None and f.status != "unknown":
             continue
-        lines.append(
-            f"[{a}] "
-            + (
-                "unknown"
-                if f.status == "unknown"
-                else _value_words(CAT.kinds[Memory.parse(a)[1] if a.startswith("claim:") else COLUMN_KIND], Memory.parse(a)[2], f.value)
-            )
-        )
+        lines.append(f"[{a}] " + ("unknown" if f.status == "unknown" else value_words(kind_of(a), Memory.parse(a)[2], f.value)))
     return ("Noted: " + "; ".join(lines) + "\n\n") if lines else ""
 
 
+def _told_by_note(memory: Memory, opened: list) -> bool:
+    """Whether a note already told the story: a draft among the open fields comes from doc:<name>."""
+    for o in opened:
+        f = memory.field(o.address)
+        if o.status == "drafted" and f is not None and (f.source or "").startswith("doc:"):
+            return True
+    return False
+
+
 def ask(state: DeskState) -> Command[Literal["listen", "fit", "convince"]]:
+    """The next thing asked: once per question the story (unless a note told it), then the readback of the drafts, then one gap
+    question per turn asked because a decision needs it. The map comes first, once; whatever the desk answered or drew last
+    turn comes before the question."""
     st = state["status"]
     if state.get("run_requested") and st.ready:
         return Command(goto="fit", update={"run_requested": False, "ask": None})
     memory = F.memory_of(state)
-    a = compose_ask(memory, state.get("open") or [], state.get("findings") or [], state.get("frame"))
+    opened = state.get("open") or []
+    flags: dict = {}
+    a: Ask | None = None
+    if not state.get("story_asked") and opened:
+        flags["story_asked"] = True
+        if not _told_by_note(memory, opened):
+            a = Ask(addresses=[o.address for o in opened], kind="story", text=STORY_TEXT, because=sorted({b for o in opened for b in o.because}))
+    if a is None:
+        a = compose_ask(memory, opened, state.get("findings") or [], state.get("frame"), surviving=list(st.surviving))
+        if a is not None and a.kind == "confirm":
+            flags["readback_done"] = True
     head = (state.get("note") or "") + acknowledge(memory, state.get("settled_now") or [])
     if not state.get("oriented"):  # the first reply after the question is read: the map of what the file could answer
         head = compose_map(st, memory, state.get("frame")) + "\n\n" + head
@@ -231,7 +311,7 @@ def ask(state: DeskState) -> Command[Literal["listen", "fit", "convince"]]:
         head = state["explained"] + "\n\n" + head
     if state.get("drawn"):  # the person asked for a picture last turn: the caption comes first, the picture beside the reply
         head = state["drawn"] + "\n\n" + head
-    shown = {"artifact": state.get("artifact"), "drawn": None}
+    shown = {"artifact": state.get("artifact"), "drawn": None, **flags}
     if a is None:
         if st.ready:
             return Command(
@@ -252,21 +332,9 @@ def ask(state: DeskState) -> Command[Literal["listen", "fit", "convince"]]:
 # ------------------------------------------------------------------ convince (the ready moment)
 
 
-def _belief_words(memory: Memory, family: Family) -> str:
-    """The assumption the family bets on, and the person's own words where a belief carries them."""
-    said = []
-    for kind in ("unobserved", "exclusion", "spillover", "trend_continues", "cutoff_only"):
-        if kind in (R.needs()[family.name].requires if family.name in R.needs() else []):
-            for n, f in memory.fields_of(f"claim:{kind}").items():
-                if f.said and f.value is not None:
-                    said.append(f'"{f.said}" [claim:{kind}.{n}]')
-                    break
-    return family.assumes + (" You said: " + "; ".join(said) + "." if said else "")
-
-
 def convince(state: DeskState, runtime: Runtime[Context]) -> dict:
-    """At ready: decide by code (a judgement only among several), make the family's point visible, and say the design in the
-    question's words with the evidence, the assumption, and the struck families with one reason each."""
+    """At ready: decide by code (a judgement only among several), the Designer's brief, and the design said in the question's
+    words with the evidence, what it bets on, each decision, the threats, and the struck families with one reason each."""
     memory = F.memory_of(state)
     out = D.fit(state, runtime)
     st2 = {**state, **out}
@@ -285,8 +353,11 @@ def convince(state: DeskState, runtime: Runtime[Context]) -> dict:
             + "; ".join(f"{v.family} ({next((n.note for n in v.needs if not n.met), v.concern or 'does not fit')})" for v in verdicts.values())
             + ". Tell me what is different about the data."
         )
-        return {**update, "reply": text, "handoff": None}
+        return {**update, "reply": text, "handoff": None, "brief": None}
     fam = registry[d.chosen]
+    designed = DG.design_brief({**st3, **(g.update or {})}, runtime)
+    brief = designed["brief"]
+    update.update({"brief": brief, "debug": list(dec.get("debug") or []) + list(designed.get("debug") or [])})
     probes = [p for p in update.get("probes") or [] if p.family == fam.name and p.passed is not None]
     evidence = "; ".join(f"{p.detail} [{p.address}]" for p in probes) or "no probe applies"
     fields = [f"[claim:assignment.kind] {memory.value('claim:assignment.kind')}"] + [
@@ -300,9 +371,15 @@ def convince(state: DeskState, runtime: Runtime[Context]) -> dict:
     lines = [
         head + "Everything the analysis needs is settled.",
         f"Design: {fam.name.replace('_', ' ')}. {fam.answers[0].upper() + fam.answers[1:]}.",
-        f"It rests on: {_belief_words(memory, fam)}",
-        f"Evidence: {evidence}. " + " ".join(fields),
+        f"It bets on: {brief.bets_on if brief else fam.assumes}",
     ]
+    if brief is not None:
+        lines += [f"[{dm.address}] {brief.road + ': ' if dm.name == 'road' and brief.road else ''}{dm.choice}" for dm in brief.decisions]
+        if brief.road is not None and brief.decision("road") is None:
+            lines.append(f"[design.brief.road] {brief.road}")
+        if brief.threats:
+            lines.append("What would break it: " + "; ".join(f"{t.reason} [{', '.join(t.cites)}]" for t in brief.threats))
+    lines.append(f"Evidence: {evidence}. " + " ".join(fields))
     if struck:
         lines.append("Set aside: " + "; ".join(struck) + ".")
     lines.append("Say run to hand off, ask for a picture of anything in the file, or tell me anything to change.")
@@ -358,63 +435,29 @@ def listen(state: DeskState) -> Command[Literal["infer", "fit", "handoff", "chec
     return Command(goto="infer", update={"turn": turn, "message": answer, "infer_errors": [], "infer_attempts": 0, "settled_now": [], "artifact": None})
 
 
-# ------------------------------------------------------------------ infer (judgement), gated by apply
-
-
-def _open_lines(memory: Memory, opened: list, asked: Ask | None) -> str:
-    lines = []
-    order = (asked.addresses if asked else []) + [o.address for o in opened if not asked or o.address not in asked.addresses]
-    by = {o.address: o for o in opened}
-    for a in order:
-        o = by.get(a)
-        if o is None:
-            kind_name = Memory.parse(a)[1] if a.startswith("claim:") else COLUMN_KIND
-            field = Memory.parse(a)[2]
-            kind = CAT.kinds.get(kind_name)
-            spec = kind.fields.get(field) if kind and field else None
-            lines.append(f"{a} · {spec.hint if spec and spec.hint else (kind.frame if kind else '')} · {_options_text(kind, field) if kind and spec else ''}")
-            continue
-        kind = CAT.kinds[o.kind]
-        spec = kind.fields[o.field]
-        lines.append(f"{a} · {spec.hint or kind.frame} · {_options_text(kind, o.field) or spec.type}" + (" (optional)" if o.optional else ""))
-    return "\n".join(lines) or "(nothing open)"
+# ------------------------------------------------------------------ infer: the Reader over a message, gated by apply
 
 
 def infer(state: DeskState) -> Command[Literal["infer", "draw", "check", "explain"]]:
+    """The Reader over what the person said this turn, source user:turn:<n>: what it settles, confirms, or leaves unknown, and
+    whether it asks the desk something or asks for a picture. The story is read into drafts the readback confirms. Three tries
+    when a write is refused."""
     memory = F.memory_of(state)
     turn = int(state.get("turn") or 0)
     a = state.get("ask")
-    asked = (a.text + "\n(settles: " + ", ".join(a.addresses) + ")") if a else "(no question was asked; the person spoke freely)"
-    errs = state.get("infer_errors") or []
-    errors = ("\nPREVIOUS UPDATES WERE REJECTED:\n" + "\n".join(f"- {e}" for e in errs) + "\nFix them and return the set again.\n") if errs else ""
-    cols = "\n".join(V.brief_of(memory, c).line() for c in memory.columns.values() if not c.facts.constant)
-    user = P.INFER_USER.format(
-        kinds=kinds_text(),
-        memory=memory.render() or "(nothing known yet)",
-        asked=asked,
-        open=_open_lines(memory, state.get("open") or [], a),
-        columns=cols,
-        turn=turn,
-        message=state.get("message") or "",
-        errors=errors,
-    )
-    out, thought = structured(Inference, P.INFER_SYSTEM, user, node=f"infer:{turn}")
+    if a is None:
+        asked = "(no question was asked; the person spoke freely)"
+    elif a.kind == "story":
+        asked = f"{RD.STORY} {a.text}\n(settles: " + ", ".join(a.addresses) + ")"
+    else:
+        asked = a.text + "\n(settles: " + ", ".join(a.addresses) + ")"
     src = f"user:turn:{turn}"
-    updates = [
-        ops.Update(address=u.address, value=u.value, status="confirmed", source=src, said=u.said or (state.get("message") or "")[:200], reason=u.reason)
-        for u in out.updates
-    ]
-    for addr in out.confirms:
-        f = memory.field(addr)
-        if f is not None and f.value is not None and f.status in {"drafted", "refuted"}:
-            updates.append(
-                ops.Update(address=addr, value=f.value, status="confirmed", source=src, said=(state.get("message") or "")[:200], reason="confirmed as drafted")
-            )
-    for addr in out.unknown:
-        updates.append(ops.Update(address=addr, status="unknown", source=src, said=(state.get("message") or "")[:200]))
-    before = {a: (f.value, f.status) for a, f in memory.fields.items()}
-    rejected = ops.apply(memory, updates, CAT)
-    settled = [a for a, f in memory.fields.items() if before.get(a) != (f.value, f.status)]
+    message = state.get("message") or ""
+    before = {ad: (f.value, f.status) for ad, f in memory.fields.items()}
+    out, thoughts, rejected = RD.read_words(
+        memory, src, message, asked, state.get("open") or [], turn, ask=a, errors=state.get("infer_errors") or [], draft=a is not None and a.kind == "story"
+    )
+    settled = [ad for ad, f in memory.fields.items() if before.get(ad) != (f.value, f.status)]
     focus_update: dict = {}
     if out.focus is not None:  # the person named the families they care about: known names narrow the interview, unknown ones are refused
         known = R.needs()
@@ -428,28 +471,18 @@ def infer(state: DeskState) -> Command[Literal["infer", "draw", "check", "explai
     asked_draw = (out.draw or "").strip() or state.get("draw_request") or None
     _writer()({"infer": {"settled": settled, "rejected": rejected, "attempt": attempts, **({"focus": focus_update["focus"]} if focus_update else {})}})
     store.save(memory)
-    if rejected and attempts < INFER_ATTEMPTS:
-        return Command(
-            goto="infer",
-            update={
-                "infer_errors": rejected,
-                "infer_attempts": attempts,
-                "settled_now": settled,
-                "debug": [thought],
-                "desk_question": asked_desk,
-                "draw_request": asked_draw,
-                **focus_update,
-            },
-        )
     update = {
         "infer_errors": rejected,
-        "infer_attempts": 0,
+        "infer_attempts": attempts,
         "settled_now": settled,
-        "debug": [thought],
+        "debug": thoughts,
         "desk_question": asked_desk,
         "draw_request": asked_draw,
         **focus_update,
     }
+    if rejected and attempts < INFER_ATTEMPTS:
+        return Command(goto="infer", update=update)
+    update["infer_attempts"] = 0
     if settled:
         record(state, "claim", by="person", memory=memory, design=design_now(state), read=[src], note=", ".join(settled))
     if asked_draw:
@@ -500,79 +533,45 @@ def draw(state: DeskState) -> Command[Literal["explain", "check"]]:
     return Command(goto="check", update=update)
 
 
-# ------------------------------------------------------------------ explain (judgement), gated by the cites
+# ------------------------------------------------------------------ explain: the Explainer before the run, gated by the cites
 
 
 MAX_EXPLAIN_ATTEMPTS = 3
 
 
-def _plain_cite(c: str) -> str:
-    """A cite as the gate reads it: without brackets, and a family named as family:<name> by its name alone."""
-    c = c.strip().strip("[]").strip()
-    return c[len("family:") :] if c.startswith("family:") else c
-
-
-def _canonical_cite(c: str, names: set[str], memory: Memory, probes: list, journal=None) -> str | None:
-    """The cite as the memory spells it, or None: a family name, a step the journal holds, an address as given, or one missing its
-    claim:/col: prefix."""
-    plain = _plain_cite(c)
-    if journal is not None and plain.startswith("step:") and journal.resolve(plain) is not None:
-        return plain
-    if plain.startswith("user:turn:") and any(f"user:turn:{s.turn}" == plain for s in memory.said):
-        return plain
-    for cand in (plain, f"claim:{plain}", f"col:{plain}"):
-        if cand in names or D.resolves(cand, memory, probes):
-            return cand
-    return None
-
-
-def explain(state: DeskState) -> Command[Literal["explain", "check"]]:
-    """The person asked the desk something: one answer from the families' knowledge, the fit grid, and the memory, every cite
-    checked by code; three tries, then the honest fallback. Shown before the next thing asked."""
+def explain(state: DeskState) -> Command[Literal["explain", "draw", "check"]]:
+    """The person asked the desk something: the Explainer answers from the families' knowledge, the matrix, the steps and the
+    memory, every cite checked by the one gate; three tries, then the honest fallback. Shown before the next thing asked. An
+    answer that turns out to be a drawing request goes to the drawing tool."""
     memory = F.memory_of(state)
     st = state.get("status")
     a = state.get("ask")
     question = state.get("desk_question") or ""
     errs = state.get("explain_errors") or []
-    errors = ("\nTHE LAST ANSWER WAS REFUSED:\n" + "\n".join(f"- {e}" for e in errs) + "\nAnswer again.\n") if errs else ""
-    families = "\n\n".join(f.render() for f in R.knowledge())
-    journal = journal_of(state)
-    user = P.EXPLAIN_USER.format(
-        families=families,
-        status=st.render(list(CAT.kinds)) if st else "(not fitted yet)",
-        kinds=kinds_text(),
-        memory=memory.render() or "(nothing known yet)",
-        steps="\n".join(f"[{s.address}] {s.line()}" for s in journal.steps()) or "(none yet)",
-        asked=a.text if a else "(nothing yet)",
-        question=question,
-        errors=errors,
-    )
-    out, thought = structured(DeskAnswer, P.EXPLAIN_SYSTEM, user, node="explain")
-    names = {f.name for f in R.knowledge()}
-    probes = state.get("probes") or []
-    found = {c: _canonical_cite(c, names, memory, probes, journal) for c in out.cites}
-    cites = [a for a in found.values() if a is not None]
-    bad = [c for c, a in found.items() if a is None]
-    problems = []
-    if bad:
-        problems.append(f"cites that are neither a family name nor an address in the memory: {bad}")
-    if not out.cites:
-        problems.append("an answer cites at least one family name or memory address")
+    matrix = state.get("matrix") if isinstance(state.get("matrix"), Matrix) else None
+    mat = X.before_material(memory, matrix, state.get("probes") or [], journal_of(state).steps(), a.text if a else None)
+    out, thought = X.answer_from(mat, memory, state.get("exchanges") or [], question, "before", errs)
+    problems = X.gate(out, mat, "before")
     attempts = int(state.get("explain_attempts") or 0) + 1
     _writer()({"explain": {"question": question, "attempt": attempts, "problems": problems}})
     if problems and attempts < MAX_EXPLAIN_ATTEMPTS:
         return Command(goto="explain", update={"explain_errors": problems, "explain_attempts": attempts, "debug": [thought]})
+    if not problems and out.kind == "draw":
+        return Command(
+            goto="draw",
+            update={"draw_request": (out.draw or "").strip(), "desk_question": None, "explain_errors": [], "explain_attempts": 0, "debug": [thought]},
+        )
     if problems:
         text = "I can only answer that from what is settled. " + (_design_line(st, memory, state.get("frame")) if st else "")
     else:
-        text = out.text.strip() + (" " + " ".join(f"[{c}]" for c in dict.fromkeys(cites) if c not in out.text) if cites else "")
+        text = out.text.strip() + (" " + " ".join(f"[{c}]" for c in dict.fromkeys(out.cites) if c not in out.text) if out.cites else "")
     record(
         state,
         "explain",
         by="model",
         memory=memory,
         design=design_now(state),
-        read=[] if problems else list(dict.fromkeys(cites)),
+        read=[] if problems else list(dict.fromkeys(out.cites)),
         note=question + (" (unanswered)" if problems else ""),
     )
     return Command(goto="check", update={"explained": text.strip(), "desk_question": None, "explain_errors": [], "explain_attempts": 0, "debug": [thought]})

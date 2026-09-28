@@ -1,8 +1,8 @@
 """Prompts for the five judgements. Method-free and column-free: everything specific arrives as data."""
 
+from causal_agent.lane.prompts import INTERPRET_CASE, PICK_CASE, PLAIN_WORDS, cite_rule
 from causal_agent.lane.prompts import INTERPRET_USER as INTERPRET_USER  # the lane's nodes read these here
 from causal_agent.lane.prompts import PICK_USER as PICK_USER
-from causal_agent.lane.prompts import PLAIN_WORDS, cite_rule
 
 CITE_RULE = cite_rule("col:score.note", "check:above_vs_below.density")
 
@@ -82,7 +82,10 @@ ASSESS_SYSTEM = (
     "as a caveat, never clear it. " + CITE_RULE
 )
 
-ASSESS_USER = """QUESTION
+ASSESS_USER = """THE CASE
+{frame}
+
+QUESTION
 {question}
 
 DESIGN SO FAR
@@ -100,7 +103,7 @@ Decide: proceed or stop.
 PICK_SYSTEM = (
     "You choose an estimator for a cutoff design whose design is fixed. You are given the facts of the design and the "
     "estimators that can run on it, with what each assumes and when it is weak, plus preferences. Pick one by name from the "
-    "list. Say why, citing the check addresses whose numbers support the pick. " + CITE_RULE
+    "list. Say why, citing the check addresses whose numbers support the pick. " + PICK_CASE + CITE_RULE
 )
 
 INTERPRET_SYSTEM = (
@@ -111,5 +114,8 @@ INTERPRET_SYSTEM = (
     "cutoff whatever was taken up. Say in one sentence that the effect is local to units at the cutoff, in the score's units, "
     "and does not speak to units far from it. List the caveats a careful reader needs: the assumption the design bets on, "
     "every flagged check, every falsification that failed, and how the estimate moved when covariates or the polynomial "
-    "order changed if that was run. Do not mention checks that were not run. Cite an artifact address for every number. " + PLAIN_WORDS + CITE_RULE
+    "order changed if that was run. Do not mention checks that were not run. Cite an artifact address for every number. "
+    + INTERPRET_CASE
+    + PLAIN_WORDS
+    + CITE_RULE
 )

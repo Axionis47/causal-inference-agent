@@ -1,14 +1,15 @@
 """The routing alone: from a question and a memory to a hand-off, without the interview. The same node functions the desk
 runs, called in order on a plain dict; the caller runs the lane.
 
-    load ─ mine ─(prefilter × N, wide only)─ frame ─ fit ─ decide ─ gate ─ handoff
+    load ─ mine ─(prefilter × N, wide only)─ frame ─ fit ─ decide ─ gate ─ design ─ handoff
 """
 
 from __future__ import annotations
 
 from pydantic import BaseModel
 
-from causal_agent.common.contracts import FamilyDecision, FamilyVerdict, Handoff, QuestionFrame, Thought
+from causal_agent.common.contracts import DesignBrief, FamilyDecision, FamilyVerdict, Handoff, QuestionFrame, Thought
+from causal_agent.desk import designer as DG
 from causal_agent.desk.nodes import decide as D
 from causal_agent.desk.nodes import frame as F
 
@@ -17,6 +18,7 @@ APPENDED = {"prefilter_votes", "debug"}  # the RouteState keys with an add reduc
 
 class RouteResult(BaseModel):
     handoff: Handoff | None
+    brief: DesignBrief | None
     decision: FamilyDecision | None
     frame: QuestionFrame | None
     family_verdicts: list[FamilyVerdict]
@@ -34,7 +36,8 @@ def _merge(state: dict, update: dict | None) -> None:
 def route(question: str, dataset: str) -> RouteResult:
     """From a question and a memory to a hand-off, without the interview: mine the note once when the memory is bare, skim the
     columns when the table is wide, read the question, fit, decide, gate (up to three tries), and build the pack. The same node
-    functions the desk runs, called in order. After three failed gates there is no hand-off; the decision record is still written."""
+    functions the desk runs, called in order; the Designer writes the brief once the gate passes. After three failed gates there is no
+    hand-off; the decision record is still written."""
     state: dict = {"question": question, "dataset": dataset}
     _merge(state, F.load(state))
     _merge(state, F.mine(state))
@@ -50,9 +53,11 @@ def route(question: str, dataset: str) -> RouteResult:
         _merge(state, cmd.update)
         if cmd.goto != "decide":
             break
+    _merge(state, DG.design_brief(state, None))
     _merge(state, D.handoff(state, None))
     return RouteResult(
-        handoff=state["handoff"] if cmd.goto == "handoff" else None,
+        handoff=state["handoff"] if cmd.goto == "design" else None,
+        brief=state.get("brief"),
         decision=state.get("decision"),
         frame=state.get("frame"),
         family_verdicts=state.get("family_verdicts", []),

@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field
 
 from causal_agent.memory import store
 
-StepKind = Literal["question", "claim", "explain", "design", "run", "brief", "answer", "what_if", "revise", "requestion", "explore"]
+StepKind = Literal["question", "claim", "fit", "explain", "design", "run", "brief", "answer", "what_if", "revise", "requestion", "explore"]
 By = Literal["code", "model", "person"]
 _MAX_NOTE = 300
 

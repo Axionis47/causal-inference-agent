@@ -88,20 +88,8 @@ def _block(h: Handoff) -> RdDesign | None:
 
 
 def _frame_text(state: SpecialistState) -> str:
-    h = state["handoff"]
-    s = h.scope
-    lines = [
-        f"family: {h.family}; outcome: {h.outcome}; treatment: {h.treatment or 'none named (the change may be the cutoff rule itself)'}; "
-        f"filter={s.population_filter or 'none'}; window={s.window or 'none'}; target={s.target}",
-        f"assumption the router bet on: {h.chosen_assumption}",
-    ]
-    if _block(h):
-        lines.append("what the pack settled:\n" + h.design.render())
-    if h.probes:
-        lines.append("PROBES\n" + "\n".join(p.render() for p in h.probes))
-    if state.get("case"):
-        lines.append(_case(state).render())
-    lines.append(h.render_words())
+    """The shared case, then what this lane found itself: the score and the cutoff rule, and the shape of the two sides."""
+    lines = [L.frame_text(state)]
     sc = state.get("score")
     if sc and sc.column:
         rule = f"{'at or ' if sc.cutoff_value_treated else ''}{sc.treated_side} {sc.cutoff:g}"
@@ -503,7 +491,7 @@ def settled_claims(h: Handoff, k: str, case: C.Case) -> tuple[dict[str, bool], d
 
 def fact_relation(h: Handoff, k: str, case: C.Case) -> CovariateRelation | None:
     claims, cites = settled_claims(h, k, case)
-    name = h.brief(k).name if h.brief(k) else k
+    name = h.column(k).name if h.column(k) else k
     if claims.get("is_outcome_measure") is True or claims.get("affected_by_treatment") is True or all(c in claims for c in CLAIMS):
         full = {c: bool(claims.get(c, False)) for c in CLAIMS}
         if full["affected_by_treatment"] or full["is_outcome_measure"]:
@@ -564,7 +552,7 @@ def merge_covariates(state: SpecialistState) -> dict:
         r = latest.get(k)
         if r is None:
             continue
-        card = h.brief(k)
+        card = h.column(k)
         if card is not None and card.facts.kind == "id":
             excluded.append(Excluded(column=k, why="an identifier names a unit; it is not a characteristic that could be continuous or jump at the cutoff"))
             continue
@@ -671,7 +659,7 @@ def check_design(state: SpecialistState) -> dict:
 
 
 def _design_text(state: SpecialistState) -> str:
-    return _frame_text(state) + "\n" + state["covariates"].render() + "\nshape: " + json.dumps(state["shape"].model_dump())
+    return state["covariates"].render() + "\nshape: " + json.dumps(state["shape"].model_dump())
 
 
 def assess(state: SpecialistState) -> Command:
@@ -700,7 +688,9 @@ def assess(state: SpecialistState) -> Command:
     errors: list[str] = []
     debug = []
     for _ in range(MAX_MODEL_RETRIES):
-        user = P.ASSESS_USER.format(question=_question(state), design=_design_text(state), flags=flag_text, cards=cards, errors=_rejected(errors))
+        user = P.ASSESS_USER.format(
+            frame=_frame_text(state), question=_question(state), design=_design_text(state), flags=flag_text, cards=cards, errors=_rejected(errors)
+        )
         parsed, th = structured(DesignAssessment, P.ASSESS_SYSTEM, user, node="assess")
         debug.append(th)
         errors = [f"{c} is not a check or pack address" for c in parsed.cites if not (c in check_addresses or h.resolve(c))]
@@ -775,6 +765,7 @@ def pick_estimator(state: SpecialistState) -> Command:
     debug = []
     for _ in range(MAX_MODEL_RETRIES):
         user = P.PICK_USER.format(
+            frame=_frame_text(state),
             facts=json.dumps(facts, default=str),
             checks=check_text,
             estimators="\n\n".join(e.render() for e in allowed),
@@ -1124,6 +1115,7 @@ def interpret(state: SpecialistState) -> dict:
     parsed = None
     for _ in range(MAX_MODEL_RETRIES):
         user = P.INTERPRET_USER.format(
+            frame=_frame_text(state),
             question=_question(state),
             contrast=d.contrast.key,
             material=_material(state),

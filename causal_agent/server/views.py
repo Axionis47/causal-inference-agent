@@ -178,7 +178,7 @@ def session_view(mgr: SessionManager, name: str) -> SessionView:
         claims=claims,
         status=status,
         runs=runs,
-        brief=values.get("brief") or "",
+        brief=values.get("opening") or "",
         transcript=mgr.transcript(name),
         error=sess.error,
         analysis=analysis,

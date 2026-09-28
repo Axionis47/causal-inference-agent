@@ -40,7 +40,7 @@ def _run(fake, dataset="students"):
 def test_students_is_mined_fitted_and_routed_to_adjustment():
     fake = DeskFake(cites=GOOD)
     out = _run(fake)
-    assert fake.calls.count("Extraction") == 1 and fake.calls.count("PrefilterVote") == 0 and fake.calls.count("FamilyDecision") == 1
+    assert len(fake.reads("doc:")) == 1 and fake.calls.count("PrefilterVote") == 0 and fake.calls.count("FamilyDecision") == 1
     assert out.frame.outcome == "math score"
     verdicts = {v.family: v for v in out.family_verdicts}
     assert set(verdicts) == set(FAMILIES)
@@ -54,19 +54,25 @@ def test_students_is_mined_fitted_and_routed_to_adjustment():
     assert memory.field("claim:unobserved.exists") is None  # the description's belief was dropped
     h = out.handoff
     assert h.family == "adjustment" and h.specialist == "dowhy" and h.supported_now
-    assert h.treated_level == "completed" and h.brief("lunch").role == "depends_on" and h.brief("lunch").when == "before"
+    assert h.treated_level == "completed" and h.column("lunch").role == "depends_on" and h.column("lunch").when == "before"
     assert {c.column for c in h.relevant_columns} >= {"math score", "test preparation course", "lunch"}
     assert "CHOSEN       adjustment" in out.decision_record and "FAMILY FIT" in out.decision_record
+    # the Designer wrote the brief once the gate passed; the pack bets on its sentence and the record prints it
+    assert fake.calls.count("DesignBrief") == 1 and out.brief is not None and out.brief.family == "adjustment" and out.brief.road == "backdoor"
+    assert h.brief == out.brief and h.chosen_assumption == out.brief.bets_on and h.resolve("design.brief.bets_on")
+    assert f"BETS ON      {out.brief.bets_on}" in out.decision_record and "[design.brief.who_is_treated]" in out.decision_record
     nodes = [t.node for t in out.debug]
-    assert "mine" in nodes and "frame" in nodes and "decide" in nodes and not any(n.startswith("test_family") for n in nodes)
+    assert (
+        "read:doc:context" in nodes and "frame" in nodes and "decide" in nodes and "design:1" in nodes and not any(n.startswith("test_family") for n in nodes)
+    )
 
 
 def test_bad_citations_loop_the_gate_then_stop():
     fake = DeskFake(cites=BAD)
     out = _run(fake)
-    assert fake.calls.count("FamilyDecision") == 3
+    assert fake.calls.count("FamilyDecision") == 3 and fake.calls.count("DesignBrief") == 0  # no design for a choice the gate refused
     assert all("not a pack address" in human for human in fake.humans["FamilyDecision"][1:])  # the gate's errors go round to decide
-    assert out.handoff is None and out.decision is not None and "FAMILY FIT" in out.decision_record
+    assert out.handoff is None and out.brief is None and out.decision is not None and "FAMILY FIT" in out.decision_record
 
 
 class NothingAdmissible(DeskFake):
@@ -94,9 +100,10 @@ def test_a_settled_memory_needs_no_decide_call():
     """students3 carries a full interview: one family stands, so the choice is code and the model is not asked."""
     fake = DeskFake()
     out = _run(fake, dataset="students3")
-    assert fake.calls.count("Extraction") == 0 and fake.calls.count("FamilyDecision") == 0
+    assert len(fake.reads("doc:")) == 0 and fake.calls.count("FamilyDecision") == 0
     assert out.handoff.family == "adjustment" and out.decision.why_over_alternatives == "only admissible family"
-    assert out.decision.chosen_assumption.startswith("nothing unmeasured")
+    assert out.decision.chosen_assumption.startswith("nothing unmeasured")  # the family's words, until the Designer wrote the brief
+    assert fake.calls.count("DesignBrief") == 1 and out.handoff.chosen_assumption == out.brief.bets_on != out.decision.chosen_assumption
 
 
 def test_a_wide_table_is_skimmed_column_by_column(monkeypatch):

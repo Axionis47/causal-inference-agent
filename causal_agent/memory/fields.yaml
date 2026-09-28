@@ -73,7 +73,7 @@ kinds:
     order: 0
 
   measured:
-    about: one column, what it measures, when it was set relative to the change, and how it stands to the change and the outcome
+    about: one column, what it measures, when it was set relative to the change, and how it stands to the change and the outcome (fed it, moves the outcome, moved by it, measures the outcome)
     per_column: true
     fields:
       meaning: {type: text, hint: "what the column measures and how to read its values: the units, and what each code or level stands for when the values are codes (which number is which place, which level means yes)"}
@@ -82,6 +82,8 @@ kinds:
       derived_from: {type: columns, optional: true}
       when: {type: choice, options: [before, at, after, unknown]}
       set_by: {type: text, optional: true}
+      feeds_treatment: {type: bool, optional: true, hint: "this column fed the decision or the offer that set who got the change"}
+      moves_outcome: {type: bool, optional: true, hint: "this column could move the outcome on its own"}
       moved_by_change: {type: bool, optional: true, hint: "the change could have changed this column's value"}
       measures_outcome: {type: bool, optional: true, hint: "another measure of the outcome, or a later one; a result, not a cause"}
     check: before_is_fixed

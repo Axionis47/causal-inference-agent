@@ -76,6 +76,10 @@ class FakeLLM:
         self.script, self.cite, self.bad_cites = script, cite, bad_cites
         self.assess_script, self.pick_script = list(assess_script or []), list(pick_script or [])
         self.calls: list[str] = []
+        self.humans: list[tuple[str, str]] = []
+
+    def humans_of(self, name: str) -> list[str]:
+        return [h for n, h in self.humans if n == name]
 
     def with_structured_output(self, schema, include_raw=False):
         fake = self
@@ -93,6 +97,7 @@ class FakeLLM:
 
     def answer(self, schema, human):
         self.calls.append(schema.__name__)
+        self.humans.append((schema.__name__, human))
         cite = "col:nope.note" if self.bad_cites else self.cite
         if schema is Groups:
             col, lvl = self.script["groups"]
@@ -162,6 +167,8 @@ def test_card_krueger_wide_happy_path():
     assert fake.calls.count("ControlRelation") == 0 and "DesignAssessment" in fake.calls
     assert len(out["interpretations"]) == 1 and not out.get("interpret_errors")
     assert "DESIGN" in r["report"] and "ANSWER" in r["report"]
+    for name in ("DesignAssessment", "EstimatorPick", "Interpretation"):  # every judgement after the shape sees the case
+        assert fake.humans_of(name) and all("THE CASE" in p and "[change:1.note]" in p for p in fake.humans_of(name)), name
 
 
 def test_cigar_long_stops_on_pre_trends():

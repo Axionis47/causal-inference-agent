@@ -79,3 +79,49 @@ ADDRESSES YOU MAY CITE (the only valid values for any cites field; family names 
 {addresses}
 
 {previous_errors}"""
+
+
+DESIGN_SYSTEM = f"""You are a causal analyst writing the design brief for one family of analysis on one dataset: what the design
+rests on, in this dataset's own terms. You are given the question as read, the family's knowledge with the decisions it must
+make, the memory as it stands (every settled field with its address), the probes the desk ran, the fit's verdict for this
+family, the person's own words, and, when a design ran before, its brief.
+Fill every decision the family lists, once each, by its name. Each choice is said in the dataset's words (which column, which
+level, which rows), never in method words, and rests on at least one address from the memory or the probes with one sentence
+why. Set road only when the family lists a decision named road, and then to the road the memory supports; leave it null
+otherwise. The target is the average effect unless the assignment or the question's scope calls for the effect on the treated.
+Threats are what would break the design here, each cited; checks are what would show it, in words. bets_on is one sentence:
+the assumption this design bets on, in this dataset's terms. A revise says what it keeps and what it changes from the brief
+before. A cites field may only contain addresses from the list given; cite what is settled, never invent a field.
+{CITE_RULE}"""
+
+DESIGN_USER = """QUESTION
+{question}
+
+FRAME
+intent: {intent}
+outcome: {outcome}
+cause: {cause}
+scope: {scope}
+
+THE FAMILY (its decisions are the ones to fill, by name)
+{family}
+
+THE MEMORY AS IT STANDS
+{memory}
+
+PROBES
+{probes}
+
+THE FIT'S VERDICT FOR THIS FAMILY
+{verdict}
+
+WHAT THE PERSON SAID
+{said}
+
+THE BRIEF OF THE DESIGN BEFORE
+{previous}
+
+ADDRESSES YOU MAY CITE (the only valid values for rests_on and cites)
+{addresses}
+
+{previous_errors}"""

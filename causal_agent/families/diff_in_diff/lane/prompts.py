@@ -1,8 +1,8 @@
 """Prompts for the six judgements. Method-free and column-free: everything specific arrives as data."""
 
+from causal_agent.lane.prompts import INTERPRET_CASE, PICK_CASE, PLAIN_WORDS, cite_rule
 from causal_agent.lane.prompts import INTERPRET_USER as INTERPRET_USER  # the lane's nodes read these here
 from causal_agent.lane.prompts import PICK_USER as PICK_USER
-from causal_agent.lane.prompts import PLAIN_WORDS, cite_rule
 
 CITE_RULE = cite_rule("col:state.note", "check:1_vs_0.pre_trends")
 
@@ -96,7 +96,10 @@ ASSESS_SYSTEM = (
     "contradiction.*) is theirs to answer; you may only carry it as a caveat, never clear it. " + CITE_RULE
 )
 
-ASSESS_USER = """QUESTION
+ASSESS_USER = """THE CASE
+{frame}
+
+QUESTION
 {question}
 
 DESIGN SO FAR
@@ -111,7 +114,7 @@ Decide: proceed, revise, or stop.
 PICK_SYSTEM = (
     "You choose an estimator for a before-and-after comparison whose design is fixed. You are given the facts of "
     "the design and the estimators that can run on it, with what each assumes and when it is weak, plus preferences. "
-    "Pick one by name from the list. Say why, citing the check addresses whose numbers support the pick. " + CITE_RULE
+    "Pick one by name from the list. Say why, citing the check addresses whose numbers support the pick. " + PICK_CASE + CITE_RULE
 )
 
 INTERPRET_SYSTEM = (
@@ -120,5 +123,5 @@ INTERPRET_SYSTEM = (
     "caveats a careful reader needs: the assumption the design bets on, any flagged check, any placebo that failed, "
     "and how the effect changed as controls were added if that was run. A flag that comes from what the person said "
     "(belief.*, unknown.*, contradiction.*) is a caveat in their own terms. Do not mention checks that were not run. "
-    "Cite an artifact address for every number, and every address you must cite. " + PLAIN_WORDS + CITE_RULE
+    "Cite an artifact address for every number, and every address you must cite. " + INTERPRET_CASE + PLAIN_WORDS + CITE_RULE
 )

@@ -98,20 +98,9 @@ def _block(h: Handoff) -> DidDesign | None:
 
 
 def _frame_text(state: SpecialistState) -> str:
-    h = state["handoff"]
-    s = h.scope
+    """The shared case, then what this lane found itself: the groups and the periods."""
     g, p = state.get("groups"), state.get("periods")
-    lines = [
-        f"family: {h.family}; outcome: {h.outcome}; treatment: {h.treatment}; filter={s.population_filter or 'none'}; window={s.window or 'none'}; target={s.target}",
-        f"assumption the router bet on: {h.chosen_assumption}",
-    ]
-    if _block(h):
-        lines.append("what the pack settled:\n" + h.design.render())
-    if h.probes:
-        lines.append("PROBES\n" + "\n".join(p_.render() for p_ in h.probes))
-    if state.get("case"):
-        lines.append(_case(state).render())
-    lines.append(h.render_words())
+    lines = [L.frame_text(state)]
     if g:
         lines.append(f"groups: {g.column} = {g.treated_level!r} treated, other levels control")
     if p:
@@ -497,7 +486,7 @@ def settled_claims(h: Handoff, k: str, case: C.Case) -> tuple[dict[str, bool], d
 def fact_relation(h: Handoff, k: str, case: C.Case) -> ControlRelation | None:
     claims, cites = settled_claims(h, k, case)
     if "affected_by_treatment" in claims and "usable_as_control" in claims:
-        name = h.brief(k).name if h.brief(k) else k
+        name = h.column(k).name if h.column(k) else k
         return ControlRelation(
             column=k, reasons=[Cited(reason=f"{name}: the person says the change could have moved it", cites=[cites["affected_by_treatment"]])], **claims
         )
@@ -553,7 +542,7 @@ def merge_controls(state: SpecialistState) -> dict:
         r = latest.get(k)
         if r is None:
             continue
-        card = h.brief(k)
+        card = h.column(k)
         varies = card.facts.varies_over if card else None
         # facts first: a column the fixed effects absorb is never a control, whatever the model said
         if shape.kind == "wide":
@@ -647,7 +636,7 @@ def check_design(state: SpecialistState) -> dict:
 
 
 def _design_text(state: SpecialistState) -> str:
-    return _frame_text(state) + "\n" + state["controls"].render() + "\nshape: " + json.dumps(state["shape"].model_dump(exclude={"time_values"}))
+    return state["controls"].render() + "\nshape: " + json.dumps(state["shape"].model_dump(exclude={"time_values"}))
 
 
 def assess(state: SpecialistState) -> Command:
@@ -673,7 +662,7 @@ def assess(state: SpecialistState) -> Command:
     errors: list[str] = []
     debug = []
     for _ in range(MAX_MODEL_RETRIES):
-        user = P.ASSESS_USER.format(question=_question(state), design=_design_text(state), flags=flag_text, errors=_rejected(errors))
+        user = P.ASSESS_USER.format(frame=_frame_text(state), question=_question(state), design=_design_text(state), flags=flag_text, errors=_rejected(errors))
         parsed, th = structured(DesignAssessment, P.ASSESS_SYSTEM, user, node="assess")
         debug.append(th)
         errors = []
@@ -760,6 +749,7 @@ def pick_estimator(state: SpecialistState) -> Command:
     debug = []
     for _ in range(MAX_MODEL_RETRIES):
         user = P.PICK_USER.format(
+            frame=_frame_text(state),
             facts=json.dumps(facts),
             checks=check_text,
             estimators="\n\n".join(e.render() for e in allowed),
@@ -987,6 +977,7 @@ def interpret(state: SpecialistState) -> dict:
     parsed = None
     for _ in range(MAX_MODEL_RETRIES):
         user = P.INTERPRET_USER.format(
+            frame=_frame_text(state),
             question=_question(state),
             contrast=d.contrast.key,
             material=_material(state),
