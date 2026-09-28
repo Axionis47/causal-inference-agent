@@ -76,9 +76,15 @@ class Provenance(BaseModel):
     status: str = "empty"
     source: str | None = None
     said: str | None = None
+    reason: str | None = None
 
     def tail(self) -> str:
-        return f" · {self.status}" + (f" · {self.source}" if self.source else "") + (f' · said "{self.said}"' if self.said else "")
+        return (
+            f" · {self.status}"
+            + (f" · {self.source}" if self.source else "")
+            + (f' · said "{self.said}"' if self.said else "")
+            + (f" · because {self.reason}" if self.reason else "")
+        )
 
 
 class ColumnBrief(BaseModel):

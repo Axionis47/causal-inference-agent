@@ -1,6 +1,6 @@
 """The memory of a dataset: one map from address to field, the file's facts beside it, the person's words beside that.
 
-    fields   {address: Field}      everything known, or asked and not known, with a status, a source, and the sentence behind it
+    fields   {address: Field}      everything known, or asked and not known, with a status, a source, the sentence behind it, and why
     columns  {key: Column}         the file's facts on every column, from code, never asked and never written to
     facts    {..}                  the file's facts on the dataset as a whole
     said     [Said]                the person's words, verbatim, by turn
@@ -36,6 +36,7 @@ class Field(BaseModel):
     status: Status = "empty"
     source: str | None = PField(default=None, description="data | user:turn:<n> | doc:<name> | model:<node> | code:<rule>")
     said: str | None = PField(default=None, description="the person's sentence this rests on, verbatim")
+    reason: str | None = PField(default=None, description="why the source gave this value: a judgement's one sentence, or the rule that set it")
     evidence: list[str] = PField(default_factory=list, description="check addresses that touched this field")
 
     def settled(self) -> bool:
@@ -46,7 +47,12 @@ class Field(BaseModel):
 
     def render(self, address: str) -> str:
         v = "(empty)" if self.value is None else self.value
-        tail = f" · {self.status}" + (f" · {self.source}" if self.source else "") + (f' · said "{self.said}"' if self.said else "")
+        tail = (
+            f" · {self.status}"
+            + (f" · {self.source}" if self.source else "")
+            + (f' · said "{self.said}"' if self.said else "")
+            + (f" · because {self.reason}" if self.reason else "")
+        )
         return f"[{address}] {v}{tail}"
 
 
@@ -121,14 +127,29 @@ class Memory(BaseModel):
         return out
 
     # ------------------------------------------------------------- the one raw write
-    def set(self, address: str, value: Any, *, status: Status, source: str | None, said: str | None = None, evidence: list[str] | None = None) -> Field:
-        """A raw write. The gate is `ops.apply`; nothing else should call this from a judgement."""
+    def set(
+        self,
+        address: str,
+        value: Any,
+        *,
+        status: Status,
+        source: str | None,
+        said: str | None = None,
+        reason: str | None = None,
+        evidence: list[str] | None = None,
+    ) -> Field:
+        """A raw write. The gate is `ops.apply`; nothing else should call this from a judgement. A write with no reason keeps
+        the old one only while the value stands; a new value with no reason clears it."""
         where, name, field = self.parse(address)
         if field is None:
             raise KeyError(f"{address!r} names no field")
         if where == "col" and self.column(name) is None:
             raise KeyError(f"{name!r} is not a column in the memory")
         f = self.fields.setdefault(f"{where}:{name}.{field}", Field())
+        if reason:
+            f.reason = reason
+        elif value != f.value:
+            f.reason = None
         f.value, f.status, f.source = value, status, source
         if said:
             f.said = said

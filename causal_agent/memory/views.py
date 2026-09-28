@@ -31,7 +31,7 @@ def brief_of(memory: Memory, col: Column, role: str | None = None) -> ColumnBrie
     fs = memory.fields_of(col.address)
     v = {n: f.value for n, f in fs.items() if f.value is not None}
     src = next((fs[n].source for n in ("meaning", "when") if n in v and fs[n].source), None)
-    prov = {n: Provenance(status=f.status, source=f.source, said=f.said) for n, f in fs.items() if f.value is not None or f.status != "empty"}
+    prov = {n: Provenance(status=f.status, source=f.source, said=f.said, reason=f.reason) for n, f in fs.items() if f.value is not None or f.status != "empty"}
     return ColumnBrief(
         name=col.name,
         key=col.key,

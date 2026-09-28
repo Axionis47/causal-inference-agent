@@ -2,7 +2,7 @@
 
 data/memory/<name>/meta.yaml          name, version, csv, the dataset facts
 data/memory/<name>/columns.yaml       the file's facts on every column, by key
-data/memory/<name>/fields.yaml        the map: address -> value, status, source, said, evidence
+data/memory/<name>/fields.yaml        the map: address -> value, status, source, said, reason, evidence
 data/memory/<name>/said.jsonl         the person's words, one turn per line
 data/memory/<name>/designs/<n>/       one design run: memory.json, handoff.json, frame.json, decision.json, record.md, then the
                                       lane's result.json, and figures.json and record.json once it ran

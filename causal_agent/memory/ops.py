@@ -149,7 +149,7 @@ def apply(memory: Memory, updates: list[Update], cat: Catalogue | None = None) -
             rejected.append(f"{up.address}: confirmed by the person; only their word or a data check changes it")
             continue
         if up.status == "unknown":
-            memory.set(up.address, None, status="unknown", source=up.source, said=up.said, evidence=up.evidence)
+            memory.set(up.address, None, status="unknown", source=up.source, said=up.said, reason=up.reason or None, evidence=up.evidence)
             continue
         value, err = _coerce(kind, field, up.value, columns)
         if err:
@@ -158,8 +158,39 @@ def apply(memory: Memory, updates: list[Update], cat: Catalogue | None = None) -
         if value is None:
             rejected.append(f"{up.address}: no value given")
             continue
-        memory.set(up.address, value, status=up.status, source=up.source, said=up.said, evidence=up.evidence)
+        old = current.value if current is not None else None
+        memory.set(up.address, value, status=up.status, source=up.source, said=up.said, reason=up.reason or None, evidence=up.evidence)
+        if Memory.canonical(up.address) == "claim:assignment.kind" and old is not None and value != old:
+            reopen_after_kind_change(memory, old, value)
     return rejected
+
+
+KIND_DEPENDENTS = (
+    "rule",
+    "depends_on",
+    "movable",
+    "treatment_column",
+    "treated_level",
+    "score_column",
+    "cutoff",
+    "treated_side",
+    "cutoff_value_treated",
+    "level_column",
+)
+
+
+def reopen_after_kind_change(memory: Memory, old: str, new: str) -> list[str]:
+    """The assignment fields that rest on the kind go back to drafts when the kind changes, value kept, so the desk shows
+    them to the person again. Returns the addresses reopened."""
+    out = []
+    for name in KIND_DEPENDENTS:
+        address = f"claim:assignment.{name}"
+        f = memory.field(address)
+        if f is None or f.value is None:
+            continue
+        memory.set(address, f.value, status="drafted", source="code:kind_changed", reason=f"assignment.kind changed from {old} to {new}; confirm this again")
+        out.append(address)
+    return out
 
 
 RELATIVE_COLUMN_FIELDS = ("when", "moved_by_change", "measures_outcome")
@@ -254,7 +285,7 @@ def _refute(memory: Memory, address: str, finding: Finding) -> None:
 
 def consistency(memory: Memory, outcome: str | None = None, treatment: str | None = None) -> list[Finding]:
     """The rules that hold between fields, never overwriting a value: a failed rule marks the field refuted with the rule as
-    evidence, and the desk asks about it next."""
+    evidence, and the desk asks about it next. The timing rules on each column, then the rules across the assignment fields."""
     out: list[Finding] = []
     role = roles(memory, outcome, treatment)
     for c in memory.columns.values():
@@ -293,6 +324,38 @@ def consistency(memory: Memory, outcome: str | None = None, treatment: str | Non
                 rule="moved_not_before",
                 passed=False,
                 detail=f"{c.name!r} is fixed before the change, so the change could not have moved it",
+            )
+            out.append(fd)
+            _refute(memory, fd.address, fd)
+    a = memory.values_of("claim:assignment")
+    kind = a.get("kind")
+    if kind == "lottery" and a.get("depends_on"):
+        fd = Finding(
+            address="claim:assignment.depends_on",
+            rule="lottery_depends_on_nothing",
+            passed=False,
+            detail=f"a random draw depended on nothing, but depends_on names {', '.join(a['depends_on'])}",
+        )
+        out.append(fd)
+        _refute(memory, fd.address, fd)
+    if kind == "lottery" and a.get("movable") is True:
+        fd = Finding(
+            address="claim:assignment.movable",
+            rule="lottery_not_movable",
+            passed=False,
+            detail="a unit cannot change what a random draw looked at",
+        )
+        out.append(fd)
+        _refute(memory, fd.address, fd)
+    if kind is not None and kind != "cutoff_rule":
+        for name in ("score_column", "cutoff", "treated_side"):
+            if a.get(name) is None:
+                continue
+            fd = Finding(
+                address=f"claim:assignment.{name}",
+                rule="score_only_for_cutoff",
+                passed=False,
+                detail=f"{name} belongs to a cutoff rule, and the kind is {kind}",
             )
             out.append(fd)
             _refute(memory, fd.address, fd)

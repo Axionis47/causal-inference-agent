@@ -277,9 +277,9 @@ def what_if(state: DeskState) -> Command[Literal["fit", "talk"]]:
         ops.Update(address=u.address, value=u.value, status="confirmed", source=src, said=u.said or state.get("message", "")[:200], reason=u.reason)
         for u in reply.updates
     ]
-    before = {a: (f.value, f.status) for a, f in fork.fields.items()}
+    before = {a: f.value for a, f in fork.fields.items()}
     rejected = ops.apply(fork, updates, CAT)
-    changed = {a: f.value for a, f in fork.fields.items() if before.get(a) != (f.value, f.status)}
+    changed = {a: f.value for a, f in fork.fields.items() if before.get(a) != f.value}  # a field the kind change reopened keeps its value: not supposed
     if not changed:
         note = "I could not suppose that: " + "; ".join(rejected)
         return Command(goto="talk", update={"after_reply": reply.model_copy(update={"text": note, "kind": "answer"})})

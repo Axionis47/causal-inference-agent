@@ -59,6 +59,36 @@ def test_field_addresses_and_raw_set():
     assert "[col:lunch.when] after" in m.render()
 
 
+def test_the_reason_travels_with_the_field(tmp_path):
+    m, _ = students3()
+    f = m.set("col:lunch.set_by", "the district", status="drafted", source="model:infer", reason="the note says the district sets it")
+    assert f.reason == "the note says the district sets it"
+    assert f.render("col:lunch.set_by") == "[col:lunch.set_by] the district · drafted · model:infer · because the note says the district sets it"
+    # the same value with no reason keeps the old one; a new value with no reason clears it
+    m.set("col:lunch.set_by", "the district", status="confirmed", source="user:turn:2", said="yes")
+    assert m.field("col:lunch.set_by").reason == "the note says the district sets it"
+    m.set("col:lunch.set_by", "the school", status="confirmed", source="user:turn:3")
+    assert m.field("col:lunch.set_by").reason is None
+    # through the gate, and through the store
+    ops.apply(m, [ops.Update(address="col:gender.stands_for", value="sex", status="drafted", source="model:infer", reason="the word gender means sex here")])
+    assert m.field("col:gender.stands_for").reason == "the word gender means sex here"
+    store.save(m, tmp_path)
+    back = store.load("students3", tmp_path)
+    assert back.field("col:gender.stands_for").reason == "the word gender means sex here" and back.field("col:lunch.set_by").reason is None
+    assert "· because the word gender means sex here" in back.render()
+
+
+def test_the_brief_carries_the_reason():
+    from causal_agent.memory import views as V
+
+    m, _ = students3()
+    m.set("col:lunch.set_by", "the district", status="drafted", source="model:infer", reason="the note says the district sets it")
+    b = V.brief_of(m, m.column("lunch"))
+    assert b.provenance["set_by"].reason == "the note says the district sets it"
+    assert "[col:lunch.set_by] set by the district · drafted · model:infer · because the note says the district sets it" in b.render()
+    assert b.provenance["when"].reason is None
+
+
 def test_collapse_keeps_required_confirmed_when_only_an_optional_is_drafted():
     m, _ = students3()
     m.set("col:lunch.stands_for", "household income", status="drafted", source="model:infer")
@@ -150,6 +180,73 @@ def test_consistency_refutes_without_overwriting():
     rules = {(f.address, f.rule) for f in ops.consistency(m, outcome="math score")}
     assert ("col:math_score.when", "outcome_after") in rules and ("col:gender.moved_by_change", "moved_not_before") in rules
     assert m.field("col:gender.moved_by_change").value is True  # never overwritten
+
+
+def _assignment_rules(m: Memory) -> set[tuple[str, str]]:
+    return {(f.address, f.rule) for f in ops.consistency(m) if f.address.startswith("claim:assignment.")}
+
+
+def test_a_lottery_depends_on_nothing_and_cannot_be_moved():
+    m, _ = students3()  # own_choice, depends_on lunch and parental education, movable
+    assert _assignment_rules(m) == set()
+    m.set("claim:assignment.kind", "lottery", status="confirmed", source="user:turn:2")
+    findings = {f.rule: f for f in ops.consistency(m) if f.address.startswith("claim:assignment.")}
+    assert set(findings) == {"lottery_depends_on_nothing", "lottery_not_movable"}
+    assert findings["lottery_depends_on_nothing"].address == "claim:assignment.depends_on"
+    assert findings["lottery_depends_on_nothing"].detail == "a random draw depended on nothing, but depends_on names lunch, parental level of education"
+    assert findings["lottery_not_movable"].address == "claim:assignment.movable"
+    assert findings["lottery_not_movable"].detail == "a unit cannot change what a random draw looked at"
+    d, mv = m.field("claim:assignment.depends_on"), m.field("claim:assignment.movable")
+    assert (
+        d.status == "refuted" and d.value == ["lunch", "parental level of education"] and "check:assignment.depends_on.lottery_depends_on_nothing" in d.evidence
+    )
+    assert mv.status == "refuted" and mv.value is True and "check:assignment.movable.lottery_not_movable" in mv.evidence
+    # a draw that depended on nothing and could not be moved passes
+    m.set("claim:assignment.depends_on", None, status="empty", source=None)
+    m.set("claim:assignment.movable", False, status="confirmed", source="user:turn:3")
+    assert _assignment_rules(m) == set()
+
+
+def test_a_score_and_a_cutoff_belong_to_a_cutoff_rule():
+    m, _ = students3()
+    m.set("claim:assignment.score_column", "math score", status="drafted", source="model:infer")
+    m.set("claim:assignment.cutoff", 50.0, status="drafted", source="model:infer")
+    m.set("claim:assignment.treated_side", "below", status="drafted", source="model:infer")
+    findings = {f.address: f for f in ops.consistency(m) if f.rule == "score_only_for_cutoff"}
+    assert set(findings) == {"claim:assignment.score_column", "claim:assignment.cutoff", "claim:assignment.treated_side"}
+    assert findings["claim:assignment.cutoff"].detail == "cutoff belongs to a cutoff rule, and the kind is own_choice"
+    assert all(m.field(a).status == "refuted" for a in findings) and m.field("claim:assignment.cutoff").value == 50.0
+    # under a cutoff rule they stand
+    m.set("claim:assignment.kind", "cutoff_rule", status="confirmed", source="user:turn:2")
+    for a in findings:
+        m.set(a, m.field(a).value, status="confirmed", source="user:turn:2")
+    assert not any(f.rule == "score_only_for_cutoff" for f in ops.consistency(m))
+
+
+def test_a_kind_change_reopens_the_fields_that_rest_on_it():
+    m, _ = students3()
+    U = ops.Update
+    before = {a: (f.status, f.source) for a, f in m.fields_of("claim:assignment").items() if a != "kind"}
+    # the same kind again: nothing reopens
+    assert ops.apply(m, [U(address="claim:assignment.kind", value="own_choice", status="confirmed", source="user:turn:2")]) == []
+    assert {a: (f.status, f.source) for a, f in m.fields_of("claim:assignment").items() if a != "kind"} == before
+    # a different kind: every dependent that holds a value is a draft again, value kept, and the person is told why
+    assert ops.apply(m, [U(address="claim:assignment.kind", value="lottery", status="confirmed", source="user:turn:3", said="it was a lottery")]) == []
+    k = m.field("claim:assignment.kind")
+    assert k.value == "lottery" and k.status == "confirmed" and k.source == "user:turn:3"
+    for name in ("rule", "depends_on", "treatment_column", "treated_level", "movable"):
+        f = m.field(f"claim:assignment.{name}")
+        assert f.status == "drafted" and f.source == "code:kind_changed", name
+        assert f.reason == "assignment.kind changed from own_choice to lottery; confirm this again"
+    assert m.field("claim:assignment.treatment_column").value == "test preparation course" and m.field("claim:assignment.movable").value is True
+    assert m.field("claim:assignment.score_column") is None  # a field nobody set is not opened
+    assert ops.reopen_after_kind_change(m, "lottery", "cutoff_rule") == [
+        "claim:assignment.rule",
+        "claim:assignment.depends_on",
+        "claim:assignment.movable",
+        "claim:assignment.treatment_column",
+        "claim:assignment.treated_level",
+    ]
 
 
 def test_check_runs_the_data_facts_and_marks_fields():

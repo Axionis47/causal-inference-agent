@@ -137,7 +137,19 @@ def read_question(state: DeskState) -> Command[Literal["ask_question", "check"]]
         dropped = ops.forget_change(memory)
         note = f"The change is not the one before ({old}), so what was settled relative to it is asked again ({len(dropped)} fields); what each column is carries over. "
     if fr.cause and memory.value("claim:assignment.treatment_column") is None:  # the frame's reading, as a draft the person confirms
-        ops.apply(memory, [ops.Update(address="claim:assignment.treatment_column", value=fr.cause, status="drafted", source="code:frame")], CAT)
+        ops.apply(
+            memory,
+            [
+                ops.Update(
+                    address="claim:assignment.treatment_column",
+                    value=fr.cause,
+                    status="drafted",
+                    source="code:frame",
+                    reason="the frame read the question as naming this column",
+                )
+            ],
+            CAT,
+        )
     store.save(memory)
     cols = [f"col:{memory.column(c).key}" for c in (fr.outcome, fr.cause) if c and memory.column(c) is not None]
     record(
