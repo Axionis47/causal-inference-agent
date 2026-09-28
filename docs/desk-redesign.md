@@ -298,6 +298,10 @@ table (a fact, addressed) or asks for it (stage 9). It never reads the CSV's nei
 
 ## 4. Pre-viz
 
+Replaced on 2026-09-28: the pre-viz functions, the viz subgraph and the `Point`/`Figure` contract are gone. A picture is
+drawn on request by the drawing tool (`viz/draw.py`) and stored as an `Artifact`; see ADR 0006. What follows is the plan as it
+stood.
+
 `causal_agent/viz/`: `spec.py` (`FigureSpec`, `Point`, `Figure`), `previz/{adjustment,diff_in_diff,discontinuity}.py`, `graph.py`
 (the viz subgraph: `pick` judgement, `render` fact, `check` fact). The desk sends a `Point` to make, never a figure name; the tool may
 answer `made=False` with why. Shown unasked once, at the ready moment. Otherwise on request, before or after the run. Every pre-viz

@@ -11,11 +11,14 @@ The one conversation from a CSV to a routed context pack, and back after the run
   what each still needs, which are struck and why, and that the person may narrow the interview to the ones they care about;
   then one question, composed by code: the drafts to confirm in one go, the in-play columns in one tick, else one dataset
   field, with why it is asked), `listen`, `infer` (one judgement: what the message settles, with the
-  person's words, and whether it asks the desk something), the gate in `memory.ops.apply`, and `explain` (when the person asked
+  person's words, and whether it asks the desk something or asks for a picture), the gate in `memory.ops.apply`, `draw` (when
+  the person asked for a picture: the drawing tool makes it from the file, the journal records an `explore` step, the caption
+  and the picture come before the next thing asked; a picture settles nothing), and `explain` (when the person asked
   something: one answer from the families' knowledge, the fit grid and the memory, its cites checked by code, shown before the
   next thing asked). A refuted answer is asked again with the check that refuted it; kept twice,
   it stands as a contradiction and reaches the lane. "run" while drafts are open takes them on the person's word. After the run:
-  `brief`, `talk`, `turn` (answer, revise, requestion, done), with a revision going through the same gate and back to the checks.
+  `brief`, `talk`, `turn` (answer, revise, what_if, requestion, draw, done), with a revision going through the same gate and back to
+  the checks, and a picture drawn into the design's folder and citable as `artifact:<id>`.
   Every step writes itself into the conversation's journal (`memory.journal`, through `nodes/shared.record`): the question read,
   each claim settled and on whose word, each explanation, the design, the run, the brief, each answer, each what-if, revision and
   new question, with the memory version at that moment, what it read, and what it left under `designs/<n>/`. A step's address is
@@ -23,7 +26,8 @@ The one conversation from a CSV to a routed context pack, and back after the run
   the steps that led to design n, the design, the run, and what was said about it until the next design.
 - `pipeline.py` — the lane in its own process on `designs/<n>/handoff.json`; `material.py` — everything a run left behind as lines
   with addresses, what the chat after cites.
-- `route.py`, `nodes/frame.py`, `nodes/decide.py`, `prompts/routing.py` — the routing, also usable alone (`desk.route`):
+- `nodes/frame.py`, `nodes/decide.py`, `prompts/routing.py` — the routing; `route.py` is `route(question, dataset)`, the same nodes
+  called in order without the interview, for the evals and the command line:
   `load` the memory; `mine` an attached document once into drafts when the memory holds only the file's facts (a description never
   confirms and never sets a belief); `prefilter` on a wide table; `frame` the question; `fit` the families over the memory by code;
   `decide` among the ones that stand, one judgement, only when more than one does; `gate` the choice; `handoff`. The old router's

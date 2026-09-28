@@ -23,7 +23,8 @@ has been placed before, at, or after the change, and the desk asks who decided w
 ![Columns noted, next question with answer chips](docs/demo/2-columns.png)
 
 **3. Ready.** With fifteen claims settled the code rules five families out and one in. The desk shows what the
-design rests on, the evidence it checked, and the overlap figure, then waits for "run".
+design rests on and the evidence it checked, then waits for "run". At any point you can ask for a picture of anything in
+the file: a coding tool draws it in a sandbox, keeps the code and every number it shows, and the chat can cite them.
 
 ![Design chosen, evidence cited, the other families set aside](docs/demo/3-ready.png)
 
@@ -33,7 +34,7 @@ artifact behind it.
 
 ![The run's answer with caveats, checks, refutations, and the causal graph](docs/demo/4-result.png)
 
-**5. The figures** the run drew beside the one the desk drew before it.
+**5. The figures** the run drew from its own artifacts, and the pictures drawn on request beside them.
 
 ![Results panel: overlap, causal graph, balance](docs/demo/5-figures.png)
 
