@@ -18,6 +18,7 @@ from langgraph.types import Command
 
 from causal_agent.desk import graph as desk_graph
 from causal_agent.memory import journal as J
+from causal_agent.server import artifacts as AV
 from causal_agent.server import datasets as DS
 from causal_agent.server import transcript as T
 from causal_agent.server import views as V
@@ -247,7 +248,14 @@ class SessionManager:
                     pass
                 self._append(
                     sess.name,
-                    Turn(role="assistant", text=payload.get("text") or "", phase=payload.get("phase") or "before", at=_now(), figure=payload.get("figure")),
+                    Turn(
+                        role="assistant",
+                        text=payload.get("text") or "",
+                        phase=payload.get("phase") or "before",
+                        at=_now(),
+                        figure=payload.get("figure"),
+                        artifact=AV.view_of(sess.name, payload.get("artifact")),
+                    ),
                 )
             DS.write_meta(self.s, sess.name, meta)
         except Exception as e:  # the graph's own retries are inside; this is what got through

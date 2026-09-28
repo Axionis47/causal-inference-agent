@@ -10,7 +10,6 @@ const spec: FigureSpec = {
   kind: "bars",
   nodes: [],
   edges: [],
-  moment: "run",
   title: "Who got the change, by lunch",
   x_label: "level",
   y_label: "share of the arm",
@@ -38,7 +37,6 @@ describe("Figure", () => {
       kind: "lines",
       nodes: [],
       edges: [],
-      moment: "run",
       marks: [{ kind: "vline", at: 2002, label: "the change" }],
       series: [
         series({ name: "got the change", x: [2000, 2001, 2002, 2003], y: [1, 2, 3, 7] }),
@@ -57,7 +55,6 @@ describe("Figure graph", () => {
     const graph: FigureSpec = {
       id: "causal_graph",
       kind: "graph",
-      moment: "run",
       title: "What the lane drew",
       x_label: "",
       y_label: "",

@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from causal_agent.common.contracts import Decline, RunRecord
 from causal_agent.memory.journal import Step
 from causal_agent.memory.records import Memory
+from causal_agent.viz import store as VS
 
 
 @dataclass
@@ -165,7 +166,7 @@ def render(run: RunRecord, memory: Memory | None = None, previous: RunRecord | N
             spec = FigureSpec.model_validate(raw)
         except Exception:
             continue
-        m.add(spec.address, f"{spec.kind}: {spec.title}. {spec.note}" + (" (before the run)" if spec.moment == "ready" else ""))
+        m.add(spec.address, f"{spec.kind}: {spec.title}. {spec.note}")
         for i, n in enumerate(spec.nodes):
             m.add(f"{spec.address}.node.{i}", f"{n.label or n.id} ({n.role})")
         for i, e in enumerate(spec.edges):
@@ -174,6 +175,11 @@ def render(run: RunRecord, memory: Memory | None = None, previous: RunRecord | N
             for i, (x, y) in enumerate(zip(s_.x, s_.y)):
                 if y is not None:
                     m.add(f"{spec.address}.{s_.key}.{i}", f"{s_.name} · {x}: {y:.4g}", float(y))
+    for a in VS.list_artifacts(run.dataset, "pre") + VS.list_artifacts(run.dataset, "post", run.index):  # pictures drawn on request
+        when = "before the run" if a.moment == "pre" else f"design {a.design}"
+        m.add(a.address, f"{a.caption} ({when}; asked: {a.ask})")
+        for name, value in a.facts.items():
+            m.add(f"{a.address}.{name}", f"{name}: {value:.4g}", value)
     for s in steps or []:  # how the conversation got here, each step citable by its address
         m.add(s.address, s.line())
     if memory is not None:  # every field the memory holds, so the chat can cite what the design rested on
@@ -246,7 +252,7 @@ def brief(run: RunRecord, previous: RunRecord | None, material: Material) -> str
     declines = _declines(run)
     if declines:
         lines.append("Where the analysis disagreed with what was settled: " + "; ".join(f"{d.about} ({d.kind}: {d.reason}) [{d.address}]" for d in declines))
-    made = [f.get("id") for f in run.figures or [] if isinstance(f, dict) and f.get("moment") != "ready" and f.get("id")]
+    made = [f.get("id") for f in run.figures or [] if isinstance(f, dict) and f.get("id")]
     if made:
         lines.append(f"The run left {len(made)} figure{'s' if len(made) != 1 else ''}: " + ", ".join(f"[figure:{i}]" for i in made))
     if previous is not None:

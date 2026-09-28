@@ -239,8 +239,23 @@ class RunView(BaseModel):
     files: list[str] = Field(default_factory=list)
     what_if: dict[str, str] = Field(default_factory=dict)
     differs: list[str] = Field(default_factory=list)
-    figures: list[FigureSpec] = Field(default_factory=list, description="the ready-moment figure first, then what the run left")
+    figures: list[FigureSpec] = Field(default_factory=list, description="what the run left, in the order the chat shows them")
+    artifacts: list[ArtifactView] = Field(default_factory=list, description="the pictures drawn on request after this run, oldest first")
     declines: list[DeclineView] = Field(default_factory=list)
+
+
+class ArtifactView(BaseModel):
+    """A picture the drawing tool made on request: where it is served from, what it shows, and the numbers it holds."""
+
+    id: str
+    address: str = Field(description="artifact:<id>, as the chat cites it")
+    moment: Literal["pre", "post"] = Field(description="pre: drawn before any run; post: drawn after design run `design`")
+    design: int | None = None
+    ask: str = Field(description="what was asked for, in the person's words")
+    caption: str
+    facts: dict[str, float] = Field(default_factory=dict, description="every number the picture shows, by name; each is citable as artifact:<id>.<name>")
+    made_at: str
+    url: str = Field(description="where the page fetches figure.png")
 
 
 class Turn(BaseModel):
@@ -250,6 +265,7 @@ class Turn(BaseModel):
     at: str
     kind: str | None = None
     figure: FigureSpec | None = Field(default=None, description="shown under the text")
+    artifact: ArtifactView | None = Field(default=None, description="a picture drawn on request, shown under the text")
 
 
 class StepView(BaseModel):
@@ -302,6 +318,7 @@ class SessionView(BaseModel):
     error: str | None = None
     analysis: str | None = Field(default=None, description="a<k>: this conversation's journal")
     journal: list[StepView] = Field(default_factory=list, description="the conversation's steps, in order")
+    artifacts: list[ArtifactView] = Field(default_factory=list, description="the pictures drawn before any run, oldest first")
 
 
 # ------------------------------------------------------------------ runs

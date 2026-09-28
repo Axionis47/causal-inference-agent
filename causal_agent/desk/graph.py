@@ -6,10 +6,12 @@
                                                                                                                                                                                                            ├─ revise ─ check …
                                                                                                                                                                                                            ├─ what_if ─ fit ─ … ─ run (on a copy)
                                                                                                                                                                                                            ├─ requestion ─ read_question …
+                                                                                                                                                                                                           ├─ draw_after ─ talk
                                                                                                                                                                                                            └─ done ─ END
 
 The first thing asked is the causal question, validated against the file. Then one question per turn until nothing a
-surviving family needs is vague. The routing is code over the memory, one judgement only when more than one family stands.
+surviving family needs is vague. At any point the person may ask the desk something or ask for a picture; the answer or the
+picture comes before the next thing asked. The routing is code over the memory, one judgement only when more than one family stands.
 The lane runs in its own process on the pack. After the run the chat is free: answer, revise, requestion, done."""
 
 from __future__ import annotations
@@ -67,6 +69,7 @@ def build() -> StateGraph:
     b.add_node("listen", J.listen)
     b.add_node("infer", J.infer, retry_policy=_retry)
     b.add_node("explain", J.explain, retry_policy=_retry)
+    b.add_node("draw", J.draw)
     b.add_node("fit", D.fit)
     b.add_node("decide", D.decide, retry_policy=_retry)
     b.add_node("gate", J.gate)
@@ -80,6 +83,7 @@ def build() -> StateGraph:
     b.add_node("revise", A.revise)
     b.add_node("what_if", A.what_if)
     b.add_node("requestion", A.requestion)
+    b.add_node("draw_after", A.draw_after)
     b.add_edge(START, "load")
     b.add_edge("load", "ask_question")
     # ask_question → mine | END, via Command
@@ -88,7 +92,8 @@ def build() -> StateGraph:
     # read_question → ask_question | check, via Command
     b.add_edge("check", "probe_fit")
     b.add_edge("probe_fit", "ask")
-    # ask → listen | convince | fit; listen → infer | fit | handoff | check | END; infer → infer | check | explain; explain → explain | check, via Command
+    # ask → listen | convince | fit; listen → infer | fit | handoff | check | END; infer → infer | draw | explain | check;
+    # draw → explain | check; explain → explain | check, via Command
     b.add_edge("convince", "listen")
     b.add_edge("fit", "decide")
     b.add_edge("decide", "gate")
@@ -97,8 +102,9 @@ def build() -> StateGraph:
     b.add_conditional_edges("run", J.after_run, ["ask_back", "brief"])
     b.add_edge("ask_back", "listen")
     b.add_edge("brief", "talk")
-    # talk → turn | END; turn → answer | revise | what_if | requestion | END; revise → check | talk; what_if → fit | talk, via Command
+    # talk → turn | END; turn → answer | revise | what_if | requestion | draw_after | END; revise → check | talk; what_if → fit | talk, via Command
     b.add_edge("answer", "talk")
+    b.add_edge("draw_after", "talk")
     b.add_edge("requestion", "read_question")
     return b
 

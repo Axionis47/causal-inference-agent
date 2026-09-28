@@ -23,7 +23,9 @@ INFER_SYSTEM = (
     "discontinuity; every one again), put the family names in focus, spelled as the memory's fit grid spells them; "
     "otherwise leave focus null. When the message asks the desk something (what a family is, why this is asked, what "
     "a term means, what the file could answer), put the question in question, in their words; the desk answers it "
-    "beside the next thing asked. A question fills no field. " + UPDATE_RULE
+    "beside the next thing asked. A question fills no field. When the message asks to see something drawn (a picture, a plot, "
+    "a chart, a figure of columns or arms or scores), put what to draw in draw, in their words; the desk draws it and shows it "
+    "beside the next thing asked. A drawing request fills no field. " + UPDATE_RULE
 )
 
 INFER_USER = """KINDS OF FIELD
@@ -130,6 +132,8 @@ TURN_SYSTEM = (
     "had lunch been set after the offer), without saying it was. Return the field updates the supposition implies; nothing "
     "known changes, a copy is made and run beside it, and the text says what will be compared.\n"
     "  requestion: the person asks a new causal question of the same data. Return it in full.\n"
+    "  draw: the person asks for a picture, plot or chart of something in the data or the run. Return what to draw in draw, in "
+    "their words; the desk draws it from the file and shows it with the numbers it holds.\n"
     "  done: they are finished.\n"
     "If the material cannot answer, say so plainly. Do not name a kind of study or a method the material does not name. "
     "When a figure in the material makes the point (its address starts with figure:), name it in figure and the person sees it; "

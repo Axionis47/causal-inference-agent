@@ -1,5 +1,4 @@
-"""The overlap table: rows per arm in every cell of the columns the offer looked at. The adjustment family's probe and its
-pre-run figure draw the same cells."""
+"""The overlap table: rows per arm in every cell of the columns the offer looked at, for the adjustment family's probe."""
 
 from __future__ import annotations
 

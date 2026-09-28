@@ -725,26 +725,6 @@ textarea.input {
   stroke: var(--ink-2);
   stroke-width: 1;
 }
-.fig-pair {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  align-items: start;
-}
-.fig-pair .fig {
-  max-width: none;
-}
-.fig-when {
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--ink-3);
-  margin-top: 10px;
-}
-@media (max-width: 900px) {
-  .fig-pair {
-    grid-template-columns: 1fr;
-  }
-}
 .fig .note {
   margin: 6px 0 0;
   font-size: 13px;
@@ -1566,4 +1546,25 @@ a.chip {
   .insp-head .tabs .badge {
     display: none;
   }
+}
+
+/* a picture drawn on request: the image at the column's width, the numbers beneath */
+.pic {
+  margin: 8px 0 0;
+}
+.pic img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #fff;
+}
+.pic figcaption {
+  font-size: 12.5px;
+  color: var(--ink-2);
+  margin-bottom: 6px;
+}
+.pic .facts {
+  margin-top: 6px;
 }

@@ -39,7 +39,7 @@ from causal_agent.memory import views as V
 from causal_agent.memory.catalogue import ClaimKind
 from causal_agent.memory.records import COLUMN_KIND, Memory
 from causal_agent.profile import data as PD
-from causal_agent.viz.spec import Point
+from causal_agent.viz import draw as VD
 
 # ------------------------------------------------------------------ check, probe, fit (facts)
 
@@ -229,10 +229,13 @@ def ask(state: DeskState) -> Command[Literal["listen", "fit", "convince"]]:
         head = compose_map(st, memory, state.get("frame")) + "\n\n" + head
     if state.get("explained"):  # the person asked the desk something last turn: the answer comes first, then what is asked next
         head = state["explained"] + "\n\n" + head
+    if state.get("drawn"):  # the person asked for a picture last turn: the caption comes first, the picture beside the reply
+        head = state["drawn"] + "\n\n" + head
+    shown = {"artifact": state.get("artifact"), "drawn": None}
     if a is None:
         if st.ready:
             return Command(
-                goto="convince", update={"ask": None, "reply": head, "run_requested": False, "figure": None, "oriented": True, "explained": None, "note": ""}
+                goto="convince", update={"ask": None, "reply": head, "run_requested": False, "oriented": True, "explained": None, "note": "", **shown}
             )
         body = (
             "Nothing more to ask, but no design fits yet: "
@@ -243,9 +246,7 @@ def ask(state: DeskState) -> Command[Literal["listen", "fit", "convince"]]:
         body = a.text
         if state.get("run_requested"):
             body = "Before I can run, this still has to be settled. " + body
-    return Command(
-        goto="listen", update={"ask": a, "reply": head + body, "run_requested": False, "figure": None, "oriented": True, "explained": None, "note": ""}
-    )
+    return Command(goto="listen", update={"ask": a, "reply": head + body, "run_requested": False, "oriented": True, "explained": None, "note": "", **shown})
 
 
 # ------------------------------------------------------------------ convince (the ready moment)
@@ -265,9 +266,8 @@ def _belief_words(memory: Memory, family: Family) -> str:
 
 def convince(state: DeskState, runtime: Runtime[Context]) -> dict:
     """At ready: decide by code (a judgement only among several), make the family's point visible, and say the design in the
-    question's words with the evidence, the assumption, the figure, and the struck families with one reason each."""
+    question's words with the evidence, the assumption, and the struck families with one reason each."""
     memory = F.memory_of(state)
-    fr = state.get("frame")
     out = D.fit(state, runtime)
     st2 = {**state, **out}
     dec = D.decide(st2, runtime)
@@ -285,7 +285,7 @@ def convince(state: DeskState, runtime: Runtime[Context]) -> dict:
             + "; ".join(f"{v.family} ({next((n.note for n in v.needs if not n.met), v.concern or 'does not fit')})" for v in verdicts.values())
             + ". Tell me what is different about the data."
         )
-        return {**update, "reply": text, "figure": None, "handoff": None}
+        return {**update, "reply": text, "handoff": None}
     fam = registry[d.chosen]
     probes = [p for p in update.get("probes") or [] if p.family == fam.name and p.passed is not None]
     evidence = "; ".join(f"{p.detail} [{p.address}]" for p in probes) or "no probe applies"
@@ -297,36 +297,17 @@ def convince(state: DeskState, runtime: Runtime[Context]) -> dict:
         for v in verdicts.values()
         if not v.admissible and v.family != fam.name
     ]
-    figure = None
-    fig_line = ""
-    try:
-        from causal_agent.viz.graph import make
-
-        fig = make(
-            Point(family=fam.name, claim=fam.convince or fam.answers, about=[p.address for p in probes]),
-            memory.name,
-            outcome=fr.outcome if fr else None,
-            treatment=fr.cause if fr else None,
-        )
-        if fig.made and fig.spec is not None:
-            figure = fig.spec.model_dump()
-            fig_line = f"The figure shows it: {fig.spec.note} [{fig.spec.address}]"
-        else:
-            fig_line = f"No figure could make the point: {fig.why}"
-    except Exception as e:  # a figure is never a reason to stop
-        fig_line = f"No figure could be made ({type(e).__name__})."
     lines = [
         head + "Everything the analysis needs is settled.",
         f"Design: {fam.name.replace('_', ' ')}. {fam.answers[0].upper() + fam.answers[1:]}.",
         f"It rests on: {_belief_words(memory, fam)}",
         f"Evidence: {evidence}. " + " ".join(fields),
-        fig_line,
     ]
     if struck:
         lines.append("Set aside: " + "; ".join(struck) + ".")
-    lines.append("Say run to hand off, or tell me anything to change.")
-    _writer()({"convince": {"family": fam.name, "figure": bool(figure)}})
-    return {**update, "reply": "\n".join(ln for ln in lines if ln), "figure": figure}
+    lines.append("Say run to hand off, ask for a picture of anything in the file, or tell me anything to change.")
+    _writer()({"convince": {"family": fam.name}})
+    return {**update, "reply": "\n".join(ln for ln in lines if ln)}
 
 
 def listen(state: DeskState) -> Command[Literal["infer", "fit", "handoff", "check", "__end__"]]:
@@ -339,7 +320,7 @@ def listen(state: DeskState) -> Command[Literal["infer", "fit", "handoff", "chec
         "ready": bool(st and st.ready),
         "open": list(st.open) if st else [],
         "ask": a.model_dump() if a else None,
-        "figure": state.get("figure"),
+        "artifact": state.get("artifact"),
     }
     answer = str(interrupt(payload) or "").strip()
     low = answer.lower()
@@ -352,8 +333,8 @@ def listen(state: DeskState) -> Command[Literal["infer", "fit", "handoff", "chec
         if st and st.ready:
             store.save(memory)
             if state.get("decision") is not None and state.get("convinced_version") == memory.version:  # decided at the ready moment; nothing moved since
-                return Command(goto="handoff", update={"turn": turn, "message": answer, "run_requested": False})
-            return Command(goto="fit", update={"turn": turn, "message": answer, "run_requested": False})
+                return Command(goto="handoff", update={"turn": turn, "message": answer, "run_requested": False, "artifact": None})
+            return Command(goto="fit", update={"turn": turn, "message": answer, "run_requested": False, "artifact": None})
         # "run" is the person's word that the drafts they were shown stand; empty and refuted fields stay open
         confirmed = []
         for o in state.get("open") or []:
@@ -372,9 +353,9 @@ def listen(state: DeskState) -> Command[Literal["infer", "fit", "handoff", "chec
                 read=[f"user:turn:{turn}"],
                 note="confirmed as drafted: " + ", ".join(confirmed),
             )
-        return Command(goto="check", update={"turn": turn, "message": answer, "run_requested": True, "settled_now": confirmed})
+        return Command(goto="check", update={"turn": turn, "message": answer, "run_requested": True, "settled_now": confirmed, "artifact": None})
     store.save(memory)
-    return Command(goto="infer", update={"turn": turn, "message": answer, "infer_errors": [], "infer_attempts": 0, "settled_now": []})
+    return Command(goto="infer", update={"turn": turn, "message": answer, "infer_errors": [], "infer_attempts": 0, "settled_now": [], "artifact": None})
 
 
 # ------------------------------------------------------------------ infer (judgement), gated by apply
@@ -399,7 +380,7 @@ def _open_lines(memory: Memory, opened: list, asked: Ask | None) -> str:
     return "\n".join(lines) or "(nothing open)"
 
 
-def infer(state: DeskState) -> Command[Literal["infer", "check", "explain"]]:
+def infer(state: DeskState) -> Command[Literal["infer", "draw", "check", "explain"]]:
     memory = F.memory_of(state)
     turn = int(state.get("turn") or 0)
     a = state.get("ask")
@@ -444,6 +425,7 @@ def infer(state: DeskState) -> Command[Literal["infer", "check", "explain"]]:
             focus_update = {"focus": list(dict.fromkeys(out.focus))}
     attempts = int(state.get("infer_attempts") or 0) + 1
     asked_desk = (out.question or "").strip() or state.get("desk_question") or None  # kept across retries
+    asked_draw = (out.draw or "").strip() or state.get("draw_request") or None
     _writer()({"infer": {"settled": settled, "rejected": rejected, "attempt": attempts, **({"focus": focus_update["focus"]} if focus_update else {})}})
     store.save(memory)
     if rejected and attempts < INFER_ATTEMPTS:
@@ -455,13 +437,65 @@ def infer(state: DeskState) -> Command[Literal["infer", "check", "explain"]]:
                 "settled_now": settled,
                 "debug": [thought],
                 "desk_question": asked_desk,
+                "draw_request": asked_draw,
                 **focus_update,
             },
         )
-    update = {"infer_errors": rejected, "infer_attempts": 0, "settled_now": settled, "debug": [thought], "desk_question": asked_desk, **focus_update}
+    update = {
+        "infer_errors": rejected,
+        "infer_attempts": 0,
+        "settled_now": settled,
+        "debug": [thought],
+        "desk_question": asked_desk,
+        "draw_request": asked_draw,
+        **focus_update,
+    }
     if settled:
         record(state, "claim", by="person", memory=memory, design=design_now(state), read=[src], note=", ".join(settled))
+    if asked_draw:
+        return Command(goto="draw", update=update)
     if asked_desk:
+        return Command(goto="explain", update={**update, "explain_errors": [], "explain_attempts": 0})
+    return Command(goto="check", update=update)
+
+
+# ------------------------------------------------------------------ draw (the drawing tool), before the run
+
+
+def draw_context(memory: Memory) -> tuple[str, dict[str, str]]:
+    """What the drawing tool is told about the file: the dataset, the change, the beliefs, and one line per column."""
+    cols = "\n".join(V.brief_of(memory, c).line() for c in memory.columns.values() if not c.facts.constant)
+    return V.context_text(memory) + "\n\nCOLUMNS\n" + cols, {c.key: c.name for c in memory.columns.values()}
+
+
+def draw(state: DeskState) -> Command[Literal["explain", "check"]]:
+    """The person asked for a picture: the drawing tool makes it from the file, the journal records it, and the caption is shown
+    before the next thing asked. A picture settles nothing."""
+    memory = F.memory_of(state)
+    turn = int(state.get("turn") or 0)
+    ask = state.get("draw_request") or ""
+    context, columns = draw_context(memory)
+    req = VD.DrawRequest(dataset=memory.name, moment="pre", memory_version=memory.version, ask=ask, context=context, csv=_csv_path(memory), columns=columns)
+    artifact, decline, thoughts = VD.draw(req)
+    _writer()({"draw": {"ask": ask, "made": artifact is not None, "why": decline.reason if decline else ""}})
+    if artifact is None:
+        assert decline is not None
+        drawn = f"I could not draw that: {decline.reason}"
+        update: dict = {"drawn": drawn, "artifact": None}
+    else:
+        record(
+            state,
+            "explore",
+            by="model",
+            memory=memory,
+            design=design_now(state),
+            read=[f"user:turn:{turn}"],
+            left=[str(VD.store.folder(artifact.dataset, artifact.moment, artifact.design, artifact.id))],
+            note=ask,
+        )
+        update = {"drawn": f"{artifact.caption} [{artifact.address}]", "artifact": artifact.model_dump()}
+    update.update({"draw_request": None, "debug": thoughts})
+    if state.get("desk_question"):
         return Command(goto="explain", update={**update, "explain_errors": [], "explain_attempts": 0})
     return Command(goto="check", update=update)
 

@@ -1,5 +1,6 @@
-"""The chat after a run. Facts: brief, answer, revise's gate, requestion. Judgement, gated: turn. Interrupt: talk.
-Everything is answered from the run's artifacts and the memory; a change goes through the gate and back to the checks."""
+"""The chat after a run. Facts: brief, answer, revise's gate, requestion, draw_after. Judgement, gated: turn. Interrupt: talk.
+Everything is answered from the run's artifacts and the memory; a change goes through the gate and back to the checks; a
+picture is drawn by the tool from the file and the pack, and cited like any other artifact."""
 
 from __future__ import annotations
 
@@ -9,17 +10,20 @@ from typing import Literal
 
 from langgraph.types import Command, interrupt
 
-from causal_agent.common.contracts import RunRecord, Said
+from causal_agent.common.contracts import Handoff, RunRecord, Said
 from causal_agent.common.llm import structured
 from causal_agent.desk import material as M
 from causal_agent.desk import pipeline
 from causal_agent.desk.contracts import AfterReply, Exchange
 from causal_agent.desk.nodes import frame as F
+from causal_agent.desk.nodes.interview import draw_context
 from causal_agent.desk.nodes.journey import CAT, QUIT_WORDS, kinds_text
-from causal_agent.desk.nodes.shared import design_now, journal_of, record
+from causal_agent.desk.nodes.shared import _csv_path, design_now, journal_of, record
 from causal_agent.desk.prompts import journey as P
 from causal_agent.desk.state import DeskState
 from causal_agent.memory import ops, store
+from causal_agent.viz import draw as VD
+from causal_agent.viz import store as VS
 
 MAX_ATTEMPTS = 3
 TOL = 0.01
@@ -113,6 +117,9 @@ def _gate(reply: AfterReply, mat: M.Material) -> list[str]:
     elif reply.kind == "requestion":
         if not (reply.question or "").strip():
             errors.append("requestion needs the new question in full")
+    elif reply.kind == "draw":
+        if not (reply.draw or "").strip():
+            errors.append("draw needs what to draw, in the person's words")
     return errors
 
 
@@ -173,7 +180,14 @@ def talk(state: DeskState) -> Command[Literal["turn", "__end__"]]:
     if reply is not None and reply.figure and cur is not None:
         figure = next((f for f in cur.figures if f"figure:{f.get('id')}" == reply.figure), None)
     elif reply is None and cur is not None and cur.figures:
-        figure = cur.figures[min(1, len(cur.figures) - 1)]  # the run's own figure, or the ready-moment one when the run made none
+        figure = cur.figures[0]  # the brief shows the run's first figure
+    artifact = state.get("artifact")
+    if artifact is None and reply is not None and cur is not None:  # an answer that cites a drawn picture shows it
+        cited = [c.split(".")[0][len("artifact:") :] for c in reply.cites if c.startswith("artifact:")]
+        if cited:
+            pool = VS.list_artifacts(cur.dataset, "pre") + VS.list_artifacts(cur.dataset, "post", cur.index)
+            found = next((a for a in pool if a.id == cited[0]), None)
+            artifact = found.model_dump() if found else None
     payload = {
         "phase": "after",
         "kind": "after",
@@ -184,6 +198,7 @@ def talk(state: DeskState) -> Command[Literal["turn", "__end__"]]:
         "open": [],
         "ask": None,
         "figure": figure,
+        "artifact": artifact,
     }
     answer = str(interrupt(payload) or "").strip()
     if answer.lower() in DONE_WORDS:
@@ -193,10 +208,10 @@ def talk(state: DeskState) -> Command[Literal["turn", "__end__"]]:
     if not any(s.turn == turn for s in memory.said):
         memory.said.append(Said(turn=turn, about="after", text=answer))
         store.save(memory)
-    return Command(goto="turn", update={"message": answer, "turn": turn, "after_errors": [], "after_attempts": 0})
+    return Command(goto="turn", update={"message": answer, "turn": turn, "after_errors": [], "after_attempts": 0, "artifact": None})
 
 
-def turn(state: DeskState) -> Command[Literal["turn", "answer", "revise", "what_if", "requestion", "__end__"]]:
+def turn(state: DeskState) -> Command[Literal["turn", "answer", "revise", "what_if", "requestion", "draw_after", "__end__"]]:
     runs = state.get("runs") or []
     cur = runs[-1]
     memory = F.memory_of(state)
@@ -224,7 +239,7 @@ def turn(state: DeskState) -> Command[Literal["turn", "answer", "revise", "what_
         )
         gate = [f"fell back after {attempts} tries: " + "; ".join(gate)]
     ex = Exchange(turn=int(state.get("turn", 0)), user=state.get("message", ""), assistant=out.text, kind=out.kind)
-    goto = {"answer": "answer", "revise": "revise", "what_if": "what_if", "requestion": "requestion", "done": "__end__"}[out.kind]
+    goto = {"answer": "answer", "revise": "revise", "what_if": "what_if", "requestion": "requestion", "draw": "draw_after", "done": "__end__"}[out.kind]
     return Command(goto=goto, update={"after_reply": out, "after_errors": gate, "after_attempts": 0, "exchanges": [ex], "debug": [thought]})
 
 
@@ -293,3 +308,54 @@ def requestion(state: DeskState) -> dict:
     q = state["after_reply"].question or ""
     record(state, "requestion", by="person", memory=F.memory_of(state), design=design_now(state), read=[f"user:turn:{int(state.get('turn') or 0)}"], note=q)
     return {"question": q, "message": q, "phase": "before", "handoff": None, "invalid": None, "prefilter_votes": [], "oriented": False, "focus": []}
+
+
+def draw_after(state: DeskState) -> dict:
+    """The person asked for a picture after the run: the drawing tool makes it from the file, told what the pack settled and what
+    the run found, and it lands in the design's folder. The caption is the reply; the picture is shown beside it."""
+    reply = state["after_reply"]
+    runs = state.get("runs") or []
+    cur = runs[-1]
+    memory = F.memory_of(state)
+    turn = int(state.get("turn") or 0)
+    ask = (reply.draw or "").strip()
+    context, columns = draw_context(memory)
+    if cur.design_dir and (Path(cur.design_dir) / "handoff.json").exists():
+        context = (
+            Handoff.model_validate_json((Path(cur.design_dir) / "handoff.json").read_text()).render_context()
+            + "\n\nCOLUMNS\n"
+            + context.split("COLUMNS\n", 1)[-1]
+        )
+    mat = M.render(cur, memory)
+    context += "\n\nWHAT THE RUN FOUND\n" + "\n".join(ln for ln in mat.lines if ln.startswith(("[design.", "[estimate:", "[check:", "[refute:", "[placebo:")))
+    req = VD.DrawRequest(
+        dataset=memory.name,
+        moment="post",
+        design=int(cur.index),
+        memory_version=memory.version,
+        ask=ask,
+        context=context,
+        csv=_csv_path(memory),
+        columns=columns,
+    )
+    artifact, decline, thoughts = VD.draw(req)
+    if artifact is None:
+        assert decline is not None
+        text = f"I could not draw that: {decline.reason}"
+        return {"after_reply": reply.model_copy(update={"kind": "answer", "text": text, "cites": ["run.question"]}), "artifact": None, "debug": thoughts}
+    record(
+        state,
+        "explore",
+        by="model",
+        memory=memory,
+        design=design_now(state),
+        read=[f"user:turn:{turn}"],
+        left=[str(VS.folder(artifact.dataset, artifact.moment, artifact.design, artifact.id))],
+        note=ask,
+    )
+    text = f"{artifact.caption} [{artifact.address}]"
+    return {
+        "after_reply": reply.model_copy(update={"kind": "answer", "text": text, "cites": [artifact.address]}),
+        "artifact": artifact.model_dump(),
+        "debug": thoughts,
+    }

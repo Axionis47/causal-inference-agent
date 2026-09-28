@@ -8,7 +8,7 @@ from causal_agent.common.contracts import CheckResult, Estimate, Refutation
 from causal_agent.desk.handoff import forced
 from causal_agent.lane import figures as F
 from causal_agent.memory import store
-from causal_agent.viz.spec import FigureSpec, Series
+from causal_agent.viz.spec import Edge, FigureSpec, Node, Series
 
 
 def test_ok_addresses_and_write(tmp_path):
@@ -36,3 +36,34 @@ def test_ok_addresses_and_write(tmp_path):
     assert [s.id for s in kept] == ["g"] and len(declines) == 1
     assert declines[0].about == "figure:b" and declines[0].check == "figure.check" and "estimate:c.made_up" in declines[0].reason
     assert [f["id"] for f in json.loads((tmp_path / "figures.json").read_text())] == ["g"]
+
+
+def _graph() -> FigureSpec:
+    return FigureSpec(
+        id="causal_graph",
+        kind="graph",
+        title="the graph",
+        draws_on=["design.graph", "col:lunch.when"],
+        nodes=[Node(id="course", role="treatment"), Node(id="math", role="outcome"), Node(id="lunch", role="confounder")],
+        edges=[Edge(src="course", dst="math"), Edge(src="lunch", dst="course", cites=["col:lunch.when"]), Edge(src="lunch", dst="math")],
+    )
+
+
+def test_check_spec_by_kind():
+    ok = {"design.graph", "col:lunch.when", "estimate:c.value"}
+    assert F.check_spec(_graph(), ok) == []
+    g = _graph()
+    g.edges.append(Edge(src="nope", dst="math"))
+    assert any("nope -> math" in p for p in F.check_spec(g, ok))
+    g = _graph()
+    g.nodes = []
+    assert any("no nodes" in p for p in F.check_spec(g, ok))
+    g = _graph()
+    g.draws_on.append("estimate:c.ci")
+    assert any("estimate:c.ci" in p for p in F.check_spec(g, ok))
+    bars = FigureSpec(id="b", kind="bars", title="t", series=[Series(name="s", x=["a"], y=[1.0])], draws_on=["estimate:c.value"])
+    assert F.check_spec(bars, ok) == []
+    assert F.check_spec(FigureSpec(id="b", kind="bars", title="t", draws_on=[]), ok) == ["no series to draw"]
+    assert F.check_spec(FigureSpec(id="b", kind="bars", title="t", series=[Series(name="s", x=["a"], y=[None])]), ok) == ["every value is empty"]
+    # a col: address resolves however the column is spelled
+    assert F.check_spec(FigureSpec(id="b", kind="bars", title="t", series=[Series(name="s", x=["a"], y=[1.0])], draws_on=["col:Lunch.when"]), ok) == []

@@ -23,7 +23,6 @@ const barSpec: FigureSpec = {
   kind: "bars",
   nodes: [],
   edges: [],
-  moment: "run",
   title: "t",
   x_label: "",
   y_label: "",
@@ -41,7 +40,6 @@ const lineSpec: FigureSpec = {
   kind: "lines",
   nodes: [],
   edges: [],
-  moment: "run",
   title: "t",
   x_label: "year",
   y_label: "y",
@@ -124,7 +122,6 @@ describe("graph layout", () => {
   const graph: FigureSpec = {
     id: "causal_graph",
     kind: "graph",
-    moment: "run",
     title: "g",
     x_label: "",
     y_label: "",
@@ -178,7 +175,6 @@ describe("labels that fit", () => {
     const spec: FigureSpec = {
       id: "g",
       kind: "graph",
-      moment: "run",
       title: "",
       x_label: "",
       y_label: "",

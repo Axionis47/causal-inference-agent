@@ -57,6 +57,9 @@ class DeskState(RouteState, total=False):
     oriented: bool  # the map of what the file could answer has been shown for this question
     desk_question: str | None  # what the person asked the desk this turn, to answer beside the next ask
     explained: str | None  # the desk's answer, shown before the next ask
+    draw_request: str | None  # what the person asked to see drawn this turn, in their words
+    drawn: str | None  # the drawing tool's line for the reply: the caption with its address, or why it could not draw
+    artifact: dict | None  # the Artifact shown beside the reply this turn
     explain_errors: list[str]
     explain_attempts: int
     design_dir: str | None  # designs/<n>/ once the pack is written
@@ -64,7 +67,6 @@ class DeskState(RouteState, total=False):
     infer_attempts: int
     run_requested: bool
     ready: bool
-    figure: dict | None  # the figure shown at the ready moment, a FigureSpec
     fork: object | None  # a what-if: a copy of the memory the routing and the run read instead of the one on disk
     what_if: dict[str, str]  # the fields changed on the fork, address -> value
     convinced_version: int  # the memory version the decision shown at the ready moment was made on

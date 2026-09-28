@@ -6,7 +6,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from causal_agent.families.base import FamilyDef, load_family_yaml
-from causal_agent.families.diff_in_diff import design, handoff, previz, probes
+from causal_agent.families.diff_in_diff import design, handoff, probes
 
 _KNOWLEDGE, _NEEDS = load_family_yaml(Path(__file__).parent / "family.yaml")
 
@@ -24,6 +24,5 @@ FAMILY = FamilyDef(
     design_cls=design.DidDesign,
     design_block=handoff.design_block,
     probes=probes.probes,
-    previz=previz.FIGURES,
     lane=_lane,
 )

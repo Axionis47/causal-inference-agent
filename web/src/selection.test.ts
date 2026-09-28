@@ -26,6 +26,7 @@ const run = (index: number, files: string[] = []): RunView =>
     what_if: {},
     differs: [],
     figures: [],
+    artifacts: [],
     declines: [],
   }) as RunView;
 

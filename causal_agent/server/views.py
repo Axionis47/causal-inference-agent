@@ -11,6 +11,7 @@ from causal_agent.common.contracts import Decline, RunRecord
 from causal_agent.desk import pipeline
 from causal_agent.memory import journal as J
 from causal_agent.memory import store as MS
+from causal_agent.server import artifacts as AV
 from causal_agent.server import datasets as DS
 from causal_agent.server.models import (
     Activity,
@@ -91,8 +92,10 @@ def session_view(mgr: SessionManager, name: str) -> SessionView:
     meta = DS.read_meta(mgr.s, name) or {}
     title, question = meta.get("title") or name, meta.get("question")
     if not sess.thread_id:
-        runs0 = [run_view(r) for r in all_runs(mgr.s, name, [])]
-        return SessionView(name=name, title=title, question=question, stage="new", runs=runs0, transcript=mgr.transcript(name))
+        runs0 = [run_view(r, mgr.s) for r in all_runs(mgr.s, name, [])]
+        return SessionView(
+            name=name, title=title, question=question, stage="new", runs=runs0, transcript=mgr.transcript(name), artifacts=AV.before_runs(mgr.s, name)
+        )
     snap = mgr._snapshot(sess)
     values = dict(snap.values or {})
     interrupted = False
@@ -159,7 +162,7 @@ def session_view(mgr: SessionManager, name: str) -> SessionView:
             claims = []
     st = values.get("status")
     status = StatusView(**st.model_dump()) if st is not None else None
-    runs = [run_view(r) for r in all_runs(mgr.s, name, list(values.get("runs") or []))]
+    runs = [run_view(r, mgr.s) for r in all_runs(mgr.s, name, list(values.get("runs") or []))]
     activity = Activity(node=sess.activity[0], since=sess.activity[1]) if sess.activity else None
     analysis = values.get("analysis") or sess.analysis or None
     return SessionView(
@@ -180,10 +183,11 @@ def session_view(mgr: SessionManager, name: str) -> SessionView:
         error=sess.error,
         analysis=analysis,
         journal=journal_view(mgr.s, name, analysis),
+        artifacts=AV.before_runs(mgr.s, name),
     )
 
 
-def run_view(r: RunRecord) -> RunView:
+def run_view(r: RunRecord, s: Settings | None = None) -> RunView:
     sr = r.specialist_result or {}
     design = sr.get("design") or {}
     results = (design.get("checks") or {}).get("results") or [] if isinstance(design, dict) else []
@@ -268,5 +272,6 @@ def run_view(r: RunRecord) -> RunView:
         what_if=dict(r.what_if or {}),
         differs=list(r.differs or []),
         figures=[FigureSpec.model_validate(f) for f in r.figures or []],
+        artifacts=AV.after_run(s, r.dataset, int(r.index)) if s is not None else [],
         declines=declines,
     )

@@ -1,5 +1,5 @@
-"""The figure contract. A figure is data with addresses, never an image: the page draws it, the chat cites it, a run
-keeps it. The desk asks for a Point to make; the viz tool answers with a Figure, made or not, and says why.
+"""The figure contract for what a lane draws from its own artifacts. A figure is data with addresses, never an image: the
+page draws it, the chat cites it, a run keeps it. A picture drawn on request is an Artifact (`viz/store.py`), not a figure.
 
 Addresses: figure:<id> for the figure, figure:<id>.<series>.<i> for one drawn value, and every number the figure shows is
 also a probe address the desk already has (probe:<family>.<name>), from the same computation."""
@@ -12,11 +12,9 @@ from typing import Literal
 from pydantic import BaseModel, Field, computed_field
 
 from causal_agent.common.addresses import key as _key
-from causal_agent.common.contracts import Probe
 
 Kind = Literal["bars", "lines", "points", "density", "interval", "graph"]
 Role = Literal["treatment", "outcome", "confounder", "driver", "mediator", "instrument", "hidden", "excluded", "other"]
-Moment = Literal["ready", "run"]
 
 
 class Series(BaseModel):
@@ -70,7 +68,6 @@ class FigureSpec(BaseModel):
     marks: list[Mark] = Field(default_factory=list)
     nodes: list[Node] = Field(default_factory=list, description="for kind graph: the nodes")
     edges: list[Edge] = Field(default_factory=list, description="for kind graph: the arrows")
-    moment: Moment = Field(default="run", description="ready: made at the ready moment, before the run; run: made by the run")
     note: str = Field(default="", description="one sentence on what the figure shows, in the question's words")
     draws_on: list[str] = Field(default_factory=list, description="the memory and probe addresses the figure rests on")
 
@@ -88,9 +85,7 @@ class FigureSpec(BaseModel):
 
     def render(self) -> str:
         """The figure as lines with addresses, for the chat's material."""
-        lines = [
-            f"[{self.address}] {self.kind}: {self.title}" + (f" — {self.note}" if self.note else "") + (" (before the run)" if self.moment == "ready" else "")
-        ]
+        lines = [f"[{self.address}] {self.kind}: {self.title}" + (f" — {self.note}" if self.note else "")]
         for i, n in enumerate(self.nodes):
             lines.append(f"  [{self.address}.node.{i}] {n.label or n.id} ({n.role})")
         for i, e in enumerate(self.edges):
@@ -109,26 +104,3 @@ class FigureSpec(BaseModel):
         if self.draws_on:
             lines.append("  draws on: " + ", ".join(f"[{a}]" for a in self.draws_on))
         return "\n".join(lines)
-
-
-class Point(BaseModel):
-    """What the desk wants shown: a claim to make visible, and what it is about. Never a figure name."""
-
-    family: str = Field(description="the family the point serves, by its registry name")
-    claim: str = Field(description="the point, in the question's words: 'the two arms overlap on lunch'")
-    about: list[str] = Field(default_factory=list, description="memory or probe addresses the point rests on")
-    columns: list[str] = Field(default_factory=list, description="columns the point names, if any")
-
-
-class Figure(BaseModel):
-    """The viz tool's answer: a figure with the number it shows, or a refusal with why."""
-
-    made: bool
-    spec: FigureSpec | None = None
-    probe: Probe | None = Field(default=None, description="the number the figure shows, from the same computation")
-    why: str = ""
-    function: str = ""
-
-    @classmethod
-    def refused(cls, why: str, function: str = "") -> Figure:
-        return cls(made=False, why=why, function=function)

@@ -1,4 +1,4 @@
-"""The figures a lane leaves behind, checked. Every spec goes through the viz check against the addresses this run can
+"""The figures a lane leaves behind, checked. Every spec goes through `check_spec` against the addresses this run can
 cite; a figure that draws on an address the run did not produce is dropped with a Decline, never shown."""
 
 from __future__ import annotations
@@ -6,9 +6,31 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from causal_agent.common.addresses import norm_address
 from causal_agent.common.contracts import Decline, Handoff
-from causal_agent.viz.graph import check_spec
 from causal_agent.viz.spec import FigureSpec
+
+
+def check_spec(spec: FigureSpec, ok: set[str]) -> list[str]:
+    """The problems with a figure, by code: a graph needs nodes and arrows between them; any other kind needs values; and
+    every address the figure draws on must resolve in `ok`. Empty means the figure stands."""
+    problems = []
+    if spec.kind == "graph":
+        ids = {n.id for n in spec.nodes}
+        if not spec.nodes:
+            problems.append("a graph with no nodes")
+        loose = [f"{e.src} -> {e.dst}" for e in spec.edges if e.src not in ids or e.dst not in ids]
+        if loose:
+            problems.append("arrows between nodes the figure does not have: " + ", ".join(loose))
+    elif not spec.series or all(not s.x for s in spec.series):
+        problems.append("no series to draw")
+    elif all(y is None for s in spec.series for y in s.y):
+        problems.append("every value is empty")
+    okn = {norm_address(a) for a in ok}
+    bad = [a for a in spec.draws_on if norm_address(a) not in okn]
+    if bad:
+        problems.append("draws on addresses that do not resolve: " + ", ".join(bad))
+    return problems
 
 
 def ok_addresses(h: Handoff, state: dict, prefix: str = "refute") -> set[str]:

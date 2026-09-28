@@ -21,7 +21,7 @@ export function series(s: Pick<Series, "name" | "x" | "y"> & Partial<Series>): S
 
 /** A figure with every field the wire carries, for tests. */
 export function figure(f: Pick<FigureSpec, "id" | "kind" | "title"> & Partial<FigureSpec>): FigureSpec {
-  return { x_label: "", y_label: "", series: [], marks: [], nodes: [], edges: [], moment: "run", note: "", draws_on: [], ...f };
+  return { x_label: "", y_label: "", series: [], marks: [], nodes: [], edges: [], note: "", draws_on: [], ...f };
 }
 
 export interface Box {

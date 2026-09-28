@@ -1,10 +1,10 @@
 """What a family is to the desk: its knowledge, the claims it needs, its design block and how the desk fills it, its probes,
-its pre-run figures, and the lane that runs it. A family package builds one FamilyDef; the registry lists them."""
+and the lane that runs it. A family package builds one FamilyDef; the registry lists them."""
 
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
@@ -17,7 +17,6 @@ from typing_extensions import TypedDict
 from causal_agent.common.contracts import Belief, ColumnBrief, Design, Handoff, Probe, Scope
 from causal_agent.memory.catalogue import FamilyNeeds
 from causal_agent.memory.claims import ClaimTable, ProbeResult
-from causal_agent.viz.graph import PrevizFigure
 
 
 class Family(BaseModel):
@@ -82,7 +81,6 @@ class FamilyDef:
     design_cls: type[Design] | None = None
     design_block: Callable[[BlockInputs], Design] | None = None
     probes: ProbeFn | None = None
-    previz: list[PrevizFigure] = field(default_factory=list)
     lane: LaneFactory | None = None
     refutation_prefix: str = "placebo"  # how the lane addresses its falsifications: refute:<c>.<name> or placebo:<c>.<name>
 

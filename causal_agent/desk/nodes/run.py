@@ -109,13 +109,11 @@ def _g(x: float | None) -> str:
 
 
 def _figures(state: DeskState, rec: RunRecord) -> list[dict]:
-    """The ready-moment figure first, then what the lane wrote and checked under its run dir; the post-viz fallback for a lane
-    that wrote none."""
+    """What the lane wrote and checked under its run dir; the post-viz fallback for a lane that wrote none."""
     import json
 
     from causal_agent.viz import postviz
 
-    ready = [{**state["figure"], "moment": "ready"}] if state.get("figure") else []
     lane: list[dict] = []
     p = Path(rec.run_dir) / "figures.json" if rec.run_dir else None
     if p is not None and p.exists():
@@ -126,7 +124,7 @@ def _figures(state: DeskState, rec: RunRecord) -> list[dict]:
     if not lane:
         prefix = R.REGISTRY[rec.family].refutation_prefix if rec.family in R.REGISTRY else "placebo"
         lane = [f.model_dump() for f in postviz.figures(rec, prefix)]
-    return ready + lane
+    return lane
 
 
 # ------------------------------------------------------------------ the lane asks back
@@ -180,4 +178,4 @@ def ask_back(state: DeskState) -> dict:
     reason = (rec.specialist_result.get("feasibility") or {}).get("reason") or "it needs one more thing"
     because = f"{q['because']}\n" if q.get("because") else ""
     text = f"The analysis stopped before estimating: {reason}.\n\n{because}{a.text}"
-    return {"ask": a, "reply": text, "phase": "before", "run_requested": False, "figure": None, "fork": None, "what_if": {}, "handoff": None}
+    return {"ask": a, "reply": text, "phase": "before", "run_requested": False, "fork": None, "what_if": {}, "handoff": None}

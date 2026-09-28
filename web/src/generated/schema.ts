@@ -178,6 +178,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/artifacts/{name}/{moment}/{design}/{artifact_id}/figure.png": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Artifact Figure */
+        get: operations["artifact_figure_api_artifacts__name___moment___design___artifact_id__figure_png_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -188,6 +205,48 @@ export interface components {
             node: string;
             /** Since */
             since: string;
+        };
+        /**
+         * ArtifactView
+         * @description A picture the drawing tool made on request: where it is served from, what it shows, and the numbers it holds.
+         */
+        ArtifactView: {
+            /** Id */
+            id: string;
+            /**
+             * Address
+             * @description artifact:<id>, as the chat cites it
+             */
+            address: string;
+            /**
+             * Moment
+             * @description pre: drawn before any run; post: drawn after design run `design`
+             * @enum {string}
+             */
+            moment: "pre" | "post";
+            /** Design */
+            design?: number | null;
+            /**
+             * Ask
+             * @description what was asked for, in the person's words
+             */
+            ask: string;
+            /** Caption */
+            caption: string;
+            /**
+             * Facts
+             * @description every number the picture shows, by name; each is citable as artifact:<id>.<name>
+             */
+            facts?: {
+                [key: string]: number;
+            };
+            /** Made At */
+            made_at: string;
+            /**
+             * Url
+             * @description where the page fetches figure.png
+             */
+            url: string;
         };
         /** Body_profile_upload_api_profile_post */
         Body_profile_upload_api_profile_post: {
@@ -454,13 +513,6 @@ export interface components {
              */
             edges?: components["schemas"]["Edge"][];
             /**
-             * Moment
-             * @description ready: made at the ready moment, before the run; run: made by the run
-             * @default run
-             * @enum {string}
-             */
-            moment: "ready" | "run";
-            /**
              * Note
              * @description one sentence on what the figure shows, in the question's words
              * @default
@@ -708,9 +760,14 @@ export interface components {
             differs?: string[];
             /**
              * Figures
-             * @description the ready-moment figure first, then what the run left
+             * @description what the run left, in the order the chat shows them
              */
             figures?: components["schemas"]["FigureSpec"][];
+            /**
+             * Artifacts
+             * @description the pictures drawn on request after this run, oldest first
+             */
+            artifacts?: components["schemas"]["ArtifactView"][];
             /** Declines */
             declines?: components["schemas"]["DeclineView"][];
         };
@@ -806,6 +863,11 @@ export interface components {
              * @description the conversation's steps, in order
              */
             journal?: components["schemas"]["StepView"][];
+            /**
+             * Artifacts
+             * @description the pictures drawn before any run, oldest first
+             */
+            artifacts?: components["schemas"]["ArtifactView"][];
         };
         /** StatusView */
         StatusView: {
@@ -903,6 +965,8 @@ export interface components {
             kind?: string | null;
             /** @description shown under the text */
             figure?: components["schemas"]["FigureSpec"] | null;
+            /** @description a picture drawn on request, shown under the text */
+            artifact?: components["schemas"]["ArtifactView"] | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -1231,6 +1295,40 @@ export interface operations {
             path: {
                 run_id: string;
                 filename: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    artifact_figure_api_artifacts__name___moment___design___artifact_id__figure_png_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+                moment: string;
+                design: number;
+                artifact_id: string;
             };
             cookie?: never;
         };

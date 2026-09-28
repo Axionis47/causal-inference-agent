@@ -8,6 +8,7 @@ import uuid
 import pytest
 from langgraph.types import Command
 
+from causal_agent.common import config
 from causal_agent.common.contracts import RunRecord
 from causal_agent.common.llm import set_llm
 from causal_agent.desk import graph as G
@@ -164,8 +165,7 @@ def test_students_reaches_ready_in_the_frame_plus_a_few_questions_then_runs():
     text = d.payload["text"]
     assert "Design: adjustment" in text and "[probe:adjustment.overlap]" in text and "[probe:adjustment.arms]" in text
     assert "You said" in text and "nothing hidden" in text and "Set aside: " in text and "diff_in_diff" in text and "discontinuity" in text
-    fig = d.payload["figure"]
-    assert fig and fig["id"].startswith("overlap_lunch") and fig["kind"] == "bars" and f"[{'figure:' + fig['id']}]" in text
+    assert "ask for a picture" in text and d.payload["artifact"] is None  # nothing is drawn unasked
     assert d.values["decision"].chosen == "adjustment" and d.values["convinced_version"] == HELD["students"].version
     m = HELD["students"]
     assert m.field("claim:assignment.kind").status == "confirmed" and m.field("claim:assignment.kind").source == "user:turn:2"
@@ -175,13 +175,13 @@ def test_students_reaches_ready_in_the_frame_plus_a_few_questions_then_runs():
     p = d.say("run")
     assert p["kind"] == "after" and p["ready"] and "Run 1" in p["text"] and "[estimate:completed_vs_none.value]" in p["text"]
     runs = d.values["runs"]
-    # the run's figures: the ready-moment overlap first, then the estimate against its falsifications; the brief shows the run's own
-    assert [f["id"] for f in runs[0].figures][1] == "effect_completed_vs_none" and runs[0].figures[0]["id"].startswith("overlap_")
+    # the run's figures: the estimate against its falsifications, drawn from the artifacts; the brief shows it
+    assert [f["id"] for f in runs[0].figures] == ["effect_completed_vs_none"]
     assert (
         p["figure"]["id"] == "effect_completed_vs_none" and (tmp_dir := runs[0].design_dir) and (__import__("pathlib").Path(tmp_dir) / "figures.json").exists()
     )
     assert len(runs) == 1 and runs[0].effect == 5.6 and runs[0].family == "adjustment" and d.values["phase"] == "after"
-    assert fake.calls.count("FamilyDecision") == 0 and fake.calls.count("Choice") == 0  # one family stood, one figure fit: both by code
+    assert fake.calls.count("FamilyDecision") == 0 and fake.calls.count("DrawCode") == 0  # one family stood: chosen by code; nothing drawn unasked
     assert (d.values["design_dir"]) and d.values["handoff"].design_id == 1
     # the journal: the design written from the memory, then the run that read it, both on this design's group
     design, run, brief = d.journal.steps()[-3:]
@@ -685,7 +685,7 @@ def test_the_brief_lists_where_the_lane_disagreed_with_the_pack(monkeypatch):
 
 
 def test_the_desk_shows_what_the_lane_drew_and_marks_the_ready_figure(monkeypatch, tmp_path):
-    """A lane's own figures.json is what the run shows, after the ready-moment figure; without one the post-viz fallback draws."""
+    """A lane's own figures.json is what the run shows; without one the post-viz fallback draws."""
     import json
 
     def drawing_run(path, n, dataset, question, decision=None, decision_record=""):
@@ -727,12 +727,12 @@ def test_the_desk_shows_what_the_lane_drew_and_marks_the_ready_figure(monkeypatc
     d.to_ready()
     p = d.say("run")
     figs = d.values["runs"][0].figures
-    assert [f["id"] for f in figs][1:] == ["causal_graph", "effect_completed_vs_none"] and figs[0]["moment"] == "ready" and figs[0]["id"].startswith("overlap_")
+    assert [f["id"] for f in figs] == ["causal_graph", "effect_completed_vs_none"]
     assert p["figure"]["id"] == "causal_graph"
     from causal_agent.desk import material as M
 
     m = M.render(d.values["runs"][0])
-    assert "figure:causal_graph.edge.0" in m.addresses and "(before the run)" in m.by_address[figs[0]["id"] and f"figure:{figs[0]['id']}"]
+    assert "figure:causal_graph.edge.0" in m.addresses
 
 
 def test_the_brief_reads_first_and_names_a_flag_by_its_sentence(monkeypatch):
@@ -772,3 +772,59 @@ def test_the_brief_reads_first_and_names_a_flag_by_its_sentence(monkeypatch):
     flag = next(ln for ln in lines if ln.endswith("[check:completed_vs_none.balance.lunch]"))
     assert flag.startswith("  how alike the two arms are on lunch") and "(soft; balance.lunch)" in flag
     assert "the estimate held every time" in text and "[estimate:completed_vs_none.value]" in text
+
+
+# ------------------------------------------------------------------ pictures on request
+
+
+@pytest.fixture
+def _artifact_root(tmp_path, monkeypatch):
+    """Drawn pictures land under the memory home; for a test that is tmp_path."""
+    monkeypatch.setattr(config, "ROOT", tmp_path)
+
+
+def test_a_picture_asked_for_before_the_run_is_drawn_shown_and_recorded(_artifact_root, tmp_path):
+    from causal_agent.viz import store as VS
+
+    def infer(msg, addrs, human):
+        return Inference(draw="show me math score by lunch") if "plot" in msg else None
+
+    fake = DeskFake(infer=infer)
+    d = Desk(fake)
+    d.say(QUESTION)
+    p = d.say("plot math score by lunch before we go on")
+    a = p["artifact"]
+    assert a and a["moment"] == "pre" and a["design"] is None and set(a["facts"]) == {"mean_standard", "mean_free_reduced"}
+    assert p["text"].startswith("Mean math score by lunch") and f"[artifact:{a['id']}]" in p["text"] and p["kind"] == "ask"  # the caption, then the next ask
+    assert fake.calls.count("DrawCode") == 1 and "COLUMNS" in fake.humans["DrawCode"][0] and "math score" in fake.humans["DrawCode"][0]
+    folder = tmp_path / "data" / "memory" / "students" / "viz" / "pre" / a["id"]
+    assert (folder / "figure.png").exists() and (folder / "code.py").exists() and VS.list_artifacts("students", "pre")[0].id == a["id"]
+    step = d.journal.steps()[-1]
+    assert step.kind == "explore" and step.by == "model" and step.note == "show me math score by lunch" and step.left[0].endswith(f"viz/pre/{a['id']}")
+    assert HELD["students"].version == d.values["convinced_version"] if d.values.get("convinced_version") else True  # a picture settles nothing
+    p = d.say(answer_ask(p))
+    assert p["artifact"] is None  # shown once
+
+
+def test_a_picture_asked_for_after_the_run_lands_in_the_design_and_is_citable(_artifact_root, tmp_path):
+    after = [
+        AfterReply(kind="draw", text="", draw="the mean math score for each lunch group"),
+        AfterReply(kind="answer", text="Standard lunch students average higher.", cites=["artifact:PLACEHOLDER.mean_standard"]),
+        AfterReply(kind="done", text="Bye."),
+    ]
+    fake = DeskFake(after=after)
+    d = Desk(fake)
+    d.say(QUESTION)
+    d.to_ready()
+    d.say("run")
+    p = d.say("draw me the mean math score by lunch")
+    a = p["artifact"]
+    assert a and a["moment"] == "post" and a["design"] == 1 and p["text"].startswith("Mean math score by lunch") and p["kind"] == "after"
+    assert "WHAT THE RUN FOUND" in fake.humans["DrawCode"][0] and "[estimate:completed_vs_none.value]" in fake.humans["DrawCode"][0]
+    folder = tmp_path / "data" / "memory" / "students" / "designs" / "1" / "viz" / a["id"]
+    assert (folder / "figure.png").exists()
+    step = d.journal.steps()[-1]
+    assert step.kind == "explore" and step.design == 1 and step.left[0].endswith(f"designs/1/viz/{a['id']}")
+    fake.after[0].cites = [f"artifact:{a['id']}.mean_standard"]
+    p = d.say("who does better?")
+    assert p["text"].startswith("Standard lunch") and p["artifact"]["id"] == a["id"]  # an answer that cites the picture shows it

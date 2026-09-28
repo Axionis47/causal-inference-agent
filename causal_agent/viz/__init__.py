@@ -1,5 +1,6 @@
-"""Figures as data with addresses: the spec, the pre-viz functions per family, and the viz subgraph the desk calls with a Point."""
+"""Pictures. A FigureSpec is data with addresses that a lane draws from its own artifacts; an Artifact (`store.py`) is a picture the
+Drawer (`draw.py`) made on request, with its code and its numbers, in a sandbox (`sandbox.py`)."""
 
-from causal_agent.viz.spec import Figure, FigureSpec, Mark, Point, Series
+from causal_agent.viz.spec import FigureSpec, Mark, Series
 
-__all__ = ["Figure", "FigureSpec", "Mark", "Point", "Series"]
+__all__ = ["FigureSpec", "Mark", "Series"]

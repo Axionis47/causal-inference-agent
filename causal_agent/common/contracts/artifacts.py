@@ -139,7 +139,7 @@ class RunRecord(BaseModel):
     status: str = "no_handoff"
     run_dir: str | None = None
     design_dir: str | None = None
-    figures: list[dict] = Field(default_factory=list, description="FigureSpecs the run left behind, the ready-moment figure first")
+    figures: list[dict] = Field(default_factory=list, description="FigureSpecs the run left behind")
     what_if: dict[str, str] = Field(default_factory=dict, description="for a what-if design: the fields changed on the fork, address -> value")
     differs: list[str] = Field(default_factory=list, description="the fields that differ from the design before, by address")
     effect: float | None = None

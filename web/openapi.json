@@ -410,6 +410,70 @@
           }
         }
       }
+    },
+    "/api/artifacts/{name}/{moment}/{design}/{artifact_id}/figure.png": {
+      "get": {
+        "summary": "Artifact Figure",
+        "operationId": "artifact_figure_api_artifacts__name___moment___design___artifact_id__figure_png_get",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "moment",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Moment"
+            }
+          },
+          {
+            "name": "design",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Design"
+            }
+          },
+          {
+            "name": "artifact_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Artifact Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -431,6 +495,77 @@
           "since"
         ],
         "title": "Activity"
+      },
+      "ArtifactView": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "address": {
+            "type": "string",
+            "title": "Address",
+            "description": "artifact:<id>, as the chat cites it"
+          },
+          "moment": {
+            "type": "string",
+            "enum": [
+              "pre",
+              "post"
+            ],
+            "title": "Moment",
+            "description": "pre: drawn before any run; post: drawn after design run `design`"
+          },
+          "design": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Design"
+          },
+          "ask": {
+            "type": "string",
+            "title": "Ask",
+            "description": "what was asked for, in the person's words"
+          },
+          "caption": {
+            "type": "string",
+            "title": "Caption"
+          },
+          "facts": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Facts",
+            "description": "every number the picture shows, by name; each is citable as artifact:<id>.<name>"
+          },
+          "made_at": {
+            "type": "string",
+            "title": "Made At"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "where the page fetches figure.png"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "address",
+          "moment",
+          "ask",
+          "caption",
+          "made_at",
+          "url"
+        ],
+        "title": "ArtifactView",
+        "description": "A picture the drawing tool made on request: where it is served from, what it shows, and the numbers it holds."
       },
       "Body_profile_upload_api_profile_post": {
         "properties": {
@@ -1156,16 +1291,6 @@
             "title": "Edges",
             "description": "for kind graph: the arrows"
           },
-          "moment": {
-            "type": "string",
-            "enum": [
-              "ready",
-              "run"
-            ],
-            "title": "Moment",
-            "description": "ready: made at the ready moment, before the run; run: made by the run",
-            "default": "run"
-          },
           "note": {
             "type": "string",
             "title": "Note",
@@ -1837,7 +1962,15 @@
             },
             "type": "array",
             "title": "Figures",
-            "description": "the ready-moment figure first, then what the run left"
+            "description": "what the run left, in the order the chat shows them"
+          },
+          "artifacts": {
+            "items": {
+              "$ref": "#/components/schemas/ArtifactView"
+            },
+            "type": "array",
+            "title": "Artifacts",
+            "description": "the pictures drawn on request after this run, oldest first"
           },
           "declines": {
             "items": {
@@ -2142,6 +2275,14 @@
             "type": "array",
             "title": "Journal",
             "description": "the conversation's steps, in order"
+          },
+          "artifacts": {
+            "items": {
+              "$ref": "#/components/schemas/ArtifactView"
+            },
+            "type": "array",
+            "title": "Artifacts",
+            "description": "the pictures drawn before any run, oldest first"
           }
         },
         "type": "object",
@@ -2386,6 +2527,17 @@
               }
             ],
             "description": "shown under the text"
+          },
+          "artifact": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ArtifactView"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "a picture drawn on request, shown under the text"
           }
         },
         "type": "object",

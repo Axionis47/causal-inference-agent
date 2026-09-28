@@ -8,6 +8,7 @@ from fastapi import FastAPI, HTTPException, Request, Response, UploadFile
 from fastapi.responses import FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
+from causal_agent.server import artifacts as AV
 from causal_agent.server import datasets as DS
 from causal_agent.server import runs as R
 from causal_agent.server.models import DatasetCreate, DatasetList, DatasetSummary, MessageIn, ProfileOut, RunFiles, SessionBrief, SessionView
@@ -143,6 +144,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if media == "text/csv":
             return FileResponse(path, media_type=media, filename=filename)
         return FileResponse(path, media_type=media)
+
+    # ------------------------------------------------------------------ pictures drawn on request
+
+    @app.get("/api/artifacts/{name}/{moment}/{design}/{artifact_id}/figure.png")
+    def artifact_figure(name: str, moment: str, design: int, artifact_id: str):
+        try:
+            return FileResponse(AV.figure_path(s, name, moment, design, artifact_id), media_type="image/png")
+        except AV.NotFound:
+            raise HTTPException(404, "no such picture") from None
 
     # ------------------------------------------------------------------ the page
 
