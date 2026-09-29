@@ -34,6 +34,7 @@ from causal_agent.desk.nodes.shared import (
     kind_of,
     options_text,
     record,
+    probes_and_facts,
     value_words,
 )
 from causal_agent.desk.readback import compose_readback
@@ -79,10 +80,10 @@ def probe_fit(state: DeskState) -> dict:
     memory = F.memory_of(state)
     df = V.table_of(memory)
     fr = state.get("frame")
-    probes = ops.probe(memory, df, R.REGISTRY.values(), TH, CAT)
     needs = focused_needs(state)
     columns = _columns_in_play(memory, fr)
     status = ops.fit(memory, probes, needs, columns=columns, cat=CAT)
+    probes = probes_and_facts(memory, df, fr, columns)
     opened = ops.open(memory, status, needs, CAT, columns=columns, exclude=[x for x in (fr.outcome if fr else None, fr.cause if fr else None) if x])
     prev = state.get("matrix") if isinstance(state.get("matrix"), Matrix) else Matrix()
     matrix = prev.update(memory, probes, needs, columns=columns, cat=CAT)

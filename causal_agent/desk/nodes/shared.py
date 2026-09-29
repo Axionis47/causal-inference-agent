@@ -5,13 +5,17 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pandas as pd
 from langgraph.config import get_stream_writer
 
 from causal_agent.common.contracts import QuestionFrame, Said
 from causal_agent.families import registry as R
+from causal_agent.memory import facts as FX
 from causal_agent.memory import journal as J
+from causal_agent.memory import ops
 from causal_agent.memory import views as V
 from causal_agent.memory.catalogue import Catalogue, ClaimKind, load_catalogue, load_thresholds
+from causal_agent.memory.claims import ProbeResult
 from causal_agent.memory.records import COLUMN_KIND, Memory
 from causal_agent.profile import datasets as DS
 
@@ -92,6 +96,16 @@ def _columns_in_play(memory: Memory, frame: QuestionFrame | None) -> list[str]:
 
 def focused_needs(state) -> dict:
     """The families' needs the interview and the fit read: every family's, or only those of the families the person named."""
+def probes_and_facts(memory: Memory, df: pd.DataFrame, frame: QuestionFrame | None, columns: list[str]) -> list[ProbeResult]:
+    """Every family's probes, then the data facts for the columns in play. Both ride in `probes`: the probes carry a verdict a
+    family can be struck by, the facts carry numbers the pack shows and the chat and the lane can cite."""
+    probes = ops.probe(memory, df, R.REGISTRY.values(), TH, CAT)
+    a = memory.values_of("claim:assignment")
+    treatment = a.get("treatment_column") or (frame.cause if frame else None)
+    outcome = frame.outcome if frame else None
+    return probes + FX.facts(df, memory, memory.to_claims(CAT), outcome=outcome, treatment=treatment, columns=columns)
+
+
     needs = R.needs()
     focus = [f for f in (state.get("focus") or []) if f in needs]
     return {k: v for k, v in needs.items() if k in focus} if focus else needs

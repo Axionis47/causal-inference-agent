@@ -174,7 +174,14 @@ def forced(
     )
     decision = FamilyDecision(admissible=[family], chosen=family, chosen_assumption=assumption, why_over_alternatives="forced", rejected=[])
     path = DS.csv_path(pack_name, m.csv)
-    probes = ops.probe(m, pd.read_csv(path), R.REGISTRY.values()) if path is not None and path.exists() else []
+    probes: list = []
+    if path is not None and path.exists():
+        from causal_agent.memory import facts as FX
+
+        df = pd.read_csv(path)
+        probes = ops.probe(m, df, R.REGISTRY.values()) + FX.facts(
+            df, m, m.to_claims(), outcome=outcome, treatment=treatment, columns=[outcome, *([treatment] if treatment else []), *columns]
+        )
     return build(question=question, frame=frame, decision=decision, family=fam, memory=m, probes=probes)
 
 

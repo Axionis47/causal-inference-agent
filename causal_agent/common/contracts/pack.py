@@ -285,6 +285,8 @@ class Probe(BaseModel):
         return f"probe:{self.family}.{self.name}"
 
     def render(self) -> str:
+        if self.passed is None and self.family == "data":  # a fact, not a verdict
+            return f"[{self.address}] {self.detail}"
         v = "pass" if self.passed else "FAIL" if self.passed is False else "n/a"
         return f"[{self.address}] {v}: {self.detail}"
 

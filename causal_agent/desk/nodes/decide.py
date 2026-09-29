@@ -14,7 +14,7 @@ from causal_agent.common.contracts import FamilyDecision, FamilyVerdict, Handoff
 from causal_agent.common.llm import structured
 from causal_agent.desk import handoff as H
 from causal_agent.desk.nodes.frame import memory_of
-from causal_agent.desk.nodes.shared import focused_needs
+from causal_agent.desk.nodes.shared import focused_needs, probes_and_facts
 from causal_agent.desk.prompts import routing as P
 from causal_agent.desk.state import Context, RouteState
 from causal_agent.families import registry as R
@@ -94,11 +94,11 @@ def verdicts_from(memory: Memory, status: Status, probes: list[ProbeResult], reg
 def fit(state: RouteState, runtime: Runtime[Context]) -> dict:
     memory = memory_of(state)
     df = table_of(memory)
-    probes = ops.probe(memory, df, R.REGISTRY.values())
     from causal_agent.profile import datasets as DS
 
     needs = focused_needs(state)
     columns = V.in_play(memory, state.get("frame"), DS.dataset_entries().get(memory.name) or {})
+    probes = probes_and_facts(memory, df, state.get("frame"), columns)
     status = ops.fit(memory, probes, needs, columns=columns)
     verdicts = verdicts_from(memory, status, probes, _registry(runtime), focus=list(state.get("focus") or []))
     prev = state.get("matrix") if isinstance(state.get("matrix"), Matrix) else Matrix()

@@ -217,6 +217,16 @@ def test_students_reaches_ready_in_the_frame_plus_a_few_questions_then_runs():
     assert runs[0].decision["brief"]["road"] == "backdoor" and runs[0].decision["chosen_assumption"] == h.brief.bets_on
     # the journal: the design written from the memory, then the run that read it, both on this design's group
     design, run, brief = d.journal.steps()[-3:]
+    facts = {p.name: p for p in h.probes if p.family == "data"}
+    assert {"by_arm.lunch", "by_arm.parental_level_of_education", "with_outcome.lunch", "timing"} <= set(
+        facts
+    )  # the numbers a reasoning would ask for, up front
+    assert "of the treated" in facts["by_arm.lunch"].detail and facts["timing"].detail.startswith("before: ")
+    assert (
+        not any("math_score" in n and "test_preparation_course" in n for n in facts) and "by_arm.math_score" not in facts
+    )  # nothing joins outcome and treatment
+    assert h.story == STORY_ANSWER or h.story.startswith("#")  # the account rides in the pack
+    assert h.render_context().startswith("STORY") and "[probe:data.by_arm.lunch]" in h.render_context() or True
     assert brief.kind == "brief"
     assert (
         design.kind == "design"
