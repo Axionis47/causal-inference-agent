@@ -4,25 +4,10 @@ A picture of anything in the file, on request, before or after the run. The mode
 numbers the picture shows come back as facts the chat can cite. The tool is never a "tool call" in the model's sense and never
 a keyword match: the model that reads each message decides that the person asked to see something drawn.
 
-```mermaid
-sequenceDiagram
-    participant P as person
-    participant R as Reader or Explainer
-    participant D as desk, the draw node
-    participant M as drawing model
-    participant S as sandbox
-    participant F as store
-    P->>R: show me math score by lunch
-    R-->>D: Reading.draw = "math score by lunch" (a judgement)
-    D->>M: DrawRequest: the ask, what is known, the columns
-    M-->>D: DrawCode: plan, script, caption, fact names (a judgement)
-    D->>D: gate 1: the script parses
-    D->>S: run code.py with VIZ_CSV
-    S-->>D: figure.png, facts.json
-    D->>D: gate 2: png exists, facts all numbers, promised names present
-    D->>F: artifact.json under viz/pre/id/ or designs/n/viz/id/
-    D-->>P: the caption, cited as artifact:id, then the next question
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="diagrams/draw-sequence-dark.svg">
+  <img alt="The drawing tool as a sequence: the person, the Reader or Explainer, the desk's draw node, the drawing model, the sandbox, the store; two judgements and two gates" src="diagrams/draw-sequence-light.svg">
+</picture>
 
 ## 1. How a request is detected
 

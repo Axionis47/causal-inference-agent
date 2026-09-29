@@ -2,41 +2,12 @@
 
 One LangGraph, and the only graph: the question first, one question per turn until the matrix says ready, the run, then the
 chat after. The desk is an operator. It receives, classifies, dispatches to a tool, gates what comes back, writes it, and asks
-the next thing. No node reasons on its own; the amber nodes below are the ones that call a model, each through a gate.
+the next thing. No node reasons on its own; the amber nodes are the ones that call a model, each through a gate.
 
-```mermaid
-flowchart LR
-    classDef code fill:#e0ecff,stroke:#3b82f6,color:#1e3a8a
-    classDef judge fill:#fff1cc,stroke:#f59e0b,color:#78350f
-    classDef stop fill:#f1f5f9,stroke:#94a3b8,color:#334155,stroke-dasharray:4 3
-
-    load --> ask_question
-    ask_question -.interrupt.-> mine --> read_question
-    read_question -- invalid --> ask_question
-    read_question --> check --> probe_fit --> ask
-    ask -- ready --> convince --> listen
-    ask --> listen
-    listen -.interrupt.-> infer
-    infer --> draw --> check
-    infer --> explain --> check
-    infer --> check
-    listen -- run --> fit --> decide --> gate
-    gate -- retry --> decide
-    gate --> design --> handoff --> run
-    run -- the lane asks back --> ask_back --> listen
-    run --> brief --> talk
-    talk -.interrupt.-> turn
-    turn --> answer --> talk
-    turn --> revise --> check
-    turn --> what_if --> fit
-    turn --> requestion --> read_question
-    turn --> draw_after --> talk
-    turn -- done --> END
-
-    class load,ask_question,check,probe_fit,ask,convince,listen,fit,gate,handoff,run,ask_back,brief,talk,answer,revise,what_if,requestion code
-    class mine,read_question,infer,draw,explain,decide,design,turn,draw_after judge
-    class END stop
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="diagrams/desk-graph-dark.svg">
+  <img alt="The desk graph in four bands: the question first, the interview, the routing and the run, the chat after; interrupts marked, judgements amber" src="diagrams/desk-graph-light.svg">
+</picture>
 
 The node list is `build()` in [desk/graph.py:63](../causal_agent/desk/graph.py). Static edges are a dozen; the rest of the
 routing is a `Command(goto=...)` returned by the node, so the route is always a decision code made from a typed result.
