@@ -1,0 +1,682 @@
+{
+  "name": "exam_prep",
+  "version": 34,
+  "csv": "data/raw/exam_prep/StudentsPerformance.csv",
+  "facts": {
+    "rows": 1000,
+    "columns": 8,
+    "duplicate_rows": 0,
+    "grain": [],
+    "time_coverage": null,
+    "entity_summary": null,
+    "format_issues": []
+  },
+  "columns": {
+    "gender": {
+      "name": "gender",
+      "key": "gender",
+      "facts": {
+        "kind": "categorical",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 2,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": null,
+        "top_values": [
+          {
+            "value": "female",
+            "count": 518,
+            "share": 0.518
+          },
+          {
+            "value": "male",
+            "count": 482,
+            "share": 0.482
+          }
+        ],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": true,
+        "bounds": null,
+        "role_hints": [
+          "binary"
+        ]
+      }
+    },
+    "race_ethnicity": {
+      "name": "race/ethnicity",
+      "key": "race_ethnicity",
+      "facts": {
+        "kind": "categorical",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 5,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": null,
+        "top_values": [
+          {
+            "value": "group C",
+            "count": 319,
+            "share": 0.319
+          },
+          {
+            "value": "group D",
+            "count": 262,
+            "share": 0.262
+          },
+          {
+            "value": "group B",
+            "count": 190,
+            "share": 0.19
+          },
+          {
+            "value": "group E",
+            "count": 140,
+            "share": 0.14
+          },
+          {
+            "value": "group A",
+            "count": 89,
+            "share": 0.089
+          }
+        ],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    "parental_level_of_education": {
+      "name": "parental level of education",
+      "key": "parental_level_of_education",
+      "facts": {
+        "kind": "categorical",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 6,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": null,
+        "top_values": [
+          {
+            "value": "some college",
+            "count": 226,
+            "share": 0.226
+          },
+          {
+            "value": "associate's degree",
+            "count": 222,
+            "share": 0.222
+          },
+          {
+            "value": "high school",
+            "count": 196,
+            "share": 0.196
+          },
+          {
+            "value": "some high school",
+            "count": 179,
+            "share": 0.179
+          },
+          {
+            "value": "bachelor's degree",
+            "count": 118,
+            "share": 0.118
+          },
+          {
+            "value": "master's degree",
+            "count": 59,
+            "share": 0.059
+          }
+        ],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    "lunch": {
+      "name": "lunch",
+      "key": "lunch",
+      "facts": {
+        "kind": "categorical",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 2,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": null,
+        "top_values": [
+          {
+            "value": "standard",
+            "count": 645,
+            "share": 0.645
+          },
+          {
+            "value": "free/reduced",
+            "count": 355,
+            "share": 0.355
+          }
+        ],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": true,
+        "bounds": null,
+        "role_hints": [
+          "binary"
+        ]
+      }
+    },
+    "test_preparation_course": {
+      "name": "test preparation course",
+      "key": "test_preparation_course",
+      "facts": {
+        "kind": "categorical",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 2,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": null,
+        "top_values": [
+          {
+            "value": "none",
+            "count": 642,
+            "share": 0.642
+          },
+          {
+            "value": "completed",
+            "count": 358,
+            "share": 0.358
+          }
+        ],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": true,
+        "bounds": null,
+        "role_hints": [
+          "binary"
+        ]
+      }
+    },
+    "math_score": {
+      "name": "math score",
+      "key": "math_score",
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 81,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": {
+          "min": 0.0,
+          "max": 100.0,
+          "mean": 66.089,
+          "p01": 27.990000000000002,
+          "p25": 57.0,
+          "p50": 66.0,
+          "p75": 77.0,
+          "p99": 98.00999999999999
+        },
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": [
+          "0",
+          "100"
+        ],
+        "role_hints": [
+          "measure"
+        ]
+      }
+    },
+    "reading_score": {
+      "name": "reading score",
+      "key": "reading_score",
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 72,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": {
+          "min": 17.0,
+          "max": 100.0,
+          "mean": 69.169,
+          "p01": 31.990000000000002,
+          "p25": 59.0,
+          "p50": 70.0,
+          "p75": 79.0,
+          "p99": 100.0
+        },
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": [
+          "17",
+          "100"
+        ],
+        "role_hints": [
+          "measure"
+        ]
+      }
+    },
+    "writing_score": {
+      "name": "writing score",
+      "key": "writing_score",
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 77,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": {
+          "min": 10.0,
+          "max": 100.0,
+          "mean": 68.054,
+          "p01": 31.98,
+          "p25": 57.75,
+          "p50": 69.0,
+          "p75": 79.0,
+          "p99": 100.0
+        },
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": [
+          "10",
+          "100"
+        ],
+        "role_hints": [
+          "measure"
+        ]
+      }
+    }
+  },
+  "fields": {
+    "claim:missing.why": {
+      "value": "none",
+      "status": "confirmed",
+      "source": "data",
+      "said": null,
+      "evidence": []
+    },
+    "claim:assignment.treatment_column": {
+      "value": "test preparation course",
+      "status": "confirmed",
+      "source": "user:turn:2",
+      "said": "Yes, that is right.",
+      "evidence": [
+        "check:assignment.treatment_column.treatment_varies"
+      ]
+    },
+    "col:gender.meaning": {
+      "value": "gender",
+      "status": "confirmed",
+      "source": "user:turn:3",
+      "said": "gender",
+      "evidence": []
+    },
+    "col:gender.when": {
+      "value": "before",
+      "status": "confirmed",
+      "source": "user:turn:3",
+      "said": "gender, race/ethnicity and parental level of education were recorded at enrolment, before the course.",
+      "evidence": []
+    },
+    "col:race_ethnicity.meaning": {
+      "value": "race/ethnicity",
+      "status": "confirmed",
+      "source": "user:turn:3",
+      "said": "race/ethnicity",
+      "evidence": []
+    },
+    "col:race_ethnicity.when": {
+      "value": "before",
+      "status": "confirmed",
+      "source": "user:turn:3",
+      "said": "gender, race/ethnicity and parental level of education were recorded at enrolment, before the course.",
+      "evidence": []
+    },
+    "col:parental_level_of_education.meaning": {
+      "value": "parental level of education",
+      "status": "confirmed",
+      "source": "user:turn:3",
+      "said": "parental level of education",
+      "evidence": []
+    },
+    "col:parental_level_of_education.when": {
+      "value": "before",
+      "status": "confirmed",
+      "source": "user:turn:3",
+      "said": "gender, race/ethnicity and parental level of education were recorded at enrolment, before the course.",
+      "evidence": []
+    },
+    "col:lunch.meaning": {
+      "value": "standard or free/reduced lunch, set by the district from household income, indicating low-income status",
+      "status": "confirmed",
+      "source": "user:turn:3",
+      "said": "lunch is standard or free/reduced; the district sets it from household income before the exam, so it is our low-income marker.",
+      "evidence": []
+    },
+    "col:lunch.when": {
+      "value": "before",
+      "status": "confirmed",
+      "source": "user:turn:3",
+      "said": "the district sets it from household income before the exam",
+      "evidence": []
+    },
+    "col:test_preparation_course.meaning": {
+      "value": "whether the student completed the six-week test preparation course; 'none' means not completed, 'completed' means completed",
+      "status": "confirmed",
+      "source": "user:turn:3",
+      "said": "test preparation course says whether the student completed the six-week prep course that ran 1 March to 12 April, before the exam; the counsellor recorded completion.",
+      "evidence": []
+    },
+    "col:test_preparation_course.when": {
+      "value": "at",
+      "status": "confirmed",
+      "source": "user:turn:3",
+      "said": "test preparation course says whether the student completed the six-week prep course that ran 1 March to 12 April, before the exam",
+      "evidence": []
+    },
+    "col:math_score.meaning": {
+      "value": "math exam mark, 0 to 100",
+      "status": "confirmed",
+      "source": "user:turn:3",
+      "said": "math score, reading score and writing score are the exam marks, 0 to 100",
+      "evidence": []
+    },
+    "col:math_score.when": {
+      "value": "after",
+      "status": "confirmed",
+      "source": "user:turn:3",
+      "said": "recorded at the sitting after the course.",
+      "evidence": []
+    },
+    "col:reading_score.meaning": {
+      "value": "reading exam mark, 0 to 100",
+      "status": "confirmed",
+      "source": "user:turn:3",
+      "said": "math score, reading score and writing score are the exam marks, 0 to 100",
+      "evidence": []
+    },
+    "col:reading_score.when": {
+      "value": "after",
+      "status": "confirmed",
+      "source": "user:turn:3",
+      "said": "recorded at the sitting after the course.",
+      "evidence": []
+    },
+    "col:writing_score.meaning": {
+      "value": "writing exam mark, 0 to 100",
+      "status": "confirmed",
+      "source": "user:turn:3",
+      "said": "math score, reading score and writing score are the exam marks, 0 to 100",
+      "evidence": []
+    },
+    "col:writing_score.when": {
+      "value": "after",
+      "status": "confirmed",
+      "source": "user:turn:3",
+      "said": "recorded at the sitting after the course.",
+      "evidence": []
+    },
+    "claim:grain.row_is": {
+      "value": "one student who sat the May 2026 exam at our school",
+      "status": "confirmed",
+      "source": "user:turn:3",
+      "said": "Each row is one student who sat the May 2026 exam at our school.",
+      "evidence": []
+    },
+    "claim:assignment.kind": {
+      "value": "own_choice",
+      "status": "confirmed",
+      "source": "user:turn:4",
+      "said": "own_choice.",
+      "evidence": []
+    },
+    "claim:assignment.rule": {
+      "value": "The counsellor offered places first to students on free or reduced lunch and to students whose parents hold no degree; the remaining places went to anyone who asked. Taking the place was the student's own choice.",
+      "status": "confirmed",
+      "source": "user:turn:4",
+      "said": "The counsellor offered places first to students on free or reduced lunch and to students whose parents hold no degree; the remaining places went to anyone who asked. Taking the place was the student's own choice.",
+      "evidence": []
+    },
+    "claim:assignment.treated_level": {
+      "value": "completed",
+      "status": "confirmed",
+      "source": "user:turn:5",
+      "said": "The treated level is completed.",
+      "evidence": []
+    },
+    "claim:assignment.depends_on": {
+      "value": [
+        "lunch",
+        "parental level of education"
+      ],
+      "status": "confirmed",
+      "source": "user:turn:5",
+      "said": "The offer depended on lunch and parental level of education.",
+      "evidence": []
+    },
+    "claim:change.what": {
+      "value": "a six-week test preparation course the school ran",
+      "status": "confirmed",
+      "source": "user:turn:6",
+      "said": "The change was a six-week test preparation course the school ran from 1 March to 12 April 2026, before the May exam.",
+      "evidence": []
+    },
+    "claim:change.to_whom": {
+      "value": "any enrolled student at the school",
+      "status": "confirmed",
+      "source": "user:turn:6",
+      "said": "It could reach any enrolled student at the school.",
+      "evidence": []
+    },
+    "claim:change.when": {
+      "value": "from 1 March to 12 April 2026, before the May exam",
+      "status": "confirmed",
+      "source": "user:turn:6",
+      "said": "The change was a six-week test preparation course the school ran from 1 March to 12 April 2026, before the May exam.",
+      "evidence": []
+    },
+    "claim:grain.panel": {
+      "value": false,
+      "status": "confirmed",
+      "source": "user:turn:7",
+      "said": "No. Each student appears once; there is no student identifier and no repeat periods.",
+      "evidence": []
+    },
+    "claim:sampling.how": {
+      "value": "whole",
+      "status": "confirmed",
+      "source": "user:turn:8",
+      "said": "whole. Every enrolled student who sat the exam is in the file, 1000 rows. Absentees are not.",
+      "evidence": []
+    },
+    "claim:unobserved.exists": {
+      "value": false,
+      "status": "confirmed",
+      "source": "user:turn:9",
+      "said": "No.",
+      "evidence": []
+    },
+    "claim:unobserved.why_believed": {
+      "value": "The offer rule only looked at lunch and parental level of education, and both are in the file. After the offer, places were open to anyone who asked.",
+      "status": "confirmed",
+      "source": "user:turn:9",
+      "said": "The offer rule only looked at lunch and parental level of education, and both are in the file. After the offer, places were open to anyone who asked.",
+      "evidence": []
+    },
+    "claim:exclusion.exists": {
+      "value": false,
+      "status": "confirmed",
+      "source": "user:turn:10",
+      "said": "No.",
+      "evidence": []
+    },
+    "claim:spillover.possible": {
+      "value": false,
+      "status": "confirmed",
+      "source": "user:turn:11",
+      "said": "No.",
+      "evidence": []
+    },
+    "claim:spillover.why": {
+      "value": "Students sit the exam individually, so one student's result does not affect another's.",
+      "status": "confirmed",
+      "source": "user:turn:11",
+      "said": "Students sit the exam individually, so one student's result does not affect another's.",
+      "evidence": []
+    }
+  },
+  "said": [
+    {
+      "turn": 1,
+      "about": "question",
+      "text": "Did completing the test preparation course raise students' math score?"
+    },
+    {
+      "turn": 2,
+      "about": "claim:assignment.treatment_column",
+      "text": "Yes, that is right."
+    },
+    {
+      "turn": 3,
+      "about": "col:gender.meaning, col:gender.when, col:race_ethnicity.meaning, col:race_ethnicity.when, col:parental_level_of_education.meaning, col:parental_level_of_education.when, col:lunch.meaning, col:lunch.when, col:test_preparation_course.meaning, col:test_preparation_course.when, col:math_score.meaning, col:math_score.when, col:reading_score.meaning, col:reading_score.when, col:writing_score.meaning, col:writing_score.when",
+      "text": "Each row is one student who sat the May 2026 exam at our school. gender, race/ethnicity and parental level of education were recorded at enrolment, before the course. lunch is standard or free/reduced; the district sets it from household income before the exam, so it is our low-income marker. test preparation course says whether the student completed the six-week prep course that ran 1 March to 12 April, before the exam; the counsellor recorded completion. math score, reading score and writing score are the exam marks, 0 to 100, recorded at the sitting after the course."
+    },
+    {
+      "turn": 4,
+      "about": "claim:assignment.kind",
+      "text": "own_choice. The counsellor offered places first to students on free or reduced lunch and to students whose parents hold no degree; the remaining places went to anyone who asked. Taking the place was the student's own choice. The column test preparation course records who completed it. A student could not change their lunch status or their parents' education."
+    },
+    {
+      "turn": 5,
+      "about": "claim:assignment.treated_level",
+      "text": "The treated level is completed. The offer depended on lunch and parental level of education."
+    },
+    {
+      "turn": 6,
+      "about": "claim:change.what",
+      "text": "The change was a six-week test preparation course the school ran from 1 March to 12 April 2026, before the May exam. It could reach any enrolled student at the school. No column records the period; every row is the same exam sitting."
+    },
+    {
+      "turn": 7,
+      "about": "claim:grain.panel",
+      "text": "No. Each student appears once; there is no student identifier and no repeat periods."
+    },
+    {
+      "turn": 8,
+      "about": "claim:sampling.how",
+      "text": "whole. Every enrolled student who sat the exam is in the file, 1000 rows. Absentees are not."
+    },
+    {
+      "turn": 9,
+      "about": "claim:unobserved.exists",
+      "text": "No. The offer rule only looked at lunch and parental level of education, and both are in the file. After the offer, places were open to anyone who asked."
+    },
+    {
+      "turn": 10,
+      "about": "claim:exclusion.exists",
+      "text": "No. Lunch and parental education pushed students toward the course, but both also affect exam marks on their own."
+    },
+    {
+      "turn": 11,
+      "about": "claim:spillover.possible",
+      "text": "No. Students sit the exam individually, so one student's result does not affect another's."
+    },
+    {
+      "turn": 12,
+      "about": "",
+      "text": "run"
+    },
+    {
+      "turn": 13,
+      "about": "after",
+      "text": "Is a 5.7 point rise a lot, and should I worry about the soft balance check on parental education?"
+    },
+    {
+      "turn": 14,
+      "about": "question",
+      "text": "Did completing the test preparation course raise students' math score?"
+    },
+    {
+      "turn": 15,
+      "about": "",
+      "text": "What does own_choice mean for you here, and why does it matter for which method you pick?"
+    },
+    {
+      "turn": 16,
+      "about": "",
+      "text": "What does own_choice mean for you here, and why does it matter for which method you pick?"
+    },
+    {
+      "turn": 17,
+      "about": "",
+      "text": "What does own_choice mean for you here, and why does it matter for which method you pick?"
+    },
+    {
+      "turn": 18,
+      "about": "",
+      "text": "run"
+    },
+    {
+      "turn": 19,
+      "about": "question",
+      "text": "Did completing the test preparation course raise students' math score?"
+    },
+    {
+      "turn": 20,
+      "about": "",
+      "text": "run"
+    },
+    {
+      "turn": 21,
+      "about": "after",
+      "text": "what did we settle first, and on whose word?"
+    },
+    {
+      "turn": 22,
+      "about": "after",
+      "text": "what did we settle first, and on whose word?"
+    },
+    {
+      "turn": 23,
+      "about": "question",
+      "text": "Did completing the test preparation course raise students' math score?"
+    },
+    {
+      "turn": 24,
+      "about": "",
+      "text": "run"
+    }
+  ]
+}

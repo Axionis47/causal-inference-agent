@@ -1,0 +1,388 @@
+{
+  "memory_version": 62,
+  "cells": {
+    "adjustment": {
+      "grain": {
+        "value": "fits",
+        "set_by": "claim:grain",
+        "at": "v35"
+      },
+      "sampling": {
+        "value": "fits",
+        "set_by": "claim:sampling",
+        "at": "v35"
+      },
+      "change": {
+        "value": "fits",
+        "set_by": "claim:change",
+        "at": "v35"
+      },
+      "assignment": {
+        "value": "fits",
+        "set_by": "claim:assignment.kind",
+        "at": "v35"
+      },
+      "measured": {
+        "value": "fits",
+        "set_by": "col:parental_level_of_education, col:lunch, col:test_preparation_course, col:math_score",
+        "at": "v35"
+      },
+      "missing": {
+        "value": "fits",
+        "set_by": "claim:missing",
+        "at": "v35"
+      },
+      "unobserved": {
+        "value": "fits",
+        "set_by": "claim:unobserved",
+        "at": "v60"
+      },
+      "exclusion": {
+        "value": "not_needed",
+        "set_by": null,
+        "at": "v35"
+      },
+      "spillover": {
+        "value": "fits",
+        "set_by": "claim:spillover",
+        "at": "v62"
+      },
+      "trend_continues": {
+        "value": "not_needed",
+        "set_by": null,
+        "at": "v35"
+      },
+      "cutoff_only": {
+        "value": "not_needed",
+        "set_by": null,
+        "at": "v35"
+      },
+      "mediator": {
+        "value": "not_needed",
+        "set_by": null,
+        "at": "v35"
+      }
+    },
+    "diff_in_diff": {
+      "grain": {
+        "value": "does_not_fit",
+        "set_by": "claim:grain.panel",
+        "at": "v35"
+      },
+      "sampling": {
+        "value": "fits",
+        "set_by": "claim:sampling",
+        "at": "v35"
+      },
+      "change": {
+        "value": "fits",
+        "set_by": "claim:change",
+        "at": "v35"
+      },
+      "assignment": {
+        "value": "fits",
+        "set_by": "claim:assignment.kind",
+        "at": "v35"
+      },
+      "measured": {
+        "value": "fits",
+        "set_by": "col:parental_level_of_education, col:lunch, col:test_preparation_course, col:math_score",
+        "at": "v35"
+      },
+      "missing": {
+        "value": "fits",
+        "set_by": "claim:missing",
+        "at": "v35"
+      },
+      "unobserved": {
+        "value": "not_needed",
+        "set_by": null,
+        "at": "v35"
+      },
+      "exclusion": {
+        "value": "not_needed",
+        "set_by": null,
+        "at": "v35"
+      },
+      "spillover": {
+        "value": "fits",
+        "set_by": "claim:spillover",
+        "at": "v62"
+      },
+      "trend_continues": {
+        "value": "unknown",
+        "set_by": "claim:trend_continues",
+        "at": "v35"
+      },
+      "cutoff_only": {
+        "value": "not_needed",
+        "set_by": null,
+        "at": "v35"
+      },
+      "mediator": {
+        "value": "not_needed",
+        "set_by": null,
+        "at": "v35"
+      }
+    },
+    "discontinuity": {
+      "grain": {
+        "value": "fits",
+        "set_by": "claim:grain",
+        "at": "v35"
+      },
+      "sampling": {
+        "value": "fits",
+        "set_by": "claim:sampling",
+        "at": "v35"
+      },
+      "change": {
+        "value": "fits",
+        "set_by": "claim:change",
+        "at": "v35"
+      },
+      "assignment": {
+        "value": "does_not_fit",
+        "set_by": "claim:assignment.kind",
+        "at": "v35"
+      },
+      "measured": {
+        "value": "fits",
+        "set_by": "col:parental_level_of_education, col:lunch, col:test_preparation_course, col:math_score",
+        "at": "v35"
+      },
+      "missing": {
+        "value": "fits",
+        "set_by": "claim:missing",
+        "at": "v35"
+      },
+      "unobserved": {
+        "value": "not_needed",
+        "set_by": null,
+        "at": "v35"
+      },
+      "exclusion": {
+        "value": "not_needed",
+        "set_by": null,
+        "at": "v35"
+      },
+      "spillover": {
+        "value": "not_needed",
+        "set_by": null,
+        "at": "v35"
+      },
+      "trend_continues": {
+        "value": "not_needed",
+        "set_by": null,
+        "at": "v35"
+      },
+      "cutoff_only": {
+        "value": "unknown",
+        "set_by": "claim:cutoff_only",
+        "at": "v35"
+      },
+      "mediator": {
+        "value": "not_needed",
+        "set_by": null,
+        "at": "v35"
+      }
+    },
+    "interrupted_series": {
+      "grain": {
+        "value": "does_not_fit",
+        "set_by": "claim:grain.panel",
+        "at": "v35"
+      },
+      "sampling": {
+        "value": "fits",
+        "set_by": "claim:sampling",
+        "at": "v35"
+      },
+      "change": {
+        "value": "fits",
+        "set_by": "claim:change",
+        "at": "v35"
+      },
+      "assignment": {
+        "value": "does_not_fit",
+        "set_by": "claim:assignment.kind",
+        "at": "v35"
+      },
+      "measured": {
+        "value": "fits",
+        "set_by": "col:parental_level_of_education, col:lunch, col:test_preparation_course, col:math_score",
+        "at": "v35"
+      },
+      "missing": {
+        "value": "fits",
+        "set_by": "claim:missing",
+        "at": "v35"
+      },
+      "unobserved": {
+        "value": "not_needed",
+        "set_by": null,
+        "at": "v35"
+      },
+      "exclusion": {
+        "value": "not_needed",
+        "set_by": null,
+        "at": "v35"
+      },
+      "spillover": {
+        "value": "not_needed",
+        "set_by": null,
+        "at": "v35"
+      },
+      "trend_continues": {
+        "value": "unknown",
+        "set_by": "claim:trend_continues",
+        "at": "v35"
+      },
+      "cutoff_only": {
+        "value": "not_needed",
+        "set_by": null,
+        "at": "v35"
+      },
+      "mediator": {
+        "value": "not_needed",
+        "set_by": null,
+        "at": "v35"
+      }
+    },
+    "synthetic_control": {
+      "grain": {
+        "value": "does_not_fit",
+        "set_by": "claim:grain.panel",
+        "at": "v35"
+      },
+      "sampling": {
+        "value": "fits",
+        "set_by": "claim:sampling",
+        "at": "v35"
+      },
+      "change": {
+        "value": "fits",
+        "set_by": "claim:change",
+        "at": "v35"
+      },
+      "assignment": {
+        "value": "does_not_fit",
+        "set_by": "claim:assignment.kind",
+        "at": "v35"
+      },
+      "measured": {
+        "value": "fits",
+        "set_by": "col:parental_level_of_education, col:lunch, col:test_preparation_course, col:math_score",
+        "at": "v35"
+      },
+      "missing": {
+        "value": "fits",
+        "set_by": "claim:missing",
+        "at": "v35"
+      },
+      "unobserved": {
+        "value": "not_needed",
+        "set_by": null,
+        "at": "v35"
+      },
+      "exclusion": {
+        "value": "not_needed",
+        "set_by": null,
+        "at": "v35"
+      },
+      "spillover": {
+        "value": "fits",
+        "set_by": "claim:spillover",
+        "at": "v62"
+      },
+      "trend_continues": {
+        "value": "not_needed",
+        "set_by": null,
+        "at": "v35"
+      },
+      "cutoff_only": {
+        "value": "not_needed",
+        "set_by": null,
+        "at": "v35"
+      },
+      "mediator": {
+        "value": "not_needed",
+        "set_by": null,
+        "at": "v35"
+      }
+    },
+    "instrument": {
+      "grain": {
+        "value": "fits",
+        "set_by": "claim:grain",
+        "at": "v35"
+      },
+      "sampling": {
+        "value": "fits",
+        "set_by": "claim:sampling",
+        "at": "v35"
+      },
+      "change": {
+        "value": "fits",
+        "set_by": "claim:change",
+        "at": "v35"
+      },
+      "assignment": {
+        "value": "fits",
+        "set_by": "claim:assignment.kind",
+        "at": "v35"
+      },
+      "measured": {
+        "value": "fits",
+        "set_by": "col:parental_level_of_education, col:lunch, col:test_preparation_course, col:math_score",
+        "at": "v35"
+      },
+      "missing": {
+        "value": "fits",
+        "set_by": "claim:missing",
+        "at": "v35"
+      },
+      "unobserved": {
+        "value": "fits",
+        "set_by": "claim:unobserved",
+        "at": "v60"
+      },
+      "exclusion": {
+        "value": "does_not_fit",
+        "set_by": "claim:exclusion.exists",
+        "at": "v61"
+      },
+      "spillover": {
+        "value": "not_needed",
+        "set_by": null,
+        "at": "v35"
+      },
+      "trend_continues": {
+        "value": "not_needed",
+        "set_by": null,
+        "at": "v35"
+      },
+      "cutoff_only": {
+        "value": "not_needed",
+        "set_by": null,
+        "at": "v35"
+      },
+      "mediator": {
+        "value": "not_needed",
+        "set_by": null,
+        "at": "v35"
+      }
+    }
+  },
+  "struck": {
+    "diff_in_diff": "grain does not fit",
+    "discontinuity": "assignment does not fit",
+    "interrupted_series": "grain does not fit",
+    "synthetic_control": "grain does not fit",
+    "instrument": "exclusion does not fit"
+  },
+  "surviving": [
+    "adjustment"
+  ],
+  "ready": true
+}

@@ -1,0 +1,647 @@
+{
+  "name": "students",
+  "version": 62,
+  "csv": "data/raw/students-performance-in-exams/StudentsPerformance.csv",
+  "facts": {
+    "rows": 1000,
+    "columns": 8,
+    "duplicate_rows": 0,
+    "grain": [],
+    "time_coverage": null,
+    "entity_summary": null,
+    "format_issues": []
+  },
+  "columns": {
+    "gender": {
+      "name": "gender",
+      "key": "gender",
+      "facts": {
+        "kind": "categorical",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 2,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": null,
+        "top_values": [
+          {
+            "value": "female",
+            "count": 518,
+            "share": 0.518
+          },
+          {
+            "value": "male",
+            "count": 482,
+            "share": 0.482
+          }
+        ],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    "race_ethnicity": {
+      "name": "race/ethnicity",
+      "key": "race_ethnicity",
+      "facts": {
+        "kind": "categorical",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 5,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": null,
+        "top_values": [
+          {
+            "value": "group C",
+            "count": 319,
+            "share": 0.319
+          },
+          {
+            "value": "group D",
+            "count": 262,
+            "share": 0.262
+          },
+          {
+            "value": "group B",
+            "count": 190,
+            "share": 0.19
+          },
+          {
+            "value": "group E",
+            "count": 140,
+            "share": 0.14
+          },
+          {
+            "value": "group A",
+            "count": 89,
+            "share": 0.089
+          }
+        ],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    "parental_level_of_education": {
+      "name": "parental level of education",
+      "key": "parental_level_of_education",
+      "facts": {
+        "kind": "categorical",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 6,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": null,
+        "top_values": [
+          {
+            "value": "some college",
+            "count": 226,
+            "share": 0.226
+          },
+          {
+            "value": "associate's degree",
+            "count": 222,
+            "share": 0.222
+          },
+          {
+            "value": "high school",
+            "count": 196,
+            "share": 0.196
+          },
+          {
+            "value": "some high school",
+            "count": 179,
+            "share": 0.179
+          },
+          {
+            "value": "bachelor's degree",
+            "count": 118,
+            "share": 0.118
+          },
+          {
+            "value": "master's degree",
+            "count": 59,
+            "share": 0.059
+          }
+        ],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    "lunch": {
+      "name": "lunch",
+      "key": "lunch",
+      "facts": {
+        "kind": "categorical",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 2,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": null,
+        "top_values": [
+          {
+            "value": "standard",
+            "count": 645,
+            "share": 0.645
+          },
+          {
+            "value": "free/reduced",
+            "count": 355,
+            "share": 0.355
+          }
+        ],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    "test_preparation_course": {
+      "name": "test preparation course",
+      "key": "test_preparation_course",
+      "facts": {
+        "kind": "categorical",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 2,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": null,
+        "top_values": [
+          {
+            "value": "none",
+            "count": 642,
+            "share": 0.642
+          },
+          {
+            "value": "completed",
+            "count": 358,
+            "share": 0.358
+          }
+        ],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    "math_score": {
+      "name": "math score",
+      "key": "math_score",
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 81,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": {
+          "min": 0.0,
+          "max": 100.0,
+          "mean": 66.089,
+          "p01": 27.990000000000002,
+          "p25": 57.0,
+          "p50": 66.0,
+          "p75": 77.0,
+          "p99": 98.00999999999999
+        },
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    "reading_score": {
+      "name": "reading score",
+      "key": "reading_score",
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 72,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": {
+          "min": 17.0,
+          "max": 100.0,
+          "mean": 69.169,
+          "p01": 31.990000000000002,
+          "p25": 59.0,
+          "p50": 70.0,
+          "p75": 79.0,
+          "p99": 100.0
+        },
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    "writing_score": {
+      "name": "writing score",
+      "key": "writing_score",
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 77,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": {
+          "min": 10.0,
+          "max": 100.0,
+          "mean": 68.054,
+          "p01": 31.98,
+          "p25": 57.75,
+          "p50": 69.0,
+          "p75": 79.0,
+          "p99": 100.0
+        },
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    }
+  },
+  "fields": {
+    "claim:missing.why": {
+      "value": "none",
+      "status": "confirmed",
+      "source": "data",
+      "said": null,
+      "reason": null,
+      "evidence": []
+    },
+    "claim:grain.row_is": {
+      "value": "one student's results from the May 2026 exam",
+      "status": "confirmed",
+      "source": "user:turn:2",
+      "said": "yes, all right",
+      "reason": "confirmed as drafted",
+      "evidence": []
+    },
+    "claim:grain.panel": {
+      "value": false,
+      "status": "confirmed",
+      "source": "user:turn:2",
+      "said": "yes, all right",
+      "reason": "confirmed as drafted",
+      "evidence": []
+    },
+    "claim:change.what": {
+      "value": "a six-week test preparation course",
+      "status": "confirmed",
+      "source": "user:turn:2",
+      "said": "yes, all right",
+      "reason": "confirmed as drafted",
+      "evidence": []
+    },
+    "claim:change.to_whom": {
+      "value": "students",
+      "status": "confirmed",
+      "source": "user:turn:2",
+      "said": "yes, all right",
+      "reason": "confirmed as drafted",
+      "evidence": []
+    },
+    "claim:change.when": {
+      "value": "1 March to 12 April 2026",
+      "status": "confirmed",
+      "source": "user:turn:2",
+      "said": "yes, all right",
+      "reason": "confirmed as drafted",
+      "evidence": []
+    },
+    "claim:assignment.kind": {
+      "value": "own_choice",
+      "status": "confirmed",
+      "source": "user:turn:2",
+      "said": "yes, all right",
+      "reason": "confirmed as drafted",
+      "evidence": []
+    },
+    "claim:assignment.rule": {
+      "value": "The counsellor offered places first to students on free or reduced lunch and to students whose parents hold no degree; remaining places were open to anyone who asked. After that, uptake was voluntary.",
+      "status": "confirmed",
+      "source": "user:turn:2",
+      "said": "yes, all right",
+      "reason": "confirmed as drafted",
+      "evidence": []
+    },
+    "claim:assignment.depends_on": {
+      "value": [
+        "lunch",
+        "parental level of education"
+      ],
+      "status": "confirmed",
+      "source": "user:turn:2",
+      "said": "yes, all right",
+      "reason": "confirmed as drafted",
+      "evidence": []
+    },
+    "claim:assignment.treatment_column": {
+      "value": "test preparation course",
+      "status": "confirmed",
+      "source": "user:turn:2",
+      "said": "yes, all right",
+      "reason": "confirmed as drafted",
+      "evidence": [
+        "check:assignment.treatment_column.treatment_varies"
+      ]
+    },
+    "claim:assignment.treated_level": {
+      "value": "completed",
+      "status": "confirmed",
+      "source": "user:turn:2",
+      "said": "yes, all right",
+      "reason": "confirmed as drafted",
+      "evidence": []
+    },
+    "claim:sampling.how": {
+      "value": "whole",
+      "status": "confirmed",
+      "source": "user:turn:2",
+      "said": "yes, all right",
+      "reason": "confirmed as drafted",
+      "evidence": []
+    },
+    "claim:sampling.detail": {
+      "value": "Every enrolled student who sat the exam is included; absentees are not.",
+      "status": "confirmed",
+      "source": "user:turn:2",
+      "said": "yes, all right",
+      "reason": "confirmed as drafted",
+      "evidence": []
+    },
+    "col:gender.meaning": {
+      "value": "The student's gender.",
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "evidence": []
+    },
+    "col:gender.when": {
+      "value": "before",
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "evidence": []
+    },
+    "col:race_ethnicity.meaning": {
+      "value": "The student's race/ethnicity, according to the school's grouping (letters A to E).",
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "evidence": []
+    },
+    "col:race_ethnicity.when": {
+      "value": "before",
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "evidence": []
+    },
+    "col:parental_level_of_education.meaning": {
+      "value": "The highest qualification held by either parent, as declared at enrolment. Six levels from some high school to master's degree.",
+      "status": "confirmed",
+      "source": "user:turn:2",
+      "said": "yes, all right",
+      "reason": "confirmed as drafted",
+      "evidence": []
+    },
+    "col:parental_level_of_education.when": {
+      "value": "before",
+      "status": "confirmed",
+      "source": "user:turn:2",
+      "said": "yes, all right",
+      "reason": "confirmed as drafted",
+      "evidence": []
+    },
+    "col:lunch.meaning": {
+      "value": "Whether the student receives standard or free/reduced lunch. Free/reduced is assigned by the district based on household income below the federal threshold, serving as the school's low-income indicator.",
+      "status": "confirmed",
+      "source": "user:turn:2",
+      "said": "yes, all right",
+      "reason": "confirmed as drafted",
+      "evidence": []
+    },
+    "col:lunch.when": {
+      "value": "before",
+      "status": "confirmed",
+      "source": "user:turn:2",
+      "said": "yes, all right",
+      "reason": "confirmed as drafted",
+      "evidence": []
+    },
+    "col:lunch.set_by": {
+      "value": "the district",
+      "status": "confirmed",
+      "source": "user:turn:2",
+      "said": "yes, all right",
+      "reason": "confirmed as drafted",
+      "evidence": []
+    },
+    "col:test_preparation_course.meaning": {
+      "value": "Whether the student completed the test preparation course (completed or none).",
+      "status": "confirmed",
+      "source": "user:turn:2",
+      "said": "yes, all right",
+      "reason": "confirmed as drafted",
+      "evidence": []
+    },
+    "col:test_preparation_course.proxy": {
+      "value": "derived",
+      "status": "confirmed",
+      "source": "user:turn:2",
+      "said": "yes, all right",
+      "reason": "confirmed as drafted",
+      "evidence": []
+    },
+    "col:test_preparation_course.derived_from": {
+      "value": [
+        "lunch",
+        "parental level of education"
+      ],
+      "status": "confirmed",
+      "source": "user:turn:2",
+      "said": "yes, all right",
+      "reason": "confirmed as drafted",
+      "evidence": []
+    },
+    "col:test_preparation_course.when": {
+      "value": "before",
+      "status": "confirmed",
+      "source": "user:turn:2",
+      "said": "yes, all right",
+      "reason": "confirmed as drafted",
+      "evidence": []
+    },
+    "col:math_score.meaning": {
+      "value": "The student's math exam mark, 0 to 100.",
+      "status": "confirmed",
+      "source": "user:turn:2",
+      "said": "yes, all right",
+      "reason": "confirmed as drafted",
+      "evidence": []
+    },
+    "col:math_score.when": {
+      "value": "after",
+      "status": "confirmed",
+      "source": "user:turn:2",
+      "said": "yes, all right",
+      "reason": "confirmed as drafted",
+      "evidence": []
+    },
+    "col:math_score.measures_outcome": {
+      "value": true,
+      "status": "confirmed",
+      "source": "user:turn:2",
+      "said": "yes, all right",
+      "reason": "confirmed as drafted",
+      "evidence": []
+    },
+    "col:reading_score.meaning": {
+      "value": "The student's reading exam mark, 0 to 100.",
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "evidence": []
+    },
+    "col:reading_score.when": {
+      "value": "after",
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "evidence": []
+    },
+    "col:reading_score.measures_outcome": {
+      "value": true,
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "evidence": []
+    },
+    "col:writing_score.meaning": {
+      "value": "The student's writing exam mark, 0 to 100.",
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "evidence": []
+    },
+    "col:writing_score.when": {
+      "value": "after",
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "evidence": []
+    },
+    "col:writing_score.measures_outcome": {
+      "value": true,
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "evidence": []
+    },
+    "claim:unobserved.exists": {
+      "value": false,
+      "status": "confirmed",
+      "source": "user:turn:3",
+      "said": "nothing hidden",
+      "reason": null,
+      "evidence": []
+    },
+    "claim:exclusion.exists": {
+      "value": false,
+      "status": "confirmed",
+      "source": "user:turn:4",
+      "said": "no nudge",
+      "reason": null,
+      "evidence": []
+    },
+    "claim:spillover.possible": {
+      "value": false,
+      "status": "confirmed",
+      "source": "user:turn:5",
+      "said": "they sit alone",
+      "reason": null,
+      "evidence": []
+    }
+  },
+  "said": [
+    {
+      "turn": 1,
+      "about": "question",
+      "text": "Did completing the prep course raise math scores?"
+    },
+    {
+      "turn": 2,
+      "about": "claim:assignment.kind, claim:assignment.rule, claim:assignment.treatment_column, claim:assignment.treated_level, claim:assignment.depends_on, claim:change.what, claim:change.to_whom, claim:change.when, claim:grain.row_is, claim:grain.panel, col:parental_level_of_education.meaning, col:parental_level_of_education.when, col:lunch.meaning, col:lunch.when, col:lunch.set_by, col:test_preparation_course.meaning, col:test_preparation_course.when, col:test_preparation_course.proxy, col:test_preparation_course.derived_from, col:math_score.meaning, col:math_score.when, col:math_score.measures_outcome, claim:sampling.how, claim:sampling.detail",
+      "text": "yes, all right"
+    },
+    {
+      "turn": 3,
+      "about": "claim:unobserved.exists",
+      "text": "nothing hidden"
+    },
+    {
+      "turn": 4,
+      "about": "claim:exclusion.exists",
+      "text": "no nudge"
+    },
+    {
+      "turn": 5,
+      "about": "claim:spillover.possible",
+      "text": "they sit alone"
+    },
+    {
+      "turn": 6,
+      "about": "",
+      "text": "run"
+    }
+  ]
+}

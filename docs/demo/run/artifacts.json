@@ -1,0 +1,693 @@
+{
+  "design": {
+    "contrasts": [
+      {
+        "reason": "the pack names the level that means the unit got the change",
+        "cites": [
+          "claim:assignment.treated_level",
+          "claim:assignment.treatment_column"
+        ],
+        "control": "none",
+        "treated": "completed"
+      }
+    ],
+    "graph": {
+      "treatment": "test_preparation_course",
+      "outcome": "math_score",
+      "nodes": [
+        "test_preparation_course",
+        "math_score",
+        "lunch",
+        "parental_level_of_education",
+        "gender",
+        "race_ethnicity"
+      ],
+      "edges": [
+        {
+          "src": "test_preparation_course",
+          "dst": "math_score",
+          "cites": []
+        },
+        {
+          "src": "lunch",
+          "dst": "test_preparation_course",
+          "cites": [
+            "claim:assignment.depends_on",
+            "col:lunch.when"
+          ]
+        },
+        {
+          "src": "lunch",
+          "dst": "math_score",
+          "cites": [
+            "claim:assignment.depends_on",
+            "col:lunch.when"
+          ]
+        },
+        {
+          "src": "parental_level_of_education",
+          "dst": "test_preparation_course",
+          "cites": [
+            "claim:assignment.depends_on",
+            "col:parental_level_of_education.when"
+          ]
+        },
+        {
+          "src": "parental_level_of_education",
+          "dst": "math_score",
+          "cites": [
+            "claim:assignment.depends_on",
+            "col:parental_level_of_education.when"
+          ]
+        },
+        {
+          "src": "gender",
+          "dst": "math_score",
+          "cites": [
+            "col:gender.when"
+          ]
+        },
+        {
+          "src": "race_ethnicity",
+          "dst": "math_score",
+          "cites": [
+            "col:race_ethnicity.when"
+          ]
+        }
+      ],
+      "excluded": [
+        {
+          "column": "reading_score",
+          "why": "set at or after the change; the pack forbids adjusting for it [design.forbidden]"
+        },
+        {
+          "column": "writing_score",
+          "why": "set at or after the change; the pack forbids adjusting for it [design.forbidden]"
+        }
+      ]
+    },
+    "estimand": {
+      "kind": "backdoor",
+      "roads": [
+        "backdoor"
+      ],
+      "adjustment_set": [
+        "parental_level_of_education",
+        "lunch"
+      ],
+      "instruments": [],
+      "frontdoor_set": [],
+      "alternatives": {
+        "backdoor1": [
+          "parental_level_of_education",
+          "race_ethnicity",
+          "lunch",
+          "gender"
+        ],
+        "backdoor2": [
+          "parental_level_of_education",
+          "lunch"
+        ]
+      },
+      "sensitivity_required": false,
+      "dowhy_text": "Estimand type: EstimandType.NONPARAMETRIC_ATE\n\n### Estimand : 1\nEstimand name: backdoor\nEstimand expression:\n    d                                                      \n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500(E[math_score|parental_level_of_education,lunch])\nd[treated]                                                 \nEstimand assumption 1, Unconfoundedness: If U\u2192{treated} and U\u2192math_score then P(math_score|treated,parental_level_of_education,lunch,U) = P(math_score|treated,parental_level_of_education,lunch)\n\n### Estimand : 2\nEstimand name: iv\nNo such variable(s) found!\n\n### Estimand : 3\nEstimand name: frontdoor\nNo such variable(s) found!\n\n### Estimand : 4\nEstimand name: general_adjustment\nEstimand expression:\n    d                                                      \n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500(E[math_score|parental_level_of_education,lunch])\nd[treated]                                                 \nEstimand assumption 1, Unconfoundedness: If U\u2192{treated} and U\u2192math_score then P(math_score|treated,parental_level_of_education,lunch,U) = P(math_score|treated,parental_level_of_education,lunch)\n"
+    },
+    "checks": {
+      "results": [
+        {
+          "contrast": "completed_vs_none",
+          "name": "arms",
+          "level": "pass",
+          "value": 358.0,
+          "threshold": 20.0,
+          "detail": "how many rows got the change and how many did not: 358 treated, 642 control"
+        },
+        {
+          "contrast": "completed_vs_none",
+          "name": "overlap",
+          "level": "pass",
+          "value": 1.0,
+          "threshold": 0.95,
+          "detail": "whether both arms are found across the whole range of what the offer depended on: 100% of rows inside the score range both arms cover (0.28 to 0.44)"
+        },
+        {
+          "contrast": "completed_vs_none",
+          "name": "separation",
+          "level": "pass",
+          "value": 0.56,
+          "threshold": 0.95,
+          "detail": "whether what the offer depended on all but decides who got the change: a score model tells the arms apart with AUC 0.56"
+        },
+        {
+          "contrast": "completed_vs_none",
+          "name": "balance.parental_level_of_education",
+          "level": "soft",
+          "value": 0.159,
+          "threshold": 0.1,
+          "detail": "how alike the two arms are on parental level of education before the adjustment, and after weighting: standardised mean difference 0.16 between arms before adjustment, 0.01 after weighting on the score"
+        },
+        {
+          "contrast": "completed_vs_none",
+          "name": "balance.lunch",
+          "level": "pass",
+          "value": 0.036,
+          "threshold": 0.1,
+          "detail": "how alike the two arms are on lunch before the adjustment, and after weighting: standardised mean difference 0.04 between arms before adjustment, 0.01 after weighting on the score"
+        }
+      ]
+    },
+    "estimator": "propensity_score_weighting",
+    "params": {
+      "weighting_scheme": "ips_weight",
+      "min_ps_score": 0.05,
+      "max_ps_score": 0.95,
+      "num_simulations": 100
+    },
+    "also_run": "linear_regression",
+    "refuters": [
+      "placebo_treatment_refuter",
+      "random_common_cause",
+      "data_subset_refuter"
+    ],
+    "target_units": "ate",
+    "frozen_at": "2026-09-27T23:14:17.250100+00:00"
+  },
+  "checks": [
+    {
+      "contrast": "completed_vs_none",
+      "name": "arms",
+      "level": "pass",
+      "value": 358.0,
+      "threshold": 20.0,
+      "detail": "how many rows got the change and how many did not: 358 treated, 642 control"
+    },
+    {
+      "contrast": "completed_vs_none",
+      "name": "overlap",
+      "level": "pass",
+      "value": 1.0,
+      "threshold": 0.95,
+      "detail": "whether both arms are found across the whole range of what the offer depended on: 100% of rows inside the score range both arms cover (0.28 to 0.44)"
+    },
+    {
+      "contrast": "completed_vs_none",
+      "name": "separation",
+      "level": "pass",
+      "value": 0.56,
+      "threshold": 0.95,
+      "detail": "whether what the offer depended on all but decides who got the change: a score model tells the arms apart with AUC 0.56"
+    },
+    {
+      "contrast": "completed_vs_none",
+      "name": "balance.parental_level_of_education",
+      "level": "soft",
+      "value": 0.159,
+      "threshold": 0.1,
+      "detail": "how alike the two arms are on parental level of education before the adjustment, and after weighting: standardised mean difference 0.16 between arms before adjustment, 0.01 after weighting on the score"
+    },
+    {
+      "contrast": "completed_vs_none",
+      "name": "balance.lunch",
+      "level": "pass",
+      "value": 0.036,
+      "threshold": 0.1,
+      "detail": "how alike the two arms are on lunch before the adjustment, and after weighting: standardised mean difference 0.04 between arms before adjustment, 0.01 after weighting on the score"
+    }
+  ],
+  "check_facts": {
+    "balance": {
+      "completed_vs_none": {
+        "parental_level_of_education": {
+          "before": 0.1585,
+          "after": 0.0053
+        },
+        "lunch": {
+          "before": 0.0355,
+          "after": 0.0068
+        }
+      }
+    },
+    "propensity": {
+      "completed_vs_none": {
+        "auc": 0.5598,
+        "min_treated": 0.2818,
+        "max_treated": 0.4412,
+        "min_control": 0.2818,
+        "max_control": 0.4412
+      }
+    }
+  },
+  "declines": [
+    {
+      "stage": "load",
+      "kind": "declined",
+      "about": "scope.population_filter",
+      "pack_value": "all students who sat the May 2026 exam at the school",
+      "took": null,
+      "reason": "the filter is not in a form the code can apply (col == v, !=, >=, <=, >, <, in [a, b], joined by and); every row was kept",
+      "check": "intake.filter_unparsed",
+      "cites": []
+    }
+  ],
+  "case": {
+    "facts": {
+      "col:lunch.when": "before",
+      "col:parental_level_of_education.when": "before",
+      "col:gender.when": "before",
+      "col:race_ethnicity.when": "before",
+      "col:reading_score.when": "after",
+      "col:writing_score.when": "after",
+      "claim:unobserved.exists": false,
+      "claim:spillover.possible": false
+    },
+    "drafts": {},
+    "open": [
+      "col:lunch.moved_by_change",
+      "col:lunch.measures_outcome",
+      "col:parental_level_of_education.moved_by_change",
+      "col:parental_level_of_education.measures_outcome",
+      "col:gender.moved_by_change",
+      "col:gender.measures_outcome",
+      "col:race_ethnicity.moved_by_change",
+      "col:race_ethnicity.measures_outcome",
+      "col:reading_score.moved_by_change",
+      "col:reading_score.measures_outcome",
+      "col:writing_score.moved_by_change",
+      "col:writing_score.measures_outcome"
+    ],
+    "contested": [],
+    "flags": [],
+    "beliefs": {
+      "unobserved": "confirmed_false",
+      "spillover": "confirmed_false"
+    }
+  },
+  "ask": null,
+  "estimates": [
+    {
+      "contrast": "completed_vs_none",
+      "method": "propensity_score_weighting",
+      "value": 5.696222773678812,
+      "ci_low": 3.8176519175389956,
+      "ci_high": 7.453677867450708,
+      "n_treated": 358,
+      "n_control": 642,
+      "target_units": "ate",
+      "error": null,
+      "secondary": false
+    },
+    {
+      "contrast": "completed_vs_none",
+      "method": "linear_regression",
+      "value": 5.738857443451593,
+      "ci_low": 3.9567777828768365,
+      "ci_high": 7.520937104026334,
+      "n_treated": 358,
+      "n_control": 642,
+      "target_units": "ate",
+      "error": null,
+      "secondary": true
+    }
+  ],
+  "refutations": [
+    {
+      "contrast": "completed_vs_none",
+      "refuter": "placebo_treatment_refuter",
+      "kind": "falsification",
+      "new_effect": 0.05263372769333643,
+      "range_low": null,
+      "range_high": null,
+      "p_value": 0.98,
+      "passed": true,
+      "detail": "new effect 0.0526, p=0.98 (pass)"
+    },
+    {
+      "contrast": "completed_vs_none",
+      "refuter": "random_common_cause",
+      "kind": "falsification",
+      "new_effect": 5.69622277367881,
+      "range_low": null,
+      "range_high": null,
+      "p_value": 1.0,
+      "passed": true,
+      "detail": "new effect 5.7, p=1.00 (pass)"
+    },
+    {
+      "contrast": "completed_vs_none",
+      "refuter": "data_subset_refuter",
+      "kind": "falsification",
+      "new_effect": 5.750084261535189,
+      "range_low": null,
+      "range_high": null,
+      "p_value": 0.94,
+      "passed": true,
+      "detail": "new effect 5.75, p=0.94 (pass)"
+    }
+  ],
+  "interpretations": [
+    {
+      "contrast": "completed_vs_none",
+      "answer": "Completing the test preparation course raised students' math score by 5.696 points. This means that students who completed the course scored, on average, 5.696 points higher than those who did not, with a 95% confidence interval ranging from 3.818 to 7.454 points.",
+      "effect_stated": 5.696,
+      "caveats": [
+        "The design assumes that nothing unmeasured drove both the change and the outcome [design.assumption].",
+        "The check for how alike the two arms are on parental level of education before the adjustment, and after weighting [Balance Check] was soft because the standardized mean difference was 0.16 between arms before adjustment [check:completed_vs_none.balance.parental_level_of_education]."
+      ],
+      "cites": [
+        "estimate:completed_vs_none.value",
+        "estimate:completed_vs_none.ci",
+        "design.assumption",
+        "check:completed_vs_none.balance.parental_level_of_education"
+      ]
+    }
+  ],
+  "feasibility": null,
+  "figures": [
+    {
+      "id": "causal_graph",
+      "kind": "graph",
+      "title": "The graph the analysis drew",
+      "x_label": "",
+      "y_label": "",
+      "series": [],
+      "marks": [],
+      "nodes": [
+        {
+          "id": "test_preparation_course",
+          "label": "test preparation course",
+          "role": "treatment"
+        },
+        {
+          "id": "math_score",
+          "label": "math score",
+          "role": "outcome"
+        },
+        {
+          "id": "lunch",
+          "label": "lunch",
+          "role": "confounder"
+        },
+        {
+          "id": "parental_level_of_education",
+          "label": "parental level of education",
+          "role": "confounder"
+        },
+        {
+          "id": "gender",
+          "label": "gender",
+          "role": "driver"
+        },
+        {
+          "id": "race_ethnicity",
+          "label": "race/ethnicity",
+          "role": "driver"
+        },
+        {
+          "id": "reading_score",
+          "label": "reading score",
+          "role": "excluded"
+        },
+        {
+          "id": "writing_score",
+          "label": "writing score",
+          "role": "excluded"
+        }
+      ],
+      "edges": [
+        {
+          "src": "test_preparation_course",
+          "dst": "math_score",
+          "cites": []
+        },
+        {
+          "src": "lunch",
+          "dst": "test_preparation_course",
+          "cites": [
+            "claim:assignment.depends_on",
+            "col:lunch.when"
+          ]
+        },
+        {
+          "src": "lunch",
+          "dst": "math_score",
+          "cites": [
+            "claim:assignment.depends_on",
+            "col:lunch.when"
+          ]
+        },
+        {
+          "src": "parental_level_of_education",
+          "dst": "test_preparation_course",
+          "cites": [
+            "claim:assignment.depends_on",
+            "col:parental_level_of_education.when"
+          ]
+        },
+        {
+          "src": "parental_level_of_education",
+          "dst": "math_score",
+          "cites": [
+            "claim:assignment.depends_on",
+            "col:parental_level_of_education.when"
+          ]
+        },
+        {
+          "src": "gender",
+          "dst": "math_score",
+          "cites": [
+            "col:gender.when"
+          ]
+        },
+        {
+          "src": "race_ethnicity",
+          "dst": "math_score",
+          "cites": [
+            "col:race_ethnicity.when"
+          ]
+        }
+      ],
+      "moment": "run",
+      "note": "adjusted for lunch, parental level of education",
+      "draws_on": [
+        "design.graph",
+        "claim:assignment.depends_on",
+        "col:gender.when",
+        "col:lunch.when",
+        "col:parental_level_of_education.when",
+        "col:race_ethnicity.when"
+      ]
+    },
+    {
+      "id": "balance_completed_vs_none",
+      "kind": "bars",
+      "title": "How alike the arms are on what was adjusted for",
+      "x_label": "",
+      "y_label": "standardised mean difference",
+      "series": [
+        {
+          "name": "before adjustment",
+          "x": [
+            "parental level of education",
+            "lunch"
+          ],
+          "y": [
+            0.1585,
+            0.0355
+          ],
+          "lo": null,
+          "hi": null,
+          "n": null,
+          "key": "before_adjustment"
+        },
+        {
+          "name": "after weighting on the score",
+          "x": [
+            "parental level of education",
+            "lunch"
+          ],
+          "y": [
+            0.0053,
+            0.0068
+          ],
+          "lo": null,
+          "hi": null,
+          "n": null,
+          "key": "after_weighting_on_the_score"
+        }
+      ],
+      "marks": [
+        {
+          "kind": "hline",
+          "at": 0.1,
+          "label": "soft threshold"
+        }
+      ],
+      "nodes": [],
+      "edges": [],
+      "moment": "run",
+      "note": "after weighting the largest difference is 0.01",
+      "draws_on": [
+        "check:completed_vs_none.balance.parental_level_of_education",
+        "check:completed_vs_none.balance.lunch",
+        "check_facts.balance"
+      ]
+    },
+    {
+      "id": "effect_completed_vs_none",
+      "kind": "interval",
+      "title": "The estimate and what was thrown at it (completed_vs_none)",
+      "x_label": "",
+      "y_label": "effect",
+      "series": [
+        {
+          "name": "effect",
+          "x": [
+            "propensity_score_weighting",
+            "placebo_treatment_refuter \u2713",
+            "random_common_cause \u2713",
+            "data_subset_refuter \u2713"
+          ],
+          "y": [
+            5.696222773678812,
+            0.05263372769333643,
+            5.69622277367881,
+            5.750084261535189
+          ],
+          "lo": [
+            3.8176519175389956,
+            null,
+            null,
+            null
+          ],
+          "hi": [
+            7.453677867450708,
+            null,
+            null,
+            null
+          ],
+          "n": null,
+          "key": "effect"
+        }
+      ],
+      "marks": [
+        {
+          "kind": "hline",
+          "at": 0.0,
+          "label": "no effect"
+        }
+      ],
+      "nodes": [],
+      "edges": [],
+      "moment": "run",
+      "note": "every falsification passed",
+      "draws_on": [
+        "estimate:completed_vs_none.value",
+        "estimate:completed_vs_none.ci",
+        "refute:completed_vs_none.placebo_treatment_refuter.new_effect",
+        "refute:completed_vs_none.random_common_cause.new_effect",
+        "refute:completed_vs_none.data_subset_refuter.new_effect"
+      ]
+    }
+  ],
+  "graph": {
+    "treatment": "test_preparation_course",
+    "outcome": "math_score",
+    "nodes": [
+      "test_preparation_course",
+      "math_score",
+      "lunch",
+      "parental_level_of_education",
+      "gender",
+      "race_ethnicity"
+    ],
+    "edges": [
+      {
+        "src": "test_preparation_course",
+        "dst": "math_score",
+        "cites": []
+      },
+      {
+        "src": "lunch",
+        "dst": "test_preparation_course",
+        "cites": [
+          "claim:assignment.depends_on",
+          "col:lunch.when"
+        ]
+      },
+      {
+        "src": "lunch",
+        "dst": "math_score",
+        "cites": [
+          "claim:assignment.depends_on",
+          "col:lunch.when"
+        ]
+      },
+      {
+        "src": "parental_level_of_education",
+        "dst": "test_preparation_course",
+        "cites": [
+          "claim:assignment.depends_on",
+          "col:parental_level_of_education.when"
+        ]
+      },
+      {
+        "src": "parental_level_of_education",
+        "dst": "math_score",
+        "cites": [
+          "claim:assignment.depends_on",
+          "col:parental_level_of_education.when"
+        ]
+      },
+      {
+        "src": "gender",
+        "dst": "math_score",
+        "cites": [
+          "col:gender.when"
+        ]
+      },
+      {
+        "src": "race_ethnicity",
+        "dst": "math_score",
+        "cites": [
+          "col:race_ethnicity.when"
+        ]
+      }
+    ],
+    "excluded": [
+      {
+        "column": "reading_score",
+        "why": "set at or after the change; the pack forbids adjusting for it [design.forbidden]"
+      },
+      {
+        "column": "writing_score",
+        "why": "set at or after the change; the pack forbids adjusting for it [design.forbidden]"
+      }
+    ]
+  },
+  "estimand": {
+    "kind": "backdoor",
+    "roads": [
+      "backdoor"
+    ],
+    "adjustment_set": [
+      "parental_level_of_education",
+      "lunch"
+    ],
+    "instruments": [],
+    "frontdoor_set": [],
+    "alternatives": {
+      "backdoor1": [
+        "parental_level_of_education",
+        "race_ethnicity",
+        "lunch",
+        "gender"
+      ],
+      "backdoor2": [
+        "parental_level_of_education",
+        "lunch"
+      ]
+    },
+    "sensitivity_required": false,
+    "dowhy_text": "Estimand type: EstimandType.NONPARAMETRIC_ATE\n\n### Estimand : 1\nEstimand name: backdoor\nEstimand expression:\n    d                                                      \n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500(E[math_score|parental_level_of_education,lunch])\nd[treated]                                                 \nEstimand assumption 1, Unconfoundedness: If U\u2192{treated} and U\u2192math_score then P(math_score|treated,parental_level_of_education,lunch,U) = P(math_score|treated,parental_level_of_education,lunch)\n\n### Estimand : 2\nEstimand name: iv\nNo such variable(s) found!\n\n### Estimand : 3\nEstimand name: frontdoor\nNo such variable(s) found!\n\n### Estimand : 4\nEstimand name: general_adjustment\nEstimand expression:\n    d                                                      \n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500(E[math_score|parental_level_of_education,lunch])\nd[treated]                                                 \nEstimand assumption 1, Unconfoundedness: If U\u2192{treated} and U\u2192math_score then P(math_score|treated,parental_level_of_education,lunch,U) = P(math_score|treated,parental_level_of_education,lunch)\n"
+  }
+}
