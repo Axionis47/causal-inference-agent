@@ -69,10 +69,10 @@ Adding a family means adding one package and one line in the registry. Nothing i
 the pack weighed by code (`case`), the honest stop and the ask-back, the recorded declines, the figure tail, the node
 plumbing (`nodes`), how a graph is compiled (`graph`), the relate and interpret task types (`state`), the pick and
 interpret prompts and the plain-words rule (`prompts`), and the knowledge loader (`knowledge`). See
-[lane-harness.md](lane-harness.md) for the plan that built it and [adr/0001-lanes-stay-distinct.md](adr/0001-lanes-stay-distinct.md)
+[lanes.md](lanes.md) for the harness in use and [adr/0001-lanes-stay-distinct.md](adr/0001-lanes-stay-distinct.md)
 for why a lane keeps its own engine.
 
-## The four stores at run time
+## The six stores at run time
 
 | store | where | written by | read by |
 |---|---|---|---|
@@ -100,9 +100,14 @@ breaks the build, not the page.
 
 `make check` runs what CI runs: ruff (lint and format), the import contracts, mypy, pytest, eslint, prettier, tsc,
 vitest, the web build, and the schema freshness. mypy is `check_untyped_defs` on `common`, `lane`, `viz`, `memory`,
-`profile`, `server` and the family packages outside their lanes; the desk and the lanes are still `ignore_errors`, a
-gap recorded in the plan.
+`profile`, `server` and the family packages outside their lanes; the desk and the lanes are still `ignore_errors`, the
+one typing gap left.
 
 ## Decisions
 
 The records under [adr/](adr/) hold the decisions the layout rests on. Add one when a decision of that weight is made.
+
+## The mechanisms, one page each
+
+[desk.md](desk.md), [memory-and-matrix.md](memory-and-matrix.md), [gates.md](gates.md), [pack-and-addresses.md](pack-and-addresses.md),
+[lanes.md](lanes.md), [drawing-tool.md](drawing-tool.md), [testing.md](testing.md), [page.md](page.md); the index is [README.md](README.md).
