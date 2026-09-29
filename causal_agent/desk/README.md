@@ -1,7 +1,7 @@
 # desk
 
-The one conversation from a CSV to a routed context pack, and back after the run. Built stage by stage; see
-`docs/desk-redesign.md` for the plan and where it stands.
+The one conversation from a CSV to a routed context pack, and back after the run. The graph is drawn and walked in
+[docs/desk.md](../../docs/desk.md); the judgements and their gates are in [docs/gates.md](../../docs/gates.md).
 
 - `graph.py`, `nodes/journey.py`, `nodes/after.py`, `prompts/journey.py`, `contracts.py`, `state.py` — the conversation. The first
   thing asked is the causal question; `read_question` frames it (one judgement) and validates it against the file by code: an effect
@@ -42,9 +42,12 @@ The one conversation from a CSV to a routed context pack, and back after the run
   new question, with the memory version at that moment, what it read, and what it left under `designs/<n>/`. A step's address is
   `step:<n>`; the Explainer reads the steps as lines and may cite one. The unit of the record is the design run: the steps that
   led to design n, the design, the run, and what was said about it until the next design.
+- `designer.py` — the Designer: one judgement writes the `DesignBrief` (the road, the target, one decision per decision the family
+  lists, the threats, the sentence it bets on); `check` gates it and `fallback` is the honest brief after three failures.
+- `relations.py` — the run's graph absorbed back into the memory as drafts the person confirms on the next ask.
 - `pipeline.py` — the lane in its own process on `designs/<n>/handoff.json`; `material.py` — everything a run left behind as lines
   with addresses, what the chat after cites.
-- `nodes/frame.py`, `nodes/decide.py`, `prompts/routing.py` — the routing; `route.py` is `route(question, dataset)`, the same nodes
+- `nodes/question.py` — the question asked first and validated by code; `nodes/frame.py`, `nodes/decide.py`, `prompts/routing.py` — the routing; `route.py` is `route(question, dataset)`, the same nodes
   called in order without the interview, for the evals and the command line:
   `load` the memory; `mine` an attached document once into drafts through the Reader when the memory holds only the file's facts (a
   description never confirms and never sets a belief); `prefilter` on a wide table; `frame` the question; `fit` the families over the memory by code;

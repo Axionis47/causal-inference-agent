@@ -1,7 +1,7 @@
 # memory
 
 What is known about one dataset, with a status and a source on every field. Built through the conversation, checked
-against the file, projected into every run's context pack. See docs/desk-redesign.md, section 1.
+against the file, projected into every run's context pack. See [docs/memory-and-matrix.md](../../docs/memory-and-matrix.md).
 
 - `records.py` — the map. `Field` (value, status, source, the person's words, the checks that touched it); `Column` (the
   profiler's facts on one column, never written to); `Memory` = `{address: Field}` beside the columns, the dataset facts, and
@@ -19,7 +19,10 @@ against the file, projected into every run's context pack. See docs/desk-redesig
 - `journal.py` — `analyses/<id>/journal.jsonl`, one conversation's record: a step per line with its address (`step:<n>`), what
   it read, what it left, and the design run it belongs to. It records what was done and seen; it never writes what is known.
 - `fields.yaml`, `checks.yaml`, `catalogue.py` — the field catalogue: kinds, fields, options, frames, checks, family needs, thresholds.
-- `claims.py`, `table.py`, `checks.py`, `probes.py` — the claim-table view and the code that still runs on it.
+- `table.py` — the matrix computed: every family against every claim kind, each cell with the address that decided it; struck,
+  surviving, required, ready. `matrix.py` — the matrix as a record with an update rule and a diff, cited as `matrix:<family>.<kind>`.
+- `views.py` — the text views: the dataset's context, one column's brief line, what the drawing tool and the prompts read.
+- `claims.py`, `checks.py`, `probes.py` — the claim-table view and the code that still runs on it.
 
 ```bash
 uv run python -m causal_agent.memory.store migrate --all
