@@ -348,8 +348,9 @@ class Handoff(BaseModel):
     relevant_columns: list[Candidate] = Field(description="the slice the specialist starts from, with why each column matters")
     chosen_assumption: str
     reasons: list[Cited]
-    # the question
+    # the question, and the person's account of what happened, whole
     question: str = ""
+    story: str | None = Field(default=None, description="the person's own account, as they gave it, or the note they attached")
     intent: Intent = "effect_of_change"
     design_id: int = Field(default=0, description="which design of this dataset the pack is; 0 for a forced hand-off")
     memory_version: int = Field(default=0, description="the memory version the pack was projected from")
@@ -446,13 +447,126 @@ class Handoff(BaseModel):
             parts.append(self.render_open())
         return "\n\n".join(parts)
 
-    def render_context(self) -> str:
-        """The dataset, the change, the beliefs, the family block, the design brief, the person's words, and what is open."""
+    def render_story(self) -> str:
+        return "STORY\n" + (f"[claim:story.text] {self.story.strip()}" if self.story else "(no account given: the person answered the questions one by one)")
+
+    def render_pair(self) -> str:
+        s = self.scope
+        oc = self.column(self.outcome)
+        tc = self.column(self.treatment) if self.treatment else None
+        if self.treated_level is not None:
+            levels = f"treated = {self.treated_level!r}" + (
+                f", control = {self.control_level!r}" if self.control_level is not None else ", the other levels are compared each against it"
+            )
+        else:
+            levels = "which level means treated is not settled"
+        scope = (
+            f"the {s.target} effect · contrast: {s.contrast}"
+            + (f" · rows: {s.population_filter}" if s.population_filter else "")
+            + (f" · window: {s.window}" if s.window else "")
+        )
+        return "\n".join(
+            [
+                "THE PAIR",
+                f"[pair.outcome] the outcome is {self.outcome!r}" + (f" [{oc.address}]" if oc else ""),
+                (f"[pair.treatment] the change is recorded by {self.treatment!r}" + (f" [{tc.address}]" if tc else ""))
+                if self.treatment
+                else "[pair.treatment] the change is the rule itself; no column records who got it",
+                f"[pair.levels] {levels}",
+                f"[pair.target] {scope}",
+            ]
+        )
+
+    def render_time(self) -> str:
+        when: dict[str, list[str]] = {"before": [], "at": [], "after": [], "unknown": []}
+        for b in self.columns:
+            when[b.when].append(b.name)
+        return "TIME\n" + "\n".join(f"[time.{k}] {_WHEN_WORDS[k]}: {', '.join(v) if v else 'none'}" for k, v in when.items())
+
+    @staticmethod
+    def _relations(b: ColumnBrief) -> str:
+        parts = []
+        role_words = {
+            "depends_on": "the decision or the offer depended on it",
+            "instrument": "named as the instrument",
+            "mediator": "named as the mediator",
+            "score": "the score the line was drawn on",
+            "unit": "names the unit",
+            "time": "names the period",
+            "group": "names the group the change reached",
+        }
+        if b.role in role_words:
+            parts.append(role_words[b.role])
+        if b.same_as is not None:
+            parts.append("the same thing as no other column" if b.same_as == "none" else f"the same thing as {b.same_as!r}")
+        if b.nested_in is not None:
+            parts.append("inside no coarser column" if b.nested_in == "none" else f"inside {b.nested_in!r}")
+        if b.stands_for:
+            parts.append(f"stands for {b.stands_for}")
+        if b.may_modify is not None:
+            parts.append("the effect may differ by it" if b.may_modify else "no reason the effect differs by it")
+        return " · ".join(parts)
+
+    def render_column_index(self) -> str:
+        lines = []
+        for b in self.columns:
+            rel = self._relations(b)
+            lines.append(f"{b.line()} · {_WHEN_WORDS[b.when]}" + (f" · {rel}" if rel else ""))
+        return "THE COLUMNS\n" + ("\n".join(lines) or "(none in play)")
+
+    def render_heterogeneity(self) -> str:
+        lines = [
+            f"[{b.address}.may_modify] {b.name!r}: "
+            + ("the effect may differ across its values, per the person" if b.may_modify else "the person sees no reason the effect differs across its values")
+            for b in self.columns
+            if b.may_modify is not None
+        ]
+        return "HETEROGENEITY\n" + ("\n".join(lines) or "(not asked: no column was named as one the effect could differ by)")
+
+    def render_threats(self) -> str:
+        lines = []
+        if self.sampling.get("how"):
+            lines.append(
+                f"[claim:sampling.how] rows were chosen: {self.sampling['how']}" + (f", {self.sampling['detail']}" if self.sampling.get("detail") else "")
+            )
+        if self.missing.get("why"):
+            lines.append(f"[claim:missing.why] missing values: {self.missing['why']}")
+        sp = self.beliefs.get("spillover")
+        if sp is not None:
+            lines.append(sp.render())
+        lines += [p.render() for p in self.probes if p.passed is False]
+        return "THREATS\n" + ("\n".join(lines) or "(none recorded)")
+
+    def render_summary(self) -> str:
+        """The assembled context read back at the ready moment: the pair, the mechanism, the time, the relations, the hidden factors,
+        the threats. What the pack renders, without the profile facets, the block and the words."""
+        rel = [f"[{b.address}] {b.name!r}: {self._relations(b)}" for b in self.columns if self._relations(b)]
         return "\n\n".join(
             [
-                self.render_dataset(),
-                self.render_change(),
-                "BELIEFS\n" + self.render_beliefs(),
+                self.render_pair(),
+                "THE MECHANISM\n" + self.render_change(),
+                self.render_time(),
+                "RELATIONS\n" + ("\n".join(rel) or "(none said)"),
+                "HIDDEN FACTORS\n" + self.render_beliefs(),
+                self.render_heterogeneity(),
+                self.render_threats(),
+            ]
+        )
+
+    def render_context(self) -> str:
+        """The context in the order the reasoning reads it: the story, the pair, the mechanism, time, the columns, the rows, the
+        hidden factors, heterogeneity, the threats; then the family block, the design brief, and the person's words."""
+        return "\n\n".join(
+            [
+                self.render_story(),
+                self.render_pair(),
+                "THE MECHANISM\n" + self.render_change(),
+                self.render_time(),
+                self.render_column_index(),
+                "THE ROWS\n" + self.render_dataset(),
+                "HIDDEN FACTORS\n" + self.render_beliefs(),
+                self.render_heterogeneity(),
+                self.render_threats(),
                 "FAMILY BLOCK\n" + self.render_design(),
                 "DESIGN BRIEF\n" + self.render_brief(),
                 self.render_words(),
@@ -461,7 +575,8 @@ class Handoff(BaseModel):
 
     # ------------------------------------------------------------- addresses
     def addresses(self) -> set[str]:
-        out = {"dataset", "dataset.note", "change:1", "change:1.note"}
+        out = {"dataset", "dataset.note", "change:1", "change:1.note", "pair.outcome", "pair.treatment", "pair.levels", "pair.target"}
+        out.update(f"time.{w}" for w in _WHEN_WORDS)
         out.update(f"dataset.profile.{f}" for f in _DATASET_FACETS)
         for b in self.columns:
             a = b.address
@@ -476,6 +591,9 @@ class Handoff(BaseModel):
                     f"{a}.moves_outcome",
                     f"{a}.moved",
                     f"{a}.measures_outcome",
+                    f"{a}.same_as",
+                    f"{a}.nested_in",
+                    f"{a}.may_modify",
                     f"{a}.role",
                 }
             )
@@ -505,6 +623,3 @@ class Handoff(BaseModel):
         from causal_agent.common.addresses import norm_address
 
         return norm_address(address) in {norm_address(a) for a in self.addresses()}
-                    f"{a}.same_as",
-                    f"{a}.nested_in",
-                    f"{a}.may_modify",

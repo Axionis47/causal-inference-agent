@@ -13,6 +13,7 @@ from langgraph.types import Command, interrupt
 from causal_agent.common.contracts import QuestionFrame
 from causal_agent.desk import designer as DG
 from causal_agent.desk import explainer as X
+from causal_agent.desk import handoff as H
 from causal_agent.desk import reader as RD
 from causal_agent.desk.contracts import Ask, Finding
 from causal_agent.desk.nodes import decide as D
@@ -33,8 +34,8 @@ from causal_agent.desk.nodes.shared import (
     journal_of,
     kind_of,
     options_text,
-    record,
     probes_and_facts,
+    record,
     value_words,
 )
 from causal_agent.desk.readback import compose_readback
@@ -82,8 +83,8 @@ def probe_fit(state: DeskState) -> dict:
     fr = state.get("frame")
     needs = focused_needs(state)
     columns = _columns_in_play(memory, fr)
-    status = ops.fit(memory, probes, needs, columns=columns, cat=CAT)
     probes = probes_and_facts(memory, df, fr, columns)
+    status = ops.fit(memory, probes, needs, columns=columns, cat=CAT)
     opened = ops.open(memory, status, needs, CAT, columns=columns, exclude=[x for x in (fr.outcome if fr else None, fr.cause if fr else None) if x])
     prev = state.get("matrix") if isinstance(state.get("matrix"), Matrix) else Matrix()
     matrix = prev.update(memory, probes, needs, columns=columns, cat=CAT)
@@ -131,8 +132,6 @@ def decision_for(address: str, families: list[str]) -> tuple[Family, Decision] |
     return None
 
 
-def _col_ask(field: str, change: str) -> str:
-    """What a per-column field asks, in the world's words."""
 def first_gap(gaps: list, families: list[str]) -> tuple:
     """The gap asked next, and the decision it serves: the decisions of the families in play, in the order each family lists them,
     the first that rests on an open field; a field no decision rests on waits until every decision is served. A refuted field
@@ -153,6 +152,8 @@ def first_gap(gaps: list, families: list[str]) -> tuple:
     return gaps[0], None
 
 
+def _col_ask(field: str, change: str) -> str:
+    """What a per-column field asks, in the world's words."""
     if field == "when":
         return f"was it fixed before {change}, set at it, or measured after it"
     spec = CAT.kinds["measured"].fields[field]
@@ -328,6 +329,8 @@ def ask(state: DeskState) -> Command[Literal["listen", "fit", "convince"]]:
         if not _told_by_note(memory, opened):
             a = Ask(addresses=[o.address for o in opened], kind="story", text=STORY_TEXT, because=sorted({b for o in opened for b in o.because}))
     if a is None:
+        if state.get("run_requested"):  # the person wants to run: only what blocks is asked; a relation a decision rests on can wait
+            opened = [o for o in opened if not o.optional or o.status == "drafted"]
         a = compose_ask(memory, opened, state.get("findings") or [], state.get("frame"), surviving=list(st.surviving))
         if a is not None and a.kind == "confirm":
             flags["readback_done"] = True
@@ -395,8 +398,11 @@ def convince(state: DeskState, runtime: Runtime[Context]) -> dict:
         for v in verdicts.values()
         if not v.admissible and v.family != fam.name
     ]
+    fr = st3.get("frame")
+    pack = H.build(question=state["question"], frame=fr, decision=d, family=R.REGISTRY[fam.name], memory=memory, probes=update.get("probes") or [], brief=brief)
     lines = [
-        head + "Everything the analysis needs is settled.",
+        head + "Everything the analysis needs is settled. Here is the context the analysis will run on; correct any line before you say run.",
+        pack.render_summary(),
         f"Design: {fam.name.replace('_', ' ')}. {fam.answers[0].upper() + fam.answers[1:]}.",
         f"It bets on: {brief.bets_on if brief else fam.assumes}",
     ]
@@ -484,6 +490,8 @@ def infer(state: DeskState) -> Command[Literal["infer", "draw", "check", "explai
     out, thoughts, rejected = RD.read_words(
         memory, src, message, asked, state.get("open") or [], turn, ask=a, errors=state.get("infer_errors") or [], draft=a is not None and a.kind == "story"
     )
+    if a is not None and a.kind == "story" and message.strip():  # the account itself, whole, beside what was read from it
+        ops.apply(memory, [ops.Update(address="claim:story.text", value=message, status="confirmed", source=src, said=message, verbatim=True)], CAT)
     settled = [ad for ad, f in memory.fields.items() if before.get(ad) != (f.value, f.status)]
     focus_update: dict = {}
     if out.focus is not None:  # the person named the families they care about: known names narrow the interview, unknown ones are refused

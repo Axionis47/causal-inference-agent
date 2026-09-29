@@ -102,6 +102,7 @@ def build(
         chosen_assumption=brief.bets_on if brief is not None else decision.chosen_assumption,
         reasons=[Candidate(column=c.column, reason=c.reason, cites=c.cites) for c in frame.outcome_candidates[:1] + frame.cause_candidates[:1]],
         question=question,
+        story=m.value("claim:story.text"),
         intent=frame.intent,
         design_id=design_id,
         memory_version=m.version,

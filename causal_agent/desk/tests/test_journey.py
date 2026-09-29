@@ -180,6 +180,13 @@ def test_students_reaches_ready_in_the_frame_plus_a_few_questions_then_runs():
     # the ready moment: the design in the question's words, the evidence with addresses, the figure, the struck families with a reason each
     text = d.payload["text"]
     assert "Design: adjustment" in text and "[probe:adjustment.overlap]" in text and "[probe:adjustment.arms]" in text
+    # the ready moment reads the assembled context back, in the order the reasoning reads it, before the design
+    assert "Here is the context the analysis will run on" in text and text.index("THE PAIR") < text.index("THE MECHANISM") < text.index("TIME") < text.index(
+        "HIDDEN FACTORS"
+    ) < text.index("Design: adjustment")
+    assert "[pair.outcome] the outcome is 'math score' [col:math_score]" in text and "[pair.levels] treated = 'completed', control = 'none'" in text
+    assert "[time.before] fixed before the change: lunch, parental level of education" in text and "[time.after] measured after the change: math score" in text
+    assert "no reason the effect differs by it" in text  # the person's answer on heterogeneity, read back
     assert "Set aside: " in text and "diff_in_diff" in text and "discontinuity" in text
     # the Designer's brief replaces the canned assumption: what it bets on, one line per decision, the road, the threats
     assert "It bets on: nothing beyond lunch and parents' education drove both" in text and fake.calls.count("DesignBrief") == 1
@@ -210,13 +217,6 @@ def test_students_reaches_ready_in_the_frame_plus_a_few_questions_then_runs():
 
     h = d.values["handoff"]
     assert h.brief is not None and h.brief.road == "backdoor" and h.chosen_assumption == h.brief.bets_on and fake.calls.count("DesignBrief") == 1
-    folder = Path(d.values["design_dir"])
-    assert json.loads((folder / "handoff.json").read_text())["brief"]["bets_on"] == h.brief.bets_on
-    assert json.loads((folder / "brief.json").read_text())["decisions"][0]["name"] == "who_is_treated"
-    assert "BETS ON      " + h.brief.bets_on in d.values["decision_record"] and "[design.brief.road] backdoor" in d.values["decision_record"]
-    assert runs[0].decision["brief"]["road"] == "backdoor" and runs[0].decision["chosen_assumption"] == h.brief.bets_on
-    # the journal: the design written from the memory, then the run that read it, both on this design's group
-    design, run, brief = d.journal.steps()[-3:]
     facts = {p.name: p for p in h.probes if p.family == "data"}
     assert {"by_arm.lunch", "by_arm.parental_level_of_education", "with_outcome.lunch", "timing"} <= set(
         facts
@@ -227,6 +227,13 @@ def test_students_reaches_ready_in_the_frame_plus_a_few_questions_then_runs():
     )  # nothing joins outcome and treatment
     assert h.story == STORY_ANSWER or h.story.startswith("#")  # the account rides in the pack
     assert h.render_context().startswith("STORY") and "[probe:data.by_arm.lunch]" in h.render_context() or True
+    folder = Path(d.values["design_dir"])
+    assert json.loads((folder / "handoff.json").read_text())["brief"]["bets_on"] == h.brief.bets_on
+    assert json.loads((folder / "brief.json").read_text())["decisions"][0]["name"] == "who_is_treated"
+    assert "BETS ON      " + h.brief.bets_on in d.values["decision_record"] and "[design.brief.road] backdoor" in d.values["decision_record"]
+    assert runs[0].decision["brief"]["road"] == "backdoor" and runs[0].decision["chosen_assumption"] == h.brief.bets_on
+    # the journal: the design written from the memory, then the run that read it, both on this design's group
+    design, run, brief = d.journal.steps()[-3:]
     assert brief.kind == "brief"
     assert (
         design.kind == "design"
@@ -490,6 +497,9 @@ def test_the_story_is_asked_once_then_read_back_then_the_gaps_are_asked_by_decis
     kind, when = m.field("claim:assignment.kind"), m.field("col:math_score.when")
     assert kind.status == "drafted" and kind.source == "user:turn:2" and kind.said == "then open to anyone who asked" and kind.reason == "scripted"
     assert when.status == "drafted" and when.value == "after" and m.value("claim:change.what") == "a six-week test preparation course"
+    story = m.field("claim:story.text")  # the account itself, whole, on the person's word, beside what was read from it
+    assert story.value == STORY_ANSWER and story.status == "confirmed" and story.source == "user:turn:2" and story.said == STORY_ANSWER
+    assert "story" not in fake.reads("user:")[0].split("THE MEMORY AS IT STANDS")[0]  # the Reader is never asked to fill it
     assert "(the story)" in fake.reads("user:")[0] and d.journal.last("claim").note.count("claim:") >= 8
     # the readback: the drafts grouped by the five claims, each line in the world's terms with its sentence, one confirm turn
     text, a = p["text"], p["ask"]
@@ -537,26 +547,6 @@ def test_the_story_is_asked_once_then_read_back_then_the_gaps_are_asked_by_decis
     )
     d.to_ready()
     assert d.payload["ready"] and m.field("claim:unobserved.exists").value is False
-
-
-def test_a_mined_note_skips_the_story_and_the_readback_comes_first():
-    fake = DeskFake()
-    d = Desk(fake)
-    p = d.say(QUESTION)
-    assert len(fake.reads("doc:")) == 1 and p["ask"]["kind"] == "confirm" and "Tell me the story" not in p["text"]
-    assert d.values["story_asked"] and d.values["readback_done"]
-    m = HELD["students"]
-    f = m.field("claim:assignment.rule")
-    assert f.status == "drafted" and f.source == "doc:context" and f.said == "offered first by lunch status"  # the sentence travels from the note
-    assert '— "offered first by lunch status"' in p["text"] and "What the design would bet on" not in p["text"]  # a note sets no belief
-    assert m.field("claim:unobserved.exists") is None
-    assert "Tell me the story" not in "\n".join(fake.reads("user:"))
-
-
-def test_a_field_no_decision_rests_on_is_asked_with_the_rest_of_its_claim(_no_note):
-    d = Desk(DeskFake())
-    d.say(QUESTION)
-    p = d.say("claim:assignment.kind = own_choice")  # a story that says one thing: drafted, read back, confirmed
     # once nothing blocks, the mechanism: whether an offer and a taking are two columns (the rule and its drivers came from the story)
     asked = fake.reads("user:")
     mech = next(h for h in asked if "To settle how the change reached the units" in h)
@@ -572,6 +562,28 @@ def test_a_field_no_decision_rests_on_is_asked_with_the_rest_of_its_claim(_no_no
     assert "col:lunch.moved_by_change" not in settles(rel)  # fixed before the change: the change could not have moved it, so it is not asked
     het = next(h for h in asked if "To settle where the effect could differ" in h)
     assert "col:lunch.may_modify" in settles(het) and asked.index(rel) < asked.index(het)
+
+
+def test_a_mined_note_skips_the_story_and_the_readback_comes_first():
+    fake = DeskFake()
+    d = Desk(fake)
+    p = d.say(QUESTION)
+    assert len(fake.reads("doc:")) == 1 and p["ask"]["kind"] == "confirm" and "Tell me the story" not in p["text"]
+    assert d.values["story_asked"] and d.values["readback_done"]
+    m = HELD["students"]
+    f = m.field("claim:assignment.rule")
+    assert f.status == "drafted" and f.source == "doc:context" and f.said == "offered first by lunch status"  # the sentence travels from the note
+    story = m.field("claim:story.text")
+    assert story.status == "drafted" and story.source == "doc:context" and story.value.startswith("#") and len(story.value) > 200  # the note, whole
+    assert '— "offered first by lunch status"' in p["text"] and "What the design would bet on" not in p["text"]  # a note sets no belief
+    assert m.field("claim:unobserved.exists") is None
+    assert "Tell me the story" not in "\n".join(fake.reads("user:"))
+
+
+def test_a_field_no_decision_rests_on_is_asked_with_the_rest_of_its_claim(_no_note):
+    d = Desk(DeskFake())
+    d.say(QUESTION)
+    p = d.say("claim:assignment.kind = own_choice")  # a story that says one thing: drafted, read back, confirmed
     assert p["ask"]["kind"] == "confirm" and p["ask"]["addresses"] == ["claim:assignment.kind", "claim:assignment.treatment_column"]
     p = d.say("yes, all right")
     a = p["ask"]

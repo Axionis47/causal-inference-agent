@@ -42,6 +42,7 @@ class ClaimKind(BaseModel):
     order: int = 99
     per_column: bool = False
     uncheckable: bool = False
+    verbatim: bool = Field(default=False, description="the field holds words as given; only the desk writes it, and only with the words themselves")
 
     def legal(self, field: str) -> list[Any]:
         return list(self.fields[field].options) if field in self.fields else []
@@ -58,7 +59,6 @@ class ClaimKind(BaseModel):
                 out.append(name)
         return out
 
-
     def asked(self, field: str, values: dict[str, Any] | None = None) -> bool:
         """Whether a decision that rests on this field has it asked, given the sibling values known so far: always, unless the
         field says `asked_when` and the condition does not hold."""
@@ -70,17 +70,18 @@ class ClaimKind(BaseModel):
             return False  # a cutoff is asked once the rule is a cutoff rule, not before
         return not spec.asked_when or spec.holds(spec.asked_when, values)
 
+
 class FamilyNeeds(BaseModel):
     """The claim kinds a family requires, and for some fields which values fit."""
 
     name: str
     requires: list[str]
     fits: dict[str, list[Any]] = Field(default_factory=dict)
-
     asks: list[str] = Field(
         default_factory=list,
         description="the field addresses the family's decisions rest on, as patterns; <column> stands for any column in play. The interview asks them because a decision needs them",
     )
+
 
 class Catalogue(BaseModel):
     kinds: dict[str, ClaimKind]

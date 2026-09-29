@@ -113,9 +113,11 @@ def index_records(memory: Memory) -> list[Column]:
 
 
 def context_text(memory: Memory) -> str:
-    """The memory as the routing and the viz judgements read it: the dataset, the change, the beliefs."""
+    """The memory as the routing and the viz judgements read it: the story, the dataset, the change, the beliefs."""
+    story = memory.value("claim:story.text")
     return "\n\n".join(
         [
+            *(["STORY\n" + f"[claim:story.text] {str(story).strip()}"] if story else []),
             render_dataset_text(memory.name, memory.facts, fields_of(memory, "grain"), fields_of(memory, "sampling"), fields_of(memory, "missing")),
             render_change_text(fields_of(memory, "change"), fields_of(memory, "assignment")),
             "BELIEFS\n" + ("\n".join(b.render() for k in BELIEF_KINDS if (b := belief_of(memory, k)) is not None) or "(none recorded)"),

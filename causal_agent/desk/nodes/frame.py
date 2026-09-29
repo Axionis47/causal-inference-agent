@@ -14,7 +14,7 @@ from causal_agent.common.contracts import PrefilterVote, QuestionFrame, render_c
 from causal_agent.common.llm import structured
 from causal_agent.desk.prompts import routing as P
 from causal_agent.desk.state import PrefilterTask, RouteState
-from causal_agent.memory import store
+from causal_agent.memory import ops, store
 from causal_agent.memory import views as V
 from causal_agent.memory.records import Memory
 from causal_agent.memory.views import context_text, index_records
@@ -77,6 +77,7 @@ def mine(state: RouteState) -> dict:
         if not rejected:
             break
         errors = rejected
+    ops.apply(memory, [ops.Update(address="claim:story.text", value=text, status="drafted", source=f"doc:{name}", said=text, verbatim=True)])
     store.save(memory)
     _writer()({"mine": {"drafted": memory.version, "rejected": rejected}})
     return {"debug": debug}

@@ -154,6 +154,18 @@ def test_apply_gates_source_confirmed_beliefs_and_values():
 # ------------------------------------------------------------------ roles and consistency
 
 
+def test_the_story_is_written_by_the_desk_alone_with_the_words_themselves():
+    m, _ = students3()
+    words = "The counsellor offered places first to students on free lunch."
+    assert ops.apply(m, [ops.Update(address="claim:story.text", value=words, status="confirmed", source="user:turn:2", said=words)]) == [
+        "claim:story.text: story holds the person's words as given; the desk writes it, never a reading"
+    ]
+    assert ops.apply(m, [ops.Update(address="claim:story.text", value="a summary", status="confirmed", source="user:turn:2", said=words, verbatim=True)])
+    assert ops.apply(m, [ops.Update(address="claim:story.text", value=words, status="drafted", source="model:read", said=words, verbatim=True)])
+    assert ops.apply(m, [ops.Update(address="claim:story.text", value=words, status="confirmed", source="user:turn:2", said=words, verbatim=True)]) == []
+    assert m.value("claim:story.text") == words and m.field("claim:story.text").status == "confirmed"
+
+
 def test_roles_are_a_view_of_the_dataset_fields():
     m, _ = students3()
     v = m.version

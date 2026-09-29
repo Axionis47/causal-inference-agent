@@ -4,6 +4,15 @@
 # hint. No family name appears here: what each family needs is in its own family.yaml.
 
 kinds:
+  story:
+    about: the person's own account of what happened, whole and as they gave it, before any field is read from it
+    verbatim: true
+    fields:
+      text: {type: text}
+    check: none
+    frame: tell the story
+    order: -1
+
   grain:
     about: what one row of the file stands for, and which columns identify it
     fields:
@@ -68,6 +77,8 @@ kinds:
       cutoff_value_treated: {type: bool, optional: true}
       movable: {type: bool, optional: true, required_when: {kind: [cutoff_rule]}}   # could a unit change what decided its assignment after seeing the rule
       level_column: {type: column, optional: true, required_when: {kind: [date_by_others]}, hint: "the column naming the group the change was assigned at, when it reached whole groups (a state, a school, a store); the level to cluster at"}
+      offer_column: {type: column_or_none, optional: true, hint: "when one column records who was offered the change and another who took it, the column that records the offer; none when there is one column, or no offer"}
+      uptake_column: {type: column_or_none, optional: true, hint: "when the offer and the taking are two columns, the column that records who took it; none otherwise"}
     check: assignment_matches_data
     frame: who decided which units got the change and on what basis, a draw, a line on a score, the unit's own choice, a date set by someone else; which columns the decision or the offer depended on; which column records who got it; could a unit have changed what the rule looked at
     order: 0
@@ -77,8 +88,6 @@ kinds:
     per_column: true
     fields:
       meaning: {type: text, hint: "what the column measures and how to read its values: the units, and what each code or level stands for when the values are codes (which number is which place, which level means yes)"}
-      offer_column: {type: column_or_none, optional: true, hint: "when one column records who was offered the change and another who took it, the column that records the offer; none when there is one column, or no offer"}
-      uptake_column: {type: column_or_none, optional: true, hint: "when the offer and the taking are two columns, the column that records who took it; none otherwise"}
       stands_for: {type: text, optional: true, hint: "the thing in the world the column measures, so two columns measuring one thing are known as one: household income, prior ability"}
       proxy: {type: choice, options: [exact, proxy, derived], optional: true, about: {exact: the column is the thing itself, proxy: the column stands in for the thing, derived: the column is computed from other columns}}
       derived_from: {type: columns, optional: true}

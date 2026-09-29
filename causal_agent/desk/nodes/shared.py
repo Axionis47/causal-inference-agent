@@ -40,6 +40,8 @@ def kinds_text() -> str:
     """The catalogue as the judgements read it: every kind, its fields, the legal values, the hints."""
     out = []
     for k in CAT.ordered():
+        if k.verbatim:
+            continue  # kept by the desk, never read into
         fields = "; ".join(
             f"{name} ({spec.type}{': ' + ', '.join(f'{o} = {spec.about[str(o)]}' if str(o) in spec.about else str(o) for o in spec.options) if spec.options else ''}{', optional' if spec.optional else ''})"
             + (f" = {spec.hint}" if spec.hint else "")
@@ -63,14 +65,14 @@ def options_text(kind: ClaimKind, field: str) -> str:
         return "; ".join(f"{o} ({spec.about[str(o)]})" if str(o) in spec.about else str(o) for o in spec.options)
     if spec.type == "bool":
         return "yes or no"
+    if spec.type == "column_or_none":
+        return "a column's name, or none"
     return ""
 
 
 def value_words(kind: ClaimKind, field: str, value) -> str:
     """A field's value as the person reads it: an option with what it means, a list, yes or no."""
     spec = kind.fields.get(field)
-    if spec.type == "column_or_none":
-        return "a column's name, or none"
     if spec and spec.type == "choice" and str(value) in spec.about:
         return f"{value} ({spec.about[str(value)]})"
     if isinstance(value, list):
@@ -94,8 +96,6 @@ def _columns_in_play(memory: Memory, frame: QuestionFrame | None) -> list[str]:
     return V.in_play(memory, frame, _entry(memory))
 
 
-def focused_needs(state) -> dict:
-    """The families' needs the interview and the fit read: every family's, or only those of the families the person named."""
 def probes_and_facts(memory: Memory, df: pd.DataFrame, frame: QuestionFrame | None, columns: list[str]) -> list[ProbeResult]:
     """Every family's probes, then the data facts for the columns in play. Both ride in `probes`: the probes carry a verdict a
     family can be struck by, the facts carry numbers the pack shows and the chat and the lane can cite."""
@@ -106,6 +106,8 @@ def probes_and_facts(memory: Memory, df: pd.DataFrame, frame: QuestionFrame | No
     return probes + FX.facts(df, memory, memory.to_claims(CAT), outcome=outcome, treatment=treatment, columns=columns)
 
 
+def focused_needs(state) -> dict:
+    """The families' needs the interview and the fit read: every family's, or only those of the families the person named."""
     needs = R.needs()
     focus = [f for f in (state.get("focus") or []) if f in needs]
     return {k: v for k, v in needs.items() if k in focus} if focus else needs

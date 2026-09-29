@@ -71,15 +71,16 @@ class Update(BaseModel):
     said: str | None = None
     reason: str = ""
     evidence: list[str] = PField(default_factory=list)
+    verbatim: bool = PField(default=False, description="set by the desk alone: the value is the person's words as given")
 
 
 def _coerce(kind: ClaimKind, name: str, raw: Any, columns: dict[str, str]) -> tuple[Any, str | None]:
     spec = kind.fields.get(name)
     if spec is None:
         return None, f"{kind.name} has no field {name!r}"
-    if raw is None or (isinstance(raw, str) and raw.strip().lower() in {"", "null", "none"}):
     if spec.type == "column_or_none" and isinstance(raw, str) and raw.strip().lower() in NONE_WORDS:
         return "none", None  # a settled answer: there is no such column
+    if raw is None or (isinstance(raw, str) and raw.strip().lower() in {"", "null", "none"}):
         return None, None if spec.optional else f"{kind.name}.{name} needs a value"
     s = raw if not isinstance(raw, str) else raw.strip()
     if spec.type == "text":
@@ -152,6 +153,9 @@ def apply(memory: Memory, updates: list[Update], cat: Catalogue | None = None) -
             continue
         if kind.uncheckable and not from_person:
             rejected.append(f"{up.address}: {kind.name} is a belief; only the person can set it")
+            continue
+        if kind.verbatim and not (up.verbatim and from_person and up.value == up.said):
+            rejected.append(f"{up.address}: {kind.name} holds the person's words as given; the desk writes it, never a reading")
             continue
         if current is not None and current.status == "confirmed" and not (from_person or from_data):
             rejected.append(f"{up.address}: confirmed by the person; only their word or a data check changes it")
@@ -486,11 +490,11 @@ def open(
     A field a surviving family's decision rests on is asked too, when it is empty; it does not block."""
     cat = cat or load_catalogue()
     requires = {f: fam.requires for f, fam in needs.items()}
+    asked = asked_fields(memory, needs, status.surviving, columns, cat, exclude)
     out: list[Open] = []
     for key in list(status.open) + [k for k in status.settled if k not in status.open]:
         blocking = key in status.open
         if key.startswith("col:"):
-    asked = asked_fields(memory, needs, status.surviving, columns, cat, exclude)
             if memory.column(key[4:]) is None:
                 continue
             kind, prefix = cat.kinds[COLUMN_KIND], key
@@ -498,11 +502,11 @@ def open(
             kind, prefix = cat.kinds[key], f"claim:{key}"
         fields = memory.fields_of(prefix)
         required = set(kind.required({n: f.value for n, f in fields.items()}))
+        wanted = asked.get(prefix, set())
         because = [f for f in status.surviving if kind.name in requires.get(f, [])]
         here: list[Open] = []
         for name in kind.fields:
             f = fields.get(name) or Field()
-        wanted = asked.get(prefix, set())
             vague = (blocking and f.status in {"empty", "refuted"} and name in required) or f.status == "drafted" or (name in wanted and f.status == "empty")
             if vague:
                 here.append(

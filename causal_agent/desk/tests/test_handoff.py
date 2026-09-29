@@ -36,6 +36,24 @@ def test_unknowns_and_contradictions_reach_the_lane():
     assert "CONTRADICTION" in words and "[col:lunch.when]" in words and "UNKNOWN" in words
     assert "[said:6]" in words and f.said in words
     assert "CONTRADICTION" in h.render_context()
+    ctx = h.render_context()
+    order = [
+        "STORY",
+        "THE PAIR",
+        "THE MECHANISM",
+        "TIME",
+        "THE COLUMNS",
+        "THE ROWS",
+        "HIDDEN FACTORS",
+        "HETEROGENEITY",
+        "THREATS",
+        "FAMILY BLOCK",
+        "DESIGN BRIEF",
+        "WHAT THE PERSON SAID",
+    ]
+    assert [ctx.index(f"\n{s}\n" if s != "STORY" else "STORY\n") for s in order] == sorted(ctx.index(f"\n{s}\n" if s != "STORY" else "STORY\n") for s in order)
+    assert "[pair.treatment] the change is recorded by 'test preparation course' [col:test_preparation_course]" in ctx and h.resolve("pair.treatment")
+    assert "[time.after] measured after the change: " in ctx and h.resolve("time.after") and "[col:lunch]" in ctx.split("THE COLUMNS")[1].split("THE ROWS")[0]
 
 
 def test_a_forced_handoff_has_no_brief_and_a_built_one_bets_on_the_briefs_sentence():
