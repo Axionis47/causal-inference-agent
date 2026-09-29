@@ -24,7 +24,7 @@ def _say(client, name, text):
     return wait_idle(client, name)
 
 
-def _to_ready(client, fake, name="students_web", max_turns=20):
+def _to_ready(client, fake, name="students_web", max_turns=30):
     v = _create(client, fake, name)
     assert v["stage"] == "waiting" and v["phase"] == "before" and v["ready"] is False
     assert v["prompt"]["kind"] == "question" and "What is the causal question" in v["prompt"]["text"] and v["questions"] == []
@@ -34,13 +34,13 @@ def _to_ready(client, fake, name="students_web", max_turns=20):
     v = _say(client, name, QUESTION)
     assert v["question"] == QUESTION and v["prompt"]["kind"] == "ask" and len(v["questions"]) == 1
     turns = 0
-    while not v["ready"]:
+    while not v["ready"] or v["questions"]:  # ready can come while a relation a decision rests on is still asked; it never blocks
         assert turns < max_turns, v["prompt"]["text"]
         assert len(v["questions"]) == 1, "one question per turn"
         v = _say(client, name, reply_for(v))
         turns += 1
     assert v["status"]["ready"] is True and v["questions"] == []
-    assert {c["status"] for c in v["claims"]} == {"confirmed"} and turns <= 16, [(c["key"], c["status"]) for c in v["claims"]]
+    assert {c["status"] for c in v["claims"]} <= {"confirmed", "unknown"} and turns <= 24, [(c["key"], c["status"]) for c in v["claims"]]
     return v
 
 

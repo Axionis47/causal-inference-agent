@@ -73,10 +73,12 @@ kinds:
     order: 0
 
   measured:
-    about: one column, what it measures, when it was set relative to the change, and how it stands to the change and the outcome (fed it, moves the outcome, moved by it, measures the outcome)
+    about: one column, what it measures, when it was set relative to the change, how it stands to the change and the outcome (fed it, moves the outcome, moved by it, measures the outcome), and how it stands to the other columns (the same thing as one, nested in one, a thing the effect could differ by)
     per_column: true
     fields:
       meaning: {type: text, hint: "what the column measures and how to read its values: the units, and what each code or level stands for when the values are codes (which number is which place, which level means yes)"}
+      offer_column: {type: column_or_none, optional: true, hint: "when one column records who was offered the change and another who took it, the column that records the offer; none when there is one column, or no offer"}
+      uptake_column: {type: column_or_none, optional: true, hint: "when the offer and the taking are two columns, the column that records who took it; none otherwise"}
       stands_for: {type: text, optional: true, hint: "the thing in the world the column measures, so two columns measuring one thing are known as one: household income, prior ability"}
       proxy: {type: choice, options: [exact, proxy, derived], optional: true, about: {exact: the column is the thing itself, proxy: the column stands in for the thing, derived: the column is computed from other columns}}
       derived_from: {type: columns, optional: true}
@@ -84,8 +86,11 @@ kinds:
       set_by: {type: text, optional: true}
       feeds_treatment: {type: bool, optional: true, hint: "this column fed the decision or the offer that set who got the change"}
       moves_outcome: {type: bool, optional: true, hint: "this column could move the outcome on its own"}
-      moved_by_change: {type: bool, optional: true, hint: "the change could have changed this column's value"}
-      measures_outcome: {type: bool, optional: true, hint: "another measure of the outcome, or a later one; a result, not a cause"}
+      moved_by_change: {type: bool, optional: true, asked_when: {when: [at, after, unknown]}, hint: "the change could have changed this column's value"}
+      measures_outcome: {type: bool, optional: true, asked_when: {when: [after]}, hint: "another measure of the outcome, or a later one; a result, not a cause"}
+      same_as: {type: column_or_none, optional: true, hint: "another column that measures the same thing as this one, so the two are known as one; none when there is none"}
+      nested_in: {type: column_or_none, optional: true, hint: "a column naming the coarser thing this one sits inside, a school for a pupil, a district for a school; none when there is none"}
+      may_modify: {type: bool, optional: true, asked_when: {when: [before]}, hint: "whether the change's effect on the outcome could plausibly differ across this column's values"}
     check: before_is_fixed
     frame: what the column measures, in what units, and whether it was fixed before the change, set at the change, or measured after it; whether the change could have moved it
     order: 3
@@ -115,7 +120,7 @@ kinds:
     uncheckable: true
     fields:
       exists: {type: bool}
-      column: {type: column, optional: true}
+      column: {type: column, optional: true, asked_when: {exists: [true]}}
       why: {type: text, optional: true}
     check: none
     frame: is there a column that pushed units toward the change but could not have affected the outcome any other way; if so which, and why
@@ -160,7 +165,7 @@ kinds:
     uncheckable: true
     fields:
       exists: {type: bool}
-      column: {type: column, optional: true}
+      column: {type: column, optional: true, asked_when: {exists: [true]}}
       why: {type: text, optional: true}
     check: none
     frame: is there a column the change altered, such that the change reaches the outcome only by altering it; if so which, and why

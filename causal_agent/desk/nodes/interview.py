@@ -83,7 +83,7 @@ def probe_fit(state: DeskState) -> dict:
     needs = focused_needs(state)
     columns = _columns_in_play(memory, fr)
     status = ops.fit(memory, probes, needs, columns=columns, cat=CAT)
-    opened = ops.open(memory, status, needs, CAT)
+    opened = ops.open(memory, status, needs, CAT, columns=columns, exclude=[x for x in (fr.outcome if fr else None, fr.cause if fr else None) if x])
     prev = state.get("matrix") if isinstance(state.get("matrix"), Matrix) else Matrix()
     matrix = prev.update(memory, probes, needs, columns=columns, cat=CAT)
     changed = matrix.diff(prev)
@@ -132,6 +132,26 @@ def decision_for(address: str, families: list[str]) -> tuple[Family, Decision] |
 
 def _col_ask(field: str, change: str) -> str:
     """What a per-column field asks, in the world's words."""
+def first_gap(gaps: list, families: list[str]) -> tuple:
+    """The gap asked next, and the decision it serves: the decisions of the families in play, in the order each family lists them,
+    the first that rests on an open field; a field no decision rests on waits until every decision is served. A refuted field
+    comes first regardless, so the person hears the check that refuted it."""
+    registry = {f.name: f for f in R.knowledge()}
+    blocking = [g for g in gaps if not g.optional]
+    for pool in (blocking, gaps):  # what blocks readiness first; a relation a decision rests on, which never blocks, after
+        for name in families:
+            fam = registry.get(name)
+            if fam is None:
+                continue
+            for d in fam.decisions:
+                hit = next((g for g in pool if rests_on(d, g.address)), None)
+                if hit is not None:
+                    return hit, (fam, d)
+        if pool:
+            return pool[0], None
+    return gaps[0], None
+
+
     if field == "when":
         return f"was it fixed before {change}, set at it, or measured after it"
     spec = CAT.kinds["measured"].fields[field]
@@ -192,11 +212,17 @@ def compose_ask(memory: Memory, opened: list, findings: list[Finding], frame: Qu
     gaps = sorted((o for o in opened if o.status != "drafted"), key=lambda o: o.address not in by_addr)
     if not gaps:
         return None
-    o = gaps[0]
-    families = list(o.because) or list(surviving or [])
-    found = decision_for(o.address, families)
+    families = list(surviving or []) or list(gaps[0].because)
+    refuted = gaps[0].address in by_addr
+    if refuted:
+        o = gaps[0]
+        found = decision_for(o.address, families)
+    else:
+        o, found = first_gap(gaps, families)
     fam, dec = found if found else (None, None)
-    if dec is not None:
+    if refuted:
+        group = [x for x in gaps if x.address in by_addr and (dec is None or rests_on(dec, x.address))] or [o]
+    elif dec is not None:
         group = [x for x in gaps if rests_on(dec, x.address)]
     elif CAT.kinds[o.kind].per_column:
         group = [x for x in gaps if x.kind == o.kind and x.field == o.field]

@@ -65,6 +65,8 @@ def options_text(kind: ClaimKind, field: str) -> str:
 def value_words(kind: ClaimKind, field: str, value) -> str:
     """A field's value as the person reads it: an option with what it means, a list, yes or no."""
     spec = kind.fields.get(field)
+    if spec.type == "column_or_none":
+        return "a column's name, or none"
     if spec and spec.type == "choice" and str(value) in spec.about:
         return f"{value} ({spec.about[str(value)]})"
     if isinstance(value, list):

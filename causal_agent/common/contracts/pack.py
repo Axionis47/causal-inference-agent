@@ -104,6 +104,9 @@ class ColumnBrief(BaseModel):
     moves_outcome: bool | None = None
     moved_by_change: bool | None = None
     measures_outcome: bool | None = None
+    same_as: str | None = Field(default=None, description="another column that measures the same thing, or 'none'")
+    nested_in: str | None = Field(default=None, description="the column naming the coarser thing this one sits inside, or 'none'")
+    may_modify: bool | None = Field(default=None, description="whether the effect could differ across this column's values, per the person")
     source: str | None = Field(default=None, description="where the meaning and timing came from: user:turn:<n>, doc:<name>, or data")
     provenance: dict[str, Provenance] = Field(default_factory=dict, description="field name -> how it was settled")
     facts: ColumnFacts = Field(default_factory=ColumnFacts)
@@ -163,6 +166,23 @@ class ColumnBrief(BaseModel):
             lines.append(
                 f"  [{a}.measures_outcome] {'another measure of the outcome' if self.measures_outcome else 'not a measure of the outcome'}"
                 + self.how("measures_outcome")
+            )
+        if self.same_as is not None:
+            lines.append(
+                f"  [{a}.same_as] "
+                + ("measures the same thing as no other column" if self.same_as == "none" else f"measures the same thing as {self.same_as!r}")
+                + self.how("same_as")
+            )
+        if self.nested_in is not None:
+            lines.append(
+                f"  [{a}.nested_in] "
+                + ("sits inside no coarser column" if self.nested_in == "none" else f"sits inside {self.nested_in!r}")
+                + self.how("nested_in")
+            )
+        if self.may_modify is not None:
+            lines.append(
+                f"  [{a}.may_modify] {'the effect could differ across its values, per the person' if self.may_modify else 'the person sees no reason the effect would differ across its values'}"
+                + self.how("may_modify")
             )
         lines.append(f"  [{a}.profile.kind] {f.kind}")
         lines.append(f"  [{a}.profile.nulls] {f.nulls} ({f.null_rate:.1%})")
@@ -483,3 +503,6 @@ class Handoff(BaseModel):
         from causal_agent.common.addresses import norm_address
 
         return norm_address(address) in {norm_address(a) for a in self.addresses()}
+                    f"{a}.same_as",
+                    f"{a}.nested_in",
+                    f"{a}.may_modify",

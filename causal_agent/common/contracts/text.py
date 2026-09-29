@@ -75,6 +75,10 @@ def render_change_text(ch: dict, a: dict) -> str:
             f"The score is {a['score_column']!r}, treated {side} {a.get('cutoff')}"
             + (", the cutoff value itself treated." if a.get("cutoff_value_treated") else ".")
         )
+    if a.get("offer_column") and a["offer_column"] != "none" and a.get("uptake_column") and a["uptake_column"] != "none":
+        parts.append(f"{a['offer_column']!r} records who was offered it and {a['uptake_column']!r} who took it.")
+    elif a.get("offer_column") == "none" or a.get("uptake_column") == "none":
+        parts.append("One column records the change; there is no separate offer column.")
     if a.get("level_column"):
         parts.append(f"It was assigned at the level of {a['level_column']!r}.")
     if a.get("movable") is not None:

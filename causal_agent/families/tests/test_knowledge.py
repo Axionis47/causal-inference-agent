@@ -15,7 +15,9 @@ def test_registry_loads():
 def test_a_built_family_lists_its_decisions_and_a_declared_one_none():
     reg = {f.name: f for f in R.knowledge()}
     adj = reg["adjustment"]
-    assert [d.name for d in adj.decisions] == ["who_is_treated", "road", "adjustment_set", "forbidden", "target", "run_at_all"]
+    assert [d.name for d in adj.decisions] == ["who_is_treated", "mechanism", "road", "adjustment_set", "forbidden", "target", "run_at_all", "heterogeneity"]
+    needs = R.needs()["adjustment"]
+    assert "col:<column>.may_modify" in needs.asks and "claim:assignment.offer_column" in needs.asks and "probe:adjustment.overlap" not in needs.asks
     assert adj.decision("road") is not None and "claim:unobserved.exists" in adj.decision("road").rests_on and adj.decision("nope") is None
     assert [d.name for d in reg["diff_in_diff"].decisions] == ["groups", "periods", "comparison_holds", "controls", "cluster", "run_at_all"]
     assert [d.name for d in reg["discontinuity"].decisions] == ["score_and_line", "sharp_or_fuzzy", "line_is_clean", "covariates", "run_at_all"]

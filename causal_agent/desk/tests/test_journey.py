@@ -113,9 +113,11 @@ class Desk:
     def values(self):
         return self.g.get_state(self.cfg).values
 
-    def to_ready(self, max_turns=6):
+    def to_ready(self, max_turns=10):
+        """Answer until the ready moment: ready with nothing left to ask. Ready can come first, since a relation a decision rests on is
+        asked but never blocks."""
         turns = 0
-        while self.payload and self.payload["kind"] == "ask" and not self.payload["ready"]:
+        while self.payload and self.payload["kind"] == "ask" and (not self.payload["ready"] or self.payload.get("ask")):
             assert turns < max_turns, f"still asking after {turns} turns: {self.payload['text']}"
             self.say(answer_ask(self.payload))
             turns += 1
@@ -153,8 +155,16 @@ def test_students_reaches_ready_in_the_frame_plus_a_few_questions_then_runs():
     assert p["ask"]["kind"] == "confirm" and "claim:assignment.kind" in p["ask"]["addresses"] and len(fake.reads("doc:")) == 1
     assert HELD["students"].field("claim:assignment.kind").status == "drafted" and HELD["students"].field("claim:unobserved.exists") is None
     assert d.values["story_asked"] and d.values["readback_done"] and "Tell me the story" not in text
-    turns = d.to_ready(max_turns=6)
-    assert turns <= 5 and d.payload["ready"] and "Say run" in d.payload["text"] and "could be answered" not in d.payload["text"]  # the map was said once
+    turns = d.to_ready(max_turns=10)
+    assert turns <= 8 and d.payload["ready"] and "Say run" in d.payload["text"] and "could be answered" not in d.payload["text"]  # the map was said once
+    # the relations a decision rests on were asked, in the order of the decisions, and the person's answers landed
+    reads = fake.reads("user:")
+    settles = lambda h: h.split("(settles: ")[1].split(")")[0].split(", ") if "(settles: " in h else []  # noqa: E731
+    turn_of = lambda address: next(i for i, h in enumerate(reads) if address in settles(h))  # noqa: E731
+    assert HELD["students"].value("claim:assignment.offer_column") == "none" and HELD["students"].value("col:lunch.may_modify") is False
+    assert turn_of("claim:assignment.offer_column") == turn_of("claim:assignment.uptake_column")
+    # what blocks readiness is asked first, the beliefs among it; the relations that only help come after, one decision per turn
+    assert turn_of("claim:unobserved.exists") < turn_of("claim:assignment.offer_column") < turn_of("col:lunch.same_as") < turn_of("col:lunch.may_modify")
     # the journal so far: the question read, then one claim step per turn that settled something, each on the person's word;
     # beside them the fit steps: the matrix is a record, and a cell that moved is a step by code naming what moved it
     fits, steps = [s for s in d.journal.steps() if s.kind == "fit"], [s for s in d.journal.steps() if s.kind != "fit"]
@@ -342,7 +352,7 @@ def test_naming_the_families_you_care_about_drops_the_questions_the_others_need(
     p = d.say("only adjustment, please")
     assert d.values["focus"] == ["adjustment"] and d.values["status"].surviving == ["adjustment"]
     assert "exclusion" not in d.values["status"].required  # the instrument family's need is no longer asked
-    d.to_ready(max_turns=6)
+    d.to_ready()
     asked = "\n".join(fake.reads("user:"))
     assert "settles: claim:exclusion" not in asked and d.payload["ready"]
     assert "Set aside: " in d.payload["text"] and "instrument: not asked for" in d.payload["text"]
@@ -515,7 +525,7 @@ def test_the_story_is_asked_once_then_read_back_then_the_gaps_are_asked_by_decis
         "(you said the rule was: offered first by lunch status and parental education, then open to anyone who asked; it depended on lunch, parental "
         "level of education.)" in p["text"]
     )
-    d.to_ready(max_turns=6)
+    d.to_ready()
     assert d.payload["ready"] and m.field("claim:unobserved.exists").value is False
 
 
@@ -537,15 +547,39 @@ def test_a_field_no_decision_rests_on_is_asked_with_the_rest_of_its_claim(_no_no
     d = Desk(DeskFake())
     d.say(QUESTION)
     p = d.say("claim:assignment.kind = own_choice")  # a story that says one thing: drafted, read back, confirmed
+    # once nothing blocks, the mechanism: whether an offer and a taking are two columns (the rule and its drivers came from the story)
+    asked = fake.reads("user:")
+    mech = next(h for h in asked if "To settle how the change reached the units" in h)
+    assert (
+        "a column's name, or none" in mech
+        and m.value("claim:assignment.offer_column") == "none"
+        and m.field("claim:assignment.uptake_column").status == "confirmed"
+    )
+    # then the relations, under the decisions that rest on them, one turn per decision
+    settles = lambda h: h.split("(settles: ")[1].split(")")[0].split(", ") if "(settles: " in h else []  # noqa: E731
+    rel = next(h for h in asked if "To settle what enters the adjustment set" in h)
+    assert {"col:lunch.same_as", "col:parental_level_of_education.nested_in", "col:lunch.stands_for"} <= set(settles(rel))
+    assert "col:lunch.moved_by_change" not in settles(rel)  # fixed before the change: the change could not have moved it, so it is not asked
+    het = next(h for h in asked if "To settle where the effect could differ" in h)
+    assert "col:lunch.may_modify" in settles(het) and asked.index(rel) < asked.index(het)
     assert p["ask"]["kind"] == "confirm" and p["ask"]["addresses"] == ["claim:assignment.kind", "claim:assignment.treatment_column"]
     p = d.say("yes, all right")
     a = p["ask"]
-    # rule rests on no decision: it is asked with the other open fields of the assignment, the frame once, the fields named
-    assert a["decision"] == "" and a["addresses"] == ["claim:assignment.rule", "claim:assignment.treated_level"] and a["kind"] == "open"
-    assert p["text"].endswith(
-        "Who decided which units got the change and on what basis, a draw, a line on a score, the unit's own choice, a date set by "
-        "someone else; which columns the decision or the offer depended on; which column records who got it; could a unit have changed what the rule "
-        "looked at? This turn: rule, treated level. Say don't know for anything you cannot say."
+    # the decisions come first, in the family's order: who is treated rests on the treated level and the sampling
+    assert a["decision"] == "who_is_treated" and a["addresses"] == ["claim:assignment.treated_level", "claim:sampling.how"] and a["kind"] == "open"
+    # a field no decision rests on waits for the decisions and is then asked with the rest of its claim, the frame once, the fields named
+    from causal_agent.desk.nodes.interview import compose_ask
+    from causal_agent.memory.ops import Open
+
+    opened = [
+        Open(address="claim:change.what", kind="change", field="what", status="empty", because=["adjustment"], frame="f"),
+        Open(address="claim:change.to_whom", kind="change", field="to_whom", status="empty", because=["adjustment"], frame="f"),
+    ]
+    a2 = compose_ask(HELD["students"], opened, [], None, surviving=["adjustment"])
+    assert a2.decision == "" and a2.addresses == ["claim:change.what", "claim:change.to_whom"] and a2.kind == "open"
+    assert a2.text.endswith(
+        "What was the change, which units could it reach, and when did it happen; if a column records the period, which value marks when it "
+        "took effect? This turn: what, to whom. Say don't know for anything you cannot say."
     )
 
 

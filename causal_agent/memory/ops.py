@@ -58,6 +58,9 @@ def seed(name: str, profile, csv: str | None = None, cat: Catalogue | None = Non
 # ------------------------------------------------------------------ apply (the one write path)
 
 
+NONE_WORDS = {"none", "no", "nothing", "no column", "nobody", "n/a", "not applicable"}
+
+
 class Update(BaseModel):
     """What a judgement, a check, or the person asks to write."""
 
@@ -75,6 +78,8 @@ def _coerce(kind: ClaimKind, name: str, raw: Any, columns: dict[str, str]) -> tu
     if spec is None:
         return None, f"{kind.name} has no field {name!r}"
     if raw is None or (isinstance(raw, str) and raw.strip().lower() in {"", "null", "none"}):
+    if spec.type == "column_or_none" and isinstance(raw, str) and raw.strip().lower() in NONE_WORDS:
+        return "none", None  # a settled answer: there is no such column
         return None, None if spec.optional else f"{kind.name}.{name} needs a value"
     s = raw if not isinstance(raw, str) else raw.strip()
     if spec.type == "text":
@@ -92,9 +97,12 @@ def _coerce(kind: ClaimKind, name: str, raw: Any, columns: dict[str, str]) -> tu
             return float(s), None
         except (TypeError, ValueError):
             return None, f"{kind.name}.{name} must be a number, not {s!r}"
-    if spec.type == "column":
+    if spec.type in ("column", "column_or_none"):
         c = columns.get(_key(str(s)))
-        return (c, None) if c is not None else (None, f"{kind.name}.{name}: {s!r} is not a column in the file")
+        if c is not None:
+            return c, None
+        tail = ", and not none" if spec.type == "column_or_none" else ""
+        return None, f"{kind.name}.{name}: {s!r} is not a column in the file{tail}"
     if spec.type == "columns":
         parts = s if isinstance(s, list) else [p.strip() for p in str(s).split(",") if p.strip()]
         cols: list[str] = []
@@ -427,15 +435,62 @@ def _options(kind: ClaimKind, field: str) -> list[str]:
     return []
 
 
-def open(memory: Memory, status: Status, needs: Mapping[str, FamilyNeeds], cat: Catalogue | None = None) -> list[Open]:
+def asked_fields(
+    memory: Memory,
+    needs: Mapping[str, FamilyNeeds],
+    families: Iterable[str],
+    columns: list[str] | None = None,
+    cat: Catalogue | None = None,
+    exclude: Iterable[str] = (),
+) -> dict[str, set[str]]:
+    """The fields the given families' decisions rest on, as prefix -> field names: `claim:<kind>` patterns as they stand, and
+    `col:<column>` patterns expanded over the columns in play that are not the treatment, the score, or one of `exclude` (the
+    outcome). A field that says `asked_when` is asked only when its condition holds on that column. The interview asks these
+    because a decision needs them; an unanswered one never blocks readiness."""
+    cat = cat or load_catalogue()
+    col_kind = cat.kinds[COLUMN_KIND]
+    a = memory.values_of("claim:assignment")
+    skip = {_key(str(x)) for x in [a.get("treatment_column"), a.get("score_column"), *exclude] if x}
+    names = columns if columns is not None else [c.name for c in memory.columns.values()]
+    covariates = [c.key for n in names if (c := memory.column(n)) is not None and c.key not in skip and not c.facts.constant]
+    out: dict[str, set[str]] = {}
+    for fam in families:
+        spec = needs.get(fam)
+        if spec is None:
+            continue
+        for p in spec.asks:
+            head, _, field = p.rpartition(".")
+            if p.startswith("col:"):
+                if field not in col_kind.fields:
+                    continue
+                for k in covariates:
+                    if col_kind.asked(field, memory.values_of(f"col:{k}")):
+                        out.setdefault(f"col:{k}", set()).add(field)
+            elif p.startswith("claim:"):
+                kind = cat.kinds.get(head[6:])
+                if kind is not None and kind.asked(field, memory.values_of(head)):
+                    out.setdefault(head, set()).add(field)
+    return out
+
+
+def open(
+    memory: Memory,
+    status: Status,
+    needs: Mapping[str, FamilyNeeds],
+    cat: Catalogue | None = None,
+    columns: list[str] | None = None,
+    exclude: Iterable[str] = (),
+) -> list[Open]:
     """Every field still vague on a claim a survivor needs: first the open claims (what blocks readiness, required fields first),
-    then the drafts the model left on settled claims (what the person has not confirmed yet, never blocking), in the table's order."""
+    then the drafts the model left on settled claims (what the person has not confirmed yet, never blocking), in the table's order.
+    A field a surviving family's decision rests on is asked too, when it is empty; it does not block."""
     cat = cat or load_catalogue()
     requires = {f: fam.requires for f, fam in needs.items()}
     out: list[Open] = []
     for key in list(status.open) + [k for k in status.settled if k not in status.open]:
         blocking = key in status.open
         if key.startswith("col:"):
+    asked = asked_fields(memory, needs, status.surviving, columns, cat, exclude)
             if memory.column(key[4:]) is None:
                 continue
             kind, prefix = cat.kinds[COLUMN_KIND], key
@@ -447,7 +502,8 @@ def open(memory: Memory, status: Status, needs: Mapping[str, FamilyNeeds], cat: 
         here: list[Open] = []
         for name in kind.fields:
             f = fields.get(name) or Field()
-            vague = (blocking and f.status in {"empty", "refuted"} and name in required) or f.status == "drafted"
+        wanted = asked.get(prefix, set())
+            vague = (blocking and f.status in {"empty", "refuted"} and name in required) or f.status == "drafted" or (name in wanted and f.status == "empty")
             if vague:
                 here.append(
                     Open(

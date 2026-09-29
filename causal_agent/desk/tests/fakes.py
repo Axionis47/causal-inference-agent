@@ -268,7 +268,11 @@ def read_by_rule(msg: str, addrs: list[str]) -> Reading:
     if low.startswith("yes") or low.startswith("all right") or low.startswith("right"):
         return Reading(confirms=addrs)
     if "don't know" in low or "do not know" in low:
-        return Reading(unknown=addrs[:1])
+        return Reading(unknown=addrs)
+    if low.startswith("none for all"):
+        return Reading(updates=[FieldUpdate(address=a, value="none", said=msg) for a in addrs])
+    if low.startswith("not that i know"):
+        return Reading(updates=[FieldUpdate(address=a, value="false", said=msg) for a in addrs])
     if "nothing hidden" in low:
         return Reading(updates=[FieldUpdate(address="claim:unobserved.exists", value="false", said=msg)])
     if "sit alone" in low or "no spillover" in low:
@@ -301,3 +305,7 @@ def answer_ask(payload: dict) -> str:
     if addrs and "exclusion" in addrs[0]:
         return "no nudge"
     return "I don't know"
+    if addrs and all(a.endswith((".offer_column", ".uptake_column", ".same_as", ".nested_in")) for a in addrs):
+        return "none for all"
+    if addrs and all(a.endswith(".may_modify") for a in addrs):
+        return "not that I know"

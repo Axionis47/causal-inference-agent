@@ -271,12 +271,22 @@ def test_fit_and_open_on_students3():
     assert any(p.family == "adjustment" and p.name == "arms" and p.passed for p in probes)
     st = ops.fit(m, probes, R.needs())
     assert "adjustment" in st.surviving and st.ready
-    assert ops.open(m, st, R.needs()) == []
+    # nothing blocks; what is still open is what a surviving family's decision rests on and nobody has said: asked, never blocking
+    asked = ops.open(m, st, R.needs())
+    assert asked and all(o.optional and o.status == "empty" for o in asked)
+    assert {o.field for o in asked} >= {"offer_column", "uptake_column", "same_as", "nested_in", "may_modify", "stands_for"}
+    assert not any(o.address.startswith("col:test_preparation_course.") for o in asked)  # the treatment is not a covariate
+    assert all(
+        m.value(o.address.rsplit(".", 1)[0] + ".when") != "before" for o in asked if o.field == "moved_by_change"
+    )  # a before-column cannot be moved: not asked
+    assert ops.open(m, st, R.needs(), columns=["math score", "test preparation course"], exclude=["math score"]) == [
+        o for o in asked if o.address.startswith("claim:")
+    ]  # the columns in play bound the per-column asks
     # make one required field vague and one optional draft: both come back, required first
     m.set("col:lunch.when", None, status="empty", source=None)
     m.set("col:gender.stands_for", "sex", status="drafted", source="model:infer")
     st = ops.fit(m, probes, R.needs())
-    opened = ops.open(m, st, R.needs())
+    opened = [o for o in ops.open(m, st, R.needs()) if not o.optional or o.status == "drafted"]
     assert {o.address for o in opened} == {"col:gender.stands_for", "col:lunch.when"}
     lunch = next(o for o in opened if o.address == "col:lunch.when")
     assert lunch.options == ["before", "at", "after", "unknown"] and "adjustment" in lunch.because and not lunch.optional

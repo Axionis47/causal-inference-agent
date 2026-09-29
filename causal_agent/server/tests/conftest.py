@@ -119,6 +119,7 @@ ANSWERS = {
     "claim:unobserved.exists": "false",
     "claim:spillover.possible": "false",
     "claim:exclusion.exists": "false",
+    "claim:assignment.offer_column": "none",
 }
 WHEN = {"math score": "after", "test preparation course": "at"}
 
@@ -129,7 +130,7 @@ def reply_for(view: dict) -> str:
     addrs = q.get("keys") or []
     if q.get("kind") == "confirm":
         return "yes, all right"
-    if addrs and addrs[0].startswith("col:"):
+    if addrs and addrs[0].startswith("col:") and any(a.endswith((".meaning", ".when")) for a in addrs):
         return "cols"
     if addrs and addrs[0] in ANSWERS:  # the story turn and a gap question alike: one field, in the desk's own words
         return f"{addrs[0]} = {ANSWERS[addrs[0]]}"

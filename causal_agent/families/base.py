@@ -116,7 +116,12 @@ def load_family_yaml(path: Path, name: str | None = None) -> tuple[Family, Famil
     name = name or raw.pop("name", None) or Path(path).parent.name
     raw.pop("name", None)
     needs = raw.pop("needs_claims", None)
-    return Family(name=name, **raw), (FamilyNeeds(name=name, **needs) if needs else None)
+    fam = Family(name=name, **raw)
+    if not needs:
+        return fam, None
+    # what the family asks: every field address a decision rests on; the probes and the notes are not fields
+    asks = [p for d in fam.decisions for p in d.rests_on if p.startswith(("claim:", "col:")) and "." in p and not p.endswith(".note")]
+    return fam, FamilyNeeds(name=name, asks=list(dict.fromkeys(asks)), **needs)
 
 
 # ------------------------------------------------------------------ the stub lane for a declared family
