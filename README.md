@@ -57,12 +57,14 @@ it. [docs/lanes.md](docs/lanes.md)
   <img alt="The adjustment lane as a swimlane" src="docs/diagrams/lane-swimlane-light.svg">
 </picture>
 
-**Every judgement is one closed question, cited and checked.** Here is one from a real run: what the model was given, what came
-back, and the six checks code ran on it. [docs/gates.md](docs/gates.md)
+**Every design decision rests on named claims.** Each family lists the decisions its design must make and the claims each one
+rests on: who got the change and how, what changed and when, what one row is, what each column records and when, and what the
+design would bet on. The interview asks for a claim only because a decision needs it, and the Designer fills each decision citing
+those claims. [docs/desk.md](docs/desk.md#the-stages-in-order)
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/judgement-relate-dark.svg">
-  <img alt="One relate judgement opened up" src="docs/diagrams/judgement-relate-light.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/decisions-dark.svg">
+  <img alt="What each design decision rests on: the three families' decisions against six kinds of claim" src="docs/diagrams/decisions-light.svg">
 </picture>
 
 ## Known limits

@@ -40,6 +40,11 @@ writes a `fit` step when a cell moves. `ask` composes the next thing by code ([d
 4. The gaps, asked by decision: the first open field, the first family decision that rests on it, and every open field under that
    decision in one turn, prefixed "To settle <what the decision asks>, I need:". A belief is asked as what the design would bet on.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="diagrams/decisions-dark.svg">
+  <img alt="What each design decision rests on: the three families' decisions against six kinds of claim" src="diagrams/decisions-light.svg">
+</picture>
+
 `listen` takes the answer. `infer` is the Reader over it. `draw` and `explain` serve a picture or an answer before the next
 ask. "run" while drafts are open takes them on the person's word.
 
