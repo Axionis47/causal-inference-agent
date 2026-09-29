@@ -60,9 +60,11 @@ evals.
 **The memory** (`memory/`) is what is known about a file: a map of `col:<key>.<field>` and `claim:<kind>.<field>` to a
 `Field` with value, status, source, the sentence it rests on, and the reason. The catalogue of kinds is
 `memory/fields.yaml`. The only write path is `ops.apply`: a model may only draft; only the person's word or a data check
-confirms; a belief is written only on the person's word. `ops.check` runs the data checks and the consistency rules;
-`ops.fit` computes the matrix (families × claim kinds) from each family's `needs_claims`; ready means nothing required is
-open and one family survives.
+confirms; a belief is written only on the person's word; the `story` kind is verbatim and written by the desk alone.
+`ops.check` runs the data checks and the consistency rules; `ops.fit` computes the matrix (families × claim kinds) from each
+family's `needs_claims`; ready means nothing required is open and one family survives. A family's decisions (`family.yaml`,
+`rests_on`) also say what the interview asks beyond the required fields; those relations never block. `memory/facts.py`
+computes data facts (`probe:data.*`) for the columns in play at every fit and at hand-off, never joining outcome and treatment.
 
 **A lane** (`families/<name>/lane/`) runs in its own process on `designs/<n>/handoff.json` and reads nothing else
 (`desk/pipeline.py`). Shared plumbing is in `lane/`; the engine, judgements and knowledge yaml stay in the family. Every

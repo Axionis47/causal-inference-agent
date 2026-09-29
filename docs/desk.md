@@ -37,16 +37,23 @@ writes a `fit` step when a cell moves. `ask` composes the next thing by code ([d
    set, what one row is. The Reader drafts every claim it can from the answer. A mined note skips the story.
 3. The readback ([desk/readback.py](../causal_agent/desk/readback.py)): the drafts grouped by the five claims every decision
    rests on, each line with the sentence it rests on. A yes confirms every draft shown.
-4. The gaps, asked by decision: the first open field, the first family decision that rests on it, and every open field under that
-   decision in one turn, prefixed "To settle <what the decision asks>, I need:". A belief is asked as what the design would bet on.
+4. The gaps, asked by decision: the surviving families' decisions in the order each lists them, what blocks readiness first,
+   and every open field under one decision in one turn, prefixed "To settle <what the decision asks>, I need:". A belief is asked
+   as what the design would bet on. The relations a decision rests on (the same thing as another column, nested in one, the
+   effect could differ by it, an offer and an uptake as two columns) are asked the same way once nothing blocks, and never block:
+   the person may say run without them.
+5. The ready moment: the desk builds the pack and reads the assembled context back in the order the reasoning reads it, the
+   pair, the mechanism, time, the relations, the hidden factors, heterogeneity, the threats, then names the design and what it
+   bets on. The person corrects any line there, before the run.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="diagrams/decisions-dark.svg">
   <img alt="What each design decision rests on: the three families' decisions against six kinds of claim" src="diagrams/decisions-light.svg">
 </picture>
 
-`listen` takes the answer. `infer` is the Reader over it. `draw` and `explain` serve a picture or an answer before the next
-ask. "run" while drafts are open takes them on the person's word.
+`listen` takes the answer. `infer` is the Reader over it; on the story turn the desk also keeps the account whole, as the
+one verbatim field only it may write. `draw` and `explain` serve a picture or an answer before the next ask. "run" while
+drafts are open takes them on the person's word; after a run request only what blocks is asked.
 
 **The routing, by code.** `fit` computes the matrix; `decide` is code when exactly one family survives and a judgement only when
 several do; `gate` checks the decision; `design` is the Designer writing the brief; `handoff` writes `designs/<n>/` with the

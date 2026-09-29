@@ -12,17 +12,21 @@ figures all speak in them, and code checks each one.
 |---|---|
 | the decision | family, specialist, outcome, treatment, scope, the assumption bet on, why this family over the others |
 | the question | the text, the intent, the design id, the memory version it was projected from |
+| the story | the person's account as they gave it, or the note they attached, whole |
 | the data | the CSV path, the dataset facts, grain, sampling, missing |
 | the columns | one `ColumnBrief` per column that matters: its note, when it was set, what set it, whether it fed the treatment, moves the outcome, was moved by the change, measures the outcome, each with provenance |
 | how the change happened | `change` and `assignment` as the person settled them |
 | what the person believes | the `Belief`s, the addresses left unknown, the contradictions kept |
 | the words | every sentence, as `Said`, with the turn it came from |
-| the evidence | the probes, the claim snapshot |
+| the evidence | the family probes with their verdicts, the data facts (`probe:data.*`) with their numbers, the claim snapshot |
 | the family block | one `Design` subclass, filled by code from the memory: for adjustment the candidates to adjust for, the forbidden columns, the named instrument or mediator, the hidden confounding the person declared |
 | the brief | the Designer's `DesignBrief`: the road, the target, one decision per decision the family lists, the threats, the sentence it bets on |
 
-`render_context` ([pack.py:427](../causal_agent/common/contracts/pack.py)) turns that into the text every lane judgement reads
-first, as addressed lines. From the checked-in run:
+`render_context` ([pack.py](../causal_agent/common/contracts/pack.py)) turns that into the text every lane judgement reads
+first, in the order the reasoning reads it: the story; the pair (the outcome, the treatment, which level means treated, the
+target); the mechanism; time (every column before, at, after the change); the columns, one line each with their relations;
+the rows; the hidden factors; heterogeneity; the threats; then the family block, the design brief and the person's words.
+The same order is read back to the person at the ready moment, before the design is named. From the checked-in run:
 
 ```
 [change:1.note] a six-week test preparation course the school ran. It reached any enrolled student ... The decision or the offer depended on lunch, parental level of education.
@@ -41,10 +45,13 @@ population filter was not in a form the code can apply, so every row was kept an
 | `col:<key>.<field>` | one column's field in the memory or the pack | `col:lunch.when` |
 | `col:<key>.profile.<facet>` | a profiler fact | `col:math_score.profile.numeric` |
 | `claim:<kind>.<field>` | a claim about the world | `claim:assignment.depends_on` |
+| `claim:story.text` | the person's account, verbatim | `claim:story.text` |
+| `pair.<part>`, `time.<when>` | the pair as the pack states it; the columns by time | `pair.levels`, `time.before` |
 | `change:1.note`, `dataset.note` | the change and the dataset as the pack renders them | `change:1.note` |
 | `said:<turn>` | one sentence the person said | `said:5` |
 | `user:turn:<n>` | the turn a field came from | `user:turn:3` |
 | `probe:<family>.<name>` | a probe's result | `probe:adjustment.overlap` |
+| `probe:data.<name>` | a data fact computed before the run, with a number and no verdict | `probe:data.by_arm.lunch` |
 | `matrix:<family>.<kind>` | one cell of the matrix | `matrix:instrument.exclusion` |
 | `step:<n>` | one step of the conversation's journal | `step:10` |
 | `design.<...>`, `design.brief.<...>` | the frozen design and the brief | `design.estimand.adjustment_set` |

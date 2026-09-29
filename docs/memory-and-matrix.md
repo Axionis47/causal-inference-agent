@@ -21,9 +21,20 @@ The memory is a map from an address to a `Field` ([memory/records.py:32](../caus
 | `evidence` | the check addresses that touched it |
 
 Addresses are `col:<key>.<field>` for a column and `claim:<kind>.<field>` for a claim about the world. The catalogue of kinds
-is [memory/fields.yaml](../causal_agent/memory/fields.yaml): grain, sampling, change, assignment, measured (one per column),
-missing, then the beliefs no data check can touch: unobserved, exclusion, spillover, trend_continues, cutoff_only, mediator.
-Each kind lists its fields, their types and options, the check that can refute it, and the frame a question is written from.
+is [memory/fields.yaml](../causal_agent/memory/fields.yaml): the story, then grain, sampling, change, assignment, measured (one
+per column), missing, then the beliefs no data check can touch: unobserved, exclusion, spillover, trend_continues, cutoff_only,
+mediator. Each kind lists its fields, their types and options, the check that can refute it, and the frame a question is
+written from.
+
+A column's claim says more than what it measures and when. It also says how the column stands to the pair and to the other
+columns: whether it fed the treatment, moves the outcome, was moved by the change, measures the outcome, is the same thing
+as another column (`same_as`), sits inside a coarser one (`nested_in`), stands for something outside the file
+(`stands_for`), and whether the effect could differ by it (`may_modify`). The mechanism can name an offer column and an
+uptake column when the offer and the taking are two columns. A field of type `column_or_none` takes a column's name or the
+word none, so "there is no such column" is a settled answer.
+
+The `story` kind holds the person's account as they gave it, one verbatim field. Only the desk writes it, with the words
+themselves, on the story turn or from the note that was mined; the Reader never sees it as a field to fill.
 
 From the checked-in run, one field as the pack renders it:
 
@@ -40,8 +51,9 @@ returns the reason for every one it refused. The rules:
 2. A `model:` source may only draft. A draft is never trusted by the matrix.
 3. A belief is written only from `user:turn:` or `doc:`.
 4. A confirmed field changes only by the person, or by `data` or a `code:` rule.
-5. Values are coerced to the field's type: text, choice, bool, number, column, columns.
+5. Values are coerced to the field's type: text, choice, bool, number, column, columns, column or none.
 6. A change to `assignment.kind` reopens the fields that depended on it.
+7. A verbatim kind is written only by the desk, and only with the words themselves.
 
 Escalation runs one way, said, drafted, confirmed, fact, and only the person or the data escalates. A contradiction is
 remembered as one and never overwritten. That is [ADR 0003](adr/0003-a-persons-word-is-evidence.md) and the middle of
@@ -74,6 +86,21 @@ One cell ([memory/table.py:16](../causal_agent/memory/table.py)):
 | fits | otherwise |
 
 Beside every cell is `set_by`, the address that decided it, so the chat can say why.
+
+**What is asked, and in what order.** A family's decisions in `family.yaml` say which addresses each rests on. The loader
+turns that into what the family asks, and `ops.open` lists those fields when they are empty, beside the required ones. A
+relation a decision rests on never blocks readiness: the person may say run without it, and the lane then reads it as
+unknown. A field with `asked_when` is asked only when its condition holds: a column fixed before the change is not asked
+whether the change moved it; a belief's column only once the belief exists; a cutoff only under a cutoff rule. The ask
+composer ([desk/nodes/interview.py](../causal_agent/desk/nodes/interview.py), `first_gap`) walks the surviving families'
+decisions in the order each lists them, what blocks readiness first, so a relation never stands in front of a required
+claim, and asks every open field under one decision in one turn.
+
+**Data facts before the run.** At every fit and at hand-off, [memory/facts.py](../causal_agent/memory/facts.py) computes,
+by code, for the columns in play: each candidate by arm, its association with the outcome, the associations among
+candidates, which pairs are redundant or nested, and every column's timing in one line. Each is a `probe:data.<name>` with
+a number and no verdict, so the pack, the chat before the run and every lane judgement see the numbers a reasoning would
+otherwise have to ask for. One rule, in code: no fact joins the outcome with the treatment.
 
 A family is **struck** by its first cell that does not fit, or by a failed probe. **Required** is the union of `requires` over
 the surviving families, in catalogue order; belief kinds wait until assignment is settled. **Ready** means every required claim
