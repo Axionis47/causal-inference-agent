@@ -304,8 +304,8 @@ def answer_ask(payload: dict) -> str:
         return "they sit alone"
     if addrs and "exclusion" in addrs[0]:
         return "no nudge"
-    return "I don't know"
     if addrs and all(a.endswith((".offer_column", ".uptake_column", ".same_as", ".nested_in")) for a in addrs):
         return "none for all"
     if addrs and all(a.endswith(".may_modify") for a in addrs):
         return "not that I know"
+    return "I don't know"
