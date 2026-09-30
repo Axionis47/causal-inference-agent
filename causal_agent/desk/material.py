@@ -170,6 +170,8 @@ def render(
         m.add(f"{tag}.n", f"{e.get('n_treated')} treated-side and {e.get('n_control')} control-side rows", None)
         m.numbers[f"{tag}.n_treated"], m.numbers[f"{tag}.n_control"] = float(e.get("n_treated") or 0), float(e.get("n_control") or 0)
         m.addresses.update({f"{tag}.n_treated", f"{tag}.n_control"})
+        if e.get("p_value") is not None:
+            m.add(f"{tag}.p", f"p = {_g(e['p_value'])}" + (f" ({e['p_value_source']})" if e.get("p_value_source") else ""), e["p_value"])
     prim = run.artifacts.get("primary") or {}
     for k in ("p", "h", "b", "n_h_left", "n_h_right"):
         if prim.get(k) is not None:

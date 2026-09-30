@@ -459,6 +459,10 @@ export interface components {
             secondary: boolean;
             /** Error */
             error?: string | null;
+            /** P Value */
+            p_value?: number | null;
+            /** P Value Source */
+            p_value_source?: string | null;
         };
         /**
          * FeasibilityView

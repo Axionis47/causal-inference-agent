@@ -62,6 +62,11 @@ class Estimate(BaseModel):
     secondary: bool = False
     modifier: str | None = Field(default=None, description="set when this is the effect within one level of a modifier column")
     level: str | None = Field(default=None, description="the modifier's level or bin this estimate is for")
+    p_value: float | None = Field(default=None, description="the p-value the design's inference gives this estimate")
+    p_value_source: str | None = Field(
+        default=None,
+        description="how the p-value was computed: the fit's own errors (CRV1, hetero, nn), a resample (ritest, a wild bootstrap), or a correction across estimates (rwolf)",
+    )
 
     @property
     def tag(self) -> str:

@@ -233,6 +233,8 @@ def run_view(r: RunRecord, s: Settings | None = None) -> RunView:
             n_control=e.get("n_control"),
             secondary=bool(e.get("secondary")),
             error=e.get("error"),
+            p_value=e.get("p_value"),
+            p_value_source=e.get("p_value_source"),
         )
         for e in (sr.get("estimates") or r.artifacts.get("estimates") or [])
     ]

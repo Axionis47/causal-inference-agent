@@ -61,7 +61,7 @@ def ok_addresses(h: Handoff, state: dict, prefix: str = "refute") -> set[str]:
         ok.add(f"check_facts.{k}")
     for e in state.get("estimates") or []:
         est = e if isinstance(e, Estimate) else Estimate.model_validate(e)
-        ok.update({f"{est.tag}.value", f"{est.tag}.ci", f"{est.tag}.n", f"estimate:{est.contrast}.{est.method}.value"})
+        ok.update({f"{est.tag}.value", f"{est.tag}.ci", f"{est.tag}.n", f"{est.tag}.p", f"estimate:{est.contrast}.{est.method}.value"})
     for r in state.get("refutations") or []:
         r = r.model_dump() if hasattr(r, "model_dump") else r
         tag = f"{prefix}:{r.get('contrast')}.{r.get('refuter')}"

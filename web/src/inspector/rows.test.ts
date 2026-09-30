@@ -79,14 +79,54 @@ describe("run rows", () => {
   it("puts the primary estimate first and keeps flags", () => {
     const r = run({
       estimates: [
-        { contrast: null, method: "ols", value: 1.5, ci_low: 1, ci_high: 2, n: 10, n_treated: 4, n_control: 6, secondary: true, error: null },
-        { contrast: "a", method: "ipw", value: 2, ci_low: 1.5, ci_high: 2.5, n: 10, n_treated: 4, n_control: 6, secondary: false, error: null },
-        { contrast: "a", method: "dml", value: null, ci_low: null, ci_high: null, n: null, n_treated: null, n_control: null, secondary: false, error: "boom" },
+        {
+          contrast: null,
+          method: "ols",
+          value: 1.5,
+          ci_low: 1,
+          ci_high: 2,
+          n: 10,
+          n_treated: 4,
+          n_control: 6,
+          secondary: true,
+          error: null,
+          p_value: null,
+          p_value_source: null,
+        },
+        {
+          contrast: "a",
+          method: "ipw",
+          value: 2,
+          ci_low: 1.5,
+          ci_high: 2.5,
+          n: 10,
+          n_treated: 4,
+          n_control: 6,
+          secondary: false,
+          error: null,
+          p_value: 0.03,
+          p_value_source: "ritest",
+        },
+        {
+          contrast: "a",
+          method: "dml",
+          value: null,
+          ci_low: null,
+          ci_high: null,
+          n: null,
+          n_treated: null,
+          n_control: null,
+          secondary: false,
+          error: "boom",
+          p_value: null,
+          p_value_source: null,
+        },
       ],
     });
     const rows = estimateRows(r);
     expect(rows.map((x) => x.method)).toEqual(["ipw", "ols", "dml"]);
-    expect(rows[0]).toMatchObject({ primary: true, value: "2", ci: "[1.5, 2.5]", contrast: "a" });
+    expect(rows[0]).toMatchObject({ primary: true, value: "2", ci: "[1.5, 2.5]", contrast: "a", p: "0.03 (ritest)" });
+    expect(rows[1]).toMatchObject({ p: "—" });
     expect(rows[2]).toMatchObject({ error: "boom", value: "—" });
   });
   it("shapes checks and refutations", () => {

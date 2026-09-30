@@ -67,6 +67,7 @@ export interface EstimateRow {
   n: number | null;
   n_treated: number | null;
   n_control: number | null;
+  p: string;
   primary: boolean;
   secondary: boolean;
   error: string | null;
@@ -87,6 +88,7 @@ export function estimateRows(run: RunView): EstimateRow[] {
     n: e.n,
     n_treated: e.n_treated,
     n_control: e.n_control,
+    p: e.p_value == null ? "—" : `${num(e.p_value)}${e.p_value_source ? ` (${e.p_value_source})` : ""}`,
     primary: e === primary,
     secondary: e.secondary,
     error: e.error,

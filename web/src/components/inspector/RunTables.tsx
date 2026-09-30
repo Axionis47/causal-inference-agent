@@ -13,6 +13,7 @@ export function EstimatesTable({ rows }: { rows: EstimateRow[] }) {
               <th>method</th>
               <th>estimate</th>
               <th>95% interval</th>
+              <th>p</th>
               <th>n</th>
               <th>treated</th>
               <th>control</th>
@@ -26,6 +27,7 @@ export function EstimatesTable({ rows }: { rows: EstimateRow[] }) {
                 <td className="k">{r.method}</td>
                 <td className="num">{r.value}</td>
                 <td className="num">{r.ci}</td>
+                <td className="num">{r.p}</td>
                 <td className="num">{count(r.n)}</td>
                 <td className="num">{count(r.n_treated)}</td>
                 <td className="num">{count(r.n_control)}</td>

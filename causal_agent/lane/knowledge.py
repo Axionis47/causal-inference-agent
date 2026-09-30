@@ -10,6 +10,36 @@ from typing import Any
 import yaml
 
 
+def matches(applies_when: dict[str, Any], facts: dict[str, Any]) -> bool:
+    """Whether a catalogue entry applies to the facts a lane computed: `<key>_min` and `<key>_max` bound the fact, a list is
+    membership, a scalar is equality. A key whose fact is missing does not match, so a yaml key that names no fact can never
+    apply, and a test can hold every key against the lane's facts."""
+    for k, want in applies_when.items():
+        if k.endswith("_min"):
+            v = facts.get(k[:-4])
+            if v is None or v < want:
+                return False
+        elif k.endswith("_max"):
+            v = facts.get(k[:-4])
+            if v is None or v > want:
+                return False
+        else:
+            v = facts.get(k)
+            if v is None:
+                return False
+            if isinstance(want, list):
+                if v not in want:
+                    return False
+            elif v != want:
+                return False
+    return True
+
+
+def fact_names(applies_when: dict[str, Any]) -> set[str]:
+    """The facts an `applies_when` reads, with the `_min`/`_max` suffixes stripped."""
+    return {k[:-4] if k.endswith(("_min", "_max")) else k for k in applies_when}
+
+
 class Knowledge:
     def __init__(
         self,

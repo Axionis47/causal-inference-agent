@@ -184,6 +184,8 @@ class EstimateView(BaseModel):
     n_control: int | None = None
     secondary: bool = False
     error: str | None = None
+    p_value: float | None = None
+    p_value_source: str | None = None
 
 
 class DeclineView(BaseModel):
