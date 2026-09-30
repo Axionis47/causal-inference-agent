@@ -1,27 +1,40 @@
 # How uncertainty is computed. Chosen by facts from the shape step, never by the model.
-# Order matters: the first entry whose applies_when holds is used.
-# vcov strings and dicts go straight to pyfixest.
-
-randomisation:
-  in_words: one treated unit; ordinary standard errors mean nothing, so the only honest p-value is how unusual the observed effect is when the treated label is reassigned at random across units
-  applies_when: {units_treated_max: 1}
-  vcov: {CRV1: unit}
-  resample: placebo_group
-  note: report the placebo p-value, not the clustered one
-
-wild_bootstrap:
-  in_words: few treated clusters; a wild cluster bootstrap gives better-sized tests than the clustered formula
-  applies_when: {units_treated_min: 2, units_treated_max: 9, kind: [long]}
-  vcov: {CRV1: unit}
-  resample: wild_bootstrap
-  params: {reps: 999, seed: 7}
-
-cluster_unit:
-  in_words: many units observed over time; errors cluster within a unit
-  applies_when: {units_treated_min: 10, kind: [long]}
-  vcov: {CRV1: unit}
+# Order matters: the first entry whose applies_when holds is used. applies_when is keyed on facts and matched by one rule:
+# kind (long or wide), units_treated, clusters (distinct values of the level errors cluster at: the pack's level when it
+# rides and nests the units, else the unit), engine (the estimator's library surface). `cluster` in a vcov is a placeholder
+# the freeze resolves to that level's column. vcov strings and dicts go straight to pyfixest.
 
 robust_rows:
-  in_words: two measures per row with a synthetic unit id; each row is its own cluster, so heteroskedasticity-robust errors are the same thing
+  in_words: two measures per row with a synthetic unit id and no coarser level to cluster at; each row is its own cluster, so heteroskedasticity-robust errors are the same thing
   applies_when: {kind: [wide]}
   vcov: hetero
+
+randomisation:
+  in_words: one to three treated units; ordinary standard errors mean little, so the p-value is how unusual the observed before-after gap is when the treated label is reassigned at random across units, on one before and one after value per unit
+  source: Fisher's randomisation test; the collapse to one before and one after value per unit follows Bertrand, Duflo and Mullainathan (2004); three treated units as the line is ours
+  applies_when: {units_treated_max: 3}
+  vcov: {CRV1: cluster}
+  resample: ritest
+  params: {reps: 999, type: randomization-c, seed: 7}
+  note: the clustered interval is shown; the p-value is the randomisation one
+
+few_clusters_webb:
+  in_words: fewer than a dozen clusters; a wild cluster bootstrap with Webb's six-point weights, because with so few clusters the two-point weights give too few distinct draws
+  source: Cameron, Gelbach and Miller (2008) for the wild cluster bootstrap; Webb's six-point weights for few clusters; below twelve as the line is MacKinnon and Webb's rule of thumb
+  applies_when: {clusters_max: 11, engine: [feols]}
+  vcov: {CRV1: cluster}
+  resample: wildboottest
+  params: {reps: 999, weights_type: webb, bootstrap_type: "11", seed: 7}
+
+moderate_clusters:
+  in_words: a few dozen clusters; the jackknife cluster variance (CRV3) for the interval and a wild cluster bootstrap p-value
+  source: MacKinnon, Nielsen and Webb (2023) on CRV3 with few or unbalanced clusters; twelve to forty-one as the band is ours
+  applies_when: {clusters_min: 12, clusters_max: 41, engine: [feols]}
+  vcov: {CRV3: cluster}
+  resample: wildboottest
+  params: {reps: 999, weights_type: rademacher, bootstrap_type: "11", seed: 7}
+
+cluster:
+  in_words: many clusters; errors cluster within the declared level
+  applies_when: {clusters_min: 1}
+  vcov: {CRV1: cluster}

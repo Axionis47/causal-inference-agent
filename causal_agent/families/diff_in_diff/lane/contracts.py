@@ -148,13 +148,20 @@ class ControlRoles(BaseModel):
 
 
 class Cluster(BaseModel):
-    """Where the errors cluster, by code from the shape and the pack's word."""
+    """Where the errors cluster and how the p-value is computed, by code from the shape, the pack's word and the inference catalogue."""
 
     level: str
     why: str
+    clusters: int | None = None
+    inference: str = ""
+    resample: str | None = Field(default=None, description="ritest or wildboottest when the p-value is resampled, else none")
 
     def lines(self) -> list[tuple[str, str]]:
-        return [("ladder:cluster.level", self.level), ("ladder:cluster.why", self.why)]
+        return [
+            ("ladder:cluster.level", self.level + (f" ({self.clusters} clusters)" if self.clusters is not None else "")),
+            ("ladder:cluster.inference", self.inference + (f"; the p-value by {self.resample}" if self.resample else "")),
+            ("ladder:cluster.why", self.why),
+        ]
 
 
 class Ladder(LadderBase):

@@ -47,7 +47,30 @@ def run_checks(
                 name="single_treated_unit",
                 level="soft",
                 value=1.0,
-                detail="one treated unit; clustered standard errors are not meaningful, the placebo-group p-value is the inference",
+                detail="one treated unit; clustered standard errors are not meaningful, the randomisation p-value on the estimate is the inference",
+            )
+        )
+    if shape.clusters is not None and shape.kind == "long":
+        few = int(cfg["clusters"]["few"]["soft"])
+        out.append(
+            CheckResult(
+                contrast=contrast_key,
+                name="few_clusters",
+                level="soft" if shape.clusters < few else "pass",
+                value=float(shape.clusters),
+                threshold=float(few),
+                detail=f"{shape.clusters} clusters"
+                + ("; below the line where the clustered formula is trusted, so the p-value is resampled" if shape.clusters < few else ""),
+            )
+        )
+    if shape.cohorts > 1 and not shape.never_treated_exists and cfg["never_treated"]["soft_when_none"]:
+        out.append(
+            CheckResult(
+                contrast=contrast_key,
+                name="never_treated",
+                level="soft",
+                value=0.0,
+                detail="no unit is never treated; every comparison is with units not yet treated, and the last cohort has no comparison after its own change",
             )
         )
     if shape.periods_pre <= cfg["periods"]["parallel_untestable_when_pre"]:

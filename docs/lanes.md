@@ -128,7 +128,9 @@ not, with the budgets its `checks.yaml` declares; every claim cites the pack, a 
 7. **threats** (rung 6; code). The risks every design carries from the pack, and the risks the comparison rung named. Each is a flag
    the assessment answers and the interpretation cites; an `unsure` on a claim the interview could have settled is a decline.
 8. Then as before: `check_design` (the pre-trends test among the checks), `assess`, `pick_estimator`, `freeze_design` (which adds the
-   clustering rung, `ladder:cluster.*`, by code), `estimate`, the placebos, `interpret`, `figures`, `assemble`.
+   clustering rung, `ladder:cluster.*`, by code: the level, how many clusters, the inference entry and whether the p-value is
+   resampled), `estimate` (the primary carries the p-value its inference calls for: the fit's own, a wild cluster bootstrap, or
+   randomisation inference on the unit-level before-after differences), the placebos, `interpret`, `figures`, `assemble`.
 
 ## The discontinuity lane, rung by rung
 

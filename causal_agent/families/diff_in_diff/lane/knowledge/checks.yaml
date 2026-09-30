@@ -4,6 +4,13 @@
 units:
   min_per_group: {hard: 1, soft: 10}      # treated or control units below soft is thin; below hard is no comparison
 
+clusters:
+  few: {soft: 12}          # below this the clustered formula over-rejects and inference.yaml resamples instead; MacKinnon and Webb's rule of thumb
+  min_at_level: 3          # a cluster level the pack names with fewer distinct values than this is declined and the unit clusters; ours
+
+never_treated:
+  soft_when_none: true     # every unit eventually got the change: the comparison is units not yet treated, and the last cohort has none after its own change
+
 periods:
   parallel_untestable_when_pre: 1         # one pre period: the parallel-trends assumption cannot be checked (soft)
 
@@ -38,6 +45,8 @@ in_words:
   parallel_untestable: "whether there is more than one period before the change to see if the groups moved together"
   pre_trends: "whether the two groups were already moving apart before the change"
   staggered: "whether units got the change at different times"
+  few_clusters: "whether there are enough separate groups of units for the usual clustered standard errors to be trusted"
+  never_treated: "whether any unit never got the change, or every unit is compared only with units that had not got it yet"
   cohort_heterogeneity: "whether the units that got the change at different times moved alike after it"
 
 # How many tool calls each reasoning episode may make before it must answer. The leash, declared.

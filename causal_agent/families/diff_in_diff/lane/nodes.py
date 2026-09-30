@@ -1018,40 +1018,48 @@ def freeze_design(state: SpecialistState) -> dict:
         alt = estimator_entry(entry.also_run)
         if alt.applies(**_facts(state)):
             also = alt
-    inf = pick_inference(units_treated=s.units_treated, kind=s.kind)
-    vcov: Any = inf.vcov
+    # the level errors cluster at: the pack's level when it rides, nests the units and has enough distinct values; else the unit
+    panel = pd.read_csv(state["panel_path"])
     declines: list[Decline] = []
     b = _block(h)
+    level_col, level_words = "unit", "the unit"
     if b is not None and b.cluster_level and _key(b.cluster_level) != state.get("unit_column"):
-        panel = pd.read_csv(state["panel_path"])
-        clustered = isinstance(inf.vcov, dict) and "CRV1" in inf.vcov
-        if "cluster" in panel.columns and clustered and (panel.groupby("unit")["cluster"].nunique() <= 1).all():
-            vcov = {"CRV1": "cluster"}
+        floor = int(load_checks()["clusters"]["min_at_level"])
+        if "cluster" not in panel.columns:
+            why = "the column is not in the table"
+        elif not (panel.groupby("unit")["cluster"].nunique() <= 1).all():
+            why = "a unit sits in more than one of its groups"
+        elif panel["cluster"].nunique() < floor:
+            why = f"fewer than {floor} clusters at that level"
         else:
-            why = (
-                "the inference for this shape does not cluster"
-                if not clustered
-                else "the column is not in the table"
-                if "cluster" not in panel.columns
-                else "a unit sits in more than one of its groups"
-            )
+            why, level_col, level_words = "", "cluster", "the pack's cluster column"
+        if why:
             declines.append(
                 Decline(
                     stage="freeze_design",
                     kind="declined",
                     about="design.cluster_level",
                     pack_value=b.cluster_level,
-                    took=str(inf.vcov),
+                    took="the unit",
                     check="inference.cluster_column",
                     reason=f"errors were not clustered at the level the pack names: {why}",
                 )
             )
+    clusters = int(panel[level_col].nunique()) if s.kind == "long" else None
+    facts = {**_facts(state), "clusters": clusters, "engine": entry.engine}
+    inf = pick_inference(**facts)
+    vcov: Any = {k: level_col for k in inf.vcov} if isinstance(inf.vcov, dict) else inf.vcov
     units = s.units_treated + s.units_control
     # the placebos refit the feols shape; an estimator on another engine gets none until its own falsifications are wired
     placebos = [p.name for p in load_placebos() if p.applies(units=units, periods_pre=s.periods_pre)] if entry.engine == "feols" else []
     lad = _ladder(state)
-    level = "the pack's cluster column" if vcov == {"CRV1": "cluster"} else "the unit" if isinstance(vcov, dict) else f"none: {inf.name}"
-    cluster = Cluster(level=level, why=f"{inf.name}: {s.units_treated} treated units on a {s.kind} table" + ("; " + declines[0].reason if declines else ""))
+    cluster = Cluster(
+        level=level_words if isinstance(vcov, dict) else f"none: {inf.name}",
+        why=f"{inf.in_words}" + ("; " + declines[0].reason if declines else ""),
+        clusters=clusters,
+        inference=inf.name,
+        resample=inf.resample,
+    )
     d = Design(
         contrast=state["contrast"],
         groups=state["groups"],
@@ -1099,18 +1107,8 @@ def estimate(state: SpecialistState) -> Command:
     if primary.error is None:
         ests += fit.by_cohort  # each cohort's own effect, when the engine reports it, as the effect within a level of "cohort"
         ests += _by_modifier(panel, d)
-    inf = pick_inference(units_treated=d.shape.units_treated, kind=d.shape.kind)
-    if primary.error is None and inf.resample == "wild_bootstrap" and model is not None:
-        p = adapter.wild_bootstrap(model, int(inf.params.get("reps", 999)), int(inf.params.get("seed", 7)))
-        refs.append(
-            Refutation(
-                contrast=d.contrast.key,
-                refuter="wild_bootstrap",
-                kind="sensitivity",
-                p_value=p,
-                detail=f"wild cluster bootstrap p-value for the effect: {p}" if p is not None else "wild bootstrap failed",
-            )
-        )
+    if primary.error is None:
+        ests[ests.index(primary)] = primary = _resampled(d, primary, model, panel, controls)
     _writer()({"estimate": [e.model_dump(exclude_none=True) for e in ests]})
     update: dict[str, Any] = {"estimates": ests, "refutations": refs, "dynamic": dynamic}
     if primary.error:
@@ -1120,6 +1118,44 @@ def estimate(state: SpecialistState) -> Command:
         return _stop("estimate", "the estimator failed to fit and the re-pick failed too", [primary.error], "a different estimator entry", update)
     sends = [Send("placebo", PlaceboTask(name=n, design=d.model_dump(), panel_path=state["panel_path"], observed=primary.value)) for n in d.placebos]
     return Command(goto=sends or "interpret", update=update)
+
+
+def _resampled(d: Design, primary: Estimate, model: Any, panel: pd.DataFrame, controls: list[str]) -> Estimate:
+    """The primary with the p-value the design's inference entry calls for: the fit's own, a wild cluster bootstrap, or
+    randomisation inference on the unit-level before-after differences; the source says which."""
+    from causal_agent.families.diff_in_diff.lane.knowledge import K
+
+    inf = next((i for i in K.inference() if i.name == d.inference), None)
+    if inf is None or not inf.resample:
+        return primary
+    prm = inf.params
+    if inf.resample == "wildboottest" and model is not None:
+        p = adapter.wild_bootstrap(
+            model,
+            vcov=d.vcov,
+            reps=int(prm.get("reps", 999)),
+            seed=int(prm.get("seed", 7)),
+            weights_type=str(prm.get("weights_type", "rademacher")),
+            bootstrap_type=str(prm.get("bootstrap_type", "11")),
+        )
+        if p is None:
+            return primary.model_copy(update={"p_value_source": (primary.p_value_source or "") + "; the wild bootstrap failed"})
+        return primary.model_copy(
+            update={
+                "p_value": p,
+                "p_value_source": f"wild cluster bootstrap, {prm.get('weights_type', 'rademacher')} weights, {prm.get('reps', 999)} draws, {d.shape.clusters} clusters",
+            }
+        )
+    if inf.resample == "ritest":
+        p, _ = adapter.ritest_collapsed(
+            panel, controls, reps=int(prm.get("reps", 999)), seed=int(prm.get("seed", 7)), kind=str(prm.get("type", "randomization-c"))
+        )
+        if p is None:
+            return primary.model_copy(update={"p_value_source": (primary.p_value_source or "") + "; randomisation inference failed"})
+        return primary.model_copy(
+            update={"p_value": p, "p_value_source": f"randomisation inference on the unit-level before-after differences, {prm.get('reps', 999)} reassignments"}
+        )
+    return primary
 
 
 def _modifier_groups(panel: pd.DataFrame, column: str, max_levels: int) -> list[tuple[str, pd.DataFrame]]:
@@ -1197,7 +1233,7 @@ def _addresses(state: SpecialistState) -> list[str]:
     for e in state.get("estimates") or []:
         if e.error is None:
             tag = _tag(e, d)
-            out += [f"{tag}.value", f"{tag}.ci", f"{tag}.n"]
+            out += [f"{tag}.value", f"{tag}.ci", f"{tag}.n"] + ([f"{tag}.p"] if e.p_value is not None else [])
     for r in state.get("refutations") or []:
         out += [f"placebo:{c}.{r.refuter}.p_value", f"placebo:{c}.{r.refuter}.new_effect", f"placebo:{c}.{r.refuter}.passed"]
     return list(dict.fromkeys(out))
@@ -1218,8 +1254,11 @@ def _required(state: SpecialistState) -> list[str]:
     """What the interpretation must cite: every flagged check (the person's flags among them) and the estimate's interval."""
     d: Design = state["design"]
     out = [r.address for r in d.checks.results if r.level != "pass"]
-    if any(e.method == d.estimator and e.error is None and e.modifier is None for e in state.get("estimates") or []):
+    primary = next((e for e in state.get("estimates") or [] if e.method == d.estimator and e.error is None and e.modifier is None), None)
+    if primary is not None:
         out.append(f"estimate:{d.contrast.key}.ci")
+        if primary.p_value is not None and any(w in (primary.p_value_source or "") for w in ("randomisation", "bootstrap")):
+            out.append(f"estimate:{d.contrast.key}.p")  # a resampled p-value is the honest inference; the reader must see it
     out += [f"{e.tag}.value" for e in state.get("estimates") or [] if e.modifier is not None and e.error is None]
     return out
 
@@ -1265,6 +1304,8 @@ def _material(state: SpecialistState) -> str:
             lines.append(f"[{tag}.value] {e.value:.4g} ({what}: {e.method}, target {e.target_units})")
             lines.append(f"[{tag}.ci] 95% interval {e.ci_low:.4g} to {e.ci_high:.4g}" if e.ci_low is not None else f"[{tag}.ci] no interval")
             lines.append(f"[{tag}.n] {e.n_treated} treated units, {e.n_control} control")
+            if e.p_value is not None:
+                lines.append(f"[{tag}.p] p = {e.p_value:.3g} ({e.p_value_source})")
     for r in state.get("refutations") or []:
         lines.append(
             f"[placebo:{c}.{r.refuter}.passed] {r.passed}  [placebo:{c}.{r.refuter}.new_effect] {r.new_effect}  [placebo:{c}.{r.refuter}.p_value] {r.p_value}  ({r.detail})"

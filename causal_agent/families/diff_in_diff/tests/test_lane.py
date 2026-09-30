@@ -329,7 +329,15 @@ def test_catalogues_parse_on_a_toy_panel():
         "saturated_event_study",
     }
     assert {e.name for e in load_estimators() if e.applies(cohorts=3, never_treated=False, periods_pre=3, periods_post=2)} == {"lpdid"}
-    assert [i.name for i in load_inference()] == ["randomisation", "wild_bootstrap", "cluster_unit", "robust_rows"]
+    assert [i.name for i in load_inference()] == ["robust_rows", "randomisation", "few_clusters_webb", "moderate_clusters", "cluster"]
+    pick = lambda **f: next(i for i in load_inference() if i.applies(**f)).name  # noqa: E731
+    assert pick(kind="wide", units_treated=300, clusters=384, engine="feols") == "robust_rows"
+    assert pick(kind="long", units_treated=1, clusters=46, engine="feols") == "randomisation"
+    assert pick(kind="long", units_treated=3, clusters=8, engine="feols") == "randomisation"
+    assert pick(kind="long", units_treated=4, clusters=8, engine="feols") == "few_clusters_webb"
+    assert pick(kind="long", units_treated=16, clusters=40, engine="feols") == "moderate_clusters"
+    assert pick(kind="long", units_treated=16, clusters=40, engine="did2s") == "cluster"  # the resamples run on feols fits only
+    assert pick(kind="long", units_treated=60, clusters=120, engine="feols") == "cluster"
     assert {p.name for p in load_placebos()} == {"placebo_group", "placebo_timing"}
     cfg = load_checks()
     assert cfg["pre_trends"]["p_value"]["hard"] < cfg["pre_trends"]["p_value"]["soft"]
@@ -516,7 +524,7 @@ def test_a_cluster_level_the_inference_cannot_honour_is_declined_with_a_record()
     r = out["specialist_result"]
     assert r["status"] == "done", r.get("feasibility")
     d = next(x for x in out["declines"] if x.about == "design.cluster_level")
-    assert d.check == "inference.cluster_column" and "does not cluster" in d.reason and d.address in r["report"]
+    assert d.check == "inference.cluster_column" and "fewer than 3 clusters at that level" in d.reason and d.address in r["report"]
     assert any(x["about"] == "design.cluster_level" for x in r["declines"])
 
 
@@ -613,7 +621,7 @@ def test_a_risk_the_comparison_rung_names_is_a_flag_the_assessment_answers_and_t
     assert "[ladder:comparison.risk.anticipation] the tax was announced" in r["report"] and not out.get("interpret_errors")
 
 
-def _toy_panel(tmp_path):
+def _toy_panel(tmp_path, *, n_units=40, treated=16, periods=10, change=6):
     """Forty units over ten periods; sixteen get the change from period 6; the effect is larger in the north."""
     import numpy as np
 
@@ -622,12 +630,12 @@ def _toy_panel(tmp_path):
 
     rng = np.random.default_rng(1)
     rows = []
-    for u in range(40):
-        arm = "yes" if u < 16 else "no"
+    for u in range(n_units):
+        arm = "yes" if u < treated else "no"
         region = "north" if u % 2 == 0 else "south"
         ue = rng.normal(0, 1)
-        for t in range(1, 11):
-            treat = int(arm == "yes" and t >= 6)
+        for t in range(1, periods + 1):
+            treat = int(arm == "yes" and t >= change)
             y = 10 + ue + 0.3 * t + treat * (2.0 + (3.0 if region == "north" else 0.0)) + rng.normal(0, 0.5)
             rows.append({"unit": f"u{u}", "time": t, "arm": arm, "region": region, "y": y})
     csv = tmp_path / "toy_did.csv"
@@ -640,9 +648,9 @@ def _toy_panel(tmp_path):
     m.set("claim:sampling.how", "whole", status="confirmed", source=src)
     m.set("claim:change.what", "the programme", status="confirmed", source=src)
     m.set("claim:change.to_whom", "the units in the arm", status="confirmed", source=src)
-    m.set("claim:change.when", "period 6", status="confirmed", source=src)
+    m.set("claim:change.when", f"period {change}", status="confirmed", source=src)
     m.set("claim:change.date_column", "time", status="confirmed", source=src)
-    m.set("claim:change.period_value", "6", status="confirmed", source=src)
+    m.set("claim:change.period_value", str(change), status="confirmed", source=src)
     m.set("claim:assignment.kind", "date_by_others", status="confirmed", source=src)
     m.set("claim:assignment.rule", "the programme reached one arm from period 6", status="confirmed", source=src)
     m.set("claim:assignment.treatment_column", "arm", status="confirmed", source=src)
@@ -791,6 +799,7 @@ def test_a_staggered_panel_without_never_treated_units_offers_the_not_yet_treate
     assert names == "lpdid"  # the saturated design and the two-stage one need never-treated units; local projections do not
     checks = {c.name: c for c in out["checks"]}
     assert "cohort_heterogeneity" not in checks  # the test needs never-treated units
+    assert checks["never_treated"].level == "soft" and "units not yet treated" in checks["never_treated"].detail
     assert checks["units"].level == "pass" and "12 treated later serve as comparison" in checks["units"].detail
     assert checks["pre_trends"].level == "pass" and "local projections against units not yet treated" in checks["pre_trends"].detail
     d = out["design"]
@@ -814,3 +823,67 @@ def test_the_saturated_event_study_reports_each_cohorts_effect(tmp_path):
     assert [e.level for e in cohorts] == ["4", "6", "8"] and all(abs(e.value - 2.0) < 0.5 for e in cohorts)
     assert {f"{e.tag}.value" for e in cohorts} <= set(out["interpretations"][0].cites) and not out.get("interpret_errors")
     assert any(f["id"].startswith("effect_by_modifier_") for f in out["figures"]) and "within cohort = 6" in r["report"]
+
+
+# ------------------------------------------------------------------ inference by the number of clusters
+
+
+def _script_toy(change=6):
+    return dict(
+        groups=("arm", "yes"),
+        periods=Periods(kind="long", time_column="time", first_post=str(change), reason=f"period {change}", cites=["change:1.note"]),
+        relations={},
+    )
+
+
+def test_a_few_dozen_clusters_use_the_jackknife_variance_and_a_bootstrap_p(tmp_path):
+    out = _run(FakeLLM(_script_toy(), "col:arm.note"), _toy_panel(tmp_path), question="Did the programme raise y?")
+    r = out["specialist_result"]
+    assert r["status"] == "done", r.get("feasibility")
+    d = out["design"]
+    assert d.inference == "moderate_clusters" and d.vcov == {"CRV3": "unit"} and out["shape"].clusters == 40
+    primary = next(e for e in out["estimates"] if e.method == "twfe_static" and e.modifier is None)
+    assert (
+        primary.p_value is not None
+        and primary.p_value_source.startswith("wild cluster bootstrap, rademacher weights")
+        and "40 clusters" in primary.p_value_source
+    )
+    assert f"estimate:{d.contrast.key}.p" in out["interpretations"][0].cites and not out.get("interpret_errors")
+    assert "wild_bootstrap" not in {x.refuter for x in out["refutations"]}  # the p sits on the estimate, not on a refutation
+    lad = out["ladder"]
+    assert lad.cluster.clusters == 40 and lad.cluster.inference == "moderate_clusters" and lad.cluster.resample == "wildboottest"
+    assert "[ladder:cluster.inference] moderate_clusters; the p-value by wildboottest" in r["report"]
+    assert next(c for c in out["checks"] if c.name == "few_clusters").level == "pass"
+
+
+def test_fewer_than_a_dozen_clusters_use_webb_weights_and_flag_the_count(tmp_path):
+    out = _run(FakeLLM(_script_toy(), "col:arm.note"), _toy_panel(tmp_path, n_units=8, treated=4), question="Did the programme raise y?")
+    r = out["specialist_result"]
+    assert r["status"] == "done", r.get("feasibility")
+    d = out["design"]
+    assert d.inference == "few_clusters_webb" and d.vcov == {"CRV1": "unit"}
+    few = next(c for c in out["checks"] if c.name == "few_clusters")
+    assert few.level == "soft" and few.value == 8.0 and few.address in out["interpretations"][0].cites
+    primary = next(e for e in out["estimates"] if e.method == "twfe_static" and e.modifier is None)
+    assert "webb weights" in primary.p_value_source and 0.0 <= primary.p_value <= 1.0
+
+
+def test_one_treated_unit_uses_randomisation_inference_on_the_collapsed_table(tmp_path):
+    # one pre period: the joint leads test does not run (with one treated cluster it would be degenerate anyway), the flag is soft
+    out = _run(FakeLLM(_script_toy(change=2), "col:arm.note"), _toy_panel(tmp_path, n_units=12, treated=1, change=2), question="Did the programme raise y?")
+    r = out["specialist_result"]
+    assert r["status"] == "done", r.get("feasibility")
+    d = out["design"]
+    assert d.inference == "randomisation" and d.vcov == {"CRV1": "unit"}
+    assert next(c for c in out["checks"] if c.name == "parallel_untestable").level == "soft"
+    primary = next(e for e in out["estimates"] if e.method == "twfe_static" and e.modifier is None)
+    assert primary.p_value_source.startswith("randomisation inference on the unit-level before-after differences") and primary.p_value <= 1 / 12 + 1e-9
+    assert f"estimate:{d.contrast.key}.p" in out["interpretations"][0].cites
+    assert "the randomisation p-value on the estimate is the inference" in next(c for c in out["checks"] if c.name == "single_treated_unit").detail
+    assert "[estimate:" in fake_p_line(out) and "randomisation" in fake_p_line(out)
+
+
+def fake_p_line(out) -> str:
+    from causal_agent.families.diff_in_diff.lane import nodes as N
+
+    return next(line for line in N._material(out).splitlines() if line.startswith(f"[estimate:{out['design'].contrast.key}.p]"))

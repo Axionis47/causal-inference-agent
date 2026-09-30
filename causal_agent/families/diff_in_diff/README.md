@@ -35,8 +35,13 @@ pyfixest has four independent axes and the lane maps one artifact onto each.
   each period's effect the adapter computes as share-weighted sums with intervals from the fit's covariance, because the library's
   own aggregates are not implemented in this version. Every entry applies by facts (`cohorts`, `never_treated`, the periods),
   matched by one rule.
-- **Inference.** `knowledge/inference.yaml` picks the `vcov` and any resampling from facts: robust errors on wide two-period data,
-  cluster by unit with many treated units, a wild cluster bootstrap with few, the placebo-group p-value when there is one treated unit.
+- **Inference.** `knowledge/inference.yaml` picks the `vcov` and any resampling from facts, matched by one rule: robust errors on
+  wide two-period data; with one to three treated units, randomisation inference on one before and one after value per unit,
+  the treated label reassigned across units; with fewer than a dozen clusters, a wild cluster bootstrap with Webb's six-point
+  weights; with a few dozen, the jackknife cluster variance and a Rademacher bootstrap; else the clustered formula. The level
+  errors cluster at is the pack's when it rides, nests the units and has enough distinct values, else the unit, and a decline
+  records why. The p-value sits on the estimate with its source named, and the interpretation must cite it when it was
+  resampled; a `few_clusters` check flags the count.
 - **Adoption pattern.** `cohorts` is a fact from the panel. With one cohort the two-way fixed effects entries apply; with several
   they never do, because a unit already treated would serve as a control for one treated later, and the pick sees did2s, lpdid and
   the saturated event study. The two-stage and the saturated designs need never-treated units in this version of the library;

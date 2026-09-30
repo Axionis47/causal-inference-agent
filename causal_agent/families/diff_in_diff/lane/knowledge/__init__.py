@@ -43,17 +43,15 @@ class EstimatorEntry(BaseModel):
 class InferenceEntry(BaseModel):
     name: str
     in_words: str
+    source: str = ""
     applies_when: dict[str, Any]
     vcov: Any
     resample: str | None = None
     params: dict[str, Any] = Field(default_factory=dict)
     note: str = ""
 
-    def applies(self, *, units_treated: int, kind: str) -> bool:
-        w = self.applies_when
-        if "kind" in w and kind not in w["kind"]:
-            return False
-        return w.get("units_treated_min", 0) <= units_treated <= w.get("units_treated_max", 10**9)
+    def applies(self, **facts: Any) -> bool:
+        return matches(self.applies_when, facts)
 
 
 class PlaceboEntry(BaseModel):

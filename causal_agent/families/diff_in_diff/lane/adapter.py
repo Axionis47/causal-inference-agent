@@ -473,13 +473,55 @@ def leads_test(model) -> tuple[float, float, int] | None:
     return float(w["statistic"]), float(w["pvalue"]), len(leads)
 
 
-def wild_bootstrap(model, reps: int, seed: int) -> float | None:
+def wild_bootstrap(model, *, vcov: Any, reps: int, seed: int, weights_type: str = "rademacher", bootstrap_type: str = "11") -> float | None:
+    """The wild cluster bootstrap p-value for the effect, clustered as the fit was. The bootstrap needs a numeric cluster
+    column, so the fit is redone on its own rows with the cluster coded as integers when it is not."""
+    import pyfixest as pf
+
     try:
-        r = model.wildboottest(param=COEF, reps=reps, seed=seed)
+        m = model
+        col = _cluster_of(vcov) if isinstance(vcov, dict) else None
+        data = getattr(model, "_data", None)
+        if col is not None and data is not None and col in data.columns and not pd.api.types.is_numeric_dtype(data[col]):
+            coded = data.copy()
+            coded[col] = pd.factorize(coded[col])[0]
+            m = pf.feols(model._fml, coded, vcov=vcov)
+        r = m.wildboottest(param=COEF, reps=int(reps), seed=int(seed), weights_type=weights_type, bootstrap_type=str(bootstrap_type))
         p = r.get("Pr(>|t|)") if hasattr(r, "get") else None
         return float(p) if p is not None else None
     except Exception:
         return None
+
+
+def ritest_collapsed(panel: pd.DataFrame, controls: list[str], *, reps: int, seed: int, kind: str = "randomization-c") -> tuple[float | None, float | None]:
+    """Randomisation inference on one before and one after value per unit: the change in the outcome (and in each control that
+    varies over time) from the periods before the unit's change to the periods after it, regressed on the treated label, with
+    that label reassigned across units at random. Returns the p-value and the collapsed estimate. The panel's fixed effects
+    cannot carry this test in this version of the library (a unit label permuted within units is singular), so it runs here."""
+    import contextlib
+    import io
+
+    import pyfixest as pf
+
+    rows = []
+    for unit, g in panel.groupby("unit"):
+        post, pre = g[g["post"] == 1], g[g["post"] == 0]
+        if post.empty or pre.empty:
+            continue
+        row = {"unit": unit, "treated": int(g["treated"].iloc[0]), "dy": float(post["y"].mean() - pre["y"].mean())}
+        for c in controls:
+            if c in g.columns and pd.api.types.is_numeric_dtype(g[c]) and g[c].nunique() > 1:
+                row[f"d_{c}"] = float(post[c].mean() - pre[c].mean())
+        rows.append(row)
+    col = pd.DataFrame(rows)
+    terms = [c for c in col.columns if c.startswith("d_") and col[c].notna().all()]
+    try:
+        m = pf.feols("dy ~ treated" + ("".join(f" + {c}" for c in terms)), col, vcov="hetero")
+        with contextlib.redirect_stderr(io.StringIO()):
+            r = m.ritest(resampvar="treated", reps=int(reps), type=kind, rng=np.random.default_rng(int(seed)), choose_algorithm="slow")
+        return float(r["Pr(>|t|)"]), float(m.coef()["treated"])
+    except Exception:
+        return None, None
 
 
 def placebo_group(formula: str, panel: pd.DataFrame, observed: float, entry: PlaceboEntry, contrast_key: str) -> tuple[Refutation, list[float]]:
