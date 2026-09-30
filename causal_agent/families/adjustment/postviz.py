@@ -3,6 +3,7 @@ adjusted for before and after weighting on the propensity. Every drawn value res
 
 from __future__ import annotations
 
+from causal_agent.common.contracts.base import _slug
 from causal_agent.viz.spec import Edge, FigureSpec, Mark, Node, Role, Series
 
 ROLE_WORDS = {
@@ -83,4 +84,44 @@ def balance(facts: dict[str, dict], contrast: str, threshold: float | None = Non
         marks=marks,
         note=f"after weighting the largest difference is {worst:.2f}",
         draws_on=[f"check:{contrast}.balance.{c}" for c in cols] + ["check_facts.balance"],
+    )
+
+
+def effect_by_modifier(estimates: list[dict], contrast: str, names: dict[str, str] | None = None) -> FigureSpec | None:
+    """The effect within each level of each modifier the design named, with its interval, beside the primary estimate."""
+    names = names or {}
+    within = [e for e in estimates if e.get("contrast") == contrast and e.get("modifier") is not None and e.get("error") is None and e.get("value") is not None]
+    if not within:
+        return None
+    prim = next(
+        (e for e in estimates if e.get("contrast") == contrast and e.get("modifier") is None and not e.get("secondary") and e.get("error") is None), None
+    )
+    x: list[str | float] = []
+    y: list[float | None] = []
+    lo: list[float | None] = []
+    hi: list[float | None] = []
+    draws_on: list[str] = []
+    if prim is not None:
+        x.append("all rows")
+        y.append(float(prim["value"]))
+        lo.append(prim.get("ci_low"))
+        hi.append(prim.get("ci_high"))
+        draws_on += [f"estimate:{contrast}.value", f"estimate:{contrast}.ci"]
+    for e in within:
+        x.append(f"{names.get(e['modifier'], e['modifier'])} = {e['level']}")
+        y.append(float(e["value"]))
+        lo.append(e.get("ci_low"))
+        hi.append(e.get("ci_high"))
+        draws_on.append(f"estimate:{contrast}.by.{_slug(e['modifier'])}.{_slug(e['level'])}.value")
+    spread = max(float(e["value"]) for e in within) - min(float(e["value"]) for e in within)
+    return FigureSpec(
+        id=f"effect_by_modifier_{contrast}",
+        kind="interval",
+        title="The effect within each level of the modifiers",
+        x_label="",
+        y_label="effect",
+        series=[Series(name="effect", x=x, y=y, lo=lo, hi=hi)],
+        marks=[Mark(kind="hline", at=0.0, label="no effect")],
+        note=f"the effect ranges {spread:.3g} across the levels shown",
+        draws_on=draws_on,
     )

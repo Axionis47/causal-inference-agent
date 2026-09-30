@@ -1,12 +1,12 @@
 """The adjustment-lane subgraph on DoWhy. Nodes are constant; workers scale with contrasts.
 
-    load ─ case ─ pair ─ mechanism ─ time ─ roles ─ post_roles ─ merge_graph ─ verify_graph ─ identify ─ check_design
-         ─(assess, only when flagged)─ pick_estimator ─ freeze_design ─(analyse × C)─ after_analyse
+    load ─ case ─ pair ─ mechanism ─ time ─ roles ─ post_roles ─ merge_graph ─ verify_graph ─ road ─ heterogeneity ─ threats
+         ─ check_design ─(assess, only when flagged)─ pick_estimator ─ freeze_design ─(analyse × C)─ after_analyse
          ─(interpret × C)─ figures ─ assemble ─ END
     any typed stop, or an ask back ─────────────────────────────▶ feasibility ─ figures ─ assemble
 
-pair, mechanism, roles and post_roles are the rungs of the ladder: code where the pack settles the rung, a bounded
-episode where it does not, each gated up to three tries inside the episode. assess may send a revision delta back to
+pair, mechanism, time, roles, post_roles, road, heterogeneity and threats are the rungs of the ladder: code where the pack
+settles the rung, a bounded episode where it does not, each gated up to three tries inside the episode. assess may send a revision delta back to
 merge_graph (3 times). after_analyse may re-pick the estimator once on a fit failure. Nothing loops after an estimate exists.
 """
 
@@ -31,7 +31,9 @@ def build() -> StateGraph:
     b.add_node("post_roles", N.post_roles, retry_policy=_retry)
     b.add_node("merge_graph", N.merge_graph)
     b.add_node("verify_graph", N.verify_graph)
-    b.add_node("identify", N.identify)
+    b.add_node("road", N.road, retry_policy=_retry)
+    b.add_node("heterogeneity", N.heterogeneity, retry_policy=_retry)
+    b.add_node("threats", N.threats)
     b.add_node("check_design", N.check_design)
     b.add_node("assess", N.assess, retry_policy=_retry)
     b.add_node("pick_estimator", N.pick_estimator, retry_policy=_retry)
@@ -50,8 +52,9 @@ def build() -> StateGraph:
     b.add_edge("time", "roles")
     # roles returns Command(goto=post_roles | feasibility); post_roles returns Command(goto=merge_graph | feasibility)
     b.add_edge("merge_graph", "verify_graph")
-    # verify_graph returns Command(goto=identify | feasibility)
-    # identify returns Command(goto=check_design | feasibility)
+    # verify_graph returns Command(goto=road | feasibility); road returns Command(goto=heterogeneity | feasibility)
+    # heterogeneity returns Command(goto=threats | feasibility)
+    b.add_edge("threats", "check_design")
     b.add_conditional_edges("check_design", N.after_checks, ["assess", "pick_estimator"])
     # assess returns Command(goto=pick_estimator | merge_graph | feasibility)
     # pick_estimator returns Command(goto=freeze_design | feasibility)

@@ -40,3 +40,10 @@ episode_budget:
   mechanism: 4
   roles: 8
   post_roles: 4
+  road: 0
+  heterogeneity: 4
+
+# How many modifiers the heterogeneity rung may name; the effect is estimated within each level of each.
+modifiers:
+  max: 3
+  max_levels: 4          # a modifier with more levels, or a number, is cut into this many groups

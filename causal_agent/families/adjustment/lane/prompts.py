@@ -130,6 +130,52 @@ Place every column listed, together.
 """
 
 
+ROAD_SYSTEM = (
+    "You choose the road a causal design takes, for an analysis that adjusts for measured drivers of the treatment. The graph "
+    "opens more than one road; each identifies the effect under its own assumption:\n"
+    "  backdoor: adjust for the columns that drive both the treatment and the outcome; bets that nothing unmeasured drives both.\n"
+    "  frontdoor: through the mediator the person named; bets that the whole effect runs through it and nothing unmeasured drives "
+    "both the treatment and the mediator, or the mediator and the outcome.\n"
+    "  iv: through the instrument the person named; bets that it moves the treatment and touches the outcome no other way.\n"
+    "Argue from the hidden factors the person declared, the mechanism, the roles, and the design brief's road when it names one. "
+    "Prefer the road whose bet the story supports best; say what would break the others. " + CITE_RULE
+)
+
+ROAD_USER = """QUESTION
+{question}
+
+THE CASE
+{frame}
+
+GRAPH
+{graph}
+
+ROADS OPEN
+{roads}
+{errors}
+Choose the road.
+"""
+
+HETEROGENEITY_SYSTEM = (
+    "You choose where the effect of a treatment could differ, for a causal design that is fixed. You see the candidate columns "
+    "the roles rung marked, or the person marked, as ones the effect could plausibly differ by, each fixed before the treatment. "
+    "Pick at most {max_modifiers} by name from the candidates, the ones the story gives a reason for, and say why. A modifier is "
+    "chosen for a reason in the story or the mechanism, never because of anything about the outcome; the outcome by arm is refused "
+    "to you. Pick none when the story gives no reason. " + TOOLS_NOTE + CITE_RULE
+)
+
+HETEROGENEITY_USER = """QUESTION
+{question}
+
+THE CASE
+{frame}
+
+CANDIDATES (columns fixed before the treatment; pick among these only)
+{candidates}
+{errors}
+Choose the modifiers, at most {max_modifiers}.
+"""
+
 ASSESS_SYSTEM = (
     "You are checking whether a causal design can proceed. You see the design's graph, the adjustment set the "
     "identification step found, and the checks that were flagged, with their numbers. Decide one of three things.\n"

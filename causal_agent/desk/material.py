@@ -7,7 +7,7 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from causal_agent.common.contracts import Decline, DesignBrief, Handoff, RunRecord
+from causal_agent.common.contracts import Decline, DesignBrief, Estimate, Handoff, RunRecord
 from causal_agent.memory.journal import Step
 from causal_agent.memory.matrix import Matrix
 from causal_agent.memory.records import Memory
@@ -157,11 +157,12 @@ def render(
                 m.addresses.add(addr + ".threshold")
     a_est = sr.get("estimates") or run.artifacts.get("estimates") or []
     for e in a_est:
+        tag = Estimate.model_validate(e).tag
         if e.get("error"):
-            m.add(f"estimate:{e['contrast']}.{e['method']}.error", str(e["error"]))
+            m.add(f"{tag}.error" if e.get("modifier") else f"estimate:{e['contrast']}.{e['method']}.error", str(e["error"]))
             continue
-        tag = f"estimate:{e['contrast']}" + (f".{e['method']}" if e.get("secondary") else "")
-        m.add(f"{tag}.value", f"{e['method']}: {_g(e.get('value'))} ({e.get('target_units')})", e.get("value"))
+        within = f"within {e['modifier']} = {e['level']}, " if e.get("modifier") else ""
+        m.add(f"{tag}.value", f"{e['method']}: {_g(e.get('value'))} ({within}{e.get('target_units')})", e.get("value"))
         m.add(f"{tag}.ci", f"interval {_g(e.get('ci_low'))} to {_g(e.get('ci_high'))}", None)
         if e.get("ci_low") is not None:
             m.numbers[f"{tag}.ci_low"], m.numbers[f"{tag}.ci_high"] = float(e["ci_low"]), float(e["ci_high"])

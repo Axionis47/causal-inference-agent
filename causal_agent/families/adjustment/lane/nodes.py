@@ -19,6 +19,7 @@ import pandas as pd
 from langgraph.types import Command, Send
 
 from causal_agent.common.addresses import key as _key
+from causal_agent.common.addresses import norm_address
 from causal_agent.common.contracts import (
     CheckResult,
     Checks,
@@ -32,6 +33,7 @@ from causal_agent.common.contracts import (
     LaneAsk,
     Refutation,
 )
+from causal_agent.common.contracts.base import _slug
 from causal_agent.common.llm import structured
 from causal_agent.families.adjustment.design import AdjustmentDesign
 from causal_agent.families.adjustment.lane import adapter
@@ -46,14 +48,18 @@ from causal_agent.families.adjustment.lane.contracts import (
     EstimatorPick,
     Excluded,
     Graph,
+    Heterogeneity,
     Ladder,
     Mechanism,
     Pair,
     PostRoles,
     Relation,
     Revision,
+    Road,
     Role,
     Roles,
+    Threat,
+    Threats,
     Timing,
 )
 from causal_agent.families.adjustment.lane.knowledge import (
@@ -75,9 +81,11 @@ from causal_agent.lane import verify as V
 from causal_agent.lane import words as W
 from causal_agent.lane.episode import EpisodeLog, run_episode
 from causal_agent.lane.nodes import MAX_MODEL_RETRIES, MAX_PICK_ATTEMPTS, MAX_REVISIONS
+from causal_agent.memory.catalogue import load_catalogue
 from causal_agent.viz.postviz import common as PV
 
 MAX_DOSE_LEVELS = 12
+_CATALOGUE = load_catalogue()  # to tell a claim the interview could have settled from a rung's own item
 CLAIMS = ("affects_treatment", "affects_outcome", "affected_by_treatment", "is_outcome_measure")
 # a model claim that contradicts a pack fact on a claim the pack did not itself settle
 CONTRADICTION_RULES: list[V.Rule] = [("affects_treatment", True, "when", ("after",))]
@@ -609,7 +617,7 @@ def roles(state: SpecialistState) -> Command:
             "clearer column notes about what fed the decision",
             {"debug": thoughts, "episodes": {"roles": log}},
         )
-    out = Roles(items=[_with_pack_links(state, apply_settled(x, h, case), h) for x in rec.items])
+    out = Roles(items=[_with_pack_links(state, apply_settled(x, h, case), h) for x in rec.items], unsure=rec.unsure)
     _writer()({"roles": [f"[{a}] {text}" for a, text in out.lines()]})
     return Command(goto="post_roles", update={"ladder": lad.model_copy(update={"roles": out}), "debug": thoughts, "episodes": {"roles": log}})
 
@@ -765,10 +773,10 @@ def verify_graph(state: SpecialistState) -> Command:
     if general:
         return _stop("verify_graph", "the graph could not be made to pass verification", general, "clearer column notes about what fed the decision")
     _writer()({"verify_graph": "ok"})
-    return Command(goto="identify")
+    return Command(goto="road")
 
 
-# ------------------------------------------------------------------ identify + checks (facts)
+# ------------------------------------------------------------------ rung 6: the road (code: DoWhy identifies; a judgement only when more than one road is open)
 
 _ROAD_QUESTIONS = {
     "mediator": (
@@ -785,18 +793,32 @@ _ROAD_QUESTIONS = {
 }
 
 
-def identify(state: SpecialistState) -> Command[Literal["check_design", "feasibility"]]:
-    """Every road DoWhy finds. When the person says a hidden factor exists and no road avoids it, the lane asks about the one
-    belief that could open a road and is not settled: whether it exists, or which column it is. Once the person has said
-    there is neither, the design takes the back door with the hidden factor left in as a sensitivity range and a caveat."""
+def _roads_text(est: Estimand) -> str:
+    parts = []
+    if "backdoor" in est.roads:
+        parts.append(f"backdoor: adjust for {', '.join(est.adjustment_set) or 'nothing'}")
+    if "frontdoor" in est.roads:
+        parts.append(f"frontdoor: through the mediator {', '.join(est.frontdoor_set)}")
+    if "iv" in est.roads:
+        parts.append(f"iv: through the instrument {', '.join(est.instruments)}")
+    return "\n".join(parts)
+
+
+def road(state: SpecialistState) -> Command[Literal["heterogeneity", "feasibility"]]:
+    """Every road DoWhy finds, then the one the design takes. When the person says a hidden factor exists and no road avoids it,
+    the lane asks about the one belief that could open a road and is not settled: whether it exists, or which column it is. Once the
+    person has said there is neither, the design takes the back door with the hidden factor left in as a sensitivity range and a
+    caveat. A brief that names a road is followed. With more than one road open, a judgement argues which, from the hidden factors,
+    the mechanism and the roles; with one, code takes it."""
     g: Graph = state["graph"]
     h = state["handoff"]
+    lad = _ladder(state)
     table = _table(state)
     sub = adapter.contrast_table(table, g.treatment, state["contrasts"][0])
     est = adapter.identify(adapter.build_model(sub, g, g.outcome))
-    hidden = adapter.HIDDEN in g.nodes
+    hidden = adapter.HIDDEN in g.nodes or bool(state.get("hidden_dropped"))
     declines: list[Decline] = []
-    if est.kind == "none" and hidden:
+    if est.kind == "none" and adapter.HIDDEN in g.nodes:
         because = "nothing identifies the effect while a hidden factor stands; one question could open a road"
         facts = [f"roads found: none; graph: {g.render().splitlines()[0]}"]
         for kind, (address, question, what) in _ROAD_QUESTIONS.items():
@@ -804,7 +826,7 @@ def identify(state: SpecialistState) -> Command[Literal["check_design", "feasibi
             st = C.belief_status(b)
             if st in ("empty", "drafted"):
                 return asks.ask_back(
-                    "identify",
+                    "road",
                     LaneAsk(address=address, question=question, options=["yes", "no"], because=because),
                     reason=f"nothing identifies the effect while a hidden factor stands; one question could open a road: {kind}",
                     facts=facts,
@@ -814,7 +836,7 @@ def identify(state: SpecialistState) -> Command[Literal["check_design", "feasibi
                 col = _key(b.column) if b and b.column else None
                 if not col:
                     return asks.ask_back(
-                        "identify",
+                        "road",
                         LaneAsk(address=f"claim:{kind}.column", question=f"You said there is {what}. Which column is it?", because=because),
                         reason=f"the person says there is {what}, but not which column",
                         facts=facts,
@@ -823,7 +845,7 @@ def identify(state: SpecialistState) -> Command[Literal["check_design", "feasibi
                 if col not in state.get("columns", {}):
                     declines.append(
                         Decline(
-                            stage="identify",
+                            stage="road",
                             kind="declined",
                             about=f"claim:{kind}.column",
                             pack_value=b.column,
@@ -841,23 +863,275 @@ def identify(state: SpecialistState) -> Command[Literal["check_design", "feasibi
         )
         est = adapter.identify(adapter.build_model(sub, g2, g2.outcome))
         est.sensitivity_required = True
-        _writer()({"estimand": est.model_dump(exclude={"dowhy_text"}), "hidden_dropped": True})
-        return Command(goto="check_design", update={"estimand": est, "graph": g2, "hidden_dropped": True, "declines": declines})
+        rd = Road(
+            taken="backdoor",
+            why="no road avoids the hidden factor the person declared, and the person says there is neither an instrument nor a mediator; "
+            "the back door is taken with the hidden factor left in as a sensitivity range",
+            cites=["claim:unobserved"],
+            open=est.roads,
+            hidden_factor=True,
+            by="code",
+        )
+        _writer()({"estimand": est.model_dump(exclude={"dowhy_text"}), "hidden_dropped": True, "road": rd.model_dump()})
+        return Command(
+            goto="heterogeneity",
+            update={"estimand": est, "graph": g2, "hidden_dropped": True, "declines": declines, "ladder": lad.model_copy(update={"road": rd})},
+        )
     if state.get("hidden_dropped"):
         est.sensitivity_required = True  # a revise loop re-identifies without the hidden node; the range and the caveat stay
-    road = h.brief.road if h.brief is not None else None
-    if road is not None:  # the design brief names the road: the graph must have it, and the design takes it
-        if road not in est.roads:
+    extra: dict[str, Any] = {}
+    brief_road = h.brief.road if h.brief is not None else None
+    if est.kind == "none":  # nothing identifies and no hidden factor is declared: check_design's hard identification flag says so
+        rd = Road(taken="none", why="nothing identifies the effect on this graph", open=[], hidden_factor=hidden, by="code")
+    elif brief_road is not None:  # the design brief names the road: the graph must have it, and the design takes it
+        if brief_road not in est.roads:
             return _stop(
-                "identify",
-                f"the design brief names the {road} road and the graph has no such road",
+                "road",
+                f"the design brief names the {brief_road} road and the graph has no such road",
                 [f"roads found: {', '.join(est.roads) or 'none'}", f"graph: {g.render().splitlines()[0]}"],
                 "a brief whose road the graph opens, or a graph with that road",
                 {"estimand": est},
             )
-        est = est.model_copy(update={"kind": road})
-    _writer()({"estimand": est.model_dump(exclude={"dowhy_text"})})
-    return Command(goto="check_design", update={"estimand": est})
+        est = est.model_copy(update={"kind": brief_road})
+        rd = Road(taken=brief_road, why="the design brief names it", cites=["design.brief.road"], open=est.roads, hidden_factor=hidden, by="pack")
+    elif len(est.roads) == 1:
+        rd = Road(taken=est.roads[0], why="the only road the graph opens", open=est.roads, hidden_factor=hidden, by="code")
+    else:
+
+        def gate(r: Road, log: EpisodeLog) -> list[str]:
+            errs = [] if r.taken in est.roads else [f"the {r.taken} road is not open; open: {', '.join(est.roads)}"]
+            if not r.why.strip():
+                errs.append("say why this road over the others")
+            return errs + V.cites_resolve(r.cites, h, _resolver(h, log, lad))
+
+        user = P.ROAD_USER.format(question=_question(state), frame=L.frame_text(state), graph=g.render(), roads=_roads_text(est), errors="")
+        rec, log, thoughts, errors = run_episode(Road, P.ROAD_SYSTEM, user, tools=None, budget=_budget("road"), gate=gate, node="road")
+        if rec is None:
+            return _stop(
+                "road",
+                "the road could not be chosen among those open",
+                errors,
+                "a story that says which bet holds",
+                {"estimand": est, "debug": thoughts, "episodes": {"road": log}},
+            )
+        rd = rec.model_copy(update={"open": est.roads, "hidden_factor": hidden, "by": "judgement"})
+        est = est.model_copy(update={"kind": rd.taken})
+        extra = {"debug": thoughts, "episodes": {"road": log}}
+    _writer()({"estimand": est.model_dump(exclude={"dowhy_text"}), "road": rd.model_dump()})
+    return Command(goto="heterogeneity", update={"estimand": est, "declines": declines, "ladder": lad.model_copy(update={"road": rd}), **extra})
+
+
+# ------------------------------------------------------------------ rung 7: heterogeneity and the target (a judgement over the candidates; the target by code)
+
+
+def _modifier_candidates(state: SpecialistState) -> dict[str, list[str]]:
+    """Every pre-treatment column the roles rung, or the person, marked as one the effect could differ by, with what marked it."""
+    lad = _ladder(state)
+    case = _case(state)
+    tm = lad.timing or Timing()
+    pre = list(dict.fromkeys(tm.before + tm.unknown))
+    out: dict[str, list[str]] = {}
+    for x in lad.roles.items if lad.roles is not None else []:
+        if x.modifier_candidate and x.column in pre and not x.is_outcome_measure:
+            out.setdefault(x.column, []).append(f"ladder:roles.{x.column}")
+    for k in pre:
+        if case.fact(f"col:{k}.may_modify") is True:
+            out.setdefault(k, []).append(f"col:{k}.may_modify")
+    return out
+
+
+def _target_units(state: SpecialistState) -> str:
+    """The units the effect is for: what the question asked when it asked; else the treated when units chose after an offer, since
+    that is the comparison the adjustment can stand behind; else the average."""
+    h = state["handoff"]
+    if h.scope.target != "average":
+        return state["target_units"]
+    cfg = load_checks()["target_units"]
+    m = _ladder(state).mechanism
+    return str(cfg["on_treated"] if m is not None and m.self_selection else cfg["average"])
+
+
+def heterogeneity(state: SpecialistState) -> Command[Literal["threats", "feasibility"]]:
+    h = state["handoff"]
+    lad = _ladder(state)
+    cands = _modifier_candidates(state)
+    target = _target_units(state)
+    cfg = load_checks().get("modifiers") or {}
+    max_m = int(cfg.get("max", 3))
+    if not cands:
+        het = Heterogeneity(modifiers=[], why="no column was marked as one the effect could differ by", target_units=target, by="code")
+        _writer()({"heterogeneity": het.model_dump()})
+        return Command(goto="threats", update={"ladder": lad.model_copy(update={"heterogeneity": het}), "target_units": target})
+
+    def gate(r: Heterogeneity, log: EpisodeLog) -> list[str]:
+        ok = _resolver(h, log, lad)
+        errs = [f"at most {max_m} modifiers; {len(r.modifiers)} named"] if len(r.modifiers) > max_m else []
+        seen: set[str] = set()
+        for m in r.modifiers:
+            k = _column_key(state, m.column)
+            if k not in cands:
+                errs.append(f"{m.column!r} is not a candidate; the candidates are {', '.join(sorted(cands))}")
+            elif k in seen:
+                errs.append(f"{m.column!r} named twice")
+            seen.add(k or m.column)
+            if not m.cites:
+                errs.append(f"{m.column}: no citation")
+            errs += V.cites_resolve(m.cites, h, ok)
+        return errs + V.cites_resolve(r.cites, h, ok)
+
+    candidates = "\n\n".join(f"{_card(h, k)}\n  marked as a candidate by [{'], ['.join(c)}]" for k, c in cands.items())
+    user = P.HETEROGENEITY_USER.format(question=_question(state), frame=L.frame_text(state), candidates=candidates, max_modifiers=max_m, errors="")
+    rec, log, thoughts, errors = run_episode(
+        Heterogeneity,
+        P.HETEROGENEITY_SYSTEM.replace("{max_modifiers}", str(max_m)),
+        user,
+        tools=L.data_tools(state, _treated_mask(state)),
+        budget=_budget("heterogeneity"),
+        gate=gate,
+        node="heterogeneity",
+    )
+    if rec is None:
+        return _stop(
+            "heterogeneity",
+            "the modifiers could not be chosen",
+            errors,
+            "a story that says where the effect could differ",
+            {"debug": thoughts, "episodes": {"heterogeneity": log}},
+        )
+    het = rec.model_copy(
+        update={
+            "modifiers": [m.model_copy(update={"column": _column_key(state, m.column) or m.column}) for m in rec.modifiers],
+            "target_units": target,
+            "by": "judgement",
+        }
+    )
+    _writer()({"heterogeneity": het.model_dump()})
+    return Command(
+        goto="threats",
+        update={"ladder": lad.model_copy(update={"heterogeneity": het}), "target_units": target, "debug": thoughts, "episodes": {"heterogeneity": log}},
+    )
+
+
+# ------------------------------------------------------------------ rung 8: the threats (code, from the pack and the rungs below)
+
+_SAMPLING_WORDS = {
+    "by_arm": "by whether the unit got the change",
+    "by_group": "by group, region or type",
+    "by_period": "by period",
+    "unknown": "in a way the person could not say",
+}
+
+
+def threats(state: SpecialistState) -> dict:
+    """The risks of this design that no check measures: selection into the file, the outcome's timing, an offer that differs from
+    the taking, choice with the hidden factors unsettled, gaps whose reason is not settled. Each is a flag the assessment must
+    answer and the interpretation must cite."""
+    h = state["handoff"]
+    lad = _ladder(state)
+    case = _case(state)
+    _, y, _ = _keys(state)
+    items: list[Threat] = []
+    how = (h.sampling or {}).get("how")
+    if how == "by_outcome":
+        items.append(
+            Threat(
+                name="selection",
+                level="hard",
+                text="rows were drawn by how the outcome turned out; a comparison among the selected does not reach the population the question asks about",
+                cites=["claim:sampling.how"],
+            )
+        )
+    elif how in _SAMPLING_WORDS:
+        items.append(
+            Threat(
+                name="selection",
+                level="soft",
+                text=f"rows were drawn {_SAMPLING_WORDS[how]}; who is in the file may differ by arm, and the estimate speaks for the file, not the population",
+                cites=["claim:sampling.how"],
+            )
+        )
+    yb = h.column(y)
+    yw = case.fact(f"col:{y}.when") or (yb.when if yb is not None else "unknown")
+    if yw == "before":
+        items.append(
+            Threat(name="outcome_timing", level="hard", text="the outcome was measured before the change; it cannot carry its effect", cites=[f"col:{y}.when"])
+        )
+    elif yw == "unknown":
+        items.append(
+            Threat(
+                name="outcome_timing",
+                level="soft",
+                text="when the outcome was measured is not settled; an outcome measured before the change cannot carry its effect",
+                cites=[f"col:{y}.when"],
+            )
+        )
+    m = lad.mechanism
+    if m is not None and m.offer_column and m.uptake_column:
+        items.append(
+            Threat(
+                name="compliance",
+                level="soft",
+                text=f"the offer ({m.offer_column}) and the taking ({m.uptake_column}) are two columns; the effect of being offered and the effect on those who took it differ, and the design answers for the taking",
+                cites=["ladder:mechanism.offer"],
+            )
+        )
+    if m is not None and m.self_selection and case.beliefs.get("unobserved") not in ("confirmed_true", "confirmed_false"):
+        items.append(
+            Threat(
+                name="self_selection",
+                level="soft",
+                text="units could move their own assignment, and whether anything outside the file drove both that choice and the outcome is not settled",
+                cites=["ladder:mechanism.self_selection"],
+            )
+        )
+    gaps = [b for b in h.columns if b.key in (state.get("columns") or {}) and b.facts.nulls > 0]
+    if gaps and not (h.missing or {}).get("why"):
+        items.append(
+            Threat(
+                name="missingness",
+                level="soft",
+                text=f"values are missing in {', '.join(b.name for b in gaps)} and the reason is not settled; a gap that differs by arm biases the comparison",
+                cites=[b.address for b in gaps],
+            )
+        )
+    th = Threats(items=items)
+    _writer()({"threats": [f"[{a}] {text}" for a, text in th.lines()]})
+    return {"ladder": lad.model_copy(update={"threats": th})}
+
+
+def _catalogue_address(address: str) -> bool:
+    """Whether an address names a claim the interview could have settled: a field of a kind in the catalogue."""
+    a = norm_address(address)
+    if a.startswith("claim:"):
+        kind, _, field = a[6:].partition(".")
+        spec = _CATALOGUE.kinds.get(kind)
+        return spec is not None and field in spec.fields
+    if a.startswith("col:"):
+        _, _, field = a[4:].partition(".")
+        return field in _CATALOGUE.kinds["measured"].fields
+    return False
+
+
+def _ladder_checks(state: SpecialistState) -> tuple[list[CheckResult], list[Decline]]:
+    """The threats as checks, and every item a rung would not guess as a soft flag; an unsure on a claim the interview could have
+    settled is also a decline, `needs.unsettled`, which says the family's decisions miss a claim the reasoning needed."""
+    lad = _ladder(state)
+    out = [CheckResult(contrast="all", name=f"threat.{t.name}", level=t.level, detail=t.text) for t in (lad.threats.items if lad.threats else [])]
+    declines: list[Decline] = []
+    have = {(d.about, d.check) for d in state.get("declines") or []}
+    for rung, u in lad.unsure_all():
+        out.append(CheckResult(contrast="all", name=f"unsure.{_slug(u.about)}", level="soft", detail=f"the {rung} rung would not settle {u.about}: {u.reason}"))
+        if _catalogue_address(u.about) and (u.about, "needs.unsettled") not in have:
+            declines.append(
+                Decline(
+                    stage=rung,
+                    kind="declined",
+                    about=u.about,
+                    reason=f"{u.reason}; the interview could have settled this before the run, so a decision in family.yaml should rest on it",
+                    check="needs.unsettled",
+                )
+            )
+    return out, declines
 
 
 def check_design(state: SpecialistState) -> dict:
@@ -892,8 +1166,10 @@ def check_design(state: SpecialistState) -> dict:
             )
     W.say(results, cfg, state.get("columns") or {})  # the sentence before the number, for the reader
     results += C.as_checks(_case(state))
+    more, declines = _ladder_checks(state)
+    results += more
     _writer()({"checks": [f"{r.level} {r.address} {r.detail}" for r in results]})
-    return {"checks": results, "check_facts": facts}
+    return {"checks": results, "check_facts": facts, "declines": declines}
 
 
 # ------------------------------------------------------------------ assess (the yaml first, then a judgement, repair loop)
@@ -995,10 +1271,13 @@ def _design_facts(state: SpecialistState) -> dict[str, Any]:
     arms = [r for r in checks if r.name == "arms"]
     h = state["handoff"]
     b = _block(h)
+    lad = _ladder(state)
     return {
         "estimand": est.kind,
         "roads": est.roads,
+        "road_taken": lad.road.taken if lad.road is not None else None,
         "road_from_brief": h.brief.road if h.brief is not None else None,
+        "modifiers": [m.column for m in lad.heterogeneity.modifiers] if lad.heterogeneity is not None else [],
         "instruments": est.instruments,
         "frontdoor_set": est.frontdoor_set,
         "sensitivity_required": est.sensitivity_required,
@@ -1020,7 +1299,7 @@ def pick_estimator(state: SpecialistState) -> Command:
     """The catalogue filtered by the facts; when the brief names the road, only that road's estimators are offered."""
     facts = _design_facts(state)
     excluded = set(state.get("excluded_estimators") or [])
-    roads = [facts["road_from_brief"]] if facts["road_from_brief"] else facts["roads"]
+    roads = [facts["road_taken"]] if facts["road_taken"] and facts["road_taken"] != "none" else facts["roads"]
     allowed = [
         e
         for e in load_estimators()
@@ -1090,6 +1369,7 @@ def freeze_design(state: SpecialistState) -> dict:
         also_run=also,
         refuters=refuters,
         target_units=state["target_units"],
+        modifiers=[m.column for m in lad.heterogeneity.modifiers] if (lad := _ladder(state)).heterogeneity is not None else [],
     )
     run_dir = Path(state["run_dir"])
     (run_dir / "design.json").write_text(d.model_dump_json(indent=2))
@@ -1122,14 +1402,65 @@ def analyse(task: ContrastTask) -> dict:
     if d.also_run:
         sec, _ = adapter.estimate(model, estimator_entry(d.also_run), c.key, d.target_units, secondary=True)
         estimates.append(sec)
+    if primary.error is None:
+        estimates += _by_modifier(sub, d, c.key)
     _writer()({"analyse": {c.key: {"estimate": primary.model_dump(exclude_none=True), "refutations": [r.detail for r in refutations]}}})
     return {"estimates": estimates, "refutations": refutations}
+
+
+def _modifier_groups(sub: pd.DataFrame, column: str, max_levels: int) -> list[tuple[str, pd.DataFrame]]:
+    """The rows of each level of a modifier: its values when few, quantile bins when it is a number with many, the most common
+    levels otherwise."""
+    s = sub[column]
+    if pd.api.types.is_numeric_dtype(s) and s.nunique(dropna=True) > max_levels:
+        bins = pd.qcut(s, q=max_levels, duplicates="drop")
+        return [(str(level), sub[bins == level]) for level in bins.cat.categories]
+    levels = [v for v in s.astype(str).value_counts().index[:max_levels]]
+    return [(str(v), sub[s.astype(str) == v]) for v in levels]
+
+
+def _by_modifier(sub: pd.DataFrame, d: Design, contrast_key: str) -> list[Estimate]:
+    """The primary estimator run again within each level of each modifier, on the graph without the modifier (constant within a
+    level). Too few rows in an arm is recorded as the estimate's error, never skipped in silence."""
+    cfg = load_checks()
+    floor = int(cfg["arms"]["min_per_arm"]["hard"])
+    out: list[Estimate] = []
+    entry = estimator_entry(d.estimator)
+    for col in d.modifiers:
+        if col not in sub.columns:
+            continue
+        g = Graph(
+            treatment=d.graph.treatment,
+            outcome=d.graph.outcome,
+            nodes=[n for n in d.graph.nodes if n != col],
+            edges=[e for e in d.graph.edges if col not in (e.src, e.dst)],
+            excluded=d.graph.excluded,
+        )
+        for level, part in _modifier_groups(sub, col, int((cfg.get("modifiers") or {}).get("max_levels", 4))):
+            n_t, n_c = int((part[adapter.TREATED] == 1).sum()), int((part[adapter.TREATED] == 0).sum())
+            if min(n_t, n_c) < floor:
+                out.append(
+                    Estimate(
+                        contrast=contrast_key,
+                        method=d.estimator,
+                        n_treated=n_t,
+                        n_control=n_c,
+                        target_units=d.target_units,
+                        modifier=col,
+                        level=level,
+                        error=f"too few rows in an arm within this level ({n_t} treated, {n_c} control; floor {floor})",
+                    )
+                )
+                continue
+            e, _ = adapter.estimate(adapter.build_model(part.drop(columns=[col]), g, g.outcome), entry, contrast_key, d.target_units)
+            out.append(e.model_copy(update={"modifier": col, "level": level}))
+    return out
 
 
 def _latest_primary(state: SpecialistState) -> dict[str, Estimate]:
     out: dict[str, Estimate] = {}
     for e in state.get("estimates") or []:
-        if not e.secondary and e.method == state["estimator"]:
+        if not e.secondary and e.modifier is None and e.method == state["estimator"]:
             out[e.contrast] = e
     return out
 
@@ -1168,8 +1499,7 @@ def _addresses(state: SpecialistState, contrast_key: str) -> list[str]:
     out += [f.address for log in _episodes(state).values() for f in log.facts]
     for e in state.get("estimates") or []:
         if e.contrast == contrast_key and e.error is None:
-            tag = f"estimate:{contrast_key}" + (f".{e.method}" if e.secondary else "")
-            out += [f"{tag}.value", f"{tag}.ci", f"{tag}.n"]
+            out += [f"{e.tag}.value", f"{e.tag}.ci", f"{e.tag}.n"]
     for r in state.get("refutations") or []:
         if r.contrast == contrast_key:
             out += [f"refute:{contrast_key}.{r.refuter}.p_value", f"refute:{contrast_key}.{r.refuter}.new_effect", f"refute:{contrast_key}.{r.refuter}.passed"]
@@ -1180,8 +1510,9 @@ def _required(state: SpecialistState, contrast_key: str) -> list[str]:
     """What the interpretation must cite: every flagged check (the person's flags among them) and the estimate's interval."""
     d: Design = state["design"]
     out = [r.address for r in d.checks.results if r.contrast in (contrast_key, "all") and r.level != "pass"]
-    if any(e.contrast == contrast_key and e.error is None and not e.secondary for e in state.get("estimates") or []):
+    if any(e.contrast == contrast_key and e.error is None and not e.secondary and e.modifier is None for e in state.get("estimates") or []):
         out.append(f"estimate:{contrast_key}.ci")
+    out += [f"{e.tag}.value" for e in state.get("estimates") or [] if e.contrast == contrast_key and e.modifier is not None and e.error is None]
     return out
 
 
@@ -1204,11 +1535,18 @@ def _material(state: SpecialistState, contrast_key: str) -> str:
     lines += [f"[{a}] {text}" for a, text in _ladder(state).lines()]
     lines += [f.render() for log in _episodes(state).values() for f in log.facts]
     for e in state.get("estimates") or []:
-        if e.contrast == contrast_key and e.error is None:
-            tag = f"estimate:{contrast_key}" + (f".{e.method}" if e.secondary else "")
-            lines.append(f"[{tag}.value] {e.value:.4g} ({'secondary' if e.secondary else 'primary'} estimator {e.method}, target {e.target_units})")
-            lines.append(f"[{tag}.ci] 95% interval {e.ci_low:.4g} to {e.ci_high:.4g}" if e.ci_low is not None else f"[{tag}.ci] no interval")
-            lines.append(f"[{tag}.n] {e.n_treated} treated, {e.n_control} control")
+        if e.contrast != contrast_key:
+            continue
+        tag = e.tag
+        if e.modifier is not None and e.error is not None:
+            lines.append(f"[{tag}.error] within {names.get(e.modifier, e.modifier)} = {e.level}: {e.error}")
+            continue
+        if e.error is not None:
+            continue
+        where = f"within {names.get(e.modifier, e.modifier)} = {e.level}, " if e.modifier is not None else ""
+        lines.append(f"[{tag}.value] {e.value:.4g} ({where}{'secondary' if e.secondary else 'primary'} estimator {e.method}, target {e.target_units})")
+        lines.append(f"[{tag}.ci] 95% interval {e.ci_low:.4g} to {e.ci_high:.4g}" if e.ci_low is not None else f"[{tag}.ci] no interval")
+        lines.append(f"[{tag}.n] {e.n_treated} treated, {e.n_control} control")
     for r in state.get("refutations") or []:
         if r.contrast == contrast_key:
             lines.append(
@@ -1290,9 +1628,11 @@ def figures(state: SpecialistState) -> dict:
     thr = float(load_checks()["balance"]["smd"]["soft"])
     for c, facts in ((state.get("check_facts") or {}).get("balance") or {}).items():
         specs.append(PA.balance(facts, c, thr, names))
-    specs.append(
-        PV.effect_and_refutations([e.model_dump() for e in state.get("estimates") or []], [r.model_dump() for r in state.get("refutations") or []], "refute")
-    )
+    ests = [e.model_dump() for e in state.get("estimates") or []]
+    specs.append(PV.effect_and_refutations([e for e in ests if e.get("modifier") is None], [r.model_dump() for r in state.get("refutations") or []], "refute"))
+    d = state.get("design")
+    for c in d.contrasts if d is not None else []:
+        specs.append(PA.effect_by_modifier(ests, c.key, names))
     kept, declines = LF.write(state.get("run_dir"), specs, LF.ok_addresses(h, state, "refute"))
     _writer()({"figures": [s.id for s in kept]})
     return {"figures": [s.model_dump() for s in kept], "declines": declines}
@@ -1323,11 +1663,13 @@ def assemble(state: SpecialistState) -> dict:
             lines.append(f"  {names.get(d.graph.treatment, d.graph.treatment)} = {c.treated!r} vs {c.control!r}")
             for e in state.get("estimates") or []:
                 if e.contrast == c.key:
+                    label = f"{e.method:34}" if e.modifier is None else f"  within {names.get(e.modifier, e.modifier)} = {e.level:<16}"[:34].ljust(34)
                     if e.error:
-                        lines.append(f"    {e.method:34} FAILED: {e.error}")
+                        lines.append(f"    {label} FAILED: {e.error}")
                     else:
                         ci = f" [{e.ci_low:.3g}, {e.ci_high:.3g}]" if e.ci_low is not None else ""
-                        lines.append(f"    {e.method:34} {e.value:+.4g}{ci}  n={e.n_treated}/{e.n_control}  {'secondary' if e.secondary else 'primary'}")
+                        kind = "within a level" if e.modifier is not None else "secondary" if e.secondary else "primary"
+                        lines.append(f"    {label} {e.value:+.4g}{ci}  n={e.n_treated}/{e.n_control}  {kind}")
             for r in state.get("refutations") or []:
                 if r.contrast == c.key:
                     lines.append(f"    refute {r.refuter:27} {r.detail}")
@@ -1360,6 +1702,16 @@ def assemble(state: SpecialistState) -> dict:
         {
             "ladder": [[a, text] for a, text in lad.lines()],
             "facts": [{"address": f.address, "text": f.render().split("] ", 1)[1], "value": f.value} for log in episodes.values() for f in log.facts],
+            "relations": [
+                {
+                    "column": x.column,
+                    "stands_for": x.stands_for,
+                    "redundant_with": x.redundant_with,
+                    "nested_in": x.nested_in,
+                    "modifier_candidate": x.modifier_candidate,
+                }
+                for x in (lad.roles.items if lad.roles is not None else [])
+            ],
         },
     )
     _writer()({"report": report})

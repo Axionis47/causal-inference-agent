@@ -13,7 +13,21 @@ from langchain_core.messages import AIMessage
 from causal_agent.common.contracts import Cited, Contrast, Handoff, Interpretation
 from causal_agent.common.llm import set_llm
 from causal_agent.desk.handoff import forced
-from causal_agent.families.adjustment.lane.contracts import Contrasts, DesignAssessment, EstimatorPick, Mechanism, PostRole, PostRoles, Revision, Role, Roles
+from causal_agent.families.adjustment.lane.contracts import (
+    Contrasts,
+    DesignAssessment,
+    EstimatorPick,
+    Heterogeneity,
+    Mechanism,
+    Modifier,
+    PostRole,
+    PostRoles,
+    Revision,
+    Road,
+    Role,
+    Roles,
+    Unsure,
+)
 from causal_agent.families.adjustment.lane.graph import compile_local
 from causal_agent.memory import store
 
@@ -81,6 +95,7 @@ class FakeLLM:
         self.cite = cite
         self.overrides = dict(overrides or {})
         self.looks = {k: list(v) for k, v in (looks or {}).items()}
+        self.unsure: list[Unsure] = []
         self.calls: list[str] = []
         self.humans: list[tuple[str, str]] = []
 
@@ -140,8 +155,18 @@ class FakeLLM:
             four = {k: c[k] for k in ("affects_treatment", "affects_outcome", "affected_by_treatment", "is_outcome_measure")}
             reasons = [Cited(reason=f"{col}: {k}", cites=[c.get("cite", cite)]) for k, v in four.items() if v]
             links = [Cited(reason=f"{col}: link", cites=list(c["links"]))] if c.get("links") else []
-            items.append(Role(column=col, reasons=reasons, nested_in=c.get("nested_in"), redundant_with=c.get("redundant_with"), links=links, **four))
-        return Roles(items=items)
+            items.append(
+                Role(
+                    column=col,
+                    reasons=reasons,
+                    nested_in=c.get("nested_in"),
+                    redundant_with=c.get("redundant_with"),
+                    links=links,
+                    modifier_candidate=bool(c.get("modifier_candidate")),
+                    **four,
+                )
+            )
+        return Roles(items=items, unsure=list(self.unsure))
 
     def post_roles_answer(self, human: str) -> PostRoles:
         cite = "col:nope.note" if self.bad_cites else self.cite
@@ -173,6 +198,17 @@ class FakeLLM:
             return Contrasts(items=[Contrast(control=control, treated=treated, reason="the note says completed is the course", cites=[cite])])
         if schema is Mechanism:
             return Mechanism(drivers=[], self_selection=True, reason="the story says units chose after an offer", cites=[cite])
+        if schema is Road:
+            roads = [ln.split(":")[0] for ln in human.split("ROADS OPEN")[1].split("\n\n")[0].strip().splitlines()]
+            taken = "iv" if "iv" in roads else roads[0]
+            return Road(taken=taken, why="the person's word on the instrument is the strongest bet", cites=[cite])
+        if schema is Heterogeneity:
+            cands = re.findall(r"^\[col:([^\]]+)\]", human.split("CANDIDATES")[1], re.M)
+            return Heterogeneity(
+                modifiers=[Modifier(column=cands[0], reason="the story says the effect could differ by it", cites=[cite])],
+                why="one candidate the story backs",
+                cites=[cite],
+            )
         if schema is Roles:
             return self.roles_answer(human)
         if schema is PostRoles:
@@ -227,8 +263,14 @@ def test_students_happy_path():
     assert set(d.estimand.adjustment_set) == {"lunch", "parental_level_of_education"}
     assert {x.column for x in d.graph.excluded} == {"reading_score", "writing_score"}
     assert d.estimator == "propensity_score_stratification" and d.also_run == "linear_regression"
-    primary = [e for e in out["estimates"] if not e.secondary]
+    primary = [e for e in out["estimates"] if not e.secondary and e.modifier is None]
     assert len(primary) == 1 and primary[0].error is None and primary[0].value > 0
+    assert (
+        out["ladder"].road.by == "code"
+        and out["ladder"].road.taken == "backdoor"
+        and out["ladder"].heterogeneity.by == "code"
+        and out["ladder"].threats is not None
+    )
     assert {e.method for e in out["estimates"]} == {"propensity_score_stratification", "linear_regression"}
     assert {x.refuter for x in out["refutations"]} == {"placebo_treatment_refuter", "random_common_cause", "data_subset_refuter"}
     placebo = next(x for x in out["refutations"] if x.refuter == "placebo_treatment_refuter")
@@ -469,7 +511,15 @@ def test_instrument_and_mediator_open_roads_around_a_hidden_factor(tmp_path):
     assert "backdoor" not in est.roads and {"iv", "frontdoor"} <= set(est.roads) and est.instruments == ["z"] and est.frontdoor_set == ["m"]
     d = out["design"]
     assert d.estimator == "instrumental_variable" and d.estimand.kind == "iv" and d.estimand.adjustment_set == []
-    primary = next(e for e in out["estimates"] if not e.secondary)
+    assert (
+        fake.calls.count("Road") == 1
+        and out["ladder"].road.by == "judgement"
+        and out["ladder"].road.taken == "iv"
+        and out["ladder"].road.open == ["frontdoor", "iv"]
+    )
+    assert "ROADS OPEN\nfrontdoor: through the mediator m\niv: through the instrument z" in fake.humans_of("Road")[0]
+    assert "NAMES YOU MAY PICK: instrumental_variable" in fake.humans_of("EstimatorPick")[0]  # the pick offers the road taken
+    primary = next(e for e in out["estimates"] if not e.secondary and e.modifier is None)
     assert primary.error is None and 1.2 < primary.value < 2.8  # the true effect is 2
     assert {x.refuter for x in out["refutations"]} == {"placebo_treatment_refuter", "data_subset_refuter"}
 
@@ -658,9 +708,7 @@ def test_a_pack_named_mediator_outside_the_frame_is_loaded_and_a_confirmed_media
     m2.set("claim:mediator.exists", True, status="confirmed", source="user:turn:2", said="it works through something we measured")
     out = _run(FakeLLM(cite="col:z.note"), _synthetic_handoff(m2), question="Did the programme raise y?")
     r = out["specialist_result"]
-    assert (
-        r["status"] == "ask" and r["ask"]["address"] == "claim:mediator.column" and "Which column" in r["ask"]["question"] and r["ask"]["stage"] == "identify"
-    )
+    assert r["status"] == "ask" and r["ask"]["address"] == "claim:mediator.column" and "Which column" in r["ask"]["question"] and r["ask"]["stage"] == "road"
 
 
 def test_sensitivity_survives_a_revise_loop_and_a_repick_does_not_duplicate_estimates(tmp_path):
@@ -755,7 +803,7 @@ def test_a_brief_naming_a_road_the_graph_does_not_open_stops_at_identify():
     fake = FakeLLM()
     out = _run(fake, _with_road(students_handoff(), "iv"))
     r = out["specialist_result"]
-    assert r["status"] == "infeasible" and out["feasibility"].stage == "identify"
+    assert r["status"] == "infeasible" and out["feasibility"].stage == "road"
     assert out["feasibility"].reason == "the design brief names the iv road and the graph has no such road"
     assert out["feasibility"].facts[0] == "roads found: backdoor" and out.get("design") is None and fake.calls.count("EstimatorPick") == 0
     assert "DESIGN BRIEF" in fake.humans_of("Roles")[0] and "[design.brief.road] iv: the iv road" in fake.humans_of("Roles")[0]
@@ -786,6 +834,11 @@ def test_a_brief_naming_the_front_door_takes_it_over_the_instrument(tmp_path):
     assert {"iv", "frontdoor"} <= set(out["estimand"].roads) and out["estimand"].kind == "frontdoor"
     assert out["design"].estimator == "frontdoor_two_stage" and out["design"].estimand.kind == "frontdoor"
     assert "NAMES YOU MAY PICK: frontdoor_two_stage" in fake.humans_of("EstimatorPick")[0]
+    assert (
+        fake.calls.count("Road") == 0
+        and out["ladder"].road.by == "pack"
+        and "[ladder:road.taken] frontdoor (set by the pack)" in out["specialist_result"]["report"]
+    )
 
 
 # ------------------------------------------------------------------ the episodes: looking at the data, and the outcome rule
@@ -860,3 +913,82 @@ def test_a_look_that_finds_the_nesting_backs_the_claim_too(tmp_path):
     assert out["specialist_result"]["status"] == "done", out["specialist_result"].get("feasibility")
     assert out["episodes"]["roles"].facts[0].tool == "redundancy" and "'g' sits inside 'g2'" in out["episodes"]["roles"].facts[0].text
     assert "g2" not in out["graph"].nodes and "g" in out["design"].estimand.adjustment_set
+
+
+# ------------------------------------------------------------------ rungs 6 to 8: the road, heterogeneity, the threats
+
+
+def test_a_modifier_candidate_leads_to_the_effect_within_its_levels():
+    """The roles rung marks gender as one the effect could differ by; the heterogeneity rung picks it; the primary estimator runs
+    again within each level, on the graph without gender; the estimates, the figure, the material and the report carry them, and
+    the interpretation must cite them. Units chose after an offer, so the target is the effect on the treated."""
+    fake = FakeLLM(overrides={"gender": dict(affects_outcome=True, modifier_candidate=True)})
+    out = _run(fake, _students3())
+    r = out["specialist_result"]
+    assert r["status"] == "done", r.get("feasibility")
+    assert fake.calls.count("Heterogeneity") == 1 and "[col:gender]" in fake.humans_of("Heterogeneity")[0].split("CANDIDATES")[1]
+    het = out["ladder"].heterogeneity
+    assert het.by == "judgement" and [m.column for m in het.modifiers] == ["gender"] and het.target_units == "att"
+    d = out["design"]
+    assert d.modifiers == ["gender"] and d.target_units == "att"
+    within = [e for e in out["estimates"] if e.modifier == "gender"]
+    assert sorted(e.level for e in within) == ["female", "male"] and all(e.error is None and e.value is not None for e in within)
+    assert {e.tag for e in within} == {"estimate:completed_vs_none.by.gender.female", "estimate:completed_vs_none.by.gender.male"}
+    from causal_agent.families.adjustment.lane import nodes as N
+
+    c = out["contrasts"][0]
+    assert "estimate:completed_vs_none.by.gender.female.value" in N._required(
+        out, c.key
+    ) and "[estimate:completed_vs_none.by.gender.male.value]" in N._material(out, c.key)
+    assert {"estimate:completed_vs_none.by.gender.female.value", "estimate:completed_vs_none.by.gender.male.value"} <= set(out["interpretations"][0].cites)
+    figs = json.loads(open(f"{r['run_dir']}/figures.json").read())
+    by = next(f for f in figs if f["id"] == "effect_by_modifier_completed_vs_none")
+    assert by["series"][0]["x"] == ["all rows", "gender = female", "gender = male"] and not any(x["check"] == "figure.check" for x in r["declines"])
+    assert "within gender = female" in r["report"] and "[ladder:heterogeneity.modifiers] gender" in r["report"] and "modifiers    gender" in r["report"]
+    assert any(x["column"] == "gender" and x["modifier_candidate"] for x in r["relations"])
+    assert "DesignAssessment" in fake.calls  # a soft flag is answered before the design is frozen, as before
+
+
+def test_the_threats_are_flags_the_assessment_answers_and_the_interpretation_cites(tmp_path):
+    csv = _synthetic(tmp_path)
+    m = _synthetic_memory(csv, hidden=False)
+    m.set("claim:sampling.how", "by_group", status="confirmed", source="user:turn:2", said="we only have the northern sites")
+    fake = FakeLLM(cite="col:z.note")
+    out = _run(fake, _synthetic_handoff(m), question="Did the programme raise y?")
+    r = out["specialist_result"]
+    assert r["status"] == "done", r.get("feasibility")
+    th = out["ladder"].threats
+    assert [t.name for t in th.items] == ["selection"] and th.items[0].level == "soft" and th.items[0].cites == ["claim:sampling.how"]
+    flag = next(c for c in out["checks"] if c.name == "threat.selection")
+    assert flag.level == "soft" and "drawn by group" in flag.detail
+    assert "DesignAssessment" in fake.calls and "check:all.threat.selection" in out["interpretations"][0].cites and not out.get("interpret_errors")
+    assert "[ladder:threats.selection] soft: rows were drawn by group" in r["report"]
+    # a whole-population file with the outcome measured after and no choice leaves nothing to flag
+    m2 = _synthetic_memory(csv, hidden=False)
+    m2.set("claim:assignment.kind", "lottery", status="confirmed", source="user:turn:1")
+    out = _run(FakeLLM(cite="col:z.note"), _synthetic_handoff(m2), question="Did the programme raise y?")
+    assert out["specialist_result"]["status"] == "done" and out["ladder"].threats.items == [] and out["ladder"].mechanism.by == "pack"
+    assert not [c for c in out["checks"] if c.name.startswith("threat.")]
+
+
+def test_an_unsure_item_is_a_flag_and_an_unsure_claim_the_interview_could_have_settled_is_a_decline():
+    fake = FakeLLM()
+    fake.unsure = [
+        Unsure(about="col:gender.may_modify", reason="the story says nothing about whether the course worked differently by gender"),
+        Unsure(about="the school's timetable", reason="not in the file"),
+    ]
+    out = _run(fake, _students3())
+    r = out["specialist_result"]
+    assert r["status"] == "done", r.get("feasibility")
+    names = {c.name: c for c in out["checks"]}
+    assert (
+        names["unsure.col_gender_may_modify"].level == "soft"
+        and "the roles rung would not settle col:gender.may_modify" in names["unsure.col_gender_may_modify"].detail
+    )
+    assert "unsure.the_school_s_timetable" in names
+    dec = [d for d in out["declines"] if d.check == "needs.unsettled"]
+    assert (
+        len(dec) == 1 and dec[0].about == "col:gender.may_modify" and dec[0].stage == "roles" and "a decision in family.yaml should rest on it" in dec[0].reason
+    )
+    assert {"check:all.unsure.col_gender_may_modify", "check:all.unsure.the_school_s_timetable"} <= set(out["interpretations"][0].cites)
+    assert "[decline:roles.col_gender_may_modify]" in r["report"] and r["declines"][0]["check"] == "needs.unsettled"

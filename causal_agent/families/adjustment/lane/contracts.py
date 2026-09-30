@@ -7,7 +7,7 @@ live in causal_agent.common.contracts. These are the ones only this lane needs.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Literal
+from typing import Any, Literal
 
 import networkx as nx
 from pydantic import BaseModel, Field
@@ -35,6 +35,13 @@ class Relation(BaseModel):
 
 
 # ------------------------------------------------------------------ the ladder: one record per rung, each line addressed
+
+
+class Unsure(BaseModel):
+    """One thing a rung would not guess: what it is about (an address when there is one) and why. A flag, never a question."""
+
+    about: str = Field(description="the address of the claim or item you could not settle, such as col:lunch.may_modify, or a short name")
+    reason: str
 
 
 class Pair(BaseModel):
@@ -65,6 +72,7 @@ class Mechanism(BaseModel):
     self_selection: bool | None = Field(default=None, description="whether units could move their own assignment after the offer or the rule")
     reason: str = ""
     cites: list[str] = Field(default_factory=list)
+    unsure: list[Unsure] = Field(default_factory=list, description="what you would not guess, with why")
     by: Literal["pack", "judgement"] = "pack"
 
     def lines(self) -> list[tuple[str, str]]:
@@ -126,6 +134,7 @@ class Role(Relation):
 
 class Roles(BaseModel):
     items: list[Role] = Field(description="one per column listed, all of them")
+    unsure: list[Unsure] = Field(default_factory=list, description="what you would not guess, with why; the answer above still stands")
 
     def lines(self) -> list[tuple[str, str]]:
         return [(f"ladder:roles.{r.column}", r.word()) for r in self.items]
@@ -162,9 +171,72 @@ class PostRole(BaseModel):
 
 class PostRoles(BaseModel):
     items: list[PostRole] = Field(description="one per column listed, all of them")
+    unsure: list[Unsure] = Field(default_factory=list, description="what you would not guess, with why; the answer above still stands")
 
     def lines(self) -> list[tuple[str, str]]:
         return [(f"ladder:post_roles.{r.column}", f"{r.kind.replace('_', ' ')}: {r.reason}") for r in self.items]
+
+
+RoadKind = Literal["backdoor", "frontdoor", "iv"]
+
+
+class Road(BaseModel):
+    """Rung 6: the road taken among the roads the graph opens, argued from the hidden factors and the rungs below."""
+
+    taken: RoadKind = Field(description="the road the design takes: backdoor (adjust), frontdoor (through the mediator), iv (through the instrument)")
+    why: str = Field(description="one or two sentences: why this road over the others open")
+    cites: list[str] = Field(default_factory=list)
+    unsure: list[Unsure] = Field(default_factory=list)
+    open: list[str] = Field(default_factory=list, description="filled by code: every road the graph opens")
+    hidden_factor: bool = Field(default=False, description="filled by code: the person says a hidden factor exists")
+    by: Literal["pack", "code", "judgement"] = "code"
+
+    def lines(self) -> list[tuple[str, str]]:
+        return [
+            ("ladder:road.taken", f"{self.taken} (set by the {self.by})"),
+            ("ladder:road.open", ", ".join(self.open) or "none"),
+            ("ladder:road.hidden_factor", "the person says one exists" if self.hidden_factor else "none declared"),
+            ("ladder:road.why", self.why),
+        ]
+
+
+class Modifier(Cited):
+    column: str
+
+
+class Heterogeneity(BaseModel):
+    """Rung 7: where the effect could differ, and for whom it is wanted."""
+
+    modifiers: list[Modifier] = Field(default_factory=list, description="at most the number allowed, each a listed candidate, each cited")
+    why: str = ""
+    cites: list[str] = Field(default_factory=list)
+    unsure: list[Unsure] = Field(default_factory=list)
+    target_units: str = Field(default="ate", description="filled by code from the mechanism and the question's scope")
+    by: Literal["code", "judgement"] = "code"
+
+    def lines(self) -> list[tuple[str, str]]:
+        return [
+            ("ladder:heterogeneity.modifiers", ", ".join(m.column for m in self.modifiers) or "none"),
+            ("ladder:heterogeneity.target", self.target_units),
+        ] + ([("ladder:heterogeneity.why", self.why)] if self.why else [])
+
+
+class Threat(BaseModel):
+    """One risk of this design, named by code from the pack and the rungs below, with the addresses it rests on."""
+
+    name: str
+    level: Literal["soft", "hard"]
+    text: str
+    cites: list[str] = Field(default_factory=list)
+
+
+class Threats(BaseModel):
+    """Rung 8: the risks of this design, each a flag the assessment must answer and the interpretation must cite."""
+
+    items: list[Threat] = Field(default_factory=list)
+
+    def lines(self) -> list[tuple[str, str]]:
+        return [(f"ladder:threats.{t.name}", f"{t.level}: {t.text}") for t in self.items] or [("ladder:threats.none", "no threat named by the pack")]
 
 
 class Ladder(BaseModel):
@@ -176,13 +248,23 @@ class Ladder(BaseModel):
     timing: Timing | None = None
     roles: Roles | None = None
     post_roles: PostRoles | None = None
+    road: Road | None = None
+    heterogeneity: Heterogeneity | None = None
+    threats: Threats | None = None
+
+    def rungs(self) -> list[tuple[str, Any]]:
+        names = ("pair", "mechanism", "timing", "roles", "post_roles", "road", "heterogeneity", "threats")
+        return [(n, r) for n in names if (r := getattr(self, n)) is not None]
 
     def lines(self) -> list[tuple[str, str]]:
         out: list[tuple[str, str]] = []
-        for rung in (self.pair, self.mechanism, self.timing, self.roles, self.post_roles):
-            if rung is not None:
-                out += rung.lines()
+        for _, rung in self.rungs():
+            out += rung.lines()
         return out
+
+    def unsure_all(self) -> list[tuple[str, Unsure]]:
+        """Every item a rung would not guess, with the rung's name."""
+        return [(name, u) for name, rung in self.rungs() for u in getattr(rung, "unsure", [])]
 
     def addresses(self) -> set[str]:
         return {a for a, _ in self.lines()}
@@ -282,6 +364,7 @@ class Design(BaseModel):
     also_run: str | None = None
     refuters: list[str]
     target_units: str
+    modifiers: list[str] = Field(default_factory=list, description="the columns the effect is also estimated within, level by level")
     frozen_at: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     def render(self) -> str:
@@ -308,5 +391,6 @@ class Design(BaseModel):
         lines.append(f"  estimator    {self.estimator}" + (f" (+ {self.also_run} as secondary)" if self.also_run else "") + f"  params {self.params}")
         lines.append(f"  refuters     {', '.join(self.refuters)}")
         lines.append(f"  target       {self.target_units}")
+        lines.append(f"  modifiers    {', '.join(self.modifiers) or 'none'}")
         lines.append(f"  frozen at    {self.frozen_at}")
         return "\n".join(lines)

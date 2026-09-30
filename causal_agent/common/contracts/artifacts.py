@@ -60,6 +60,14 @@ class Estimate(BaseModel):
     target_units: str = "ate"
     error: str | None = None
     secondary: bool = False
+    modifier: str | None = Field(default=None, description="set when this is the effect within one level of a modifier column")
+    level: str | None = Field(default=None, description="the modifier's level or bin this estimate is for")
+
+    @property
+    def tag(self) -> str:
+        """The address stem: estimate:<contrast>, .<method> for a secondary, .by.<modifier>.<level> for a level of a modifier."""
+        base = f"estimate:{self.contrast}" + (f".{self.method}" if self.secondary else "")
+        return base + (f".by.{_slug(self.modifier)}.{_slug(self.level or '')}" if self.modifier is not None else "")
 
 
 class Refutation(BaseModel):

@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 
 from causal_agent.common.addresses import norm_address
-from causal_agent.common.contracts import Decline, Handoff
+from causal_agent.common.contracts import Decline, Estimate, Handoff
 from causal_agent.viz.spec import FigureSpec
 
 
@@ -60,9 +60,8 @@ def ok_addresses(h: Handoff, state: dict, prefix: str = "refute") -> set[str]:
     for k in state.get("check_facts") or {}:
         ok.add(f"check_facts.{k}")
     for e in state.get("estimates") or []:
-        e = e.model_dump() if hasattr(e, "model_dump") else e
-        tag = f"estimate:{e.get('contrast')}" + (f".{e.get('method')}" if e.get("secondary") else "")
-        ok.update({f"{tag}.value", f"{tag}.ci", f"{tag}.n", f"estimate:{e.get('contrast')}.{e.get('method')}.value"})
+        est = e if isinstance(e, Estimate) else Estimate.model_validate(e)
+        ok.update({f"{est.tag}.value", f"{est.tag}.ci", f"{est.tag}.n", f"estimate:{est.contrast}.{est.method}.value"})
     for r in state.get("refutations") or []:
         r = r.model_dump() if hasattr(r, "model_dump") else r
         tag = f"{prefix}:{r.get('contrast')}.{r.get('refuter')}"
