@@ -1129,6 +1129,37 @@ def test_a_picture_asked_for_before_the_run_is_drawn_shown_and_recorded(_artifac
     assert p["artifact"] is None  # shown once
 
 
+def test_a_number_from_a_picture_drawn_before_the_run_can_be_cited_and_a_wrong_one_is_refused(_artifact_root, tmp_path):
+    """Before the run the material holds every picture drawn so far with its numbers: an answer that cites a drawn number within
+    one percent passes; one that states a number the picture does not show is refused and the desk falls back."""
+    from causal_agent.desk.contracts import NumberStated
+
+    def infer(msg, addrs, human):
+        if "plot" in msg:
+            return Reading(draw="show me math score by lunch")
+        return Reading(question="which lunch group scores higher?") if msg.startswith("which") else None
+
+    fake = DeskFake(infer=infer)
+    d = Desk(fake)
+    d.say(QUESTION)
+    a = d.say("plot math score by lunch before we go on")["artifact"]
+    mean = a["facts"]["mean_standard"]
+    good = AfterReply(
+        kind="answer",
+        text=f"Standard lunch students average {mean:.1f}.",
+        numbers=[NumberStated(address=f"artifact:{a['id']}.mean_standard", value=round(mean, 1))],
+    )
+    fake.explain = [good]
+    p = d.say("which lunch group scores higher?")
+    assert p["text"].startswith("Standard lunch students average") and fake.calls.count("AfterReply") == 1
+    assert f"[artifact:{a['id']}.mean_standard]" in fake.humans["AfterReply"][0]  # the drawn number was in the material the Explainer read
+    bad = AfterReply(kind="answer", text="Standard lunch students average 99.", numbers=[NumberStated(address=f"artifact:{a['id']}.mean_standard", value=99.0)])
+    fake.explain = [bad, bad, bad]
+    p = d.say("which lunch group scores higher?")
+    assert fake.calls.count("AfterReply") == 4 and "does not match" in fake.humans["AfterReply"][3]
+    assert p["text"].startswith("I can only answer that from what is settled.")
+
+
 def test_a_picture_asked_for_after_the_run_lands_in_the_design_and_is_citable(_artifact_root, tmp_path):
     after = [
         AfterReply(kind="draw", text="", draw="the mean math score for each lunch group"),

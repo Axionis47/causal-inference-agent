@@ -32,8 +32,10 @@ BEFORE_KINDS = {"answer", "draw"}
 
 def before_material(memory: Memory, matrix: Matrix | None, probes: list, steps: list[Step], asked: str | None = None) -> M.Material:
     """What the desk may cite before a run: `family:<name>` (the family's knowledge), `matrix:` cells, `probe:` results,
-    `step:<n>`, `user:turn:<n>`, every `claim:`/`col:` field the memory holds, and what the desk was about to ask."""
+    `step:<n>`, `user:turn:<n>`, every `claim:`/`col:` field the memory holds, every picture drawn so far with its numbers, and
+    what the desk was about to ask."""
     m = M.Material()
+    M.add_artifacts(m, memory.name)
     for fam in R.knowledge():
         m.add(f"family:{fam.name}", fam.render())
     for line in matrix.render() if matrix is not None else []:

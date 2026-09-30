@@ -228,11 +228,7 @@ def render(
             for i, (x, y) in enumerate(zip(s_.x, s_.y)):
                 if y is not None:
                     m.add(f"{spec.address}.{s_.key}.{i}", f"{s_.name} · {x}: {y:.4g}", float(y))
-    for a in VS.list_artifacts(run.dataset, "pre") + VS.list_artifacts(run.dataset, "post", run.index):  # pictures drawn on request
-        when = "before the run" if a.moment == "pre" else f"design {a.design}"
-        m.add(a.address, f"{a.caption} ({when}; asked: {a.ask})")
-        for name, value in a.facts.items():
-            m.add(f"{a.address}.{name}", f"{name}: {value:.4g}", value)
+    add_artifacts(m, run.dataset, run.index)
     for s in steps or []:  # how the conversation got here, each step citable by its address
         m.add(s.address, s.line())
     if memory is not None:  # every field the memory holds, so the chat can cite what the design rested on
@@ -250,6 +246,17 @@ def render(
         for a in list(m.addresses):
             m.addresses.add(a.rsplit(".", 1)[0])
     return m
+
+
+def add_artifacts(m: Material, dataset: str, design: int | None = None) -> None:
+    """Every picture drawn on request, before any run and, when a design is given, after that run: the caption at its address
+    and every number it shows at its own, so the chat can cite a drawn number and the gate can check it."""
+    found = VS.list_artifacts(dataset, "pre") + (VS.list_artifacts(dataset, "post", design) if design is not None else [])
+    for a in found:
+        when = "before the run" if a.moment == "pre" else f"design {a.design}"
+        m.add(a.address, f"{a.caption} ({when}; asked: {a.ask})")
+        for name, value in a.facts.items():
+            m.add(f"{a.address}.{name}", f"{name}: {value:.4g}", value)
 
 
 def brief(run: RunRecord, previous: RunRecord | None, material: Material) -> str:

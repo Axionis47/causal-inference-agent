@@ -93,10 +93,10 @@ that opens a socket, lists the home folder and writes into it under each fence t
 Each folder holds `code.py`, `figure.png`, `facts.json`, `request.json` and `artifact.json`. A picture is deleted with its dataset
 or its design and is never read back by code. The journal records an `explore` step naming the folder.
 
-The addresses are `artifact:<id>` for the picture and `artifact:<id>.<fact>` for each number. After a run, the material lists both
-([desk/material.py:226](../causal_agent/desk/material.py)), so the Explainer can cite a drawn number and the gate checks it within
-one percent. Before the run the material does not include artifacts, so the chat shows the caption with its address but cannot
-yet quote a drawn number. That is a known gap.
+The addresses are `artifact:<id>` for the picture and `artifact:<id>.<fact>` for each number. Before the run and after it, the
+material lists every picture drawn so far with its numbers through one helper ([desk/material.py](../causal_agent/desk/material.py),
+`add_artifacts`), so the Explainer can cite a drawn number and the gate checks it within one percent; an answer that states a number
+the picture does not show is refused, and after three refusals the desk falls back.
 
 The server serves the PNG at `GET /api/artifacts/{name}/{moment}/{design}/{id}/figure.png` ([server/artifacts.py](../causal_agent/server/artifacts.py));
 the page shows it with its caption and its facts in [Picture.tsx](../web/src/components/Picture.tsx).
