@@ -7,6 +7,7 @@ units:
 clusters:
   few: {soft: 12}          # below this the clustered formula over-rejects and inference.yaml resamples instead; MacKinnon and Webb's rule of thumb
   min_at_level: 3          # a cluster level the pack names with fewer distinct values than this is declined and the unit clusters; ours
+  few_treated: 3           # this many treated units or fewer is a threat the design carries: the variance rests on that many clusters; the randomisation tier's line
 
 never_treated:
   soft_when_none: true     # every unit eventually got the change: the comparison is units not yet treated, and the last cohort has none after its own change
@@ -60,9 +61,13 @@ in_words:
   cohort_heterogeneity: "whether the units that got the change at different times moved alike after it"
 
 # How many tool calls each reasoning episode may make before it must answer. The leash, declared.
+anticipation:
+  window_max: 3            # the mechanism rung may name at most this many periods of anticipation; ours
+
 episode_budget:
   groups: 2
   periods: 2
+  mechanism: 3
   comparison: 6
   controls: 8
   heterogeneity: 4

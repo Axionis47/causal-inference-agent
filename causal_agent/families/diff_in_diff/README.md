@@ -52,7 +52,10 @@ pyfixest has four independent axes and the lane maps one artifact onto each.
   fit (the library's own test in this version tests whether the effects are zero at all). Each cohort's effect is reported as the
   effect within a level of `cohort`.
 
-The trends rung (`checks.trend_facts`) runs before the comparison is judged: the pre-period paths by group, the drift of the gap,
+The mechanism rung reads how the treated group came to be chosen: the kind, the level and the drivers from the pack, and, where the
+pack leaves it open, a judgement on whether the group was picked for where its outcome stood or was heading and whether the story
+states a lead. A group chosen for its trend is a threat by code, hard when the paths already diverge; a stated lead is left out of
+the estimate (`Design.excluded_rel_times`) and named as a threat; few treated units are a threat too. The trends rung (`checks.trend_facts`) runs before the comparison is judged: the pre-period paths by group, the drift of the gap,
 the joint Wald test on the lead coefficients of the dynamic fit with each lead, and the composition of the panel over time, each an
 addressed line the comparison rung reads. The pre-trends check reads the rung when the design has no controls and fits again with
 them when it does; the post-period coefficients never reach the ladder. Placebos refit the bare formula on a perturbed panel: the

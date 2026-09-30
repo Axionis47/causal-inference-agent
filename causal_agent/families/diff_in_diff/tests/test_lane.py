@@ -20,6 +20,7 @@ from causal_agent.families.diff_in_diff.lane.contracts import (
     DesignAssessment,
     EstimatorPick,
     Groups,
+    Mechanism,
     Periods,
     Revision,
 )
@@ -85,9 +86,12 @@ class FakeLLM:
     """Scripted answers per schema. `overrides` sets a column's claims in the controls rung; `risks` are what the comparison rung
     names; `looks` scripts the tool calls of an episode by node name, one list per round of looking."""
 
-    def __init__(self, script: dict, cite: str, *, bad_cites=False, assess_script=None, pick_script=None, overrides=None, risks=None, looks=None):
+    def __init__(
+        self, script: dict, cite: str, *, bad_cites=False, assess_script=None, pick_script=None, overrides=None, risks=None, looks=None, mechanism_script=None
+    ):
         self.script, self.cite, self.bad_cites = script, cite, bad_cites
         self.assess_script, self.pick_script = list(assess_script or []), list(pick_script or [])
+        self.mechanism_script = list(mechanism_script or [])
         self.overrides = dict(overrides or {})
         self.risks = list(risks or [])
         self.looks = {k: list(v) for k, v in (looks or {}).items()}
@@ -146,6 +150,10 @@ class FakeLLM:
             p = self.script["periods"].model_copy()
             p.cites = [cite]
             return p
+        if schema is Mechanism:
+            if self.mechanism_script:
+                return self.mechanism_script.pop(0)
+            return Mechanism(chosen_on="neither", reason="the story says who got the change, not why those units", cites=[cite])
         if schema is Comparison:
             return Comparison(fair=not self.risks, why="the story gives no reason the groups would have parted", risks=list(self.risks), cites=[cite])
         if schema is ControlRoles:
@@ -620,13 +628,14 @@ def test_a_risk_the_comparison_rung_names_is_a_flag_the_assessment_answers_and_t
     out = _run(fake, handoff(**CIGAR, memory_=m))
     r = out["specialist_result"]
     assert r["status"] == "done", r.get("feasibility")
-    assert not out["ladder"].comparison.fair and [x.name for x in out["ladder"].threats.items] == ["anticipation"]
+    names = [x.name for x in out["ladder"].threats.items]
+    assert not out["ladder"].comparison.fair and "anticipation" in names and "few_treated_clusters" in names  # the risk the judgement named, and one code named
     flag = next(c for c in out["checks"] if c.name == "threat.anticipation")
     assert flag.level == "soft" and "announced a year before" in flag.detail and flag.address in out["interpretations"][0].cites
     assert "[ladder:comparison.risk.anticipation] the tax was announced" in r["report"] and not out.get("interpret_errors")
 
 
-def _toy_panel(tmp_path, *, n_units=40, treated=16, periods=10, change=6, leaver=None):
+def _toy_panel(tmp_path, *, n_units=40, treated=16, periods=10, change=6, leaver=None, kind="date_by_others"):
     """Forty units over ten periods; sixteen get the change from period 6; the effect is larger in the north."""
     import numpy as np
 
@@ -658,7 +667,7 @@ def _toy_panel(tmp_path, *, n_units=40, treated=16, periods=10, change=6, leaver
     m.set("claim:change.when", f"period {change}", status="confirmed", source=src)
     m.set("claim:change.date_column", "time", status="confirmed", source=src)
     m.set("claim:change.period_value", str(change), status="confirmed", source=src)
-    m.set("claim:assignment.kind", "date_by_others", status="confirmed", source=src)
+    m.set("claim:assignment.kind", kind, status="confirmed", source=src)
     m.set("claim:assignment.rule", "the programme reached one arm from period 6", status="confirmed", source=src)
     m.set("claim:assignment.treatment_column", "arm", status="confirmed", source=src)
     m.set("claim:assignment.treated_level", "yes", status="confirmed", source=src)
@@ -935,3 +944,69 @@ def test_composition_flags_units_that_enter_or_leave(tmp_path):
     assert "0 entered after the first period, 1 left before the last; the panel is not balanced" in fake.humans_of("Comparison")[0]
     comp = next(c for c in out["checks"] if c.name == "composition")
     assert comp.level == "soft" and comp.value == 1.0 and comp.address in out["interpretations"][0].cites
+
+
+# ------------------------------------------------------------------ the mechanism rung: how the treated group came to be chosen
+
+
+def test_a_lottery_settles_the_mechanism_by_code_and_a_chosen_group_is_a_judgement(tmp_path):
+    h = _toy_panel(tmp_path)
+    fake = FakeLLM(_script_toy(), "col:arm.note")
+    out = _run(fake, h, question="Did the programme raise y?")
+    assert out["specialist_result"]["status"] == "done", out["specialist_result"].get("feasibility")
+    m = out["ladder"].mechanism
+    assert fake.calls.count("Mechanism") == 1 and m.by == "judgement" and m.chosen_on == "neither" and m.kind == "date_by_others" and not m.staggered
+    human = fake.humans_of("Mechanism")[0]
+    assert "The kind is 'date_by_others'" in human and "THE LADDER SO FAR" in human and "[ladder:shape.adoption]" in human
+    assert "[ladder:mechanism.chosen_on] the story gives no sign the group was chosen for its outcome" in fake.humans_of("Comparison")[0]
+    assert "group_choice" not in {t.name for t in out["ladder"].threats.items}
+    # a lottery: nothing to judge
+    fake2 = FakeLLM(_script_toy(), "col:arm.note")
+    out2 = _run(fake2, _toy_panel(tmp_path, kind="lottery"), question="Did the programme raise y?")
+    assert fake2.calls.count("Mechanism") == 0 and out2["ladder"].mechanism.by == "pack" and out2["ladder"].mechanism.chosen_on == "neither"
+
+
+def test_a_group_chosen_for_its_trend_is_a_threat_hard_when_the_paths_already_diverge(tmp_path):
+    # the toy: parallel paths, so the threat is soft and the interpretation carries it
+    fake = FakeLLM(
+        _script_toy(),
+        "col:arm.note",
+        mechanism_script=[Mechanism(chosen_on="trends", reason="the note says the arm was picked for its rising y", cites=["col:arm.note"])],
+    )
+    out = _run(fake, _toy_panel(tmp_path), question="Did the programme raise y?")
+    assert out["specialist_result"]["status"] == "done", out["specialist_result"].get("feasibility")
+    t = next(x for x in out["ladder"].threats.items if x.name == "group_choice")
+    assert (
+        t.level == "soft"
+        and "ladder:mechanism.chosen_on" in t.cites
+        and next(c for c in out["checks"] if c.name == "threat.group_choice").address in out["interpretations"][0].cites
+    )
+    # cigar: the paths already diverge, so the same choice is a hard flag and the assessment cannot clear it
+    fake = FakeLLM(SCRIPT["cigar"], CIGAR["cite"], mechanism_script=[Mechanism(chosen_on="trends", reason="chosen for its trend", cites=["col:state.note"])])
+    out = _run(fake, handoff(**CIGAR, memory_=memory("cigar", trend=True, trend_status="confirmed", said="together")))
+    assert next(c for c in out["checks"] if c.name == "threat.group_choice").level == "hard"
+
+
+def test_the_mechanism_gate_holds_the_citation_and_the_anticipation_window(tmp_path):
+    script = [
+        Mechanism(chosen_on="trends", reason="chosen for its trend", cites=[]),  # no citation
+        Mechanism(chosen_on="neither", anticipation_periods=9, reason="announced long before", cites=["col:arm.note"]),  # longer than the pre period
+        Mechanism(chosen_on="neither", anticipation_periods=2, reason="announced two periods before", cites=["col:arm.note"]),
+    ]
+    fake = FakeLLM(_script_toy(), "col:arm.note", mechanism_script=script)
+    out = _run(fake, _toy_panel(tmp_path), question="Did the programme raise y?")
+    assert out["specialist_result"]["status"] == "done", out["specialist_result"].get("feasibility")
+    humans = fake.humans_of("Mechanism")
+    assert len(humans) == 3 and "chosen_on says trends; cite the line" in humans[1] and "only 5 periods precede the change" in humans[2]
+    m = out["ladder"].mechanism
+    assert m.anticipation_periods == 2 and out["episodes"]["mechanism"].tries == 3
+    d = out["design"]
+    assert d.excluded_rel_times == [-2, -1] and "left out     periods -2, -1" in d.render()
+    t = next(x for x in out["ladder"].threats.items if x.name == "anticipation")
+    assert (
+        t.level == "soft"
+        and "left out of the estimate" in t.text
+        and next(c for c in out["checks"] if c.name == "threat.anticipation").address in out["interpretations"][0].cites
+    )
+    primary = next(e for e in out["estimates"] if e.method == "twfe_static" and e.modifier is None)
+    assert abs(primary.value - 3.5) < 0.6  # the toy's average effect, with the two periods before the change left out of the treated units' rows

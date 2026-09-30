@@ -68,6 +68,31 @@ COLUMNS THAT COULD CARRY TIME OR A REPEATED MEASURE
 Decide the shape and name the columns.
 """
 
+MECHANISM_SYSTEM = (
+    "You are reading how the treated group came to be chosen, for a before-and-after comparison between those who got a change and "
+    "those who did not. The pack states the kind of assignment, the level it was decided at and what it looked at when it says so; "
+    "you fill what it leaves open, from the story:\n"
+    "  chosen_on: levels when the group was picked for where its outcome or its traits stood; trends when it was picked for where "
+    "its outcome was heading; neither when the story gives no such reason; unknown when you cannot tell.\n"
+    "  anticipation_periods: the number of periods before the change during which units could have acted on it, only when the "
+    "story states an announcement or a lead; null otherwise.\n"
+    "  drivers: the columns the choice looked at, only when the pack leaves them open; only columns listed under THE COLUMNS.\n"
+    "A group chosen for where its outcome was heading breaks the comparison by construction; say so only when the story says so, "
+    "and cite it. Read the story first; the cards and the data facts second. " + TOOLS_NOTE + CITE_RULE
+)
+
+MECHANISM_USER = """QUESTION
+{question}
+
+THE CASE
+{frame}
+
+THE COLUMNS
+{columns}
+{errors}
+Fill the mechanism. The kind is {kind!r}, the level {level!r}, and what the choice looked at {drivers!r}, as the pack states them.
+"""
+
 COMPARISON_SYSTEM = (
     "You are judging whether the comparison group is a fair stand-in for the treated group without the change, for a "
     "before-and-after comparison. From the story, the cards and the facts, say whether the groups would have moved together apart "

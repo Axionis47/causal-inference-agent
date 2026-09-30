@@ -51,6 +51,7 @@ from causal_agent.families.diff_in_diff.lane.contracts import (
     Excluded,
     Groups,
     Ladder,
+    Mechanism,
     Periods,
     ShapeFacts,
 )
@@ -204,6 +205,29 @@ def _treated_mask(state: SpecialistState) -> pd.Series | None:
     if g is None:
         return None
     return _table(state)[g.column].astype(str) == str(g.treated_level)
+
+
+def _panel_tools(state: SpecialistState):
+    """The read-only tools over the canonical panel, so a rung may look by group and period: the outcome as `y`, the group column
+    as `treated`, the clock as `time`, the entity as `unit`, the candidates by their own names, with aliases from the pack's names.
+    The outcome may be joined with the groups on the periods before the change only: there it is evidence for the assumption, not
+    the effect."""
+    panel = pd.read_csv(state["panel_path"])
+    t, y, _ = _keys(state)
+    p: Periods = state["periods"]
+    aliases: dict[str, str] = {y: "y", t: "treated"}
+    if p.time_column:
+        aliases[p.time_column] = "time"
+    if state.get("unit_column"):
+        aliases[str(state["unit_column"])] = "unit"
+    return L.data_tools(
+        state,
+        panel["treated"] == 1,
+        table_=panel,
+        aliases=aliases,
+        allow_outcome_rows=panel["post"] == 0,
+        allow_outcome_words="the periods before the change",
+    )
 
 
 def _resolver(h: Handoff, log: EpisodeLog, ladder: Ladder):
@@ -521,7 +545,7 @@ def shape_table(state: SpecialistState) -> Command:
             )
     _writer()({"shape": facts.model_dump(exclude={"time_values"}), "declines": [d.render() for d in declines]})
     return Command(
-        goto="trends",
+        goto="mechanism",
         update={
             "panel_path": str(panel_path),
             "shape": facts,
@@ -530,6 +554,75 @@ def shape_table(state: SpecialistState) -> Command:
             "ladder": _ladder(state).model_copy(update={"shape": facts}),
         },
     )
+
+
+# rung 3: how the treated group came to be chosen (the pack where it says, a judgement where it leaves it open)
+
+
+def mechanism(state: SpecialistState) -> Command:
+    h = state["handoff"]
+    lad = _ladder(state)
+    s: ShapeFacts = state["shape"]
+    a = h.assignment or {}
+    kind = a.get("kind")
+    level = _key(a["level_column"]) if a.get("level_column") else None
+    drivers = [k for d in (a.get("depends_on") or []) if (k := _key(str(d))) in (state.get("columns") or {})]
+    cites = _cites(h, "claim:assignment.kind", "claim:assignment.rule", "claim:assignment.depends_on", "claim:assignment.level_column")
+    base = dict(kind=kind, level_column=level, drivers=drivers, staggered=s.adoption == "staggered", never_treated_exists=s.never_treated_exists, cites=cites)
+    if kind == "lottery":
+        m = Mechanism(chosen_on="neither", reason="a lottery: the group was drawn, not chosen", by="pack", **base)
+        _writer()({"mechanism": [f"[{a_}] {text}" for a_, text in m.lines()]})
+        return Command(goto="trends", update={"ladder": lad.model_copy(update={"mechanism": m})})
+    columns = state.get("columns") or {}
+    window_max = int(load_checks().get("anticipation", {}).get("window_max", 3))
+
+    def gate(r: Mechanism, log: EpisodeLog) -> list[str]:
+        ok = _resolver(h, log, lad)
+        errs: list[str] = []
+        pack = [c for c in r.cites if h.resolve(c)]
+        if r.chosen_on == "trends" and not pack:
+            errs.append("chosen_on says trends; cite the line that says the group was picked for where its outcome was heading")
+        if r.chosen_on == "levels" and not pack:
+            errs.append("chosen_on says levels; cite what the choice looked at")
+        if r.anticipation_periods is not None:
+            if r.anticipation_periods < 1:
+                errs.append("anticipation_periods is a whole number of periods, at least 1, or null")
+            elif r.anticipation_periods >= s.periods_pre:
+                errs.append(f"anticipation_periods is {r.anticipation_periods} but only {s.periods_pre} periods precede the change")
+            elif r.anticipation_periods > window_max:
+                errs.append(f"anticipation_periods is {r.anticipation_periods}; the lane allows at most {window_max}")
+            if not pack:
+                errs.append("an anticipation window needs the story to say the change was known before it came; cite it")
+        for d in r.drivers:
+            if _key(d) not in columns:
+                errs.append(f"driver {d!r} is not a column in play")
+        if not r.cites:
+            errs.append("no citations given")
+        return errs + V.cites_resolve(r.cites, h, ok)
+
+    user = P.MECHANISM_USER.format(
+        question=_question(state),
+        frame=L.frame_text(state),
+        columns="\n".join(b.line() for k in columns if (b := h.column(k)) is not None) or "(none)",
+        kind=kind or "not said",
+        level=level or "the unit",
+        drivers=", ".join(drivers) or "not said",
+        errors="",
+    )
+    rec, log, thoughts, errors = run_episode(
+        Mechanism, P.MECHANISM_SYSTEM, user, tools=_panel_tools(state), budget=_budget("mechanism"), gate=gate, node="mechanism"
+    )
+    if rec is None:
+        return _stop(
+            "mechanism",
+            "how the treated group came to be chosen could not be read from the pack",
+            errors,
+            "a clearer account of who chose the treated group and on what",
+            {"debug": thoughts, "episodes": {"mechanism": log}},
+        )
+    m = rec.model_copy(update={**base, "drivers": [_key(d) for d in rec.drivers] or drivers, "cites": rec.cites or cites, "by": "judgement"})
+    _writer()({"mechanism": [f"[{a_}] {text}" for a_, text in m.lines()]})
+    return Command(goto="trends", update={"ladder": lad.model_copy(update={"mechanism": m}), "debug": thoughts, "episodes": {"mechanism": log}})
 
 
 # rung 3's evidence: the paths before the change (by code, before the comparison is judged)
@@ -840,8 +933,43 @@ def threats(state: SpecialistState) -> dict:
     lad = _ladder(state)
     _, y, _ = _keys(state)
     items = LAD.pack_threats(h, _case(state), y, state.get("columns") or {}, outcome_timing=False)  # the outcome is seen on both sides of the change
+    own: dict[str, Threat] = {}
+    m, tr, s = lad.mechanism, lad.trends, state["shape"]
+    if m is not None and m.chosen_on == "trends":
+        own["group_choice"] = Threat(
+            name="group_choice",
+            level="hard" if tr is not None and tr.leads_level == "hard" else "soft",
+            text="the treated group was chosen for where its outcome was heading; a comparison of paths cannot separate the change from the reason for the choice",
+            cites=["ladder:mechanism.chosen_on", *m.cites],
+        )
+    elif m is not None and m.chosen_on == "levels":
+        own["group_choice"] = Threat(
+            name="group_choice",
+            level="soft",
+            text="the treated group was chosen for where its outcome or its traits stood; the paths before the change are the evidence that the trend was not the reason",
+            cites=["ladder:mechanism.chosen_on", "ladder:trends.leads"] if tr is not None else ["ladder:mechanism.chosen_on"],
+        )
+    if m is not None and m.anticipation_periods:
+        own["anticipation"] = Threat(
+            name="anticipation",
+            level="soft",
+            text=f"units could act {m.anticipation_periods} period(s) before the change; those periods are left out of the estimate",
+            cites=["ladder:mechanism.anticipation", *m.cites],
+        )
+    if s.units_treated <= int(load_checks()["clusters"].get("few_treated", 3)):
+        own["few_treated_clusters"] = Threat(
+            name="few_treated_clusters",
+            level="soft",
+            text=f"{s.units_treated} treated unit(s); the clustered variance rests on that many clusters, so the p-value is the randomisation one",
+            cites=["ladder:shape.units"],
+        )
     for r in lad.comparison.risks if lad.comparison is not None else []:
-        items.append(Threat(name=r.name, level="soft", text=r.reason, cites=[f"ladder:comparison.risk.{r.name}", *r.cites]))
+        cites = [f"ladder:comparison.risk.{r.name}", *r.cites]
+        if r.name in own:  # named by code and by the judgement: one flag, both citations
+            own[r.name] = own[r.name].model_copy(update={"cites": list(dict.fromkeys(own[r.name].cites + cites))})
+        else:
+            own[r.name] = Threat(name=r.name, level="soft", text=r.reason, cites=cites)
+    items += list(own.values())
     th = Threats(items=items)
     _writer()({"threats": [f"[{a}] {text}" for a, text in th.lines()]})
     return {"ladder": lad.model_copy(update={"threats": th})}
@@ -1095,6 +1223,7 @@ def freeze_design(state: SpecialistState) -> dict:
         placebos=placebos,
         target_units=state["target_units"],
         modifiers=[m.column for m in lad.heterogeneity.modifiers] if lad.heterogeneity is not None else [],
+        excluded_rel_times=list(range(-int(lad.mechanism.anticipation_periods), 0)) if lad.mechanism is not None and lad.mechanism.anticipation_periods else [],
     )
     run_dir = Path(state["run_dir"])
     (run_dir / "design.json").write_text(d.model_dump_json(indent=2))
@@ -1106,9 +1235,18 @@ def freeze_design(state: SpecialistState) -> dict:
 # ------------------------------------------------------------------ estimate (fact) + placebos (fact, fan-out)
 
 
+def _estimation_rows(panel: pd.DataFrame, d: Design) -> pd.DataFrame:
+    """The panel the estimate runs on: every row, less the anticipation window the design left out (treated units only; the
+    comparison units keep every period)."""
+    if not d.excluded_rel_times:
+        return panel
+    drop = (panel["treated"] == 1) & panel["rel_time"].isin(d.excluded_rel_times)
+    return panel[~drop]
+
+
 def estimate(state: SpecialistState) -> Command:
     d: Design = state["design"]
-    panel = pd.read_csv(state["panel_path"])
+    panel = _estimation_rows(pd.read_csv(state["panel_path"]), d)
     controls = d.controls.included
     fit = adapter.run(estimator_entry(d.estimator), panel, d.vcov, d.contrast.key, d.target_units, controls=controls)
     ests, model = list(fit.estimates), fit.model

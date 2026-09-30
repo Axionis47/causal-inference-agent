@@ -91,6 +91,55 @@ class ShapeFacts(BaseModel):
         ]
 
 
+ChosenOn = Literal["levels", "trends", "neither", "unknown"]
+
+
+class Mechanism(BaseModel):
+    """Rung 3: how the treated group came to be chosen. Code fills the kind, the level and the drivers from the pack; a judgement
+    fills what the pack leaves open: whether the group was picked for where its outcome stood (levels), for where it was heading
+    (trends), or for neither; and whether the story states a lead during which units could act on the change before it came."""
+
+    kind: str | None = None
+    level_column: str | None = Field(default=None, description="the level the change was decided at, a column above the unit, when the pack names one")
+    drivers: list[str] = Field(default_factory=list, description="the columns the choice looked at; only columns in play; none if the story names none")
+    chosen_on: ChosenOn = Field(
+        default="unknown",
+        description="levels: the group was picked for where its outcome or its traits stood; trends: for where its outcome was heading; neither: the story gives no such reason; unknown: you cannot tell",
+    )
+    anticipation_periods: int | None = Field(
+        default=None,
+        description="the periods before the change during which units could act on it, only when the story states an announcement or a lead; null otherwise",
+    )
+    staggered: bool = False
+    never_treated_exists: bool = True
+    reason: str = ""
+    cites: list[str] = Field(default_factory=list)
+    unsure: list[Unsure] = Field(default_factory=list, description="what you would not guess, with why")
+    by: Literal["pack", "judgement"] = "pack"
+
+    def lines(self) -> list[tuple[str, str]]:
+        words = {
+            "levels": "the group was chosen for where its outcome or its traits stood",
+            "trends": "the group was chosen for where its outcome was heading",
+            "neither": "the story gives no sign the group was chosen for its outcome",
+            "unknown": "how the group was chosen is not known",
+        }
+        return [
+            ("ladder:mechanism.kind", f"{self.kind or 'not said'} (set by the {self.by})"),
+            ("ladder:mechanism.level", self.level_column or "the unit itself"),
+            ("ladder:mechanism.drivers", ", ".join(self.drivers) or "none named"),
+            ("ladder:mechanism.chosen_on", words[self.chosen_on]),
+            (
+                "ladder:mechanism.anticipation",
+                f"{self.anticipation_periods} period(s) in which units could act before the change" if self.anticipation_periods else "none stated",
+            ),
+            (
+                "ladder:mechanism.adoption",
+                ("staggered" if self.staggered else "one-shot") + ("" if self.never_treated_exists else "; no unit is never treated"),
+            ),
+        ] + ([("ladder:mechanism.reason", self.reason)] if self.reason else [])
+
+
 class PathPoint(BaseModel):
     time: str
     treated_mean: float | None = None
@@ -244,15 +293,16 @@ class Cluster(BaseModel):
 
 
 class Ladder(LadderBase):
-    """The rungs climbed so far: who got the change, the clock, the shape, the paths before the change, the comparison, the
-    controls, where the effect could differ, the threats, the clustering. A rung reads the rungs below it; every line has an
-    address."""
+    """The rungs climbed so far: who got the change, the clock, the shape, how the group was chosen, the paths before the
+    change, the comparison, the controls, where the effect could differ, the threats, the clustering. A rung reads the rungs
+    below it; every line has an address."""
 
-    ORDER: ClassVar[tuple[str, ...]] = ("groups", "periods", "shape", "trends", "comparison", "controls", "heterogeneity", "threats", "cluster")
+    ORDER: ClassVar[tuple[str, ...]] = ("groups", "periods", "shape", "mechanism", "trends", "comparison", "controls", "heterogeneity", "threats", "cluster")
 
     groups: Groups | None = None
     periods: Periods | None = None
     shape: ShapeFacts | None = None
+    mechanism: Mechanism | None = None
     trends: TrendFacts | None = None
     comparison: Comparison | None = None
     controls: ControlRoles | None = None
@@ -317,6 +367,9 @@ class Design(BaseModel):
     placebos: list[str]
     target_units: str
     modifiers: list[str] = Field(default_factory=list, description="the unit traits the effect is also estimated within, level by level")
+    excluded_rel_times: list[int] = Field(
+        default_factory=list, description="periods relative to the change left out of the estimate: the anticipation window the mechanism rung named"
+    )
     frozen_at: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     def render(self) -> str:
@@ -340,5 +393,7 @@ class Design(BaseModel):
         lines.append(f"  placebos     {', '.join(self.placebos) or 'none'}")
         lines.append(f"  target       {self.target_units}")
         lines.append(f"  modifiers    {', '.join(self.modifiers) or 'none'}")
+        if self.excluded_rel_times:
+            lines.append(f"  left out     periods {', '.join(str(k) for k in self.excluded_rel_times)} relative to the change (anticipation)")
         lines.append(f"  frozen at    {self.frozen_at}")
         return "\n".join(lines)
