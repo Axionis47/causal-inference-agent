@@ -20,8 +20,8 @@ yaml in its own package, and copies nothing that is here.
 - `asks.py`: one question back to the desk, the same shape in every lane.
 - `figures.py`: the figures a lane leaves, each checked against the addresses this run can cite.
 - `records.py`: `artifacts.json` with the common keys, the result the desk reads, the report's tail.
-- `nodes.py`: the stream writer, the honest stop, the cards, the frame text every judgement reads first, the settled and drafted
-  blocks a relate prompt shows, the shared relate node.
+- `nodes.py`: the stream writer, the honest stop, the cards, the frame text every judgement reads first (the pack, the case, the
+  ladder so far), the data tools over the run's table, the settled and drafted blocks a rung's prompt shows.
 - `prompts.py`: the pick and interpret prompts, the cite rule, the plain-words rule.
 - `knowledge.py`: a lane's yaml files, read once and rendered for the model.
 - `graph.py`: how a lane's graph is compiled, as a node inside the desk or standalone.

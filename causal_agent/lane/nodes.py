@@ -1,6 +1,7 @@
 """The node plumbing every lane shares: the stream writer, the honest stop, the cards and cites, the case as the code weighed
-it, the rejection text a judgement is re-prompted with, and the three factories for the nodes that differ only by what a
-lane binds to them. A lane's own judgements stay in its package."""
+it, the frame text every judgement reads first, the data tools over the run's table, the rejection text a judgement is
+re-prompted with, and the factories for the nodes that differ only by what a lane binds to them. A lane's own judgements stay
+in its package."""
 
 from __future__ import annotations
 
@@ -13,12 +14,10 @@ from langgraph.types import Command
 
 from causal_agent.common.addresses import key as _key
 from causal_agent.common.contracts import Cited, Feasibility, Handoff
-from causal_agent.common.llm import structured
 from causal_agent.lane import case as C
 from causal_agent.lane.state import LaneState
 from causal_agent.lane.tools import Tools
 
-MAX_RELATE_ATTEMPTS = 3
 MAX_REVISIONS = 3
 MAX_MODEL_RETRIES = 3
 MAX_PICK_ATTEMPTS = 2
@@ -181,15 +180,3 @@ def make_drafted(drafted_claims: DraftedClaims) -> Callable[[Handoff, str, C.Cas
         )
 
     return drafted_text
-
-
-def make_relate(prompts: Any, relation_cls: type[Any]) -> Callable[[dict], dict]:
-    """The `relate` node: one column's relation to the change and the outcome, as the lane's prompts ask it."""
-
-    def relate(task: dict) -> dict:
-        user = prompts.RELATE_USER.format(**task)
-        parsed, th = structured(relation_cls, prompts.RELATE_SYSTEM, user, node=f"relate:{task['column']}")
-        parsed.column = task["column"]
-        return {"relations": [parsed], "debug": [th]}
-
-    return relate
