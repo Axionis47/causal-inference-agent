@@ -157,8 +157,10 @@ an analyst reads a cutoff design.
 7. **heterogeneity** (rung 4). The candidates are the predetermined characteristics the covariates rung or the person marked; a
    judgement names at most three; the primary spec is fitted again within each level of each, at the design's bandwidth so the
    levels compare, without that column among the covariates.
-8. **threats** (rung 5; code). The risks every design carries from the pack, and the risks the line rung named. Each is a flag the
-   assessment answers and the interpretation cites; an `unsure` on a claim the interview could have settled is a decline.
+8. **threats** (rung 5; code). The risks every design carries from the pack; the risks the line rung named; and this design's own,
+   read off the rungs below: bunching the line rung did not name, a score too coarse for a local fit, take-up that varies on one
+   side only, a side thin near the line. Each is a flag the assessment answers and the interpretation cites; an `unsure` on a claim
+   the interview could have settled is a decline.
 9. `check_design` (the density flag and the covariate continuity read off their rungs, among the checks), `assess`, `pick_estimator`.
 10. **window** (rung 6; a judgement over a table code builds). After the pick: every width selector the library offers, the width
     each gives on each side of the line and the rows it leaves inside. The model picks one by name, the default unless the density,

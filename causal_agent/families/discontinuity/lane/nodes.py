@@ -908,14 +908,56 @@ def heterogeneity(state: SpecialistState) -> Command:
 
 
 def threats(state: SpecialistState) -> dict:
-    """The risks every design carries, from the pack, then the ones the line rung named from the story. Each is a flag the assessment
-    must answer and the interpretation must cite."""
+    """The risks every design carries, from the pack; the ones the line rung named from the story; and this design's own, by code
+    from the rungs below: bunching the line rung did not name, a score too coarse for a local fit, take-up that varies on one side
+    only, a side thin near the line. Each is a flag the assessment must answer and the interpretation must cite."""
     h = state["handoff"]
     lad = _ladder(state)
+    s: ShapeFacts = state["shape"]
+    cfg = _cfg()
     _, y, _ = _keys(state)
     items = LAD.pack_threats(h, _case(state), y, state.get("columns") or {})
+    named = {r.name for r in (lad.line.risks if lad.line is not None else [])}
     for r in lad.line.risks if lad.line is not None else []:
         items.append(Threat(name=r.name, level="soft", text=r.reason, cites=[f"ladder:line.risk.{r.name}", *r.cites]))
+    dens = lad.density
+    if dens is not None and dens.status == "tested" and dens.flagged and "manipulation" not in named:
+        items.append(
+            Threat(
+                name="manipulation",
+                level="soft",
+                text="the rows bunch on one side of the line and the line rung did not name it; units may have moved their score",
+                cites=["ladder:density.test", "ladder:line.clean"],
+            )
+        )
+    if s.distinct_scores < int(cfg["support"]["distinct_min"]["soft"]):
+        items.append(
+            Threat(
+                name="discrete_score",
+                level="soft",
+                text=f"the score takes {s.distinct_scores} distinct values; a local fit cannot pick its own width, and the comparison leans on the units at the few scores nearest the line",
+                cites=["ladder:shape.sides"],
+            )
+        )
+    if s.kind == "fuzzy" and (s.takeup_left == 0.0 or s.takeup_right == 1.0):
+        items.append(
+            Threat(
+                name="one_sided_takeup",
+                level="soft",
+                text="take-up varies on one side of the line only; the effect is for those who crossed it and took up, and nothing is learned about take-up on the other side",
+                cites=["ladder:shape.kind"],
+            )
+        )
+    soft = int(cfg["sides"]["min_rows"]["soft"])
+    if min(s.n_left, s.n_right) < soft:
+        items.append(
+            Threat(
+                name="thin_side",
+                level="soft",
+                text=f"one side of the line holds {min(s.n_left, s.n_right)} rows; the fit on that side rests on few units",
+                cites=["ladder:shape.sides"],
+            )
+        )
     th = Threats(items=items)
     _writer()({"threats": [f"[{a}] {text}" for a, text in th.lines()]})
     return {"ladder": lad.model_copy(update={"threats": th})}

@@ -1436,3 +1436,58 @@ def test_few_clusters_pick_the_corrected_variance_and_flag_the_count(tmp_path, m
     few = next(c for c in out["checks"] if c.name == "few_clusters")
     assert few.level == "soft" and few.value == 12.0 and few.address in out["interpretations"][0].cites
     assert out["primary"]["vce"].upper() == "CR2"
+
+
+# ------------------------------------------------------------------ the threats this design names by code, from the rungs below
+
+
+def test_the_threats_rung_names_bunching_the_line_rung_did_not_a_coarse_score_and_one_sided_takeup(tmp_path, monkeypatch):
+    from causal_agent.families.discontinuity.lane.knowledge import estimator as estimator_entry
+    from causal_agent.families.discontinuity.lane.knowledge import placebo as placebo_entry
+
+    # bunching the line rung called clean (citing the evidence): the threats rung still carries it as a flag
+    make_pack(
+        tmp_path,
+        monkeypatch,
+        "manip",
+        manipulated(),
+        "Units with a score at or above zero got the grant.",
+        {"x": "The score, fixed before the grant.", "y": "The outcome, measured after."},
+    )
+    fake = FakeLLM(URUGUAY_SCORE, {}, "col:x.note")
+    out = _run(fake, handoff("manip", "y", None, ["x", "y"], "col:x.note", memory_=_rule(memory("manip"), movable=False)))
+    names = {t.name: t for t in out["ladder"].threats.items}
+    assert (
+        out["ladder"].line.clean
+        and "manipulation" in names
+        and "did not name it" in names["manipulation"].text
+        and "ladder:density.test" in names["manipulation"].cites
+    )
+    assert next(c for c in out["checks"] if c.name == "threat.manipulation").address in out["interpretations"][0].cites
+    # a coarse score
+    monkeypatch.setitem(estimator_entry("local_randomisation").params, "reps", 100)
+    monkeypatch.setitem(placebo_entry("rosenbaum_bounds").params, "reps", 30)
+    make_pack(
+        tmp_path,
+        monkeypatch,
+        "disc",
+        discrete(n=900),
+        "Units with a score at or above 7 got the grant.",
+        {"x": "The score, an integer from 1 to 12, fixed before the grant.", "y": "The outcome, measured after."},
+    )
+    sc = Score(column="x", cutoff=7.0, treated_side="above", cutoff_value_treated=True, takeup_column=None, takeup_level=None, reason="r", cites=["col:x.note"])
+    out = _run(FakeLLM(sc, {}, "col:x.note"), handoff("disc", "y", None, ["x", "y"], "col:x.note"))
+    assert (
+        "discrete_score" in {t.name for t in out["ladder"].threats.items}
+        and "12 distinct values" in next(t for t in out["ladder"].threats.items if t.name == "discrete_score").text
+    )
+    # take-up on one side only
+    make_pack(
+        tmp_path, monkeypatch, "fuzzy", fuzzy_above(), "Units with a score at or above zero were offered the grant; about seven in ten took it up.", FUZZY_COLS
+    )
+    sc = Score(
+        column="x", cutoff=0.0, treated_side="above", cutoff_value_treated=True, takeup_column="received", takeup_level="1", reason="r", cites=["col:x.note"]
+    )
+    out = _run(FakeLLM(sc, {}, "col:x.note"), handoff("fuzzy", "y", "eligible", ["x", "y", "eligible", "received"], "col:x.note"))
+    t = {t.name: t for t in out["ladder"].threats.items}
+    assert "one_sided_takeup" in t and t["one_sided_takeup"].cites == ["ladder:shape.kind"] and "thin_side" not in t
