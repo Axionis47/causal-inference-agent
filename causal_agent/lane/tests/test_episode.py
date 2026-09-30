@@ -76,7 +76,7 @@ def test_the_model_looks_then_answers_and_every_fact_has_an_address():
     rec, log, thoughts, errors = run(fake)
     assert rec is not None and errors == [] and log.tries == 1 and log.calls == 2
     assert [f.address for f in log.facts] == ["probe:roles.1", "probe:roles.2"] and log.facts[0].tool == "by_arm"
-    assert fake.bound == list(TL.NAMES)
+    assert fake.bound == list(tools().names()) == list(TL.NAMES[:6])  # the shape-aware tools are not offered on a plain table
     # the tool phase: the rule is in the system message; each result went back as a tool message with its address
     first = fake.rounds[0]
     assert "at most 4 calls" in first[0].content and "[probe:roles.<n>]" in first[0].content and first[1].content == "USER"

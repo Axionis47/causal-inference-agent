@@ -12,8 +12,12 @@ yaml in its own package, and copies nothing that is here.
 - `episode.py`: a judgement as a bounded episode: the model may look at the data through the tools, every fact it asked for gets
   an address (`probe:<node>.<n>`), the budget and the answer's shape are fixed by the caller, and the gate re-prompts with the
   log kept.
-- `tools.py`: the read-only data tools an episode may be offered (describe, by arm, association, redundancy, cells, timing); no
-  tool joins the outcome with the treatment before the design is frozen, by code.
+- `tools.py`: the read-only data tools an episode may be offered: six on any table (describe, by arm, association, redundancy,
+  cells, timing), two more on a panel (a column by group and period, the composition of the panel over time) and two on a
+  recentred score (a column by side within a band of the line, the score's histogram either side), each offered only when the
+  table has the shape. No tool joins the outcome with the treatment before the design is frozen, by code; a lane whose design
+  has rows on which the outcome is evidence and not the effect names them, and a tool that would join the pair runs on those rows
+  only and says so.
 - `ladder.py`: the shape every lane's ladder shares (one record per rung, each line addressed `ladder:<rung>.<field>`), the
   records every design shares (what a rung would not guess, a threat, heterogeneity), the threats every design carries from the
   pack, and the flags and declines the ladder yields.

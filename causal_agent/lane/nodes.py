@@ -5,7 +5,7 @@ in its package."""
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Any
 
 import pandas as pd
@@ -70,14 +70,31 @@ def frame_text(state: LaneState) -> str:
     return "\n\n".join(x for x in parts if x)
 
 
-def data_tools(state: LaneState, treated: pd.Series | None) -> Tools:
+def data_tools(
+    state: LaneState,
+    treated: pd.Series | None,
+    *,
+    table_: pd.DataFrame | None = None,
+    aliases: Mapping[str, str] | None = None,
+    allow_outcome_rows: pd.Series | None = None,
+    allow_outcome_words: str | None = None,
+) -> Tools:
     """The read-only data tools over this run's table, with the pair named so no tool joins them, the treated rows when the
-    arms are settled, and every column's timing as the pack settled it."""
+    arms are settled, and every column's timing as the pack settled it. A lane may hand in its own canonical table instead
+    (a panel, a recentred score) with `aliases` from the pack's names to its columns, and the rows on which the outcome may be
+    joined with the arms before the freeze, when its design has such rows."""
     h = state["handoff"]
     assert h is not None
     t, y, _ = keys(state)
     timing = {k: (b.when if (b := h.column(k)) is not None else "unknown") for k in state.get("columns", {})}
-    return Tools(table(state), outcome=y, treatment=t, treated=treated, timing_of=timing)
+    df = table(state) if table_ is None else table_
+    al = dict(aliases or {})
+    outcome = al.get(y, y) if y else y
+    treatment = al.get(t, t) if t else t
+    tools = Tools(df, outcome=outcome, treatment=treatment, treated=treated, timing_of=timing, allow_outcome_rows=allow_outcome_rows, aliases=al or None)
+    if allow_outcome_words:
+        tools.allow_outcome_words = allow_outcome_words
+    return tools
 
 
 def cites(h: Handoff, *addresses: str) -> list[str]:

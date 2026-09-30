@@ -84,9 +84,12 @@ the pair, four for the mechanism, eight for the roles, four for the post-treatme
 with an address, `probe:<rung>.<n>`, and is logged. Then the facts it gathered are rendered under FACTS YOU ASKED FOR and the record
 is asked for with the same structured call as every other judgement. The gate's errors go back with the log kept, and the model may
 look again while budget remains; three refusals return no record and the rung stops. The tools are describe, by arm, association,
-redundancy, cells and timing ([lane/tools.py](../causal_agent/lane/tools.py)); a call that would join the outcome with the treatment
-is refused by code with a reason the model reads, and the refusal is logged too. The report lists every episode's calls, facts and
-refusals.
+redundancy, cells and timing on any table, a column by group and period and the panel's composition on a panel, and a column by
+side within a band and the score's histogram on a recentred score ([lane/tools.py](../causal_agent/lane/tools.py)), each offered
+only when the table has the shape. A call that would join the outcome with the treatment is refused by code with a reason the
+model reads, and the refusal is logged too; a lane whose design has rows on which the outcome is evidence and not the effect (a
+panel's rows before the change) names them, and such a call runs on those rows only and says so. The report lists every
+episode's calls, facts and refusals.
 
 ## Why this shape
 
