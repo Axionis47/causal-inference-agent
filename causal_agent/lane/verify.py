@@ -1,31 +1,46 @@
 """A model's answer about a column against what the pack settled. A claim that contradicts a fact is rejected unless the
-answer cites that address and the address is one the pack itself marks contested; the citations must resolve either way."""
+answer cites that address and the address is one the pack itself marks contested; a claim that departs from the last reading
+needs a `Departure` naming it with the cite that changed it; the citations must resolve either way."""
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 from causal_agent.common.addresses import norm_address
-from causal_agent.common.contracts import Handoff
+from causal_agent.common.contracts import Departure, Handoff
 from causal_agent.lane.case import Case
 
 # (claim, claim value, field, the fact values the claim contradicts)
 Rule = tuple[str, bool, str, tuple]
 
 
-def cites_resolve(cites: list[str], h: Handoff) -> list[str]:
-    return [f"citation {c!r} does not resolve in the pack" for c in cites if not h.resolve(c)]
+def cites_resolve(cites: list[str], h: Handoff, also: Callable[[str], bool] | None = None) -> list[str]:
+    """Errors for every cite the pack does not resolve; `also` resolves what this run itself made (an episode's facts)."""
+    return [f"citation {c!r} does not resolve in the pack" for c in cites if not (h.resolve(c) or (also is not None and also(c)))]
 
 
-def departures(claims: dict[str, Any], drafted: dict[str, Any], cites: list[str]) -> list[str]:
-    """Errors for every claim that departs from the last reading (a drafted field) while the answer cites nothing at all."""
-    if cites:
-        return []
-    return [
-        f"{claim} = {claims.get(claim)!r} departs from the last reading {value!r}, which cites nothing; keep the reading or cite what changed it"
-        for claim, value in drafted.items()
-        if claim in claims and claims[claim] != value
-    ]
+def departures(
+    claims: dict[str, Any], drafted: dict[str, Any], departures: list[Departure], h: Handoff, also: Callable[[str], bool] | None = None
+) -> list[str]:
+    """Errors for every claim that departs from the last reading (a drafted field) without a `Departure` naming it, or with one
+    that cites nothing that resolves."""
+    errors: list[str] = []
+    for claim, value in drafted.items():
+        if claim not in claims or claims[claim] == value:
+            continue
+        named = [d for d in departures if d.claim == claim]
+        if not named:
+            errors.append(
+                f"{claim} = {claims[claim]!r} departs from the last reading {value!r} with no departure named; keep the reading or list "
+                f"{claim} under departures with the reason and the cite that changed it"
+            )
+            continue
+        for d in named:
+            if not d.cites:
+                errors.append(f"the departure for {claim} cites nothing; cite what changed the reading")
+            errors += cites_resolve(d.cites, h, also)
+    return errors
 
 
 def contradictions(claims: dict[str, Any], column_key: str, case: Case, rules: list[Rule], cites: list[str], h: Handoff) -> list[str]:

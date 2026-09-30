@@ -18,6 +18,7 @@ from causal_agent.common.contracts.artifacts import (
 from causal_agent.common.contracts.base import (
     Candidate,
     Cited,
+    Departure,
     Intent,
     Scope,
     Thought,
@@ -62,6 +63,7 @@ __all__ = [
     "CheckResult",
     "Checks",
     "Cited",
+    "Departure",
     "ColumnBrief",
     "ColumnFacts",
     "Contrast",

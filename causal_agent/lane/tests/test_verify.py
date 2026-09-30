@@ -46,3 +46,29 @@ def test_a_contradicting_claim_is_rejected_without_a_cite_and_accepted_with_one(
 def test_cites_must_resolve():
     h = pack()
     assert V.cites_resolve(["col:pop.note", "col:nope.note"], h) == ["citation 'col:nope.note' does not resolve in the pack"]
+
+
+def test_a_departure_from_the_last_reading_needs_a_named_departure_that_cites():
+    from causal_agent.common.contracts import Departure
+
+    h = pack()
+    drafted = {"affects_treatment": True}
+    claims = {"affects_treatment": False, "affects_outcome": True}
+    assert V.departures(claims, drafted, [], h) == [
+        "affects_treatment = False departs from the last reading True with no departure named; keep the reading or list "
+        "affects_treatment under departures with the reason and the cite that changed it"
+    ]
+    assert V.departures(claims, drafted, [Departure(claim="affects_treatment", reason="the note says the offer never saw it", cites=["col:pop.note"])], h) == []
+    assert V.departures(claims, drafted, [Departure(claim="affects_treatment", reason="r", cites=[])], h) == [
+        "the departure for affects_treatment cites nothing; cite what changed the reading"
+    ]
+    assert V.departures(claims, drafted, [Departure(claim="affects_treatment", reason="r", cites=["col:nope.note"])], h) == [
+        "citation 'col:nope.note' does not resolve in the pack"
+    ]
+    # a departure named for another claim does not cover this one; an address this run made resolves through `also`
+    assert len(V.departures(claims, drafted, [Departure(claim="affects_outcome", reason="r", cites=["col:pop.note"])], h)) == 1
+    assert (
+        V.departures(claims, drafted, [Departure(claim="affects_treatment", reason="r", cites=["probe:roles.1"])], h, also=lambda a: a == "probe:roles.1") == []
+    )
+    # keeping the reading needs nothing
+    assert V.departures({"affects_treatment": True}, drafted, [], h) == []

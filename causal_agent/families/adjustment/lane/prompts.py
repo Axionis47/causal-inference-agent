@@ -38,7 +38,7 @@ RELATE_SYSTEM = (
     "When a block SETTLED BY THE PACK gives one of the four, the person has already said it: copy that answer and cite the "
     "address shown; do not argue with it.\n"
     "When a block THE LAST READING gives one, an earlier run read it so and nobody has confirmed it: keep that answer unless "
-    "the cards give a reason to depart, and then cite the card that does.\n"
+    "the cards give a reason to depart, and then list the claim under departures, citing the card that does.\n"
     "  affected_by_treatment: this column's value was recorded after the treatment began, so the treatment could "
     "have changed it. A measurement taken at the same time as the outcome counts as yes.\n"
     "  is_outcome_measure: this column measures the same quantity as the outcome, so it is a result, not a cause.\n"

@@ -485,7 +485,7 @@ def verify_graph(state: SpecialistState) -> Command:
         for e in V.contradictions({c: getattr(r, c) for c in CLAIMS}, k, case, rules, cited, h):
             errs.setdefault(k, []).append(e)
         drafted, _ = drafted_claims(h, k, case)
-        for e in V.departures({c: getattr(r, c) for c in CLAIMS}, drafted, cited):
+        for e in V.departures({c: getattr(r, c) for c in CLAIMS}, drafted, r.departures, h):
             errs.setdefault(k, []).append(e)
     attempts = state.get("relate_attempts", 0) + 1
     if errs or general:

@@ -16,6 +16,12 @@ class Cited(BaseModel):
     cites: list[str] = Field(description="addresses from the pack, e.g. col:lunch.note, change:1.note, dataset.profile.grain")
 
 
+class Departure(Cited):
+    """Why an answer departs from the last reading of one claim: the claim by name, the reason, and the cite that changed it."""
+
+    claim: str = Field(description="the claim whose answer departs from THE LAST READING")
+
+
 class Candidate(Cited):
     column: str
 

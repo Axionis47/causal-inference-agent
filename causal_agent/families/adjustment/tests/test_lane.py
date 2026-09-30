@@ -111,6 +111,9 @@ class FakeLLM:
             flags = STUDENT_RELATIONS.get(col, {})
             claims = dict(affects_treatment=False, affects_outcome=False, affected_by_treatment=False, is_outcome_measure=False)
             claims.update(flags)
+            if "THE LAST READING" in human:  # keep the last reading, as the prompt asks
+                block = human.split("THE LAST READING")[1].split("\n\n")[0]
+                claims.update({k: v == "true" for k, v in re.findall(r"^\s+(\w+) = (true|false) \[", block, re.M)})
             reasons = [Cited(reason=f"{col}: {k}", cites=[cite]) for k, v in claims.items() if v]
             return Relation(column=col, reasons=reasons, **claims)
         if schema is DesignAssessment:
@@ -552,7 +555,7 @@ def test_a_departure_from_the_last_reading_that_cites_nothing_is_refused_once():
 
     out = _run(Fake(), h)
     assert out["specialist_result"]["status"] == "done"
-    assert len(seen) == 2 and "affects_treatment = False departs from the last reading True, which cites nothing" in seen[1]
+    assert len(seen) == 2 and "affects_treatment = False departs from the last reading True with no departure named" in seen[1]
     assert any(e.src == "race_ethnicity" and e.dst == "math_score" for e in out["graph"].edges)  # the second answer, cited, stood
 
 

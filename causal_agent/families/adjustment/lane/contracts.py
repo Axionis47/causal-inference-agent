@@ -12,7 +12,7 @@ from typing import Literal
 import networkx as nx
 from pydantic import BaseModel, Field
 
-from causal_agent.common.contracts import Checks, Cited, Contrast
+from causal_agent.common.contracts import Checks, Cited, Contrast, Departure
 
 
 class Contrasts(BaseModel):
@@ -28,6 +28,9 @@ class Relation(BaseModel):
     affected_by_treatment: bool = Field(description="this column's value came after, and could be changed by, the treatment")
     is_outcome_measure: bool = Field(description="this column is another measurement of the same outcome, not a cause")
     reasons: list[Cited] = Field(description="one entry per claim marked true, each citing the card that supports it")
+    departures: list[Departure] = Field(
+        default_factory=list, description="one entry per claim where you departed from THE LAST READING, naming the claim and citing what changed it"
+    )
 
 
 class Edge(BaseModel):
