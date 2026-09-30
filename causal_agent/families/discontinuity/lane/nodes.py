@@ -1504,18 +1504,43 @@ def placebo(task: PlaceboTask) -> dict:
             return False, f"fewer than {floor} effective rows on a side"
         return True, ""
 
+    spec, spec_fuzzy = (CK.SHARP, False) if entry.spec == "sharp_reduced_form" else (d.spec, primary_fuzzy)  # what the entry says to refit
     if entry.name == "placebo_cutoffs":
         for label, mask in (("control side", canon["x"] < 0), ("treated side", canon["x"] >= 0)):
             sub = canon[mask]
+            if entry.placement != "side_median":
+                points.append((label, None, False, f"placement {entry.placement!r} is not one the lane knows"))
+                continue
             c_med = float(sub["x"].median())
             name = f"{label} at {c_med:.4g}"
             at[name] = c_med
             if not (sub["x"].min() < c_med < sub["x"].max()):
                 points.append((name, None, False, "the placebo cutoff is not strictly inside that side's scores"))
                 continue
-            f = adapter.fit(CK.SHARP, sub, cluster=bool(d.cluster), vce=d.vce, c=c_med, **_reselect_kw(d))
+            f = adapter.fit(spec, sub, fuzzy=spec_fuzzy, cluster=bool(d.cluster), vce=d.vce, c=c_med, **_reselect_kw(d))
             ok, note = informative(f)
             points.append((name, f, ok, note))
+    elif entry.name in ("polynomial_grid", "kernel_grid"):
+        held = {"b": d.bandwidths.b} if entry.hold_b else {}
+        variants = (
+            [(f"p = {o}", dict(spec, p=int(o))) for o in entry.params.get("orders", [1, 2, 3])]
+            if entry.name == "polynomial_grid"
+            else [(f"kernel {k}", dict(spec, kernel=str(k))) for k in entry.params.get("kernels", ["tri", "epa", "uni"])]
+        )
+        for i, (label, variant) in enumerate(variants):
+            at[label] = float(i)
+            f = adapter.fit(
+                variant,
+                canon,
+                fuzzy=spec_fuzzy,
+                covs=[SH.covcol(k) for k in d.covariates.adjusted] if pentry.covs else None,
+                cluster=bool(d.cluster),
+                vce=d.vce,
+                h=d.bandwidths.h,
+                **held,
+            )
+            ok, note = informative(f)
+            points.append((label, f, ok, note))
     elif entry.name == "bandwidth_grid":
         bws = d.bandwidths
         grid: dict[str, tuple[float, float]] = {"h_mse": (bws.h_left, bws.h_right), "2h_mse": (2 * bws.h_left, 2 * bws.h_right)}
@@ -1528,7 +1553,7 @@ def placebo(task: PlaceboTask) -> dict:
             hl, hr = grid[name]
             label = f"{name} = {hl:.4g}" if abs(hl - hr) < 1e-12 else f"{name} = {hl:.4g}/{hr:.4g}"
             at[label] = hl
-            f = adapter.fit(d.spec, canon, fuzzy=primary_fuzzy, cluster=bool(d.cluster), vce=d.vce, h=[hl, hr], b=bws.b if entry.hold_b else None)
+            f = adapter.fit(spec, canon, fuzzy=spec_fuzzy, cluster=bool(d.cluster), vce=d.vce, h=[hl, hr], b=bws.b if entry.hold_b else None)
             ok, note = informative(f)
             points.append((label, f, ok, note))
     elif entry.name == "donut":
@@ -1539,7 +1564,7 @@ def placebo(task: PlaceboTask) -> dict:
             if dropped == 0:
                 points.append((f"radius {share:.0%} of h", None, False, "no rows lie within the radius"))
                 continue
-            f = adapter.fit(d.spec, canon, fuzzy=primary_fuzzy, cluster=bool(d.cluster), vce=d.vce, mask=mask, **_reselect_kw(d))
+            f = adapter.fit(spec, canon, fuzzy=spec_fuzzy, cluster=bool(d.cluster), vce=d.vce, mask=mask, **_reselect_kw(d))
             ok, note = informative(f)
             label = f"radius {share:.0%} of h ({dropped} rows dropped)"
             at[label] = r
@@ -1626,7 +1651,7 @@ def _addresses(state: SpecialistState) -> list[str]:
             tag = _tag(e, d)
             out += [f"{tag}.value", f"{tag}.ci", f"{tag}.n"] + ([f"{tag}.p", f"{tag}.bandwidth"] if e.method == d.estimator and e.modifier is None else [])
     for r in state.get("refutations") or []:
-        out += [f"placebo:{c}.{r.refuter}.passed", f"placebo:{c}.{r.refuter}.detail"]
+        out += [f"placebo:{c}.{r.refuter}.passed", f"placebo:{c}.{r.refuter}.detail", f"placebo:{c}.{r.refuter}.in_words"]
     return list(dict.fromkeys(out))
 
 
@@ -1706,6 +1731,8 @@ def _material(state: SpecialistState) -> str:
             lines.append(f"[{tag}.ci] 95% robust interval {e.ci_low:.4g} to {e.ci_high:.4g}" if e.ci_low is not None else f"[{tag}.ci] no interval")
             lines.append(f"[{tag}.n] {e.n_control} control-side and {e.n_treated} treated-side rows")
     for r in state.get("refutations") or []:
+        pe = placebo_entry(r.refuter)
+        lines.append(f"[placebo:{c}.{r.refuter}.in_words] {pe.kind}: {pe.in_words} (source: {pe.source or 'ours'})")
         lines.append(f"[placebo:{c}.{r.refuter}.passed] {r.passed}  [placebo:{c}.{r.refuter}.detail] {r.detail}")
     return "\n".join(lines)
 
@@ -1786,6 +1813,7 @@ def figures(state: SpecialistState) -> dict:
         specs.append(PR.covariate_continuity(cf.get("continuity"), c, names, float(_cfg()["covariate_continuity"]["p_value"]["soft"])))
         specs.append(PR.bandwidth_curve(pts.get("bandwidth_grid"), d.bandwidths.h_left if d is not None else None, c))
         specs.append(PR.bandwidth_curve(pts.get("window_sensitivity"), d.bandwidths.h_right if d is not None else None, c, name="window_sensitivity"))
+        specs.append(PR.spec_sensitivity(pts.get("polynomial_grid"), pts.get("kernel_grid"), state.get("primary"), c))
         specs.append(PR.placebo_cutoffs(pts.get("placebo_cutoffs"), state.get("primary"), c))
     ests = [e.model_dump() for e in state.get("estimates") or []]
     specs.append(PV.effect_and_refutations([e for e in ests if e.get("modifier") is None], [r.model_dump() for r in state.get("refutations") or []], "placebo"))

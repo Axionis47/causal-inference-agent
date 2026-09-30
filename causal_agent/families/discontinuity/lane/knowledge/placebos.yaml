@@ -32,6 +32,24 @@ donut:
   applies_when: {engine: [local_polynomial]}
   pass_when: {interval_overlaps_primary: true, sign_stable_when_primary_excludes_zero: true}
 
+polynomial_grid:
+  kind: sensitivity
+  in_words: the primary refit with a local linear, quadratic and cubic on each side inside the design's window; how far the estimate moves with the order
+  source: Foundations 4.2 and Gelman and Imbens (2019) against high orders; reporting p = 1, 2, 3 at the design's window with b held is ours
+  spec: primary
+  params: {orders: [1, 2, 3]}
+  hold_b: true
+  applies_when: {engine: [local_polynomial]}
+
+kernel_grid:
+  kind: sensitivity
+  in_words: the primary refit with triangular, Epanechnikov and uniform weights inside the design's window; the kernel should matter little
+  source: Foundations 4.2, the kernel choice; reporting the three at the design's window with b held is ours
+  spec: primary
+  params: {kernels: [tri, epa, uni]}
+  hold_b: true
+  applies_when: {engine: [local_polynomial]}
+
 window_sensitivity:
   kind: sensitivity
   in_words: the local randomisation estimate in windows narrower and wider than the one the design used; the conclusion should not hinge on the window

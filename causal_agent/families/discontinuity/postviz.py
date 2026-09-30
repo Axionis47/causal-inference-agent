@@ -145,6 +145,32 @@ def covariate_continuity(per: dict[str, dict] | None, contrast: str, names: dict
     )
 
 
+def spec_sensitivity(poly: list[dict] | None, kernel: list[dict] | None, primary: dict | None, contrast: str) -> FigureSpec | None:
+    """The estimate under each polynomial order and each kernel at the design's window, beside the primary; the spec should matter little."""
+    pts = [p for p in (poly or []) + (kernel or []) if "value" in p]
+    if not pts:
+        return None
+    x: list[str | float] = [p["label"] for p in pts]
+    y: list[float | None] = [p["value"] for p in pts]
+    lo: list[float | None] = [p.get("lo") for p in pts]
+    hi: list[float | None] = [p.get("hi") for p in pts]
+    marks = [Mark(kind="hline", at=0.0, label="no effect")]
+    if primary and primary.get("value") is not None:
+        marks.append(Mark(kind="hline", at=float(primary["value"]), label="the design's estimate"))
+    return FigureSpec(
+        id=f"spec_sensitivity_{contrast}",
+        kind="interval",
+        title="The estimate across polynomial orders and kernels",
+        x_label="",
+        y_label="jump at the cutoff",
+        series=[Series(name="estimate", x=x, y=y, lo=lo, hi=hi, n=[int(p["n_l"] + p["n_r"]) for p in pts])],
+        marks=marks,
+        note="the order and the kernel should matter little at the design's window"
+        + ("; a point marked uninformative had too few rows" if any(not p.get("informative") for p in pts) else ""),
+        draws_on=[f"placebo:{contrast}.{name}.detail" for name, src in (("polynomial_grid", poly), ("kernel_grid", kernel)) if src],
+    )
+
+
 def bandwidth_curve(points: list[dict] | None, primary_h: float | None, contrast: str, *, name: str = "bandwidth_grid") -> FigureSpec | None:
     """The estimate at every width the falsification tried, with the one the design used marked; `name` is the placebo the
     points came from (the bandwidth grid, or the window sensitivity of a local randomisation design)."""

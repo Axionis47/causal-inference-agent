@@ -382,7 +382,14 @@ def test_uruguay_happy_path():
     assert abs(primary.value - (-0.025)) < 0.01 and primary.ci_low < 0 < primary.ci_high
     assert primary.n_control == 194 and primary.n_treated == 291
     assert {e.method for e in out["estimates"]} == {"local_linear", "local_quadratic", "local_linear_adjusted"}  # a sharp design has no first-stage fit
-    assert {x.refuter for x in out["refutations"]} == {"placebo_cutoffs", "bandwidth_grid", "donut"}
+    refs = {x.refuter: x for x in out["refutations"]}
+    assert set(refs) == {"placebo_cutoffs", "bandwidth_grid", "donut", "polynomial_grid", "kernel_grid"}
+    assert all(refs[n].kind == "falsification" and refs[n].passed is not None for n in ("placebo_cutoffs", "bandwidth_grid", "donut"))
+    for n in ("polynomial_grid", "kernel_grid"):  # a sensitivity: a range around the primary, no verdict
+        assert refs[n].kind == "sensitivity" and refs[n].passed is None and refs[n].range_low <= primary.value <= refs[n].range_high
+    assert "p = 1:" in refs["polynomial_grid"].detail and "p = 3:" in refs["polynomial_grid"].detail and "kernel epa:" in refs["kernel_grid"].detail
+    human = fake.humans_of("RDInterpretation")[0]
+    assert "[placebo:below_cutoff_vs_above_cutoff.kernel_grid.in_words] sensitivity:" in human and "(source: Foundations 4.2" in human
     assert len(out["interpretations"]) == 1 and not out.get("interpret_errors")
     assert out["interpretations"][0].estimand == "effect_at_cutoff"
     assert "DESIGN" in r["report"] and "ANSWER" in r["report"]
@@ -706,11 +713,21 @@ def test_catalogues_and_thresholds():
         f = adapter.fit(e.params, toy, fuzzy=bool(e.fuzzy is True), covs=None)
         assert f.error is None, (e.name, f.error)
     assert [i.name for i in load_inference()] == ["cluster_entity", "robust_bc"]
-    assert {p.name for p in load_placebos()} == {"placebo_cutoffs", "bandwidth_grid", "donut", "window_sensitivity", "rosenbaum_bounds"}
+    assert {p.name for p in load_placebos()} == {
+        "placebo_cutoffs",
+        "bandwidth_grid",
+        "donut",
+        "polynomial_grid",
+        "kernel_grid",
+        "window_sensitivity",
+        "rosenbaum_bounds",
+    }
     assert {p.name for p in load_placebos() if p.applies(engine="local_polynomial", kind="sharp", rule="mse", distinct_scores=100)} == {
         "placebo_cutoffs",
         "bandwidth_grid",
         "donut",
+        "polynomial_grid",
+        "kernel_grid",
     }
     assert {p.name for p in load_placebos() if p.applies(engine="local_randomisation", kind="sharp", rule="local_randomisation", distinct_scores=12)} == {
         "window_sensitivity",
@@ -956,7 +973,12 @@ def test_placebo_points_are_kept_for_the_figures():
     fake = FakeLLM(URUGUAY_SCORE, URUGUAY_RELATIONS, URUGUAY["cite"])
     out = _run(fake, handoff(**URUGUAY))
     pts = out["placebo_points"]
-    assert set(pts) == {"placebo_cutoffs", "bandwidth_grid", "donut"} and len(pts["bandwidth_grid"]) == 4
+    assert set(pts) == {"placebo_cutoffs", "bandwidth_grid", "donut", "polynomial_grid", "kernel_grid"} and len(pts["bandwidth_grid"]) == 4
+    assert [p["label"] for p in pts["polynomial_grid"]] == ["p = 1", "p = 2", "p = 3"] and [p["label"] for p in pts["kernel_grid"]] == [
+        "kernel tri",
+        "kernel epa",
+        "kernel uni",
+    ]
     grid = [p for p in pts["bandwidth_grid"] if "value" in p]
     assert grid and all(p["at"] > 0 and p["lo"] <= p["value"] <= p["hi"] for p in grid)
     import json
@@ -975,7 +997,11 @@ def test_the_run_leaves_the_jump_the_density_the_covariates_and_the_bandwidths_a
     assert r["status"] == "done", r.get("feasibility")
     c = out["design"].contrast.key
     figs = {f["id"]: f for f in json.loads((Path(r["run_dir"]) / "figures.json").read_text())}
-    assert list(figs) == [f"rd_plot_{c}", f"density_{c}", f"continuity_{c}", f"bandwidths_{c}", f"placebo_cutoffs_{c}", f"effect_{c}"]
+    assert list(figs) == [f"rd_plot_{c}", f"density_{c}", f"continuity_{c}", f"bandwidths_{c}", f"spec_sensitivity_{c}", f"placebo_cutoffs_{c}", f"effect_{c}"]
+    spec = figs[f"spec_sensitivity_{c}"]
+    assert (
+        spec["series"][0]["x"] == ["p = 1", "p = 2", "p = 3", "kernel tri", "kernel epa", "kernel uni"] and spec["marks"][1]["label"] == "the design's estimate"
+    )
     plot = figs[f"rd_plot_{c}"]
     assert [s["name"] for s in plot["series"]] == ["binned means", "fit, control side", "fit, treated side"] and plot["marks"][0]["label"] == "the cutoff"
     jump = plot["series"][2]["y"][0] - plot["series"][1]["y"][-1]
@@ -1343,3 +1369,27 @@ def test_local_randomisation_without_a_covariate_falls_back_to_the_support_point
     w = out["ladder"].window
     assert w.selector == "support_points" and w.rule == "local_randomisation" and "no predetermined covariate" in w.why and w.h_left == 3.5 == w.h_right
     assert out["design"].estimator == "local_randomisation" and next(e for e in out["estimates"] if e.method == "local_randomisation").error is None
+
+
+def test_no_yaml_key_is_dead():
+    """Every key of every catalogue entry is a field of its model, and every field the model declares is read somewhere in the
+    lane's code: a yaml line nobody reads is a promise the design does not keep."""
+    import yaml
+
+    from causal_agent.families.discontinuity.lane.knowledge import EstimatorEntry, PlaceboEntry
+
+    here = Path(__file__).resolve().parents[1] / "lane"
+    harness = Path(__file__).resolve().parents[3] / "lane" / "knowledge.py"  # the shared loader reads rank and prefer_over
+    code = (
+        "".join((here / f).read_text() for f in ("nodes.py", "checks.py", "adapter.py"))
+        + (here / "knowledge" / "__init__.py").read_text()
+        + harness.read_text()
+    )
+    for file, model in (("estimators.yaml", EstimatorEntry), ("placebos.yaml", PlaceboEntry)):
+        raw = yaml.safe_load((here / "knowledge" / file).read_text())
+        fields = set(model.model_fields) - {"name"}
+        for name, entry in raw.items():
+            extra = set(entry) - fields
+            assert not extra, f"{file}: {name} has keys no field reads: {sorted(extra)}"
+        for field in fields:
+            assert f".{field}" in code, f"{file}: the field {field!r} is declared on {model.__name__} but nothing in the lane reads it"

@@ -178,7 +178,7 @@ an analyst reads a cutoff design.
 | its evidence rungs, by code | | density, balance |
 | the canonical shape code builds | `y, unit, time, treated, post, treat, rel_time, cohort` from a long or a wide table | `y, x, side, row` with the score recentred on the cutoff and the treated side positive |
 | what the yaml declares | formulas over the canonical names, the inference rule, the placebos, the thresholds | the local polynomial specs, the inference rule, the placebo cutoffs and bandwidth grid, the thresholds |
-| falsifications | placebo group, placebo timing | placebo cutoffs, the bandwidth grid, donuts; for local randomisation the window sensitivity and Rosenbaum bounds |
+| falsifications | placebo group, placebo timing | placebo cutoffs, the bandwidth grid, donuts, and as sensitivities the polynomial order and the kernel; for local randomisation the window sensitivity and Rosenbaum bounds |
 
 Each is one package: `family.yaml`, `design.py`, `handoff.py`, `probes.py`, `postviz.py`, `lane/`, `evals/`, `tests/`, and one
 line in [families/registry.py](../causal_agent/families/registry.py). The core never names a family;

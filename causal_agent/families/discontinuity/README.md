@@ -47,7 +47,10 @@ it does not, with the data tools and the budgets `knowledge/checks.yaml` declare
 - **Validation.** `lane/checks.py` computes the pre-estimate facts: rows and effective rows a side, the density flag (read off the rung;
   the score's recorded orientation), mass points, support, compliance and the first stage, and continuity of every predetermined
   covariate at the cutoff. `knowledge/placebos.yaml` declares what runs after the estimate: placebo cutoffs on each side's own rows,
-  the bandwidth grid, donuts. Each reports its effective rows and counts as uninformative below the declared floor.
+  the bandwidth grid, donuts, and two sensitivities with a range and no verdict, the polynomial order and the kernel at the
+  design's window. Each reports its effective rows and counts as uninformative below the declared floor. A placebo entry applies by
+  facts of the frozen design (the engine, the kind, the window rule), and every field it declares is read by code: a test greps
+  for it, so no yaml line is a promise the lane does not keep.
 - **The plot.** `rdplot`'s bins are written to `bins.csv`; `postviz.py` draws the outcome against the score from them.
 
 ## The rule every node follows
