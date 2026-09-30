@@ -21,16 +21,17 @@ def absorb_relations(memory: Memory, result: dict, h: Handoff, cat: Catalogue | 
     """The run's reading as drafts: for every column in the pack that the graph placed, `feeds_treatment` (an edge into the
     treatment) and `moves_outcome` (an edge into the outcome); for a column excluded as a measure of the outcome,
     `measures_outcome`; and from the roles rung, `same_as`, `nested_in`, `stands_for` where it named them and `may_modify` for
-    every column it placed. Returns the addresses written; a result without a graph writes nothing."""
+    every column it placed. Returns the addresses written; a result with neither a graph nor relations writes nothing."""
     design = result.get("design") if isinstance(result, dict) else None
     graph = design.get("graph") if isinstance(design, dict) else None
-    if not isinstance(graph, dict):
+    graph = graph if isinstance(graph, dict) else {}
+    roles = {r.get("column"): r for r in ((result.get("relations") if isinstance(result, dict) else None) or []) if isinstance(r, dict)}
+    if not graph and not roles:
         return []
     t, y = graph.get("treatment"), graph.get("outcome")
     nodes = [str(n) for n in graph.get("nodes") or []]
     edges = [e for e in graph.get("edges") or [] if isinstance(e, dict)]
     excluded = {x.get("column"): str(x.get("why") or "") for x in graph.get("excluded") or [] if isinstance(x, dict)}
-    roles = {r.get("column"): r for r in (result.get("relations") or []) if isinstance(r, dict)}
     updates: list[ops.Update] = []
     for b in h.columns:
         if b.role in ("outcome", "treatment") or b.key in (t, y):

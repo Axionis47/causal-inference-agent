@@ -30,3 +30,17 @@ in_words:
   parallel_untestable: "whether there is more than one period before the change to see if the groups moved together"
   pre_trends: "whether the two groups were already moving apart before the change"
   staggered: "whether units got the change at different times"
+
+# How many tool calls each reasoning episode may make before it must answer. The leash, declared.
+episode_budget:
+  groups: 2
+  periods: 2
+  comparison: 6
+  controls: 8
+  heterogeneity: 4
+
+# How many modifiers the heterogeneity rung may name; the effect is estimated within each level of each, a unit trait.
+modifiers:
+  max: 3
+  max_levels: 4
+  min_units_per_group: 2   # a level with fewer treated or control units than this is recorded as too thin, not estimated

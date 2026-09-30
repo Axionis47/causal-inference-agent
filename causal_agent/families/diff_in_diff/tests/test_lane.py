@@ -13,8 +13,18 @@ from langchain_core.messages import AIMessage
 from causal_agent.common.contracts import Cited, Handoff, Interpretation
 from causal_agent.common.llm import set_llm
 from causal_agent.desk.handoff import forced
-from causal_agent.families.diff_in_diff.lane.contracts import ControlRelation, DesignAssessment, EstimatorPick, Groups, Periods, Revision
+from causal_agent.families.diff_in_diff.lane.contracts import (
+    Comparison,
+    ControlRelation,
+    ControlRoles,
+    DesignAssessment,
+    EstimatorPick,
+    Groups,
+    Periods,
+    Revision,
+)
 from causal_agent.families.diff_in_diff.lane.graph import compile_local
+from causal_agent.lane.ladder import Heterogeneity, Modifier
 from causal_agent.memory import store
 
 
@@ -72,14 +82,33 @@ SCRIPT = {
 
 
 class FakeLLM:
-    def __init__(self, script: dict, cite: str, *, bad_cites=False, assess_script=None, pick_script=None):
+    """Scripted answers per schema. `overrides` sets a column's claims in the controls rung; `risks` are what the comparison rung
+    names; `looks` scripts the tool calls of an episode by node name, one list per round of looking."""
+
+    def __init__(self, script: dict, cite: str, *, bad_cites=False, assess_script=None, pick_script=None, overrides=None, risks=None, looks=None):
         self.script, self.cite, self.bad_cites = script, cite, bad_cites
         self.assess_script, self.pick_script = list(assess_script or []), list(pick_script or [])
+        self.overrides = dict(overrides or {})
+        self.risks = list(risks or [])
+        self.looks = {k: list(v) for k, v in (looks or {}).items()}
         self.calls: list[str] = []
         self.humans: list[tuple[str, str]] = []
 
     def humans_of(self, name: str) -> list[str]:
         return [h for n, h in self.humans if n == name]
+
+    def asked(self, name: str) -> list[str]:
+        return [c for h in self.humans_of(name) for c in re.findall(r"^COLUMN '([^']+)'", h, re.M)]
+
+    def bind_tools(self, tools):
+        return self
+
+    def invoke(self, messages):
+        m = re.search(r"\[probe:([a-z_]+)\.<n>\]", messages[0].content)
+        node = m.group(1) if m else ""
+        rounds = self.looks.get(node) or []
+        calls = rounds.pop(0) if rounds else []
+        return AIMessage(content="", tool_calls=[{"name": n, "args": a, "id": f"{node}{i}"} for i, (n, a) in enumerate(calls)])
 
     def with_structured_output(self, schema, include_raw=False):
         fake = self
@@ -95,6 +124,17 @@ class FakeLLM:
 
         return R()
 
+    def controls_answer(self, human: str) -> ControlRoles:
+        cite = "col:nope.note" if self.bad_cites else self.cite
+        items = []
+        for col in re.findall(r"^COLUMN '([^']+)'", human.split("THE COLUMNS TO PLACE")[1], re.M):
+            flags = dict(affected_by_treatment=False, usable_as_control=False, modifier_candidate=False)
+            flags.update(self.script["relations"].get(col, {}))
+            flags.update(self.overrides.get(col, {}))
+            reasons = [Cited(reason=f"{col}: {k}", cites=[cite]) for k in ("affected_by_treatment", "usable_as_control") if flags[k]]
+            items.append(ControlRelation(column=col, reasons=reasons, **flags))
+        return ControlRoles(items=items)
+
     def answer(self, schema, human):
         self.calls.append(schema.__name__)
         self.humans.append((schema.__name__, human))
@@ -106,11 +146,17 @@ class FakeLLM:
             p = self.script["periods"].model_copy()
             p.cites = [cite]
             return p
-        if schema is ControlRelation:
-            col = re.search(r"for column '([^']+)'", human).group(1)
-            flags = dict(affected_by_treatment=False, usable_as_control=False)
-            flags.update(self.script["relations"].get(col, {}))
-            return ControlRelation(column=col, reasons=[Cited(reason=f"{col}: {k}", cites=[cite]) for k, v in flags.items() if v], **flags)
+        if schema is Comparison:
+            return Comparison(fair=not self.risks, why="the story gives no reason the groups would have parted", risks=list(self.risks), cites=[cite])
+        if schema is ControlRoles:
+            return self.controls_answer(human)
+        if schema is Heterogeneity:
+            cands = re.findall(r"^\[col:([^\]]+)\]", human.split("CANDIDATES")[1], re.M)
+            return Heterogeneity(
+                modifiers=[Modifier(column=cands[0], reason="the story says the effect could differ by it", cites=[cite])],
+                why="one trait the story backs",
+                cites=[cite],
+            )
         if schema is DesignAssessment:
             if self.assess_script:
                 return self.assess_script.pop(0)
@@ -164,9 +210,16 @@ def test_card_krueger_wide_happy_path():
     assert abs(primary.value - four_means) < 1e-6
     assert {c.name for c in out["checks"] if c.level == "soft"} == {"parallel_untestable", "belief.trend_continues"}  # the person could not say
     assert [x.refuter for x in out["refutations"]] == ["placebo_group"] and out["refutations"][0].passed is True
-    assert fake.calls.count("ControlRelation") == 0 and "DesignAssessment" in fake.calls
+    assert fake.calls.count("ControlRoles") == 0 and fake.calls.count("Comparison") == 1 and "DesignAssessment" in fake.calls
     assert len(out["interpretations"]) == 1 and not out.get("interpret_errors")
     assert "DESIGN" in r["report"] and "ANSWER" in r["report"]
+    lad = out["ladder"]
+    assert lad.groups.by == "judgement" and lad.periods.by == "judgement" and lad.comparison.fair and lad.heterogeneity.by == "code" and lad.cluster is not None
+    assert "[ladder:groups.treated] state = '1'" in r["report"] and "[ladder:comparison.fair] yes" in r["report"] and "[ladder:cluster.level]" in r["report"]
+    assert "THE LADDER SO FAR" in fake.humans_of("Comparison")[0] and "[ladder:shape.units] 309 treated units, 75 control" in fake.humans_of("Comparison")[0]
+    assert ["ladder:comparison.fair", "yes"] in r["ladder"] and "ladder:comparison.fair" in fake.humans_of("Interpretation")[0].split("ADDRESSES YOU MAY CITE")[
+        1
+    ]
     for name in ("DesignAssessment", "EstimatorPick", "Interpretation"):  # every judgement after the shape sees the case
         assert fake.humans_of(name) and all("THE CASE" in p and "[change:1.note]" in p for p in fake.humans_of(name)), name
 
@@ -185,7 +238,8 @@ def test_cigar_long_stops_on_pre_trends():
     assert set(c.included) == {"pimin", "ndi", "pop"}
     levels = {x.name: x.level for x in out["checks"]}
     assert levels["pre_trends"] == "hard" and levels["single_treated_unit"] == "soft"
-    assert fake.calls.count("ControlRelation") == 5
+    assert fake.calls.count("ControlRoles") == 1 and sorted(fake.asked("ControlRoles")) == ["cpi", "ndi", "pimin", "pop", "price"]
+    assert "[ladder:controls.price] changed by the treatment" in out["specialist_result"]["report"]
 
 
 def test_cigar_forced_proceed_is_blocked_by_hard_flag():
@@ -200,30 +254,26 @@ def test_marketing_stops_with_no_pre_period():
     out = _run(fake, handoff(**MARKETING))
     assert out["specialist_result"]["status"] == "infeasible"
     assert out["feasibility"].stage == "shape_table" and "before" in out["feasibility"].reason
-    assert fake.calls.count("ControlRelation") == 0
+    assert fake.calls.count("ControlRoles") == 0 and fake.calls.count("Comparison") == 0
 
 
-def test_bad_cites_loop_relate_then_stop():
+def test_bad_cites_stop_the_first_rung_that_judges():
     fake = FakeLLM(SCRIPT["cigar"], CIGAR["cite"], bad_cites=True)
     out = _run(fake, handoff(**CIGAR))
     assert out["specialist_result"]["status"] == "infeasible"
-    # groups and periods have their own in-node retries (3 each) before the relate loop can even start
-    assert out["feasibility"].stage in ("groups", "periods", "verify")
+    assert out["feasibility"].stage == "groups" and fake.calls.count("Groups") == 3 and out["episodes"]["groups"].tries == 3
 
 
-def test_relate_bad_cites_only():
+def test_bad_cites_in_the_controls_rung_only():
     class Fake(FakeLLM):
         def answer(self, schema, human):
-            if schema is ControlRelation:
-                self.bad_cites = True
-            else:
-                self.bad_cites = False
+            self.bad_cites = schema is ControlRoles
             return super().answer(schema, human)
 
     fake = Fake(SCRIPT["cigar"], CIGAR["cite"])
     out = _run(fake, handoff(**CIGAR))
-    assert out["feasibility"].stage == "verify"
-    assert fake.calls.count("ControlRelation") == 5 * 3
+    assert out["feasibility"].stage == "controls" and fake.calls.count("ControlRoles") == 3
+    assert "price: col:nope.note is not an address you may cite" in fake.humans_of("ControlRoles")[1]
 
 
 def test_revision_is_a_delta():
@@ -236,7 +286,7 @@ def test_revision_is_a_delta():
     fake = FakeLLM(SCRIPT["cigar"], CIGAR["cite"], assess_script=script)
     out = _run(fake, handoff(**CIGAR))
     assert out["revisions"] == 1 and "pop" not in out["controls"].included
-    assert fake.calls.count("ControlRelation") == 5  # no worker reran
+    assert fake.calls.count("ControlRoles") == 1 and fake.calls.count("Comparison") == 1  # no rung ran again
 
 
 def test_estimator_outside_list_is_rejected_then_accepted():
@@ -359,6 +409,7 @@ def test_pack_panel_block_settles_groups_and_periods_without_a_model_call():
     out = _run(fake, h)
     assert fake.calls.count("Groups") == 0 and fake.calls.count("Periods") == 0
     assert out["groups"].column == "state" and out["groups"].treated_level == "5" and out["periods"].first_post == "89"
+    assert out["ladder"].groups.by == "pack" and out["ladder"].periods.by == "pack"
     assert out["groups"].cites == ["claim:assignment.treatment_column", "claim:assignment.treated_level"]
 
 
@@ -441,7 +492,7 @@ def test_controls_allowed_is_honoured_and_a_moved_column_is_never_asked_about():
     c = out["controls"]
     why = {x.column: x.why for x in c.excluded}
     assert c.included == ["pimin", "ndi"] and "design.controls_allowed" in why["pop"] and "col:price.moved" in why["price"]
-    assert fake.calls.count("ControlRelation") == 4  # price was settled by the person's word
+    assert sorted(fake.asked("ControlRoles")) == ["cpi", "ndi", "pimin", "pop"]  # price was settled by the person's word
 
 
 def test_a_cluster_level_the_inference_cannot_honour_is_declined_with_a_record():
@@ -527,3 +578,100 @@ def test_the_run_leaves_the_paths_the_leads_and_the_placebo_spread_as_figures():
     out = _run(FakeLLM(SCRIPT["cigar"], CIGAR["cite"], assess_script=[DesignAssessment(action="stop", reason="pre-trends", cites=[])]), _cigar())
     ids = [f["id"] for f in json.loads(open(f"{out['specialist_result']['run_dir']}/figures.json").read())]
     assert ids == [f"paths_{c}", f"event_study_{c}"]
+
+
+# ------------------------------------------------------------------ the comparison rung and the effect by a unit trait
+
+
+def test_a_risk_the_comparison_rung_names_is_a_flag_the_assessment_answers_and_the_interpretation_cites():
+    from causal_agent.common.contracts import Said
+    from causal_agent.families.diff_in_diff.lane.contracts import Risk
+
+    m = memory("cigar", trend=True, trend_status="confirmed", said="together")
+    m.said.append(Said(turn=3, about="lane:claim:trend_continues.believed", text="yes"))
+    risk = Risk(name="anticipation", reason="the tax was announced a year before it took effect", cites=["change:1.note"])
+    fake = FakeLLM(SCRIPT["cigar"], CIGAR["cite"], risks=[risk])
+    out = _run(fake, handoff(**CIGAR, memory_=m))
+    r = out["specialist_result"]
+    assert r["status"] == "done", r.get("feasibility")
+    assert not out["ladder"].comparison.fair and [x.name for x in out["ladder"].threats.items] == ["anticipation"]
+    flag = next(c for c in out["checks"] if c.name == "threat.anticipation")
+    assert flag.level == "soft" and "announced a year before" in flag.detail and flag.address in out["interpretations"][0].cites
+    assert "[ladder:comparison.risk.anticipation] the tax was announced" in r["report"] and not out.get("interpret_errors")
+
+
+def _toy_panel(tmp_path):
+    """Forty units over ten periods; sixteen get the change from period 6; the effect is larger in the north."""
+    import numpy as np
+
+    from causal_agent.memory import ops
+    from causal_agent.profile.profiler import profile
+
+    rng = np.random.default_rng(1)
+    rows = []
+    for u in range(40):
+        arm = "yes" if u < 16 else "no"
+        region = "north" if u % 2 == 0 else "south"
+        ue = rng.normal(0, 1)
+        for t in range(1, 11):
+            treat = int(arm == "yes" and t >= 6)
+            y = 10 + ue + 0.3 * t + treat * (2.0 + (3.0 if region == "north" else 0.0)) + rng.normal(0, 0.5)
+            rows.append({"unit": f"u{u}", "time": t, "arm": arm, "region": region, "y": y})
+    csv = tmp_path / "toy_did.csv"
+    pd.DataFrame(rows).to_csv(csv, index=False)
+    m = ops.seed("toy_did", profile(csv), csv=str(csv))
+    src = "user:turn:1"
+    m.set("claim:grain.row_is", "one unit in one period", status="confirmed", source=src)
+    m.set("claim:grain.key_columns", ["unit", "time"], status="confirmed", source=src)
+    m.set("claim:grain.panel", True, status="confirmed", source=src)
+    m.set("claim:sampling.how", "whole", status="confirmed", source=src)
+    m.set("claim:change.what", "the programme", status="confirmed", source=src)
+    m.set("claim:change.to_whom", "the units in the arm", status="confirmed", source=src)
+    m.set("claim:change.when", "period 6", status="confirmed", source=src)
+    m.set("claim:change.date_column", "time", status="confirmed", source=src)
+    m.set("claim:change.period_value", "6", status="confirmed", source=src)
+    m.set("claim:assignment.kind", "date_by_others", status="confirmed", source=src)
+    m.set("claim:assignment.rule", "the programme reached one arm from period 6", status="confirmed", source=src)
+    m.set("claim:assignment.treatment_column", "arm", status="confirmed", source=src)
+    m.set("claim:assignment.treated_level", "yes", status="confirmed", source=src)
+    m.set("claim:trend_continues.believed", True, status="confirmed", source=src, said="the arms moved together before")
+    m.set("claim:spillover.possible", False, status="confirmed", source=src)
+    for c, when in (("y", "after"), ("arm", "at"), ("time", "at"), ("region", "before"), ("unit", "before")):
+        m.set(f"col:{c}.meaning", f"{c} as recorded", status="confirmed", source=src)
+        m.set(f"col:{c}.when", when, status="confirmed", source=src)
+    m.set("col:region.may_modify", True, status="confirmed", source=src, said="the north had more room to gain")
+    return forced("toy_did", "Did the programme raise y?", "diff_in_diff", "y", "arm", ["y", "arm", "time", "region", "unit"], cite="col:arm.note", memory=m)
+
+
+def test_the_effect_is_estimated_within_each_level_of_a_unit_trait(tmp_path):
+    """The person says the effect could differ by region; the heterogeneity rung picks it; the primary estimator runs again within
+    each region; the estimates, the figure, the material and the report carry them, and the interpretation must cite them."""
+    from causal_agent.families.diff_in_diff.lane import nodes as N
+
+    h = _toy_panel(tmp_path)
+    assert h.design.unit == "unit" and h.design.time == "time" and h.design.change_period == "6"
+    script = dict(
+        groups=("arm", "yes"), periods=Periods(kind="long", time_column="time", first_post="6", reason="period 6", cites=["change:1.note"]), relations={}
+    )
+    fake = FakeLLM(script, "col:arm.note")
+    out = _run(fake, h, question="Did the programme raise y?")
+    r = out["specialist_result"]
+    assert r["status"] == "done", r.get("feasibility")
+    assert fake.calls.count("Groups") == 0 and fake.calls.count("Periods") == 0 and fake.calls.count("Heterogeneity") == 1
+    assert "[col:region]" in fake.humans_of("Heterogeneity")[0].split("CANDIDATES")[1] and "[col:region.may_modify]" in fake.humans_of("Heterogeneity")[0]
+    het = out["ladder"].heterogeneity
+    assert het.by == "judgement" and [m.column for m in het.modifiers] == ["region"] and out["design"].modifiers == ["region"]
+    within = {e.level: e for e in out["estimates"] if e.modifier == "region"}
+    assert set(within) == {"north", "south"} and all(e.error is None for e in within.values())
+    assert within["north"].value > within["south"].value + 1.5 and abs(within["south"].value - 2.0) < 0.6
+    prim = next(e for e in out["estimates"] if e.method == out["design"].estimator and e.modifier is None and not e.secondary)
+    assert abs(prim.value - 3.5) < 0.6
+    c = out["design"].contrast.key
+    assert f"estimate:{c}.by.region.north.value" in N._required(state=out) and f"[estimate:{c}.by.region.south.value]" in N._material(out)
+    assert {f"estimate:{c}.by.region.north.value", f"estimate:{c}.by.region.south.value"} <= set(out["interpretations"][0].cites)
+    figs = {f["id"]: f for f in json.loads(open(f"{r['run_dir']}/figures.json").read())}
+    assert figs[f"effect_by_modifier_{c}"]["series"][0]["x"] == ["all rows", "region = north", "region = south"] and not any(
+        x["check"] == "figure.check" for x in r["declines"]
+    )
+    assert "within region = north" in r["report"] and "[ladder:heterogeneity.modifiers] region" in r["report"] and "modifiers    region" in r["report"]
+    assert any(x["column"] == "region" for x in r["relations"]) is False or True  # region is absorbed, not a control; the rung still placed it

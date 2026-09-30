@@ -13,18 +13,17 @@ from typing_extensions import TypedDict
 
 from causal_agent.common.contracts import Contrast, Estimate, Interpretation, Refutation
 from causal_agent.families.diff_in_diff.lane.contracts import (
-    ControlRelation,
     Controls,
     Design,
     DesignAssessment,
     EstimatorPick,
     Groups,
+    Ladder,
     Periods,
     Revision,
     ShapeFacts,
 )
 from causal_agent.lane.state import LaneState, by_key, merge_dicts
-from causal_agent.lane.state import RelateTask as RelateTask
 
 
 class SpecialistState(LaneState, total=False):
@@ -37,9 +36,7 @@ class SpecialistState(LaneState, total=False):
     periods: Periods | None
     contrast: Contrast | None
     shape: ShapeFacts | None
-    relations: Annotated[list[ControlRelation], operator.add]
-    relate_errors: dict[str, list[str]]
-    relate_attempts: int
+    ladder: Ladder | None  # the rungs climbed so far
     controls: Controls | None
     applied_revisions: list[Revision]
     revisions: int
@@ -49,7 +46,7 @@ class SpecialistState(LaneState, total=False):
     excluded_estimators: list[str]
     pick_attempts: int
     design: Design | None
-    estimates: Annotated[list[Estimate], by_key(lambda e: (e.contrast, e.method))]
+    estimates: Annotated[list[Estimate], by_key(lambda e: (e.contrast, e.method, e.modifier, e.level))]
     refutations: Annotated[list[Refutation], by_key(lambda r: (r.contrast, r.refuter))]
     dynamic: dict  # rel_time -> (value, lo, hi) when the dynamic model ran
     placebo_draws: Annotated[dict, merge_dicts]  # placebo name -> every placebo effect, so the spread can be drawn

@@ -5,12 +5,17 @@ lane a pack; the lane builds a canonical panel, freezes a design, fits it on pyf
 honest stop.
 
 ```
-load ─ case ─ groups ─ periods ─ shape_table ─(relate × N)─ merge_controls ─ verify ─ check_design
-     ─(assess, only when flagged)─ pick_estimator ─ freeze_design ─ estimate ─(placebo × K)─ interpret ─ figures ─ assemble
+load ─ case ─ groups ─ periods ─ shape_table ─ comparison ─ controls ─ merge_controls ─ verify ─ heterogeneity ─ threats
+     ─ check_design ─(assess, only when flagged)─ pick_estimator ─ freeze_design ─ estimate ─(placebo × K)─ interpret
+     ─ figures ─ assemble
 any typed stop, or a question back to the desk ─────────────────────────────▶ feasibility ─ figures ─ assemble
 ```
 
-N is the columns the pack leaves open other than the group, time and outcome columns; K the placebos the catalogue declares.
+K is the placebos the catalogue declares. `groups`, `periods`, `shape_table`, `comparison`, `controls`, `heterogeneity` and
+`threats` are the rungs of the ladder (`lane/contracts.py`, `Ladder`), and `freeze_design` adds the clustering rung by code: who
+got the change, the clock, the shape of the panel, whether the comparison group is a fair stand-in and what could break it, the
+candidate controls placed together, where the effect could differ, the risks, where the errors cluster. A rung is code where the
+pack settles it and a bounded episode where it does not, with the data tools and the budgets `knowledge/checks.yaml` declares.
 
 ## How it sits on pyfixest
 
@@ -31,9 +36,11 @@ panel: the treated label reassigned across units, or a fake change in the middle
 
 ## The rule every node follows
 
-- **Facts**: `load`, `case`, `shape_table`, `merge_controls`, `verify`, `check_design`, `freeze_design`, `estimate`, `placebo`,
-  `figures`, `assemble`. Declared inputs; a failed assumption is a typed stop.
-- **Judgements**, one model call each, cited and gated: `groups`, `periods`, `relate`, `assess`, `pick_estimator`, `interpret`.
+- **Facts**: `load`, `case`, `shape_table`, `merge_controls`, `verify`, `threats`, `check_design`, `freeze_design`, `estimate`,
+  `placebo`, `figures`, `assemble`. Declared inputs; a failed assumption is a typed stop.
+- **Judgements**, bounded episodes or single calls, cited and gated: `groups`, `periods`, `comparison`, `controls`,
+  `heterogeneity` (episodes, each only for what the pack leaves open), `assess`, `pick_estimator`, `interpret`. A rung never asks
+  the person beyond the first period; what it would not guess is a flag.
 - **The pack is weighed first** by the harness's `case`; the person's beliefs become flags by `knowledge/beliefs.yaml`.
 - **Design freeze** before any estimate; loops only on failure facts.
 - **The model never touches pyfixest.** `lane/adapter.py` is the only file that imports it.

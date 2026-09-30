@@ -1,4 +1,5 @@
-"""Prompts for the six judgements. Method-free and column-free: everything specific arrives as data."""
+"""Prompts for the lane's judgements: who got the change, the clock, the comparison, the controls, where the effect could differ,
+the assessment, the pick and the interpretation. Method-free and column-free: everything specific arrives as data."""
 
 from causal_agent.lane.prompts import INTERPRET_CASE, PICK_CASE, PLAIN_WORDS, cite_rule
 from causal_agent.lane.prompts import INTERPRET_USER as INTERPRET_USER  # the lane's nodes read these here
@@ -6,10 +7,16 @@ from causal_agent.lane.prompts import PICK_USER as PICK_USER
 
 CITE_RULE = cite_rule("col:state.note", "check:1_vs_0.pre_trends")
 
+TOOLS_NOTE = (
+    "You may look at the data first with the tools offered: describe a column, see it by group, the association or the redundancy "
+    "of two columns, the timing. A result comes back with an address you cite like any other. "
+)
+
+
 GROUPS_SYSTEM = (
     "You are naming who got a change, for a before-and-after comparison between those who got it and those "
     "who did not. The treatment column's card, the change card, and the observed levels are given. Name the column "
-    "and the exact level that means the unit got the change. Every other level is the comparison group. " + CITE_RULE
+    "and the exact level that means the unit got the change. Every other level is the comparison group. " + TOOLS_NOTE + CITE_RULE
 )
 
 GROUPS_USER = """QUESTION
@@ -40,7 +47,7 @@ PERIODS_SYSTEM = (
     "value at or after the change exactly as it appears in the data, and a window if the question implies one.\n"
     "  wide: each row holds the outcome measured before the change in one column and after it in another. Name both.\n"
     "If the notes say there is no observation before the change, say so in the reason and still give your best "
-    "reading; the harness will check the data. " + CITE_RULE
+    "reading; the harness will check the data. " + TOOLS_NOTE + CITE_RULE
 )
 
 PERIODS_USER = """QUESTION
@@ -61,27 +68,75 @@ COLUMNS THAT COULD CARRY TIME OR A REPEATED MEASURE
 Decide the shape and name the columns.
 """
 
-RELATE_SYSTEM = (
-    "You are judging one column as a possible control in a before-and-after comparison between a treated group and "
-    "a comparison group. Two yes/no questions, from what the cards state:\n"
-    "  affected_by_treatment: the column's value could have been changed by the treatment, so adjusting for it would "
-    "remove part of the effect. A price that includes a tax the treatment raised is the classic case.\n"
-    "  usable_as_control: the column moves over time within a unit, predates the outcome, and could drive the outcome "
-    "differently for the two groups over time. A column fixed per unit is absorbed by the unit effects and is not a control; "
-    "a column identical for every unit in a period is absorbed by the period effects and is not a control either.\n"
-    "Give one reason per claim you mark true, each with a citation. " + CITE_RULE
+COMPARISON_SYSTEM = (
+    "You are judging whether the comparison group is a fair stand-in for the treated group without the change, for a "
+    "before-and-after comparison. From the story, the cards and the facts, say whether the groups would have moved together apart "
+    "from the change, and name every risk the story raises:\n"
+    "  anticipation: units acted before the change because they saw it coming.\n"
+    "  spillover: units that got the change could reach the outcomes of the comparison units.\n"
+    "  composition: who is in each group changed over the window.\n"
+    "  other_shock: something else hit one group and not the other at the same time.\n"
+    "  group_choice: the treated group was chosen for where its outcome was heading.\n"
+    "Name a risk only when the story or a fact gives a reason, and cite it. Never reason from the outcome by group; that tool is "
+    "refused, and the test of the paths before the change is run by code afterwards. " + TOOLS_NOTE + CITE_RULE
 )
 
-RELATE_USER = """QUESTION
+COMPARISON_USER = """QUESTION
 {question}
 
-THE COMPARISON
+THE CASE
 {frame}
 
-THE COLUMN TO JUDGE
-{card}
-{settled}{errors}
-Answer the two questions for column {column!r}.
+THE GROUPS
+{groups}
+{errors}
+Judge the comparison and name the risks.
+"""
+
+CONTROLS_SYSTEM = (
+    "You are placing every candidate control, all of them together, for a before-and-after comparison between a treated group and "
+    "a comparison group. For each column listed give:\n"
+    "  affected_by_treatment: the column's value could have been changed by the treatment, so adjusting for it would remove part "
+    "of the effect. A price that includes a tax the treatment raised is the classic case.\n"
+    "  usable_as_control: the column moves over time within a unit, predates the outcome, and could drive the outcome differently "
+    "for the two groups over time. A column fixed per unit is absorbed by the unit effects and is not a control; a column identical "
+    "for every unit in a period is absorbed by the period effects and is not a control either.\n"
+    "  modifier_candidate: a trait of the unit, fixed over time, that the effect could plausibly differ by, per the story.\n"
+    "Read the columns against each other: two that measure one thing only show when read together. When a block SETTLED BY THE "
+    "PACK gives a claim, the person has already said it: copy that answer and cite the address shown. Give one reason per claim you "
+    "mark true, each with a citation. Return every listed column once. " + TOOLS_NOTE + CITE_RULE
+)
+
+CONTROLS_USER = """QUESTION
+{question}
+
+THE CASE
+{frame}
+
+THE COLUMNS TO PLACE ({count})
+{columns}
+{errors}
+Place every column listed, together.
+"""
+
+HETEROGENEITY_SYSTEM = (
+    "You choose where the effect of a change could differ, for a before-and-after design that is fixed. You see the candidate "
+    "columns the controls rung, or the person, marked as unit traits the effect could plausibly differ by. Pick at most "
+    "{max_modifiers} by name from the candidates, the ones the story gives a reason for, and say why. A modifier is chosen for a "
+    "reason in the story, never because of anything about the outcome; the outcome by group is refused to you. Pick none when the "
+    "story gives no reason. " + TOOLS_NOTE + CITE_RULE
+)
+
+HETEROGENEITY_USER = """QUESTION
+{question}
+
+THE CASE
+{frame}
+
+CANDIDATES (unit traits fixed over time; pick among these only)
+{candidates}
+{errors}
+Choose the modifiers, at most {max_modifiers}.
 """
 
 ASSESS_SYSTEM = (

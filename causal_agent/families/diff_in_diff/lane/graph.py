@@ -1,11 +1,13 @@
-"""The diff-in-diff subgraph on pyfixest. Nodes are constant; workers scale with columns and placebos.
+"""The diff-in-diff subgraph on pyfixest. Nodes are constant; workers scale with placebos.
 
-    load ─ case ─ groups ─ periods ─ shape_table ─(relate × N)─ merge_controls ─ verify ─ check_design
-         ─(assess, only when flagged)─ pick_estimator ─ freeze_design ─ estimate ─(placebo × K)─ interpret ─ figures ─ assemble
+    load ─ case ─ groups ─ periods ─ shape_table ─ comparison ─ controls ─ merge_controls ─ verify ─ heterogeneity ─ threats
+         ─ check_design ─(assess, only when flagged)─ pick_estimator ─ freeze_design ─ estimate ─(placebo × K)─ interpret
+         ─ figures ─ assemble
     any typed stop, or an ask back ───────────────────────────────────────────▶ feasibility ─ figures ─ assemble
 
-verify reruns only the relate workers it rejected (3 tries). assess may send a control delta back to
-merge_controls (3 times). estimate may re-pick once on a fit failure. Nothing loops after an estimate exists.
+groups, periods, comparison, controls and heterogeneity are the rungs of the ladder: code where the pack settles the rung,
+a bounded episode where it does not, each gated up to three tries inside the episode. assess may send a control delta back
+to merge_controls (3 times). estimate may re-pick once on a fit failure. Nothing loops after an estimate exists.
 """
 
 from __future__ import annotations
@@ -25,9 +27,12 @@ def build() -> StateGraph:
     b.add_node("groups", N.groups, retry_policy=_retry)
     b.add_node("periods", N.periods, retry_policy=_retry)
     b.add_node("shape_table", N.shape_table)
-    b.add_node("relate", N.relate, retry_policy=_retry)
+    b.add_node("comparison", N.comparison, retry_policy=_retry)
+    b.add_node("controls", N.controls, retry_policy=_retry)
     b.add_node("merge_controls", N.merge_controls)
     b.add_node("verify", N.verify)
+    b.add_node("heterogeneity", N.heterogeneity, retry_policy=_retry)
+    b.add_node("threats", N.threats)
     b.add_node("check_design", N.check_design)
     b.add_node("assess", N.assess, retry_policy=_retry)
     b.add_node("pick_estimator", N.pick_estimator, retry_policy=_retry)
@@ -44,10 +49,11 @@ def build() -> StateGraph:
     b.add_edge("case", "groups")
     b.add_conditional_edges("groups", N.after_groups, ["periods", "feasibility"])
     b.add_conditional_edges("periods", N.after_periods, ["shape_table", "feasibility"])
-    # shape_table returns Command(goto=[Send relate...] | merge_controls | feasibility)
-    b.add_edge("relate", "merge_controls")
+    # shape_table returns Command(goto=comparison | feasibility); comparison returns Command(goto=controls | feasibility)
+    # controls returns Command(goto=merge_controls | feasibility)
     b.add_edge("merge_controls", "verify")
-    # verify returns Command(goto=check_design | [Send relate...] | feasibility)
+    # verify returns Command(goto=heterogeneity | feasibility); heterogeneity returns Command(goto=threats | feasibility)
+    b.add_edge("threats", "check_design")
     b.add_conditional_edges("check_design", N.after_checks, ["assess", "pick_estimator"])
     # assess returns Command(goto=pick_estimator | merge_controls | feasibility)
     # pick_estimator returns Command(goto=freeze_design | feasibility)
