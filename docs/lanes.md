@@ -127,9 +127,12 @@ not, with the budgets its `checks.yaml` declares; every claim cites the pack, a 
    is in the panel when. Each is a line of the ladder (`ladder:trends.*`); the post-period coefficients never become lines. The
    pre-trends check reads the rung when the design has no controls and fits again with them when it does, keeping the rung's number.
 6. **comparison** (rung 4; an episode). Whether the comparison group is a fair stand-in for the treated group without the change,
-   argued from the story and the evidence, and every risk the story raises: anticipation, spillover, composition, another shock,
-   the group chosen for where its outcome was heading. Each risk is cited and becomes a flag. The outcome after the change is
-   refused.
+   argued from the evidence and the story, and every risk either raises: anticipation, spillover, composition, another shock, the
+   group chosen for where its outcome was heading. The gate holds the judgement to the evidence: it must cite the leads test and
+   read it as the rung did; a fair verdict over diverging paths needs a reason from the pack; units entering or leaving need the
+   composition risk or a cited reason why they do not matter; a trend-chosen group or a stated lead from the mechanism rung must
+   be named. Each risk is cited and becomes a flag. The tools show a column by group and period, the outcome before the change
+   only; the outcome after it is refused.
 7. **controls** (rung 5; one episode over every candidate the pack leaves open). Changed by the treatment, usable as a control, or a
    unit trait the effect could differ by; what the pack settled is copied. `merge_controls` and `verify` then build the control set
    by code: a column fixed within a unit or within a period is absorbed by the fixed effects whatever the model said.

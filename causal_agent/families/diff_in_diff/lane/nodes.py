@@ -644,23 +644,51 @@ def comparison(state: SpecialistState) -> Command:
     g: Groups = state["groups"]
     s: ShapeFacts = state["shape"]
 
+    tr, m = lad.trends, lad.mechanism
+    named = lambda name, r: any(k.name == name for k in r.risks)  # noqa: E731
+
     def gate(r: Comparison, log: EpisodeLog) -> list[str]:
         ok = _resolver(h, log, lad)
         errs: list[str] = []
         if not r.why.strip():
-            errs.append("say why, from the story and the facts")
+            errs.append("say why, from the evidence and the story")
         if not r.fair and not r.risks:
             errs.append("a comparison judged unfair names at least one risk")
+        cited = set(r.cites) | {c for k in r.risks for c in k.cites} | set(r.why_despite.cites if r.why_despite else [])
+        if tr is not None:
+            if "ladder:trends.leads" not in cited and "ladder:trends.paths" not in cited:
+                errs.append("cite [ladder:trends.leads]: the paths before the change are evidence, not a story")
+            if r.leads_read != tr.reading:
+                errs.append(f"leads_read must be {tr.reading!r}: [ladder:trends.leads] says {tr.leads_level}; read the evidence")
+            if tr.leads_level in ("soft", "hard") and r.fair:
+                pack = [c for c in (r.why_despite.cites if r.why_despite else []) if h.resolve(c)]
+                if r.why_despite is None or not r.why_despite.reason.strip() or not pack:
+                    errs.append(
+                        f"the leads test is {tr.leads_level} [ladder:trends.leads]; fair needs why_despite, citing a pack address that says why the groups would still have moved together"
+                    )
+            if tr.composition.entries + tr.composition.exits > 0 and not named("composition", r) and r.composition_read is None:
+                errs.append(
+                    "units enter or leave [ladder:trends.composition]; name the composition risk or say in composition_read why it does not matter, citing that address"
+                )
+        if m is not None and m.chosen_on == "trends" and not named("group_choice", r):
+            errs.append(
+                "the mechanism rung says the group was chosen for where its outcome was heading [ladder:mechanism.chosen_on]; name the group_choice risk"
+            )
+        if m is not None and m.anticipation_periods and not named("anticipation", r):
+            errs.append(f"the story states a lead of {m.anticipation_periods} period(s) [ladder:mechanism.anticipation]; name the anticipation risk")
         for risk in r.risks:
             if not risk.cites:
                 errs.append(f"risk {risk.name}: no citation")
             errs += [f"risk {risk.name}: {e}" for e in V.cites_resolve(risk.cites, h, ok)]
+        for extra in (r.why_despite, r.composition_read):
+            if extra is not None:
+                errs += V.cites_resolve(extra.cites, h, ok)
         return errs + V.cites_resolve(r.cites, h, ok)
 
-    groups_text = f"{g.column} = {g.treated_level!r} treated, every other level control; {s.units_treated} treated units, {s.units_control} control; {s.periods_pre} periods before the change, {s.periods_post} after"
+    groups_text = f"{g.column} = {g.treated_level!r} treated, every other level control; {s.units_treated} treated units, {s.units_control} never treated; {s.periods_pre} periods before the change, {s.periods_post} after"
     user = P.COMPARISON_USER.format(question=_question(state), frame=L.frame_text(state), groups=groups_text, errors="")
     rec, log, thoughts, errors = run_episode(
-        Comparison, P.COMPARISON_SYSTEM, user, tools=L.data_tools(state, _treated_mask(state)), budget=_budget("comparison"), gate=gate, node="comparison"
+        Comparison, P.COMPARISON_SYSTEM, user, tools=_panel_tools(state), budget=_budget("comparison"), gate=gate, node="comparison"
     )
     if rec is None:
         return _stop(
@@ -752,7 +780,7 @@ def controls(state: SpecialistState) -> Command:
         question=_question(state), frame=L.frame_text(state), count=len(asked), columns="\n\n".join(_column_block(h, k, case) for k in asked), errors=""
     )
     rec, log, thoughts, errors = run_episode(
-        ControlRoles, P.CONTROLS_SYSTEM, user, tools=L.data_tools(state, _treated_mask(state)), budget=_budget("controls"), gate=gate, node="controls"
+        ControlRoles, P.CONTROLS_SYSTEM, user, tools=_panel_tools(state), budget=_budget("controls"), gate=gate, node="controls"
     )
     if rec is None:
         return _stop(
@@ -903,7 +931,7 @@ def heterogeneity(state: SpecialistState) -> Command:
         Heterogeneity,
         P.HETEROGENEITY_SYSTEM.replace("{max_modifiers}", str(max_m)),
         user,
-        tools=L.data_tools(state, _treated_mask(state)),
+        tools=_panel_tools(state),
         budget=_budget("heterogeneity"),
         gate=gate,
         node="heterogeneity",

@@ -87,11 +87,23 @@ class FakeLLM:
     names; `looks` scripts the tool calls of an episode by node name, one list per round of looking."""
 
     def __init__(
-        self, script: dict, cite: str, *, bad_cites=False, assess_script=None, pick_script=None, overrides=None, risks=None, looks=None, mechanism_script=None
+        self,
+        script: dict,
+        cite: str,
+        *,
+        bad_cites=False,
+        assess_script=None,
+        pick_script=None,
+        overrides=None,
+        risks=None,
+        looks=None,
+        mechanism_script=None,
+        comparison_script=None,
     ):
         self.script, self.cite, self.bad_cites = script, cite, bad_cites
         self.assess_script, self.pick_script = list(assess_script or []), list(pick_script or [])
         self.mechanism_script = list(mechanism_script or [])
+        self.comparison_script = list(comparison_script or [])
         self.overrides = dict(overrides or {})
         self.risks = list(risks or [])
         self.looks = {k: list(v) for k, v in (looks or {}).items()}
@@ -128,6 +140,40 @@ class FakeLLM:
 
         return R()
 
+    def comparison_answer(self, human: str, cite: str) -> Comparison:
+        """A careful reader of the ladder: reads the leads test, cites it, answers a divergence it still calls fair, names the composition
+        when units enter or leave, and names what the mechanism rung raised."""
+        from causal_agent.families.diff_in_diff.lane.contracts import Risk
+
+        if self.comparison_script:
+            return self.comparison_script.pop(0)
+        m = re.search(r"\[ladder:trends\.leads\] (?:joint test.*?\((pass|soft|hard)\)|(untested))", human)
+        level = (m.group(1) or "untested") if m else None
+        reading = None if level is None else "untested" if level == "untested" else "parallel" if level == "pass" else "diverging"
+        risks = list(self.risks)
+        if "[ladder:mechanism.chosen_on] the group was chosen for where its outcome was heading" in human and not any(r.name == "group_choice" for r in risks):
+            risks.append(Risk(name="group_choice", reason="the mechanism rung says the group was picked for its trend", cites=["ladder:mechanism.chosen_on"]))
+        lead = re.search(r"\[ladder:mechanism\.anticipation\] (\d+) period", human)
+        if lead and not any(r.name == "anticipation" for r in risks):
+            risks.append(Risk(name="anticipation", reason=f"the story states a lead of {lead.group(1)} periods", cites=["ladder:mechanism.anticipation"]))
+        fair = not risks
+        comp = re.search(r"(\d+) entered after the first period, (\d+) left before the last", human)
+        moved = comp is not None and int(comp.group(1)) + int(comp.group(2)) > 0
+        cites = [cite] + (["ladder:trends.leads"] if reading is not None else [])
+        return Comparison(
+            fair=fair,
+            why="the paths before the change and the story give no reason the groups would have parted" if fair else "the story raises a risk",
+            leads_read=reading or "untested",
+            why_despite=Cited(reason="the note says the groups have moved together for years", cites=[cite, "ladder:trends.leads"])
+            if fair and level in ("soft", "hard")
+            else None,
+            composition_read=Cited(reason="the units that left are few and alike across the groups", cites=["ladder:trends.composition"])
+            if moved and not any(r.name == "composition" for r in risks)
+            else None,
+            risks=risks,
+            cites=cites,
+        )
+
     def controls_answer(self, human: str) -> ControlRoles:
         cite = "col:nope.note" if self.bad_cites else self.cite
         items = []
@@ -155,7 +201,7 @@ class FakeLLM:
                 return self.mechanism_script.pop(0)
             return Mechanism(chosen_on="neither", reason="the story says who got the change, not why those units", cites=[cite])
         if schema is Comparison:
-            return Comparison(fair=not self.risks, why="the story gives no reason the groups would have parted", risks=list(self.risks), cites=[cite])
+            return self.comparison_answer(human, cite)
         if schema is ControlRoles:
             return self.controls_answer(human)
         if schema is Heterogeneity:
@@ -1010,3 +1056,80 @@ def test_the_mechanism_gate_holds_the_citation_and_the_anticipation_window(tmp_p
     )
     primary = next(e for e in out["estimates"] if e.method == "twfe_static" and e.modifier is None)
     assert abs(primary.value - 3.5) < 0.6  # the toy's average effect, with the two periods before the change left out of the treated units' rows
+
+
+# ------------------------------------------------------------------ the comparison gate over the evidence
+
+
+def test_the_comparison_is_re_prompted_when_it_calls_the_leads_parallel_against_a_hard_test():
+    careless = Comparison(fair=True, why="the states are alike", leads_read="parallel", cites=["col:state.note"])
+    careful = Comparison(
+        fair=False,
+        why="the paths were already apart before the tax",
+        leads_read="diverging",
+        risks=[
+            __import__("causal_agent.families.diff_in_diff.lane.contracts", fromlist=["Risk"]).Risk(
+                name="group_choice", reason="a state whose sales were falling", cites=["ladder:trends.leads"]
+            )
+        ],
+        cites=["col:state.note", "ladder:trends.leads"],
+    )
+    fake = FakeLLM(SCRIPT["cigar"], CIGAR["cite"], comparison_script=[careless, careful])
+    out = _run(fake, handoff(**CIGAR))
+    humans = fake.humans_of("Comparison")
+    assert len(humans) == 2 and "PREVIOUS ANSWER WAS REJECTED" in humans[1]
+    assert "cite [ladder:trends.leads]: the paths before the change are evidence, not a story" in humans[1]
+    assert "leads_read must be 'diverging': [ladder:trends.leads] says hard; read the evidence" in humans[1]
+    assert out["ladder"].comparison.leads_read == "diverging" and not out["ladder"].comparison.fair and out["episodes"]["comparison"].tries == 2
+
+
+def test_a_fair_comparison_despite_diverging_paths_needs_a_pack_citation():
+    ladder_only = Comparison(
+        fair=True,
+        why="fine",
+        leads_read="diverging",
+        why_despite=Cited(reason="the test is noisy", cites=["ladder:trends.leads"]),
+        cites=["ladder:trends.leads"],
+    )
+    with_pack = Comparison(
+        fair=True,
+        why="the note says the states moved together for decades",
+        leads_read="diverging",
+        why_despite=Cited(reason="the note says the states moved together for decades", cites=["col:state.note"]),
+        cites=["col:state.note", "ladder:trends.leads"],
+    )
+    fake = FakeLLM(SCRIPT["cigar"], CIGAR["cite"], comparison_script=[ladder_only, with_pack])
+    out = _run(fake, handoff(**CIGAR))
+    humans = fake.humans_of("Comparison")
+    assert len(humans) == 2 and "fair needs why_despite, citing a pack address that says why the groups would still have moved together" in humans[1]
+    assert out["ladder"].comparison.fair and "[ladder:comparison.why_despite] the note says the states moved together" in out["specialist_result"]["report"]
+
+
+def test_the_comparison_sees_the_outcome_by_group_before_the_change_only(tmp_path):
+    looks = {"comparison": [[("by_group_over_time", {"column": "y"}), ("by_arm", {"column": "y"}), ("composition", {})]]}
+    fake = FakeLLM(_script_toy(), "col:arm.note", looks=looks)
+    out = _run(fake, _toy_panel(tmp_path), question="Did the programme raise y?")
+    assert out["specialist_result"]["status"] == "done", out["specialist_result"].get("feasibility")
+    log = out["episodes"]["comparison"]
+    assert [f.tool for f in log.facts] == ["by_group_over_time", "by_arm", "composition"] and not log.refusals
+    over_time = log.facts[0].text
+    assert over_time.startswith("'y' by group and period (mean): 1: treated") and "5: treated" in over_time and "6: treated" not in over_time
+    assert "the periods before the change only" in over_time and "the periods before the change only" in log.facts[1].text
+    assert log.facts[2].text.startswith("units present per period: treated 16")
+    assert "[probe:comparison.1]" in fake.humans_of("Comparison")[0] and "WHAT THE EPISODES LOOKED AT" in out["specialist_result"]["report"]
+
+
+def test_units_that_leave_must_be_named_or_answered_by_the_comparison(tmp_path):
+    silent = Comparison(fair=True, why="alike", leads_read="parallel", cites=["col:arm.note", "ladder:trends.leads"])
+    answered = Comparison(
+        fair=True,
+        why="alike",
+        leads_read="parallel",
+        composition_read=Cited(reason="one unit left in the last two periods; it is a comparison unit like the rest", cites=["ladder:trends.composition"]),
+        cites=["col:arm.note", "ladder:trends.leads"],
+    )
+    fake = FakeLLM(_script_toy(), "col:arm.note", comparison_script=[silent, answered])
+    out = _run(fake, _toy_panel(tmp_path, leaver=1), question="Did the programme raise y?")
+    humans = fake.humans_of("Comparison")
+    assert len(humans) == 2 and "units enter or leave [ladder:trends.composition]; name the composition risk or say in composition_read" in humans[1]
+    assert out["ladder"].comparison.composition_read is not None and out["specialist_result"]["status"] == "done"

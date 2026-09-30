@@ -43,6 +43,13 @@ class Result(NamedTuple):
     value: float | None = None
 
 
+def _period(v: Any) -> str:
+    """A period as the reader knows it: a whole number without a trailing .0, anything else as written."""
+    if isinstance(v, (float, np.floating)) and np.isfinite(v) and float(v) == int(v):
+        return str(int(v))
+    return str(v)
+
+
 def _levels(s: pd.Series) -> pd.Series:
     """A column as a small set of levels: its values when few, quantile bins when numeric and many."""
     if pd.api.types.is_numeric_dtype(s) and s.nunique() > MAX_LEVELS:
@@ -221,7 +228,7 @@ class Tools:
         parts = []
         for p in shown:
             a, b = g.loc[p, True], g.loc[p, False]
-            parts.append(f"{p}: treated {a:.3g}, others {b:.3g}" if pd.notna(a) and pd.notna(b) else f"{p}: one group absent")
+            parts.append(f"{_period(p)}: treated {a:.3g}, others {b:.3g}" if pd.notna(a) and pd.notna(b) else f"{_period(p)}: one group absent")
         gaps = (g[True] - g[False]).dropna()
         move = float(gaps.iloc[-1] - gaps.iloc[0]) if len(gaps) >= 2 else 0.0
         tail = f"; the gap moved from {gaps.iloc[0]:+.3g} to {gaps.iloc[-1]:+.3g}" if len(gaps) >= 2 else ""

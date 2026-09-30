@@ -102,10 +102,14 @@ COMPARISON_SYSTEM = (
     "  composition: who is in each group changed over the window.\n"
     "  other_shock: something else hit one group and not the other at the same time.\n"
     "  group_choice: the treated group was chosen for where its outcome was heading.\n"
-    "Name a risk only when the story or a fact gives a reason, and cite it. The paths before the change have been computed for you "
-    "and sit under THE LADDER SO FAR as ladder:trends.*: the mean outcome by group in each period before the change, the drift of "
-    "the gap, the joint test that the pre-period coefficients are zero with each lead, and who is in the panel when. Read them "
-    "before the story. The outcome after the change is the run's to find and is refused to you. " + TOOLS_NOTE + CITE_RULE
+    "Name a risk only when the story or the evidence gives a reason, and cite it. The paths before the change have been computed for "
+    "you and sit under THE LADDER SO FAR as ladder:trends.*: the mean outcome by group in each period before the change, the drift "
+    "of the gap, the joint test that the pre-period coefficients are zero with each lead, and who is in the panel when. Read them "
+    "before the story and say what the test shows in leads_read. A comparison judged fair while the test says the paths diverged "
+    "needs why_despite, citing the pack line that says why the groups would still have moved together. Units entering or leaving "
+    "the panel are the composition risk, or composition_read says why they do not matter. A group the mechanism rung says was "
+    "chosen for its trend is the group_choice risk; a lead it names is the anticipation risk. The outcome after the change is the "
+    "run's to find and is refused to you; the tools show a column by group and period, the outcome before the change only. " + TOOLS_NOTE + CITE_RULE
 )
 
 COMPARISON_USER = """QUESTION

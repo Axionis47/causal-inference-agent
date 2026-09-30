@@ -231,19 +231,35 @@ class Risk(Cited):
 
 
 class Comparison(BaseModel):
-    """Rung 3: whether the comparison group is a fair stand-in for the treated group without the change, and what could break it."""
+    """Rung 4: whether the comparison group is a fair stand-in for the treated group without the change, judged over the trends
+    rung's evidence and the story, and what could break it."""
 
-    fair: bool = Field(description="whether the story supports that, apart from the change, the groups would have moved together")
-    why: str = Field(description="one or two sentences from the story and the facts")
-    risks: list[Risk] = Field(default_factory=list, description="every risk the story raises, each cited; none when it raises none")
+    fair: bool = Field(description="whether the story and the evidence support that, apart from the change, the groups would have moved together")
+    why: str = Field(description="one or two sentences from the evidence and the story")
+    leads_read: Literal["parallel", "diverging", "untested"] = Field(
+        default="untested",
+        description="your reading of the joint test on the pre-period coefficients under ladder:trends.leads: parallel, diverging, or untested",
+    )
+    why_despite: Cited | None = Field(
+        default=None,
+        description="when you judge the comparison fair although the test says the paths diverged: why, citing the pack line that says the groups would still have moved together",
+    )
+    composition_read: Cited | None = Field(
+        default=None,
+        description="when units enter or leave the panel and you do not name it as a risk: why it does not matter, citing ladder:trends.composition",
+    )
+    risks: list[Risk] = Field(default_factory=list, description="every risk the story or the evidence raises, each cited; none when none")
     cites: list[str] = Field(default_factory=list)
     unsure: list[Unsure] = Field(default_factory=list)
     by: Literal["judgement"] = "judgement"
 
     def lines(self) -> list[tuple[str, str]]:
-        return [("ladder:comparison.fair", "yes" if self.fair else "no"), ("ladder:comparison.why", self.why)] + [
-            (f"ladder:comparison.risk.{r.name}", r.reason) for r in self.risks
-        ]
+        out = [("ladder:comparison.fair", "yes" if self.fair else "no"), ("ladder:comparison.leads_read", self.leads_read), ("ladder:comparison.why", self.why)]
+        if self.why_despite is not None:
+            out.append(("ladder:comparison.why_despite", self.why_despite.reason))
+        if self.composition_read is not None:
+            out.append(("ladder:comparison.composition_read", self.composition_read.reason))
+        return out + [(f"ladder:comparison.risk.{r.name}", r.reason) for r in self.risks]
 
 
 class ControlRelation(BaseModel):
