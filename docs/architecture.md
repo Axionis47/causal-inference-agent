@@ -17,7 +17,7 @@ names the layers this table serves.
 | the routing (`desk/nodes/decide.py`, `desk/route.py`) | which family stands, by code; a judgement only among several | the memory, the probes | a decision and its record |
 | the pack builder (`desk/handoff.py`) | the one projection of the memory a lane sees | the memory, the frame, the decision | a `Handoff` |
 | a lane (`families/<name>/lane/`) | the engine and its judgements on the pack alone, in its own process | `handoff.json` | `result.json`, the run folder |
-| the drawing tool (`viz/draw.py`, `viz/sandbox.py`, `viz/store.py`) | a picture from the file on request, with its code and numbers, in a sandbox | a `DrawRequest` | an `Artifact` or a `Decline` |
+| the drawing tool (`viz/draw.py`, `viz/sandbox.py`, `viz/store.py`) | a picture from the file on request, with its code and numbers, in the strongest sandbox at hand | a `DrawRequest` | an `Artifact` or a `Decline` |
 | the material and the brief (`desk/material.py`) | every artifact as a line with an address; the opening message after a run | a run record, the memory, the journal | citable lines |
 | the chat after (`desk/nodes/after.py`) | one routed reply per message: answer, revise, what-if, requestion, draw, done | the material, the message | a gated reply |
 | the server (`server/`) | the wire: sessions over the desk, the views, the files and pictures | HTTP | `SessionView` and files |

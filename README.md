@@ -76,8 +76,8 @@ those claims. [docs/desk.md](docs/desk.md#the-stages-in-order)
   door. Staggered adoption in the diff-in-diff lane is a hard flag until its estimators are exercised.
 - A rung reasons from the pack, the rungs below it and six read-only tools, within a budget. What none of those can settle is a
   flag the reader carries, not a question the lane asks; the interview is where questions live.
-- The default sandbox isolates the drawing script by environment only; the container mode is the one that blocks the network.
-- Before the run, the chat shows a drawn picture but cannot yet quote its numbers; after the run it can.
+- The drawing tool's fence is the strongest the machine has: the seatbelt on macOS, `bwrap` or `unshare` on Linux, a container
+  when asked. On a machine with none of those it falls back to a plain subprocess, isolated by environment only.
 
 ## See it
 
