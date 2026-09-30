@@ -147,15 +147,19 @@ an analyst reads a cutoff design.
    line, a score set after the decision, a cutoff known in advance), each cited and each a flag. A clean verdict over bunching must
    cite the density line; bunching with the person's word that the score could be moved must name the manipulation risk. The
    outcome by side is refused; the rung may look at a column by side within a band and at the score's histogram.
-5. **covariates** (rung 3; one episode over every candidate the pack leaves open). Fixed before the line, changed by the treatment,
+5. **balance** (evidence; code). Before the covariates are placed, every candidate's standing at the line: a number's jump at the
+   line from the continuity check's own fit, run here once; a category's share difference between the sides within the density's
+   window. One line per candidate (`ladder:balance.<column>`).
+6. **covariates** (rung 3; one episode over every candidate the pack leaves open). Fixed before the line, changed by the treatment,
    another measure of the outcome, or a predetermined characteristic the effect could differ by; what the pack settled is copied.
-   `merge_covariates` and `verify` then build the set by code.
-6. **heterogeneity** (rung 4). The candidates are the predetermined characteristics the covariates rung or the person marked; a
+   A column called fixed before the line that differs at it must say why, citing its balance line. `merge_covariates` and
+   `verify` then build the set by code.
+7. **heterogeneity** (rung 4). The candidates are the predetermined characteristics the covariates rung or the person marked; a
    judgement names at most three; the primary spec is fitted again within each level of each, at the design's bandwidth so the
    levels compare, without that column among the covariates.
-7. **threats** (rung 5; code). The risks every design carries from the pack, and the risks the line rung named. Each is a flag the
+8. **threats** (rung 5; code). The risks every design carries from the pack, and the risks the line rung named. Each is a flag the
    assessment answers and the interpretation cites; an `unsure` on a claim the interview could have settled is a decline.
-8. Then as before: `check_design` (the density flag read off the rung, and the covariate continuity, among the checks), `assess`, `pick_estimator`,
+9. Then as before: `check_design` (the density flag and the covariate continuity read off their rungs, among the checks), `assess`, `pick_estimator`,
    `freeze_design` (which adds the window rung, `ladder:bandwidth.*`, by code), `estimate`, the falsifications, `interpret`,
    `figures`, `assemble`.
 

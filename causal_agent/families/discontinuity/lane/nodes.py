@@ -31,6 +31,7 @@ from causal_agent.families.discontinuity.lane import checks as CK
 from causal_agent.families.discontinuity.lane import prompts as P
 from causal_agent.families.discontinuity.lane import shape as SH
 from causal_agent.families.discontinuity.lane.contracts import (
+    BalanceFacts,
     Bandwidth,
     Bandwidths,
     CovariateRelation,
@@ -219,6 +220,13 @@ def _treated_mask(state: SpecialistState) -> pd.Series | None:
     return (x >= c) if (above and incl) else (x > c) if above else (x <= c) if incl else (x < c)
 
 
+def _others(state: SpecialistState, canon: pd.DataFrame) -> pd.DataFrame:
+    """The candidate columns the canonical table drops (the categories), on the canonical rows, by their own names."""
+    raw = _table(state)
+    others = [k for k in state.get("candidates") or [] if k in raw.columns and SH.covcol(k) not in canon.columns]
+    return raw.loc[canon["row"].to_numpy(), others].reset_index(drop=True) if others else pd.DataFrame(index=range(len(canon)))
+
+
 def _canon_tools(state: SpecialistState):
     """The read-only tools over the canonical table, so a rung may look by side and near the line: the recentred score as `x`,
     the outcome as `y`, take-up as `t`, the numeric candidates under their canonical names and the other candidates by their own,
@@ -226,12 +234,11 @@ def _canon_tools(state: SpecialistState):
     sc: Score = state["score"]
     _, y, _ = _keys(state)
     canon = _canon(state)
-    raw = _table(state)
     numeric = [k for k in state.get("candidates") or [] if SH.covcol(k) in canon.columns]
-    others = [k for k in state.get("candidates") or [] if k in raw.columns and SH.covcol(k) not in canon.columns]
+    others = _others(state, canon)
     df = canon.drop(columns=["row"])
-    if others:
-        df = pd.concat([df, raw.loc[canon["row"].to_numpy(), others].reset_index(drop=True)], axis=1)
+    if len(others.columns):
+        df = pd.concat([df, others], axis=1)
     aliases: dict[str, str] = {y: "y"}
     if sc.column:
         aliases[sc.column] = "x"
@@ -607,7 +614,23 @@ def line(state: SpecialistState) -> Command:
             {"debug": thoughts, "episodes": {"line": log}},
         )
     _writer()({"line": [f"[{a}] {text}" for a, text in rec.lines()]})
-    return Command(goto="covariates", update={"ladder": lad.model_copy(update={"line": rec}), "debug": thoughts, "episodes": {"line": log}})
+    return Command(goto="balance", update={"ladder": lad.model_copy(update={"line": rec}), "debug": thoughts, "episodes": {"line": log}})
+
+
+# rung 3's evidence: every candidate's standing at the line (by code, before the covariates are placed)
+
+
+def balance(state: SpecialistState) -> Command:
+    canon = _canon(state)
+    shape: ShapeFacts = state["shape"]
+    inf = pick_inference(cluster_column=bool(shape.cluster_column))
+    dens = _ladder(state).density
+    window = min(dens.h_left, dens.h_right) if dens is not None and dens.h_left is not None and dens.h_right is not None else None
+    facts = CK.balance_evidence(
+        canon, _others(state, canon), list(state.get("candidates") or []), shape, _cfg(), cluster=bool(shape.cluster_column), vce=inf.vce, window=window
+    )
+    _writer()({"balance": [f"[{a}] {text}" for a, text in facts.lines()]})
+    return Command(goto="covariates", update={"ladder": _ladder(state).model_copy(update={"balance": facts})})
 
 
 # rung 3: the covariates, placed together (a judgement only for what the pack leaves open)
@@ -688,19 +711,31 @@ def covariates(state: SpecialistState) -> Command:
     if not asked:
         return Command(goto="merge_covariates", update={"ladder": lad.model_copy(update={"covariates": CovariateRoles(items=[])})})
 
+    bal: BalanceFacts = lad.balance or BalanceFacts()
+
     def gate(r: CovariateRoles, log: EpisodeLog) -> list[str]:
         ok = _resolver(h, log, lad)
         errs = _presence_errors(asked, [x.column for x in r.items])
         for x in r.items:
             if x.column in asked:
                 errs += [f"{x.column}: {e}" for e in _relation_errors(apply_settled(x, h, case), ok)]
+                item = bal.item(x.column)
+                if (
+                    x.predetermined
+                    and item is not None
+                    and item.flagged(bal.threshold)
+                    and f"ladder:balance.{x.column}" not in {c for rs in x.reasons for c in rs.cites}
+                ):
+                    errs.append(
+                        f"{x.column} jumps at the line [ladder:balance.{x.column}]; a column called fixed before the line must say why it still is, citing that line"
+                    )
         return errs
 
     user = P.COVARIATES_USER.format(
         question=_question(state), frame=L.frame_text(state), count=len(asked), columns="\n\n".join(_column_block(h, k, case) for k in asked), errors=""
     )
     rec, log, thoughts, errors = run_episode(
-        CovariateRoles, P.COVARIATES_SYSTEM, user, tools=L.data_tools(state, _treated_mask(state)), budget=_budget("covariates"), gate=gate, node="covariates"
+        CovariateRoles, P.COVARIATES_SYSTEM, user, tools=_canon_tools(state), budget=_budget("covariates"), gate=gate, node="covariates"
     )
     if rec is None:
         return _stop(
@@ -848,7 +883,7 @@ def heterogeneity(state: SpecialistState) -> Command:
         Heterogeneity,
         P.HETEROGENEITY_SYSTEM.replace("{max_modifiers}", str(max_m)),
         user,
-        tools=L.data_tools(state, _treated_mask(state)),
+        tools=_canon_tools(state),
         budget=_budget("heterogeneity"),
         gate=gate,
         node="heterogeneity",
@@ -912,6 +947,7 @@ def check_design(state: SpecialistState) -> dict:
         vce=inf.vce,
         sampled_by_side=bool(state.get("sampled_by_side")),
         density=_density_raw(state),
+        balance=_ladder(state).balance or BalanceFacts(),
     )
     W.say(results, _cfg(), state.get("columns") or {})  # the sentence before the number, for the reader
     results += C.as_checks(_case(state))

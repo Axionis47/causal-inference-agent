@@ -99,6 +99,7 @@ class FakeLLM:
         risks=None,
         looks=None,
         line_script=None,
+        ignore_balance=False,
     ):
         self.score, self.relations, self.cite, self.bad_cites = score, relations, cite, bad_cites
         self.assess_script, self.pick_script, self.score_script = list(assess_script or []), list(pick_script or []), list(score_script or [])
@@ -106,6 +107,7 @@ class FakeLLM:
         self.overrides = dict(overrides or {})
         self.risks = list(risks or [])
         self.line_script = list(line_script or [])
+        self.ignore_balance = ignore_balance  # a careless first answer, to see the gate re-prompt
         self.looks = {k: list(v) for k, v in (looks or {}).items()}
         self.calls: list[str] = []
         self.humans: list[tuple[str, str]] = []
@@ -142,12 +144,18 @@ class FakeLLM:
 
     def covariates_answer(self, human: str) -> CovariateRoles:
         cite = "col:nope.note" if self.bad_cites else self.cite
+        # a careful model reads the balance rung: a column it calls fixed before that differs at the line gets the balance line cited;
+        # a careless one waits for the gate to say so
+        must_cite = set(re.findall(r"^- (\S+) jumps at the line \[ladder:balance\.[^\]]+\]", human, re.M))
+        if not self.ignore_balance:
+            must_cite |= set(re.findall(r"^\[ladder:balance\.([^\]]+)\] .*; differs at the line$", human, re.M))
         items = []
         for col in re.findall(r"^COLUMN '([^']+)'", human.split("THE COLUMNS TO PLACE")[1], re.M):
             flags = dict(predetermined=False, affected_by_treatment=False, is_outcome_measure=False, modifier_candidate=False)
             flags.update(self.relations.get(col, {}))
             flags.update(self.overrides.get(col, {}))
-            reasons = [Cited(reason=f"{col}: {k}", cites=[cite]) for k in ("predetermined", "affected_by_treatment", "is_outcome_measure") if flags[k]]
+            cites = [cite] + ([f"ladder:balance.{col}"] if col in must_cite else [])
+            reasons = [Cited(reason=f"{col}: {k}", cites=cites) for k in ("predetermined", "affected_by_treatment", "is_outcome_measure") if flags[k]]
             items.append(CovariateRelation(column=col, reasons=reasons, **flags))
         return CovariateRoles(items=items)
 
@@ -1074,3 +1082,72 @@ def test_a_line_judged_clean_without_bunching_needs_no_density_citation(tmp_path
     assert dens.status == "uninformative" and not dens.flagged  # the rows were drawn by side of the line
     assert "[ladder:density.test] uninformative" in fake.humans_of("Line")[0]
     assert out["ladder"].line.clean and out["specialist_result"]["status"] == "done"
+
+
+# ------------------------------------------------------------------ the balance rung: every candidate's standing at the line before it is placed
+
+
+def test_the_balance_rung_lines_are_read_by_the_covariates_rung_and_the_continuity_check(tmp_path, monkeypatch):
+    df = sharp_below()
+    df["kind"] = np.where(np.arange(len(df)) % 3 == 0, "a", "b")  # a category, balanced across the line
+    cols = dict(SYNTH_COLS, kind="A category fixed before the grant.")
+    make_pack(tmp_path, monkeypatch, "sharp", df, "Units with a score strictly below 50 got the grant; a unit exactly at 50 did not.", cols)
+    sc = Score(
+        column="score",
+        cutoff=50.0,
+        treated_side="below",
+        cutoff_value_treated=False,
+        takeup_column="got",
+        takeup_level="1",
+        reason="r",
+        cites=["col:score.note"],
+    )
+    fake = FakeLLM(sc, {"z": dict(predetermined=True), "later": dict(is_outcome_measure=True)}, "col:score.note")
+    out = _run(fake, handoff("sharp", "y", "got", ["score", "y", "got", "z", "later", "kind"], "col:score.note"))
+    assert out["specialist_result"]["status"] == "done", out["specialist_result"].get("feasibility")
+    bal = out["ladder"].balance
+    by = {i.column: i for i in bal.items}
+    assert (
+        by["z"].how == "jump"
+        and not by["z"].flagged(bal.threshold)
+        and by["later"].how == "jump"
+        and by["kind"].how == "share"
+        and by["kind"].level in ("a", "b")
+    )
+    human = fake.humans_of("CovariateRoles")[0]
+    assert (
+        "[ladder:balance.z] jump" in human
+        and "[ladder:balance.kind] share of" in human
+        and human.index("[ladder:balance.z]") < human.index("THE COLUMNS TO PLACE")
+    )
+    cont = next(c for c in out["checks"] if c.name == "covariate_continuity")
+    assert cont.level == "pass" and "[ladder:balance.z]" in cont.detail
+    assert out["check_facts"]["continuity"]["z"]["p"] == pytest.approx(by["z"].p)  # the check read the rung, the figure reads the check
+    assert "[ladder:balance.z]" in out["specialist_result"]["report"]
+
+
+def test_a_predetermined_verdict_on_a_column_that_jumps_must_cite_the_balance_line(tmp_path, monkeypatch):
+    df = sharp_below()
+    df["z"] = df["z"] + 1.0 * df["got"]  # the "fixed before" column jumps at the line
+    make_pack(tmp_path, monkeypatch, "sharp", df, "Units with a score strictly below 50 got the grant; a unit exactly at 50 did not.", SYNTH_COLS)
+    sc = Score(
+        column="score",
+        cutoff=50.0,
+        treated_side="below",
+        cutoff_value_treated=False,
+        takeup_column="got",
+        takeup_level="1",
+        reason="r",
+        cites=["col:score.note"],
+    )
+    fake = FakeLLM(sc, {"z": dict(predetermined=True), "later": dict(is_outcome_measure=True)}, "col:score.note", ignore_balance=True)
+    out = _run(fake, handoff("sharp", "y", "got", ["score", "y", "got", "z", "later"], "col:score.note"))
+    bal = out["ladder"].balance
+    assert bal.item("z").flagged(bal.threshold)
+    assert fake.calls.count("CovariateRoles") == 2
+    rejected = fake.humans_of("CovariateRoles")[1]
+    assert "- z jumps at the line [ladder:balance.z]; a column called fixed before the line must say why it still is, citing that line" in rejected
+    placed = next(r for r in out["ladder"].covariates.items if r.column == "z")
+    assert placed.predetermined and any("ladder:balance.z" in rs.cites for rs in placed.reasons)
+    cont = next(c for c in out["checks"] if c.name == "covariate_continuity")
+    assert cont.level == "soft" and "z differ at the cutoff" in cont.detail

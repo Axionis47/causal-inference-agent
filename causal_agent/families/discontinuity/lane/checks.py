@@ -10,11 +10,11 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from scipy.stats import binomtest
+from scipy.stats import binomtest, chi2_contingency
 
 from causal_agent.common.contracts import CheckResult
 from causal_agent.families.discontinuity.lane import adapter
-from causal_agent.families.discontinuity.lane.contracts import BinomialWindow, Covariates, DensityFacts, ShapeFacts
+from causal_agent.families.discontinuity.lane.contracts import BalanceFacts, BalanceItem, BinomialWindow, Covariates, DensityFacts, ShapeFacts
 from causal_agent.families.discontinuity.lane.shape import covcol
 
 SHARP = {"p": 1, "kernel": "tri", "bwselect": "mserd", "masspoints": "adjust", "level": 95}
@@ -118,6 +118,64 @@ def _histogram(x: np.ndarray, bins: int) -> list[tuple[float, float, int]]:
     return [(float(edges[i]), float(edges[i + 1]), int(counts[i])) for i in range(k)]
 
 
+def balance_evidence(
+    canon: pd.DataFrame,
+    others: pd.DataFrame,
+    candidates: list[str],
+    shape: ShapeFacts,
+    cfg: dict[str, Any],
+    *,
+    cluster: bool,
+    vce: str,
+    window: float | None,
+) -> BalanceFacts:
+    """The balance rung, by code before the covariates are placed: every candidate's standing at the line. A number gets the
+    sharp local linear jump at the coverage-error width (the continuity check's own fit, run here once); a category gets the
+    difference in the share of its commonest level between the sides within `window` of the line, tested as a 2 by 2 table."""
+    thr = float(cfg["covariate_continuity"]["p_value"]["soft"])
+    plan = bandwidth_plan(SHARP, canon, shape, cfg, fuzzy=False, cluster=cluster, vce=vce)
+    pinned = fixed(plan) if "error" not in plan else {}
+    items: list[BalanceItem] = []
+    for k in candidates:
+        col = covcol(k)
+        if col in canon.columns:
+            f = adapter.fit(
+                SHARP, canon, y=col, cluster=cluster, vce=vce, bwselect=None if pinned else cfg["covariate_continuity"].get("bwselect", "cerrd"), **pinned
+            )
+            if f.error:
+                items.append(BalanceItem(column=k, how="untested", error=f.error))
+            else:
+                items.append(
+                    BalanceItem(
+                        column=k, how="jump", jump=f.value, ci_low=f.ci_low, ci_high=f.ci_high, p=f.p, n_left=f.n_h_left, n_right=f.n_h_right, width=f.h
+                    )
+                )
+        elif k in others.columns:
+            items.append(_share_item(k, others[k], canon["x"], window))
+    return BalanceFacts(items=items, threshold=thr)
+
+
+def _share_item(k: str, s: pd.Series, x: pd.Series, window: float | None) -> BalanceItem:
+    w = float(window) if window is not None and np.isfinite(window) and window > 0 else float(np.nanmax(np.abs(x.to_numpy(dtype=float))) or 1.0)
+    near = x.abs() < w
+    v = s[near].astype(str).where(s[near].notna())
+    side = (x[near] >= 0).to_numpy()
+    v = v.to_numpy()
+    keep = pd.notna(v)
+    v, side = v[keep], side[keep]
+    if len(v) == 0 or side.all() or not side.any():
+        return BalanceItem(column=k, how="untested", error="no rows on one side within the window")
+    top = pd.Series(v).value_counts().index[0]
+    a, b = v[~side] == top, v[side] == top
+    n_l, n_r = int((~side).sum()), int(side.sum())
+    table = np.array([[a.sum(), n_l - a.sum()], [b.sum(), n_r - b.sum()]], dtype=float)
+    try:
+        p = float(chi2_contingency(table)[1]) if table.min() >= 0 and (table.sum(axis=0) > 0).all() else None
+    except ValueError:
+        p = None
+    return BalanceItem(column=k, how="share", jump=float(b.mean() - a.mean()), p=p, n_left=n_l, n_right=n_r, width=w, level=str(top))
+
+
 def run_checks(
     canon: pd.DataFrame,
     x_all: pd.Series,
@@ -130,6 +188,7 @@ def run_checks(
     vce: str,
     sampled_by_side: bool,
     density: dict[str, Any],
+    balance: BalanceFacts,
 ) -> tuple[list[CheckResult], dict[str, Any]]:
     out: list[CheckResult] = []
     extra: dict[str, Any] = {}
@@ -222,9 +281,9 @@ def run_checks(
     else:
         extra["first_stage_status"] = None
 
-    # covariate continuity
+    # covariate continuity: the balance rung's jumps, read here, not fitted again
     if covs.balance_tested:
-        out.append(_continuity(canon, covs.balance_tested, c, cfg, cluster, vce, extra, fixed(plan) if "error" not in plan else {}))
+        out.append(_continuity(balance, covs.balance_tested, c, cfg, extra))
     return out, extra
 
 
@@ -306,21 +365,19 @@ def _first_stage(canon: pd.DataFrame, c: str, cfg: dict, cluster: bool, vce: str
     return out
 
 
-def _continuity(canon: pd.DataFrame, columns: list[str], c: str, cfg: dict, cluster: bool, vce: str, extra: dict, pinned: dict) -> CheckResult:
+def _continuity(balance: BalanceFacts, columns: list[str], c: str, cfg: dict, extra: dict) -> CheckResult:
     thr = cfg["covariate_continuity"]["p_value"]["soft"]
     rows: list[str] = []
     failed: list[str] = []
     per: dict[str, dict] = {}
     for col in columns:
-        f = adapter.fit(
-            SHARP, canon, y=covcol(col), cluster=cluster, vce=vce, bwselect=None if pinned else cfg["covariate_continuity"].get("bwselect", "cerrd"), **pinned
-        )
-        if f.error:
-            rows.append(f"{col}: could not be tested ({f.error})")
+        i = balance.item(col)
+        if i is None or i.how != "jump" or i.p is None:
+            rows.append(f"{col}: could not be tested ({i.error if i is not None and i.error else 'no jump on the balance rung'})")
             continue
-        per[col] = dict(jump=f.value, ci_low=f.ci_low, ci_high=f.ci_high, p=f.p, n_h_left=f.n_h_left, n_h_right=f.n_h_right, h=f.h)
-        rows.append(f"{col}: jump {f.value:.3g} at the cutoff (robust p = {f.p:.3g}, {f.n_h_left}/{f.n_h_right} rows)")
-        if f.p < thr:
+        per[col] = dict(jump=i.jump, ci_low=i.ci_low, ci_high=i.ci_high, p=i.p, n_h_left=i.n_left, n_h_right=i.n_right, h=i.width)
+        rows.append(f"{col}: jump {i.jump:.3g} at the cutoff (robust p = {i.p:.3g}, {i.n_left}/{i.n_right} rows) [ladder:balance.{col}]")
+        if i.p < thr:
             failed.append(col)
     extra["continuity"] = per
     level = "soft" if failed else "pass"

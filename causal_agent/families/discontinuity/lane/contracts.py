@@ -176,6 +176,51 @@ class Line(BaseModel):
         ]
 
 
+class BalanceItem(BaseModel):
+    """One candidate's standing at the line before it is placed: for a number, the jump at the line from a sharp local linear fit
+    at the coverage-error width with its robust p; for a category, the difference in the share of its commonest level between the
+    two sides within the density's window."""
+
+    column: str
+    how: Literal["jump", "share", "untested"]
+    jump: float | None = None
+    ci_low: float | None = None
+    ci_high: float | None = None
+    p: float | None = None
+    n_left: int = 0
+    n_right: int = 0
+    width: float | None = None
+    level: str | None = None
+    error: str | None = None
+
+    def flagged(self, threshold: float) -> bool:
+        return self.p is not None and self.p < threshold
+
+    def line(self, threshold: float) -> str:
+        if self.how == "untested":
+            return f"could not be tested ({self.error})"
+        verdict = "; differs at the line" if self.flagged(threshold) else "; alike at the line"
+        if self.how == "share":
+            return f"share of {self.level!r} differs by {self.jump:+.2f} between the sides within {self.width:.3g} of the line (p = {self.p:.2g}, {self.n_left}/{self.n_right} rows){verdict}"
+        return f"jump {self.jump:.3g} at the line (robust p = {self.p:.3g}, {self.n_left}/{self.n_right} rows within {self.width:.3g}){verdict}"
+
+
+class BalanceFacts(BaseModel):
+    """Rung 3's evidence, by code before the covariates are placed: every candidate's standing at the line. A column fixed before
+    the line should not differ across it; one that does is either not fixed before or a sign the line was gamed."""
+
+    items: list[BalanceItem] = Field(default_factory=list)
+    threshold: float = 0.05
+
+    def item(self, column: str) -> BalanceItem | None:
+        return next((i for i in self.items if i.column == column), None)
+
+    def lines(self) -> list[tuple[str, str]]:
+        return [(f"ladder:balance.{i.column}", i.line(self.threshold)) for i in self.items] or [
+            ("ladder:balance.none", "no candidate column to test at the line")
+        ]
+
+
 class CovariateRelation(BaseModel):
     """One column's standing at the cutoff, read with every other candidate in view."""
 
@@ -228,16 +273,17 @@ class Bandwidth(BaseModel):
 
 
 class Ladder(LadderBase):
-    """The rungs climbed so far: the score and the line, the shape, the density at the line, whether the line is clean, the
-    covariates, where the effect could differ, the threats, the window. A rung reads the rungs below it; every line has an
-    address."""
+    """The rungs climbed so far: the score and the line, the shape, the density at the line, whether the line is clean, every
+    candidate's standing at the line, the covariates, where the effect could differ, the threats, the window. A rung reads the
+    rungs below it; every line has an address."""
 
-    ORDER: ClassVar[tuple[str, ...]] = ("score", "shape", "density", "line", "covariates", "heterogeneity", "threats", "bandwidth")
+    ORDER: ClassVar[tuple[str, ...]] = ("score", "shape", "density", "line", "balance", "covariates", "heterogeneity", "threats", "bandwidth")
 
     score: Score | None = None
     shape: ShapeFacts | None = None
     density: DensityFacts | None = None
     line: Line | None = None
+    balance: BalanceFacts | None = None
     covariates: CovariateRoles | None = None
     heterogeneity: Heterogeneity | None = None
     threats: Threats | None = None

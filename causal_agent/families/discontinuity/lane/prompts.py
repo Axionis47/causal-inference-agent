@@ -86,8 +86,11 @@ COVARIATES_SYSTEM = (
     "  modifier_candidate: a predetermined characteristic the effect at the cutoff could plausibly differ by, per the story.\n"
     "A code, label, or identifier that names a unit, a place, or a category is not a characteristic: mark the three claims false "
     "for it. Read the columns against each other: two that measure one thing only show when read together. When a block SETTLED "
-    "BY THE PACK gives a claim, the person has already said it: copy that answer and cite the address shown. Give one reason per "
-    "claim you mark true, each with a citation. Return every listed column once. " + TOOLS_NOTE + CITE_RULE
+    "BY THE PACK gives a claim, the person has already said it: copy that answer and cite the address shown. Every candidate's "
+    "standing at the line has been computed for you and sits under THE LADDER SO FAR as ladder:balance.<column>: a column fixed "
+    "before the line should not differ across it; one that does is either not fixed before or a sign the line was gamed, and a "
+    "predetermined verdict on it must say why, citing that line. Give one reason per claim you mark true, each with a citation. "
+    "Return every listed column once. " + TOOLS_NOTE + CITE_RULE
 )
 
 COVARIATES_USER = """QUESTION

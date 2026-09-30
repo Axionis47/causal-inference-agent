@@ -29,6 +29,9 @@ it does not, with the data tools and the budgets `knowledge/checks.yaml` declare
 - **Evidence before the judgement.** The density rung (`checks.density_evidence`) runs rddensity once with the settings
   `checks.yaml` declares, splits the rows in nested windows either side of the line and tests each split as a coin toss, and
   writes the histogram; the line rung reads it from the ladder and its gate holds a clean verdict to it.
+- **Balance before placement.** The balance rung (`checks.balance_evidence`) fits every numeric candidate's jump at the line and
+  every category's share difference within the density's window before the covariates rung places them; the continuity check
+  reads the rung for the columns the design keeps.
 - **Validation.** `lane/checks.py` computes the pre-estimate facts: rows and effective rows a side, the density flag (read off the rung;
   the score's recorded orientation), mass points, support, compliance and the first stage, and continuity of every predetermined
   covariate at the cutoff. `knowledge/placebos.yaml` declares what runs after the estimate: placebo cutoffs on each side's own rows,
