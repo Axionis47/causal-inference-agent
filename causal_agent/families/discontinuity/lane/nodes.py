@@ -1,4 +1,8 @@
-"""Discontinuity lane nodes. Facts compute; judgements call the model once and are gated.
+"""Discontinuity lane nodes. Facts compute; judgements are bounded episodes, gated. The ladder climbs in the order an analyst
+reads a cutoff design: the score and the line, the shape of the two sides, whether the line is clean and what could break it,
+the candidate covariates all together, where the effect at the cutoff could differ, the threats, the window around the line.
+Each rung reads the rungs below it and may look at the data through the read-only tools; every claim cites the pack, a fact it
+asked for, or a rung below.
 
 The pack is weighed by code first (the harness's `case`): whether anything else switches at the cutoff, whether a unit
 could move its score, and whether the score was fixed before the decision meet the density test and the design by code;
@@ -27,15 +31,20 @@ from causal_agent.families.discontinuity.lane import checks as CK
 from causal_agent.families.discontinuity.lane import prompts as P
 from causal_agent.families.discontinuity.lane import shape as SH
 from causal_agent.families.discontinuity.lane.contracts import (
+    Bandwidth,
     Bandwidths,
     CovariateRelation,
+    CovariateRoles,
     Covariates,
     Design,
     DesignAssessment,
     EstimatorPick,
     Excluded,
+    Ladder,
+    Line,
     RDInterpretation,
     Score,
+    ShapeFacts,
 )
 from causal_agent.families.discontinuity.lane.knowledge import (
     EstimatorEntry,
@@ -52,13 +61,17 @@ from causal_agent.families.discontinuity.lane.knowledge import (
 from causal_agent.families.discontinuity.lane.knowledge import (
     placebo as placebo_entry,
 )
-from causal_agent.families.discontinuity.lane.state import PlaceboTask, RelateTask, SpecialistState
+from causal_agent.families.discontinuity.lane.state import PlaceboTask, SpecialistState
 from causal_agent.lane import asks, intake, records
 from causal_agent.lane import case as C
 from causal_agent.lane import figures as LF
+from causal_agent.lane import ladder as LAD
 from causal_agent.lane import nodes as L
+from causal_agent.lane import verify as V
 from causal_agent.lane import words as W
-from causal_agent.lane.nodes import MAX_MODEL_RETRIES, MAX_PICK_ATTEMPTS, MAX_RELATE_ATTEMPTS
+from causal_agent.lane.episode import EpisodeLog, run_episode
+from causal_agent.lane.ladder import Heterogeneity, Threat, Threats
+from causal_agent.lane.nodes import MAX_MODEL_RETRIES, MAX_PICK_ATTEMPTS
 from causal_agent.profile.datasets import dataset_entries
 from causal_agent.viz.postviz import common as PV
 
@@ -77,7 +90,6 @@ _writer, _question, _stop, _card, _case, _cites, _rejected, _keys, _table = (
 )
 after_checks, feasibility = L.after_checks, L.feasibility
 case = L.make_case(load_beliefs)
-relate = L.make_relate(P, CovariateRelation)
 
 
 # ------------------------------------------------------------------ helpers
@@ -85,22 +97,6 @@ relate = L.make_relate(P, CovariateRelation)
 
 def _block(h: Handoff) -> RdDesign | None:
     return h.design if isinstance(h.design, RdDesign) else None
-
-
-def _frame_text(state: SpecialistState) -> str:
-    """The shared case, then what this lane found itself: the score and the cutoff rule, and the shape of the two sides."""
-    lines = [L.frame_text(state)]
-    sc = state.get("score")
-    if sc and sc.column:
-        rule = f"{'at or ' if sc.cutoff_value_treated else ''}{sc.treated_side} {sc.cutoff:g}"
-        lines.append(
-            f"score: {sc.column}, treated when {rule}"
-            + (f"; take-up {sc.takeup_column} = {sc.takeup_level!r}" if sc.takeup_column else "; treatment is the cutoff rule itself")
-        )
-    sh = state.get("shape")
-    if sh:
-        lines.append(f"shape: {sh.kind}; {sh.n_left} rows on the control side, {sh.n_right} on the treated side")
-    return "\n".join(lines)
 
 
 def _canon(state_or_path) -> pd.DataFrame:
@@ -193,15 +189,45 @@ def load(state: SpecialistState) -> Command:
             "check_facts": {"intake": it.facts} if it.facts else {},
             "sampled_by_side": bool(b.sampled_by_side) if b else bool(entry.get("sampled_by_side", False)),
             "target_units": target,
-            "relate_attempts": 0,
+            "ladder": Ladder(),
             "pick_attempts": 0,
-            "relate_errors": {},
             "excluded_estimators": [],
         },
     )
 
 
-# ------------------------------------------------------------------ score (a fact from the pack, else a judgement, else a question back)
+# ------------------------------------------------------------------ the ladder
+
+
+def _ladder(state: SpecialistState) -> Ladder:
+    lad = state.get("ladder")
+    return lad if isinstance(lad, Ladder) else Ladder()
+
+
+def _budget(node: str) -> int:
+    return int((_cfg().get("episode_budget") or {}).get(node, 4))
+
+
+def _treated_mask(state: SpecialistState) -> pd.Series | None:
+    """The treated side once the score is set: the rows the rule puts on the treated side of the cutoff."""
+    sc = state.get("score")
+    if sc is None or not sc.column or sc.cutoff is None:
+        return None
+    x = pd.to_numeric(_table(state)[sc.column], errors="coerce")
+    above, incl, c = sc.treated_side == "above", sc.cutoff_value_treated, float(sc.cutoff)
+    return (x >= c) if (above and incl) else (x > c) if above else (x <= c) if incl else (x < c)
+
+
+def _resolver(h: Handoff, log: EpisodeLog, ladder: Ladder):
+    """What a rung may cite: the pack, the facts this episode asked for, and the rungs below."""
+
+    def ok(address: str) -> bool:
+        return h.resolve(address) or log.resolve(address) or ladder.resolve(address)
+
+    return ok
+
+
+# rung 0: the score and the line (a fact from the pack, else a judgement, else a question back)
 
 
 def _block_score(h: Handoff) -> Score | None:
@@ -218,6 +244,7 @@ def _block_score(h: Handoff) -> Score | None:
         takeup_level=str(tk["level"]) if tk.get("column") and tk.get("level") is not None else None,
         reason="the pack names the score, the cutoff, the treated side, and who took the change up",
         cites=_cites(h, "claim:assignment.score_column", "claim:assignment.cutoff", "claim:assignment.treated_side", "claim:assignment.treatment_column"),
+        by="pack",
     )
 
 
@@ -233,7 +260,7 @@ def _block_about(errors: list[str]) -> str:
     return "claim:assignment.treated_side"
 
 
-def _ask_score(h: Handoff, state: SpecialistState, errors: list[str], debug: list, declines: list[Decline]) -> Command | None:
+def _ask_score(h: Handoff, state: SpecialistState, errors: list[str], extra: dict[str, Any]) -> Command | None:
     """When the notes say a cutoff rule decided the change but the line or the score is not settled, one question back."""
     a = h.assignment or {}
     if a.get("kind") != "cutoff_rule":
@@ -247,11 +274,7 @@ def _ask_score(h: Handoff, state: SpecialistState, errors: list[str], debug: lis
             because="the notes name the score but not the line",
         )
         return asks.ask_back(
-            "score",
-            ask,
-            reason="the notes name the score but not the cutoff value that decided who got the change",
-            facts=errors,
-            extra={"debug": debug, "declines": declines},
+            "score", ask, reason="the notes name the score but not the cutoff value that decided who got the change", facts=errors, extra=extra
         )
     if not a.get("score_column"):
         ask = LaneAsk(
@@ -260,161 +283,192 @@ def _ask_score(h: Handoff, state: SpecialistState, errors: list[str], debug: lis
             because="the notes say a line on a score decided the change but not which column",
         )
         return asks.ask_back(
-            "score",
-            ask,
-            reason="the notes say a cutoff rule decided the change but not which column carries the score",
-            facts=errors,
-            extra={"debug": debug, "declines": declines},
+            "score", ask, reason="the notes say a cutoff rule decided the change but not which column carries the score", facts=errors, extra=extra
         )
     return None
+
+
+class _NoRule(Exception):
+    """The answer says no cutoff rule on a numeric score is stated: a fact that ends the judgement, not an error to retry."""
+
+
+class _WrongSide(Exception):
+    """The notes and the data disagree about which side got the change: a fact that ends the judgement."""
+
+    def __init__(self, facts: list[str]):
+        super().__init__("wrong side")
+        self.facts = facts
+
+
+def _score_errors(state: SpecialistState, parsed: Score, table: pd.DataFrame, t: str | None, ok: Any) -> list[str]:
+    """The checks a score answer must pass. Normalises the answer in place. Raises _NoRule or _WrongSide for the facts that end
+    the judgement rather than retry it."""
+    if parsed.column is None or str(parsed.column).strip().lower() in ("", "null", "none"):
+        raise _NoRule()
+    parsed.column = _key(parsed.column)
+    if str(parsed.takeup_column).strip().lower() in ("", "null", "none"):  # the model sometimes writes the word null instead of a null
+        parsed.takeup_column, parsed.takeup_level = None, None
+    parsed.takeup_column = _key(parsed.takeup_column) if parsed.takeup_column else None
+    if parsed.takeup_column and parsed.column and parsed.takeup_column == _key(parsed.column):
+        parsed.takeup_column, parsed.takeup_level = None, None  # the score cannot record its own take-up: the rule is the change
+    errors = [f"{c} is not an address you may cite" for c in parsed.cites if not ok(c)]
+    if parsed.column not in table.columns:
+        errors.append(f"{parsed.column!r} is not a column in the file")
+    elif not pd.api.types.is_numeric_dtype(table[parsed.column]):
+        errors.append(f"{parsed.column!r} is not numeric ({table[parsed.column].dtype}); a score must be a number")
+    else:
+        x = pd.to_numeric(table[parsed.column], errors="coerce")
+        fin = x[np.isfinite(x)]
+        if fin.nunique() <= 2:
+            errors.append(f"{parsed.column!r} takes only {fin.nunique()} distinct values; a score must vary")
+        if parsed.cutoff is None:
+            errors.append("cutoff is missing")
+        elif not (fin.min() < parsed.cutoff < fin.max()):
+            errors.append(f"cutoff {parsed.cutoff!r} is not strictly inside the score's range {fin.min():g} to {fin.max():g}")
+        else:
+            above, below = int((fin > parsed.cutoff).sum()), int((fin < parsed.cutoff).sum())
+            if above == 0 or below == 0:
+                errors.append(f"no rows on one side of the cutoff: {below} below, {above} above")
+    if parsed.takeup_column:
+        if parsed.takeup_column not in table.columns:
+            errors.append(f"take-up column {parsed.takeup_column!r} is not in the file")
+        elif parsed.takeup_level is None:
+            errors.append("takeup_level is missing: give the exact value that means the unit received the change")
+        else:
+            observed = set(table[parsed.takeup_column].dropna().astype(str))
+            if str(parsed.takeup_level) not in observed:
+                errors.append(f"level {parsed.takeup_level!r} is not observed in {parsed.takeup_column!r}; observed: {sorted(observed)[:20]}")
+    if t and not errors and t != parsed.column:
+        x = pd.to_numeric(table[parsed.column], errors="coerce")
+        identical = _side_rule_identical(table[t], x, float(parsed.cutoff), parsed.treated_side == "above", parsed.cutoff_value_treated)
+        if not identical and parsed.takeup_column != t:
+            errors.append(
+                f"the hand-off names {t!r} as the treatment and it is not a function of the cutoff; name it as the take-up column with its treated level, or name the score differently"
+            )
+    if errors or not parsed.takeup_column:
+        return errors
+    # facts that end the judgement rather than retry it
+    x = pd.to_numeric(table[parsed.column], errors="coerce")
+    tu = (table[parsed.takeup_column].astype(str) == str(parsed.takeup_level)).astype(float)
+    tu[table[parsed.takeup_column].isna()] = np.nan
+    treated_mask = (x > parsed.cutoff) if parsed.treated_side == "above" else (x < parsed.cutoff)
+    other_mask = (x < parsed.cutoff) if parsed.treated_side == "above" else (x > parsed.cutoff)
+    s_t, s_o = float(tu[treated_mask].mean()), float(tu[other_mask].mean())
+    if not (s_t > s_o):
+        raise _WrongSide([f"take-up {s_t:.2f} on the side the notes call treated ({parsed.treated_side} {parsed.cutoff:g}), {s_o:.2f} on the other side"])
+    at = tu[x == parsed.cutoff]
+    if len(at):
+        share_at = float(at.mean())
+        if parsed.cutoff_value_treated and share_at < 0.5:
+            errors.append(f"cutoff_value_treated is true but only {share_at:.2f} of the {len(at)} units exactly at the cutoff received the change")
+        if not parsed.cutoff_value_treated and share_at > 0.5:
+            errors.append(f"cutoff_value_treated is false but {share_at:.2f} of the {len(at)} units exactly at the cutoff received the change")
+    return errors
 
 
 def score(state: SpecialistState) -> Command:
     h = state["handoff"]
     t, y, _ = _keys(state)
     table = _table(state)
-    cards = h.render_columns()
-    treatment_card = _card(h, t) if t else "(the hand-off names no treatment column: the change may be the cutoff rule itself)"
-    errors: list[str] = []
-    debug = []
+    lad = _ladder(state)
     declines: list[Decline] = []
+
+    def done(sc: Score, extra: dict[str, Any]) -> Command:
+        _writer()({"score": sc.model_dump()})
+        return Command(goto="shape_table", update={"score": sc, "ladder": lad.model_copy(update={"score": sc}), "declines": declines, **extra})
+
     block = _block_score(h)
-    for attempt in range(MAX_MODEL_RETRIES + (1 if block else 0)):
-        if block is not None and attempt == 0:  # a fact from the pack; the same checks apply, and the model is asked only if they fail
-            parsed = block
-        else:
-            user = P.SCORE_USER.format(
-                question=_question(state),
-                frame=_frame_text(state),
-                dataset_card=h.render_dataset(),
-                changes=h.render_change(),
-                treatment_card=treatment_card,
-                cards=cards,
-                errors=_rejected(errors),
-            )
-            parsed, th = structured(Score, P.SCORE_SYSTEM, user, node="score")
-            debug.append(th)
-        errors = []
-        if parsed.column is None or str(parsed.column).strip().lower() in ("", "null", "none"):
-            _writer()({"score": {"column": None, "reason": parsed.reason}})
-            asked = _ask_score(h, state, [f"the model's reading: {parsed.reason}"], debug, declines)
-            if asked is not None:
-                return asked
+    if block is not None:  # a fact from the pack; the same checks apply, and the model is asked only if they fail
+        try:
+            errors = _score_errors(state, block, table, t, h.resolve)
+        except _WrongSide as w:
             return _stop(
                 "score",
-                "no cutoff rule on a numeric score is stated",
-                [f"the model's reading: {parsed.reason}"],
-                "a note naming the score column and the cutoff value that decided who got the change",
-                {"score": parsed, "debug": debug, "declines": declines},
+                "the notes and the data disagree about which side got the change",
+                w.facts,
+                "a note whose account of the rule matches the take-up recorded in the data",
+                {"score": block, "declines": declines},
             )
-        parsed.column = _key(parsed.column)
-        # the model sometimes writes the word null instead of a null; that is a null
-        if str(parsed.takeup_column).strip().lower() in ("", "null", "none"):
-            parsed.takeup_column, parsed.takeup_level = None, None
-        parsed.takeup_column = _key(parsed.takeup_column) if parsed.takeup_column else None
-        if parsed.takeup_column and parsed.column and parsed.takeup_column == _key(parsed.column):
-            parsed.takeup_column, parsed.takeup_level = None, None  # the score cannot record its own take-up: the rule is the change
-        for c in parsed.cites:
-            if not h.resolve(c):
-                errors.append(f"{c} is not a pack address")
-        if parsed.column not in table.columns:
-            errors.append(f"{parsed.column!r} is not a column in the file")
-        elif not pd.api.types.is_numeric_dtype(table[parsed.column]):
-            errors.append(f"{parsed.column!r} is not numeric ({table[parsed.column].dtype}); a score must be a number")
-        else:
-            x = pd.to_numeric(table[parsed.column], errors="coerce")
-            fin = x[np.isfinite(x)]
-            if fin.nunique() <= 2:
-                errors.append(f"{parsed.column!r} takes only {fin.nunique()} distinct values; a score must vary")
-            if parsed.cutoff is None:
-                errors.append("cutoff is missing")
-            elif not (fin.min() < parsed.cutoff < fin.max()):
-                errors.append(f"cutoff {parsed.cutoff!r} is not strictly inside the score's range {fin.min():g} to {fin.max():g}")
-            else:
-                above, below = int((fin > parsed.cutoff).sum()), int((fin < parsed.cutoff).sum())
-                if above == 0 or below == 0:
-                    errors.append(f"no rows on one side of the cutoff: {below} below, {above} above")
-        if parsed.takeup_column:
-            if parsed.takeup_column not in table.columns:
-                errors.append(f"take-up column {parsed.takeup_column!r} is not in the file")
-            elif parsed.takeup_level is None:
-                errors.append("takeup_level is missing: give the exact value that means the unit received the change")
-            else:
-                observed = set(table[parsed.takeup_column].dropna().astype(str))
-                if str(parsed.takeup_level) not in observed:
-                    errors.append(f"level {parsed.takeup_level!r} is not observed in {parsed.takeup_column!r}; observed: {sorted(observed)[:20]}")
-        if t and not errors and t != parsed.column:
-            x = pd.to_numeric(table[parsed.column], errors="coerce")
-            identical = _side_rule_identical(table[t], x, float(parsed.cutoff), parsed.treated_side == "above", parsed.cutoff_value_treated)
-            if not identical and parsed.takeup_column != t:
-                errors.append(
-                    f"the hand-off names {t!r} as the treatment and it is not a function of the cutoff; name it as the take-up column with its treated level, or name the score differently"
-                )
-        if errors:
-            if parsed is block:  # the pack's answer failed the file's checks: recorded, and the model is told why
-                declines.append(
-                    Decline(
-                        stage="score",
-                        kind="replaced",
-                        about=_block_about(errors),
-                        pack_value=f"{block.column} {block.treated_side} {block.cutoff:g}",
-                        check="score.rule_in_file",
-                        reason="; ".join(errors),
-                    )
-                )
-                _writer()({"score": {"pack_block_rejected": errors}})
-            continue
-        # facts that end the judgement rather than retry it
-        if parsed.takeup_column:
-            x = pd.to_numeric(table[parsed.column], errors="coerce")
-            tu = (table[parsed.takeup_column].astype(str) == str(parsed.takeup_level)).astype(float)
-            tu[table[parsed.takeup_column].isna()] = np.nan
-            treated_mask = (x > parsed.cutoff) if parsed.treated_side == "above" else (x < parsed.cutoff)
-            other_mask = (x < parsed.cutoff) if parsed.treated_side == "above" else (x > parsed.cutoff)
-            s_t, s_o = float(tu[treated_mask].mean()), float(tu[other_mask].mean())
-            if not (s_t > s_o):
-                return _stop(
-                    "score",
-                    "the notes and the data disagree about which side got the change",
-                    [f"take-up {s_t:.2f} on the side the notes call treated ({parsed.treated_side} {parsed.cutoff:g}), {s_o:.2f} on the other side"],
-                    "a note whose account of the rule matches the take-up recorded in the data",
-                    {"score": parsed, "debug": debug, "declines": declines},
-                )
-            at = tu[x == parsed.cutoff]
-            if len(at):
-                share_at = float(at.mean())
-                if parsed.cutoff_value_treated and share_at < 0.5:
-                    errors.append(f"cutoff_value_treated is true but only {share_at:.2f} of the {len(at)} units exactly at the cutoff received the change")
-                if not parsed.cutoff_value_treated and share_at > 0.5:
-                    errors.append(f"cutoff_value_treated is false but {share_at:.2f} of the {len(at)} units exactly at the cutoff received the change")
-                if errors:
-                    if parsed is block:
-                        declines.append(
-                            Decline(
-                                stage="score",
-                                kind="replaced",
-                                about="claim:assignment.cutoff_value_treated",
-                                pack_value=str(block.cutoff_value_treated),
-                                check="score.cutoff_value_takeup",
-                                reason="; ".join(errors),
-                            )
-                        )
-                    continue
-        _writer()({"score": parsed.model_dump()})
-        return Command(goto="shape_table", update={"score": parsed, "debug": debug, "declines": declines})
-    asked = _ask_score(h, state, errors, debug, declines)
+        except _NoRule:
+            errors = ["the pack names no score column"]
+        if not errors:
+            return done(block, {})
+        about = "claim:assignment.cutoff_value_treated" if any("cutoff_value_treated" in e for e in errors) else _block_about(errors)
+        declines.append(
+            Decline(
+                stage="score",
+                kind="replaced",
+                about=about,
+                pack_value=f"{block.column} {block.treated_side} {block.cutoff:g}"
+                if about != "claim:assignment.cutoff_value_treated"
+                else str(block.cutoff_value_treated),
+                check="score.cutoff_value_takeup" if about == "claim:assignment.cutoff_value_treated" else "score.rule_in_file",
+                reason="; ".join(errors),
+            )
+        )
+        _writer()({"score": {"pack_block_rejected": errors}})
+    treatment_card = _card(h, t) if t else "(the hand-off names no treatment column: the change may be the cutoff rule itself)"
+    user = P.SCORE_USER.format(
+        question=_question(state),
+        frame=L.frame_text(state),
+        dataset_card=h.render_dataset(),
+        changes=h.render_change(),
+        treatment_card=treatment_card,
+        cards=h.render_columns(),
+        errors="",
+    )
+    first = [f"PREVIOUS ANSWER WAS REJECTED\n- {d.reason}" for d in declines]  # the pack's failure is what the model is told first
+    ended: dict[str, Any] = {}
+
+    def gate(r: Score, log: EpisodeLog) -> list[str]:
+        try:
+            return _score_errors(state, r, table, t, _resolver(h, log, lad))
+        except (_NoRule, _WrongSide) as fact:
+            ended["fact"], ended["score"] = fact, r
+            return []  # a fact ends the episode; the node reads it below
+
+    rec, log, thoughts, errors = run_episode(
+        Score,
+        P.SCORE_SYSTEM,
+        user + ("\n" + "\n".join(first) if first else ""),
+        tools=L.data_tools(state, None),
+        budget=_budget("score"),
+        gate=gate,
+        node="score",
+    )
+    extra: dict[str, Any] = {"debug": thoughts, "episodes": {"score": log}, "declines": declines}
+    if "fact" in ended:
+        sc = ended["score"]
+        if isinstance(ended["fact"], _WrongSide):
+            return _stop(
+                "score",
+                "the notes and the data disagree about which side got the change",
+                ended["fact"].facts,
+                "a note whose account of the rule matches the take-up recorded in the data",
+                {"score": sc, **extra},
+            )
+        _writer()({"score": {"column": None, "reason": sc.reason}})
+        asked = _ask_score(h, state, [f"the model's reading: {sc.reason}"], extra)
+        if asked is not None:
+            return asked
+        return _stop(
+            "score",
+            "no cutoff rule on a numeric score is stated",
+            [f"the model's reading: {sc.reason}"],
+            "a note naming the score column and the cutoff value that decided who got the change",
+            {"score": sc, **extra},
+        )
+    if rec is not None:
+        return done(rec.model_copy(update={"by": "judgement"}), extra)
+    asked = _ask_score(h, state, errors, extra)
     if asked is not None:
         return asked
     return _stop(
-        "score",
-        "could not name the score and cutoff",
-        errors,
-        "a note that names the score column, the cutoff value, and which side got the change",
-        {"debug": debug, "declines": declines},
+        "score", "could not name the score and cutoff", errors, "a note that names the score column, the cutoff value, and which side got the change", extra
     )
 
 
-# ------------------------------------------------------------------ shape (fact)
+# rung 1: the shape (fact)
 
 
 def _candidates(state: SpecialistState) -> list[str]:
@@ -459,12 +513,62 @@ def shape_table(state: SpecialistState) -> Command:
                     )
                 )
     _writer()({"shape": facts.model_dump(), "declines": [d.render() for d in declines]})
-    update = {"canon_path": str(canon_path), "xall_path": str(xall_path), "shape": facts, "contrast": contrast, "candidates": candidates, "declines": declines}
-    sends = _relate_sends(state, candidates)
-    return Command(goto=sends or "merge_covariates", update=update)
+    update = {
+        "canon_path": str(canon_path),
+        "xall_path": str(xall_path),
+        "shape": facts,
+        "contrast": contrast,
+        "candidates": candidates,
+        "declines": declines,
+        "ladder": _ladder(state).model_copy(update={"shape": facts}),
+    }
+    return Command(goto="line", update=update)
 
 
-# ------------------------------------------------------------------ relate (judgement only for what the pack leaves open)
+# rung 2: the line (a judgement from the story and the facts)
+
+
+def line(state: SpecialistState) -> Command:
+    h = state["handoff"]
+    lad = _ladder(state)
+    sc: Score = state["score"]
+    s: ShapeFacts = state["shape"]
+
+    def gate(r: Line, log: EpisodeLog) -> list[str]:
+        ok = _resolver(h, log, lad)
+        errs: list[str] = []
+        if not r.why.strip():
+            errs.append("say why, from the story and the facts")
+        if not r.clean and not r.risks:
+            errs.append("a line judged not clean names at least one risk")
+        for risk in r.risks:
+            if not risk.cites:
+                errs.append(f"risk {risk.name}: no citation")
+            errs += [f"risk {risk.name}: {e}" for e in V.cites_resolve(risk.cites, h, ok)]
+        return errs + V.cites_resolve(r.cites, h, ok)
+
+    rule = f"{'at or ' if sc.cutoff_value_treated else ''}{sc.treated_side} {sc.cutoff:g}"
+    line_text = (
+        f"score {sc.column}, treated when {rule}; {s.kind} design; {s.n_left} rows on the control side, {s.n_right} on the treated side; "
+        f"{s.distinct_scores} distinct scores; {s.rows_at_cutoff} rows exactly at the cutoff\n{_card(h, sc.column)}"
+    )
+    user = P.LINE_USER.format(question=_question(state), frame=L.frame_text(state), line=line_text, errors="")
+    rec, log, thoughts, errors = run_episode(
+        Line, P.LINE_SYSTEM, user, tools=L.data_tools(state, _treated_mask(state)), budget=_budget("line"), gate=gate, node="line"
+    )
+    if rec is None:
+        return _stop(
+            "line",
+            "the line could not be judged",
+            errors,
+            "a story that says how the score was set and what else the line decides",
+            {"debug": thoughts, "episodes": {"line": log}},
+        )
+    _writer()({"line": [f"[{a}] {text}" for a, text in rec.lines()]})
+    return Command(goto="covariates", update={"ladder": lad.model_copy(update={"line": rec}), "debug": thoughts, "episodes": {"line": log}})
+
+
+# rung 3: the covariates, placed together (a judgement only for what the pack leaves open)
 
 
 def settled_claims(h: Handoff, k: str, case: C.Case) -> tuple[dict[str, bool], dict[str, str]]:
@@ -505,34 +609,78 @@ def fact_relation(h: Handoff, k: str, case: C.Case) -> CovariateRelation | None:
 _settled_text, apply_settled = L.make_settled(settled_claims)
 
 
+def _column_block(h: Handoff, k: str, case: C.Case) -> str:
+    return f"COLUMN {k!r}\n{_card(h, k)}\n{_settled_text(h, k, case)}"
+
+
+def _relation_errors(r: CovariateRelation, ok: Any) -> list[str]:
+    errs: list[str] = []
+    if (r.predetermined or r.affected_by_treatment or r.is_outcome_measure) and not r.reasons:
+        errs.append("claims marked true but no reasons given")
+    if r.predetermined and r.affected_by_treatment:
+        errs.append("cannot be both fixed before the change and changed by it")
+    for reason in r.reasons:
+        if not reason.cites:
+            errs.append("a reason has no citation")
+        errs += [f"{c} is not an address you may cite" for c in reason.cites if not ok(c)]
+    return errs
+
+
+def _presence_errors(asked: list[str], got: list[str]) -> list[str]:
+    errs = []
+    for k in asked:
+        n = got.count(k)
+        if n == 0:
+            errs.append(f"{k}: no role returned")
+        elif n > 1:
+            errs.append(f"{k}: returned {n} times; once")
+    errs += [f"{k!r} was not asked for" for k in dict.fromkeys(got) if k not in asked]
+    return errs
+
+
+def covariates(state: SpecialistState) -> Command:
+    h = state["handoff"]
+    case = _case(state)
+    lad = _ladder(state)
+    asked = [k for k in state.get("candidates") or [] if fact_relation(h, k, case) is None]
+    if not asked:
+        return Command(goto="merge_covariates", update={"ladder": lad.model_copy(update={"covariates": CovariateRoles(items=[])})})
+
+    def gate(r: CovariateRoles, log: EpisodeLog) -> list[str]:
+        ok = _resolver(h, log, lad)
+        errs = _presence_errors(asked, [x.column for x in r.items])
+        for x in r.items:
+            if x.column in asked:
+                errs += [f"{x.column}: {e}" for e in _relation_errors(apply_settled(x, h, case), ok)]
+        return errs
+
+    user = P.COVARIATES_USER.format(
+        question=_question(state), frame=L.frame_text(state), count=len(asked), columns="\n\n".join(_column_block(h, k, case) for k in asked), errors=""
+    )
+    rec, log, thoughts, errors = run_episode(
+        CovariateRoles, P.COVARIATES_SYSTEM, user, tools=L.data_tools(state, _treated_mask(state)), budget=_budget("covariates"), gate=gate, node="covariates"
+    )
+    if rec is None:
+        return _stop(
+            "covariates",
+            "the candidate covariates could not be placed",
+            errors,
+            "clearer column notes about when each column was fixed and what the treatment touches",
+            {"debug": thoughts, "episodes": {"covariates": log}},
+        )
+    out = CovariateRoles(items=[apply_settled(x, h, case) for x in rec.items], unsure=rec.unsure)
+    _writer()({"covariates_rung": [f"[{a}] {text}" for a, text in out.lines()]})
+    return Command(goto="merge_covariates", update={"ladder": lad.model_copy(update={"covariates": out}), "debug": thoughts, "episodes": {"covariates": log}})
+
+
 def _latest(state: SpecialistState) -> dict[str, CovariateRelation]:
     h = state["handoff"]
     case = _case(state)
     latest: dict[str, CovariateRelation] = {k: r for k in state.get("candidates") or [] if (r := fact_relation(h, k, case)) is not None}
-    for r in state.get("relations") or []:
+    lad = _ladder(state)
+    for r in lad.covariates.items if lad.covariates is not None else []:
         latest[r.column] = apply_settled(r, h, case)
     return latest
-
-
-def _relate_sends(state: SpecialistState, candidates: list[str], errors: dict[str, list[str]] | None = None) -> list[Send]:
-    h = state["handoff"]
-    case = _case(state)
-    errs = errors or {}
-    targets = [k for k in candidates if k in errs] if errs else [k for k in candidates if fact_relation(h, k, case) is None]
-    return [
-        Send(
-            "relate",
-            RelateTask(
-                question=_question(state),
-                frame=_frame_text(state),
-                column=k,
-                card=_card(h, k),
-                settled=_settled_text(h, k, case),
-                errors=_rejected(errs.get(k, [])),
-            ),
-        )
-        for k in targets
-    ]
 
 
 # ------------------------------------------------------------------ merge + verify (facts)
@@ -588,40 +736,111 @@ def merge_covariates(state: SpecialistState) -> dict:
 
 
 def verify(state: SpecialistState) -> Command:
-    h = state["handoff"]
-    case = _case(state)
-    latest: dict[str, CovariateRelation] = {k: r for k in state.get("candidates") or [] if (r := fact_relation(h, k, case)) is not None}
-    latest.update({r.column: r for r in state.get("relations") or []})
-    errs: dict[str, list[str]] = {}
-    for k in state.get("candidates") or []:
-        r = latest.get(k)
-        if r is None:
-            errs.setdefault(k, []).append("no relation returned")
-            continue
-        if (r.predetermined or r.affected_by_treatment or r.is_outcome_measure) and not r.reasons:
-            errs.setdefault(k, []).append("claims marked true but no reasons given")
-        if r.predetermined and r.affected_by_treatment:
-            errs.setdefault(k, []).append("cannot be both fixed before the change and changed by it")
-        for reason in r.reasons:
-            if not reason.cites:
-                errs.setdefault(k, []).append("a reason has no citation")
-            for c in reason.cites:
-                if not h.resolve(c):
-                    errs.setdefault(k, []).append(f"{c} is not a pack address")
-    attempts = state.get("relate_attempts", 0) + 1
-    if errs:
-        if attempts >= MAX_RELATE_ATTEMPTS:
-            return _stop(
-                "verify",
-                "the covariate relations could not be made to pass verification",
-                [f"{k}: {'; '.join(v)}" for k, v in errs.items()],
-                "clearer column notes about when each column was fixed and what the treatment touches",
-                {"relate_attempts": attempts},
-            )
-        _writer()({"verify": {"attempt": attempts, "errors": errs}})
-        return Command(goto=_relate_sends(state, state.get("candidates") or [], errs), update={"relate_errors": errs, "relate_attempts": attempts})
+    """A relation for every candidate; the per-column checks were made in the covariates rung's gate."""
+    latest = _latest(state)
+    missing = [k for k in state.get("candidates") or [] if k not in latest]
+    if missing:
+        return _stop(
+            "verify", "the covariate relations could not be made to pass verification", ["no relation for " + ", ".join(missing)], "clearer column notes"
+        )
     _writer()({"verify": "ok"})
-    return Command(goto="check_design", update={"relate_errors": {}, "relate_attempts": attempts})
+    return Command(goto="heterogeneity")
+
+
+# rung 4: heterogeneity (a judgement over the candidates)
+
+
+def _modifier_candidates(state: SpecialistState) -> dict[str, list[str]]:
+    """Every predetermined characteristic the covariates rung, or the person, marked as one the effect could differ by, with what
+    marked it; it must sit in the canonical table."""
+    case = _case(state)
+    lad = _ladder(state)
+    canon_cols = set(pd.read_csv(state["canon_path"], nrows=0).columns)
+    latest = _latest(state)
+    out: dict[str, list[str]] = {}
+
+    def usable(k: str) -> bool:
+        r = latest.get(k)
+        return SH.covcol(k) in canon_cols and r is not None and r.predetermined and not r.affected_by_treatment and not r.is_outcome_measure
+
+    for x in lad.covariates.items if lad.covariates is not None else []:
+        if x.modifier_candidate and usable(x.column):
+            out.setdefault(x.column, []).append(f"ladder:covariates.{x.column}")
+    for k in state.get("candidates") or []:
+        if case.fact(f"col:{k}.may_modify") is True and usable(k):
+            out.setdefault(k, []).append(f"col:{k}.may_modify")
+    return out
+
+
+def heterogeneity(state: SpecialistState) -> Command:
+    h = state["handoff"]
+    lad = _ladder(state)
+    cands = _modifier_candidates(state)
+    target = state["target_units"]
+    cfg = _cfg().get("modifiers") or {}
+    max_m = int(cfg.get("max", 3))
+    if not cands:
+        het = Heterogeneity(modifiers=[], why="no predetermined characteristic was marked as one the effect could differ by", target_units=target, by="code")
+        _writer()({"heterogeneity": het.model_dump()})
+        return Command(goto="threats", update={"ladder": lad.model_copy(update={"heterogeneity": het})})
+
+    def gate(r: Heterogeneity, log: EpisodeLog) -> list[str]:
+        ok = _resolver(h, log, lad)
+        errs = [f"at most {max_m} modifiers; {len(r.modifiers)} named"] if len(r.modifiers) > max_m else []
+        seen: set[str] = set()
+        for m in r.modifiers:
+            k = _key(m.column)
+            if k not in cands:
+                errs.append(f"{m.column!r} is not a candidate; the candidates are {', '.join(sorted(cands))}")
+            elif k in seen:
+                errs.append(f"{m.column!r} named twice")
+            seen.add(k)
+            if not m.cites:
+                errs.append(f"{m.column}: no citation")
+            errs += V.cites_resolve(m.cites, h, ok)
+        return errs + V.cites_resolve(r.cites, h, ok)
+
+    candidates = "\n\n".join(f"{_card(h, k)}\n  marked as a candidate by [{'], ['.join(c)}]" for k, c in cands.items())
+    user = P.HETEROGENEITY_USER.format(question=_question(state), frame=L.frame_text(state), candidates=candidates, max_modifiers=max_m, errors="")
+    rec, log, thoughts, errors = run_episode(
+        Heterogeneity,
+        P.HETEROGENEITY_SYSTEM.replace("{max_modifiers}", str(max_m)),
+        user,
+        tools=L.data_tools(state, _treated_mask(state)),
+        budget=_budget("heterogeneity"),
+        gate=gate,
+        node="heterogeneity",
+    )
+    if rec is None:
+        return _stop(
+            "heterogeneity",
+            "the modifiers could not be chosen",
+            errors,
+            "a story that says where the effect could differ",
+            {"debug": thoughts, "episodes": {"heterogeneity": log}},
+        )
+    het = rec.model_copy(
+        update={"modifiers": [m.model_copy(update={"column": _key(m.column)}) for m in rec.modifiers], "target_units": target, "by": "judgement"}
+    )
+    _writer()({"heterogeneity": het.model_dump()})
+    return Command(goto="threats", update={"ladder": lad.model_copy(update={"heterogeneity": het}), "debug": thoughts, "episodes": {"heterogeneity": log}})
+
+
+# rung 5: the threats (code, from the pack and the line rung)
+
+
+def threats(state: SpecialistState) -> dict:
+    """The risks every design carries, from the pack, then the ones the line rung named from the story. Each is a flag the assessment
+    must answer and the interpretation must cite."""
+    h = state["handoff"]
+    lad = _ladder(state)
+    _, y, _ = _keys(state)
+    items = LAD.pack_threats(h, _case(state), y, state.get("columns") or {})
+    for r in lad.line.risks if lad.line is not None else []:
+        items.append(Threat(name=r.name, level="soft", text=r.reason, cites=[f"ladder:line.risk.{r.name}", *r.cites]))
+    th = Threats(items=items)
+    _writer()({"threats": [f"[{a}] {text}" for a, text in th.lines()]})
+    return {"ladder": lad.model_copy(update={"threats": th})}
 
 
 # ------------------------------------------------------------------ checks (fact)
@@ -645,6 +864,8 @@ def check_design(state: SpecialistState) -> dict:
     )
     W.say(results, _cfg(), state.get("columns") or {})  # the sentence before the number, for the reader
     results += C.as_checks(_case(state))
+    more, declines = LAD.checks_and_declines(_ladder(state), _ladder(state).threats, state.get("declines") or [])
+    results += more
     _writer()({"checks": [f"{r.level} {r.address} {r.detail}" for r in results]})
     facts = {k: v for k, v in extra.items() if k != "first_stage"}
     fs = extra.get("first_stage")
@@ -652,7 +873,7 @@ def check_design(state: SpecialistState) -> dict:
         facts["first_stage"] = (
             None if fs.error else dict(value=fs.value, ci_low=fs.ci_low, ci_high=fs.ci_high, se=fs.se, n_h_left=fs.n_h_left, n_h_right=fs.n_h_right, h=fs.h)
         )
-    return {"checks": results, "check_facts": facts}
+    return {"checks": results, "check_facts": facts, "declines": declines}
 
 
 # ------------------------------------------------------------------ assess (the yaml first, then a judgement)
@@ -689,7 +910,7 @@ def assess(state: SpecialistState) -> Command:
     debug = []
     for _ in range(MAX_MODEL_RETRIES):
         user = P.ASSESS_USER.format(
-            frame=_frame_text(state), question=_question(state), design=_design_text(state), flags=flag_text, cards=cards, errors=_rejected(errors)
+            frame=L.frame_text(state), question=_question(state), design=_design_text(state), flags=flag_text, cards=cards, errors=_rejected(errors)
         )
         parsed, th = structured(DesignAssessment, P.ASSESS_SYSTEM, user, node="assess")
         debug.append(th)
@@ -765,7 +986,7 @@ def pick_estimator(state: SpecialistState) -> Command:
     debug = []
     for _ in range(MAX_MODEL_RETRIES):
         user = P.PICK_USER.format(
-            frame=_frame_text(state),
+            frame=L.frame_text(state),
             facts=json.dumps(facts, default=str),
             checks=check_text,
             estimators="\n\n".join(e.render() for e in allowed),
@@ -827,6 +1048,7 @@ def freeze_design(state: SpecialistState) -> Command:
         sharp_bandwidth_used=bool(fuzzy and (s.takeup_left == 0.0 or s.takeup_right == 1.0)),
         placebos=[p.name for p in load_placebos() if p.applies()],
         target_units=state["target_units"],
+        modifiers=[m.column for m in lad.heterogeneity.modifiers] if (lad := _ladder(state)).heterogeneity is not None else [],
     )
     run_dir = Path(state["run_dir"])
     (run_dir / "design.json").write_text(d.model_dump_json(indent=2))
@@ -834,8 +1056,17 @@ def freeze_design(state: SpecialistState) -> Command:
     b = adapter.bins(canon["y"], canon["x"])
     if b is not None:
         b.to_csv(run_dir / "bins.csv", index=False)
+    bw = Bandwidth(
+        h=plan["h"],
+        rule=plan["rule"],
+        why=(
+            f"the library's MSE-optimal width; {plan['n_h_left']} control-side and {plan['n_h_right']} treated-side rows inside it"
+            if plan["rule"] == "mse"
+            else f"the score has few distinct values, so the width keeps a declared number of support points on each side; {plan['n_h_left']}/{plan['n_h_right']} rows inside it"
+        ),
+    )
     _writer()({"design": d.render()})
-    return Command(goto="estimate", update={"design": d})
+    return Command(goto="estimate", update={"design": d, "ladder": lad.model_copy(update={"bandwidth": bw})})
 
 
 # ------------------------------------------------------------------ estimate (fact) + placebos (fact, fan-out)
@@ -906,9 +1137,43 @@ def estimate(state: SpecialistState) -> Command:
         notes=f.notes,
     )
     update["primary"] = primary
+    ests += _by_modifier(canon, d, primary_fuzzy)
     _writer()({"estimate": [e.model_dump(exclude_none=True) for e in ests]})
     sends = [Send("placebo", PlaceboTask(name=n, design=d.model_dump(), canon_path=state["canon_path"], primary=primary)) for n in d.placebos]
     return Command(goto=sends or "interpret", update=update)
+
+
+def _modifier_groups(canon: pd.DataFrame, column: str, max_levels: int) -> list[tuple[str, pd.Series]]:
+    """The rows of each level of a predetermined characteristic: its values when few, quantile bins when it is a number with many."""
+    s = canon[column]
+    if pd.api.types.is_numeric_dtype(s) and s.nunique(dropna=True) > max_levels:
+        bins = pd.qcut(s, q=max_levels, duplicates="drop")
+        return [(str(level), bins == level) for level in bins.cat.categories]
+    levels = [v for v in s.astype(str).value_counts().index[:max_levels]]
+    return [(str(v), s.astype(str) == v) for v in levels]
+
+
+def _by_modifier(canon: pd.DataFrame, d: Design, primary_fuzzy: bool) -> list[Estimate]:
+    """The primary spec fitted again within each level of each modifier, at the design's bandwidth so the levels compare, without
+    that column among the covariates. Too few effective rows on a side is recorded as the estimate's error, never skipped in silence."""
+    cfg = _cfg()
+    floor = int(cfg["effective_rows"]["min"]["soft"])
+    out: list[Estimate] = []
+    for col in d.modifiers:
+        cc = SH.covcol(col)
+        if cc not in canon.columns:
+            continue
+        for level, mask in _modifier_groups(canon, cc, int((cfg.get("modifiers") or {}).get("max_levels", 4))):
+            f = adapter.fit(d.spec, canon, fuzzy=primary_fuzzy, cluster=bool(d.cluster), vce=d.vce, mask=mask, h=d.bandwidths.h, b=d.bandwidths.b)
+            e = adapter.to_estimate(f, d.contrast.key, d.estimator, d.target_units)
+            if e.error is None and min(f.n_h_left, f.n_h_right) < floor:
+                e = e.model_copy(
+                    update={
+                        "error": f"too few effective rows on a side within this level ({f.n_h_left} control side, {f.n_h_right} treated side; floor {floor})"
+                    }
+                )
+            out.append(e.model_copy(update={"modifier": col, "level": level, "secondary": False}))
+    return out
 
 
 def _overlaps(a: adapter.Fit, prim: dict) -> bool:
@@ -1039,13 +1304,26 @@ def _addresses(state: SpecialistState) -> list[str]:
         + [r.address for r in d.checks.results]
     )
     out += [x.address for x in state.get("declines") or []]
+    out += sorted(_ladder(state).addresses())
+    out += [f.address for log in _episodes(state).values() for f in log.facts]
     for e in state.get("estimates") or []:
         if e.error is None:
-            tag = f"estimate:{c}" if e.method == d.estimator else f"estimate:{c}.{e.method}"
-            out += [f"{tag}.value", f"{tag}.ci", f"{tag}.n"] + ([f"{tag}.p", f"{tag}.bandwidth"] if e.method == d.estimator else [])
+            tag = _tag(e, d)
+            out += [f"{tag}.value", f"{tag}.ci", f"{tag}.n"] + ([f"{tag}.p", f"{tag}.bandwidth"] if e.method == d.estimator and e.modifier is None else [])
     for r in state.get("refutations") or []:
         out += [f"placebo:{c}.{r.refuter}.passed", f"placebo:{c}.{r.refuter}.detail"]
     return list(dict.fromkeys(out))
+
+
+def _tag(e: Estimate, d: Design) -> str:
+    """The address stem: the primary is estimate:<contrast>; a secondary carries its method; a level of a modifier its own tail."""
+    if e.modifier is not None:
+        return e.tag
+    return f"estimate:{d.contrast.key}" if e.method == d.estimator else f"estimate:{d.contrast.key}.{e.method}"
+
+
+def _episodes(state: SpecialistState) -> dict[str, EpisodeLog]:
+    return {k: v for k, v in (state.get("episodes") or {}).items() if isinstance(v, EpisodeLog)}
 
 
 def _required(state: SpecialistState) -> list[str]:
@@ -1053,6 +1331,7 @@ def _required(state: SpecialistState) -> list[str]:
     c = d.contrast.key
     req = ["design.bandwidth", f"estimate:{c}.ci", f"estimate:{c}.n"]
     req += [r.address for r in d.checks.results if r.level != "pass"]
+    req += [f"{e.tag}.value" for e in state.get("estimates") or [] if e.modifier is not None and e.error is None]
     req += [f"placebo:{c}.{r.refuter}.passed" for r in state.get("refutations") or [] if r.passed is False]
     req += [x.address for x in state.get("declines") or [] if x.kind == "substituted"]
     return list(dict.fromkeys(req))
@@ -1077,7 +1356,18 @@ def _material(state: SpecialistState) -> str:
     for r in d.checks.results:
         lines.append(f"[{r.address}] {r.level}: {r.detail}")
     lines += [x.render() for x in state.get("declines") or []]
+    lines += [f"[{a}] {text}" for a, text in _ladder(state).lines()]
+    lines += [f.render() for log in _episodes(state).values() for f in log.facts]
     for e in state.get("estimates") or []:
+        if e.modifier is not None:
+            tag = e.tag
+            if e.error is not None:
+                lines.append(f"[{tag}.error] within {names.get(e.modifier, e.modifier)} = {e.level}: {e.error}")
+                continue
+            lines.append(f"[{tag}.value] {e.value:.4g} (within {names.get(e.modifier, e.modifier)} = {e.level}: {e.method} at the design's bandwidth)")
+            lines.append(f"[{tag}.ci] 95% robust interval {e.ci_low:.4g} to {e.ci_high:.4g}" if e.ci_low is not None else f"[{tag}.ci] no interval")
+            lines.append(f"[{tag}.n] {e.n_control} control-side and {e.n_treated} treated-side rows inside the bandwidth")
+            continue
         if e.error is not None:
             continue
         if e.method == d.estimator:
@@ -1115,7 +1405,7 @@ def interpret(state: SpecialistState) -> dict:
     parsed = None
     for _ in range(MAX_MODEL_RETRIES):
         user = P.INTERPRET_USER.format(
-            frame=_frame_text(state),
+            frame=L.frame_text(state),
             question=_question(state),
             contrast=d.contrast.key,
             material=_material(state),
@@ -1175,9 +1465,10 @@ def figures(state: SpecialistState) -> dict:
         specs.append(PR.covariate_continuity(cf.get("continuity"), c, names, float(_cfg()["covariate_continuity"]["p_value"]["soft"])))
         specs.append(PR.bandwidth_curve(pts.get("bandwidth_grid"), d.bandwidths.h if d is not None else None, c))
         specs.append(PR.placebo_cutoffs(pts.get("placebo_cutoffs"), state.get("primary"), c))
-    specs.append(
-        PV.effect_and_refutations([e.model_dump() for e in state.get("estimates") or []], [r.model_dump() for r in state.get("refutations") or []], "placebo")
-    )
+    ests = [e.model_dump() for e in state.get("estimates") or []]
+    specs.append(PV.effect_and_refutations([e for e in ests if e.get("modifier") is None], [r.model_dump() for r in state.get("refutations") or []], "placebo"))
+    if c:
+        specs.append(PV.effect_by_modifier(ests, c, names))
     kept, declines = LF.write(state.get("run_dir"), specs, LF.ok_addresses(h, state, "placebo"))
     _writer()({"figures": [s.id for s in kept]})
     return {"figures": [s.model_dump() for s in kept], "declines": declines}
@@ -1194,14 +1485,27 @@ def assemble(state: SpecialistState) -> dict:
         f"OUTCOME      {h.outcome}    TREATMENT   {h.treatment or '(the cutoff rule)'}",
         "",
     ]
+    lad = _ladder(state)
+    if lad.lines():
+        lines += ["THE LADDER"] + [f"  [{a}] {text}" for a, text in lad.lines()] + [""]
+    episodes = _episodes(state)
+    if any(log.facts or log.refusals for log in episodes.values()):
+        lines.append("WHAT THE EPISODES LOOKED AT")
+        for name, log in episodes.items():
+            lines.append(f"  {name}: {log.calls} call{'s' if log.calls != 1 else ''}, {log.tries} tr{'ies' if log.tries != 1 else 'y'}")
+            lines += [f"    {x.render()}" for x in log.facts]
+            lines += [f"    refused {r.tool}({', '.join(f'{k}={v!r}' for k, v in r.args.items())}): {r.reason}" for r in log.refusals]
+        lines.append("")
     if d:
         lines += d.render().splitlines() + ["", "RESULTS"]
         for e in state.get("estimates") or []:
+            label = f"{e.method:28}" if e.modifier is None else f"  within {names.get(e.modifier, e.modifier)} = {e.level:<12}"[:28].ljust(28)
             if e.error:
-                lines.append(f"    {e.method:28} FAILED: {e.error}")
+                lines.append(f"    {label} FAILED: {e.error}")
             else:
                 ci = f" [{e.ci_low:.3g}, {e.ci_high:.3g}]" if e.ci_low is not None else ""
-                lines.append(f"    {e.method:28} {e.value:+.4g}{ci}  rows={e.n_control}/{e.n_treated}  {'primary' if e.method == d.estimator else 'secondary'}")
+                kind = "within a level" if e.modifier is not None else "primary" if e.method == d.estimator else "secondary"
+                lines.append(f"    {label} {e.value:+.4g}{ci}  rows={e.n_control}/{e.n_treated}  {kind}")
         for r in state.get("refutations") or []:
             lines.append(f"    placebo {r.refuter:18} {r.detail}")
         for i in state.get("interpretations") or []:
@@ -1243,7 +1547,20 @@ def assemble(state: SpecialistState) -> dict:
     }
     records.write(state.get("run_dir"), records.artifacts(state, extra), report)
     result = records.result(
-        state, report, {"score": state.get("score"), "shape": state.get("shape"), "covariates": state.get("covariates"), "assessment": state.get("assessment")}
+        state,
+        report,
+        {
+            "score": state.get("score"),
+            "shape": state.get("shape"),
+            "covariates": state.get("covariates"),
+            "assessment": state.get("assessment"),
+            "ladder": [[a, text] for a, text in lad.lines()],
+            "facts": [{"address": x.address, "text": x.render().split("] ", 1)[1], "value": x.value} for log in episodes.values() for x in log.facts],
+            "relations": [
+                {"column": x.column, "stands_for": None, "redundant_with": None, "nested_in": None, "modifier_candidate": x.modifier_candidate}
+                for x in (lad.covariates.items if lad.covariates is not None else [])
+            ],
+        },
     )
     _writer()({"report": report})
     return {"report": report, "specialist_result": result}

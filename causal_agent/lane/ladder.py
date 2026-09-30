@@ -98,6 +98,7 @@ class LadderBase(BaseModel):
 
 _SAMPLING_WORDS = {
     "by_arm": "by whether the unit got the change",
+    "by_side": "by which side of the line they fell on",
     "by_group": "by group, region or type",
     "by_period": "by period",
     "unknown": "in a way the person could not say",

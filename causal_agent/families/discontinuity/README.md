@@ -4,13 +4,16 @@ Effect of a change that a line on a measured score decided. The desk hands the l
 table, freezes a design, fits it on rdrobust, runs the falsifications, and writes a report or an honest stop.
 
 ```
-load ─ case ─ score ─ shape_table ─(relate × N)─ merge_covariates ─ verify ─ check_design
+load ─ case ─ score ─ shape_table ─ line ─ covariates ─ merge_covariates ─ verify ─ heterogeneity ─ threats ─ check_design
      ─(assess, only when flagged)─ pick_estimator ─ freeze_design ─ estimate ─(placebo × K)─ interpret ─ figures ─ assemble
 any typed stop, or a question back to the desk ────────────────────────────▶ feasibility ─ figures ─ assemble
 ```
 
-N is the columns the pack leaves open other than the score, the take-up column, the outcome and the entity column; K the placebos
-the catalogue declares.
+K is the placebos the catalogue declares. `score`, `shape_table`, `line`, `covariates`, `heterogeneity` and `threats` are the rungs
+of the ladder (`lane/contracts.py`, `Ladder`), and `freeze_design` adds the window rung by code: the score and the line, the shape
+of the two sides, whether the line is clean and what could break it, the candidate covariates placed together, where the effect
+at the cutoff could differ, the risks, how wide the window is. A rung is code where the pack settles it and a bounded episode where
+it does not, with the data tools and the budgets `knowledge/checks.yaml` declares.
 
 ## How it sits on rdrobust and rddensity
 
@@ -31,9 +34,11 @@ the catalogue declares.
 
 ## The rule every node follows
 
-- **Facts**: `load`, `case`, `shape_table`, `merge_covariates`, `verify`, `check_design`, `freeze_design`, `estimate`, `placebo`,
+- **Facts**: `load`, `case`, `shape_table`, `merge_covariates`, `verify`, `threats`, `check_design`, `freeze_design`, `estimate`, `placebo`,
   `figures`, `assemble`. Declared inputs; a failed assumption is a typed stop.
-- **Judgements**, one model call each, cited and gated: `score`, `relate`, `assess`, `pick_estimator`, `interpret`.
+- **Judgements**, bounded episodes or single calls, cited and gated: `score`, `line`, `covariates`, `heterogeneity` (episodes,
+  each only for what the pack leaves open), `assess`, `pick_estimator`, `interpret`. A rung never asks the person beyond an
+  incomplete rule; what it would not guess is a flag.
 - **Gates that end a judgement on a fact**: a side the take-up shares contradict stops at `score`; a take-up jump that covers zero is
   a hard `no_first_stage` flag; `assess` cannot proceed without citing every flag, nor over a density or continuity flag without citing
   a note; `interpret` must state the estimand, bandwidth, effective rows and interval the design holds.

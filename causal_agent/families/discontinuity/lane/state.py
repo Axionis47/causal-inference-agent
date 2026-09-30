@@ -13,17 +13,16 @@ from typing_extensions import TypedDict
 
 from causal_agent.common.contracts import Contrast, Estimate, Refutation
 from causal_agent.families.discontinuity.lane.contracts import (
-    CovariateRelation,
     Covariates,
     Design,
     DesignAssessment,
     EstimatorPick,
+    Ladder,
     RDInterpretation,
     Score,
     ShapeFacts,
 )
 from causal_agent.lane.state import LaneState, by_key, merge_dicts
-from causal_agent.lane.state import RelateTask as RelateTask
 
 
 class SpecialistState(LaneState, total=False):
@@ -36,9 +35,7 @@ class SpecialistState(LaneState, total=False):
     shape: ShapeFacts | None
     contrast: Contrast | None
     candidates: list[str]
-    relations: Annotated[list[CovariateRelation], operator.add]
-    relate_errors: dict[str, list[str]]
-    relate_attempts: int
+    ladder: Ladder | None  # the rungs climbed so far
     covariates: Covariates | None
     assessment: DesignAssessment | None
     estimator: str | None
@@ -47,7 +44,7 @@ class SpecialistState(LaneState, total=False):
     pick_attempts: int
     design: Design | None
     primary: dict
-    estimates: Annotated[list[Estimate], by_key(lambda e: (e.contrast, e.method))]
+    estimates: Annotated[list[Estimate], by_key(lambda e: (e.contrast, e.method, e.modifier, e.level))]
     refutations: Annotated[list[Refutation], by_key(lambda r: (r.contrast, r.refuter))]
     placebo_points: Annotated[dict, merge_dicts]  # placebo name -> every refit, so the curve and the cutoffs can be drawn
     interpretations: Annotated[list[RDInterpretation], operator.add]

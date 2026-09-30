@@ -16,8 +16,9 @@ from causal_agent.common.contracts import Cited, Handoff, Scope
 from causal_agent.common.llm import set_llm
 from causal_agent.desk.handoff import forced
 from causal_agent.families.discontinuity.lane import nodes as N
-from causal_agent.families.discontinuity.lane.contracts import CovariateRelation, DesignAssessment, EstimatorPick, RDInterpretation, Score
+from causal_agent.families.discontinuity.lane.contracts import CovariateRelation, CovariateRoles, DesignAssessment, EstimatorPick, Line, RDInterpretation, Score
 from causal_agent.families.discontinuity.lane.graph import compile_local
+from causal_agent.lane.ladder import Heterogeneity, Modifier
 from causal_agent.memory import store
 from causal_agent.profile import datasets as DS
 from causal_agent.profile.profiler import profile
@@ -70,19 +71,49 @@ URUGUAY_RELATIONS = {"education": dict(predetermined=True), "age": dict(predeter
 
 
 class FakeLLM:
-    """Scripted answers: a Score, relations per column, and defaults for the rest that read the material like a careful model would."""
+    """Scripted answers: a Score, relations per column, and defaults for the rest that read the material like a careful model would.
+    `overrides` sets a column's claims in the covariates rung; `risks` are what the line rung names; `looks` scripts the tool calls
+    of an episode by node name."""
 
     def __init__(
-        self, score: Score, relations: dict, cite: str, *, bad_cites=False, assess_script=None, pick_script=None, score_script=None, interpret_bad_first=False
+        self,
+        score: Score,
+        relations: dict,
+        cite: str,
+        *,
+        bad_cites=False,
+        assess_script=None,
+        pick_script=None,
+        score_script=None,
+        interpret_bad_first=False,
+        overrides=None,
+        risks=None,
+        looks=None,
     ):
         self.score, self.relations, self.cite, self.bad_cites = score, relations, cite, bad_cites
         self.assess_script, self.pick_script, self.score_script = list(assess_script or []), list(pick_script or []), list(score_script or [])
         self.interpret_bad_first = interpret_bad_first
+        self.overrides = dict(overrides or {})
+        self.risks = list(risks or [])
+        self.looks = {k: list(v) for k, v in (looks or {}).items()}
         self.calls: list[str] = []
         self.humans: list[tuple[str, str]] = []
 
     def humans_of(self, name: str) -> list[str]:
         return [h for n, h in self.humans if n == name]
+
+    def asked(self, name: str) -> list[str]:
+        return [c for h in self.humans_of(name) for c in re.findall(r"^COLUMN '([^']+)'", h, re.M)]
+
+    def bind_tools(self, tools):
+        return self
+
+    def invoke(self, messages):
+        m = re.search(r"\[probe:([a-z_]+)\.<n>\]", messages[0].content)
+        node = m.group(1) if m else ""
+        rounds = self.looks.get(node) or []
+        calls = rounds.pop(0) if rounds else []
+        return AIMessage(content="", tool_calls=[{"name": n, "args": a, "id": f"{node}{i}"} for i, (n, a) in enumerate(calls)])
 
     def with_structured_output(self, schema, include_raw=False):
         fake = self
@@ -98,6 +129,17 @@ class FakeLLM:
 
         return R()
 
+    def covariates_answer(self, human: str) -> CovariateRoles:
+        cite = "col:nope.note" if self.bad_cites else self.cite
+        items = []
+        for col in re.findall(r"^COLUMN '([^']+)'", human.split("THE COLUMNS TO PLACE")[1], re.M):
+            flags = dict(predetermined=False, affected_by_treatment=False, is_outcome_measure=False, modifier_candidate=False)
+            flags.update(self.relations.get(col, {}))
+            flags.update(self.overrides.get(col, {}))
+            reasons = [Cited(reason=f"{col}: {k}", cites=[cite]) for k in ("predetermined", "affected_by_treatment", "is_outcome_measure") if flags[k]]
+            items.append(CovariateRelation(column=col, reasons=reasons, **flags))
+        return CovariateRoles(items=items)
+
     def answer(self, schema, human):
         self.calls.append(schema.__name__)
         self.humans.append((schema.__name__, human))
@@ -106,11 +148,22 @@ class FakeLLM:
             s = (self.score_script.pop(0) if self.score_script else self.score).model_copy()
             s.cites = [cite]
             return s
-        if schema is CovariateRelation:
-            col = re.search(r"for column '([^']+)'", human).group(1)
-            flags = dict(predetermined=False, affected_by_treatment=False, is_outcome_measure=False)
-            flags.update(self.relations.get(col, {}))
-            return CovariateRelation(column=col, reasons=[Cited(reason=f"{col}: {k}", cites=[cite]) for k, v in flags.items() if v], **flags)
+        if schema is Line:
+            return Line(
+                clean=not self.risks,
+                why="the story says the score was set before the programme and nothing else switches there",
+                risks=list(self.risks),
+                cites=[cite],
+            )
+        if schema is CovariateRoles:
+            return self.covariates_answer(human)
+        if schema is Heterogeneity:
+            cands = re.findall(r"^\[col:([^\]]+)\]", human.split("CANDIDATES")[1], re.M)
+            return Heterogeneity(
+                modifiers=[Modifier(column=cands[0], reason="the story says the effect could differ by it", cites=[cite])],
+                why="one trait the story backs",
+                cites=[cite],
+            )
         if schema is DesignAssessment:
             if self.assess_script:
                 return self.assess_script.pop(0)
@@ -286,9 +339,15 @@ def test_uruguay_happy_path():
     assert len(out["interpretations"]) == 1 and not out.get("interpret_errors")
     assert out["interpretations"][0].estimand == "effect_at_cutoff"
     assert "DESIGN" in r["report"] and "ANSWER" in r["report"]
-    assert fake.calls.count("CovariateRelation") == 2 and fake.calls.count("Score") == 1 and "DesignAssessment" in fake.calls
-    for name in ("DesignAssessment", "EstimatorPick", "RDInterpretation"):  # every judgement after the score sees the case
+    assert fake.calls.count("CovariateRoles") == 1 and sorted(fake.asked("CovariateRoles")) == ["age", "education"]
+    assert fake.calls.count("Score") == 1 and fake.calls.count("Line") == 1 and "DesignAssessment" in fake.calls
+    for name in ("Line", "CovariateRoles", "DesignAssessment", "EstimatorPick", "RDInterpretation"):  # every judgement sees the case
         assert fake.humans_of(name) and all("THE CASE" in p and "[change:1.note]" in p for p in fake.humans_of(name)), name
+    lad = out["ladder"]
+    assert lad.score.by == "judgement" and lad.line.clean and lad.heterogeneity.by == "code" and lad.bandwidth is not None and lad.threats is not None
+    assert "[ladder:score.rule] income_centered treated when below 0" in r["report"] and "[ladder:covariates.age] fixed before the line" in r["report"]
+    assert "THE LADDER SO FAR" in fake.humans_of("Line")[0] and "[ladder:shape.kind] sharp" in fake.humans_of("Line")[0]
+    assert ["ladder:line.clean", "yes"] in r["ladder"] and "ladder:bandwidth.h" in fake.humans_of("RDInterpretation")[0].split("ADDRESSES YOU MAY CITE")[1]
     run = Path(r["run_dir"])
     assert (run / "design.json").exists() and (run / "bins.csv").exists() and (run / "canon.csv").exists()
 
@@ -558,15 +617,16 @@ def test_small_but_legal_sample_never_raises(tmp_path, monkeypatch):
 # ------------------------------------------------------------------ tests: the other gates
 
 
-def test_relate_bad_cites_loop_then_stop():
+def test_bad_cites_in_the_covariates_rung_stop_it_after_three_tries():
     class Fake(FakeLLM):
         def answer(self, schema, human):
-            self.bad_cites = schema is CovariateRelation
+            self.bad_cites = schema is CovariateRoles
             return super().answer(schema, human)
 
     fake = Fake(URUGUAY_SCORE, URUGUAY_RELATIONS, URUGUAY["cite"])
     out = _run(fake, handoff(**URUGUAY))
-    assert out["feasibility"].stage == "verify" and fake.calls.count("CovariateRelation") == 2 * 3
+    assert out["feasibility"].stage == "covariates" and fake.calls.count("CovariateRoles") == 3 and out["episodes"]["covariates"].tries == 3
+    assert "education: col:nope.note is not an address you may cite" in fake.humans_of("CovariateRoles")[1]
 
 
 def test_estimator_outside_list_is_rejected_then_accepted():
@@ -795,16 +855,11 @@ def test_covariates_allowed_is_honoured_and_settled_timing_is_not_asked_again(tm
         cites=["col:score.note"],
     )
 
-    class Fake(FakeLLM):
-        def answer(self, schema, human):
-            if schema is CovariateRelation:
-                assert "for column 'z'" in human and "predetermined = true [col:z.when]" in human
-            return super().answer(schema, human)
-
-    fake = Fake(sc, {"z": dict(predetermined=True)}, "col:score.note")
+    fake = FakeLLM(sc, {"z": dict(predetermined=True)}, "col:score.note")
     out = _run(fake, handoff("sharp", "y", "got", ["score", "y", "got", "z", "later"], "col:score.note", memory_=m))
     assert out["specialist_result"]["status"] == "done", out["specialist_result"].get("feasibility")
-    assert fake.calls.count("CovariateRelation") == 1 and out["design"].covariates.balance_tested == ["z"]
+    assert fake.asked("CovariateRoles") == ["z"] and out["design"].covariates.balance_tested == ["z"]
+    assert "COLUMN 'z'" in fake.humans_of("CovariateRoles")[0] and "predetermined = true [col:z.when]" in fake.humans_of("CovariateRoles")[0]
     assert "col:later.measures_outcome" in {x.column: x.why for x in out["design"].covariates.excluded}["later"]
 
 
@@ -869,3 +924,54 @@ def test_the_run_leaves_the_jump_the_density_the_covariates_and_the_bandwidths_a
     assert len(figs[f"bandwidths_{c}"]["series"][0]["x"]) == 4 and figs[f"bandwidths_{c}"]["marks"][0]["label"] == "h used"
     assert "the cutoff" in figs[f"placebo_cutoffs_{c}"]["series"][0]["x"]
     assert not any(x["check"] == "figure.check" for x in r["declines"])
+
+
+# ------------------------------------------------------------------ the line rung and the effect by a predetermined characteristic
+
+
+def test_a_risk_the_line_rung_names_is_a_flag_the_assessment_answers_and_the_interpretation_cites():
+    from causal_agent.families.discontinuity.lane.contracts import Risk
+
+    risk = Risk(name="cutoff_known_in_advance", reason="households knew the income line before the survey", cites=["change:1.note"])
+    fake = FakeLLM(URUGUAY_SCORE, URUGUAY_RELATIONS, URUGUAY["cite"], risks=[risk])
+    out = _run(fake, handoff(**URUGUAY))
+    r = out["specialist_result"]
+    assert r["status"] == "done", r.get("feasibility")
+    assert not out["ladder"].line.clean and "cutoff_known_in_advance" in [t.name for t in out["ladder"].threats.items]
+    flag = next(c for c in out["checks"] if c.name == "threat.cutoff_known_in_advance")
+    assert flag.level == "soft" and "knew the income line" in flag.detail and flag.address in out["interpretations"][0].cites
+    assert "[ladder:line.risk.cutoff_known_in_advance] households knew" in r["report"] and not out.get("interpret_errors")
+
+
+def test_the_effect_at_the_cutoff_is_estimated_within_each_level_of_a_predetermined_characteristic(tmp_path, monkeypatch):
+    """The covariates rung marks z as one the effect could differ by; the heterogeneity rung picks it; the primary spec is fitted
+    again within each quarter of z at the design's bandwidth; the estimates, the figure and the material carry them."""
+    df = sharp_below()
+    make_pack(tmp_path, monkeypatch, "sharp", df, "Units with a score strictly below 50 got the grant; a unit exactly at 50 did not.", SYNTH_COLS)
+    sc = Score(
+        column="score",
+        cutoff=50.0,
+        treated_side="below",
+        cutoff_value_treated=False,
+        takeup_column="got",
+        takeup_level="1",
+        reason="r",
+        cites=["col:score.note"],
+    )
+    fake = FakeLLM(sc, {"z": dict(predetermined=True, modifier_candidate=True), "later": dict(is_outcome_measure=True)}, "col:score.note")
+    out = _run(fake, handoff("sharp", "y", "got", ["score", "y", "got", "z", "later"], "col:score.note"))
+    r = out["specialist_result"]
+    assert r["status"] == "done", r.get("feasibility")
+    assert fake.calls.count("Heterogeneity") == 1 and "[col:z]" in fake.humans_of("Heterogeneity")[0].split("CANDIDATES")[1]
+    het = out["ladder"].heterogeneity
+    assert het.by == "judgement" and [m.column for m in het.modifiers] == ["z"] and out["design"].modifiers == ["z"]
+    within = [e for e in out["estimates"] if e.modifier == "z"]
+    assert len(within) == 4 and all(e.level for e in within)
+    fitted = [e for e in within if e.error is None]
+    assert fitted and all(e.ci_low <= 1.0 <= e.ci_high or abs(e.value - 1.0) < 0.5 for e in fitted)
+    c = out["design"].contrast.key
+    assert all(e.tag.startswith(f"estimate:{c}.by.z.") for e in within)
+    assert {f"{e.tag}.value" for e in fitted} <= set(out["interpretations"][0].cites) and not out.get("interpret_errors")
+    figs = {f["id"]: f for f in __import__("json").loads(open(f"{r['run_dir']}/figures.json").read())}
+    assert f"effect_by_modifier_{c}" in figs and figs[f"effect_by_modifier_{c}"]["series"][0]["x"][0] == "all rows"
+    assert "within z = " in r["report"] and "[ladder:heterogeneity.modifiers] z" in r["report"] and "modifiers    z" in r["report"]

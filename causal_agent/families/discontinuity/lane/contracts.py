@@ -1,4 +1,5 @@
-"""Discontinuity lane contracts. What each node writes.
+"""Discontinuity lane contracts. What each node writes, and the rungs of the ladder the design is climbed on; the records every
+ladder shares (the threats, heterogeneity, what a rung would not guess) come from the harness.
 
 Lane-invariant artifacts (Contrast, Checks, Estimate, Refutation, Interpretation, Feasibility) live in
 causal_agent.common.contracts. These are the ones only this lane needs.
@@ -7,17 +8,18 @@ causal_agent.common.contracts. These are the ones only this lane needs.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Literal
+from typing import ClassVar, Literal
 
 from pydantic import BaseModel, Field
 
-from causal_agent.common.contracts import Checks, Cited, Contrast, Interpretation
+from causal_agent.common.contracts import Checks, Cited, Contrast, Departure, Interpretation
+from causal_agent.lane.ladder import Heterogeneity, LadderBase, Threats, Unsure
 
 Estimand = Literal["effect_at_cutoff", "complier_effect_at_cutoff", "itt_at_cutoff"]
 
 
 class Score(BaseModel):
-    """The running variable, the cutoff, which side got the change, and who actually took it up."""
+    """Rung 0: the running variable, the cutoff, which side got the change, and who actually took it up."""
 
     column: str | None = Field(description="the column holding the score the cutoff was applied to; null if the notes state no cutoff rule on a numeric score")
     cutoff: float | None = Field(default=None, description="the cutoff value, in the score's own units, exactly as the notes state it")
@@ -35,6 +37,16 @@ class Score(BaseModel):
     )
     reason: str
     cites: list[str]
+    by: Literal["pack", "judgement"] = "judgement"
+
+    def lines(self) -> list[tuple[str, str]]:
+        if not self.column or self.cutoff is None:
+            return [("ladder:score.rule", "no cutoff rule on a numeric score")]
+        rule = f"{'at or ' if self.cutoff_value_treated else ''}{self.treated_side} {self.cutoff:g}"
+        return [
+            ("ladder:score.rule", f"{self.column} treated when {rule} (set by the {self.by})"),
+            ("ladder:score.takeup", f"{self.takeup_column} = {self.takeup_level!r}" if self.takeup_column else "none recorded: the rule is the change"),
+        ]
 
 
 class ShapeFacts(BaseModel):
@@ -58,9 +70,49 @@ class ShapeFacts(BaseModel):
     score_max: float
     cluster_column: str | None = None
 
+    def lines(self) -> list[tuple[str, str]]:
+        return [
+            ("ladder:shape.sides", f"{self.n_left} rows on the control side, {self.n_right} on the treated side; {self.distinct_scores} distinct scores"),
+            (
+                "ladder:shape.kind",
+                f"{self.kind}"
+                + (f"; take-up {self.takeup_left:.2f} control side, {self.takeup_right:.2f} treated side" if self.takeup_left is not None else ""),
+            ),
+        ]
+
+
+LineRisk = Literal["manipulation", "other_change_at_line", "score_set_after", "cutoff_known_in_advance"]
+
+
+class Risk(Cited):
+    """One thing that could break the comparison at the line, named from the story: units moving their own score (manipulation),
+    something else switching at the same line (other_change_at_line), a score set after the change was decided (score_set_after),
+    a cutoff units knew before their score was fixed (cutoff_known_in_advance)."""
+
+    name: LineRisk
+
+
+class Line(BaseModel):
+    """Rung 2: whether the line is clean, argued from the story: what set the score, whether units could move it, what else
+    switches there."""
+
+    clean: bool = Field(
+        description="whether the story supports that the score was set before the decision, could not be moved, and nothing else switches at the line"
+    )
+    why: str = Field(description="one or two sentences from the story and the facts")
+    risks: list[Risk] = Field(default_factory=list, description="every risk the story raises, each cited; none when it raises none")
+    cites: list[str] = Field(default_factory=list)
+    unsure: list[Unsure] = Field(default_factory=list)
+    by: Literal["judgement"] = "judgement"
+
+    def lines(self) -> list[tuple[str, str]]:
+        return [("ladder:line.clean", "yes" if self.clean else "no"), ("ladder:line.why", self.why)] + [
+            (f"ladder:line.risk.{r.name}", r.reason) for r in self.risks
+        ]
+
 
 class CovariateRelation(BaseModel):
-    """One column's standing at the cutoff. Three claims, each cited when true."""
+    """One column's standing at the cutoff, read with every other candidate in view."""
 
     column: str
     predetermined: bool = Field(
@@ -70,7 +122,59 @@ class CovariateRelation(BaseModel):
         description="the column's value could have been changed by the treatment; adjusting for it would remove part of the effect"
     )
     is_outcome_measure: bool = Field(description="another measure of the outcome, or a later outcome, not a covariate")
+    modifier_candidate: bool = Field(
+        default=False, description="a predetermined characteristic the effect at the cutoff could plausibly differ by, per the story"
+    )
     reasons: list[Cited] = Field(description="one entry per claim marked true, each citing the card that supports it")
+    departures: list[Departure] = Field(default_factory=list)
+
+    def word(self) -> str:
+        base = (
+            "another measure of the outcome"
+            if self.is_outcome_measure
+            else "changed by the treatment"
+            if self.affected_by_treatment
+            else "fixed before the line"
+            if self.predetermined
+            else "not fixed before the line"
+        )
+        return base + ("; a candidate modifier" if self.modifier_candidate else "")
+
+
+class CovariateRoles(BaseModel):
+    """Rung 3: every candidate covariate placed together."""
+
+    items: list[CovariateRelation] = Field(description="one per column listed, all of them")
+    unsure: list[Unsure] = Field(default_factory=list, description="what you would not guess, with why; the answer above still stands")
+
+    def lines(self) -> list[tuple[str, str]]:
+        return [(f"ladder:covariates.{r.column}", r.word()) for r in self.items]
+
+
+class Bandwidth(BaseModel):
+    """How wide the window around the line is, by code at the freeze."""
+
+    h: float
+    rule: str
+    why: str
+
+    def lines(self) -> list[tuple[str, str]]:
+        return [("ladder:bandwidth.h", f"{self.h:.4g} in the score's units ({self.rule})"), ("ladder:bandwidth.why", self.why)]
+
+
+class Ladder(LadderBase):
+    """The rungs climbed so far: the score and the line, the shape, whether the line is clean, the covariates, where the effect
+    could differ, the threats, the window. A rung reads the rungs below it; every line has an address."""
+
+    ORDER: ClassVar[tuple[str, ...]] = ("score", "shape", "line", "covariates", "heterogeneity", "threats", "bandwidth")
+
+    score: Score | None = None
+    shape: ShapeFacts | None = None
+    line: Line | None = None
+    covariates: CovariateRoles | None = None
+    heterogeneity: Heterogeneity | None = None
+    threats: Threats | None = None
+    bandwidth: Bandwidth | None = None
 
 
 class Excluded(BaseModel):
@@ -134,6 +238,9 @@ class Design(BaseModel):
     sharp_bandwidth_used: bool = False
     placebos: list[str]
     target_units: str
+    modifiers: list[str] = Field(
+        default_factory=list, description="the predetermined characteristics the effect at the cutoff is also estimated within, level by level"
+    )
     frozen_at: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     def render(self) -> str:
@@ -164,6 +271,7 @@ class Design(BaseModel):
         )
         lines.append(f"  placebos     {', '.join(self.placebos) or 'none'}")
         lines.append(f"  target       {self.target_units}")
+        lines.append(f"  modifiers    {', '.join(self.modifiers) or 'none'}")
         lines.append(f"  frozen at    {self.frozen_at}")
         return "\n".join(lines)
 

@@ -75,3 +75,16 @@ in_words:
   first_stage_weak: "whether take-up jumps at the cutoff enough to lean on"
   no_first_stage: "whether take-up jumps at the cutoff at all"
   covariate_continuity: "whether units just either side of the cutoff are alike on what was fixed before it"
+
+# How many tool calls each reasoning episode may make before it must answer. The leash, declared.
+episode_budget:
+  score: 2
+  line: 4
+  covariates: 8
+  heterogeneity: 4
+
+# How many modifiers the heterogeneity rung may name; the effect at the cutoff is estimated within each level of each, at the
+# design's bandwidth, and a level with fewer effective rows on a side than the floor is recorded as too thin.
+modifiers:
+  max: 3
+  max_levels: 4

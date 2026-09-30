@@ -1,10 +1,16 @@
-"""Prompts for the five judgements. Method-free and column-free: everything specific arrives as data."""
+"""Prompts for the lane's judgements: the score and the line, whether the line is clean, the covariates, where the effect could
+differ, the assessment, the pick and the interpretation. Method-free and column-free: everything specific arrives as data."""
 
 from causal_agent.lane.prompts import INTERPRET_CASE, PICK_CASE, PLAIN_WORDS, cite_rule
 from causal_agent.lane.prompts import INTERPRET_USER as INTERPRET_USER  # the lane's nodes read these here
 from causal_agent.lane.prompts import PICK_USER as PICK_USER
 
 CITE_RULE = cite_rule("col:score.note", "check:above_vs_below.density")
+
+TOOLS_NOTE = (
+    "You may look at the data first with the tools offered: describe a column, see it by side, the association or the redundancy "
+    "of two columns, the timing. A result comes back with an address you cite like any other. "
+)
 
 SCORE_SYSTEM = (
     "You are naming the score and the cutoff that decided who got a change, for a comparison of units just either "
@@ -18,7 +24,7 @@ SCORE_SYSTEM = (
     "  takeup_column and takeup_level: the column that records whether each unit actually received the change and the exact "
     "value that means it did; null when the data records no such column and the change is the cutoff rule itself.\n"
     "If the hand-off named a treatment column that is not the score, that column is the take-up column unless the notes say "
-    "it is something else. " + CITE_RULE
+    "it is something else. " + TOOLS_NOTE + CITE_RULE
 )
 
 SCORE_USER = """QUESTION
@@ -42,31 +48,76 @@ EVERY COLUMN
 Name the score column, the cutoff, the treated side, the cutoff-value rule, and the take-up column and level or null.
 """
 
-RELATE_SYSTEM = (
-    "You are judging one column's standing at a cutoff, for a comparison of units just either side of it. Three yes/no "
-    "questions, from what the cards state:\n"
-    "  predetermined: the column's value was fixed before the score was set and the change decided, so units just either side "
-    "of the cutoff should not differ on it. A characteristic measured later but describing something fixed earlier "
-    "(a person's schooling, a county's population before the programme) counts, when the card says so.\n"
-    "  affected_by_treatment: the column's value could have been changed by the treatment, so adjusting for it would remove "
-    "part of the effect.\n"
-    "  is_outcome_measure: another measure of the outcome, or a later outcome, or a fitted or derived version of one.\n"
-    "A code, label, or identifier that names a unit, a place, or a category (a county code, a state number, a campus label) "
-    "is not a characteristic: mark all three false for it.\n"
-    "Give one reason per claim you mark true, each with a citation. When a block SETTLED BY THE PACK gives a claim, the "
-    "person has already said it: copy that answer and cite the address shown. " + CITE_RULE
+LINE_SYSTEM = (
+    "You are judging whether the line on the score is clean, for a comparison of units just either side of it. From the story, "
+    "the cards and the facts, say whether the score was set before the decision, whether a unit could move its own score, and "
+    "whether anything else switches at the same line, and name every risk the story raises:\n"
+    "  manipulation: units could move their own score once they knew the rule.\n"
+    "  other_change_at_line: something else, a rule or a programme, switches at the same line.\n"
+    "  score_set_after: the score was set or revised after the change was decided.\n"
+    "  cutoff_known_in_advance: units knew the cutoff before their score was fixed.\n"
+    "Name a risk only when the story or a fact gives a reason, and cite it. Never reason from the outcome by side; that tool is "
+    "refused, and the test of the score's density at the line is run by code afterwards. " + TOOLS_NOTE + CITE_RULE
 )
 
-RELATE_USER = """QUESTION
+LINE_USER = """QUESTION
 {question}
 
-THE COMPARISON
+THE CASE
 {frame}
 
-THE COLUMN TO JUDGE
-{card}
-{settled}{errors}
-Answer the three questions for column {column!r}.
+THE LINE
+{line}
+{errors}
+Judge the line and name the risks.
+"""
+
+COVARIATES_SYSTEM = (
+    "You are placing every candidate covariate, all of them together, for a comparison of units just either side of a cutoff. "
+    "For each column listed give:\n"
+    "  predetermined: the column's value was fixed before the score was set and the change decided, so units just either side of "
+    "the cutoff should not differ on it. A characteristic measured later but describing something fixed earlier (a person's "
+    "schooling, a county's population before the programme) counts, when the card says so.\n"
+    "  affected_by_treatment: the column's value could have been changed by the treatment, so adjusting for it would remove part "
+    "of the effect.\n"
+    "  is_outcome_measure: another measure of the outcome, or a later outcome, or a fitted or derived version of one.\n"
+    "  modifier_candidate: a predetermined characteristic the effect at the cutoff could plausibly differ by, per the story.\n"
+    "A code, label, or identifier that names a unit, a place, or a category is not a characteristic: mark the three claims false "
+    "for it. Read the columns against each other: two that measure one thing only show when read together. When a block SETTLED "
+    "BY THE PACK gives a claim, the person has already said it: copy that answer and cite the address shown. Give one reason per "
+    "claim you mark true, each with a citation. Return every listed column once. " + TOOLS_NOTE + CITE_RULE
+)
+
+COVARIATES_USER = """QUESTION
+{question}
+
+THE CASE
+{frame}
+
+THE COLUMNS TO PLACE ({count})
+{columns}
+{errors}
+Place every column listed, together.
+"""
+
+HETEROGENEITY_SYSTEM = (
+    "You choose where the effect at the cutoff could differ, for a cutoff design that is fixed. You see the candidate columns "
+    "the covariates rung, or the person, marked as predetermined characteristics the effect could plausibly differ by. Pick at "
+    "most {max_modifiers} by name from the candidates, the ones the story gives a reason for, and say why. A modifier is chosen "
+    "for a reason in the story, never because of anything about the outcome; the outcome by side is refused to you. Pick none "
+    "when the story gives no reason. " + TOOLS_NOTE + CITE_RULE
+)
+
+HETEROGENEITY_USER = """QUESTION
+{question}
+
+THE CASE
+{frame}
+
+CANDIDATES (predetermined characteristics; pick among these only)
+{candidates}
+{errors}
+Choose the modifiers, at most {max_modifiers}.
 """
 
 ASSESS_SYSTEM = (

@@ -1,11 +1,12 @@
-"""The discontinuity subgraph on rdrobust and rddensity. Nodes are constant; workers scale with columns and placebos.
+"""The discontinuity subgraph on rdrobust and rddensity. Nodes are constant; workers scale with placebos.
 
-    load ─ case ─ score ─ shape_table ─(relate × N)─ merge_covariates ─ verify ─ check_design
+    load ─ case ─ score ─ shape_table ─ line ─ covariates ─ merge_covariates ─ verify ─ heterogeneity ─ threats ─ check_design
          ─(assess, only when flagged)─ pick_estimator ─ freeze_design ─ estimate ─(placebo × K)─ interpret ─ figures ─ assemble
     any typed stop, or an ask back ───────────────────────────────────────────▶ feasibility ─ figures ─ assemble
 
-verify reruns only the relate workers it rejected (3 tries). estimate may re-pick once on a fit failure.
-Nothing loops after an estimate exists.
+score, line, covariates and heterogeneity are the rungs of the ladder: code where the pack settles the rung, a bounded episode
+where it does not, each gated up to three tries inside the episode. estimate may re-pick once on a fit failure. Nothing loops
+after an estimate exists.
 """
 
 from __future__ import annotations
@@ -24,9 +25,12 @@ def build() -> StateGraph:
     b.add_node("case", N.case)
     b.add_node("score", N.score, retry_policy=_retry)
     b.add_node("shape_table", N.shape_table)
-    b.add_node("relate", N.relate, retry_policy=_retry)
+    b.add_node("line", N.line, retry_policy=_retry)
+    b.add_node("covariates", N.covariates, retry_policy=_retry)
     b.add_node("merge_covariates", N.merge_covariates)
     b.add_node("verify", N.verify)
+    b.add_node("heterogeneity", N.heterogeneity, retry_policy=_retry)
+    b.add_node("threats", N.threats)
     b.add_node("check_design", N.check_design)
     b.add_node("assess", N.assess, retry_policy=_retry)
     b.add_node("pick_estimator", N.pick_estimator, retry_policy=_retry)
@@ -42,10 +46,11 @@ def build() -> StateGraph:
     # load returns Command(goto=case | feasibility)
     b.add_edge("case", "score")
     # score returns Command(goto=shape_table | feasibility)
-    # shape_table returns Command(goto=[Send relate...] | merge_covariates | feasibility)
-    b.add_edge("relate", "merge_covariates")
+    # shape_table returns Command(goto=line | feasibility); line returns Command(goto=covariates | feasibility)
+    # covariates returns Command(goto=merge_covariates | feasibility)
     b.add_edge("merge_covariates", "verify")
-    # verify returns Command(goto=check_design | [Send relate...] | feasibility)
+    # verify returns Command(goto=heterogeneity | feasibility); heterogeneity returns Command(goto=threats | feasibility)
+    b.add_edge("threats", "check_design")
     b.add_conditional_edges("check_design", N.after_checks, ["assess", "pick_estimator"])
     # assess returns Command(goto=pick_estimator | feasibility)
     # pick_estimator returns Command(goto=freeze_design | feasibility)
