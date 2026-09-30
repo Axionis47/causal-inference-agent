@@ -69,6 +69,7 @@ class ShapeFacts(BaseModel):
     score_min: float
     score_max: float
     cluster_column: str | None = None
+    clusters: int | None = Field(default=None, description="distinct values of the cluster column among the primary rows; null when none is declared")
 
     def lines(self) -> list[tuple[str, str]]:
         return [

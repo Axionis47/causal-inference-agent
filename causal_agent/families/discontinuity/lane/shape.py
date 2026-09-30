@@ -122,6 +122,7 @@ def _facts(df, x_all, table, x_raw, numeric_candidates, rows_at_cutoff, shift, c
         score_min=float(finite.min()) if len(finite) else float("nan"),
         score_max=float(finite.max()) if len(finite) else float("nan"),
         cluster_column=cluster_column if cluster_column and "cluster" in df.columns else None,
+        clusters=int(df["cluster"].nunique()) if "cluster" in df.columns else None,
     )
 
 

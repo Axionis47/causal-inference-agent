@@ -36,8 +36,11 @@ it does not, with the data tools and the budgets `knowledge/checks.yaml` declare
   Anderson-Rubin statistic and the Wald ratio when take-up is partial), the p-value comes from reshuffling the sides and the
   interval from inverting that test over a grid. Its own sensitivities run instead of the polynomial falsifications: the estimate
   across narrower and wider windows, and Rosenbaum bounds on the p-value.
-- **Inference.** `knowledge/inference.yaml`: the point estimate from the conventional row, the interval from the robust
-  bias-corrected row, clustered by the entity column when one exists. No model call.
+- **Inference.** `knowledge/inference.yaml`, by facts: the point estimate from the conventional row, the interval from the
+  robust bias-corrected row; clustered by the entity column when one exists, with the Bell-McCaffrey correction (cr2) when
+  there are fewer clusters than `checks.yaml` trusts, which the `few_clusters` check also flags. Take-up that varies on one side
+  only is passed to the library as `sharpbw`, so it selects the width as for a sharp design, and the `one_sided_takeup` check
+  says so. No model call.
 - **Evidence before the judgement.** The density rung (`checks.density_evidence`) runs rddensity once with the settings
   `checks.yaml` declares, splits the rows in nested windows either side of the line and tests each split as a coin toss, and
   writes the histogram; the line rung reads it from the ladder and its gate holds a clean verdict to it.

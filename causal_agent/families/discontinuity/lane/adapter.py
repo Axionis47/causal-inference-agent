@@ -25,7 +25,7 @@ from scipy.stats import norm
 
 from causal_agent.common.contracts import Estimate
 
-POINT_ROW, INTERVAL_ROW = 0, 2  # Conventional, Robust
+POINT_ROW, INTERVAL_ROW = 0, 2  # the Conventional row for the point, the Robust row for the interval and the p (inference.yaml says why)
 
 
 @dataclass
@@ -73,7 +73,19 @@ def _run(fn, **kw):
     return res, notes
 
 
-def _kwargs(params: dict, df: pd.DataFrame, *, y: str, fuzzy: bool, covs: list[str] | None, cluster: bool, vce: str, c: float, bwselect: str | None) -> dict:
+def _kwargs(
+    params: dict,
+    df: pd.DataFrame,
+    *,
+    y: str,
+    fuzzy: bool,
+    covs: list[str] | None,
+    cluster: bool,
+    vce: str,
+    c: float,
+    bwselect: str | None,
+    sharpbw: bool = False,
+) -> dict:
     kw: dict[str, Any] = dict(
         y=df[y],
         x=df["x"],
@@ -87,6 +99,8 @@ def _kwargs(params: dict, df: pd.DataFrame, *, y: str, fuzzy: bool, covs: list[s
     )
     if fuzzy:
         kw["fuzzy"] = df["t"]
+        if sharpbw:
+            kw["sharpbw"] = True  # take-up varies on one side only: the library selects the width as for a sharp design
     if covs:
         kw["covs"] = df[list(covs)]
     if cluster and "cluster" in df.columns:
@@ -108,12 +122,14 @@ def fit(
     b: float | list[float] | tuple[float, float] | None = None,
     mask: pd.Series | None = None,
     bwselect: str | None = None,
+    sharpbw: bool = False,
 ) -> Fit:
-    """`h` and `b` are one width for both sides or a (control side, treated side) pair, in the score's units."""
+    """`h` and `b` are one width for both sides or a (control side, treated side) pair, in the score's units; `sharpbw` asks the
+    library to select the width as for a sharp design when take-up varies on one side only."""
     from rdrobust import rdrobust
 
     df = table if mask is None else table[mask]
-    kw = _kwargs(params, df, y=y, fuzzy=fuzzy, covs=covs, cluster=cluster, vce=vce, c=c, bwselect=bwselect)
+    kw = _kwargs(params, df, y=y, fuzzy=fuzzy, covs=covs, cluster=cluster, vce=vce, c=c, bwselect=bwselect, sharpbw=sharpbw)
     if h is not None:
         kw["h"] = _sides(h)
     if b is not None:
@@ -171,11 +187,13 @@ def _convert(est, notes: list[str]) -> Fit:
     return f
 
 
-def bandwidths(params: dict, table: pd.DataFrame, *, fuzzy: bool = False, covs: list[str] | None = None, cluster: bool = False, vce: str = "nn") -> dict:
+def bandwidths(
+    params: dict, table: pd.DataFrame, *, fuzzy: bool = False, covs: list[str] | None = None, cluster: bool = False, vce: str = "nn", sharpbw: bool = False
+) -> dict:
     """Every selector the library offers, with the same arguments the primary fit uses."""
     from rdrobust import rdbwselect
 
-    kw = _kwargs(params, table, y="y", fuzzy=fuzzy, covs=covs, cluster=cluster, vce=vce, c=0.0, bwselect=None)
+    kw = _kwargs(params, table, y="y", fuzzy=fuzzy, covs=covs, cluster=cluster, vce=vce, c=0.0, bwselect=None, sharpbw=sharpbw)
     kw.pop("level", None)  # rdbwselect has no level argument
     kw["all"] = True
     try:

@@ -75,13 +75,19 @@ first_stage:
   # for any design with a take-up column: the jump in take-up at the cutoff, sharp local linear
   no_first_stage_is_hard: true
   f_min: 20
-  source: Extensions chapter 3; proceed only with a strong first stage, a minimum F of 20; F is the square of the Robust row's z, which row to use is ours; a first stage whose robust interval covers zero means the cutoff moved nothing, a hard stop
+  source: Extensions chapter 3; proceed only with a strong first stage, a minimum F of 20; F is the square of the conventional estimate over its conventional standard error, which row to use is ours; a first stage whose robust interval covers zero means the cutoff moved nothing, a hard stop
+  # take-up that varies on one side only (nobody below takes up, or everybody above does) is passed to the library as sharpbw,
+  # so it selects the width as for a sharp design; the design records it and the check says so
 
 covariate_continuity:
   # each balance-tested covariate as the outcome, sharp local linear, coverage-error bandwidth; one check, soft if any fails
   p_value: {soft: 0.05}
   bwselect: cerrd
   source: Foundations 5.1, which suggests the CER bandwidth for falsification and reads the robust p at the conventional level
+
+clusters:
+  few: {soft: 30}
+  source: ours; with few clusters the cluster-robust variance is unreliable, and inference.yaml switches to the Bell-McCaffrey correction below this line
 
 argue_from_notes: [density, covariate_continuity]
 
@@ -106,6 +112,8 @@ in_words:
   first_stage_weak: "whether take-up jumps at the cutoff enough to lean on"
   no_first_stage: "whether take-up jumps at the cutoff at all"
   covariate_continuity: "whether units just either side of the cutoff are alike on what was fixed before it"
+  few_clusters: "whether there are enough separate groups of units for the usual clustered standard errors to be trusted"
+  one_sided_takeup: "whether take-up varies on one side of the cutoff only, so the width is chosen as for a sharp design"
 
 # How many tool calls each reasoning episode may make before it must answer. The leash, declared.
 episode_budget:

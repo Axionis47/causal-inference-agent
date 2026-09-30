@@ -50,7 +50,16 @@ def bandwidth_plan(params: dict, canon: pd.DataFrame, shape: ShapeFacts, cfg: di
 
 
 def window_table(
-    params: dict, canon: pd.DataFrame, shape: ShapeFacts, cfg: dict[str, Any], *, fuzzy: bool, covs: list[str] | None, cluster: bool, vce: str
+    params: dict,
+    canon: pd.DataFrame,
+    shape: ShapeFacts,
+    cfg: dict[str, Any],
+    *,
+    fuzzy: bool,
+    covs: list[str] | None,
+    cluster: bool,
+    vce: str,
+    sharpbw: bool = False,
 ) -> dict[str, Any]:
     """What the window rung reads: every selector the catalogue offers with the widths the library picks for this spec on each
     side and the rows each leaves inside, or the one support-points window when the score has few distinct values. Under the
@@ -70,7 +79,7 @@ def window_table(
         n_l, n_r = inside(h, h)
         row = dict(rule="support_points", h_left=h, h_right=h, b_left=2 * h, b_right=2 * h, n_left=n_l, n_right=n_r)
         return dict(rule="support_points", default="support_points", rows={"support_points": row}, notes=plan.get("notes") or [])
-    bw = adapter.bandwidths(params, canon, fuzzy=fuzzy, covs=covs, cluster=cluster, vce=vce)
+    bw = adapter.bandwidths(params, canon, fuzzy=fuzzy, covs=covs, cluster=cluster, vce=vce, sharpbw=sharpbw)
     if "error" in bw:
         return dict(error=bw["error"], rows={}, rule="mse", default=win["default"])
     rows: dict[str, dict[str, Any]] = {}
@@ -243,6 +252,21 @@ def run_checks(
     extra: dict[str, Any] = {}
     c = contrast_key
 
+    # clusters: few of them make the clustered variance unreliable; inference.yaml switches its correction below the line
+    if shape.clusters is not None:
+        few = int(cfg["clusters"]["few"]["soft"])
+        out.append(
+            CheckResult(
+                contrast=c,
+                name="few_clusters",
+                level="soft" if shape.clusters < few else "pass",
+                value=float(shape.clusters),
+                threshold=float(few),
+                detail=f"{shape.clusters} clusters of {shape.cluster_column!r}"
+                + ("; below the line where the cluster-robust variance is trusted" if shape.clusters < few else ""),
+            )
+        )
+
     # sides
     u = cfg["sides"]["min_rows"]
     smallest = min(shape.n_left, shape.n_right)
@@ -301,6 +325,16 @@ def run_checks(
                 detail=f"take-up {shape.takeup_left:.2f} on the control side, {shape.takeup_right:.2f} on the treated side: {shape.kind}",
             )
         )
+        if shape.kind == "fuzzy" and (shape.takeup_left == 0.0 or shape.takeup_right == 1.0):
+            out.append(
+                CheckResult(
+                    contrast=c,
+                    name="one_sided_takeup",
+                    level="pass",
+                    value=shape.takeup_left if shape.takeup_left == 0.0 else shape.takeup_right,
+                    detail=f"take-up {shape.takeup_left:.2f} on the control side, {shape.takeup_right:.2f} on the treated side: it varies on one side only, so the width is selected as for a sharp design",
+                )
+            )
         if shape.kind == "sharp":
             extra["first_stage_status"] = "strong"
             extra["first_stage_F"] = float("inf")

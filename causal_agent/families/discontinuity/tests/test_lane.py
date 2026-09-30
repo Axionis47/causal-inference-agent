@@ -550,11 +550,18 @@ def test_fuzzy_with_a_strong_first_stage(tmp_path, monkeypatch):
         column="x", cutoff=0.0, treated_side="above", cutoff_value_treated=True, takeup_column="received", takeup_level="1", reason="r", cites=["col:x.note"]
     )
     fake = FakeLLM(sc, {}, "col:x.note")
+    seen: list[dict] = []
+    real_fit = N.adapter.fit
+    monkeypatch.setattr(N.adapter, "fit", lambda *a, **k: (seen.append(k), real_fit(*a, **k))[1])
     out = _run(fake, handoff("fuzzy", "y", "eligible", ["x", "y", "eligible", "received"], "col:x.note"))
     r = out["specialist_result"]
     assert r["status"] == "done", r.get("feasibility")
     s = out["shape"]
     assert s.kind == "fuzzy" and s.takeup_left == 0.0 and 0.6 < s.takeup_right < 0.8
+    assert any(k.get("fuzzy") and k.get("sharpbw") for k in seen) and not any(
+        k.get("sharpbw") and not k.get("fuzzy") for k in seen
+    )  # passed to the library, for fuzzy fits only
+    assert next(c for c in out["checks"] if c.name == "one_sided_takeup").level == "pass"
     assert out["check_facts"]["first_stage_status"] == "strong"
     d = out["design"]
     assert d.estimator == "local_linear_fuzzy" and d.estimand == "complier_effect_at_cutoff" and d.sharp_bandwidth_used is True
@@ -712,7 +719,10 @@ def test_catalogues_and_thresholds():
             continue
         f = adapter.fit(e.params, toy, fuzzy=bool(e.fuzzy is True), covs=None)
         assert f.error is None, (e.name, f.error)
-    assert [i.name for i in load_inference()] == ["cluster_entity", "robust_bc"]
+    assert [i.name for i in load_inference()] == ["cluster_few", "cluster_entity", "robust_bc"]
+    assert next(i for i in load_inference() if i.applies(cluster_column=True, clusters=12)).name == "cluster_few"
+    assert next(i for i in load_inference() if i.applies(cluster_column=True, clusters=40)).name == "cluster_entity"
+    assert next(i for i in load_inference() if i.applies(cluster_column=False, clusters=None)).name == "robust_bc"
     assert {p.name for p in load_placebos()} == {
         "placebo_cutoffs",
         "bandwidth_grid",
@@ -1376,7 +1386,7 @@ def test_no_yaml_key_is_dead():
     lane's code: a yaml line nobody reads is a promise the design does not keep."""
     import yaml
 
-    from causal_agent.families.discontinuity.lane.knowledge import EstimatorEntry, PlaceboEntry
+    from causal_agent.families.discontinuity.lane.knowledge import EstimatorEntry, InferenceEntry, PlaceboEntry
 
     here = Path(__file__).resolve().parents[1] / "lane"
     harness = Path(__file__).resolve().parents[3] / "lane" / "knowledge.py"  # the shared loader reads rank and prefer_over
@@ -1385,7 +1395,7 @@ def test_no_yaml_key_is_dead():
         + (here / "knowledge" / "__init__.py").read_text()
         + harness.read_text()
     )
-    for file, model in (("estimators.yaml", EstimatorEntry), ("placebos.yaml", PlaceboEntry)):
+    for file, model in (("estimators.yaml", EstimatorEntry), ("placebos.yaml", PlaceboEntry), ("inference.yaml", InferenceEntry)):
         raw = yaml.safe_load((here / "knowledge" / file).read_text())
         fields = set(model.model_fields) - {"name"}
         for name, entry in raw.items():
@@ -1393,3 +1403,36 @@ def test_no_yaml_key_is_dead():
             assert not extra, f"{file}: {name} has keys no field reads: {sorted(extra)}"
         for field in fields:
             assert f".{field}" in code, f"{file}: the field {field!r} is declared on {model.__name__} but nothing in the lane reads it"
+
+
+def clustered_sharp(n_clusters=12, per=120, seed=13) -> pd.DataFrame:
+    """Units nested in a dozen clusters, each with its own level; a sharp line at zero."""
+    rng = np.random.default_rng(seed)
+    rows = []
+    for g in range(n_clusters):
+        x = rng.uniform(-1, 1, per)
+        rows.append(pd.DataFrame({"x": x, "y": 1 + 0.5 * x + 1.0 * (x >= 0) + rng.normal(0, 0.3, per) + 0.4 * g, "unit": f"g{g}"}))
+    return pd.concat(rows, ignore_index=True)
+
+
+def test_few_clusters_pick_the_corrected_variance_and_flag_the_count(tmp_path, monkeypatch):
+    make_pack(
+        tmp_path,
+        monkeypatch,
+        "clust",
+        clustered_sharp(),
+        "Units with a score at or above zero got the grant.",
+        {"x": "The score, fixed before the grant.", "y": "The outcome, measured after.", "unit": "The group the unit belongs to."},
+        entity=["unit"],
+    )
+    sc = Score(column="x", cutoff=0.0, treated_side="above", cutoff_value_treated=True, takeup_column=None, takeup_level=None, reason="r", cites=["col:x.note"])
+    fake = FakeLLM(sc, {}, "col:x.note")
+    out = _run(fake, handoff("clust", "y", None, ["x", "y", "unit"], "col:x.note", memory_=_rule(memory("clust"), movable=False)))
+    r = out["specialist_result"]
+    assert r["status"] == "done", r.get("feasibility")
+    assert out["shape"].cluster_column == "unit" and out["shape"].clusters == 12
+    d = out["design"]
+    assert d.inference == "cluster_few" and d.vce == "cr2" and d.cluster == "unit"
+    few = next(c for c in out["checks"] if c.name == "few_clusters")
+    assert few.level == "soft" and few.value == 12.0 and few.address in out["interpretations"][0].cites
+    assert out["primary"]["vce"].upper() == "CR2"

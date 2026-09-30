@@ -624,7 +624,7 @@ def line(state: SpecialistState) -> Command:
 def balance(state: SpecialistState) -> Command:
     canon = _canon(state)
     shape: ShapeFacts = state["shape"]
-    inf = pick_inference(cluster_column=bool(shape.cluster_column))
+    inf = pick_inference(cluster_column=bool(shape.cluster_column), clusters=shape.clusters)
     dens = _ladder(state).density
     window = min(dens.h_left, dens.h_right) if dens is not None and dens.h_left is not None and dens.h_right is not None else None
     facts = CK.balance_evidence(
@@ -936,7 +936,7 @@ def check_design(state: SpecialistState) -> dict:
     canon = _canon(state)
     x_all = pd.read_csv(state["xall_path"])["x"]
     shape = state["shape"]
-    inf = pick_inference(cluster_column=bool(shape.cluster_column))
+    inf = pick_inference(cluster_column=bool(shape.cluster_column), clusters=shape.clusters)
     results, extra = CK.run_checks(
         canon,
         x_all,
@@ -1128,9 +1128,10 @@ def window(state: SpecialistState) -> Command:
     lad = _ladder(state)
     entry = estimator_entry(state["estimator"])
     covs: Covariates = state["covariates"]
-    inf = pick_inference(cluster_column=bool(s.cluster_column))
+    inf = pick_inference(cluster_column=bool(s.cluster_column), clusters=s.clusters)
     fuzzy = _is_fuzzy(entry, False)
     canon = _canon(state)
+    sharpbw = bool(fuzzy and (s.takeup_left == 0.0 or s.takeup_right == 1.0))
     table = CK.window_table(
         CK.SHARP if entry.engine == "local_randomisation" else entry.params,
         canon,
@@ -1140,6 +1141,7 @@ def window(state: SpecialistState) -> Command:
         covs=[SH.covcol(k) for k in covs.adjusted] if entry.covs else None,
         cluster=bool(s.cluster_column),
         vce=inf.vce,
+        sharpbw=sharpbw,
     )
     if table.get("error") or not table["rows"]:
         return _stop(
@@ -1255,7 +1257,7 @@ def freeze_design(state: SpecialistState) -> Command:
     s = state["shape"]
     entry = estimator_entry(state["estimator"])
     covs: Covariates = state["covariates"]
-    inf = pick_inference(cluster_column=bool(s.cluster_column))
+    inf = pick_inference(cluster_column=bool(s.cluster_column), clusters=s.clusters)
     fuzzy = _is_fuzzy(entry, False)
     canon = _canon(state)
     lad = _ladder(state)
@@ -1337,13 +1339,15 @@ def _fit_local_random(d: Design, entry: EstimatorEntry, canon: pd.DataFrame, fuz
 def _fit_entry(d: Design, entry: EstimatorEntry, canon: pd.DataFrame, primary_fuzzy: bool, *, primary: bool) -> adapter.Fit:
     if entry.engine == "local_randomisation":
         return _fit_local_random(d, entry, canon, _is_fuzzy(entry, primary_fuzzy))
+    fuzzy = _is_fuzzy(entry, primary_fuzzy)
     return adapter.fit(
         entry.params,
         canon,
-        fuzzy=_is_fuzzy(entry, primary_fuzzy),
+        fuzzy=fuzzy,
         covs=[SH.covcol(k) for k in d.covariates.adjusted] if entry.covs else None,
         cluster=bool(d.cluster),
         vce=d.vce,
+        sharpbw=bool(fuzzy and d.sharp_bandwidth_used),
         **(_window_kw(d) if primary else _reselect_kw(d)),
     )
 

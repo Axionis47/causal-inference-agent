@@ -46,15 +46,13 @@ class EstimatorEntry(BaseModel):
 class InferenceEntry(BaseModel):
     name: str
     in_words: str
+    source: str = ""
     applies_when: dict[str, Any]
     vce: str
     cluster: str | None = None
-    point_row: str = "Conventional"
-    interval_row: str = "Robust"
 
-    def applies(self, *, cluster_column: bool) -> bool:
-        w = self.applies_when
-        return "cluster_column" not in w or w["cluster_column"] == cluster_column
+    def applies(self, **facts: Any) -> bool:
+        return matches(self.applies_when, facts)
 
 
 class PlaceboEntry(BaseModel):
