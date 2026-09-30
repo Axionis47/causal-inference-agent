@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 
 CORE = ("common", "profile", "memory", "viz", "lane")
-WORDS = ("adjustment", "diff_in_diff", "discontinuity", "dowhy", "pyfixest", "rdrobust", "synthetic_control", "interrupted_series")
+WORDS = ("adjustment", "diff_in_diff", "discontinuity", "dowhy", "pyfixest", "rdrobust", "rddensity", "rdlocrand", "synthetic_control", "interrupted_series")
 ROOT = Path(__file__).resolve().parents[2]
 
 

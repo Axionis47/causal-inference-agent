@@ -78,6 +78,10 @@ uv run pytest causal_agent/families/discontinuity -q
 - `rddensity` fills only `t_jk` and `p_jk` under its default variance; its `p` underflows to 0 for large statistics; `repr` prints
   and warns, so it is never called. Its regularisation floor is 23 rows a side.
 - A take-up column that is a step function of the side cannot be fitted as a first stage; the lane records it from the shares.
+- `rdlocrand` 2.0 (local randomisation): `rdwinselect`, `rdrandinf` and `rdrbounds` return dicts; `rdwinselect` recommends no
+  window without covariates; `rdrandinf` takes a fuzzy design as `[take_up, "ar"]` (a bare array breaks it) and its own `ci`
+  option and `rdsensitivity` do not run in this port, so the adapter inverts the randomisation test over a grid itself; window
+  lists must be numpy arrays; a window needs `wl < wr`.
 
 ## Known limits
 
