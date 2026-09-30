@@ -33,7 +33,7 @@ Bottom to top. A package imports only what is below it.
 | `profile` | the deterministic profile of a CSV, the dataset index, the csv path rule | common |
 | `memory` | what is known about a dataset: the field map, the store on disk, the gated write path, the checks, the shared probe helpers, the fit grid, the text views | common, profile |
 | `viz` | pictures: `FigureSpec`, the figures a lane draws from its own artifacts (`postviz`); the drawing tool (`draw`, `sandbox`) and where what it draws lives (`store`) | common, profile, memory |
-| `lane` | the harness every lane is built on: intake, case, verify, asks, records, figures, words, the shared nodes, graph compile, task types, prompts, knowledge loader | common, profile, memory, viz |
+| `lane` | the harness every lane is built on: intake, case, verify, asks, records, figures, words, the episode and its tools, the ladder's shape, the shared nodes, graph compile, task types, prompts, knowledge loader | common, profile, memory, viz |
 | `families` | one package per family (below), the declared families, the registry | everything above |
 | `desk` | the conversation graph, the routing, the pack builder, the material and the brief, the chat after a run | everything above |
 | `server` | the FastAPI shell: datasets, sessions, the transcript, the projection into view models | everything above |

@@ -67,8 +67,13 @@ family's `needs_claims`; ready means nothing required is open and one family sur
 computes data facts (`probe:data.*`) for the columns in play at every fit and at hand-off, never joining outcome and treatment.
 
 **A lane** (`families/<name>/lane/`) runs in its own process on `designs/<n>/handoff.json` and reads nothing else
-(`desk/pipeline.py`). Shared plumbing is in `lane/`; the engine, judgements and knowledge yaml stay in the family. Every
-claim a judgement makes cites an address the pack resolves; an unresolved cite is rejected and re-prompted. The result is
+(`desk/pipeline.py`). Shared plumbing is in `lane/`; the engine, judgements and knowledge yaml stay in the family. A lane
+climbs a ladder of rungs in the order an analyst reads its design (`Ladder` in the family's `contracts.py`, the shape in
+`lane/ladder.py`); a rung is code where the pack settles it and a bounded episode where it does not (`lane/episode.py`: the
+model may call the read-only tools in `lane/tools.py` within the budget its `checks.yaml` declares, then answers one typed
+record that code gates; no tool joins the outcome with the treatment before the freeze). Every claim a judgement makes cites
+an address the pack, the episode's facts or a rung below resolves; an unresolved cite is rejected and re-prompted. A rung
+never asks the person; what it would not guess is a flag (`unsure`), and on a catalogue claim also a decline. The result is
 `result.json` plus a run folder under `.artifacts/runs/`.
 
 **Addresses** are the spine: `col:`, `claim:`, `probe:`, `check:`, `estimate:`, `refute:`/`placebo:`, `figure:`,

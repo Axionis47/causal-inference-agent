@@ -48,9 +48,12 @@ surviving family needs is unknown. [docs/memory-and-matrix.md](docs/memory-and-m
   <img alt="The matrix before and after three answers" src="docs/diagrams/matrix-diff-light.svg">
 </picture>
 
-**A lane is code with five questions in it.** The adjustment lane runs fourteen stages. Code decides every route. The model is
-asked five closed questions, one column at a time where it matters, and every answer goes through a gate before the graph takes
-it. [docs/lanes.md](docs/lanes.md)
+**A lane climbs a ladder.** Each lane reads its design in the order an analyst would: for the adjustment lane the pair, the
+mechanism that set the treatment, time, the columns fixed before the change placed all together, the columns set after it, the
+graph, the road, where the effect could differ, the threats. A rung is code where the context settles it and a bounded episode
+where it does not: the model may look at the data through a few read-only tools, within a budget, and answers in one typed record
+that code gates. No tool joins the outcome with the treatment before the design is frozen. Every rung's lines have addresses, so
+the rungs above, the report and the chat after can cite them. [docs/lanes.md](docs/lanes.md)
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/lane-swimlane-dark.svg">
@@ -69,8 +72,10 @@ those claims. [docs/desk.md](docs/desk.md#the-stages-in-order)
 
 ## Known limits
 
-- No stage holds the whole story. The lane relates one column at a time and the frame it reads is the question, not the context,
-  so it cannot notice what a person notices across columns. Checkability per step was traded for that.
+- One change at a time. The question names one cause; two treatments acting together, or a dose with many values, stop at the
+  door. Staggered adoption in the diff-in-diff lane is a hard flag until its estimators are exercised.
+- A rung reasons from the pack, the rungs below it and six read-only tools, within a budget. What none of those can settle is a
+  flag the reader carries, not a question the lane asks; the interview is where questions live.
 - The default sandbox isolates the drawing script by environment only; the container mode is the one that blocks the network.
 - Before the run, the chat shows a drawn picture but cannot yet quote its numbers; after the run it can.
 
