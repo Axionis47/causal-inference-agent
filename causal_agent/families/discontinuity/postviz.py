@@ -28,9 +28,13 @@ def _fit_side(x: np.ndarray, y: np.ndarray, h: float, p: int, treated: bool) -> 
     return [float(g) for g in grid], [float(v) for v in np.polyval(coef, grid)]
 
 
-def rd_plot(bins: pd.DataFrame | None, canon: pd.DataFrame, h: float, p: int, contrast: str, score_name: str = "score") -> FigureSpec | None:
-    """The binned means of the outcome against the score (from the library's bins) with a local fit on each side of the cutoff."""
-    if canon is None or not {"x", "y"} <= set(canon.columns) or canon.empty or not h or h <= 0:
+def rd_plot(
+    bins: pd.DataFrame | None, canon: pd.DataFrame, h: float | tuple[float, float], p: int, contrast: str, score_name: str = "score"
+) -> FigureSpec | None:
+    """The binned means of the outcome against the score (from the library's bins) with a local fit on each side of the cutoff.
+    `h` is one width or a (control side, treated side) pair."""
+    h_left, h_right = (float(h[0]), float(h[1])) if isinstance(h, (tuple, list)) else (float(h or 0), float(h or 0))
+    if canon is None or not {"x", "y"} <= set(canon.columns) or canon.empty or h_left <= 0 or h_right <= 0:
         return None
     x, y = canon["x"].to_numpy(dtype=float), canon["y"].to_numpy(dtype=float)
     ok = np.isfinite(x) & np.isfinite(y)
@@ -46,7 +50,7 @@ def rd_plot(bins: pd.DataFrame | None, canon: pd.DataFrame, h: float, p: int, co
                 n=[int(v) for v in b["rdplot_N"]] if "rdplot_N" in b.columns else None,
             )
         )
-    left, right = _fit_side(x, y, h, p, False), _fit_side(x, y, h, p, True)
+    left, right = _fit_side(x, y, h_left, p, False), _fit_side(x, y, h_right, p, True)
     if left:
         series.append(Series(name="fit, control side", x=left[0], y=left[1]))
     if right:
@@ -55,7 +59,13 @@ def rd_plot(bins: pd.DataFrame | None, canon: pd.DataFrame, h: float, p: int, co
         return None
     jump = (right[1][0] - left[1][-1]) if left and right else None
     note = (
-        f"the two fits within h = {h:.3g} meet the cutoff {jump:+.3g} apart" if jump is not None else "one side has too few rows within the bandwidth for a fit"
+        (
+            f"the two fits within h = {h_left:.3g} meet the cutoff {jump:+.3g} apart"
+            if h_left == h_right
+            else f"the two fits within h = {h_left:.3g}/{h_right:.3g} meet the cutoff {jump:+.3g} apart"
+        )
+        if jump is not None
+        else "one side has too few rows within the bandwidth for a fit"
     )
     return FigureSpec(
         id=f"rd_plot_{contrast}",

@@ -104,24 +104,32 @@ def fit(
     cluster: bool = False,
     vce: str = "nn",
     c: float = 0.0,
-    h: float | None = None,
-    b: float | None = None,
+    h: float | list[float] | tuple[float, float] | None = None,
+    b: float | list[float] | tuple[float, float] | None = None,
     mask: pd.Series | None = None,
     bwselect: str | None = None,
 ) -> Fit:
+    """`h` and `b` are one width for both sides or a (control side, treated side) pair, in the score's units."""
     from rdrobust import rdrobust
 
     df = table if mask is None else table[mask]
     kw = _kwargs(params, df, y=y, fuzzy=fuzzy, covs=covs, cluster=cluster, vce=vce, c=c, bwselect=bwselect)
     if h is not None:
-        kw["h"] = float(h)
+        kw["h"] = _sides(h)
     if b is not None:
-        kw["b"] = float(b)
+        kw["b"] = _sides(b)
     try:
         est, notes = _run(rdrobust, **kw)
     except Exception as ex:
         return Fit(error=f"{type(ex).__name__}: {str(ex)[:300]}")
     return _convert(est, notes)
+
+
+def _sides(v: float | list[float] | tuple[float, float]) -> float | list[float]:
+    if isinstance(v, (list, tuple)):
+        left, right = float(v[0]), float(v[1])
+        return left if abs(left - right) < 1e-12 else [left, right]
+    return float(v)
 
 
 def _convert(est, notes: list[str]) -> Fit:
@@ -181,7 +189,15 @@ def bandwidths(params: dict, table: pd.DataFrame, *, fuzzy: bool = False, covs: 
             n_h_left=int(bw.N_h[0]),
             n_h_right=int(bw.N_h[1]),
             notes=notes,
-            table={str(i): [float(v) for v in t.loc[i].to_numpy()] for i in t.index},
+            table={
+                str(i): dict(
+                    h_left=float(t.loc[i, "h (left)"]),
+                    h_right=float(t.loc[i, "h (right)"]),
+                    b_left=float(t.loc[i, "b (left)"]),
+                    b_right=float(t.loc[i, "b (right)"]),
+                )
+                for i in t.index
+            },
         )
     except Exception as ex:
         return dict(error=f"{type(ex).__name__}: {str(ex)[:300]}")

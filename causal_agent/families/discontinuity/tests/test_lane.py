@@ -25,6 +25,7 @@ from causal_agent.families.discontinuity.lane.contracts import (
     RDInterpretation,
     Risk,
     Score,
+    WindowPick,
 )
 from causal_agent.families.discontinuity.lane.graph import compile_local
 from causal_agent.lane.ladder import Heterogeneity, Modifier
@@ -100,6 +101,7 @@ class FakeLLM:
         looks=None,
         line_script=None,
         ignore_balance=False,
+        window_script=None,
     ):
         self.score, self.relations, self.cite, self.bad_cites = score, relations, cite, bad_cites
         self.assess_script, self.pick_script, self.score_script = list(assess_script or []), list(pick_script or []), list(score_script or [])
@@ -108,6 +110,7 @@ class FakeLLM:
         self.risks = list(risks or [])
         self.line_script = list(line_script or [])
         self.ignore_balance = ignore_balance  # a careless first answer, to see the gate re-prompt
+        self.window_script = list(window_script or [])
         self.looks = {k: list(v) for k, v in (looks or {}).items()}
         self.calls: list[str] = []
         self.humans: list[tuple[str, str]] = []
@@ -190,6 +193,11 @@ class FakeLLM:
             )
         if schema is CovariateRoles:
             return self.covariates_answer(human)
+        if schema is WindowPick:
+            if self.window_script:
+                return self.window_script.pop(0)
+            default = re.search(r"THE WIDTHS ON OFFER \(default: (\w+)\)", human).group(1)
+            return WindowPick(selector=default, why="nothing in the ladder argues for another width", cites=[self.cite])
         if schema is Heterogeneity:
             cands = re.findall(r"^\[col:([^\]]+)\]", human.split("CANDIDATES")[1], re.M)
             return Heterogeneity(
@@ -217,7 +225,12 @@ class FakeLLM:
             value, estimand = float(m.group(1)), m.group(2)
             lo, hi = (float(v) for v in re.search(r"\[estimate:%s\.ci\] 95%% robust interval ([-\d.eE+]+) to ([-\d.eE+]+)" % re.escape(c), human).groups())
             nl, nr = (int(v) for v in re.search(r"\[estimate:%s\.n\] (\d+) control-side and (\d+) treated-side" % re.escape(c), human).groups())
-            h = float(re.search(r"\[estimate:%s\.bandwidth\] h = ([-\d.eE+]+)" % re.escape(c), human).group(1))
+            hl, hr = (
+                float(v)
+                for v in re.search(
+                    r"\[estimate:%s\.bandwidth\] h = ([-\d.eE+]+) on the control side, ([-\d.eE+]+) on the treated side" % re.escape(c), human
+                ).groups()
+            )
             required = [a for a in human.split("ADDRESSES YOU MUST CITE")[1].split("\n\n")[0].strip().splitlines()[1:] if a and a != "(none)"]
             bad = self.interpret_bad_first and "PREVIOUS ANSWER WAS REJECTED" not in human
             return RDInterpretation(
@@ -227,7 +240,8 @@ class FakeLLM:
                 caveats=["local to the cutoff"],
                 cites=["nope:x"] if bad else required,
                 estimand=estimand,
-                bandwidth_stated=h,
+                bandwidth_left_stated=hl,
+                bandwidth_right_stated=hr,
                 n_left_stated=nl,
                 n_right_stated=nr,
                 ci_low_stated=lo,
@@ -377,10 +391,12 @@ def test_uruguay_happy_path():
     for name in ("Line", "CovariateRoles", "DesignAssessment", "EstimatorPick", "RDInterpretation"):  # every judgement sees the case
         assert fake.humans_of(name) and all("THE CASE" in p and "[change:1.note]" in p for p in fake.humans_of(name)), name
     lad = out["ladder"]
-    assert lad.score.by == "judgement" and lad.line.clean and lad.heterogeneity.by == "code" and lad.bandwidth is not None and lad.threats is not None
+    assert lad.score.by == "judgement" and lad.line.clean and lad.heterogeneity.by == "code" and lad.window is not None and lad.threats is not None
+    assert lad.window.by == "judgement" and lad.window.selector == "mserd" and not lad.window.two_sided() and "WindowPick" in fake.calls
     assert "[ladder:score.rule] income_centered treated when below 0" in r["report"] and "[ladder:covariates.age] fixed before the line" in r["report"]
     assert "THE LADDER SO FAR" in fake.humans_of("Line")[0] and "[ladder:shape.kind] sharp" in fake.humans_of("Line")[0]
-    assert ["ladder:line.clean", "yes"] in r["ladder"] and "ladder:bandwidth.h" in fake.humans_of("RDInterpretation")[0].split("ADDRESSES YOU MAY CITE")[1]
+    assert ["ladder:line.clean", "yes"] in r["ladder"] and "ladder:window.h" in fake.humans_of("RDInterpretation")[0].split("ADDRESSES YOU MAY CITE")[1]
+    assert next(x for x in out["checks"] if x.name == "effective_rows").detail.startswith("194 control-side and 291 treated-side rows inside the window mserd")
     run = Path(r["run_dir"])
     assert (run / "design.json").exists() and (run / "bins.csv").exists() and (run / "canon.csv").exists()
 
@@ -600,7 +616,8 @@ def test_discrete_score_flags_support_and_density(tmp_path, monkeypatch):
     assert out["specialist_result"]["status"] == "done", out.get("feasibility")
     assert out["shape"].distinct_scores == 12
     d = out["design"]
-    assert d.bandwidths.rule == "support_points" and d.bandwidths.h_cer is None and d.bandwidths.h == 3.5
+    assert d.bandwidths.rule == "support_points" and d.bandwidths.h_cer_left is None and d.bandwidths.h_left == 3.5 == d.bandwidths.h_right
+    assert out["ladder"].window.by == "code" and "WindowPick" not in fake.calls  # few distinct scores: nothing to judge
     primary = next(e for e in out["estimates"] if e.method == "local_linear")
     assert primary.ci_low <= 1.0 <= primary.ci_high, (primary.value, primary.ci_low, primary.ci_high)
     grid = next(x for x in out["refutations"] if x.refuter == "bandwidth_grid")
@@ -1151,3 +1168,92 @@ def test_a_predetermined_verdict_on_a_column_that_jumps_must_cite_the_balance_li
     assert placed.predetermined and any("ladder:balance.z" in rs.cites for rs in placed.reasons)
     cont = next(c for c in out["checks"] if c.name == "covariate_continuity")
     assert cont.level == "soft" and "z differ at the cutoff" in cont.detail
+
+
+# ------------------------------------------------------------------ the window: a judgement over a table code builds
+
+
+def uneven_sides(n_left=3000, n_right=900, seed=8) -> pd.DataFrame:
+    """Far more rows just below the line than above it, so a width per side is the reasonable pick."""
+    rng = np.random.default_rng(seed)
+    x = np.concatenate([rng.uniform(-1, 0, n_left), rng.uniform(0, 1, n_right)])
+    y = 1 + 0.5 * x + 0.8 * (x >= 0) + rng.normal(0, 0.5, len(x))
+    return pd.DataFrame({"x": x, "y": y})
+
+
+def test_the_window_is_a_judgement_that_may_set_a_width_per_side(tmp_path, monkeypatch):
+    make_pack(
+        tmp_path,
+        monkeypatch,
+        "uneven",
+        uneven_sides(),
+        "Units with a score at or above zero got the grant.",
+        {"x": "The score, fixed before the grant.", "y": "The outcome, measured after."},
+    )
+    sc = Score(column="x", cutoff=0.0, treated_side="above", cutoff_value_treated=True, takeup_column=None, takeup_level=None, reason="r", cites=["col:x.note"])
+    pick = WindowPick(selector="msetwo", why="the sides differ in how many rows sit near the line", cites=["ladder:density.test", "ladder:shape.sides"])
+    fake = FakeLLM(sc, {}, "col:x.note", window_script=[pick])
+    out = _run(fake, handoff("uneven", "y", None, ["x", "y"], "col:x.note", memory_=_rule(memory("uneven"), movable=False)))
+    r = out["specialist_result"]
+    assert r["status"] == "done", r.get("feasibility")
+    human = fake.humans_of("WindowPick")[0]
+    assert "THE WIDTHS ON OFFER (default: mserd)" in human and "msetwo: an MSE-optimal width for each side" in human and "[ladder:density.test]" in human
+    w = out["ladder"].window
+    assert w.by == "judgement" and w.selector == "msetwo" and w.rule == "mse" and w.two_sided()
+    d = out["design"]
+    assert d.bandwidths.selector == "msetwo" and d.bandwidths.h_left != d.bandwidths.h_right and d.bandwidths.h_cer_left is not None
+    prim = out["primary"]
+    assert prim["h"] == pytest.approx(d.bandwidths.h_left) and prim["h_right"] == pytest.approx(d.bandwidths.h_right)  # the fit ran in the chosen window
+    within = [p for p in out["placebo_points"]["bandwidth_grid"] if "h_right" in p]
+    assert within and any(abs(p["h"] - p["h_right"]) > 1e-9 for p in within)  # the grid scaled both sides
+    itp = out["interpretations"][0]
+    assert (
+        itp.bandwidth_left_stated == pytest.approx(prim["h"], rel=1e-3)
+        and itp.bandwidth_right_stated == pytest.approx(prim["h_right"], rel=1e-3)
+        and not out.get("interpret_errors")
+    )
+    assert "on the control side" in r["report"] and "[ladder:window.selector] msetwo (mse; set by the judgement)" in r["report"]
+
+
+def test_a_width_other_than_the_default_needs_a_reason_and_an_unknown_selector_is_refused(tmp_path, monkeypatch):
+    make_pack(
+        tmp_path,
+        monkeypatch,
+        "uneven",
+        uneven_sides(),
+        "Units with a score at or above zero got the grant.",
+        {"x": "The score, fixed before the grant.", "y": "The outcome, measured after."},
+    )
+    sc = Score(column="x", cutoff=0.0, treated_side="above", cutoff_value_treated=True, takeup_column=None, takeup_level=None, reason="r", cites=["col:x.note"])
+    script = [
+        WindowPick(selector="narrowest", why="tight", cites=[]),
+        WindowPick(selector="cerrd", why="the interval matters more than the point", cites=[]),
+        WindowPick(selector="cerrd", why="the interval matters more than the point here", cites=["ladder:shape.sides"]),
+    ]
+    fake = FakeLLM(sc, {}, "col:x.note", window_script=script)
+    out = _run(fake, handoff("uneven", "y", None, ["x", "y"], "col:x.note", memory_=_rule(memory("uneven"), movable=False)))
+    assert out["specialist_result"]["status"] == "done"
+    humans = fake.humans_of("WindowPick")
+    assert len(humans) == 3
+    assert "'narrowest' is not one of the selectors on offer" in humans[1]
+    assert "a width other than the default needs a reason from the ladder: cite the density, the balance or the sides" in humans[2]
+    w = out["ladder"].window
+    assert w.selector == "cerrd" and w.rule == "cer" and out["episodes"]["window"].tries == 3 and out["design"].bandwidths.rule == "cer"
+
+
+def test_when_the_width_judgement_never_settles_the_default_stands_with_a_flag(tmp_path, monkeypatch):
+    make_pack(
+        tmp_path,
+        monkeypatch,
+        "uneven",
+        uneven_sides(),
+        "Units with a score at or above zero got the grant.",
+        {"x": "The score, fixed before the grant.", "y": "The outcome, measured after."},
+    )
+    sc = Score(column="x", cutoff=0.0, treated_side="above", cutoff_value_treated=True, takeup_column=None, takeup_level=None, reason="r", cites=["col:x.note"])
+    fake = FakeLLM(sc, {}, "col:x.note", window_script=[WindowPick(selector="nope", why="", cites=[])] * 3)
+    out = _run(fake, handoff("uneven", "y", None, ["x", "y"], "col:x.note", memory_=_rule(memory("uneven"), movable=False)))
+    assert out["specialist_result"]["status"] == "done"
+    w = out["ladder"].window
+    assert w.by == "code" and w.selector == "mserd" and w.unsure and w.unsure[0].about == "window"
+    assert any(c.name == "unsure.window" for c in out["design"].checks.results)

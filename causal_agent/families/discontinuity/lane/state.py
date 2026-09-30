@@ -31,6 +31,7 @@ class SpecialistState(LaneState, total=False):
     cluster_column: str | None
     sampled_by_side: bool
     density_facts: dict  # the density test as the library returned it, computed once by the density rung
+    window_table: dict  # every selector's widths and rows, as the window rung built it
     target_units: str
     score: Score | None
     shape: ShapeFacts | None

@@ -9,9 +9,29 @@ sides:
   source: ours; rdrobust's own guard is a total of 20 rows, and a fit can still fail inside the library when the selected bandwidth holds no rows on a side, which the adapter records as a typed fit error
 
 effective_rows:
-  # rows the primary fit actually uses on each side (within the MSE bandwidth); the same floor marks a falsification uninformative
+  # rows the primary fit actually uses on each side, inside the window the window rung chose; the same floor marks a
+  # falsification uninformative. The check is written by the window rung, whose gate holds the hard floor (sides.min_rows.hard).
   min: {soft: 50}
   source: ours; the Foundations report the effective rows on every table
+
+window:
+  # How far from the line the fit reaches: a judgement over a table code builds with every selector the library offers, both
+  # sides, and the rows each leaves inside. The model picks one by name; a width other than the default needs a reason from the
+  # ladder (the density, the balance, the sides). Under the support-points rule (few distinct scores) code sets it.
+  default: mserd
+  min_rows_each_side: 20        # source: sides.min_rows.hard; a window that leaves fewer rows on a side is refused
+  selectors:
+    mserd:    {rule: mse, in_words: "one MSE-optimal width, the same on both sides", when: "the default (Foundations 4.4)"}
+    msetwo:   {rule: mse, in_words: "an MSE-optimal width for each side", when: "the density or the balance differs by side, or one side is much thinner than the other"}
+    msesum:   {rule: mse, in_words: "one width, optimal for the sum of the two side fits", when: "rarely; a variant of mserd"}
+    msecomb1: {rule: mse, in_words: "the smaller of mserd and msesum", when: "a conservative common width"}
+    msecomb2: {rule: mse, in_words: "the median of msetwo, mserd and msesum, per side", when: "a conservative width that may differ by side"}
+    cerrd:    {rule: cer, in_words: "one coverage-error-optimal width, narrower than mserd", when: "the interval matters more than the point (Foundations 4.4.2)"}
+    certwo:   {rule: cer, in_words: "a coverage-error-optimal width for each side", when: "as msetwo, when the interval matters more than the point"}
+    cersum:   {rule: cer, in_words: "one coverage-error width, optimal for the sum of the two side fits", when: "rarely; a variant of cerrd"}
+    cercomb1: {rule: cer, in_words: "the smaller of cerrd and cersum", when: "a conservative narrow width"}
+    cercomb2: {rule: cer, in_words: "the median of certwo, cerrd and cersum, per side", when: "a conservative narrow width that may differ by side"}
+  source: Foundations 4.4 for mserd as the default and 4.4.2 for the coverage-error widths; the words on when each other selector fits are ours
 
 density:
   # rddensity on every row with a finite score, recentred on the cutoff in the score's recorded orientation (with
@@ -93,6 +113,7 @@ episode_budget:
   line: 4
   covariates: 8
   heterogeneity: 4
+  window: 2
 
 # How many modifiers the heterogeneity rung may name; the effect at the cutoff is estimated within each level of each, at the
 # design's bandwidth, and a level with fewer effective rows on a side than the floor is recorded as too thin.

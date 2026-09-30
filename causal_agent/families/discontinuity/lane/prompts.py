@@ -125,6 +125,31 @@ CANDIDATES (predetermined characteristics; pick among these only)
 Choose the modifiers, at most {max_modifiers}.
 """
 
+WINDOW_SYSTEM = (
+    "You choose how far from the line the fit reaches, for a cutoff design whose estimator is fixed. Code has built the table: every "
+    "width selector the library offers, the width it gives on each side of the line in the score's units, and the rows it leaves "
+    "inside on each side. Pick one by name. The default is the one the method's authors recommend; take it unless the ladder gives a "
+    "reason for another: a density or a balance that differs by side argues for a width per side; an interval that matters more than "
+    "the point argues for the narrower coverage-error width; one side much thinner than the other argues for a width per side. Say "
+    "why in one or two sentences and cite the ladder or pack lines the reason rests on; a width other than the default needs such a "
+    "citation. Never reason from the outcome; it is refused. " + TOOLS_NOTE + CITE_RULE
+)
+
+WINDOW_USER = """QUESTION
+{question}
+
+THE CASE
+{frame}
+
+THE ESTIMATOR
+{estimator}
+
+THE WIDTHS ON OFFER (default: {default})
+{table}
+{errors}
+Pick one selector by name and say why.
+"""
+
 ASSESS_SYSTEM = (
     "You are checking whether a cutoff design can proceed. You see the design, the checks that were flagged with their "
     "numbers, and the score and dataset cards. Decide one of two things.\n"

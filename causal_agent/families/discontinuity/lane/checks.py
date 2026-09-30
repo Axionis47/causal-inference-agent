@@ -49,6 +49,55 @@ def bandwidth_plan(params: dict, canon: pd.DataFrame, shape: ShapeFacts, cfg: di
     )
 
 
+def window_table(
+    params: dict, canon: pd.DataFrame, shape: ShapeFacts, cfg: dict[str, Any], *, fuzzy: bool, covs: list[str] | None, cluster: bool, vce: str
+) -> dict[str, Any]:
+    """What the window rung reads: every selector the catalogue offers with the widths the library picks for this spec on each
+    side and the rows each leaves inside, or the one support-points window when the score has few distinct values. Under the
+    support-points rule there is nothing to judge, and the table says so with `rule`."""
+    sup = cfg["support"]
+    win = cfg["window"]
+    x = canon["x"].to_numpy(dtype=float)
+
+    def inside(h_left: float, h_right: float) -> tuple[int, int]:
+        return int(((x < 0) & (x > -h_left)).sum()), int(((x >= 0) & (x < h_right)).sum())
+
+    if shape.distinct_scores < int(sup["distinct_min"]["soft"]):
+        plan = bandwidth_plan(params, canon, shape, cfg, fuzzy=fuzzy, cluster=cluster, vce=vce)
+        if "error" in plan:
+            return dict(error=plan["error"], rows={}, rule="support_points", default="support_points")
+        h = float(plan["h"])
+        n_l, n_r = inside(h, h)
+        row = dict(rule="support_points", h_left=h, h_right=h, b_left=2 * h, b_right=2 * h, n_left=n_l, n_right=n_r)
+        return dict(rule="support_points", default="support_points", rows={"support_points": row}, notes=plan.get("notes") or [])
+    bw = adapter.bandwidths(params, canon, fuzzy=fuzzy, covs=covs, cluster=cluster, vce=vce)
+    if "error" in bw:
+        return dict(error=bw["error"], rows={}, rule="mse", default=win["default"])
+    rows: dict[str, dict[str, Any]] = {}
+    for name, spec in (win.get("selectors") or {}).items():
+        t = bw["table"].get(name)
+        if t is None:
+            continue
+        n_l, n_r = inside(t["h_left"], t["h_right"])
+        rows[name] = dict(rule=spec["rule"], n_left=n_l, n_right=n_r, **t)
+    return dict(rule="mse", default=win["default"], rows=rows, notes=bw.get("notes") or [])
+
+
+def effective_rows_check(n_left: int, n_right: int, selector: str, h_left: float, h_right: float, contrast_key: str, cfg: dict[str, Any]) -> CheckResult:
+    """The rows the primary fit uses on each side inside the window the rung chose."""
+    e = int(cfg["effective_rows"]["min"]["soft"])
+    smallest = min(n_left, n_right)
+    width = f"h = {h_left:.4g}" if abs(h_left - h_right) < 1e-12 else f"h = {h_left:.4g}/{h_right:.4g}"
+    return CheckResult(
+        contrast=contrast_key,
+        name="effective_rows",
+        level="soft" if smallest < e else "pass",
+        value=float(smallest),
+        threshold=float(e),
+        detail=f"{n_left} control-side and {n_right} treated-side rows inside the window {selector} ({width})",
+    )
+
+
 def fixed(plan: dict[str, Any]) -> dict[str, Any]:
     """Keyword arguments that pin the bandwidths when the plan is not the library's own choice."""
     return {"h": plan["h"], "b": plan["b"]} if plan.get("rule") == "support_points" else {}
@@ -208,25 +257,9 @@ def run_checks(
         )
     )
 
-    # effective rows at the bandwidth of the sharp local linear fit
+    # the sharp local linear plan, for pinning the first stage under the support-points rule; the effective rows are the window rung's
     plan = bandwidth_plan(SHARP, canon, shape, cfg, fuzzy=False, cluster=cluster, vce=vce)
     extra["bandwidth_plan"] = plan
-    if "error" in plan:
-        out.append(CheckResult(contrast=c, name="effective_rows", level="soft", detail=f"bandwidth selection failed: {plan['error']}"))
-    else:
-        e = cfg["effective_rows"]["min"]["soft"]
-        smallest_eff = min(plan["n_h_left"], plan["n_h_right"])
-        rule = "the MSE bandwidth" if plan["rule"] == "mse" else "the support-points bandwidth (few distinct scores)"
-        out.append(
-            CheckResult(
-                contrast=c,
-                name="effective_rows",
-                level="soft" if smallest_eff < e else "pass",
-                value=float(smallest_eff),
-                threshold=float(e),
-                detail=f"{plan['n_h_left']} control-side and {plan['n_h_right']} treated-side rows inside {rule} h = {plan['h']:.4g}",
-            )
-        )
 
     # density: the rung's test, read here, not run again
     out.append(_density(density, c, cfg, sampled_by_side, extra))

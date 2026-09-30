@@ -23,7 +23,7 @@ import pandas as pd
 from langgraph.types import Command, Send
 
 from causal_agent.common.addresses import key as _key
-from causal_agent.common.contracts import Checks, Cited, Contrast, Decline, Estimate, Feasibility, Handoff, LaneAsk, Refutation
+from causal_agent.common.contracts import CheckResult, Checks, Cited, Contrast, Decline, Estimate, Feasibility, Handoff, LaneAsk, Refutation
 from causal_agent.common.llm import structured
 from causal_agent.families.discontinuity.design import RdDesign
 from causal_agent.families.discontinuity.lane import adapter
@@ -32,7 +32,6 @@ from causal_agent.families.discontinuity.lane import prompts as P
 from causal_agent.families.discontinuity.lane import shape as SH
 from causal_agent.families.discontinuity.lane.contracts import (
     BalanceFacts,
-    Bandwidth,
     Bandwidths,
     CovariateRelation,
     CovariateRoles,
@@ -47,6 +46,8 @@ from causal_agent.families.discontinuity.lane.contracts import (
     RDInterpretation,
     Score,
     ShapeFacts,
+    Window,
+    WindowPick,
 )
 from causal_agent.families.discontinuity.lane.knowledge import (
     EstimatorEntry,
@@ -1092,10 +1093,123 @@ def pick_estimator(state: SpecialistState) -> Command:
         if not errors:
             _writer()({"estimator": parsed.model_dump()})
             return Command(
-                goto="freeze_design",
+                goto="window",
                 update={"estimator": parsed.name, "estimator_pick": parsed, "debug": debug, "pick_attempts": state.get("pick_attempts", 0) + 1},
             )
     return _stop("pick_estimator", "the estimator pick could not be validated", errors, "see the gate errors", {"debug": debug})
+
+
+# ------------------------------------------------------------------ the window (rung 6: a judgement over a table code builds)
+
+
+def _window_from(name: str, row: dict, why: str, cites: list[str], by: str, unsure=None) -> Window:
+    return Window(
+        selector=name,
+        rule=row["rule"],
+        h_left=float(row["h_left"]),
+        h_right=float(row["h_right"]),
+        b_left=float(row["b_left"]),
+        b_right=float(row["b_right"]),
+        n_left=int(row["n_left"]),
+        n_right=int(row["n_right"]),
+        why=why,
+        cites=list(cites),
+        unsure=list(unsure or []),
+        by=by,
+    )
+
+
+def window(state: SpecialistState) -> Command:
+    """How far from the line the fit reaches. Code builds the table of every selector with the widths on each side and the rows
+    inside; under the support-points rule code sets the window; else a judgement picks a selector, the default unless the ladder
+    argues for another, and the gate holds the floor on rows a side and the citation a departure needs."""
+    h = state["handoff"]
+    s: ShapeFacts = state["shape"]
+    lad = _ladder(state)
+    entry = estimator_entry(state["estimator"])
+    covs: Covariates = state["covariates"]
+    inf = pick_inference(cluster_column=bool(s.cluster_column))
+    fuzzy = _is_fuzzy(entry, False)
+    canon = _canon(state)
+    table = CK.window_table(
+        entry.params,
+        canon,
+        s,
+        _cfg(),
+        fuzzy=fuzzy,
+        covs=[SH.covcol(k) for k in covs.adjusted] if entry.covs else None,
+        cluster=bool(s.cluster_column),
+        vce=inf.vce,
+    )
+    if table.get("error") or not table["rows"]:
+        return _stop(
+            "window", "no width could be selected for the picked estimator", [str(table.get("error"))], "an estimator whose width can be selected on this data"
+        )
+    c = state["contrast"].key
+    floor = int(_cfg()["window"]["min_rows_each_side"])
+    default = table["default"]
+    rows: dict[str, dict] = table["rows"]
+
+    def settle(w: Window, extra: dict[str, Any] | None = None) -> Command:
+        check = CK.effective_rows_check(w.n_left, w.n_right, w.selector, w.h_left, w.h_right, c, _cfg())
+        # the rung climbs after check_design, so what it would not settle becomes a flag here, as the ladder's other unsure items did there
+        flags = [
+            CheckResult(contrast="all", name=f"unsure.{u.about}", level="soft", detail=f"the window rung would not settle {u.about}: {u.reason}")
+            for u in w.unsure
+        ]
+        _writer()({"window": [f"[{a}] {text}" for a, text in w.lines()], "check": f"{check.level} {check.address} {check.detail}"})
+        update = {"ladder": lad.model_copy(update={"window": w}), "window_table": table, "checks": [*state["checks"], check, *flags]}
+        update.update(extra or {})
+        return Command(goto="freeze_design", update=update)
+
+    if table["rule"] == "support_points":
+        row = rows["support_points"]
+        return settle(
+            _window_from(
+                "support_points",
+                row,
+                f"the score has few distinct values, so the width keeps {int(_cfg()['support'].get('bandwidth_support_points', 3))} support points on each side; the library's selector is not used",
+                ["ladder:shape.sides"],
+                "code",
+            )
+        )
+
+    def gate(r: WindowPick, log: EpisodeLog) -> list[str]:
+        ok = _resolver(h, log, lad)
+        errs: list[str] = []
+        if r.selector not in rows:
+            errs.append(f"{r.selector!r} is not one of the selectors on offer: {', '.join(rows)}")
+            return errs + V.cites_resolve(r.cites, h, ok)
+        row = rows[r.selector]
+        if row["n_left"] < floor or row["n_right"] < floor:
+            errs.append(
+                f"the window {r.selector} leaves {row['n_left']} rows on the control side and {row['n_right']} on the treated side; at least {floor} are needed on each"
+            )
+        if not r.why.strip():
+            errs.append("say why, from the ladder and the pack")
+        if r.selector != default and not any(x.startswith(("ladder:", "probe:")) or h.resolve(x) for x in r.cites):
+            errs.append("a width other than the default needs a reason from the ladder: cite the density, the balance or the sides")
+        return errs + V.cites_resolve(r.cites, h, ok)
+
+    lines = []
+    for name, row in rows.items():
+        spec = _cfg()["window"]["selectors"][name]
+        lines.append(
+            f"{name}: {spec['in_words']}; when {spec['when']}; h = {row['h_left']:.4g} on the control side, {row['h_right']:.4g} on the treated side; "
+            f"{row['n_left']}/{row['n_right']} rows inside"
+        )
+    user = P.WINDOW_USER.format(
+        question=_question(state), frame=L.frame_text(state), estimator=entry.render(), default=default, table="\n".join(lines), errors=""
+    )
+    rec, log, thoughts, errors = run_episode(WindowPick, P.WINDOW_SYSTEM, user, tools=_canon_tools(state), budget=_budget("window"), gate=gate, node="window")
+    if rec is None:
+        # the judgement did not settle; the default width stands, and the flag says so
+        row = rows[default]
+        w = _window_from(default, row, "the default width; the judgement did not settle on another: " + "; ".join(errors[-3:]), [], "code")
+        w = w.model_copy(update={"unsure": [LAD.Unsure(about="window", reason="the width judgement was refused three times; the default stands")]})
+        return settle(w, {"debug": thoughts, "episodes": {"window": log}})
+    w = _window_from(rec.selector, rows[rec.selector], rec.why, rec.cites, "judgement", rec.unsure)
+    return settle(w, {"debug": thoughts, "episodes": {"window": log}})
 
 
 # ------------------------------------------------------------------ freeze (fact)
@@ -1108,11 +1222,9 @@ def freeze_design(state: SpecialistState) -> Command:
     inf = pick_inference(cluster_column=bool(s.cluster_column))
     fuzzy = _is_fuzzy(entry, False)
     canon = _canon(state)
-    plan = CK.bandwidth_plan(entry.params, canon, s, _cfg(), fuzzy=fuzzy, cluster=bool(s.cluster_column), vce=inf.vce)
-    if "error" in plan:
-        return _stop(
-            "freeze_design", "bandwidth selection failed for the picked estimator", [plan["error"]], "an estimator whose bandwidth can be selected on this data"
-        )
+    lad = _ladder(state)
+    w: Window = lad.window
+    cer = (state.get("window_table") or {}).get("rows", {}).get("cerrd")
     status = (state.get("check_facts") or {}).get("first_stage_status")
     also = [n for n in entry.also_run if estimator_entry(n).applies(kind=s.kind, first_stage=status, distinct_scores=s.distinct_scores)]
     for e in load_estimators():
@@ -1131,11 +1243,22 @@ def freeze_design(state: SpecialistState) -> Command:
         inference=inf.name,
         vce=inf.vce,
         cluster=s.cluster_column if inf.cluster else None,
-        bandwidths=Bandwidths(h=plan["h"], b=plan["b"], h_cer=plan["h_cer"], rule=plan["rule"], n_h_left=plan["n_h_left"], n_h_right=plan["n_h_right"]),
+        bandwidths=Bandwidths(
+            selector=w.selector,
+            rule=w.rule,
+            h_left=w.h_left,
+            h_right=w.h_right,
+            b_left=w.b_left,
+            b_right=w.b_right,
+            h_cer_left=float(cer["h_left"]) if cer else None,
+            h_cer_right=float(cer["h_right"]) if cer else None,
+            n_h_left=w.n_left,
+            n_h_right=w.n_right,
+        ),
         sharp_bandwidth_used=bool(fuzzy and (s.takeup_left == 0.0 or s.takeup_right == 1.0)),
         placebos=[p.name for p in load_placebos() if p.applies()],
         target_units=state["target_units"],
-        modifiers=[m.column for m in lad.heterogeneity.modifiers] if (lad := _ladder(state)).heterogeneity is not None else [],
+        modifiers=[m.column for m in lad.heterogeneity.modifiers] if lad.heterogeneity is not None else [],
     )
     run_dir = Path(state["run_dir"])
     (run_dir / "design.json").write_text(d.model_dump_json(indent=2))
@@ -1143,27 +1266,25 @@ def freeze_design(state: SpecialistState) -> Command:
     b = adapter.bins(canon["y"], canon["x"])
     if b is not None:
         b.to_csv(run_dir / "bins.csv", index=False)
-    bw = Bandwidth(
-        h=plan["h"],
-        rule=plan["rule"],
-        why=(
-            f"the library's MSE-optimal width; {plan['n_h_left']} control-side and {plan['n_h_right']} treated-side rows inside it"
-            if plan["rule"] == "mse"
-            else f"the score has few distinct values, so the width keeps a declared number of support points on each side; {plan['n_h_left']}/{plan['n_h_right']} rows inside it"
-        ),
-    )
     _writer()({"design": d.render()})
-    return Command(goto="estimate", update={"design": d, "ladder": lad.model_copy(update={"bandwidth": bw})})
+    return Command(goto="estimate", update={"design": d})
 
 
 # ------------------------------------------------------------------ estimate (fact) + placebos (fact, fan-out)
 
 
-def _pinned(d: Design) -> dict:
-    return {"h": d.bandwidths.h, "b": d.bandwidths.b} if d.bandwidths.rule == "support_points" else {}
+def _window_kw(d: Design) -> dict:
+    """The design's window, pinned on both sides: what the primary and every refit that must compare with it use."""
+    return {"h": d.bandwidths.h, "b": d.bandwidths.b}
 
 
-def _fit_entry(d: Design, entry: EstimatorEntry, canon: pd.DataFrame, primary_fuzzy: bool) -> adapter.Fit:
+def _reselect_kw(d: Design) -> dict:
+    """What a refit on other rows or another spec uses: the design's selector, so the library picks the width again for those rows,
+    or the pinned window when the rule has no selector (few distinct scores)."""
+    return _window_kw(d) if d.bandwidths.rule in ("support_points", "local_randomisation") else {"bwselect": d.bandwidths.selector}
+
+
+def _fit_entry(d: Design, entry: EstimatorEntry, canon: pd.DataFrame, primary_fuzzy: bool, *, primary: bool) -> adapter.Fit:
     return adapter.fit(
         entry.params,
         canon,
@@ -1171,7 +1292,7 @@ def _fit_entry(d: Design, entry: EstimatorEntry, canon: pd.DataFrame, primary_fu
         covs=[SH.covcol(k) for k in d.covariates.adjusted] if entry.covs else None,
         cluster=bool(d.cluster),
         vce=d.vce,
-        **_pinned(d),
+        **(_window_kw(d) if primary else _reselect_kw(d)),
     )
 
 
@@ -1181,7 +1302,7 @@ def estimate(state: SpecialistState) -> Command:
     entry = estimator_entry(d.estimator)
     primary_fuzzy = _is_fuzzy(entry, False)
     key = d.contrast.key
-    f = _fit_entry(d, entry, canon, primary_fuzzy)
+    f = _fit_entry(d, entry, canon, primary_fuzzy, primary=True)
     ests: list[Estimate] = [adapter.to_estimate(f, key, d.estimator, d.target_units)]
     update: dict[str, Any] = {"estimates": ests}
     if f.error:
@@ -1192,7 +1313,7 @@ def estimate(state: SpecialistState) -> Command:
         return _stop("estimate", "the estimator failed to fit and the re-pick failed too", [f.error], "a different estimator entry", update)
     for name in d.also_run:
         e2 = estimator_entry(name)
-        ests.append(adapter.to_estimate(_fit_entry(d, e2, canon, primary_fuzzy), key, name, d.target_units, secondary=True))
+        ests.append(adapter.to_estimate(_fit_entry(d, e2, canon, primary_fuzzy, primary=False), key, name, d.target_units, secondary=True))
     if f.first_stage:
         fs = f.first_stage
         ests.append(
@@ -1213,8 +1334,10 @@ def estimate(state: SpecialistState) -> Command:
         ci_low=f.ci_low,
         ci_high=f.ci_high,
         p=f.p,
-        h=f.h,
-        b=f.b,
+        h=f.h_left,
+        h_right=f.h_right,
+        b=f.b_left,
+        b_right=f.b_right,
         n_h_left=f.n_h_left,
         n_h_right=f.n_h_right,
         n_left=f.n_left,
@@ -1251,7 +1374,7 @@ def _by_modifier(canon: pd.DataFrame, d: Design, primary_fuzzy: bool) -> list[Es
         if cc not in canon.columns:
             continue
         for level, mask in _modifier_groups(canon, cc, int((cfg.get("modifiers") or {}).get("max_levels", 4))):
-            f = adapter.fit(d.spec, canon, fuzzy=primary_fuzzy, cluster=bool(d.cluster), vce=d.vce, mask=mask, h=d.bandwidths.h, b=d.bandwidths.b)
+            f = adapter.fit(d.spec, canon, fuzzy=primary_fuzzy, cluster=bool(d.cluster), vce=d.vce, mask=mask, **_window_kw(d))
             e = adapter.to_estimate(f, d.contrast.key, d.estimator, d.target_units)
             if e.error is None and min(f.n_h_left, f.n_h_right) < floor:
                 e = e.model_copy(
@@ -1301,7 +1424,7 @@ def _points_record(points: list[tuple[str, adapter.Fit | None, bool, str]], at: 
     for label, f, informative, note in points:
         rec: dict[str, Any] = {"label": label, "informative": bool(informative), "note": note, "at": (at or {}).get(label)}
         if f is not None and not f.error:
-            rec.update(value=f.value, lo=f.ci_low, hi=f.ci_high, n_l=f.n_h_left, n_r=f.n_h_right, h=f.h)
+            rec.update(value=f.value, lo=f.ci_low, hi=f.ci_high, n_l=f.n_h_left, n_r=f.n_h_right, h=f.h_left, h_right=f.h_right)
         out.append(rec)
     return out
 
@@ -1334,33 +1457,33 @@ def placebo(task: PlaceboTask) -> dict:
             if not (sub["x"].min() < c_med < sub["x"].max()):
                 points.append((name, None, False, "the placebo cutoff is not strictly inside that side's scores"))
                 continue
-            f = adapter.fit(CK.SHARP, sub, cluster=bool(d.cluster), vce=d.vce, c=c_med, **_pinned(d))
+            f = adapter.fit(CK.SHARP, sub, cluster=bool(d.cluster), vce=d.vce, c=c_med, **_reselect_kw(d))
             ok, note = informative(f)
             points.append((name, f, ok, note))
     elif entry.name == "bandwidth_grid":
         bws = d.bandwidths
-        grid = {"h_mse": bws.h, "2h_mse": 2 * bws.h}
-        if bws.h_cer is not None:
-            grid.update({"h_cer": bws.h_cer, "2h_cer": 2 * bws.h_cer})
+        grid: dict[str, tuple[float, float]] = {"h_mse": (bws.h_left, bws.h_right), "2h_mse": (2 * bws.h_left, 2 * bws.h_right)}
+        if bws.h_cer_left is not None and bws.h_cer_right is not None:
+            grid.update({"h_cer": (bws.h_cer_left, bws.h_cer_right), "2h_cer": (2 * bws.h_cer_left, 2 * bws.h_cer_right)})
         for name in entry.grid:
             if name not in grid:
                 points.append((name, None, False, "no coverage-error bandwidth under the support-points rule"))
                 continue
-            h = grid[name]
-            label = f"{name} = {h:.4g}"
-            at[label] = h
-            f = adapter.fit(d.spec, canon, fuzzy=primary_fuzzy, cluster=bool(d.cluster), vce=d.vce, h=h, b=bws.b if entry.hold_b else None)
+            hl, hr = grid[name]
+            label = f"{name} = {hl:.4g}" if abs(hl - hr) < 1e-12 else f"{name} = {hl:.4g}/{hr:.4g}"
+            at[label] = hl
+            f = adapter.fit(d.spec, canon, fuzzy=primary_fuzzy, cluster=bool(d.cluster), vce=d.vce, h=[hl, hr], b=bws.b if entry.hold_b else None)
             ok, note = informative(f)
             points.append((label, f, ok, note))
     elif entry.name == "donut":
         for share in entry.radii_share_of_h:
-            r = share * d.bandwidths.h
+            r = share * min(d.bandwidths.h_left, d.bandwidths.h_right)
             mask = canon["x"].abs() >= r
             dropped = int((~mask).sum())
             if dropped == 0:
                 points.append((f"radius {share:.0%} of h", None, False, "no rows lie within the radius"))
                 continue
-            f = adapter.fit(d.spec, canon, fuzzy=primary_fuzzy, cluster=bool(d.cluster), vce=d.vce, mask=mask, **_pinned(d))
+            f = adapter.fit(d.spec, canon, fuzzy=primary_fuzzy, cluster=bool(d.cluster), vce=d.vce, mask=mask, **_reselect_kw(d))
             ok, note = informative(f)
             label = f"radius {share:.0%} of h ({dropped} rows dropped)"
             at[label] = r
@@ -1437,7 +1560,7 @@ def _material(state: SpecialistState) -> str:
         f"[design.score] score {names.get(sc.column, sc.column)}, treated when {rule}"
         + (f"; take-up recorded in {names.get(sc.takeup_column, sc.takeup_column)}" if sc.takeup_column else "; treatment is the cutoff rule itself")
         + f"; {d.shape.kind} design; scores run from {d.shape.score_min:.4g} to {d.shape.score_max:.4g}",
-        f"[design.bandwidth] estimation bandwidth h = {d.bandwidths.h:.4g} in the score's units (bias bandwidth b = {d.bandwidths.b:.4g}); the effect is estimated from rows within h of the cutoff",
+        f"[design.bandwidth] window {d.bandwidths.selector}: estimation bandwidth h = {d.bandwidths.h_left:.4g} on the control side, {d.bandwidths.h_right:.4g} on the treated side, in the score's units (bias bandwidth b = {d.bandwidths.b_left:.4g}/{d.bandwidths.b_right:.4g}); the effect is estimated from rows within h of the cutoff",
         f"comparison: {d.contrast.treated} versus {d.contrast.control}; outcome: {state['handoff'].outcome}",
     ]
     for r in d.checks.results:
@@ -1463,7 +1586,9 @@ def _material(state: SpecialistState) -> str:
             lines.append(f"[{tag}.ci] 95% robust interval {e.ci_low:.4g} to {e.ci_high:.4g}")
             lines.append(f"[{tag}.p] robust p = {prim.get('p', float('nan')):.3g}")
             lines.append(f"[{tag}.n] {e.n_control} control-side and {e.n_treated} treated-side rows inside the bandwidth")
-            lines.append(f"[{tag}.bandwidth] h = {prim.get('h', d.bandwidths.h):.4g}")
+            lines.append(
+                f"[{tag}.bandwidth] h = {prim.get('h', d.bandwidths.h_left):.4g} on the control side, {prim.get('h_right', d.bandwidths.h_right):.4g} on the treated side"
+            )
         else:
             tag = f"estimate:{c}.{e.method}"
             what = {
@@ -1514,8 +1639,10 @@ def interpret(state: SpecialistState) -> dict:
                 errors.append(f"effect_stated {parsed.effect_stated} does not match the primary estimate {prim['value']:.4g}")
             if abs(parsed.ci_low_stated - prim["ci_low"]) > scale * tol or abs(parsed.ci_high_stated - prim["ci_high"]) > scale * tol:
                 errors.append(f"the stated interval does not match {prim['ci_low']:.4g} to {prim['ci_high']:.4g}")
-            if abs(parsed.bandwidth_stated - prim["h"]) > max(abs(prim["h"]), 1e-9) * tol:
-                errors.append(f"bandwidth_stated {parsed.bandwidth_stated} does not match h = {prim['h']:.4g}")
+            if abs(parsed.bandwidth_left_stated - prim["h"]) > max(abs(prim["h"]), 1e-9) * tol:
+                errors.append(f"bandwidth_left_stated {parsed.bandwidth_left_stated} does not match h = {prim['h']:.4g} on the control side")
+            if abs(parsed.bandwidth_right_stated - prim["h_right"]) > max(abs(prim["h_right"]), 1e-9) * tol:
+                errors.append(f"bandwidth_right_stated {parsed.bandwidth_right_stated} does not match h = {prim['h_right']:.4g} on the treated side")
             if parsed.n_left_stated != prim["n_h_left"] or parsed.n_right_stated != prim["n_h_right"]:
                 errors.append(f"effective rows must be {prim['n_h_left']} control-side and {prim['n_h_right']} treated-side")
         if not errors:
@@ -1545,12 +1672,14 @@ def figures(state: SpecialistState) -> dict:
     specs = []
     if c and d is not None and state.get("canon_path") and Path(state["canon_path"]).exists():
         bins = pd.read_csv(run_dir / "bins.csv") if run_dir and (run_dir / "bins.csv").exists() else None
-        specs.append(PR.rd_plot(bins, _canon(state), d.bandwidths.h, int(d.spec.get("p", 1)), c, names.get(d.score.column, d.score.column)))
+        specs.append(
+            PR.rd_plot(bins, _canon(state), (d.bandwidths.h_left, d.bandwidths.h_right), int(d.spec.get("p", 1)), c, names.get(d.score.column, d.score.column))
+        )
     if c and state.get("xall_path") and Path(state["xall_path"]).exists():
         specs.append(PR.density_test(pd.read_csv(state["xall_path"])["x"], cf.get("density"), c, sampled_by_side=bool(state.get("sampled_by_side"))))
     if c:
         specs.append(PR.covariate_continuity(cf.get("continuity"), c, names, float(_cfg()["covariate_continuity"]["p_value"]["soft"])))
-        specs.append(PR.bandwidth_curve(pts.get("bandwidth_grid"), d.bandwidths.h if d is not None else None, c))
+        specs.append(PR.bandwidth_curve(pts.get("bandwidth_grid"), d.bandwidths.h_left if d is not None else None, c))
         specs.append(PR.placebo_cutoffs(pts.get("placebo_cutoffs"), state.get("primary"), c))
     ests = [e.model_dump() for e in state.get("estimates") or []]
     specs.append(PV.effect_and_refutations([e for e in ests if e.get("modifier") is None], [r.model_dump() for r in state.get("refutations") or []], "placebo"))

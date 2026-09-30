@@ -261,15 +261,47 @@ class CovariateRoles(BaseModel):
         return [(f"ladder:covariates.{r.column}", r.word()) for r in self.items]
 
 
-class Bandwidth(BaseModel):
-    """How wide the window around the line is, by code at the freeze."""
+class WindowPick(BaseModel):
+    """The window rung's judgement: which of the offered selectors sets how far from the line the fit reaches, and why."""
 
-    h: float
-    rule: str
+    selector: str = Field(description="one of the selectors offered, by name; the default when nothing in the ladder argues for another")
+    why: str = Field(description="one or two sentences: what in the density, the balance or the sides argues for this width")
+    cites: list[str] = Field(default_factory=list)
+    unsure: list[Unsure] = Field(default_factory=list)
+
+
+class Window(BaseModel):
+    """Rung 6: how far from the line the fit reaches on each side. Code builds the table of every selector the library offers with
+    the rows each leaves inside; a judgement picks one, or code does when the rule leaves no choice (few distinct scores, or a
+    local randomisation window)."""
+
+    selector: str
+    rule: Literal["mse", "cer", "support_points", "local_randomisation"]
+    h_left: float
+    h_right: float
+    b_left: float
+    b_right: float
+    n_left: int
+    n_right: int
     why: str
+    cites: list[str] = Field(default_factory=list)
+    unsure: list[Unsure] = Field(default_factory=list)
+    by: Literal["code", "judgement"] = "code"
+
+    def two_sided(self) -> bool:
+        return abs(self.h_left - self.h_right) > 1e-12
 
     def lines(self) -> list[tuple[str, str]]:
-        return [("ladder:bandwidth.h", f"{self.h:.4g} in the score's units ({self.rule})"), ("ladder:bandwidth.why", self.why)]
+        width = (
+            f"h = {self.h_left:.4g} in the score's units on both sides"
+            if not self.two_sided()
+            else f"h = {self.h_left:.4g} on the control side, {self.h_right:.4g} on the treated side, in the score's units"
+        )
+        return [
+            ("ladder:window.selector", f"{self.selector} ({self.rule}; set by the {self.by})"),
+            ("ladder:window.h", f"{width}; {self.n_left}/{self.n_right} rows inside"),
+            ("ladder:window.why", self.why),
+        ]
 
 
 class Ladder(LadderBase):
@@ -277,7 +309,7 @@ class Ladder(LadderBase):
     candidate's standing at the line, the covariates, where the effect could differ, the threats, the window. A rung reads the
     rungs below it; every line has an address."""
 
-    ORDER: ClassVar[tuple[str, ...]] = ("score", "shape", "density", "line", "balance", "covariates", "heterogeneity", "threats", "bandwidth")
+    ORDER: ClassVar[tuple[str, ...]] = ("score", "shape", "density", "line", "balance", "covariates", "heterogeneity", "threats", "window")
 
     score: Score | None = None
     shape: ShapeFacts | None = None
@@ -287,7 +319,7 @@ class Ladder(LadderBase):
     covariates: CovariateRoles | None = None
     heterogeneity: Heterogeneity | None = None
     threats: Threats | None = None
-    bandwidth: Bandwidth | None = None
+    window: Window | None = None
 
 
 class Excluded(BaseModel):
@@ -321,15 +353,31 @@ class EstimatorPick(BaseModel):
 
 
 class Bandwidths(BaseModel):
-    h: float = Field(description="the estimation bandwidth of the primary spec")
-    b: float = Field(description="the bias bandwidth of the primary spec")
-    h_cer: float | None = Field(default=None, description="the coverage-error-optimal bandwidth, used for falsification; null under the support-points rule")
-    rule: Literal["mse", "support_points"] = Field(
-        default="mse",
-        description="mse: the library's MSE-optimal choice; support_points: the score has few distinct values, so h is the distance that keeps a declared number of support points on each side",
+    """The window the design fits in, on each side of the line, as the window rung set it."""
+
+    selector: str = Field(description="the selector the window rung chose, or the rule's own name")
+    rule: Literal["mse", "cer", "support_points", "local_randomisation"] = "mse"
+    h_left: float = Field(description="the estimation bandwidth on the control side")
+    h_right: float = Field(description="the estimation bandwidth on the treated side")
+    b_left: float = Field(description="the bias bandwidth on the control side")
+    b_right: float = Field(description="the bias bandwidth on the treated side")
+    h_cer_left: float | None = Field(
+        default=None, description="the coverage-error-optimal width on the control side, for the grid; null when the rule has none"
     )
+    h_cer_right: float | None = None
     n_h_left: int = 0
     n_h_right: int = 0
+
+    def two_sided(self) -> bool:
+        return abs(self.h_left - self.h_right) > 1e-12
+
+    @property
+    def h(self) -> list[float]:
+        return [self.h_left, self.h_right]
+
+    @property
+    def b(self) -> list[float]:
+        return [self.b_left, self.b_right]
 
 
 class Design(BaseModel):
@@ -377,8 +425,8 @@ class Design(BaseModel):
         lines.append(f"  inference    {self.inference}  vce {self.vce}" + (f"  cluster {self.cluster}" if self.cluster else ""))
         bw = self.bandwidths
         lines.append(
-            f"  bandwidths   {bw.rule}: h {bw.h:.4g}  b {bw.b:.4g}"
-            + (f"  h_cer {bw.h_cer:.4g}" if bw.h_cer is not None else "")
+            f"  window       {bw.selector} ({bw.rule}): h {bw.h_left:.4g}/{bw.h_right:.4g}  b {bw.b_left:.4g}/{bw.b_right:.4g}"
+            + (f"  h_cer {bw.h_cer_left:.4g}/{bw.h_cer_right:.4g}" if bw.h_cer_left is not None and bw.h_cer_right is not None else "")
             + f"  effective rows {bw.n_h_left}/{bw.n_h_right}"
             + ("  (sharp bandwidth used: take-up does not vary on one side)" if self.sharp_bandwidth_used else "")
         )
@@ -395,7 +443,10 @@ class RDInterpretation(Interpretation):
     estimand: Estimand = Field(
         description="which quantity the estimate is: effect_at_cutoff (sharp), complier_effect_at_cutoff (fuzzy), or itt_at_cutoff (effect of crossing the cutoff, whatever was taken up)"
     )
-    bandwidth_stated: float = Field(description="the estimation bandwidth, copied from the design")
+    bandwidth_left_stated: float = Field(description="the estimation bandwidth on the control side, copied from the estimate")
+    bandwidth_right_stated: float = Field(
+        description="the estimation bandwidth on the treated side, copied from the estimate; the same number when the window is one width"
+    )
     n_left_stated: int = Field(description="effective rows on the control side, copied from the estimate")
     n_right_stated: int = Field(description="effective rows on the treated side, copied from the estimate")
     ci_low_stated: float = Field(description="lower end of the robust interval, copied from the estimate")

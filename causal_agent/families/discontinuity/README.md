@@ -22,8 +22,14 @@ it does not, with the data tools and the budgets `knowledge/checks.yaml` declare
   positive, so every fit, check and placebo is written for one geometry. When the notes say a unit exactly at the cutoff is control,
   the effective cutoff moves to the midpoint before the next distinct treated score, and the shift is a recorded fact.
 - **Local polynomial spec.** `knowledge/estimators.yaml` holds named specs with the standard defaults pinned: local linear,
-  triangular kernel, MSE-optimal bandwidth, mass points adjusted. The bandwidth is the library's choice, except when the score has
-  fewer distinct values than `checks.yaml` declares: then `h` keeps three support points a side and the design says so.
+  triangular kernel, mass points adjusted. How far from the line the fit reaches is the window rung's judgement, not a parameter of
+  the spec.
+- **The window.** After the estimator is picked, code builds the table of every width selector the library offers
+  (`checks.yaml window.selectors`), the width each gives on each side and the rows it leaves inside; a judgement picks one by
+  name, the default (`mserd`) unless the density, the balance or the sides argue for another, and the gate holds the floor on
+  rows a side and the citation a departure needs. When the score has fewer distinct values than `checks.yaml` declares there is
+  nothing to judge: `h` keeps three support points a side and the design says so. The primary fits in the chosen window on both
+  sides; a refit on other rows re-selects with the same selector, or keeps the pinned window when the rule has no selector.
 - **Inference.** `knowledge/inference.yaml`: the point estimate from the conventional row, the interval from the robust
   bias-corrected row, clustered by the entity column when one exists. No model call.
 - **Evidence before the judgement.** The density rung (`checks.density_evidence`) runs rddensity once with the settings

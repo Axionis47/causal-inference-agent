@@ -159,9 +159,14 @@ an analyst reads a cutoff design.
    levels compare, without that column among the covariates.
 8. **threats** (rung 5; code). The risks every design carries from the pack, and the risks the line rung named. Each is a flag the
    assessment answers and the interpretation cites; an `unsure` on a claim the interview could have settled is a decline.
-9. Then as before: `check_design` (the density flag and the covariate continuity read off their rungs, among the checks), `assess`, `pick_estimator`,
-   `freeze_design` (which adds the window rung, `ladder:bandwidth.*`, by code), `estimate`, the falsifications, `interpret`,
-   `figures`, `assemble`.
+9. `check_design` (the density flag and the covariate continuity read off their rungs, among the checks), `assess`, `pick_estimator`.
+10. **window** (rung 6; a judgement over a table code builds). After the pick: every width selector the library offers, the width
+    each gives on each side of the line and the rows it leaves inside. The model picks one by name, the default unless the density,
+    the balance or the sides argue for another, and the gate holds the floor on rows a side and the citation a departure needs
+    (`ladder:window.*`). Few distinct scores leave nothing to judge: code keeps three support points a side. The rows inside the
+    chosen window are the `effective_rows` check.
+11. Then as before: `freeze_design`, `estimate` (the primary in the chosen window on both sides), the falsifications, `interpret`
+    (which must state the width on each side), `figures`, `assemble`.
 
 ## The three lanes side by side
 
