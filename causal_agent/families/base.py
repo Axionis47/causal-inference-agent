@@ -121,7 +121,15 @@ def load_family_yaml(path: Path, name: str | None = None) -> tuple[Family, Famil
         return fam, None
     # what the family asks: every field address a decision rests on; the probes and the notes are not fields
     asks = [p for d in fam.decisions for p in d.rests_on if p.startswith(("claim:", "col:")) and "." in p and not p.endswith(".note")]
-    return fam, FamilyNeeds(name=name, asks=list(dict.fromkeys(asks)), **needs)
+    # what the family requires: the kinds its decisions rest on, less the ones the lane settles with its own question. A declared
+    # family, with no decisions yet, spells its list by hand until it is built.
+    lane_settles = list(needs.pop("lane_settles", None) or [])
+    if fam.decisions:
+        if "requires" in needs:
+            raise ValueError(f"{name}: `requires` is derived from the decisions; delete it from needs_claims")
+        kinds = [p[6:].split(".")[0] if p.startswith("claim:") else "measured" for d in fam.decisions for p in d.rests_on if p.startswith(("claim:", "col:"))]
+        needs["requires"] = [k for k in dict.fromkeys(kinds) if k not in lane_settles]
+    return fam, FamilyNeeds(name=name, lane_settles=lane_settles, asks=list(dict.fromkeys(asks)), **needs)
 
 
 # ------------------------------------------------------------------ the stub lane for a declared family

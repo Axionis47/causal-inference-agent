@@ -72,11 +72,15 @@ class ClaimKind(BaseModel):
 
 
 class FamilyNeeds(BaseModel):
-    """The claim kinds a family requires, and for some fields which values fit."""
+    """The claim kinds a family requires, derived from what its decisions rest on, and for some fields which values fit."""
 
     name: str
     requires: list[str]
     fits: dict[str, list[Any]] = Field(default_factory=dict)
+    lane_settles: list[str] = Field(
+        default_factory=list,
+        description="the kinds a decision rests on that the lane settles with its own question when its own graph needs them; asked by the interview, never blocking",
+    )
     asks: list[str] = Field(
         default_factory=list,
         description="the field addresses the family's decisions rest on, as patterns; <column> stands for any column in play. The interview asks them because a decision needs them",

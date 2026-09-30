@@ -20,10 +20,10 @@ status: built
 decisions:
   - name: who_is_treated
     asks: who is treated, versus whom
-    rests_on: [claim:assignment.treatment_column, claim:assignment.treated_level, claim:sampling.how]
+    rests_on: [claim:grain.row_is, claim:assignment.treatment_column, claim:assignment.treated_level, claim:sampling.how]
   - name: mechanism
     asks: "how the change reached the units: what the decision or the offer looked at, and whether an offer and a taking are two columns"
-    rests_on: [claim:assignment.kind, claim:assignment.rule, claim:assignment.depends_on, claim:assignment.offer_column, claim:assignment.uptake_column]
+    rests_on: [claim:change.what, claim:assignment.kind, claim:assignment.rule, claim:assignment.depends_on, claim:assignment.offer_column, claim:assignment.uptake_column]
   - name: road
     asks: "the road: back door, front door, or instrument"
     rests_on: [claim:unobserved.exists, claim:exclusion.exists, claim:exclusion.column, claim:mediator.exists, claim:mediator.column]
@@ -43,7 +43,10 @@ decisions:
     asks: where the effect could differ, and for whom it is wanted
     rests_on: ["col:<column>.may_modify", claim:assignment.kind]
 
+# What the family requires is derived from the decisions above: every kind they rest on. `lane_settles` names the kinds the
+# lane settles with its own question when its own graph needs them (the road, once a hidden factor closes the back door);
+# the interview asks them too, but they never block.
 needs_claims:
-    requires: [grain, sampling, change, assignment, measured, missing, unobserved, spillover]
+    lane_settles: [exclusion, mediator]
     fits:
       assignment.kind: [lottery, own_choice, third_party, cutoff_rule, date_by_others]

@@ -587,21 +587,25 @@ def test_a_field_no_decision_rests_on_is_asked_with_the_rest_of_its_claim(_no_no
     assert p["ask"]["kind"] == "confirm" and p["ask"]["addresses"] == ["claim:assignment.kind", "claim:assignment.treatment_column"]
     p = d.say("yes, all right")
     a = p["ask"]
-    # the decisions come first, in the family's order: who is treated rests on the treated level and the sampling
-    assert a["decision"] == "who_is_treated" and a["addresses"] == ["claim:assignment.treated_level", "claim:sampling.how"] and a["kind"] == "open"
+    # the decisions come first, in the family's order: who is treated rests on what a row is, the treated level and the sampling
+    assert (
+        a["decision"] == "who_is_treated"
+        and a["addresses"] == ["claim:assignment.treated_level", "claim:grain.row_is", "claim:sampling.how"]
+        and a["kind"] == "open"
+    )
     # a field no decision rests on waits for the decisions and is then asked with the rest of its claim, the frame once, the fields named
     from causal_agent.desk.nodes.interview import compose_ask
     from causal_agent.memory.ops import Open
 
     opened = [
-        Open(address="claim:change.what", kind="change", field="what", status="empty", because=["adjustment"], frame="f"),
         Open(address="claim:change.to_whom", kind="change", field="to_whom", status="empty", because=["adjustment"], frame="f"),
+        Open(address="claim:change.when", kind="change", field="when", status="empty", because=["adjustment"], frame="f"),
     ]
     a2 = compose_ask(HELD["students"], opened, [], None, surviving=["adjustment"])
-    assert a2.decision == "" and a2.addresses == ["claim:change.what", "claim:change.to_whom"] and a2.kind == "open"
+    assert a2.decision == "" and a2.addresses == ["claim:change.to_whom", "claim:change.when"] and a2.kind == "open"
     assert a2.text.endswith(
         "What was the change, which units could it reach, and when did it happen; if a column records the period, which value marks when it "
-        "took effect? This turn: what, to whom. Say don't know for anything you cannot say."
+        "took effect? This turn: to whom, when. Say don't know for anything you cannot say."
     )
 
 

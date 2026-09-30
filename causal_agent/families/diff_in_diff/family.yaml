@@ -36,10 +36,10 @@ decisions:
     rests_on: [claim:assignment.level_column, claim:grain.nesting]
   - name: run_at_all
     asks: whether to run at all
-    rests_on: [probe:diff_in_diff.pre_periods, claim:spillover.possible, probe:diff_in_diff.treated_units]
+    rests_on: [probe:diff_in_diff.pre_periods, claim:spillover.possible, claim:missing.why, probe:diff_in_diff.treated_units]
 
+# What the family requires is derived from the decisions above: every kind they rest on.
 needs_claims:
-    requires: [grain, sampling, change, assignment, measured, missing, spillover, trend_continues]
     fits:
       grain.panel: [true]
       assignment.kind: [date_by_others, third_party, own_choice]

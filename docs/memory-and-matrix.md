@@ -66,12 +66,15 @@ before it, a score is set before, the outcome after, a before-column cannot be m
 ## The matrix
 
 `ops.fit` ([memory/ops.py:401](../causal_agent/memory/ops.py)) calls `table.compute` ([memory/table.py:43](../causal_agent/memory/table.py)),
-which builds the grid of every family against every claim kind. Each family says what it needs in its own yaml:
+which builds the grid of every family against every claim kind. What a family requires is derived from its decisions: every
+claim kind a decision in its `family.yaml` rests on. So ready means the inputs of every rung of the lane's reasoning are settled
+before the lane starts. The one exception is declared beside the fits: the kinds the lane settles with its own question when
+its own graph needs them, which the interview asks too but which never block.
 
 ```yaml
 # families/adjustment/family.yaml
 needs_claims:
-  requires: [grain, sampling, change, assignment, measured, missing, unobserved, spillover]
+  lane_settles: [exclusion, mediator]
   fits:
     assignment.kind: [lottery, own_choice, third_party, cutoff_rule, date_by_others]
 ```

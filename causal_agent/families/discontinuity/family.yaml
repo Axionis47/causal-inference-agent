@@ -21,7 +21,7 @@ status: built
 decisions:
   - name: score_and_line
     asks: the score and the line
-    rests_on: [claim:assignment.kind, claim:assignment.score_column, claim:assignment.cutoff, claim:assignment.treated_side, claim:assignment.cutoff_value_treated]
+    rests_on: [claim:grain.row_is, claim:change.what, claim:assignment.kind, claim:assignment.score_column, claim:assignment.cutoff, claim:assignment.treated_side, claim:assignment.cutoff_value_treated]
   - name: sharp_or_fuzzy
     asks: sharp or fuzzy
     rests_on: [claim:assignment.treatment_column, claim:assignment.score_column]
@@ -33,10 +33,10 @@ decisions:
     rests_on: ["col:<column>.when", "col:<column>.moved_by_change"]
   - name: run_at_all
     asks: whether to run at all
-    rests_on: [probe:discontinuity.rows_by_side, claim:sampling.how]
+    rests_on: [probe:discontinuity.rows_by_side, claim:sampling.how, claim:missing.why]
 
+# What the family requires is derived from the decisions above: every kind they rest on.
 needs_claims:
-    requires: [grain, sampling, change, assignment, measured, missing, cutoff_only]
     fits:
       assignment.kind: [cutoff_rule]
       cutoff_only.believed: [true]
