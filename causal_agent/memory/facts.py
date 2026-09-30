@@ -99,18 +99,16 @@ def redundancy(a: pd.Series, b: pd.Series) -> str | None:
     return None
 
 
-def _by_arm(s: pd.Series, treated: pd.Series, name: str) -> ProbeResult:
+def by_arm(s: pd.Series, treated: pd.Series, name: str) -> tuple[str, float | None]:
+    """One column in each arm: the means and the standardised difference for a number, the share of each level for a category.
+    Returns the sentence and the number."""
     t, o = s[treated], s[~treated]
     if _is_numeric(s):
         d = _smd(t, o)
         tm, om = pd.to_numeric(t, errors="coerce").mean(), pd.to_numeric(o, errors="coerce").mean()
-        return _fact(
-            f"by_arm.{_key(name)}",
-            f"{name!r} by arm: mean {tm:.3g} among the treated, {om:.3g} among the others; standardised difference {d:.2f}"
-            if d is not None
-            else f"{name!r} by arm: too few rows",
-            d,
-        )
+        if d is None:
+            return f"{name!r} by arm: too few rows", None
+        return f"{name!r} by arm: mean {tm:.3g} among the treated, {om:.3g} among the others; standardised difference {d:.2f}", d
     lv = [str(v) for v in s.astype(str).value_counts().index[:4]]
     parts, gap = [], 0.0
     for v in lv:
@@ -118,7 +116,12 @@ def _by_arm(s: pd.Series, treated: pd.Series, name: str) -> ProbeResult:
         gap = max(gap, abs(st - so))
         parts.append(f"{v}: {st:.0%} of the treated, {so:.0%} of the others")
     more = f"; {s.nunique() - len(lv)} more levels" if s.nunique() > len(lv) else ""
-    return _fact(f"by_arm.{_key(name)}", f"{name!r} by arm: " + "; ".join(parts) + more + f"; largest share gap {gap:.2f}", gap)
+    return f"{name!r} by arm: " + "; ".join(parts) + more + f"; largest share gap {gap:.2f}", gap
+
+
+def _by_arm(s: pd.Series, treated: pd.Series, name: str) -> ProbeResult:
+    text, v = by_arm(s, treated, name)
+    return _fact(f"by_arm.{_key(name)}", text, v)
 
 
 def facts(df: pd.DataFrame, memory: Memory, table: ClaimTable, *, outcome: str | None, treatment: str | None, columns: list[str]) -> list[ProbeResult]:
