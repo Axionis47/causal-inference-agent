@@ -130,13 +130,37 @@ not, with the budgets its `checks.yaml` declares; every claim cites the pack, a 
 8. Then as before: `check_design` (the pre-trends test among the checks), `assess`, `pick_estimator`, `freeze_design` (which adds the
    clustering rung, `ladder:cluster.*`, by code), `estimate`, the placebos, `interpret`, `figures`, `assemble`.
 
-## The discontinuity lane, same shape, own method
+## The discontinuity lane, rung by rung
+
+[families/discontinuity/lane/](../causal_agent/families/discontinuity/lane/) climbs its own ladder on the same harness, in the order
+an analyst reads a cutoff design.
+
+1. **score** (rung 0). The score, the cutoff, which side got the change, and who took it up; the pack's block when it names one
+   and the file bears it out, else a judgement. A rule the notes state but leave incomplete is the one question this lane asks back.
+2. **shape_table** (rung 1; code). The canonical table: the score recentred on the cutoff, the rows on each side, sharp or fuzzy.
+3. **line** (rung 2; an episode). Whether the line is clean, argued from the story and the facts: what set the score, whether a unit
+   could move it, what else switches there; every risk the story raises, from a fixed list (manipulation, another change at the
+   line, a score set after the decision, a cutoff known in advance), each cited and each a flag. The outcome by side is refused;
+   the density test at the line is code, later.
+4. **covariates** (rung 3; one episode over every candidate the pack leaves open). Fixed before the line, changed by the treatment,
+   another measure of the outcome, or a predetermined characteristic the effect could differ by; what the pack settled is copied.
+   `merge_covariates` and `verify` then build the set by code.
+5. **heterogeneity** (rung 4). The candidates are the predetermined characteristics the covariates rung or the person marked; a
+   judgement names at most three; the primary spec is fitted again within each level of each, at the design's bandwidth so the
+   levels compare, without that column among the covariates.
+6. **threats** (rung 5; code). The risks every design carries from the pack, and the risks the line rung named. Each is a flag the
+   assessment answers and the interpretation cites; an `unsure` on a claim the interview could have settled is a decline.
+7. Then as before: `check_design` (the density test and the covariate continuity among the checks), `assess`, `pick_estimator`,
+   `freeze_design` (which adds the window rung, `ladder:bandwidth.*`, by code), `estimate`, the falsifications, `interpret`,
+   `figures`, `assemble`.
+
+## The three lanes side by side
 
 | | diff-in-diff | discontinuity |
 |---|---|---|
 | engine | pyfixest | rdrobust and rddensity |
-| stages | load, case, groups, periods, shape_table, comparison, controls, merge_controls, verify, heterogeneity, threats, check_design, assess, pick_estimator, freeze_design, estimate, placebo, interpret, figures, assemble | load, case, score, shape_table, relate, merge_covariates, verify, check_design, assess, pick_estimator, freeze_design, estimate, placebo, interpret, figures, assemble |
-| its own judgements | groups, periods, comparison, controls, heterogeneity | score (its ladder follows) |
+| stages | load, case, groups, periods, shape_table, comparison, controls, merge_controls, verify, heterogeneity, threats, check_design, assess, pick_estimator, freeze_design, estimate, placebo, interpret, figures, assemble | load, case, score, shape_table, line, covariates, merge_covariates, verify, heterogeneity, threats, check_design, assess, pick_estimator, freeze_design, estimate, placebo, interpret, figures, assemble |
+| its own judgements | groups, periods, comparison, controls, heterogeneity | score, line, covariates, heterogeneity |
 | the canonical shape code builds | `y, unit, time, treated, post, treat, rel_time, cohort` from a long or a wide table | `y, x, side` with the score recentred on the cutoff and the treated side positive |
 | what the yaml declares | formulas over the canonical names, the inference rule, the placebos, the thresholds | the local polynomial specs, the inference rule, the placebo cutoffs and bandwidth grid, the thresholds |
 | falsifications | placebo group, placebo timing | placebo cutoffs, the bandwidth grid, donuts |

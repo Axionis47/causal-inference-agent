@@ -64,8 +64,17 @@ the tests its own design faces.
 | `heterogeneity` (rung 5; only when there are candidates) | the case, the unit traits marked as candidates; may describe or look by group, never at the outcome | `Heterogeneity`: at most three modifiers, each a candidate and cited | every modifier is a candidate, once; the count holds; cites resolve | three tries, then a stop |
 | `assess`, `pick_estimator`, `interpret` | as the adjustment lane's, over this lane's checks, estimators and artifacts | | | |
 
-The discontinuity lane keeps the earlier shape for now, a one-shot `relate` per column beside its own `score` judgement. Its
-ladder follows. See [lanes.md](lanes.md).
+## The discontinuity lane
+
+| node | given | returns | the gate checks | on failure |
+|---|---|---|---|---|
+| `score` (rung 0; the pack's block first, a judgement when it fails) | the question, the case, the dataset and change cards, the treatment card, every column card; may describe a column | `Score`: the column, the cutoff, the treated side, the cutoff-value rule, the take-up column and level or null | the column is numeric and varies; the cutoff sits inside its range with rows on both sides; a take-up column and level are observed; a named treatment column is the rule or the take-up; the treated side carries the higher take-up; cites resolve | three tries; a rule the notes state but leave incomplete asks the person back, else a stop |
+| `line` (rung 2) | the case with the ladder so far, the score card, the shape; may describe, look by side, the timing, never at the outcome | `Line`: clean or not, why, the risks each named from a fixed list and cited | a reason; a line judged not clean names a risk; every risk cites; cites resolve | three tries, then a stop |
+| `covariates` (rung 3; one episode over every candidate the pack leaves open) | the case, one block per column with what the pack settled; may look by side, at associations, redundancy, the timing | `CovariateRoles`: one relation per column, fixed before the line, changed by the treatment or an outcome measure, a modifier candidate, cited | every listed column once; a claim marked true has a cited reason; not both fixed before and changed by; cites resolve; the settled claims copied | three tries, then a stop |
+| `heterogeneity` (rung 4; only when there are candidates) | the case, the predetermined characteristics marked as candidates; may describe or look by side, never at the outcome | `Heterogeneity`: at most three modifiers, each a candidate and cited | every modifier is a candidate, once; the count holds; cites resolve | three tries, then a stop |
+| `assess`, `pick_estimator`, `interpret` | as before, over this lane's checks, estimators and artifacts; the interpretation's numbers are compared one by one with the design and the estimate | | | |
+
+See [lanes.md](lanes.md) for the rungs in order.
 
 ## What an episode is
 
