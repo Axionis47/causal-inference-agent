@@ -16,7 +16,16 @@ from causal_agent.common.contracts import Cited, Handoff, Scope
 from causal_agent.common.llm import set_llm
 from causal_agent.desk.handoff import forced
 from causal_agent.families.discontinuity.lane import nodes as N
-from causal_agent.families.discontinuity.lane.contracts import CovariateRelation, CovariateRoles, DesignAssessment, EstimatorPick, Line, RDInterpretation, Score
+from causal_agent.families.discontinuity.lane.contracts import (
+    CovariateRelation,
+    CovariateRoles,
+    DesignAssessment,
+    EstimatorPick,
+    Line,
+    RDInterpretation,
+    Risk,
+    Score,
+)
 from causal_agent.families.discontinuity.lane.graph import compile_local
 from causal_agent.lane.ladder import Heterogeneity, Modifier
 from causal_agent.memory import store
@@ -89,12 +98,14 @@ class FakeLLM:
         overrides=None,
         risks=None,
         looks=None,
+        line_script=None,
     ):
         self.score, self.relations, self.cite, self.bad_cites = score, relations, cite, bad_cites
         self.assess_script, self.pick_script, self.score_script = list(assess_script or []), list(pick_script or []), list(score_script or [])
         self.interpret_bad_first = interpret_bad_first
         self.overrides = dict(overrides or {})
         self.risks = list(risks or [])
+        self.line_script = list(line_script or [])
         self.looks = {k: list(v) for k, v in (looks or {}).items()}
         self.calls: list[str] = []
         self.humans: list[tuple[str, str]] = []
@@ -149,11 +160,25 @@ class FakeLLM:
             s.cites = [cite]
             return s
         if schema is Line:
+            if self.line_script:
+                return self.line_script.pop(0)
+            # a careful model reads the density rung: it cites the test when the rows bunch, and names manipulation when told the person said the score could be moved
+            risks, cites = list(self.risks), [cite]
+            if "[ladder:density.test]" in human and "the rows bunch" in human:
+                cites.append("ladder:density.test")
+            if "name the manipulation risk" in human and not any(r.name == "manipulation" for r in risks):
+                risks.append(
+                    Risk(
+                        name="manipulation",
+                        reason="units bunch just on the treated side and the person says the score could be moved",
+                        cites=["ladder:density.test"],
+                    )
+                )
             return Line(
-                clean=not self.risks,
+                clean=not risks,
                 why="the story says the score was set before the programme and nothing else switches there",
-                risks=list(self.risks),
-                cites=[cite],
+                risks=risks,
+                cites=cites,
             )
         if schema is CovariateRoles:
             return self.covariates_answer(human)
@@ -930,8 +955,6 @@ def test_the_run_leaves_the_jump_the_density_the_covariates_and_the_bandwidths_a
 
 
 def test_a_risk_the_line_rung_names_is_a_flag_the_assessment_answers_and_the_interpretation_cites():
-    from causal_agent.families.discontinuity.lane.contracts import Risk
-
     risk = Risk(name="cutoff_known_in_advance", reason="households knew the income line before the survey", cites=["change:1.note"])
     fake = FakeLLM(URUGUAY_SCORE, URUGUAY_RELATIONS, URUGUAY["cite"], risks=[risk])
     out = _run(fake, handoff(**URUGUAY))
@@ -975,3 +998,79 @@ def test_the_effect_at_the_cutoff_is_estimated_within_each_level_of_a_predetermi
     figs = {f["id"]: f for f in __import__("json").loads(open(f"{r['run_dir']}/figures.json").read())}
     assert f"effect_by_modifier_{c}" in figs and figs[f"effect_by_modifier_{c}"]["series"][0]["x"][0] == "all rows"
     assert "within z = " in r["report"] and "[ladder:heterogeneity.modifiers] z" in r["report"] and "modifiers    z" in r["report"]
+
+
+# ------------------------------------------------------------------ the density rung: evidence before the line is judged
+
+
+def test_the_density_rung_is_computed_once_before_the_line_and_read_by_the_check_and_the_judgement(tmp_path, monkeypatch):
+    from causal_agent.families.discontinuity.lane import adapter as A
+
+    make_pack(
+        tmp_path,
+        monkeypatch,
+        "manip",
+        manipulated(),
+        "Units with a score at or above zero got the grant.",
+        {"x": "The score, fixed before the grant.", "y": "The outcome, measured after."},
+    )
+    calls: list[int] = []
+    real = A.density
+    monkeypatch.setattr(N.adapter, "density", lambda *a, **k: (calls.append(1), real(*a, **k))[1])
+    m = _rule(memory("manip"), movable=False)
+    fake = FakeLLM(URUGUAY_SCORE, {}, "col:x.note")
+    out = _run(fake, handoff("manip", "y", None, ["x", "y"], "col:x.note", memory_=m))
+    assert len(calls) == 1  # the rung ran the library; the check read the rung
+    dens = out["ladder"].density
+    assert dens.status == "tested" and dens.flagged and dens.p < 0.10 and len(dens.windows) == 5 and dens.windows[0].width < dens.windows[-1].width
+    assert dens.windows[0].n_right > dens.windows[0].n_left and dens.histogram and dens.mass_share_left == 0.0
+    human = fake.humans_of("Line")[0]
+    assert (
+        "[ladder:density.test] density" in human
+        and "the rows bunch on one side" in human
+        and "[ladder:density.windows]" in human
+        and "[ladder:density.histogram]" in human
+    )
+    assert human.index("[ladder:density.test]") < human.index("THE LINE")  # the evidence sits in the ladder the rung reads first
+    line = out["ladder"].line
+    assert line.clean and "ladder:density.test" in line.cites  # the fake, like a careful model, answered the evidence
+    density = next(c for c in out["checks"] if c.name == "density")
+    assert density.level == "soft" and "coin-toss p" in density.detail and density.value == pytest.approx(dens.p, abs=1e-4)
+    assert "[ladder:density.test]" in out["specialist_result"]["report"]
+
+
+def test_a_clean_line_over_bunching_is_re_prompted_until_it_answers_the_evidence(tmp_path, monkeypatch):
+    make_pack(
+        tmp_path,
+        monkeypatch,
+        "manip",
+        manipulated(),
+        "Units with a score at or above zero got the grant.",
+        {"x": "The score, fixed before the grant.", "y": "The outcome, measured after."},
+    )
+    m = _rule(memory("manip"), movable=True)
+    first = Line(clean=True, why="the registry set the score", risks=[], cites=["col:x.note"])
+    second = Line(
+        clean=False,
+        why="the rows bunch just above the line and the person says a unit could move its score",
+        risks=[Risk(name="manipulation", reason="units bunch just on the treated side", cites=["ladder:density.test", "col:x.note"])],
+        cites=["col:x.note", "ladder:density.test"],
+    )
+    fake = FakeLLM(URUGUAY_SCORE, {}, "col:x.note", line_script=[first, second])
+    out = _run(fake, handoff("manip", "y", None, ["x", "y"], "col:x.note", memory_=m))
+    assert fake.calls.count("Line") == 2
+    rejected = fake.humans_of("Line")[1]
+    assert "PREVIOUS ANSWER WAS REJECTED" in rejected
+    assert "a clean verdict must answer it, citing that line" in rejected and "name the manipulation risk" in rejected
+    assert out["episodes"]["line"].tries == 2
+    assert not out["ladder"].line.clean and "manipulation" in [t.name for t in out["ladder"].threats.items]
+    assert next(c for c in out["checks"] if c.name == "threat.manipulation").level == "soft"
+
+
+def test_a_line_judged_clean_without_bunching_needs_no_density_citation(tmp_path, monkeypatch):
+    fake = FakeLLM(URUGUAY_SCORE, URUGUAY_RELATIONS, URUGUAY["cite"])
+    out = _run(fake, handoff(**URUGUAY))
+    dens = out["ladder"].density
+    assert dens.status == "uninformative" and not dens.flagged  # the rows were drawn by side of the line
+    assert "[ladder:density.test] uninformative" in fake.humans_of("Line")[0]
+    assert out["ladder"].line.clean and out["specialist_result"]["status"] == "done"

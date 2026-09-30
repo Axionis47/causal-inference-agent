@@ -26,7 +26,10 @@ it does not, with the data tools and the budgets `knowledge/checks.yaml` declare
   fewer distinct values than `checks.yaml` declares: then `h` keeps three support points a side and the design says so.
 - **Inference.** `knowledge/inference.yaml`: the point estimate from the conventional row, the interval from the robust
   bias-corrected row, clustered by the entity column when one exists. No model call.
-- **Validation.** `lane/checks.py` computes the pre-estimate facts: rows and effective rows a side, the density test (rddensity, in
+- **Evidence before the judgement.** The density rung (`checks.density_evidence`) runs rddensity once with the settings
+  `checks.yaml` declares, splits the rows in nested windows either side of the line and tests each split as a coin toss, and
+  writes the histogram; the line rung reads it from the ladder and its gate holds a clean verdict to it.
+- **Validation.** `lane/checks.py` computes the pre-estimate facts: rows and effective rows a side, the density flag (read off the rung;
   the score's recorded orientation), mass points, support, compliance and the first stage, and continuity of every predetermined
   covariate at the cutoff. `knowledge/placebos.yaml` declares what runs after the estimate: placebo cutoffs on each side's own rows,
   the bandwidth grid, donuts. Each reports its effective rows and counts as uninformative below the declared floor.

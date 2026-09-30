@@ -1,11 +1,12 @@
 """The discontinuity subgraph on rdrobust and rddensity. Nodes are constant; workers scale with placebos.
 
-    load ─ case ─ score ─ shape_table ─ line ─ covariates ─ merge_covariates ─ verify ─ heterogeneity ─ threats ─ check_design
+    load ─ case ─ score ─ shape_table ─ density ─ line ─ covariates ─ merge_covariates ─ verify ─ heterogeneity ─ threats ─ check_design
          ─(assess, only when flagged)─ pick_estimator ─ freeze_design ─ estimate ─(placebo × K)─ interpret ─ figures ─ assemble
     any typed stop, or an ask back ───────────────────────────────────────────▶ feasibility ─ figures ─ assemble
 
 score, line, covariates and heterogeneity are the rungs of the ladder: code where the pack settles the rung, a bounded episode
-where it does not, each gated up to three tries inside the episode. estimate may re-pick once on a fit failure. Nothing loops
+where it does not, each gated up to three tries inside the episode. density is an evidence rung: code, before the line is
+judged, so the judgement reads the test and its gate can require citing it. estimate may re-pick once on a fit failure. Nothing loops
 after an estimate exists.
 """
 
@@ -25,6 +26,7 @@ def build() -> StateGraph:
     b.add_node("case", N.case)
     b.add_node("score", N.score, retry_policy=_retry)
     b.add_node("shape_table", N.shape_table)
+    b.add_node("density", N.density)
     b.add_node("line", N.line, retry_policy=_retry)
     b.add_node("covariates", N.covariates, retry_policy=_retry)
     b.add_node("merge_covariates", N.merge_covariates)
@@ -46,7 +48,7 @@ def build() -> StateGraph:
     # load returns Command(goto=case | feasibility)
     b.add_edge("case", "score")
     # score returns Command(goto=shape_table | feasibility)
-    # shape_table returns Command(goto=line | feasibility); line returns Command(goto=covariates | feasibility)
+    # shape_table returns Command(goto=density | feasibility); density returns Command(goto=line); line returns Command(goto=covariates | feasibility)
     # covariates returns Command(goto=merge_covariates | feasibility)
     b.add_edge("merge_covariates", "verify")
     # verify returns Command(goto=heterogeneity | feasibility); heterogeneity returns Command(goto=threats | feasibility)

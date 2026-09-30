@@ -138,19 +138,24 @@ an analyst reads a cutoff design.
 1. **score** (rung 0). The score, the cutoff, which side got the change, and who took it up; the pack's block when it names one
    and the file bears it out, else a judgement. A rule the notes state but leave incomplete is the one question this lane asks back.
 2. **shape_table** (rung 1; code). The canonical table: the score recentred on the cutoff, the rows on each side, sharp or fuzzy.
-3. **line** (rung 2; an episode). Whether the line is clean, argued from the story and the facts: what set the score, whether a unit
-   could move it, what else switches there; every risk the story raises, from a fixed list (manipulation, another change at the
-   line, a score set after the decision, a cutoff known in advance), each cited and each a flag. The outcome by side is refused;
-   the density test at the line is code, later.
-4. **covariates** (rung 3; one episode over every candidate the pack leaves open). Fixed before the line, changed by the treatment,
+3. **density** (evidence; code). Before the line is judged: the density test at the line with the settings `checks.yaml` declares,
+   the split of the rows in nested windows either side (a coin toss under no manipulation), the histogram, the mass points, or the
+   word that the rows were drawn by side and the test says nothing. Each is a line of the ladder (`ladder:density.*`), computed once;
+   the check and the figure read the rung.
+4. **line** (rung 2; an episode). Whether the line is clean, argued from the story and the evidence: what set the score, whether a
+   unit could move it, what else switches there; every risk the story raises, from a fixed list (manipulation, another change at the
+   line, a score set after the decision, a cutoff known in advance), each cited and each a flag. A clean verdict over bunching must
+   cite the density line; bunching with the person's word that the score could be moved must name the manipulation risk. The
+   outcome by side is refused; the rung may look at a column by side within a band and at the score's histogram.
+5. **covariates** (rung 3; one episode over every candidate the pack leaves open). Fixed before the line, changed by the treatment,
    another measure of the outcome, or a predetermined characteristic the effect could differ by; what the pack settled is copied.
    `merge_covariates` and `verify` then build the set by code.
-5. **heterogeneity** (rung 4). The candidates are the predetermined characteristics the covariates rung or the person marked; a
+6. **heterogeneity** (rung 4). The candidates are the predetermined characteristics the covariates rung or the person marked; a
    judgement names at most three; the primary spec is fitted again within each level of each, at the design's bandwidth so the
    levels compare, without that column among the covariates.
-6. **threats** (rung 5; code). The risks every design carries from the pack, and the risks the line rung named. Each is a flag the
+7. **threats** (rung 5; code). The risks every design carries from the pack, and the risks the line rung named. Each is a flag the
    assessment answers and the interpretation cites; an `unsure` on a claim the interview could have settled is a decline.
-7. Then as before: `check_design` (the density test and the covariate continuity among the checks), `assess`, `pick_estimator`,
+8. Then as before: `check_design` (the density flag read off the rung, and the covariate continuity, among the checks), `assess`, `pick_estimator`,
    `freeze_design` (which adds the window rung, `ladder:bandwidth.*`, by code), `estimate`, the falsifications, `interpret`,
    `figures`, `assemble`.
 

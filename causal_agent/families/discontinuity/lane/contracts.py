@@ -81,6 +81,71 @@ class ShapeFacts(BaseModel):
         ]
 
 
+class BinomialWindow(BaseModel):
+    """One window either side of the line and how the rows split across it: under no manipulation the split is a coin toss."""
+
+    width: float
+    n_left: int
+    n_right: int
+    p: float
+
+
+class DensityFacts(BaseModel):
+    """Rung 1, the evidence for the line, by code before the line is judged: the density test at the line, the binomial split
+    in nested windows, the histogram either side, the mass points, and whether the rows were drawn by side (which silences the
+    test). Every line is addressed so the line rung must read it and its gate can require citing it."""
+
+    status: Literal["tested", "uninformative", "not_computable"]
+    reason: str = ""
+    p: float | None = None
+    t: float | None = None
+    hat_left: float | None = None
+    hat_right: float | None = None
+    h_left: float | None = None
+    h_right: float | None = None
+    n_eff_left: int = 0
+    n_eff_right: int = 0
+    windows: list[BinomialWindow] = Field(default_factory=list)
+    histogram: list[tuple[float, float, int]] = Field(default_factory=list, description="(low edge, high edge, rows), the line as an edge")
+    mass_share_left: float = 0.0
+    mass_share_right: float = 0.0
+    sampled_by_side: bool = False
+    flagged: bool = Field(default=False, description="the test or the smallest window says the rows bunch on one side, by the declared thresholds")
+
+    def lines(self) -> list[tuple[str, str]]:
+        if self.status == "uninformative":
+            test = "uninformative: the rows were drawn by side of the line, so their density says nothing about manipulation"
+        elif self.status == "not_computable":
+            test = f"not computable: {self.reason}"
+        else:
+            test = (
+                f"density {self.hat_left:.3g} just below the line, {self.hat_right:.3g} just above; test p = {self.p:.3g} on "
+                f"{self.n_eff_left}/{self.n_eff_right} effective rows" + ("; the rows bunch on one side" if self.flagged else "; no sign of bunching")
+            )
+        out = [("ladder:density.test", test)]
+        if self.windows:
+            out.append(
+                (
+                    "ladder:density.windows",
+                    "rows below | above the line within nested windows, and the coin-toss p: "
+                    + "; ".join(f"±{w.width:.3g}: {w.n_left} | {w.n_right} (p = {w.p:.2g})" for w in self.windows),
+                )
+            )
+        if self.histogram:
+            below = [n for lo, hi, n in self.histogram if hi <= 0]
+            above = [n for lo, hi, n in self.histogram if lo >= 0]
+            out.append(
+                ("ladder:density.histogram", f"rows per bin, control side then treated side: {', '.join(map(str, below))} | {', '.join(map(str, above))}")
+            )
+        out.append(
+            (
+                "ladder:density.mass_points",
+                f"duplicated scores: {self.mass_share_left:.0%} on the control side, {self.mass_share_right:.0%} on the treated side",
+            )
+        )
+        return out
+
+
 LineRisk = Literal["manipulation", "other_change_at_line", "score_set_after", "cutoff_known_in_advance"]
 
 
@@ -163,13 +228,15 @@ class Bandwidth(BaseModel):
 
 
 class Ladder(LadderBase):
-    """The rungs climbed so far: the score and the line, the shape, whether the line is clean, the covariates, where the effect
-    could differ, the threats, the window. A rung reads the rungs below it; every line has an address."""
+    """The rungs climbed so far: the score and the line, the shape, the density at the line, whether the line is clean, the
+    covariates, where the effect could differ, the threats, the window. A rung reads the rungs below it; every line has an
+    address."""
 
-    ORDER: ClassVar[tuple[str, ...]] = ("score", "shape", "line", "covariates", "heterogeneity", "threats", "bandwidth")
+    ORDER: ClassVar[tuple[str, ...]] = ("score", "shape", "density", "line", "covariates", "heterogeneity", "threats", "bandwidth")
 
     score: Score | None = None
     shape: ShapeFacts | None = None
+    density: DensityFacts | None = None
     line: Line | None = None
     covariates: CovariateRoles | None = None
     heterogeneity: Heterogeneity | None = None

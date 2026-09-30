@@ -36,6 +36,7 @@ from causal_agent.families.discontinuity.lane.contracts import (
     CovariateRelation,
     CovariateRoles,
     Covariates,
+    DensityFacts,
     Design,
     DesignAssessment,
     EstimatorPick,
@@ -216,6 +217,30 @@ def _treated_mask(state: SpecialistState) -> pd.Series | None:
     x = pd.to_numeric(_table(state)[sc.column], errors="coerce")
     above, incl, c = sc.treated_side == "above", sc.cutoff_value_treated, float(sc.cutoff)
     return (x >= c) if (above and incl) else (x > c) if above else (x <= c) if incl else (x < c)
+
+
+def _canon_tools(state: SpecialistState):
+    """The read-only tools over the canonical table, so a rung may look by side and near the line: the recentred score as `x`,
+    the outcome as `y`, take-up as `t`, the numeric candidates under their canonical names and the other candidates by their own,
+    with aliases from the pack's names. The treated side is `x >= 0`; the outcome by side stays refused before the freeze."""
+    sc: Score = state["score"]
+    _, y, _ = _keys(state)
+    canon = _canon(state)
+    raw = _table(state)
+    numeric = [k for k in state.get("candidates") or [] if SH.covcol(k) in canon.columns]
+    others = [k for k in state.get("candidates") or [] if k in raw.columns and SH.covcol(k) not in canon.columns]
+    df = canon.drop(columns=["row"])
+    if others:
+        df = pd.concat([df, raw.loc[canon["row"].to_numpy(), others].reset_index(drop=True)], axis=1)
+    aliases: dict[str, str] = {y: "y"}
+    if sc.column:
+        aliases[sc.column] = "x"
+    if sc.takeup_column and "t" in df.columns:
+        aliases[sc.takeup_column] = "t"
+    if state.get("cluster_column") and "cluster" in df.columns:
+        aliases[str(state["cluster_column"])] = "cluster"
+    aliases.update({k: SH.covcol(k) for k in numeric})
+    return L.data_tools(state, df["x"] >= 0, table_=df, aliases=aliases)
 
 
 def _resolver(h: Handoff, log: EpisodeLog, ladder: Ladder):
@@ -522,7 +547,17 @@ def shape_table(state: SpecialistState) -> Command:
         "declines": declines,
         "ladder": _ladder(state).model_copy(update={"shape": facts}),
     }
-    return Command(goto="line", update=update)
+    return Command(goto="density", update=update)
+
+
+# rung 1: the density at the line (evidence, by code, before the line is judged)
+
+
+def density(state: SpecialistState) -> Command:
+    x_all = pd.read_csv(state["xall_path"])["x"]
+    facts, raw = CK.density_evidence(x_all, state["shape"], _cfg(), sampled_by_side=bool(state.get("sampled_by_side")))
+    _writer()({"density": [f"[{a}] {text}" for a, text in facts.lines()]})
+    return Command(goto="line", update={"density_facts": raw, "ladder": _ladder(state).model_copy(update={"density": facts})})
 
 
 # rung 2: the line (a judgement from the story and the facts)
@@ -534,6 +569,10 @@ def line(state: SpecialistState) -> Command:
     sc: Score = state["score"]
     s: ShapeFacts = state["shape"]
 
+    dens: DensityFacts | None = lad.density
+    bunching = dens is not None and dens.status == "tested" and dens.flagged
+    movable = _case(state).beliefs.get("movable") == "confirmed_true"
+
     def gate(r: Line, log: EpisodeLog) -> list[str]:
         ok = _resolver(h, log, lad)
         errs: list[str] = []
@@ -541,6 +580,11 @@ def line(state: SpecialistState) -> Command:
             errs.append("say why, from the story and the facts")
         if not r.clean and not r.risks:
             errs.append("a line judged not clean names at least one risk")
+        cited = set(r.cites) | {c for k in r.risks for c in k.cites}
+        if bunching and r.clean and "ladder:density.test" not in cited:
+            errs.append("the score bunches at the line [ladder:density.test]; a clean verdict must answer it, citing that line")
+        if bunching and movable and not any(k.name == "manipulation" for k in r.risks):
+            errs.append("the person said a unit could move the score and the density jumps [ladder:density.test]; name the manipulation risk")
         for risk in r.risks:
             if not risk.cites:
                 errs.append(f"risk {risk.name}: no citation")
@@ -553,9 +597,7 @@ def line(state: SpecialistState) -> Command:
         f"{s.distinct_scores} distinct scores; {s.rows_at_cutoff} rows exactly at the cutoff\n{_card(h, sc.column)}"
     )
     user = P.LINE_USER.format(question=_question(state), frame=L.frame_text(state), line=line_text, errors="")
-    rec, log, thoughts, errors = run_episode(
-        Line, P.LINE_SYSTEM, user, tools=L.data_tools(state, _treated_mask(state)), budget=_budget("line"), gate=gate, node="line"
-    )
+    rec, log, thoughts, errors = run_episode(Line, P.LINE_SYSTEM, user, tools=_canon_tools(state), budget=_budget("line"), gate=gate, node="line")
     if rec is None:
         return _stop(
             "line",
@@ -846,6 +888,14 @@ def threats(state: SpecialistState) -> dict:
 # ------------------------------------------------------------------ checks (fact)
 
 
+def _density_raw(state: SpecialistState) -> dict:
+    """The density test as the rung computed it, with the binomial windows the check reads."""
+    raw = dict(state.get("density_facts") or {})
+    dens = _ladder(state).density
+    raw["windows"] = [w.model_dump() for w in dens.windows] if dens is not None else []
+    return raw
+
+
 def check_design(state: SpecialistState) -> dict:
     canon = _canon(state)
     x_all = pd.read_csv(state["xall_path"])["x"]
@@ -861,6 +911,7 @@ def check_design(state: SpecialistState) -> dict:
         cluster=bool(shape.cluster_column),
         vce=inf.vce,
         sampled_by_side=bool(state.get("sampled_by_side")),
+        density=_density_raw(state),
     )
     W.say(results, _cfg(), state.get("columns") or {})  # the sentence before the number, for the reader
     results += C.as_checks(_case(state))

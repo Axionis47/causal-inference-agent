@@ -1,8 +1,8 @@
 """From the raw table to the canonical table rdrobust's surface expects. Facts only.
 
 Canonical columns: y, x, side, plus t when a take-up column exists, cluster when the dataset declares an
-entity, and every numeric candidate covariate (NaN allowed; the library drops incomplete rows only when a
-covariate enters a fit). x is the score recentred on the cutoff and flipped so the treated side is positive,
+entity, every numeric candidate covariate (NaN allowed; the library drops incomplete rows only when a
+covariate enters a fit), and row, the raw table's row number. x is the score recentred on the cutoff and flipped so the treated side is positive,
 so every fit, check, and placebo downstream is written for one geometry with the cutoff at 0.
 """
 
@@ -77,10 +77,11 @@ def canonical(
     needed = ["y", "x"] + (["t"] if "t" in df.columns else [])
     df = df[np.isfinite(df[needed]).all(axis=1)].copy()
     df["side"] = (df["x"] >= 0).astype(int)
+    df["row"] = df.index.to_numpy()  # the raw table's row, so a rung's tools can reach the columns the canonical table drops
 
     facts = _facts(df, x_all, table, x_raw, numeric_candidates, rows_at_cutoff, shift, cluster_column, cfg)
     _guard(facts, cfg)
-    order = CANON + (["t"] if "t" in df.columns else []) + (["cluster"] if "cluster" in df.columns else []) + [covcol(k) for k in numeric_candidates]
+    order = CANON + (["t"] if "t" in df.columns else []) + (["cluster"] if "cluster" in df.columns else []) + [covcol(k) for k in numeric_candidates] + ["row"]
     return df[order].reset_index(drop=True), x_all.reset_index(drop=True), facts
 
 

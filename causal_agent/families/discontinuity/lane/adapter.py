@@ -187,9 +187,10 @@ def bandwidths(params: dict, table: pd.DataFrame, *, fuzzy: bool = False, covs: 
         return dict(error=f"{type(ex).__name__}: {str(ex)[:300]}")
 
 
-def density(x: np.ndarray, c: float = 0.0, floor: int = 23) -> dict:
+def density(x: np.ndarray, c: float = 0.0, floor: int = 23, params: dict | None = None) -> dict:
     """The manipulation test on the scores as recorded (recentred, not flipped: with mass points the library's
-    statistic depends on orientation, so the recorded one is used). Reads only the fields the library fills."""
+    statistic depends on orientation, so the recorded one is used), with the settings checks.yaml declares (the
+    polynomial order, the kernel, the variance, the bandwidth selector, the model). Reads only the fields the library fills."""
     from rddensity import rddensity
 
     x = np.asarray(x, dtype=float)
@@ -198,8 +199,9 @@ def density(x: np.ndarray, c: float = 0.0, floor: int = 23) -> dict:
     base = dict(n_left=n_left, n_right=n_right, floor=floor)
     if n_left < floor or n_right < floor:
         return dict(computable=False, reason=f"fewer than {floor} rows on a side ({n_left}/{n_right}); the library's own floor", **base)
+    kw: dict[str, Any] = {k: v for k, v in (params or {}).items() if k in ("p", "kernel", "vce", "bwselect", "fitselect")}
     try:
-        o, notes = _run(rddensity, X=x, c=c)
+        o, notes = _run(rddensity, X=x, c=c, **kw)
         t, p = float(o.test["t_jk"]), float(o.test["p_jk"])
         if p == 0.0 and np.isfinite(t):
             p = float(2 * norm.sf(abs(t)))

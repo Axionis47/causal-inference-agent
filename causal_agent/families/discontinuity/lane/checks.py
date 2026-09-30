@@ -10,10 +10,11 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+from scipy.stats import binomtest
 
 from causal_agent.common.contracts import CheckResult
 from causal_agent.families.discontinuity.lane import adapter
-from causal_agent.families.discontinuity.lane.contracts import Covariates, ShapeFacts
+from causal_agent.families.discontinuity.lane.contracts import BinomialWindow, Covariates, DensityFacts, ShapeFacts
 from causal_agent.families.discontinuity.lane.shape import covcol
 
 SHARP = {"p": 1, "kernel": "tri", "bwselect": "mserd", "masspoints": "adjust", "level": 95}
@@ -53,6 +54,70 @@ def fixed(plan: dict[str, Any]) -> dict[str, Any]:
     return {"h": plan["h"], "b": plan["b"]} if plan.get("rule") == "support_points" else {}
 
 
+def density_evidence(x_all: pd.Series, shape: ShapeFacts, cfg: dict[str, Any], *, sampled_by_side: bool) -> tuple[DensityFacts, dict[str, Any]]:
+    """The density rung, by code before the line is judged: the library's test with the declared settings, the binomial split
+    of the rows in nested windows (shares of the test's smaller bandwidth), the histogram either side, the mass points. Returns
+    the record for the ladder and the raw test the check and the figure read, so the library runs once."""
+    dc = cfg["density"]
+    x = pd.to_numeric(x_all, errors="coerce").to_numpy(dtype=float)
+    x = x[np.isfinite(x)]
+    raw = adapter.density(x, floor=int(dc["library_floor_rows_per_side"]), params=dc.get("params") or {})
+    bins = int(dc.get("histogram_bins", 10))
+    hist = _histogram(x, bins)
+    base = dict(
+        histogram=hist,
+        mass_share_left=shape.duplicate_share_left,
+        mass_share_right=shape.duplicate_share_right,
+        sampled_by_side=sampled_by_side,
+    )
+    if sampled_by_side:
+        return DensityFacts(status="uninformative", reason="the rows were drawn by side of the line", **base), raw
+    if not raw["computable"]:
+        return DensityFacts(status="not_computable", reason=raw["reason"], **base), raw
+    reach = min(float(raw["h_left"]), float(raw["h_right"]))
+    windows = _binomial_windows(x, reach, [float(v) for v in dc["binomial"]["window_shares"]])
+    flagged = float(raw["p"]) < float(dc["p_value"]["soft"]) or (bool(windows) and windows[0].p < float(dc["binomial"]["p_value"]["soft"]))
+    facts = DensityFacts(
+        status="tested",
+        p=float(raw["p"]),
+        t=float(raw["t"]),
+        hat_left=float(raw["hat_left"]),
+        hat_right=float(raw["hat_right"]),
+        h_left=float(raw["h_left"]),
+        h_right=float(raw["h_right"]),
+        n_eff_left=int(raw["eff_left"]),
+        n_eff_right=int(raw["eff_right"]),
+        windows=windows,
+        flagged=flagged,
+        **base,
+    )
+    return facts, raw
+
+
+def _binomial_windows(x: np.ndarray, reach: float, shares: list[float]) -> list[BinomialWindow]:
+    out: list[BinomialWindow] = []
+    if not np.isfinite(reach) or reach <= 0:
+        return out
+    for s in shares:
+        w = reach * s
+        left, right = int(((x < 0) & (x >= -w)).sum()), int(((x >= 0) & (x <= w)).sum())
+        if left + right == 0:
+            continue
+        p = float(binomtest(right, left + right, 0.5).pvalue)
+        out.append(BinomialWindow(width=float(w), n_left=left, n_right=right, p=p))
+    return out
+
+
+def _histogram(x: np.ndarray, bins: int) -> list[tuple[float, float, int]]:
+    if len(x) == 0:
+        return []
+    k = max(2, bins + bins % 2)
+    reach = float(max(abs(x.min()), abs(x.max()))) or 1.0
+    edges = np.linspace(-reach, reach, k + 1)
+    counts, _ = np.histogram(x, bins=edges)
+    return [(float(edges[i]), float(edges[i + 1]), int(counts[i])) for i in range(k)]
+
+
 def run_checks(
     canon: pd.DataFrame,
     x_all: pd.Series,
@@ -64,6 +129,7 @@ def run_checks(
     cluster: bool,
     vce: str,
     sampled_by_side: bool,
+    density: dict[str, Any],
 ) -> tuple[list[CheckResult], dict[str, Any]]:
     out: list[CheckResult] = []
     extra: dict[str, Any] = {}
@@ -103,8 +169,8 @@ def run_checks(
             )
         )
 
-    # density
-    out.append(_density(x_all, c, cfg, sampled_by_side, extra))
+    # density: the rung's test, read here, not run again
+    out.append(_density(density, c, cfg, sampled_by_side, extra))
 
     # mass points and support
     m = cfg["mass_points"]["duplicate_share"]["soft"]
@@ -162,8 +228,7 @@ def run_checks(
     return out, extra
 
 
-def _density(x_all: pd.Series, c: str, cfg: dict, sampled_by_side: bool, extra: dict) -> CheckResult:
-    d = adapter.density(x_all.to_numpy(), floor=int(cfg["density"]["library_floor_rows_per_side"]))
+def _density(d: dict, c: str, cfg: dict, sampled_by_side: bool, extra: dict) -> CheckResult:
     extra["density"] = d
     pop = f"population: {d.get('n_left', 0) + d.get('n_right', 0)} rows with a score as recorded, {d.get('n_left', 0)} below and {d.get('n_right', 0)} at or above the cutoff"
     if sampled_by_side:  # no value: the number says nothing here, and no rule may read it as a jump
@@ -176,7 +241,10 @@ def _density(x_all: pd.Series, c: str, cfg: dict, sampled_by_side: bool, extra: 
     if not d["computable"]:
         return CheckResult(contrast=c, name="density", level="soft", detail=f"not computable: {d['reason']}; {pop}")
     thr = cfg["density"]["p_value"]["soft"]
-    level = "soft" if d["p"] < thr else "pass"
+    w = d.get("windows") or []
+    bthr = float(cfg["density"]["binomial"]["p_value"]["soft"])
+    bunch = bool(w) and float(w[0]["p"]) < bthr
+    level = "soft" if d["p"] < thr or bunch else "pass"
     return CheckResult(
         contrast=c,
         name="density",
@@ -184,6 +252,7 @@ def _density(x_all: pd.Series, c: str, cfg: dict, sampled_by_side: bool, extra: 
         value=round(d["p"], 4),
         threshold=float(thr),
         detail=f"density {d['hat_left']:.3g} just below the cutoff, {d['hat_right']:.3g} just above; test p = {d['p']:.3g} on {d['eff_left']}/{d['eff_right']} effective rows; {pop}"
+        + (f"; in the smallest window ±{w[0]['width']:.3g} the rows split {w[0]['n_left']} | {w[0]['n_right']} (coin-toss p = {w[0]['p']:.2g})" if w else "")
         + ("; a jump in the number of units at the cutoff" if level == "soft" else "; no sign of bunching"),
     )
 

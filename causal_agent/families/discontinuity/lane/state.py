@@ -30,6 +30,7 @@ class SpecialistState(LaneState, total=False):
     xall_path: str
     cluster_column: str | None
     sampled_by_side: bool
+    density_facts: dict  # the density test as the library returned it, computed once by the density rung
     target_units: str
     score: Score | None
     shape: ShapeFacts | None

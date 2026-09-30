@@ -56,8 +56,10 @@ LINE_SYSTEM = (
     "  other_change_at_line: something else, a rule or a programme, switches at the same line.\n"
     "  score_set_after: the score was set or revised after the change was decided.\n"
     "  cutoff_known_in_advance: units knew the cutoff before their score was fixed.\n"
-    "Name a risk only when the story or a fact gives a reason, and cite it. Never reason from the outcome by side; that tool is "
-    "refused, and the test of the score's density at the line is run by code afterwards. " + TOOLS_NOTE + CITE_RULE
+    "Name a risk only when the story or a fact gives a reason, and cite it. The density of the score at the line has been computed "
+    "for you and sits under THE LADDER SO FAR as ladder:density.*: the test, the split of the rows in nested windows, the "
+    "histogram. Read it before the story; a clean verdict over bunching must answer it, citing that line. Never reason from the "
+    "outcome by side; that tool is refused. " + TOOLS_NOTE + CITE_RULE
 )
 
 LINE_USER = """QUESTION
