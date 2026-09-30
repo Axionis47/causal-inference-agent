@@ -216,7 +216,11 @@ def test_card_krueger_wide_happy_path():
     lad = out["ladder"]
     assert lad.groups.by == "judgement" and lad.periods.by == "judgement" and lad.comparison.fair and lad.heterogeneity.by == "code" and lad.cluster is not None
     assert "[ladder:groups.treated] state = '1'" in r["report"] and "[ladder:comparison.fair] yes" in r["report"] and "[ladder:cluster.level]" in r["report"]
-    assert "THE LADDER SO FAR" in fake.humans_of("Comparison")[0] and "[ladder:shape.units] 309 treated units, 75 control" in fake.humans_of("Comparison")[0]
+    assert (
+        "THE LADDER SO FAR" in fake.humans_of("Comparison")[0]
+        and "[ladder:shape.units] 309 treated units, 75 never treated" in fake.humans_of("Comparison")[0]
+        and "[ladder:shape.adoption] one-shot" in fake.humans_of("Comparison")[0]
+    )
     assert ["ladder:comparison.fair", "yes"] in r["ladder"] and "ladder:comparison.fair" in fake.humans_of("Interpretation")[0].split("ADDRESSES YOU MAY CITE")[
         1
     ]

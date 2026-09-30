@@ -439,8 +439,19 @@ def shape_table(state: SpecialistState) -> Command:
     t, y, _ = _keys(state)
     table = pd.read_csv(state["table_path"])
     candidates = _candidates(state)
+    tg = (_block(h).treated_group if _block(h) else {}) or {}
+    cohort_col = _key(tg["cohort_column"]) if tg.get("cohort_column") else None
     try:
-        panel, facts = SH.canonical(table, g, p, y, candidates, unit_column=state.get("unit_column"), cluster_column=state.get("cluster_column"))
+        panel, facts = SH.canonical(
+            table,
+            g,
+            p,
+            y,
+            candidates,
+            unit_column=state.get("unit_column"),
+            cluster_column=state.get("cluster_column"),
+            cohort_column=cohort_col if cohort_col and cohort_col in table.columns else None,
+        )
     except SH.ShapeError as ex:
         return _stop("shape_table", ex.reason, ex.facts, ex.fix)
     panel_path = Path(state["run_dir"]) / "panel.csv"

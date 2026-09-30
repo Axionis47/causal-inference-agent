@@ -178,7 +178,7 @@ an analyst reads a cutoff design.
 | stages | load, case, groups, periods, shape_table, comparison, controls, merge_controls, verify, heterogeneity, threats, check_design, assess, pick_estimator, freeze_design, estimate, placebo, interpret, figures, assemble | load, case, score, shape_table, density, line, balance, covariates, merge_covariates, verify, heterogeneity, threats, check_design, assess, pick_estimator, window, freeze_design, estimate, placebo, interpret, figures, assemble |
 | its own judgements | groups, periods, comparison, controls, heterogeneity | score, line, covariates, heterogeneity, window |
 | its evidence rungs, by code | | density, balance |
-| the canonical shape code builds | `y, unit, time, treated, post, treat, rel_time, cohort` from a long or a wide table | `y, x, side, row` with the score recentred on the cutoff and the treated side positive |
+| the canonical shape code builds | `y, unit, time, time_index, treated, post, treat, rel_time, cohort` from a long or a wide table, with each unit's first treated period as `cohort` (0 for never treated) | `y, x, side, row` with the score recentred on the cutoff and the treated side positive |
 | what the yaml declares | formulas over the canonical names, the inference rule, the placebos, the thresholds | the local polynomial specs, the inference rule, the placebo cutoffs and bandwidth grid, the thresholds |
 | falsifications | placebo group, placebo timing | placebo cutoffs, the bandwidth grid, donuts, and as sensitivities the polynomial order and the kernel; for local randomisation the window sensitivity and Rosenbaum bounds |
 

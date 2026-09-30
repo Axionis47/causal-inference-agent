@@ -53,22 +53,40 @@ class Periods(BaseModel):
 
 
 class ShapeFacts(BaseModel):
+    """Rung 2, the panel's shape by code: who got the change and when, who never did, the periods either side of the earliest
+    change, and how each unit's first treated period was read."""
+
     kind: Literal["long", "wide"]
     rows: int
-    units_treated: int
-    units_control: int
-    periods_pre: int
-    periods_post: int
+    units_treated: int = Field(description="units that got the change at some point")
+    units_control: int = Field(description="units that never got the change; under staggered adoption the not-yet-treated periods also serve as comparison")
+    units_never_treated: int = 0
+    never_treated_exists: bool = True
+    periods_pre: int = Field(description="periods before the earliest first-treated period")
+    periods_post: int = Field(description="periods at or after it")
     cohorts: int = Field(description="distinct first-treated periods among treated units; 1 means one-shot adoption")
-    switching_units: int = Field(description="units whose group label changes over time; must be 0")
+    units_by_cohort: dict[str, int] = Field(default_factory=dict, description="first-treated period -> units")
+    adoption: Literal["one_shot", "staggered"] = "one_shot"
+    first_treated_source: Literal["label", "indicator", "cohort_column"] = "label"
+    treatment_reversals: int = Field(default=0, description="units that left the treatment after getting it; the shape stops when any")
+    clusters: int | None = Field(default=None, description="distinct values of the cluster column, or the units when none is declared")
+    balanced: bool = Field(default=True, description="every unit is observed in every period")
     time_values: list[str] = Field(default_factory=list)
 
     def lines(self) -> list[tuple[str, str]]:
+        cohorts = (
+            f"one first-treated period ({next(iter(self.units_by_cohort), '')})"
+            if self.cohorts <= 1
+            else f"{self.cohorts} first-treated periods: " + ", ".join(f"{k} ({v} units)" for k, v in self.units_by_cohort.items())
+        )
         return [
-            ("ladder:shape.units", f"{self.units_treated} treated units, {self.units_control} control"),
+            ("ladder:shape.units", f"{self.units_treated} treated units, {self.units_control} never treated"),
+            ("ladder:shape.periods", f"{self.periods_pre} before the earliest change, {self.periods_post} after"),
             (
-                "ladder:shape.periods",
-                f"{self.periods_pre} before the change, {self.periods_post} after; {self.cohorts} first-treated period{'s' if self.cohorts != 1 else ''}",
+                "ladder:shape.adoption",
+                f"{self.adoption.replace('_', '-')}: {cohorts}; read from the {self.first_treated_source.replace('_', ' ')}"
+                + ("" if self.never_treated_exists else "; no unit is never treated, so the comparison is units not yet treated")
+                + ("" if self.balanced else "; the panel is not balanced"),
             ),
         ]
 

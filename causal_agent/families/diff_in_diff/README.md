@@ -21,8 +21,12 @@ pack settles it and a bounded episode where it does not, with the data tools and
 
 pyfixest has four independent axes and the lane maps one artifact onto each.
 
-- **The canonical panel.** `lane/shape.py` produces `y, unit, time, treated, post, treat, rel_time, cohort` from a long table (a time
-  column) or a wide one (a before and an after column, one synthetic unit per row). Every helper reads this shape.
+- **The canonical panel.** `lane/shape.py` produces `y, unit, time, time_index, treated, post, treat, rel_time, cohort` from a long
+  table (a time column) or a wide one (a before and an after column, one synthetic unit per row). `cohort` is each unit's first
+  treated period as a 1-based index, 0 for never treated, which is what pyfixest's DID estimators call `gname`; it is read from the
+  pack's adoption column when it names one, else from a treatment indicator that switches on within a unit and stays on, else from
+  the treated label and the one change period. One first period is one-shot adoption; several is staggered, and the shape facts say
+  which units got the change when and whether any unit is never treated. Every helper reads this shape.
 - **Formula shapes.** `knowledge/estimators.yaml` holds formulas over the canonical names. Static: `y ~ treat | unit+time`. Dynamic:
   `y ~ i(rel_time, treated, ref=-1) | unit+time`. Controls are filled in by the adapter; the static shape uses `csw0()` so the report
   shows the effect with no controls and with each control added.
