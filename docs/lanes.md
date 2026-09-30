@@ -104,13 +104,39 @@ code filters it, with parameters the model never sees;
 [refuters.yaml](../causal_agent/families/adjustment/lane/knowledge/refuters.yaml) lists falsifications that all run when they apply;
 [beliefs.yaml](../causal_agent/families/adjustment/lane/knowledge/beliefs.yaml) says what the person's beliefs mean to this lane.
 
-## The other two, same shape, own method
+## The diff-in-diff lane, rung by rung
+
+[families/diff_in_diff/lane/](../causal_agent/families/diff_in_diff/lane/) climbs its own ladder on the same harness, in the order
+an analyst reads a before-and-after comparison. Every rung is code where the pack settles it and a bounded episode where it does
+not, with the budgets its `checks.yaml` declares; every claim cites the pack, a fact the episode asked for, or a rung below.
+
+1. **groups** (rung 0). Who got the change: the column and the level; the pack's block when it names one and the file bears it out,
+   else a judgement, with the pack's failed answer shown as the first rejection.
+2. **periods** (rung 1). The clock: a time column and the first period at or after the change, or a before and an after column.
+   A time column the file has but a first period nobody can settle is the one question this lane asks back.
+3. **shape_table** (rung 2; code). The canonical panel and its facts: units per group, periods before and after, cohorts.
+4. **comparison** (rung 3; an episode). Whether the comparison group is a fair stand-in for the treated group without the change,
+   argued from the story and the facts, and every risk the story raises: anticipation, spillover, composition, another shock,
+   the group chosen for where its outcome was heading. Each risk is cited and becomes a flag. The outcome by group is refused; the
+   test of the paths before the change is code, later.
+5. **controls** (rung 4; one episode over every candidate the pack leaves open). Changed by the treatment, usable as a control, or a
+   unit trait the effect could differ by; what the pack settled is copied. `merge_controls` and `verify` then build the control set
+   by code: a column fixed within a unit or within a period is absorbed by the fixed effects whatever the model said.
+6. **heterogeneity** (rung 5). The candidates are the unit traits, read off the panel, that the controls rung or the person marked;
+   a judgement names at most three; the primary estimator runs again within each level of each, without that column among the
+   controls. The target is the effect on the treated, which is what this design identifies.
+7. **threats** (rung 6; code). The risks every design carries from the pack, and the risks the comparison rung named. Each is a flag
+   the assessment answers and the interpretation cites; an `unsure` on a claim the interview could have settled is a decline.
+8. Then as before: `check_design` (the pre-trends test among the checks), `assess`, `pick_estimator`, `freeze_design` (which adds the
+   clustering rung, `ladder:cluster.*`, by code), `estimate`, the placebos, `interpret`, `figures`, `assemble`.
+
+## The discontinuity lane, same shape, own method
 
 | | diff-in-diff | discontinuity |
 |---|---|---|
 | engine | pyfixest | rdrobust and rddensity |
-| stages | load, case, groups, periods, shape_table, relate, merge_controls, verify, check_design, assess, pick_estimator, freeze_design, estimate, placebo, interpret, figures, assemble | load, case, score, shape_table, relate, merge_covariates, verify, check_design, assess, pick_estimator, freeze_design, estimate, placebo, interpret, figures, assemble |
-| its own judgements | groups, periods | score |
+| stages | load, case, groups, periods, shape_table, comparison, controls, merge_controls, verify, heterogeneity, threats, check_design, assess, pick_estimator, freeze_design, estimate, placebo, interpret, figures, assemble | load, case, score, shape_table, relate, merge_covariates, verify, check_design, assess, pick_estimator, freeze_design, estimate, placebo, interpret, figures, assemble |
+| its own judgements | groups, periods, comparison, controls, heterogeneity | score (its ladder follows) |
 | the canonical shape code builds | `y, unit, time, treated, post, treat, rel_time, cohort` from a long or a wide table | `y, x, side` with the score recentred on the cutoff and the treated side positive |
 | what the yaml declares | formulas over the canonical names, the inference rule, the placebos, the thresholds | the local polynomial specs, the inference rule, the placebo cutoffs and bandwidth grid, the thresholds |
 | falsifications | placebo group, placebo timing | placebo cutoffs, the bandwidth grid, donuts |

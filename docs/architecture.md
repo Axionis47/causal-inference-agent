@@ -68,8 +68,9 @@ Adding a family means adding one package and one line in the registry. Nothing i
 `causal_agent/lane/` is the harness. A lane's own judgements stay in its package; what every lane copies is here once:
 the pack weighed by code (`case`), the honest stop and the ask-back, the recorded declines, the figure tail, the node
 plumbing (`nodes`), the bounded episode a judgement may run as (`episode`) and the read-only data tools it may be offered
-(`tools`), how a graph is compiled (`graph`), the state keys and task types (`state`), the pick and interpret prompts and the
-plain-words rule (`prompts`), and the knowledge loader (`knowledge`). See
+(`tools`), the shape every lane's ladder shares and the threats and flags every design carries (`ladder`), how a graph is
+compiled (`graph`), the state keys and task types (`state`), the pick and interpret prompts and the plain-words rule
+(`prompts`), and the knowledge loader (`knowledge`). See
 [lanes.md](lanes.md) for the harness in use and [adr/0001-lanes-stay-distinct.md](adr/0001-lanes-stay-distinct.md)
 for why a lane keeps its own engine.
 
