@@ -1,4 +1,4 @@
-"""Adjustment-lane contracts. What each DoWhy specialist node writes.
+"""Adjustment-lane contracts. What each DoWhy specialist node writes, and the ladder the design is climbed on.
 
 Lane-invariant artifacts (Contrast, Checks, Estimate, Refutation, Interpretation, Feasibility)
 live in causal_agent.common.contracts. These are the ones only this lane needs.
@@ -12,6 +12,7 @@ from typing import Literal
 import networkx as nx
 from pydantic import BaseModel, Field
 
+from causal_agent.common.addresses import norm_address
 from causal_agent.common.contracts import Checks, Cited, Contrast, Departure
 
 
@@ -31,6 +32,167 @@ class Relation(BaseModel):
     departures: list[Departure] = Field(
         default_factory=list, description="one entry per claim where you departed from THE LAST READING, naming the claim and citing what changed it"
     )
+
+
+# ------------------------------------------------------------------ the ladder: one record per rung, each line addressed
+
+
+class Pair(BaseModel):
+    """Rung 0: the outcome, the treatment, which levels are compared, and for whom the effect is wanted."""
+
+    outcome: str
+    treatment: str
+    contrasts: list[Contrast]
+    target_asked: str
+    by: Literal["pack", "judgement"] = "pack"
+
+    def lines(self) -> list[tuple[str, str]]:
+        return [
+            ("ladder:pair.outcome", self.outcome),
+            ("ladder:pair.treatment", self.treatment),
+            ("ladder:pair.contrasts", "; ".join(f"{c.treated!r} versus {c.control!r}" for c in self.contrasts) + f" (set by the {self.by})"),
+            ("ladder:pair.target", self.target_asked),
+        ]
+
+
+class Mechanism(BaseModel):
+    """Rung 1: what set the treatment. Code fills the kind from the pack; a judgement fills the rest only when the pack leaves it open."""
+
+    kind: str | None = None
+    drivers: list[str] = Field(default_factory=list, description="the columns the decision or the offer looked at")
+    offer_column: str | None = Field(default=None, description="the column recording who was offered the change, when the offer and the taking are two columns")
+    uptake_column: str | None = Field(default=None, description="the column recording who took it, when the offer and the taking are two columns")
+    self_selection: bool | None = Field(default=None, description="whether units could move their own assignment after the offer or the rule")
+    reason: str = ""
+    cites: list[str] = Field(default_factory=list)
+    by: Literal["pack", "judgement"] = "pack"
+
+    def lines(self) -> list[tuple[str, str]]:
+        return [
+            ("ladder:mechanism.kind", f"{self.kind or 'not said'} (set by the {self.by})"),
+            ("ladder:mechanism.drivers", ", ".join(self.drivers) or "none named"),
+            ("ladder:mechanism.offer", f"offer {self.offer_column or 'none'}; uptake {self.uptake_column or 'none'}"),
+            ("ladder:mechanism.self_selection", "yes" if self.self_selection else "no" if self.self_selection is False else "not known"),
+        ] + ([("ladder:mechanism.reason", self.reason)] if self.reason else [])
+
+
+class Timing(BaseModel):
+    """Rung 2: every other column's place in time against the treatment, by code from the pack."""
+
+    before: list[str] = Field(default_factory=list)
+    at: list[str] = Field(default_factory=list)
+    after: list[str] = Field(default_factory=list)
+    unknown: list[str] = Field(default_factory=list)
+
+    def lines(self) -> list[tuple[str, str]]:
+        return [(f"ladder:timing.{w}", ", ".join(getattr(self, w)) or "none") for w in ("before", "at", "after", "unknown")]
+
+
+class Role(Relation):
+    """Rung 3: one pre-treatment column's role, read with every other pre-treatment column in view."""
+
+    stands_for: str | None = Field(default=None, description="the thing outside the file this column stands in for, or null")
+    redundant_with: str | None = Field(default=None, description="another listed column that carries the same information, or null")
+    nested_in: str | None = Field(default=None, description="a listed column this one is a finer version of, or null")
+    modifier_candidate: bool = Field(default=False, description="the effect could plausibly differ across this column's values")
+    links: list[Cited] = Field(default_factory=list, description="the reasons for stands_for, redundant_with and nested_in, each cited")
+
+    def word(self) -> str:
+        if self.is_outcome_measure:
+            return "another measure of the outcome"
+        to_t, to_y = self.affects_treatment, self.affects_outcome
+        base = (
+            "confounder"
+            if to_t and to_y
+            else "outcome driver"
+            if to_y
+            else "treatment driver"
+            if to_t
+            else "changed by the treatment"
+            if self.affected_by_treatment
+            else "no role"
+        )
+        extra = []
+        if self.stands_for:
+            extra.append(f"stands for {self.stands_for}")
+        if self.redundant_with:
+            extra.append(f"same information as {self.redundant_with}")
+        if self.nested_in:
+            extra.append(f"sits inside {self.nested_in}")
+        if self.modifier_candidate:
+            extra.append("a candidate modifier")
+        return base + (f"; {'; '.join(extra)}" if extra else "")
+
+
+class Roles(BaseModel):
+    items: list[Role] = Field(description="one per column listed, all of them")
+
+    def lines(self) -> list[tuple[str, str]]:
+        return [(f"ladder:roles.{r.column}", r.word()) for r in self.items]
+
+
+PostKind = Literal["mediator", "outcome_measure", "consequence_of_treatment", "consequence_of_outcome", "background", "unrelated"]
+
+
+class PostRole(BaseModel):
+    """Rung 4: one column set at or after the treatment."""
+
+    column: str
+    kind: PostKind = Field(
+        description="mediator: the treatment changed it and it moves the outcome; outcome_measure: another measurement of the outcome; "
+        "consequence_of_treatment: the treatment changed it and it does not move the outcome; consequence_of_outcome: the outcome moved it; "
+        "background: recorded late but fixed before the treatment, a cause of the outcome; unrelated: none of these"
+    )
+    reason: str
+    cites: list[str]
+    departures: list[Departure] = Field(default_factory=list)
+
+    def relation(self) -> Relation:
+        k = self.kind
+        return Relation(
+            column=self.column,
+            affects_treatment=False,
+            affects_outcome=k in ("mediator", "background"),
+            affected_by_treatment=k in ("mediator", "consequence_of_treatment", "consequence_of_outcome"),
+            is_outcome_measure=k == "outcome_measure",
+            reasons=[Cited(reason=self.reason, cites=self.cites)],
+            departures=self.departures,
+        )
+
+
+class PostRoles(BaseModel):
+    items: list[PostRole] = Field(description="one per column listed, all of them")
+
+    def lines(self) -> list[tuple[str, str]]:
+        return [(f"ladder:post_roles.{r.column}", f"{r.kind.replace('_', ' ')}: {r.reason}") for r in self.items]
+
+
+class Ladder(BaseModel):
+    """The rungs climbed so far. A rung reads the rungs below it; every line has an address the record, the report and the
+    chat after can cite."""
+
+    pair: Pair | None = None
+    mechanism: Mechanism | None = None
+    timing: Timing | None = None
+    roles: Roles | None = None
+    post_roles: PostRoles | None = None
+
+    def lines(self) -> list[tuple[str, str]]:
+        out: list[tuple[str, str]] = []
+        for rung in (self.pair, self.mechanism, self.timing, self.roles, self.post_roles):
+            if rung is not None:
+                out += rung.lines()
+        return out
+
+    def addresses(self) -> set[str]:
+        return {a for a, _ in self.lines()}
+
+    def resolve(self, address: str) -> bool:
+        a = norm_address(address)
+        return any(norm_address(x) == a for x in self.addresses())
+
+    def render(self) -> str:
+        return ("THE LADDER SO FAR\n" + "\n".join(f"[{a}] {t}" for a, t in self.lines())) if self.lines() else ""
 
 
 class Edge(BaseModel):

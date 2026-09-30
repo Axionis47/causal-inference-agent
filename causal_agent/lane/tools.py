@@ -9,6 +9,7 @@ model reads.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, NamedTuple
 
@@ -50,7 +51,7 @@ class Tools:
     outcome: str | None = None
     treatment: str | None = None
     treated: pd.Series | None = None
-    timing_of: dict[str, str] | None = None
+    timing_of: Mapping[str, str] | None = None
     frozen: bool = False
 
     # ------------------------------------------------------------------ resolving and the rule

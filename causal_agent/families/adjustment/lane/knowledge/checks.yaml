@@ -33,3 +33,10 @@ in_words:
   balance: "how alike the two arms are on {column} before the adjustment, and after weighting"
   identification: "whether anything in the graph identifies the effect at all"
   adjusts_outside_candidates: "whether the adjustment reaches columns the notes never named as drivers of the offer"
+
+# How many tool calls each reasoning episode may make before it must answer. The leash, declared.
+episode_budget:
+  pair: 2
+  mechanism: 4
+  roles: 8
+  post_roles: 4

@@ -183,6 +183,10 @@ def render(
             m.add(f"{tag}.p_value", _g(r["p_value"]), r["p_value"])
         if r.get("new_effect") is not None:
             m.add(f"{tag}.new_effect", _g(r["new_effect"]), r["new_effect"])
+    for address, text in sr.get("ladder") or []:  # the rungs the lane climbed, each line citable
+        m.add(str(address), str(text))
+    for f in sr.get("facts") or []:  # what the lane's episodes asked the data, with the numbers
+        m.add(str(f.get("address")), str(f.get("text")), f.get("value"))
     for i in sr.get("interpretations") or []:
         m.add(f"interpretation:{i.get('contrast')}.answer", str(i.get("answer")))
         for j, cv in enumerate(i.get("caveats") or [], start=1):

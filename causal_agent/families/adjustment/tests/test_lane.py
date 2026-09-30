@@ -13,7 +13,7 @@ from langchain_core.messages import AIMessage
 from causal_agent.common.contracts import Cited, Contrast, Handoff, Interpretation
 from causal_agent.common.llm import set_llm
 from causal_agent.desk.handoff import forced
-from causal_agent.families.adjustment.lane.contracts import Contrasts, DesignAssessment, EstimatorPick, Relation, Revision
+from causal_agent.families.adjustment.lane.contracts import Contrasts, DesignAssessment, EstimatorPick, Mechanism, PostRole, PostRoles, Revision, Role, Roles
 from causal_agent.families.adjustment.lane.graph import compile_local
 from causal_agent.memory import store
 
@@ -70,18 +70,39 @@ STUDENT_RELATIONS = {
 
 
 class FakeLLM:
-    def __init__(self, *, bad_cites=False, assess_script=None, pick_script=None, interpret_bad_first=False, cite=CITE):
+    """Scripted answers per schema. `overrides` sets a column's claims (the four, plus `nested_in`, `redundant_with`, `links`);
+    `looks` scripts the tool calls of an episode by node name, one list per round of looking."""
+
+    def __init__(self, *, bad_cites=False, assess_script=None, pick_script=None, interpret_bad_first=False, cite=CITE, overrides=None, looks=None):
         self.bad_cites = bad_cites
         self.assess_script = list(assess_script or [])
         self.pick_script = list(pick_script or [])
         self.interpret_bad_first = interpret_bad_first
         self.cite = cite
+        self.overrides = dict(overrides or {})
+        self.looks = {k: list(v) for k, v in (looks or {}).items()}
         self.calls: list[str] = []
         self.humans: list[tuple[str, str]] = []
 
     def humans_of(self, name: str) -> list[str]:
         return [h for n, h in self.humans if n == name]
 
+    def asked(self, name: str) -> list[str]:
+        """The columns a rung's prompt asked to place, across every call."""
+        return [c for h in self.humans_of(name) for c in re.findall(r"^COLUMN '([^']+)'", h, re.M)]
+
+    # the tool phase of an episode
+    def bind_tools(self, tools):
+        return self
+
+    def invoke(self, messages):
+        m = re.search(r"\[probe:([a-z_]+)\.<n>\]", messages[0].content)
+        node = m.group(1) if m else ""
+        rounds = self.looks.get(node) or []
+        calls = rounds.pop(0) if rounds else []
+        return AIMessage(content="", tool_calls=[{"name": n, "args": a, "id": f"{node}{i}"} for i, (n, a) in enumerate(calls)])
+
+    # the answer
     def with_structured_output(self, schema, include_raw=False):
         fake = self
 
@@ -97,6 +118,50 @@ class FakeLLM:
 
         return R()
 
+    def claims_for(self, col: str, block: str) -> dict:
+        claims = dict(affects_treatment=False, affects_outcome=False, affected_by_treatment=False, is_outcome_measure=False)
+        claims.update(STUDENT_RELATIONS.get(col, {}))
+        if "THE LAST READING" in block:  # keep the last reading, as the prompt asks
+            reading = block.split("THE LAST READING")[1]
+            claims.update({k: v == "true" for k, v in re.findall(r"^\s+(\w+) = (true|false) \[", reading, re.M)})
+        claims.update(self.overrides.get(col, {}))
+        return claims
+
+    @staticmethod
+    def blocks(human: str) -> list[tuple[str, str]]:
+        parts = re.split(r"^COLUMN '([^']+)'\n", human.split("THE COLUMNS TO PLACE")[1], flags=re.M)
+        return list(zip(parts[1::2], parts[2::2], strict=True))
+
+    def roles_answer(self, human: str) -> Roles:
+        cite = "col:nope.note" if self.bad_cites else self.cite
+        items = []
+        for col, block in self.blocks(human):
+            c = self.claims_for(col, block)
+            four = {k: c[k] for k in ("affects_treatment", "affects_outcome", "affected_by_treatment", "is_outcome_measure")}
+            reasons = [Cited(reason=f"{col}: {k}", cites=[c.get("cite", cite)]) for k, v in four.items() if v]
+            links = [Cited(reason=f"{col}: link", cites=list(c["links"]))] if c.get("links") else []
+            items.append(Role(column=col, reasons=reasons, nested_in=c.get("nested_in"), redundant_with=c.get("redundant_with"), links=links, **four))
+        return Roles(items=items)
+
+    def post_roles_answer(self, human: str) -> PostRoles:
+        cite = "col:nope.note" if self.bad_cites else self.cite
+        items = []
+        for col, block in self.blocks(human):
+            c = self.claims_for(col, block)
+            kind = (
+                "outcome_measure"
+                if c["is_outcome_measure"]
+                else "mediator"
+                if c["affected_by_treatment"] and c["affects_outcome"]
+                else "consequence_of_treatment"
+                if c["affected_by_treatment"]
+                else "background"
+                if c["affects_outcome"]
+                else "unrelated"
+            )
+            items.append(PostRole(column=col, kind=kind, reason=f"{col}: {kind}", cites=[cite]))
+        return PostRoles(items=items)
+
     def answer(self, schema, human):
         self.calls.append(schema.__name__)
         self.humans.append((schema.__name__, human))
@@ -106,16 +171,12 @@ class FakeLLM:
             control = "none" if "none" in levels else levels[0]
             treated = next(v for v in levels if v != control)
             return Contrasts(items=[Contrast(control=control, treated=treated, reason="the note says completed is the course", cites=[cite])])
-        if schema is Relation:
-            col = re.search(r"for column '([^']+)'", human).group(1)
-            flags = STUDENT_RELATIONS.get(col, {})
-            claims = dict(affects_treatment=False, affects_outcome=False, affected_by_treatment=False, is_outcome_measure=False)
-            claims.update(flags)
-            if "THE LAST READING" in human:  # keep the last reading, as the prompt asks
-                block = human.split("THE LAST READING")[1].split("\n\n")[0]
-                claims.update({k: v == "true" for k, v in re.findall(r"^\s+(\w+) = (true|false) \[", block, re.M)})
-            reasons = [Cited(reason=f"{col}: {k}", cites=[cite]) for k, v in claims.items() if v]
-            return Relation(column=col, reasons=reasons, **claims)
+        if schema is Mechanism:
+            return Mechanism(drivers=[], self_selection=True, reason="the story says units chose after an offer", cites=[cite])
+        if schema is Roles:
+            return self.roles_answer(human)
+        if schema is PostRoles:
+            return self.post_roles_answer(human)
         if schema is DesignAssessment:
             if self.assess_script:
                 return self.assess_script.pop(0)
@@ -174,22 +235,36 @@ def test_students_happy_path():
     assert placebo.passed is True
     assert len(out["interpretations"]) == 1 and not out.get("interpret_errors")
     assert "DESIGN" in r["report"] and "ANSWER" in r["report"]
-    assert fake.calls.count("Relation") == 6 and fake.calls.count("Contrasts") == 1 and fake.calls.count("EstimatorPick") == 1
+    # students ships no claims: every column's timing is unknown, so one roles episode places all six together; the pair and the
+    # mechanism are episodes too, since the pack names neither the treated level nor what the offer looked at
+    assert fake.calls.count("Roles") == 1 and fake.calls.count("PostRoles") == 0 and fake.calls.count("Contrasts") == 1 and fake.calls.count("Mechanism") == 1
+    assert len(fake.asked("Roles")) == 6 and set(fake.asked("Roles")) <= set(STUDENT_RELATIONS) and fake.calls.count("EstimatorPick") == 1
     assert "DesignAssessment" in fake.calls  # students has a soft balance flag, so assess ran
     nodes = {t.node for t in out["debug"]}
-    assert {"contrast", "relate:lunch", "assess", "pick_estimator", "interpret:completed_vs_none"} <= nodes
-    for name in ("DesignAssessment", "EstimatorPick", "Interpretation"):  # every judgement after relate sees the case
+    assert {"pair", "mechanism", "roles", "assess", "pick_estimator", "interpret:completed_vs_none"} <= nodes
+    for name in ("Roles", "DesignAssessment", "EstimatorPick", "Interpretation"):  # every judgement sees the case
         assert fake.humans_of(name) and all("THE CASE" in p and "[change:1.note]" in p for p in fake.humans_of(name)), name
+    # every rung reads the rungs below it, and the report and the material carry the ladder
+    assert "THE LADDER SO FAR" in fake.humans_of("Roles")[0] and "[ladder:mechanism.kind]" in fake.humans_of("Roles")[0]
+    assert "[ladder:pair.contrasts]" in fake.humans_of("Mechanism")[0] and "THE LADDER SO FAR" not in fake.humans_of("Contrasts")[0]
+    lad = out["ladder"]
+    assert lad.pair.by == "judgement" and lad.mechanism.by == "judgement" and lad.timing.unknown == fake.asked("Roles")
+    assert {a for a, _ in lad.lines()} >= {"ladder:pair.contrasts", "ladder:mechanism.drivers", "ladder:timing.unknown", "ladder:roles.lunch"}
+    assert "THE LADDER" in r["report"] and "[ladder:roles.lunch] confounder" in r["report"] and ["ladder:roles.lunch", "confounder"] in r["ladder"]
+    assert (
+        "[ladder:roles.lunch] confounder" in fake.humans_of("Interpretation")[0]
+        and "ladder:roles.lunch" in fake.humans_of("Interpretation")[0].split("ADDRESSES YOU MAY CITE")[1]
+    )
     assert (json.loads(open(f"{r['run_dir']}/design.json").read())["estimator"]) == "propensity_score_stratification"
 
 
-def test_bad_cites_loop_relate_then_stop():
+def test_bad_cites_are_refused_three_times_then_the_rung_stops():
     fake = FakeLLM(bad_cites=True)
-    out = _run(fake, students_handoff())
+    out = _run(fake, _students3())  # the pair and the mechanism are the pack's; the roles rung is the first judgement
     r = out["specialist_result"]
     assert r["status"] == "infeasible"
-    assert out["feasibility"].stage == "verify_graph"
-    assert fake.calls.count("Relation") == 6 * 3  # three attempts, every worker rejected each time
+    assert out["feasibility"].stage == "roles" and fake.calls.count("Roles") == 3 and fake.calls.count("PostRoles") == 0
+    assert "col:nope.note is not an address you may cite" in fake.humans_of("Roles")[1] and out["episodes"]["roles"].tries == 3
     assert out.get("design") is None and not out.get("estimates")
 
 
@@ -209,7 +284,7 @@ def test_revision_is_a_delta_and_relate_not_rerun():
     assert out["revisions"] == 1
     assert "parental_level_of_education" in {x.column for x in out["graph"].excluded}
     assert out["design"].estimand.adjustment_set == ["lunch"]
-    assert fake.calls.count("Relation") == 6  # the delta was applied by merge_graph, no worker reran
+    assert fake.calls.count("Roles") == 1  # the delta was applied by merge_graph; no rung ran again
 
 
 def test_uruguay_forced_stops_on_overlap():
@@ -270,7 +345,7 @@ def test_the_desk_reaches_the_real_specialist():
 
     SPECIALISTS = lanes()
 
-    assert "freeze_design" in SPECIALISTS["adjustment"].get_graph().nodes
+    assert {"pair", "mechanism", "time", "roles", "post_roles", "freeze_design"} <= set(SPECIALISTS["adjustment"].get_graph().nodes)
     assert "relate" not in SPECIALISTS["synthetic_control"].get_graph().nodes  # still a stub
 
 
@@ -293,8 +368,12 @@ def test_pack_treated_level_settles_the_contrast_without_a_model_call():
 
     material = N._material(out, c.key)  # the beliefs are in what the interpretation reads, with addresses it may cite
     assert "[claim:unobserved] nothing outside the file" in material and "claim:unobserved" in N._addresses(out, c.key)
-    # parental education: the offer looked at it and it was fixed before, so its relation is a fact; lunch was marked 'after', so the model is asked
-    assert fake.calls.count("Relation") == 5 and "relate:parental_level_of_education" not in {t.node for t in out["debug"]}
+    # parental education: the offer looked at it and it was fixed before, so its relation is a fact; lunch was marked 'after', so the
+    # post-treatment rung places it, with the pack's word that the offer looked at it copied in
+    assert "parental_level_of_education" not in fake.asked("Roles") + fake.asked("PostRoles") and "lunch" in fake.asked("PostRoles")
+    assert sorted(fake.asked("Roles")) == ["gender", "race_ethnicity"] and sorted(fake.asked("PostRoles")) == ["lunch", "reading_score", "writing_score"]
+    assert out["ladder"].mechanism.by == "pack" and out["ladder"].mechanism.drivers == ["lunch", "parental_level_of_education"]
+    assert any(e.src == "lunch" and e.dst == "test_preparation_course" for e in out["graph"].edges)
     parental = next(e for e in out["graph"].edges if e.src == "parental_level_of_education" and e.dst == "test_preparation_course")
     assert "claim:assignment.depends_on" in parental.cites
     # the person's words reach every judgement the lane makes (students3 ships no transcript, so the section is there and empty)
@@ -306,8 +385,9 @@ def test_pack_treated_level_settles_the_contrast_without_a_model_call():
 # ------------------------------------------------------------------ the other roads: a hidden factor, an instrument, a mediator
 
 
-def _synthetic(tmp_path, seed=0):
-    """z pushes units into treatment and touches y no other way; m carries the whole effect (y = 2m + u); u drives both t and y."""
+def _synthetic(tmp_path, seed=0, groups=False):
+    """z pushes units into treatment and touches y no other way; m carries the whole effect (y = 2m + u); u drives both t and y.
+    With `groups`, g is a fine group and g2 the coarser group every g sits inside."""
     import numpy as np
 
     rng = np.random.default_rng(seed)
@@ -318,11 +398,15 @@ def _synthetic(tmp_path, seed=0):
     m = t + rng.normal(size=n)
     y = 2 * m + u + rng.normal(size=n)
     csv = tmp_path / "synthetic.csv"
-    pd.DataFrame({"z": z, "treated": t, "m": m, "y": y}).to_csv(csv, index=False)
+    frame = pd.DataFrame({"z": z, "treated": t, "m": m, "y": y})
+    if groups:
+        frame["g"] = [f"g{v}" for v in rng.integers(0, 6, n)]
+        frame["g2"] = frame["g"].map(lambda v: "north" if int(v[1]) < 3 else "south")
+    frame.to_csv(csv, index=False)
     return csv
 
 
-def _synthetic_memory(csv, *, hidden=True, instrument=None, mediator=None, said_none=False):
+def _synthetic_memory(csv, *, hidden=True, instrument=None, mediator=None, said_none=False, groups=False):
     from causal_agent.memory import ops
     from causal_agent.profile.profiler import profile
 
@@ -339,7 +423,7 @@ def _synthetic_memory(csv, *, hidden=True, instrument=None, mediator=None, said_
     m.set("claim:assignment.treatment_column", "treated", status="confirmed", source=src)
     m.set("claim:assignment.treated_level", "1", status="confirmed", source=src)
     m.set("claim:unobserved.exists", hidden, status="confirmed", source=src, said="something we did not record drove both")
-    for c, when in (("y", "after"), ("treated", "at"), ("z", "before"), ("m", "after")):
+    for c, when in (("y", "after"), ("treated", "at"), ("z", "before"), ("m", "after")) + ((("g", "before"), ("g2", "before")) if groups else ()):
         m.set(f"col:{c}.meaning", f"{c} as recorded", status="confirmed", source=src)
         m.set(f"col:{c}.when", when, status="confirmed", source=src)
     m.set("col:m.moved_by_change", True, status="confirmed", source=src)
@@ -356,14 +440,14 @@ def _synthetic_memory(csv, *, hidden=True, instrument=None, mediator=None, said_
     return m
 
 
-def _synthetic_handoff(memory):
+def _synthetic_handoff(memory, columns=("y", "treated", "z", "m")):
     return forced(
         "synthetic",
         "Did the programme raise y?",
         "adjustment",
         "y",
         "treated",
-        ["y", "treated", "z", "m"],
+        list(columns),
         assumption="the instrument and the mediator are as the person says",
         cite="col:z.note",
         memory=memory,
@@ -378,7 +462,7 @@ def test_instrument_and_mediator_open_roads_around_a_hidden_factor(tmp_path):
     out = _run(fake, h, question="Did the programme raise y?")
     r = out["specialist_result"]
     assert r["status"] == "done", r.get("feasibility")
-    assert fake.calls.count("Relation") == 0  # the instrument and the mediator are the person's word: facts, not judgements
+    assert fake.calls.count("Roles") == 0 and fake.calls.count("PostRoles") == 0  # the instrument and the mediator are the person's word: facts, not judgements
     g = out["graph"]
     assert "unobserved" in g.nodes and any(e.src == "treated" and e.dst == "m" for e in g.edges) and any(e.src == "z" and e.dst == "treated" for e in g.edges)
     est = out["estimand"]
@@ -449,30 +533,18 @@ def test_a_forbidden_column_never_enters_the_graph_and_the_flags_are_cited():
     h = _students3()
     assert {"reading_score", "writing_score"} <= set(h.design.forbidden)
 
-    class Fake(FakeLLM):
-        def answer(self, schema, human):
-            if schema is Relation and "for column 'writing_score'" in human:
-                return Relation(
-                    column="writing_score",
-                    affects_treatment=False,
-                    affects_outcome=True,
-                    affected_by_treatment=False,
-                    is_outcome_measure=False,
-                    reasons=[Cited(reason="writing: moves the outcome", cites=[CITE])],
-                )
-            return super().answer(schema, human)
-
-    fake = Fake()
+    fake = FakeLLM(overrides={"writing_score": dict(affects_outcome=True, is_outcome_measure=False)})
     out = _run(fake, h)
     r = out["specialist_result"]
     assert r["status"] == "done", r.get("feasibility")
     why = {x.column: x.why for x in out["graph"].excluded}
     assert "design.forbidden" in why["writing_score"] and "measurement of the outcome" in why["reading_score"]
     assert not any(e.src in ("reading_score", "writing_score") for e in out["graph"].edges)
-    # the case reached every relate prompt: the settled block for a column the pack partly settles, the pack's cards and probes
-    human = next(m for m in fake.humans_of("Relation") if "for column 'gender'" in m)
+    # the case reached the roles prompt: the settled block for a column the pack partly settles, the pack's cards and probes
+    human = fake.humans_of("Roles")[0]
     assert (
-        "SETTLED BY THE PACK" in human
+        "COLUMN 'gender'" in human
+        and "SETTLED BY THE PACK" in human
         and "affected_by_treatment = false [col:gender.when]" in human
         and "[probe:adjustment" in human
         and "[dataset.profile.rows]" in human
@@ -485,13 +557,13 @@ def test_a_forbidden_column_never_enters_the_graph_and_the_flags_are_cited():
     assert "effect_completed_vs_none" in ids and r["figures"] == ids
 
 
-def test_relate_is_skipped_when_the_pack_settles_every_claim():
-    """A column the person said the change moved and that measures nothing: affected, and open only on affects_outcome, so the model is asked;
-    one it called a measure of the outcome, or the offer looked at and was fixed before, is never asked about."""
+def test_a_column_the_pack_settles_is_never_placed_by_a_judgement():
+    """A column the offer looked at and that was fixed before is a fact the graph takes; a column the pack only partly settles is
+    placed by its rung, with the settled claims shown and copied."""
     h = _students3()
     fake = FakeLLM()
     out = _run(fake, h)
-    asked = {t.node.split(":", 1)[1] for t in out["debug"] if t.node.startswith("relate:")}
+    asked = set(fake.asked("Roles"))
     assert "parental_level_of_education" not in asked and "gender" in asked
     from causal_agent.families.adjustment.lane import nodes as N
 
@@ -515,7 +587,7 @@ def test_a_confirmed_relation_settles_the_claim_without_a_model_call_and_a_draft
     fake = FakeLLM()
     out = _run(fake, h)
     assert out["specialist_result"]["status"] == "done", out["specialist_result"].get("feasibility")
-    asked = {t.node.split(":", 1)[1] for t in out["debug"] if t.node.startswith("relate:")}
+    asked = set(fake.asked("Roles"))
     assert "gender" not in asked and "race_ethnicity" in asked
     claims, cites = N.settled_claims(h, "gender", out["case"])
     assert claims == {"affects_treatment": False, "affects_outcome": True, "affected_by_treatment": False, "is_outcome_measure": False}
@@ -523,40 +595,39 @@ def test_a_confirmed_relation_settles_the_claim_without_a_model_call_and_a_draft
     assert any(e.src == "gender" and e.dst == "math_score" for e in out["graph"].edges) and not any(
         e.src == "gender" and e.dst == "test_preparation_course" for e in out["graph"].edges
     )
-    human = next(mm for mm in fake.humans_of("Relation") if "for column 'race_ethnicity'" in mm)
+    human = fake.humans_of("Roles")[0]
+    race = human.split("COLUMN 'race_ethnicity'")[1].split("COLUMN '")[0]
     assert (
-        "THE LAST READING (drafted; depart from it only with a cited reason)" in human
-        and "affects_treatment = true [col:race_ethnicity.feeds_treatment]" in human
+        "THE LAST READING (drafted; depart from it only with a cited reason)" in race
+        and "affects_treatment = true [col:race_ethnicity.feeds_treatment]" in race
     )
     assert N.drafted_claims(h, "race_ethnicity", out["case"]) == ({"affects_treatment": True}, {"affects_treatment": "col:race_ethnicity.feeds_treatment"})
-    assert "THE LAST READING" not in next(mm for mm in fake.humans_of("Relation") if "for column 'lunch'" in mm)
+    assert "THE LAST READING" not in fake.humans_of("PostRoles")[0].split("COLUMN 'lunch'")[1].split("COLUMN '")[0]
+    assert any(e.src == "race_ethnicity" and e.dst == "test_preparation_course" for e in out["graph"].edges)  # the reading was kept
 
 
-def test_a_departure_from_the_last_reading_that_cites_nothing_is_refused_once():
+def test_a_departure_from_the_last_reading_with_no_departure_named_is_refused_once():
     m = _memory("students3")
     m.set("col:race_ethnicity.feeds_treatment", True, status="drafted", source="model:relate", reason="the run's graph drew this edge")
     h = _students3(memory=m)
-    seen = []
 
     class Fake(FakeLLM):
-        def answer(self, schema, human):
-            if schema is Relation and "for column 'race_ethnicity'" in human:
-                seen.append(human)
-                if len(seen) == 1:  # departs from the drafted reading and cites nothing at all
-                    return Relation(
-                        column="race_ethnicity",
-                        affects_treatment=False,
-                        affects_outcome=False,
-                        affected_by_treatment=False,
-                        is_outcome_measure=False,
-                        reasons=[],
-                    )
-            return super().answer(schema, human)
+        def roles_answer(self, human):
+            out = super().roles_answer(human)
+            if len(self.humans_of("Roles")) == 1:  # the first answer departs from the drafted reading and names no departure
+                for x in out.items:
+                    if x.column == "race_ethnicity":
+                        x.affects_treatment = False
+                        x.reasons = [r for r in x.reasons if not r.reason.endswith("affects_treatment")]
+            return out
 
-    out = _run(Fake(), h)
+    fake = Fake()
+    out = _run(fake, h)
     assert out["specialist_result"]["status"] == "done"
-    assert len(seen) == 2 and "affects_treatment = False departs from the last reading True with no departure named" in seen[1]
-    assert any(e.src == "race_ethnicity" and e.dst == "math_score" for e in out["graph"].edges)  # the second answer, cited, stood
+    seen = fake.humans_of("Roles")
+    assert len(seen) == 2 and "race_ethnicity: affects_treatment = False departs from the last reading True with no departure named" in seen[1]
+    assert out["episodes"]["roles"].tries == 2
+    assert any(e.src == "race_ethnicity" and e.dst == "test_preparation_course" for e in out["graph"].edges)  # the second answer kept the reading
 
 
 def test_the_filter_is_applied_by_code_and_a_prose_filter_is_a_recorded_decline():
@@ -606,20 +677,12 @@ def test_sensitivity_survives_a_revise_loop_and_a_repick_does_not_duplicate_esti
         DesignAssessment(action="proceed", reason="fine", cites=[]),
     ]
 
-    class Fake(FakeLLM):
-        def answer(self, schema, human):
-            if schema is Relation and "for column 'z'" in human:
-                return Relation(
-                    column="z",
-                    affects_treatment=True,
-                    affects_outcome=True,
-                    affected_by_treatment=False,
-                    is_outcome_measure=False,
-                    reasons=[Cited(reason="z: fed the decision and moves y", cites=["col:z.note"])],
-                )
-            return super().answer(schema, human)
-
-    fake = Fake(assess_script=script, cite="col:z.note", pick_script=["econml_magic", "linear_regression"])
+    fake = FakeLLM(
+        overrides={"z": dict(affects_treatment=True, affects_outcome=True)},
+        assess_script=script,
+        cite="col:z.note",
+        pick_script=["econml_magic", "linear_regression"],
+    )
     out = _run(fake, h, question="Did the programme raise y?")
     r = out["specialist_result"]
     assert r["status"] == "done", r.get("feasibility")
@@ -695,7 +758,7 @@ def test_a_brief_naming_a_road_the_graph_does_not_open_stops_at_identify():
     assert r["status"] == "infeasible" and out["feasibility"].stage == "identify"
     assert out["feasibility"].reason == "the design brief names the iv road and the graph has no such road"
     assert out["feasibility"].facts[0] == "roads found: backdoor" and out.get("design") is None and fake.calls.count("EstimatorPick") == 0
-    assert "DESIGN BRIEF" in fake.humans_of("Relation")[0] and "[design.brief.road] iv: the iv road" in fake.humans_of("Relation")[0]
+    assert "DESIGN BRIEF" in fake.humans_of("Roles")[0] and "[design.brief.road] iv: the iv road" in fake.humans_of("Roles")[0]
 
 
 def test_a_brief_naming_the_back_door_keeps_it_and_the_pick_sees_it():
@@ -723,3 +786,77 @@ def test_a_brief_naming_the_front_door_takes_it_over_the_instrument(tmp_path):
     assert {"iv", "frontdoor"} <= set(out["estimand"].roads) and out["estimand"].kind == "frontdoor"
     assert out["design"].estimator == "frontdoor_two_stage" and out["design"].estimand.kind == "frontdoor"
     assert "NAMES YOU MAY PICK: frontdoor_two_stage" in fake.humans_of("EstimatorPick")[0]
+
+
+# ------------------------------------------------------------------ the episodes: looking at the data, and the outcome rule
+
+
+def test_a_rung_may_look_at_the_data_and_no_look_joins_the_outcome_with_the_treatment():
+    """The roles rung asks for the outcome by arm and for gender by arm. The first is refused, by code, and the refusal is what the
+    model reads; the second becomes a fact with an address the answer cites, and the report, the material and the result carry it."""
+    looks = {"roles": [[("by_arm", {"column": "math_score"}), ("by_arm", {"column": "gender"})], []]}
+    fake = FakeLLM(looks=looks, overrides={"gender": dict(cite="probe:roles.1")})
+    out = _run(fake, _students3())
+    r = out["specialist_result"]
+    assert r["status"] == "done", r.get("feasibility")
+    log = out["episodes"]["roles"]
+    assert (
+        log.calls == 2 and [f.address for f in log.facts] == ["probe:roles.1"] and log.facts[0].tool == "by_arm" and log.facts[0].args == {"column": "gender"}
+    )
+    assert (
+        len(log.refusals) == 1
+        and log.refusals[0].args == {"column": "math_score"}
+        and "join the outcome 'math_score' with the treatment" in log.refusals[0].reason
+    )
+    human = fake.humans_of("Roles")[0]
+    assert "FACTS YOU ASKED FOR\n[probe:roles.1] by_arm(column='gender'): 'gender' by arm" in human and "'math_score' by arm" not in human
+    gender = next(e for e in out["graph"].edges if e.src == "gender" and e.dst == "math_score")
+    assert gender.cites == ["probe:roles.1"]
+    assert "WHAT THE EPISODES LOOKED AT" in r["report"] and "refused by_arm(column='math_score')" in r["report"] and "[probe:roles.1]" in r["report"]
+    assert r["facts"][0]["address"] == "probe:roles.1" and r["facts"][0]["value"] is not None
+    from causal_agent.families.adjustment.lane import nodes as N
+
+    c = out["contrasts"][0]
+    assert "[probe:roles.1] by_arm(column='gender')" in N._material(out, c.key) and "probe:roles.1" in N._addresses(out, c.key)
+
+
+def test_two_nested_columns_are_read_together_and_the_graph_keeps_the_finer_one(tmp_path):
+    """g sits inside g2. The pack's data facts already say so; the roles rung reads both as confounders and names the nesting on
+    that fact, and the graph keeps g and drops g2 with the reason. A nesting claimed on no fact is refused."""
+    csv = _synthetic(tmp_path, groups=True)
+    h = _synthetic_handoff(_synthetic_memory(csv, hidden=False, groups=True), columns=("y", "treated", "z", "m", "g", "g2"))
+    fact = next(p for p in h.probes if p.name == "redundancy.g~g2")
+    assert "'g' sits inside 'g2'" in fact.detail
+    both = dict(affects_treatment=True, affects_outcome=True)
+    fake = FakeLLM(cite="col:z.note", overrides={"g": {**both, "nested_in": "g2", "links": [fact.address]}, "g2": both})
+    out = _run(fake, h, question="Did the programme raise y?")
+    r = out["specialist_result"]
+    assert r["status"] == "done", r.get("feasibility")
+    g = out["graph"]
+    assert "g" in g.nodes and "g2" not in g.nodes
+    why = {x.column: x.why for x in g.excluded}
+    assert "g sits inside it and is kept" in why["g2"] and "[ladder:roles.g]" in why["g2"]
+    assert "g" in out["design"].estimand.adjustment_set and "g2" not in out["design"].estimand.adjustment_set
+    assert "[ladder:roles.g] confounder; sits inside g2" in r["report"]
+    # the same claim on a cite that is not a redundancy fact is refused, three times, and the rung stops
+    fake = FakeLLM(cite="col:z.note", overrides={"g": {**both, "nested_in": "g2", "links": ["col:z.note"]}, "g2": both})
+    out = _run(fake, h, question="Did the programme raise y?")
+    assert out["specialist_result"]["status"] == "infeasible" and out["feasibility"].stage == "roles"
+    assert "g: nested_in = 'g2' needs a fact under links" in fake.humans_of("Roles")[1]
+
+
+def test_a_look_that_finds_the_nesting_backs_the_claim_too(tmp_path):
+    """No pack fact this time: the rung asks the redundancy tool, and the tool's answer is the fact the claim rests on."""
+    csv = _synthetic(tmp_path, groups=True)
+    h = _synthetic_handoff(_synthetic_memory(csv, hidden=False, groups=True), columns=("y", "treated", "z", "m", "g", "g2"))
+    h.probes = [p for p in h.probes if not p.name.startswith("redundancy.")]
+    both = dict(affects_treatment=True, affects_outcome=True)
+    fake = FakeLLM(
+        cite="col:z.note",
+        looks={"roles": [[("redundancy", {"a": "g", "b": "g2"})], []]},
+        overrides={"g": {**both, "nested_in": "g2", "links": ["probe:roles.1"]}, "g2": both},
+    )
+    out = _run(fake, h, question="Did the programme raise y?")
+    assert out["specialist_result"]["status"] == "done", out["specialist_result"].get("feasibility")
+    assert out["episodes"]["roles"].facts[0].tool == "redundancy" and "'g' sits inside 'g2'" in out["episodes"]["roles"].facts[0].text
+    assert "g2" not in out["graph"].nodes and "g" in out["design"].estimand.adjustment_set

@@ -55,6 +55,8 @@ class LaneState(TypedDict, total=False):
     feasibility: Feasibility | None
     figures: list[dict]
     report: str
+    ladder: Any  # the lane's own Ladder record: the rungs climbed so far, each line addressed
+    episodes: Annotated[dict[str, Any], merge_dicts]  # node -> EpisodeLog, what each reasoning episode looked at
 
 
 class RelateTask(TypedDict):

@@ -1,7 +1,10 @@
-"""Adjustment-lane nodes. Facts compute; judgements call the model once and are gated.
+"""Adjustment-lane nodes. Facts compute; judgements are bounded episodes, gated.
 
 The pack is weighed by code first (the harness's `case`): a settled column field is a fact the graph takes, an open one
-is asked of the model, a belief is a flag the assessment must answer. Stops are typed: a node that cannot go on returns
+is placed by a rung of the ladder, a belief is a flag the assessment must answer. The ladder climbs in the order an
+analyst reads the problem: the pair, the mechanism, time, the pre-treatment roles all together, the post-treatment roles
+all together, then the graph from them. Each rung reads the rungs below it and may look at the data through the read-only
+tools; every claim cites the pack, a fact it asked for, or a rung below. Stops are typed: a node that cannot go on returns
 Command(goto="feasibility") with a Feasibility record; a question for the person is the same with a LaneAsk.
 Nothing here names a column, a method, or a dataset.
 """
@@ -43,8 +46,15 @@ from causal_agent.families.adjustment.lane.contracts import (
     EstimatorPick,
     Excluded,
     Graph,
+    Ladder,
+    Mechanism,
+    Pair,
+    PostRoles,
     Relation,
     Revision,
+    Role,
+    Roles,
+    Timing,
 )
 from causal_agent.families.adjustment.lane.knowledge import (
     estimator as estimator_entry,
@@ -56,14 +66,15 @@ from causal_agent.families.adjustment.lane.knowledge import (
     load_refuters,
     render_preferences,
 )
-from causal_agent.families.adjustment.lane.state import ContrastTask, InterpretTask, RelateTask, SpecialistState
+from causal_agent.families.adjustment.lane.state import ContrastTask, InterpretTask, SpecialistState
 from causal_agent.lane import asks, intake, records
 from causal_agent.lane import case as C
 from causal_agent.lane import figures as LF
 from causal_agent.lane import nodes as L
 from causal_agent.lane import verify as V
 from causal_agent.lane import words as W
-from causal_agent.lane.nodes import MAX_MODEL_RETRIES, MAX_PICK_ATTEMPTS, MAX_RELATE_ATTEMPTS, MAX_REVISIONS
+from causal_agent.lane.episode import EpisodeLog, run_episode
+from causal_agent.lane.nodes import MAX_MODEL_RETRIES, MAX_PICK_ATTEMPTS, MAX_REVISIONS
 from causal_agent.viz.postviz import common as PV
 
 MAX_DOSE_LEVELS = 12
@@ -85,7 +96,6 @@ _writer, _question, _stop, _card, _case, _cites, _rejected, _keys, _table = (
 )
 after_checks, feasibility = L.after_checks, L.feasibility
 case = L.make_case(load_beliefs)
-relate = L.make_relate(P, Relation)
 
 
 # ------------------------------------------------------------------ helpers
@@ -174,24 +184,83 @@ def load(state: SpecialistState) -> Command:
             "outcome_kind": ok,
             "target_units": target,
             "treatment_levels": levels,
-            "relate_attempts": 0,
+            "ladder": Ladder(),
             "revisions": 0,
             "pick_attempts": 0,
             "interpret_attempts": 0,
-            "relate_errors": {},
             "excluded_estimators": [],
             "applied_revisions": [],
         },
     )
 
 
-# ------------------------------------------------------------------ contrast (judgement, unless the pack settles it)
+# ------------------------------------------------------------------ the ladder: rungs 0 to 4, then the graph from them
 
 
-def contrast(state: SpecialistState) -> dict:
-    h = state["handoff"]
+def _ladder(state: SpecialistState) -> Ladder:
+    lad = state.get("ladder")
+    return lad if isinstance(lad, Ladder) else Ladder()
+
+
+def _budget(node: str) -> int:
+    return int((load_checks().get("episode_budget") or {}).get(node, 4))
+
+
+def _treated_mask(state: SpecialistState) -> pd.Series | None:
+    """The treated rows once the pair is set: the treatment at the first contrast's treated level."""
     t, _, _ = _keys(state)
+    cs = state.get("contrasts") or []
+    if not t or not cs:
+        return None
+    return _table(state)[t].astype(str) == str(cs[0].treated)
+
+
+def _resolver(h: Handoff, log: EpisodeLog, ladder: Ladder):
+    """What a rung may cite: the pack, the facts this episode asked for, and the rungs below."""
+
+    def ok(address: str) -> bool:
+        return h.resolve(address) or log.resolve(address) or ladder.resolve(address)
+
+    return ok
+
+
+def _column_key(state: SpecialistState, name: Any) -> str | None:
+    """The key of a column in play, from its key or its raw name; None when it is not in play or the word is none."""
+    if not name or str(name).strip().lower() == "none":
+        return None
+    cols = state.get("columns") or {}
+    k = _key(str(name))
+    if k in cols:
+        return k
+    return next((kk for kk, raw in cols.items() if raw == name), None)
+
+
+def _as_list(v: Any) -> list[str]:
+    if v is None:
+        return []
+    if isinstance(v, str):
+        return [x.strip() for x in v.split(",") if x.strip()]
+    return [str(x) for x in v]
+
+
+# rung 0: the pair (code from the pack; a judgement only when the pack does not name the treated level)
+
+
+def pair(state: SpecialistState) -> Command:
+    h = state["handoff"]
+    t, y, _ = _keys(state)
+    assert t is not None
     levels = state["treatment_levels"]
+    lad = _ladder(state)
+
+    def done(contrasts: list[Contrast], by: Any, debug: list, log: EpisodeLog | None) -> Command:
+        p = Pair(outcome=y, treatment=t, contrasts=contrasts, target_asked=h.scope.target, by=by)
+        _writer()({"contrasts": [c.model_dump() for c in contrasts]})
+        update: dict[str, Any] = {"contrasts": contrasts, "ladder": lad.model_copy(update={"pair": p}), "debug": debug}
+        if log is not None:
+            update["episodes"] = {"pair": log}
+        return Command(goto="mechanism", update=update)
+
     if h.treated_level is not None and str(h.treated_level) in levels:  # the pack says which level means treated: a fact
         treated = str(h.treated_level)
         control = str(h.control_level) if h.control_level is not None and str(h.control_level) in levels and str(h.control_level) != treated else None
@@ -204,31 +273,28 @@ def contrast(state: SpecialistState) -> dict:
                 reason="the pack names the level that means the unit got the change",
                 cites=_cites(h, "claim:assignment.treated_level", "claim:assignment.treatment_column"),
             )
-            _writer()({"contrasts": [c.model_dump()]})
-            return {"contrasts": [c], "debug": []}
+            return done([c], "pack", [], None)
     s = h.scope
     scope = f"filter={s.population_filter or 'none'}; window={s.window or 'none'}; contrast={s.contrast}; target={s.target}"
-    errors: list[str] = []
-    debug = []
-    for _ in range(MAX_MODEL_RETRIES):
-        user = P.CONTRAST_USER.format(question=_question(state), scope=scope, treatment_card=_card(h, t), levels=", ".join(repr(v) for v in levels))
-        if errors:
-            user += _rejected(errors)
-        parsed, th = structured(Contrasts, P.CONTRAST_SYSTEM, user, node="contrast")
-        debug.append(th)
-        errors = _validate_contrasts(parsed.items, levels)
-        if not errors:
-            _writer()({"contrasts": [c.model_dump() for c in parsed.items]})
-            return {"contrasts": parsed.items, "debug": debug}
-    return {
-        "feasibility": Feasibility(
-            stage="contrast",
-            reason="could not define a comparison from the treatment's levels",
-            facts=errors,
-            what_would_fix="a treatment whose levels the note explains",
-        ),
-        "debug": debug,
-    }
+    user = P.CONTRAST_USER.format(question=_question(state), scope=scope, treatment_card=_card(h, t), levels=", ".join(repr(v) for v in levels))
+    rec, log, thoughts, errors = run_episode(
+        Contrasts,
+        P.CONTRAST_SYSTEM,
+        user,
+        tools=L.data_tools(state, None),
+        budget=_budget("pair"),
+        gate=lambda r, _log: _validate_contrasts(r.items, levels),
+        node="pair",
+    )
+    if rec is None:
+        return _stop(
+            "pair",
+            "could not define a comparison from the treatment's levels",
+            errors,
+            "a treatment whose levels the note explains",
+            {"debug": thoughts, "episodes": {"pair": log}},
+        )
+    return done(rec.items, "judgement", thoughts, log)
 
 
 def _validate_contrasts(items: list[Contrast], levels: list[str]) -> list[str]:
@@ -248,7 +314,98 @@ def _validate_contrasts(items: list[Contrast], levels: list[str]) -> list[str]:
     return errs
 
 
-# ------------------------------------------------------------------ relate (judgement only for what the pack leaves open)
+# rung 1: the mechanism (code from the pack; a judgement fills what the pack leaves open)
+
+
+def mechanism(state: SpecialistState) -> Command:
+    h = state["handoff"]
+    lad = _ladder(state)
+    blk = _block(h)
+    a = h.assignment or {}
+    kind = a.get("kind")
+    drivers = [k for d in _as_list(a.get("depends_on")) if (k := _column_key(state, d))]
+    offer, uptake = _column_key(state, a.get("offer_column")), _column_key(state, a.get("uptake_column"))
+    self_sel = blk.voluntary_uptake if blk is not None else None
+    cites = _cites(h, "claim:assignment.kind", "claim:assignment.rule", "claim:assignment.depends_on")
+    if kind == "lottery" or drivers:  # the pack states what the decision looked at, or that it looked at nothing
+        m = Mechanism(
+            kind=kind,
+            drivers=drivers,
+            offer_column=offer,
+            uptake_column=uptake,
+            self_selection=self_sel if self_sel is not None else kind == "own_choice",
+            reason="as the pack states it",
+            cites=cites,
+            by="pack",
+        )
+        _writer()({"mechanism": m.model_dump()})
+        return Command(goto="time", update={"ladder": lad.model_copy(update={"mechanism": m})})
+    t, _, others = _keys(state)
+
+    def gate(r: Mechanism, log: EpisodeLog) -> list[str]:
+        ok = _resolver(h, log, lad)
+        errs = [f"driver {d!r} is not a column in play" for d in r.drivers if _column_key(state, d) is None]
+        for f in ("offer_column", "uptake_column"):
+            v = getattr(r, f)
+            if v is not None and _column_key(state, v) is None:
+                errs.append(f"{f} names {v!r}, which is not a column in play; use null when there is no such column")
+        if r.offer_column and r.uptake_column and _column_key(state, r.offer_column) == _column_key(state, r.uptake_column):
+            errs.append("the offer and the uptake are the same column; name two or leave both null")
+        if r.self_selection and kind == "lottery":
+            errs.append("a lottery leaves no room for units to move their own assignment")
+        if not r.cites:
+            errs.append("no citations given")
+        return errs + V.cites_resolve(r.cites, h, ok)
+
+    user = P.MECHANISM_USER.format(
+        question=_question(state),
+        frame=L.frame_text(state),
+        treatment_card=_card(h, t) if t else "(none)",
+        columns="\n".join(b.line() for k in others if (b := h.column(k)) is not None) or "(none)",
+        kind=kind or "not said",
+        errors="",
+    )
+    rec, log, thoughts, errors = run_episode(
+        Mechanism, P.MECHANISM_SYSTEM, user, tools=L.data_tools(state, _treated_mask(state)), budget=_budget("mechanism"), gate=gate, node="mechanism"
+    )
+    if rec is None:
+        return _stop(
+            "mechanism",
+            "how the change reached the units could not be read from the pack",
+            errors,
+            "a clearer account of what the decision or the offer looked at",
+            {"debug": thoughts, "episodes": {"mechanism": log}},
+        )
+    m = rec.model_copy(
+        update={
+            "kind": kind,
+            "drivers": [k for d in rec.drivers if (k := _column_key(state, d))],
+            "offer_column": _column_key(state, rec.offer_column),
+            "uptake_column": _column_key(state, rec.uptake_column),
+            "by": "judgement",
+        }
+    )
+    _writer()({"mechanism": m.model_dump()})
+    return Command(goto="time", update={"ladder": lad.model_copy(update={"mechanism": m}), "debug": thoughts, "episodes": {"mechanism": log}})
+
+
+# rung 2: time (code from the pack)
+
+
+def timing(state: SpecialistState) -> dict:
+    h = state["handoff"]
+    case = _case(state)
+    _, _, others = _keys(state)
+    tm = Timing()
+    for k in others:
+        b = h.column(k)
+        w = case.fact(f"col:{k}.when") or case.drafts.get(f"col:{k}.when") or (b.when if b is not None else "unknown")
+        getattr(tm, w if w in ("before", "at", "after") else "unknown").append(k)
+    _writer()({"timing": tm.model_dump()})
+    return {"ladder": _ladder(state).model_copy(update={"timing": tm})}
+
+
+# rungs 3 and 4: the roles, every column of a rung together (judgement only for what the pack leaves open)
 
 
 def settled_claims(h: Handoff, k: str, case: C.Case) -> tuple[dict[str, bool], dict[str, str]]:
@@ -342,48 +499,178 @@ def drafted_claims(h: Handoff, k: str, case: C.Case) -> tuple[dict[str, bool], d
 
 _settled_text, apply_settled = L.make_settled(settled_claims)
 _drafted_text = L.make_drafted(drafted_claims)
+LINK_CITES = ("probe:data.redundancy.", ".same_as", ".nested_in")  # what may back a redundancy or a nesting, beside a redundancy tool result
+
+
+def _column_block(h: Handoff, k: str, case: C.Case) -> str:
+    return f"COLUMN {k!r}\n{_card(h, k)}\n{_settled_text(h, k, case)}{_drafted_text(h, k, case)}"
+
+
+def _asked_columns(state: SpecialistState, whens: tuple[str, ...]) -> list[str]:
+    """The columns of these timings the pack does not settle, in the order the timing rung lists them."""
+    h = state["handoff"]
+    case = _case(state)
+    tm = _ladder(state).timing or Timing()
+    return [k for w in whens for k in getattr(tm, w) if fact_relation(h, k, case) is None]
+
+
+def _relation_errors(r: Relation, k: str, h: Handoff, case: C.Case, ok: Any) -> list[str]:
+    """The checks every relation must pass: a reason with a cite per claim marked true, every cite resolving, not both feeding
+    the treatment and changed by it, no contradiction with a pack fact, no unexplained departure from the last reading."""
+    errs: list[str] = []
+    if sum([r.affects_treatment, r.affects_outcome, r.affected_by_treatment, r.is_outcome_measure]) and not r.reasons:
+        errs.append("claims marked true but no reasons given")
+    for reason in r.reasons:
+        if not reason.cites:
+            errs.append("a reason has no citation")
+        errs += [f"{c} is not an address you may cite" for c in reason.cites if not ok(c)]
+    if r.affects_treatment and r.affected_by_treatment:
+        errs.append("cannot both feed the treatment and be changed by it")
+    settled, _ = settled_claims(h, k, case)
+    rules = [rule for rule in CONTRADICTION_RULES if rule[0] not in settled]
+    cited = [c for reason in r.reasons for c in reason.cites]
+    errs += V.contradictions({c: getattr(r, c) for c in CLAIMS}, k, case, rules, cited, h)
+    drafted, _ = drafted_claims(h, k, case)
+    errs += V.departures({c: getattr(r, c) for c in CLAIMS}, drafted, r.departures, h, ok)
+    return errs
+
+
+def _presence_errors(asked: list[str], got: list[str]) -> list[str]:
+    errs = []
+    for k in asked:
+        n = got.count(k)
+        if n == 0:
+            errs.append(f"{k}: no role returned")
+        elif n > 1:
+            errs.append(f"{k}: returned {n} times; once")
+    errs += [f"{k!r} was not asked for" for k in dict.fromkeys(got) if k not in asked]
+    return errs
+
+
+def _with_pack_links(state: SpecialistState, x: Role, h: Handoff) -> Role:
+    """The pack's own word on redundancy and nesting wins over the model's, and every link names a key."""
+    b = h.column(x.column)
+    same = _column_key(state, b.same_as) if b is not None else None
+    nested = _column_key(state, b.nested_in) if b is not None else None
+    return x.model_copy(update={"redundant_with": same or _column_key(state, x.redundant_with), "nested_in": nested or _column_key(state, x.nested_in)})
+
+
+def roles(state: SpecialistState) -> Command:
+    """Rung 3: every pre-treatment column (and every column whose timing is unknown) that the pack leaves open, placed together."""
+    h = state["handoff"]
+    case = _case(state)
+    lad = _ladder(state)
+    asked = _asked_columns(state, ("before", "unknown"))
+    if not asked:
+        return Command(goto="post_roles", update={"ladder": lad.model_copy(update={"roles": Roles(items=[])})})
+    t, y, _ = _keys(state)
+
+    def gate(r: Roles, log: EpisodeLog) -> list[str]:
+        ok = _resolver(h, log, lad)
+        errs = _presence_errors(asked, [x.column for x in r.items])
+        for x in r.items:
+            if x.column not in asked:
+                continue
+            errs += [f"{x.column}: {e}" for e in _relation_errors(apply_settled(x, h, case), x.column, h, case, ok)]
+            link_cites = [c for link in x.links for c in link.cites]
+            backed = any(any(pat in c for pat in LINK_CITES) or ((f := log.find(c)) is not None and f.tool == "redundancy") for c in link_cites)
+            for field in ("redundant_with", "nested_in"):
+                v = getattr(x, field)
+                if v is None:
+                    continue
+                if _column_key(state, v) is None or _column_key(state, v) == x.column:
+                    errs.append(f"{x.column}: {field} names {v!r}, which is not another column in play")
+                if not backed:
+                    errs.append(
+                        f"{x.column}: {field} = {v!r} needs a fact under links: a redundancy tool result, [probe:data.redundancy.*], "
+                        "or the column's same_as or nested_in line"
+                    )
+            for link in x.links:
+                errs += [f"{x.column}: {e}" for e in V.cites_resolve(link.cites, h, ok)]
+        return errs
+
+    user = P.ROLES_USER.format(
+        question=_question(state),
+        frame=L.frame_text(state),
+        treatment_card=_card(h, t) if t else "(none)",
+        outcome_card=_card(h, y),
+        count=len(asked),
+        columns="\n\n".join(_column_block(h, k, case) for k in asked),
+        errors="",
+    )
+    rec, log, thoughts, errors = run_episode(
+        Roles, P.ROLES_SYSTEM, user, tools=L.data_tools(state, _treated_mask(state)), budget=_budget("roles"), gate=gate, node="roles"
+    )
+    if rec is None:
+        return _stop(
+            "roles",
+            "the columns fixed before the change could not be placed",
+            errors,
+            "clearer column notes about what fed the decision",
+            {"debug": thoughts, "episodes": {"roles": log}},
+        )
+    out = Roles(items=[_with_pack_links(state, apply_settled(x, h, case), h) for x in rec.items])
+    _writer()({"roles": [f"[{a}] {text}" for a, text in out.lines()]})
+    return Command(goto="post_roles", update={"ladder": lad.model_copy(update={"roles": out}), "debug": thoughts, "episodes": {"roles": log}})
+
+
+def post_roles(state: SpecialistState) -> Command:
+    """Rung 4: every column set at or after the treatment that the pack leaves open, placed together."""
+    h = state["handoff"]
+    case = _case(state)
+    lad = _ladder(state)
+    asked = _asked_columns(state, ("at", "after"))
+    if not asked:
+        return Command(goto="merge_graph", update={"ladder": lad.model_copy(update={"post_roles": PostRoles(items=[])})})
+    t, y, _ = _keys(state)
+
+    def gate(r: PostRoles, log: EpisodeLog) -> list[str]:
+        ok = _resolver(h, log, lad)
+        errs = _presence_errors(asked, [x.column for x in r.items])
+        for x in r.items:
+            if x.column not in asked:
+                continue
+            if not x.cites:
+                errs.append(f"{x.column}: no citation")
+            errs += [f"{x.column}: {e}" for e in _relation_errors(apply_settled(x.relation(), h, case), x.column, h, case, ok)]
+        return errs
+
+    user = P.POST_ROLES_USER.format(
+        question=_question(state),
+        frame=L.frame_text(state),
+        treatment_card=_card(h, t) if t else "(none)",
+        outcome_card=_card(h, y),
+        count=len(asked),
+        columns="\n\n".join(_column_block(h, k, case) for k in asked),
+        errors="",
+    )
+    rec, log, thoughts, errors = run_episode(
+        PostRoles, P.POST_ROLES_SYSTEM, user, tools=L.data_tools(state, _treated_mask(state)), budget=_budget("post_roles"), gate=gate, node="post_roles"
+    )
+    if rec is None:
+        return _stop(
+            "post_roles",
+            "the columns set at or after the change could not be placed",
+            errors,
+            "clearer column notes about what the change moved",
+            {"debug": thoughts, "episodes": {"post_roles": log}},
+        )
+    _writer()({"post_roles": [f"[{a}] {text}" for a, text in rec.lines()]})
+    return Command(goto="merge_graph", update={"ladder": lad.model_copy(update={"post_roles": rec}), "debug": thoughts, "episodes": {"post_roles": log}})
 
 
 def _latest(state: SpecialistState) -> dict[str, Relation]:
-    """Every column's relation as it stands: the pack's facts, then the model's answers with the settled claims overwritten."""
+    """Every column's relation as it stands: the pack's facts, then the rungs' answers with the settled claims overwritten."""
     h = state["handoff"]
     case = _case(state)
     _, _, others = _keys(state)
     latest: dict[str, Relation] = {k: r for k in others if (r := fact_relation(h, k, case)) is not None}
-    for r in state.get("relations") or []:
-        latest[r.column] = apply_settled(r, h, case)  # later answers replace earlier ones
+    lad = _ladder(state)
+    for x in lad.roles.items if lad.roles is not None else []:
+        latest[x.column] = apply_settled(x, h, case)
+    for pr in lad.post_roles.items if lad.post_roles is not None else []:
+        latest[pr.column] = apply_settled(pr.relation(), h, case)
     return latest
-
-
-def _relate_send(state: SpecialistState, k: str, errors: list[str] | None = None) -> Send:
-    h = state["handoff"]
-    t, y, _ = _keys(state)
-    return Send(
-        "relate",
-        RelateTask(
-            question=_question(state),
-            frame=L.frame_text(state),
-            treatment_card=_card(h, t),
-            outcome_card=_card(h, y),
-            column=k,
-            card=_card(h, k),
-            settled=_settled_text(h, k, _case(state)) + _drafted_text(h, k, _case(state)),
-            errors=_rejected(errors),
-        ),
-    )
-
-
-def fan_out_relate(state: SpecialistState):
-    if state.get("feasibility"):
-        return "feasibility"
-    h = state["handoff"]
-    _, _, others = _keys(state)
-    errs = state.get("relate_errors") or {}
-    case = _case(state)
-    targets = [k for k in others if k in errs] if errs else [k for k in others if fact_relation(h, k, case) is None]
-    if not targets:
-        return "merge_graph"
-    return [_relate_send(state, k, errs.get(k)) for k in targets]
 
 
 # ------------------------------------------------------------------ merge + verify (facts)
@@ -427,6 +714,20 @@ def merge_graph(state: SpecialistState) -> dict:
             edges.append(Edge(src=k, dst=t, cites=cites))
         if r.affects_outcome:
             edges.append(Edge(src=k, dst=y, cites=cites))
+
+    def drop(col: str, why: str) -> None:
+        nonlocal edges
+        nodes.remove(col)
+        edges = [e for e in edges if col not in (e.src, e.dst)]
+        excluded.append(Excluded(column=col, why=why))
+
+    lad = _ladder(state)
+    for x in lad.roles.items if lad.roles is not None else []:  # two columns that carry one thing: one is kept
+        k = x.column
+        if x.redundant_with and k in nodes and x.redundant_with in nodes and x.redundant_with != mediator:
+            drop(k, f"carries the same information as {x.redundant_with}, which is kept [ladder:roles.{k}]")
+        if x.nested_in and k in nodes and x.nested_in in nodes and x.nested_in != mediator:
+            drop(x.nested_in, f"{k} sits inside it and is kept; the coarser column adds nothing [ladder:roles.{k}]")
     for rv in revs:
         k = rv.column
         if rv.change == "exclude":
@@ -446,61 +747,25 @@ def merge_graph(state: SpecialistState) -> dict:
 
 
 def verify_graph(state: SpecialistState) -> Command:
-    h = state["handoff"]
+    """The graph as a whole: acyclic, every node a table column, a role for every column. The per-column checks were made in the
+    rungs' gates; a graph that fails here is an honest stop."""
     g: Graph = state["graph"]
-    t, y, others = _keys(state)
-    case = _case(state)
+    _, _, others = _keys(state)
     table_cols = set(pd.read_csv(state["table_path"], nrows=0).columns)
-    errs: dict[str, list[str]] = {}
-    general: list[str] = []
-    nx_g = g.to_networkx()
     import networkx as nx
 
-    if not nx.is_directed_acyclic_graph(nx_g):
+    general: list[str] = []
+    if not nx.is_directed_acyclic_graph(g.to_networkx()):
         general.append("graph has a cycle")
-    for n in g.nodes:
-        if n not in table_cols and n != adapter.HIDDEN:
-            general.append(f"node {n!r} is not a table column")
-    latest: dict[str, Relation] = {k: r for k in others if (r := fact_relation(h, k, case)) is not None}
-    latest.update({r.column: r for r in state.get("relations") or []})
-    for k in others:
-        r = latest.get(k)
-        if r is None:
-            errs.setdefault(k, []).append("no relation returned")
-            continue
-        claims = sum([r.affects_treatment, r.affects_outcome, r.affected_by_treatment, r.is_outcome_measure])
-        if claims and not r.reasons:
-            errs.setdefault(k, []).append("claims marked true but no reasons given")
-        for reason in r.reasons:
-            if not reason.cites:
-                errs.setdefault(k, []).append("a reason has no citation")
-            for c in reason.cites:
-                if not h.resolve(c):
-                    errs.setdefault(k, []).append(f"{c} is not a pack address")
-        if r.affects_treatment and r.affected_by_treatment:
-            errs.setdefault(k, []).append("cannot both feed the treatment and be changed by it")
-        settled, _ = settled_claims(h, k, case)
-        rules = [rule for rule in CONTRADICTION_RULES if rule[0] not in settled]
-        cited = [c for reason in r.reasons for c in reason.cites]
-        for e in V.contradictions({c: getattr(r, c) for c in CLAIMS}, k, case, rules, cited, h):
-            errs.setdefault(k, []).append(e)
-        drafted, _ = drafted_claims(h, k, case)
-        for e in V.departures({c: getattr(r, c) for c in CLAIMS}, drafted, r.departures, h):
-            errs.setdefault(k, []).append(e)
-    attempts = state.get("relate_attempts", 0) + 1
-    if errs or general:
-        if attempts >= MAX_RELATE_ATTEMPTS or (general and not errs):
-            return _stop(
-                "verify_graph",
-                "the graph could not be made to pass verification",
-                general + [f"{k}: {'; '.join(v)}" for k, v in errs.items()],
-                "clearer column notes about what fed the decision",
-                {"relate_attempts": attempts},
-            )
-        _writer()({"verify_graph": {"attempt": attempts, "errors": errs}})
-        return Command(goto=[_relate_send(state, k, v) for k, v in errs.items()], update={"relate_errors": errs, "relate_attempts": attempts})
+    general += [f"node {n!r} is not a table column" for n in g.nodes if n not in table_cols and n != adapter.HIDDEN]
+    latest = _latest(state)
+    missing = [k for k in others if k not in latest]
+    if missing:
+        general.append("no role for " + ", ".join(missing))
+    if general:
+        return _stop("verify_graph", "the graph could not be made to pass verification", general, "clearer column notes about what fed the decision")
     _writer()({"verify_graph": "ok"})
-    return Command(goto="identify", update={"relate_errors": {}, "relate_attempts": attempts})
+    return Command(goto="identify")
 
 
 # ------------------------------------------------------------------ identify + checks (facts)
@@ -888,6 +1153,10 @@ def after_analyse(state: SpecialistState) -> Command:
 # ------------------------------------------------------------------ interpret (judgement, fan-out per contrast)
 
 
+def _episodes(state: SpecialistState) -> dict[str, EpisodeLog]:
+    return {k: v for k, v in (state.get("episodes") or {}).items() if isinstance(v, EpisodeLog)}
+
+
 def _addresses(state: SpecialistState, contrast_key: str) -> list[str]:
     d: Design = state["design"]
     out = ["design.estimand.adjustment_set", "design.assumption"] + [b.address for b in state["handoff"].beliefs.values() if b.known() or b.status == "unknown"]
@@ -895,6 +1164,8 @@ def _addresses(state: SpecialistState, contrast_key: str) -> list[str]:
         out += sorted(state["handoff"].brief.addresses())
     out += [r.address for r in d.checks.results if r.contrast in (contrast_key, "all")]
     out += [x.address for x in state.get("declines") or []]
+    out += sorted(_ladder(state).addresses())
+    out += [f.address for log in _episodes(state).values() for f in log.facts]
     for e in state.get("estimates") or []:
         if e.contrast == contrast_key and e.error is None:
             tag = f"estimate:{contrast_key}" + (f".{e.method}" if e.secondary else "")
@@ -930,6 +1201,8 @@ def _material(state: SpecialistState, contrast_key: str) -> str:
         if r.contrast in (contrast_key, "all"):
             lines.append(f"[{r.address}] {r.level}: {r.detail}")
     lines += [x.render() for x in state.get("declines") or []]
+    lines += [f"[{a}] {text}" for a, text in _ladder(state).lines()]
+    lines += [f.render() for log in _episodes(state).values() for f in log.facts]
     for e in state.get("estimates") or []:
         if e.contrast == contrast_key and e.error is None:
             tag = f"estimate:{contrast_key}" + (f".{e.method}" if e.secondary else "")
@@ -1031,6 +1304,17 @@ def assemble(state: SpecialistState) -> dict:
     d: Design | None = state.get("design")
     f: Feasibility | None = state.get("feasibility")
     lines = [f"QUESTION     {_question(state)}", f"LANE         {h.family} → {h.specialist}", f"OUTCOME      {h.outcome}    TREATMENT   {h.treatment}", ""]
+    lad = _ladder(state)
+    if lad.lines():
+        lines += ["THE LADDER"] + [f"  [{a}] {text}" for a, text in lad.lines()] + [""]
+    episodes = _episodes(state)
+    if any(log.facts or log.refusals for log in episodes.values()):
+        lines.append("WHAT THE EPISODES LOOKED AT")
+        for name, log in episodes.items():
+            lines.append(f"  {name}: {log.calls} call{'s' if log.calls != 1 else ''}, {log.tries} tr{'ies' if log.tries != 1 else 'y'}")
+            lines += [f"    {f.render()}" for f in log.facts]
+            lines += [f"    refused {r.tool}({', '.join(f'{k}={v!r}' for k, v in r.args.items())}): {r.reason}" for r in log.refusals]
+        lines.append("")
     if d:
         lines += d.render().splitlines()
         lines.append("")
@@ -1070,6 +1354,13 @@ def assemble(state: SpecialistState) -> dict:
     report = "\n".join(lines)
     g = state.get("graph")
     records.write(state.get("run_dir"), records.artifacts(state, {"graph": g.model_dump() if g else None, "estimand": state.get("estimand")}), report)
-    result = records.result(state, report)
+    result = records.result(
+        state,
+        report,
+        {
+            "ladder": [[a, text] for a, text in lad.lines()],
+            "facts": [{"address": f.address, "text": f.render().split("] ", 1)[1], "value": f.value} for log in episodes.values() for f in log.facts],
+        },
+    )
     _writer()({"report": report})
     return {"report": report, "specialist_result": result}

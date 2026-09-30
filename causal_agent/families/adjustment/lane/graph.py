@@ -1,13 +1,13 @@
-"""The adjustment-lane subgraph on DoWhy. Nodes are constant; workers scale with columns and contrasts.
+"""The adjustment-lane subgraph on DoWhy. Nodes are constant; workers scale with contrasts.
 
-    load ─ case ─ contrast ─(relate × N)─ merge_graph ─ verify_graph ─ identify ─ check_design
+    load ─ case ─ pair ─ mechanism ─ time ─ roles ─ post_roles ─ merge_graph ─ verify_graph ─ identify ─ check_design
          ─(assess, only when flagged)─ pick_estimator ─ freeze_design ─(analyse × C)─ after_analyse
          ─(interpret × C)─ figures ─ assemble ─ END
     any typed stop, or an ask back ─────────────────────────────▶ feasibility ─ figures ─ assemble
 
-verify_graph reruns only the relate workers it rejected (3 tries). assess may send a revision delta back
-to merge_graph (3 times). after_analyse may re-pick the estimator once on a fit failure. Nothing loops after
-an estimate exists.
+pair, mechanism, roles and post_roles are the rungs of the ladder: code where the pack settles the rung, a bounded
+episode where it does not, each gated up to three tries inside the episode. assess may send a revision delta back to
+merge_graph (3 times). after_analyse may re-pick the estimator once on a fit failure. Nothing loops after an estimate exists.
 """
 
 from __future__ import annotations
@@ -24,8 +24,11 @@ def build() -> StateGraph:
     b = StateGraph(SpecialistState)
     b.add_node("load", N.load)
     b.add_node("case", N.case)
-    b.add_node("contrast", N.contrast, retry_policy=_retry)
-    b.add_node("relate", N.relate, retry_policy=_retry)
+    b.add_node("pair", N.pair, retry_policy=_retry)
+    b.add_node("mechanism", N.mechanism, retry_policy=_retry)
+    b.add_node("time", N.timing)
+    b.add_node("roles", N.roles, retry_policy=_retry)
+    b.add_node("post_roles", N.post_roles, retry_policy=_retry)
     b.add_node("merge_graph", N.merge_graph)
     b.add_node("verify_graph", N.verify_graph)
     b.add_node("identify", N.identify)
@@ -42,11 +45,12 @@ def build() -> StateGraph:
 
     b.add_edge(START, "load")
     # load returns Command(goto=case | feasibility)
-    b.add_edge("case", "contrast")
-    b.add_conditional_edges("contrast", N.fan_out_relate, ["relate", "merge_graph", "feasibility"])
-    b.add_edge("relate", "merge_graph")
+    b.add_edge("case", "pair")
+    # pair returns Command(goto=mechanism | feasibility); mechanism returns Command(goto=time | feasibility)
+    b.add_edge("time", "roles")
+    # roles returns Command(goto=post_roles | feasibility); post_roles returns Command(goto=merge_graph | feasibility)
     b.add_edge("merge_graph", "verify_graph")
-    # verify_graph returns Command(goto=identify | [Send relate...] | feasibility)
+    # verify_graph returns Command(goto=identify | feasibility)
     # identify returns Command(goto=check_design | feasibility)
     b.add_conditional_edges("check_design", N.after_checks, ["assess", "pick_estimator"])
     # assess returns Command(goto=pick_estimator | merge_graph | feasibility)

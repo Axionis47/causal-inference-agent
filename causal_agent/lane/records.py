@@ -10,7 +10,21 @@ from typing import Any
 from causal_agent.common.contracts import Decline
 from causal_agent.lane.asks import ask_dict, status_of
 
-COMMON = ("design", "checks", "check_facts", "declines", "case", "ask", "estimates", "refutations", "interpretations", "feasibility", "figures")
+COMMON = (
+    "design",
+    "checks",
+    "check_facts",
+    "declines",
+    "case",
+    "ask",
+    "estimates",
+    "refutations",
+    "interpretations",
+    "feasibility",
+    "figures",
+    "ladder",
+    "episodes",
+)
 
 
 def _dump(v: Any) -> Any:

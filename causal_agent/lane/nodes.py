@@ -16,6 +16,7 @@ from causal_agent.common.contracts import Cited, Feasibility, Handoff
 from causal_agent.common.llm import structured
 from causal_agent.lane import case as C
 from causal_agent.lane.state import LaneState
+from causal_agent.lane.tools import Tools
 
 MAX_RELATE_ATTEMPTS = 3
 MAX_REVISIONS = 3
@@ -51,11 +52,13 @@ def case_of(state: LaneState) -> C.Case:
 
 def frame_text(state: LaneState) -> str:
     """The case every judgement of a lane reads before its own material: the decision the desk made, the pack's context (the
-    dataset, the change, the beliefs, the family block, the design brief, the person's words), the probes, and the case as the
-    code weighed it. Method-free and column-free; a lane appends only what it found itself."""
+    story, the pair, the mechanism, time, the columns, the beliefs, the family block, the design brief, the person's words),
+    the probes, the case as the code weighed it, and the rungs of the lane's ladder climbed so far. Method-free and
+    column-free; a lane appends only what it found itself."""
     h = state["handoff"]
     assert h is not None
     s = h.scope
+    ladder = state.get("ladder")
     parts = [
         f"family: {h.family}; outcome: {h.outcome}; treatment: {h.treatment or 'none named'}; "
         f"filter={s.population_filter or 'none'}; window={s.window or 'none'}; contrast={s.contrast}; target={s.target}\n"
@@ -63,8 +66,19 @@ def frame_text(state: LaneState) -> str:
         h.render_context(),
         ("PROBES\n" + "\n".join(p.render() for p in h.probes)) if h.probes else "",
         case_of(state).render() if state.get("case") else "",
+        ladder.render() if ladder is not None and hasattr(ladder, "render") else "",
     ]
     return "\n\n".join(x for x in parts if x)
+
+
+def data_tools(state: LaneState, treated: pd.Series | None) -> Tools:
+    """The read-only data tools over this run's table, with the pair named so no tool joins them, the treated rows when the
+    arms are settled, and every column's timing as the pack settled it."""
+    h = state["handoff"]
+    assert h is not None
+    t, y, _ = keys(state)
+    timing = {k: (b.when if (b := h.column(k)) is not None else "unknown") for k in state.get("columns", {})}
+    return Tools(table(state), outcome=y, treatment=t, treated=treated, timing_of=timing)
 
 
 def cites(h: Handoff, *addresses: str) -> list[str]:

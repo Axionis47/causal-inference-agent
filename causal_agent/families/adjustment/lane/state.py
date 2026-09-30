@@ -12,10 +12,9 @@ from typing import Annotated
 from typing_extensions import TypedDict
 
 from causal_agent.common.contracts import Contrast, Estimate, Interpretation, Refutation
-from causal_agent.families.adjustment.lane.contracts import Design, DesignAssessment, Estimand, EstimatorPick, Graph, Relation, Revision
+from causal_agent.families.adjustment.lane.contracts import Design, DesignAssessment, Estimand, EstimatorPick, Graph, Ladder, Revision
 from causal_agent.lane.state import InterpretTask as InterpretTask
 from causal_agent.lane.state import LaneState, by_key, merge_dicts
-from causal_agent.lane.state import RelateTask as BaseRelateTask
 
 
 class SpecialistState(LaneState, total=False):
@@ -23,9 +22,7 @@ class SpecialistState(LaneState, total=False):
     target_units: str
     treatment_levels: list[str]
     contrasts: list[Contrast]
-    relations: Annotated[list[Relation], operator.add]
-    relate_errors: dict[str, list[str]]  # column key -> errors from verify_graph, reruns only these
-    relate_attempts: int
+    ladder: Ladder | None  # the rungs climbed so far: the pair, the mechanism, time, the roles, the post-treatment roles
     graph: Graph | None
     estimand: Estimand | None
     assessment: DesignAssessment | None
@@ -42,13 +39,6 @@ class SpecialistState(LaneState, total=False):
     interpretations: Annotated[list[Interpretation], operator.add]
     interpret_errors: Annotated[dict[str, list[str]], merge_dicts]
     interpret_attempts: int
-
-
-class RelateTask(BaseRelateTask):
-    """The adjustment lane shows the treatment's and the outcome's cards beside the column's."""
-
-    treatment_card: str
-    outcome_card: str
 
 
 class ContrastTask(TypedDict):

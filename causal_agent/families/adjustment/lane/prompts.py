@@ -1,4 +1,5 @@
-"""Prompts for the five judgements. Method-free and column-free: everything specific arrives as data."""
+"""Prompts for the lane's judgements: the pair, the mechanism, the roles, the post-treatment roles, the assessment, the pick and
+the interpretation. Method-free and column-free: everything specific arrives as data."""
 
 from causal_agent.lane.prompts import INTERPRET_CASE, PICK_CASE, PLAIN_WORDS, cite_rule
 from causal_agent.lane.prompts import INTERPRET_USER as INTERPRET_USER  # the lane's nodes read these here
@@ -28,28 +29,59 @@ OBSERVED LEVELS (exact values in the data)
 Write the contrasts. Use the exact level strings above.
 """
 
-RELATE_SYSTEM = (
-    "You are relating one column to a treatment and an outcome, for a causal analysis that adjusts for "
-    "measured drivers of the treatment. Answer four yes/no questions about the column, from what the cards state:\n"
-    "  affects_treatment: the notes say this column fed the decision that set the treatment.\n"
-    "  affects_outcome: this column could move the outcome on its own. A characteristic of the unit that was fixed "
-    "before the treatment (a background attribute, a prior condition, a group the unit belongs to) counts as yes "
-    "unless the note rules it out; cite the note that says it was fixed before.\n"
-    "When a block SETTLED BY THE PACK gives one of the four, the person has already said it: copy that answer and cite the "
-    "address shown; do not argue with it.\n"
-    "When a block THE LAST READING gives one, an earlier run read it so and nobody has confirmed it: keep that answer unless "
-    "the cards give a reason to depart, and then list the claim under departures, citing the card that does.\n"
-    "  affected_by_treatment: this column's value was recorded after the treatment began, so the treatment could "
-    "have changed it. A measurement taken at the same time as the outcome counts as yes.\n"
-    "  is_outcome_measure: this column measures the same quantity as the outcome, so it is a result, not a cause.\n"
-    "Give one reason per claim you mark true, each with a citation. The citation shows when the value was fixed "
-    "or what set it; the causal reading is yours to make from that. " + CITE_RULE
+TOOLS_NOTE = (
+    "You may look at the data first with the tools offered: describe a column, see it by arm, the association or the redundancy "
+    "of two columns, the overlap cells, the timing. A result comes back with an address you cite like any other. "
 )
 
-RELATE_USER = """QUESTION
+MECHANISM_SYSTEM = (
+    "You are reading how a treatment came to be assigned, for a causal analysis that adjusts for the measured drivers of the "
+    "treatment. The pack states the kind of assignment; you fill what it leaves open, from the story and the cards:\n"
+    "  drivers: the columns the decision or the offer looked at. Only columns listed under THE COLUMNS; none if the story names none.\n"
+    "  offer_column, uptake_column: when being offered the change and taking it are two different columns, name both; else null.\n"
+    "  self_selection: whether units could move their own assignment, by choosing after an offer or by acting on the rule.\n"
+    "Read the story first; the cards and the data facts second. " + TOOLS_NOTE + CITE_RULE
+)
+
+MECHANISM_USER = """QUESTION
 {question}
 
-HOW THE ROUTER READ IT
+THE CASE
+{frame}
+
+TREATMENT CARD
+{treatment_card}
+
+THE COLUMNS
+{columns}
+{errors}
+Fill the mechanism. The kind is {kind!r}, as the pack states it.
+"""
+
+ROLES_SYSTEM = (
+    "You are placing every column fixed before the treatment, all of them together, for a causal analysis that adjusts for "
+    "measured drivers of the treatment. For each column listed give:\n"
+    "  affects_treatment: the story or the mechanism says this column fed the decision that set the treatment.\n"
+    "  affects_outcome: this column could move the outcome on its own. A characteristic of the unit that was fixed before the "
+    "treatment (a background attribute, a prior condition, a group the unit belongs to) counts as yes unless the note rules it "
+    "out; cite the note that says it was fixed before.\n"
+    "  affected_by_treatment: yes only if the treatment could have changed its value; for a column fixed before, no.\n"
+    "  is_outcome_measure: this column measures the same quantity as the outcome.\n"
+    "  stands_for: what outside the file this column stands in for, when the story says so; else null.\n"
+    "  redundant_with: another listed column that carries the same information; nested_in: a listed column this one is a finer "
+    "version of. Say so only on a redundancy fact or a pack line that states it, and cite it under links.\n"
+    "  modifier_candidate: the effect could plausibly differ across this column's values, per the story or the person's word.\n"
+    "Read the columns against each other: two that measure one thing, or nest in each other, only show when read together. "
+    "When a block SETTLED BY THE PACK gives a claim, the person has already said it: copy that answer and cite the address shown. "
+    "When a block THE LAST READING gives one, an earlier run read it so and nobody has confirmed it: keep that answer unless the "
+    "cards give a reason to depart, and then list the claim under departures, citing what does. "
+    "Give one reason per claim you mark true, each with a citation. Return every listed column once. " + TOOLS_NOTE + CITE_RULE
+)
+
+ROLES_USER = """QUESTION
+{question}
+
+THE CASE
 {frame}
 
 TREATMENT CARD
@@ -58,11 +90,45 @@ TREATMENT CARD
 OUTCOME CARD
 {outcome_card}
 
-THE COLUMN TO RELATE
-{card}
-{settled}{errors}
-Answer the four questions for column {column!r}.
+THE COLUMNS TO PLACE ({count})
+{columns}
+{errors}
+Place every column listed, together.
 """
+
+POST_ROLES_SYSTEM = (
+    "You are placing every column set at or after the treatment, all of them together, for a causal analysis that adjusts for "
+    "measured drivers of the treatment. None of these is adjusted for; the question is what each one is:\n"
+    "  mediator: the treatment changed it and it moves the outcome; the person's named mediator is copied as such.\n"
+    "  outcome_measure: another measurement of the same quantity as the outcome.\n"
+    "  consequence_of_treatment: the treatment changed it and it does not move the outcome.\n"
+    "  consequence_of_outcome: the outcome moved it.\n"
+    "  background: recorded late but fixed before the treatment in fact (a background attribute), so a cause of the outcome.\n"
+    "  unrelated: none of these.\n"
+    "Never reason from the outcome by arm; that tool is refused. "
+    "When a block SETTLED BY THE PACK gives a claim, copy it and cite the address shown; when THE LAST READING gives one, keep it "
+    "unless the cards give a reason to depart, and then list the claim under departures. "
+    "Cite for every column. Return every listed column once. " + TOOLS_NOTE + CITE_RULE
+)
+
+POST_ROLES_USER = """QUESTION
+{question}
+
+THE CASE
+{frame}
+
+TREATMENT CARD
+{treatment_card}
+
+OUTCOME CARD
+{outcome_card}
+
+THE COLUMNS TO PLACE ({count})
+{columns}
+{errors}
+Place every column listed, together.
+"""
+
 
 ASSESS_SYSTEM = (
     "You are checking whether a causal design can proceed. You see the design's graph, the adjustment set the "
