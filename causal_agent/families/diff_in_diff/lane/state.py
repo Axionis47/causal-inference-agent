@@ -49,6 +49,7 @@ class SpecialistState(LaneState, total=False):
     estimates: Annotated[list[Estimate], by_key(lambda e: (e.contrast, e.method, e.modifier, e.level))]
     refutations: Annotated[list[Refutation], by_key(lambda r: (r.contrast, r.refuter))]
     dynamic: dict  # rel_time -> (value, lo, hi) when the dynamic model ran
+    trends_raw: dict  # the trends rung's leads fit as computed, every period's coefficient, for the check and the figure
     placebo_draws: Annotated[dict, merge_dicts]  # placebo name -> every placebo effect, so the spread can be drawn
     interpretations: Annotated[list[Interpretation], operator.add]
     interpret_errors: Annotated[dict[str, list[str]], merge_dicts]

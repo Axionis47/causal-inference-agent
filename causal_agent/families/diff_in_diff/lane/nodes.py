@@ -521,7 +521,7 @@ def shape_table(state: SpecialistState) -> Command:
             )
     _writer()({"shape": facts.model_dump(exclude={"time_values"}), "declines": [d.render() for d in declines]})
     return Command(
-        goto="comparison",
+        goto="trends",
         update={
             "panel_path": str(panel_path),
             "shape": facts,
@@ -530,6 +530,16 @@ def shape_table(state: SpecialistState) -> Command:
             "ladder": _ladder(state).model_copy(update={"shape": facts}),
         },
     )
+
+
+# rung 3's evidence: the paths before the change (by code, before the comparison is judged)
+
+
+def trends(state: SpecialistState) -> Command:
+    panel = pd.read_csv(state["panel_path"])
+    facts, raw = CK.trend_facts(panel, state["shape"], load_checks())
+    _writer()({"trends": [f"[{a}] {text}" for a, text in facts.lines()]})
+    return Command(goto="comparison", update={"trends_raw": raw, "ladder": _ladder(state).model_copy(update={"trends": facts})})
 
 
 # rung 3: the comparison (a judgement from the story and the facts)
@@ -847,7 +857,15 @@ def check_design(state: SpecialistState) -> dict:
     robust = any(e.engine != "feols" for e in _applicable(facts_in)) if s.cohorts > 1 else True
     heterogeneity = adapter.cohort_heterogeneity(panel) if s.cohorts > 1 and s.never_treated_exists else None
     results, facts = CK.run_checks(
-        panel, s, state["controls"].included, state["contrast"].key, load_checks(), robust_available=robust, heterogeneity=heterogeneity
+        panel,
+        s,
+        state["controls"].included,
+        state["contrast"].key,
+        load_checks(),
+        robust_available=robust,
+        heterogeneity=heterogeneity,
+        trends=_ladder(state).trends,
+        trends_raw=state.get("trends_raw"),
     )
     W.say(results, load_checks(), state.get("columns") or {})  # the sentence before the number, for the reader
     results += C.as_checks(_case(state))

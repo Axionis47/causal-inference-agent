@@ -91,6 +91,85 @@ class ShapeFacts(BaseModel):
         ]
 
 
+class PathPoint(BaseModel):
+    time: str
+    treated_mean: float | None = None
+    control_mean: float | None = None
+    n_treated: int = 0
+    n_control: int = 0
+
+
+class Composition(BaseModel):
+    """Who is in the panel when: units per group in each period, and how many entered after the first period or left before the last."""
+
+    per_period: list[tuple[str, int, int]] = Field(default_factory=list, description="(period, treated units, comparison units)")
+    entries: int = 0
+    exits: int = 0
+    balanced: bool = True
+
+
+class TrendFacts(BaseModel):
+    """Rung 4's evidence, by code before the comparison is judged: the mean outcome by group in every period before the earliest
+    change, how the gap between the groups drifted, the joint test that the pre-period coefficients are zero with each lead, and
+    the composition of the panel over time. The post-period coefficients never become lines: the effect is the run's to find."""
+
+    pre_paths: list[PathPoint] = Field(default_factory=list)
+    pre_slope_gap: float | None = Field(default=None, description="the drift of the treated-minus-comparison gap per period, before the change")
+    leads: dict[int, tuple[float, float, float]] = Field(default_factory=dict, description="pre-period coefficient -> (estimate, low, high)")
+    leads_stat: float | None = None
+    leads_p: float | None = None
+    leads_k: int = 0
+    leads_level: Literal["pass", "soft", "hard", "untested"] = "untested"
+    leads_how: str = ""
+    composition: Composition = Field(default_factory=Composition)
+
+    @property
+    def reading(self) -> Literal["parallel", "diverging", "untested"]:
+        return "untested" if self.leads_level == "untested" else "parallel" if self.leads_level == "pass" else "diverging"
+
+    def lines(self) -> list[tuple[str, str]]:
+        out: list[tuple[str, str]] = []
+        if self.pre_paths:
+            paths = "; ".join(
+                f"{pt.time}: treated {pt.treated_mean:.4g} (n {pt.n_treated}), comparison {pt.control_mean:.4g} (n {pt.n_control})"
+                if pt.treated_mean is not None and pt.control_mean is not None
+                else f"{pt.time}: one group absent"
+                for pt in self.pre_paths
+            )
+            out.append(("ladder:trends.paths", f"mean outcome by group in each period before the change: {paths}"))
+        if self.pre_slope_gap is not None:
+            out.append(("ladder:trends.gap_slope", f"the treated-minus-comparison gap moved {self.pre_slope_gap:+.4g} per period before the change"))
+        if self.leads_level == "untested":
+            out.append(("ladder:trends.leads", f"untested: {self.leads_how or 'one period before the change'}"))
+        else:
+            verdict = {
+                "pass": "no sign of differing pre-trends",
+                "soft": "the groups may already have been moving apart",
+                "hard": "the groups were already moving apart",
+            }[self.leads_level]
+            out.append(
+                (
+                    "ladder:trends.leads",
+                    f"joint test that the {self.leads_k} pre-period coefficients are zero: p = {self.leads_p:.3g} ({self.leads_level}); {verdict}{self.leads_how}",
+                )
+            )
+            for k in sorted(self.leads, reverse=True)[:8]:
+                est, lo, hi = self.leads[k]
+                out.append((f"ladder:trends.lead.{k}", f"{est:+.4g} [{lo:.4g}, {hi:.4g}]"))
+        c = self.composition
+        if c.per_period:
+            treated = ", ".join(str(t) for _, t, _ in c.per_period[:12]) + ("…" if len(c.per_period) > 12 else "")
+            control = ", ".join(str(n) for _, _, n in c.per_period[:12]) + ("…" if len(c.per_period) > 12 else "")
+            out.append(
+                (
+                    "ladder:trends.composition",
+                    f"units present per period: treated {treated}; comparison {control}; {c.entries} entered after the first period, {c.exits} left before the last"
+                    + ("" if c.balanced else "; the panel is not balanced"),
+                )
+            )
+        return out
+
+
 RiskName = Literal["anticipation", "spillover", "composition", "other_shock", "group_choice"]
 
 
@@ -165,14 +244,16 @@ class Cluster(BaseModel):
 
 
 class Ladder(LadderBase):
-    """The rungs climbed so far: who got the change, the clock, the shape, the comparison, the controls, where the effect could
-    differ, the threats, the clustering. A rung reads the rungs below it; every line has an address."""
+    """The rungs climbed so far: who got the change, the clock, the shape, the paths before the change, the comparison, the
+    controls, where the effect could differ, the threats, the clustering. A rung reads the rungs below it; every line has an
+    address."""
 
-    ORDER: ClassVar[tuple[str, ...]] = ("groups", "periods", "shape", "comparison", "controls", "heterogeneity", "threats", "cluster")
+    ORDER: ClassVar[tuple[str, ...]] = ("groups", "periods", "shape", "trends", "comparison", "controls", "heterogeneity", "threats", "cluster")
 
     groups: Groups | None = None
     periods: Periods | None = None
     shape: ShapeFacts | None = None
+    trends: TrendFacts | None = None
     comparison: Comparison | None = None
     controls: ControlRoles | None = None
     heterogeneity: Heterogeneity | None = None

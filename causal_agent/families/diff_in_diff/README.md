@@ -52,8 +52,11 @@ pyfixest has four independent axes and the lane maps one artifact onto each.
   fit (the library's own test in this version tests whether the effects are zero at all). Each cohort's effect is reported as the
   effect within a level of `cohort`.
 
-The pre-trends check is a joint Wald test on the lead coefficients of the dynamic fit. Placebos refit the bare formula on a perturbed
-panel: the treated label reassigned across units, or a fake change in the middle of the pre-window.
+The trends rung (`checks.trend_facts`) runs before the comparison is judged: the pre-period paths by group, the drift of the gap,
+the joint Wald test on the lead coefficients of the dynamic fit with each lead, and the composition of the panel over time, each an
+addressed line the comparison rung reads. The pre-trends check reads the rung when the design has no controls and fits again with
+them when it does; the post-period coefficients never reach the ladder. Placebos refit the bare formula on a perturbed panel: the
+treated label reassigned across units, or a fake change in the middle of the pre-window.
 
 ## The rule every node follows
 

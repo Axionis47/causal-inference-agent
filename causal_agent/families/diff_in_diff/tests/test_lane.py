@@ -242,6 +242,11 @@ def test_cigar_long_stops_on_pre_trends():
     assert set(c.included) == {"pimin", "ndi", "pop"}
     levels = {x.name: x.level for x in out["checks"]}
     assert levels["pre_trends"] == "hard" and levels["single_treated_unit"] == "soft"
+    pre = next(x for x in out["checks"] if x.name == "pre_trends")
+    assert (
+        "with the design's controls; without them the trends rung read p =" in pre.detail
+    )  # the design has controls: fitted again with them, the rung's number kept
+    assert out["ladder"].trends.leads_level == "hard" and "[ladder:trends.leads]" in fake.humans_of("Comparison")[0]
     assert fake.calls.count("ControlRoles") == 1 and sorted(fake.asked("ControlRoles")) == ["cpi", "ndi", "pimin", "pop", "price"]
     assert "[ladder:controls.price] changed by the treatment" in out["specialist_result"]["report"]
 
@@ -621,7 +626,7 @@ def test_a_risk_the_comparison_rung_names_is_a_flag_the_assessment_answers_and_t
     assert "[ladder:comparison.risk.anticipation] the tax was announced" in r["report"] and not out.get("interpret_errors")
 
 
-def _toy_panel(tmp_path, *, n_units=40, treated=16, periods=10, change=6):
+def _toy_panel(tmp_path, *, n_units=40, treated=16, periods=10, change=6, leaver=None):
     """Forty units over ten periods; sixteen get the change from period 6; the effect is larger in the north."""
     import numpy as np
 
@@ -635,6 +640,8 @@ def _toy_panel(tmp_path, *, n_units=40, treated=16, periods=10, change=6):
         region = "north" if u % 2 == 0 else "south"
         ue = rng.normal(0, 1)
         for t in range(1, periods + 1):
+            if leaver is not None and u == leaver and t > periods - 2:
+                continue  # one unit leaves the panel before the last two periods
             treat = int(arm == "yes" and t >= change)
             y = 10 + ue + 0.3 * t + treat * (2.0 + (3.0 if region == "north" else 0.0)) + rng.normal(0, 0.5)
             rows.append({"unit": f"u{u}", "time": t, "arm": arm, "region": region, "y": y})
@@ -887,3 +894,44 @@ def fake_p_line(out) -> str:
     from causal_agent.families.diff_in_diff.lane import nodes as N
 
     return next(line for line in N._material(out).splitlines() if line.startswith(f"[estimate:{out['design'].contrast.key}.p]"))
+
+
+# ------------------------------------------------------------------ the trends rung: the paths before the change, as evidence
+
+
+def test_the_trends_rung_lines_are_read_by_the_comparison_and_the_lags_never_are(tmp_path):
+    from causal_agent.families.diff_in_diff.lane import nodes as N
+
+    calls: list[int] = []
+    real = N.adapter.leads_model
+    fake = FakeLLM(_script_toy(), "col:arm.note")
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(N.adapter, "leads_model", lambda *a, **k: (calls.append(1), real(*a, **k))[1])
+        out = _run(fake, _toy_panel(tmp_path), question="Did the programme raise y?")
+    r = out["specialist_result"]
+    assert r["status"] == "done", r.get("feasibility")
+    tr = out["ladder"].trends
+    assert tr.leads_level == "pass" and tr.leads_k == 4 and set(tr.leads) == {-5, -4, -3, -2} and abs(tr.pre_slope_gap) < 0.2
+    assert [pt.time for pt in tr.pre_paths] == ["1", "2", "3", "4", "5"] and tr.composition.balanced and tr.composition.entries == 0 == tr.composition.exits
+    human = fake.humans_of("Comparison")[0]
+    assert "[ladder:trends.paths] mean outcome by group in each period before the change: 1: treated" in human
+    assert "[ladder:trends.leads] joint test that the 4 pre-period coefficients are zero" in human and "(pass)" in human
+    assert "[ladder:trends.lead.-2]" in human and "[ladder:trends.lead.-5]" in human and "lead.0" not in human and "lead.1" not in human
+    assert "[ladder:trends.composition] units present per period: treated 16, 16" in human
+    assert human.index("[ladder:trends.leads]") < human.index("THE GROUPS")
+    assert len(calls) == 1  # the leads were fitted once, by the rung; the check read it
+    pre = next(c for c in out["checks"] if c.name == "pre_trends")
+    assert pre.level == "pass" and "[ladder:trends.leads]" in pre.detail
+    assert out["dynamic"] and "1" in out["dynamic"] and "-2" in out["dynamic"]  # after the freeze the figure has the lags too
+    assert next(c for c in out["checks"] if c.name == "composition").level == "pass"
+
+
+def test_composition_flags_units_that_enter_or_leave(tmp_path):
+    fake = FakeLLM(_script_toy(), "col:arm.note")
+    out = _run(fake, _toy_panel(tmp_path, leaver=1), question="Did the programme raise y?")
+    assert out["specialist_result"]["status"] == "done", out["specialist_result"].get("feasibility")
+    tr = out["ladder"].trends
+    assert tr.composition.exits == 1 and tr.composition.entries == 0 and not tr.composition.balanced
+    assert "0 entered after the first period, 1 left before the last; the panel is not balanced" in fake.humans_of("Comparison")[0]
+    comp = next(c for c in out["checks"] if c.name == "composition")
+    assert comp.level == "soft" and comp.value == 1.0 and comp.address in out["interpretations"][0].cites

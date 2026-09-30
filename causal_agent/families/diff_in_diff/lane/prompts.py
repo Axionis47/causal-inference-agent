@@ -77,8 +77,10 @@ COMPARISON_SYSTEM = (
     "  composition: who is in each group changed over the window.\n"
     "  other_shock: something else hit one group and not the other at the same time.\n"
     "  group_choice: the treated group was chosen for where its outcome was heading.\n"
-    "Name a risk only when the story or a fact gives a reason, and cite it. Never reason from the outcome by group; that tool is "
-    "refused, and the test of the paths before the change is run by code afterwards. " + TOOLS_NOTE + CITE_RULE
+    "Name a risk only when the story or a fact gives a reason, and cite it. The paths before the change have been computed for you "
+    "and sit under THE LADDER SO FAR as ladder:trends.*: the mean outcome by group in each period before the change, the drift of "
+    "the gap, the joint test that the pre-period coefficients are zero with each lead, and who is in the panel when. Read them "
+    "before the story. The outcome after the change is the run's to find and is refused to you. " + TOOLS_NOTE + CITE_RULE
 )
 
 COMPARISON_USER = """QUESTION

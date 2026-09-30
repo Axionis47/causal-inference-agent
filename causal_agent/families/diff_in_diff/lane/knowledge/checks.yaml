@@ -11,6 +11,15 @@ clusters:
 never_treated:
   soft_when_none: true     # every unit eventually got the change: the comparison is units not yet treated, and the last cohort has none after its own change
 
+composition:
+  entries_or_exits: {soft: 1}   # any unit entering after the first period or leaving before the last is a soft flag; the trends rung shows where
+
+trends:
+  # the trends rung, by code before the comparison is judged: the pre-period paths by group (at most this many periods, the
+  # nearest the change), the drift of the gap, the joint leads test and each lead, the composition over time
+  max_paths_periods: 12
+  max_leads_shown: 8
+
 periods:
   parallel_untestable_when_pre: 1         # one pre period: the parallel-trends assumption cannot be checked (soft)
 
@@ -47,6 +56,7 @@ in_words:
   staggered: "whether units got the change at different times"
   few_clusters: "whether there are enough separate groups of units for the usual clustered standard errors to be trusted"
   never_treated: "whether any unit never got the change, or every unit is compared only with units that had not got it yet"
+  composition: "whether the same units are present before and after the change"
   cohort_heterogeneity: "whether the units that got the change at different times moved alike after it"
 
 # How many tool calls each reasoning episode may make before it must answer. The leash, declared.

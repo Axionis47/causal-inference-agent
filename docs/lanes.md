@@ -114,20 +114,26 @@ not, with the budgets its `checks.yaml` declares; every claim cites the pack, a 
    else a judgement, with the pack's failed answer shown as the first rejection.
 2. **periods** (rung 1). The clock: a time column and the first period at or after the change, or a before and an after column.
    A time column the file has but a first period nobody can settle is the one question this lane asks back.
-3. **shape_table** (rung 2; code). The canonical panel and its facts: units per group, periods before and after, cohorts.
-4. **comparison** (rung 3; an episode). Whether the comparison group is a fair stand-in for the treated group without the change,
-   argued from the story and the facts, and every risk the story raises: anticipation, spillover, composition, another shock,
-   the group chosen for where its outcome was heading. Each risk is cited and becomes a flag. The outcome by group is refused; the
-   test of the paths before the change is code, later.
-5. **controls** (rung 4; one episode over every candidate the pack leaves open). Changed by the treatment, usable as a control, or a
+3. **shape_table** (rung 2; code). The canonical panel and its facts: units per group, periods before and after, each unit's first
+   treated period and so the cohorts, whether any unit is never treated.
+4. **trends** (evidence; code). Before the comparison is judged: the mean outcome by group in every period before the earliest
+   change, the drift of the gap between the groups, the joint test that the pre-period coefficients are zero with each lead
+   (fitted with the two-stage estimator under staggered adoption, or local projections when no unit is never treated), and who
+   is in the panel when. Each is a line of the ladder (`ladder:trends.*`); the post-period coefficients never become lines. The
+   pre-trends check reads the rung when the design has no controls and fits again with them when it does, keeping the rung's number.
+5. **comparison** (rung 3; an episode). Whether the comparison group is a fair stand-in for the treated group without the change,
+   argued from the story and the evidence, and every risk the story raises: anticipation, spillover, composition, another shock,
+   the group chosen for where its outcome was heading. Each risk is cited and becomes a flag. The outcome after the change is
+   refused.
+6. **controls** (rung 4; one episode over every candidate the pack leaves open). Changed by the treatment, usable as a control, or a
    unit trait the effect could differ by; what the pack settled is copied. `merge_controls` and `verify` then build the control set
    by code: a column fixed within a unit or within a period is absorbed by the fixed effects whatever the model said.
-6. **heterogeneity** (rung 5). The candidates are the unit traits, read off the panel, that the controls rung or the person marked;
+7. **heterogeneity** (rung 5). The candidates are the unit traits, read off the panel, that the controls rung or the person marked;
    a judgement names at most three; the primary estimator runs again within each level of each, without that column among the
    controls. The target is the effect on the treated, which is what this design identifies.
-7. **threats** (rung 6; code). The risks every design carries from the pack, and the risks the comparison rung named. Each is a flag
+8. **threats** (rung 6; code). The risks every design carries from the pack, and the risks the comparison rung named. Each is a flag
    the assessment answers and the interpretation cites; an `unsure` on a claim the interview could have settled is a decline.
-8. Then as before: `check_design` (the pre-trends test among the checks), `assess`, `pick_estimator`, `freeze_design` (which adds the
+9. Then as before: `check_design` (the pre-trends flag read off the rung, the composition, among the checks), `assess`, `pick_estimator`, `freeze_design` (which adds the
    clustering rung, `ladder:cluster.*`, by code: the level, how many clusters, the inference entry and whether the p-value is
    resampled), `estimate` (the primary carries the p-value its inference calls for: the fit's own, a wild cluster bootstrap, or
    randomisation inference on the unit-level before-after differences), the placebos, `interpret`, `figures`, `assemble`.
