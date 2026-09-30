@@ -54,6 +54,11 @@ def set_llm(llm: Any) -> None:
     _override = llm
 
 
+def current() -> Any:
+    """The model in use: the test's fake when one is set, else Gemini."""
+    return _override or get_llm()
+
+
 def extract_thoughts(raw: Any) -> tuple[str, int | None, int | None]:
     """Pull thought text and token counts out of an AIMessage, tolerating several shapes."""
     text_parts: list[str] = []
@@ -77,8 +82,7 @@ def extract_thoughts(raw: Any) -> tuple[str, int | None, int | None]:
 
 
 def structured(schema: type[T], system: str, user: str, *, node: str) -> tuple[T, Thought]:
-    llm = _override or get_llm()
-    runnable = llm.with_structured_output(schema, include_raw=True)
+    runnable = current().with_structured_output(schema, include_raw=True)
     out = runnable.invoke([("system", system), ("human", user)])
     if isinstance(out, dict) and "parsed" in out:
         parsed, raw = out["parsed"], out.get("raw")

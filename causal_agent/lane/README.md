@@ -7,7 +7,13 @@ yaml in its own package, and copies nothing that is here.
   cannot be applied is a `Decline`.
 - `case.py`: the pack weighed by code: facts, drafts, open, contested; the person's beliefs, unknowns and contradictions as flags by
   the lane's `beliefs.yaml`; `decide_by_code` for the stops and asks the yaml settles before any judgement.
-- `verify.py`: a model's answer about a column against the pack's facts; every cite must resolve.
+- `verify.py`: a model's answer about a column against the pack's facts; every cite must resolve; a departure from the last
+  reading names the claim and cites what changed it.
+- `episode.py`: a judgement as a bounded episode: the model may look at the data through the tools, every fact it asked for gets
+  an address (`probe:<node>.<n>`), the budget and the answer's shape are fixed by the caller, and the gate re-prompts with the
+  log kept.
+- `tools.py`: the read-only data tools an episode may be offered (describe, by arm, association, redundancy, cells, timing); no
+  tool joins the outcome with the treatment before the design is frozen, by code.
 - `asks.py`: one question back to the desk, the same shape in every lane.
 - `figures.py`: the figures a lane leaves, each checked against the addresses this run can cite.
 - `records.py`: `artifacts.json` with the common keys, the result the desk reads, the report's tail.
