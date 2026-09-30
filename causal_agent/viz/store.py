@@ -33,6 +33,7 @@ class Artifact(BaseModel):
     facts: dict[str, float] = Field(description="every number the picture shows, by name")
     made_at: str = Field(description="ISO time")
     files: list[str] = Field(description="the file names in its folder")
+    sandbox: str = Field(default="subprocess", description="the fence the script ran in: seatbelt, bwrap, unshare, subprocess or docker")
 
     @property
     def address(self) -> str:

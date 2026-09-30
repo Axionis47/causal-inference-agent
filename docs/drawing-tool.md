@@ -66,15 +66,22 @@ A failed try's stderr, cut to its last 1500 characters, goes into the next promp
 
 ## 4. The sandbox
 
-`VIZ_SANDBOX` picks it ([common/config.py:42](../causal_agent/common/config.py)); any other value is refused, never downgraded.
+`VIZ_SANDBOX` picks it ([common/config.py:42](../causal_agent/common/config.py)). `auto`, the default, becomes the strongest fence
+the machine has, by code ([viz/sandbox.py](../causal_agent/viz/sandbox.py), `resolve`); a kind named and not at hand is refused,
+never downgraded. The artifact records the kind that ran it.
 
-- **subprocess** (the default): the same interpreter with `-I`, the artifact folder as the working directory, and an environment
-  scrubbed to `PATH`, `HOME`, `VIZ_CSV`, `MPLBACKEND=Agg` and `MPLCONFIGDIR`. Isolation by environment only: nothing here blocks
-  network or file reads. The prompt's rule is a rule, not a fence.
+- **seatbelt** (macOS, `sandbox-exec`): the network denied; writes denied outside the artifact folder and the temp folders; reads
+  under the home folder denied except the artifact folder, the CSV, the interpreter and its base. The folders between the home
+  folder and those paths may be named, never listed. The rules are written per run, the last matching rule wins.
+- **bwrap** (Linux): a new network namespace with nothing in it, the file system bound read-only but the artifact folder.
+- **unshare** (Linux, `unshare -rn`): a new network namespace with nothing in it.
+- **subprocess**: the same interpreter with `-I`, the artifact folder as the working directory, and an environment scrubbed to
+  `PATH`, `HOME`, `VIZ_CSV`, `MPLBACKEND=Agg` and `MPLCONFIGDIR`. Isolation by environment only; the fallback when no fence is at hand.
 - **docker**: `docker run --rm --network none --memory 1g --cpus 1 --user uid:gid`, the CSV mounted read-only at `/data/table.csv`,
   the folder at `/work`, the image from `make viz-image` ([docker/viz.Dockerfile](../docker/viz.Dockerfile)). No runtime, no picture.
 
-Both have a 60 second timeout and sweep everything but `code.py`, `figure.png` and `facts.json`.
+Every kind has a 60 second timeout and sweeps everything but `code.py`, `figure.png` and `facts.json`. The tests run a script
+that opens a socket, lists the home folder and writes into it under each fence the machine has, and expect all three refused.
 
 ## 5. Where a picture lives and how it is cited
 

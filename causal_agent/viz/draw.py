@@ -104,6 +104,7 @@ def draw(req: DrawRequest) -> tuple[Artifact | None, Decline | None, list[Though
     return None, Decline(stage="draw", kind="declined", about="artifact", check="draw.failed", reason=why), thoughts
 
 
+            sandbox=ran.kind,
 def _check(out: Path, names: list[str]) -> tuple[dict[str, float] | None, str]:
     """The picture is there, facts.json is an object of numbers, and every promised name is in it. Else why not."""
     png = out / "figure.png"
