@@ -14,6 +14,9 @@ yaml in its own package, and copies nothing that is here.
   log kept.
 - `tools.py`: the read-only data tools an episode may be offered (describe, by arm, association, redundancy, cells, timing); no
   tool joins the outcome with the treatment before the design is frozen, by code.
+- `ladder.py`: the shape every lane's ladder shares (one record per rung, each line addressed `ladder:<rung>.<field>`), the
+  records every design shares (what a rung would not guess, a threat, heterogeneity), the threats every design carries from the
+  pack, and the flags and declines the ladder yields.
 - `asks.py`: one question back to the desk, the same shape in every lane.
 - `figures.py`: the figures a lane leaves, each checked against the addresses this run can cite.
 - `records.py`: `artifacts.json` with the common keys, the result the desk reads, the report's tail.

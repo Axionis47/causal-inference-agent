@@ -1,4 +1,5 @@
-"""Adjustment-lane contracts. What each DoWhy specialist node writes, and the ladder the design is climbed on.
+"""Adjustment-lane contracts. What each DoWhy specialist node writes, and the rungs of the ladder the design is climbed on;
+the records every ladder shares (the threats, heterogeneity, what a rung would not guess) come from the harness.
 
 Lane-invariant artifacts (Contrast, Checks, Estimate, Refutation, Interpretation, Feasibility)
 live in causal_agent.common.contracts. These are the ones only this lane needs.
@@ -7,13 +8,13 @@ live in causal_agent.common.contracts. These are the ones only this lane needs.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any, Literal
+from typing import ClassVar, Literal
 
 import networkx as nx
 from pydantic import BaseModel, Field
 
-from causal_agent.common.addresses import norm_address
 from causal_agent.common.contracts import Checks, Cited, Contrast, Departure
+from causal_agent.lane.ladder import Heterogeneity, LadderBase, Threats, Unsure
 
 
 class Contrasts(BaseModel):
@@ -35,13 +36,6 @@ class Relation(BaseModel):
 
 
 # ------------------------------------------------------------------ the ladder: one record per rung, each line addressed
-
-
-class Unsure(BaseModel):
-    """One thing a rung would not guess: what it is about (an address when there is one) and why. A flag, never a question."""
-
-    about: str = Field(description="the address of the claim or item you could not settle, such as col:lunch.may_modify, or a short name")
-    reason: str
 
 
 class Pair(BaseModel):
@@ -200,48 +194,11 @@ class Road(BaseModel):
         ]
 
 
-class Modifier(Cited):
-    column: str
+class Ladder(LadderBase):
+    """The rungs climbed so far: the pair, the mechanism, time, the roles, the post-treatment roles, the road, where the effect
+    could differ, the threats. A rung reads the rungs below it; every line has an address."""
 
-
-class Heterogeneity(BaseModel):
-    """Rung 7: where the effect could differ, and for whom it is wanted."""
-
-    modifiers: list[Modifier] = Field(default_factory=list, description="at most the number allowed, each a listed candidate, each cited")
-    why: str = ""
-    cites: list[str] = Field(default_factory=list)
-    unsure: list[Unsure] = Field(default_factory=list)
-    target_units: str = Field(default="ate", description="filled by code from the mechanism and the question's scope")
-    by: Literal["code", "judgement"] = "code"
-
-    def lines(self) -> list[tuple[str, str]]:
-        return [
-            ("ladder:heterogeneity.modifiers", ", ".join(m.column for m in self.modifiers) or "none"),
-            ("ladder:heterogeneity.target", self.target_units),
-        ] + ([("ladder:heterogeneity.why", self.why)] if self.why else [])
-
-
-class Threat(BaseModel):
-    """One risk of this design, named by code from the pack and the rungs below, with the addresses it rests on."""
-
-    name: str
-    level: Literal["soft", "hard"]
-    text: str
-    cites: list[str] = Field(default_factory=list)
-
-
-class Threats(BaseModel):
-    """Rung 8: the risks of this design, each a flag the assessment must answer and the interpretation must cite."""
-
-    items: list[Threat] = Field(default_factory=list)
-
-    def lines(self) -> list[tuple[str, str]]:
-        return [(f"ladder:threats.{t.name}", f"{t.level}: {t.text}") for t in self.items] or [("ladder:threats.none", "no threat named by the pack")]
-
-
-class Ladder(BaseModel):
-    """The rungs climbed so far. A rung reads the rungs below it; every line has an address the record, the report and the
-    chat after can cite."""
+    ORDER: ClassVar[tuple[str, ...]] = ("pair", "mechanism", "timing", "roles", "post_roles", "road", "heterogeneity", "threats")
 
     pair: Pair | None = None
     mechanism: Mechanism | None = None
@@ -251,30 +208,6 @@ class Ladder(BaseModel):
     road: Road | None = None
     heterogeneity: Heterogeneity | None = None
     threats: Threats | None = None
-
-    def rungs(self) -> list[tuple[str, Any]]:
-        names = ("pair", "mechanism", "timing", "roles", "post_roles", "road", "heterogeneity", "threats")
-        return [(n, r) for n in names if (r := getattr(self, n)) is not None]
-
-    def lines(self) -> list[tuple[str, str]]:
-        out: list[tuple[str, str]] = []
-        for _, rung in self.rungs():
-            out += rung.lines()
-        return out
-
-    def unsure_all(self) -> list[tuple[str, Unsure]]:
-        """Every item a rung would not guess, with the rung's name."""
-        return [(name, u) for name, rung in self.rungs() for u in getattr(rung, "unsure", [])]
-
-    def addresses(self) -> set[str]:
-        return {a for a, _ in self.lines()}
-
-    def resolve(self, address: str) -> bool:
-        a = norm_address(address)
-        return any(norm_address(x) == a for x in self.addresses())
-
-    def render(self) -> str:
-        return ("THE LADDER SO FAR\n" + "\n".join(f"[{a}] {t}" for a, t in self.lines())) if self.lines() else ""
 
 
 class Edge(BaseModel):

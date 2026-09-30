@@ -19,7 +19,6 @@ import pandas as pd
 from langgraph.types import Command, Send
 
 from causal_agent.common.addresses import key as _key
-from causal_agent.common.addresses import norm_address
 from causal_agent.common.contracts import (
     CheckResult,
     Checks,
@@ -33,7 +32,6 @@ from causal_agent.common.contracts import (
     LaneAsk,
     Refutation,
 )
-from causal_agent.common.contracts.base import _slug
 from causal_agent.common.llm import structured
 from causal_agent.families.adjustment.design import AdjustmentDesign
 from causal_agent.families.adjustment.lane import adapter
@@ -48,7 +46,6 @@ from causal_agent.families.adjustment.lane.contracts import (
     EstimatorPick,
     Excluded,
     Graph,
-    Heterogeneity,
     Ladder,
     Mechanism,
     Pair,
@@ -58,8 +55,6 @@ from causal_agent.families.adjustment.lane.contracts import (
     Road,
     Role,
     Roles,
-    Threat,
-    Threats,
     Timing,
 )
 from causal_agent.families.adjustment.lane.knowledge import (
@@ -76,16 +71,16 @@ from causal_agent.families.adjustment.lane.state import ContrastTask, InterpretT
 from causal_agent.lane import asks, intake, records
 from causal_agent.lane import case as C
 from causal_agent.lane import figures as LF
+from causal_agent.lane import ladder as LAD
 from causal_agent.lane import nodes as L
 from causal_agent.lane import verify as V
 from causal_agent.lane import words as W
 from causal_agent.lane.episode import EpisodeLog, run_episode
+from causal_agent.lane.ladder import Heterogeneity, Threat, Threats
 from causal_agent.lane.nodes import MAX_MODEL_RETRIES, MAX_PICK_ATTEMPTS, MAX_REVISIONS
-from causal_agent.memory.catalogue import load_catalogue
 from causal_agent.viz.postviz import common as PV
 
 MAX_DOSE_LEVELS = 12
-_CATALOGUE = load_catalogue()  # to tell a claim the interview could have settled from a rung's own item
 CLAIMS = ("affects_treatment", "affects_outcome", "affected_by_treatment", "is_outcome_measure")
 # a model claim that contradicts a pack fact on a claim the pack did not itself settle
 CONTRADICTION_RULES: list[V.Rule] = [("affects_treatment", True, "when", ("after",))]
@@ -1014,57 +1009,16 @@ def heterogeneity(state: SpecialistState) -> Command[Literal["threats", "feasibi
 
 # ------------------------------------------------------------------ rung 8: the threats (code, from the pack and the rungs below)
 
-_SAMPLING_WORDS = {
-    "by_arm": "by whether the unit got the change",
-    "by_group": "by group, region or type",
-    "by_period": "by period",
-    "unknown": "in a way the person could not say",
-}
-
 
 def threats(state: SpecialistState) -> dict:
-    """The risks of this design that no check measures: selection into the file, the outcome's timing, an offer that differs from
-    the taking, choice with the hidden factors unsettled, gaps whose reason is not settled. Each is a flag the assessment must
-    answer and the interpretation must cite."""
+    """The risks of this design that no check measures: the ones every design carries (selection into the file, the outcome's
+    timing, gaps whose reason is not settled), then this design's own: an offer that differs from the taking, choice with the hidden
+    factors unsettled. Each is a flag the assessment must answer and the interpretation must cite."""
     h = state["handoff"]
     lad = _ladder(state)
     case = _case(state)
     _, y, _ = _keys(state)
-    items: list[Threat] = []
-    how = (h.sampling or {}).get("how")
-    if how == "by_outcome":
-        items.append(
-            Threat(
-                name="selection",
-                level="hard",
-                text="rows were drawn by how the outcome turned out; a comparison among the selected does not reach the population the question asks about",
-                cites=["claim:sampling.how"],
-            )
-        )
-    elif how in _SAMPLING_WORDS:
-        items.append(
-            Threat(
-                name="selection",
-                level="soft",
-                text=f"rows were drawn {_SAMPLING_WORDS[how]}; who is in the file may differ by arm, and the estimate speaks for the file, not the population",
-                cites=["claim:sampling.how"],
-            )
-        )
-    yb = h.column(y)
-    yw = case.fact(f"col:{y}.when") or (yb.when if yb is not None else "unknown")
-    if yw == "before":
-        items.append(
-            Threat(name="outcome_timing", level="hard", text="the outcome was measured before the change; it cannot carry its effect", cites=[f"col:{y}.when"])
-        )
-    elif yw == "unknown":
-        items.append(
-            Threat(
-                name="outcome_timing",
-                level="soft",
-                text="when the outcome was measured is not settled; an outcome measured before the change cannot carry its effect",
-                cites=[f"col:{y}.when"],
-            )
-        )
+    items = LAD.pack_threats(h, case, y, state.get("columns") or {})
     m = lad.mechanism
     if m is not None and m.offer_column and m.uptake_column:
         items.append(
@@ -1084,54 +1038,9 @@ def threats(state: SpecialistState) -> dict:
                 cites=["ladder:mechanism.self_selection"],
             )
         )
-    gaps = [b for b in h.columns if b.key in (state.get("columns") or {}) and b.facts.nulls > 0]
-    if gaps and not (h.missing or {}).get("why"):
-        items.append(
-            Threat(
-                name="missingness",
-                level="soft",
-                text=f"values are missing in {', '.join(b.name for b in gaps)} and the reason is not settled; a gap that differs by arm biases the comparison",
-                cites=[b.address for b in gaps],
-            )
-        )
     th = Threats(items=items)
     _writer()({"threats": [f"[{a}] {text}" for a, text in th.lines()]})
     return {"ladder": lad.model_copy(update={"threats": th})}
-
-
-def _catalogue_address(address: str) -> bool:
-    """Whether an address names a claim the interview could have settled: a field of a kind in the catalogue."""
-    a = norm_address(address)
-    if a.startswith("claim:"):
-        kind, _, field = a[6:].partition(".")
-        spec = _CATALOGUE.kinds.get(kind)
-        return spec is not None and field in spec.fields
-    if a.startswith("col:"):
-        _, _, field = a[4:].partition(".")
-        return field in _CATALOGUE.kinds["measured"].fields
-    return False
-
-
-def _ladder_checks(state: SpecialistState) -> tuple[list[CheckResult], list[Decline]]:
-    """The threats as checks, and every item a rung would not guess as a soft flag; an unsure on a claim the interview could have
-    settled is also a decline, `needs.unsettled`, which says the family's decisions miss a claim the reasoning needed."""
-    lad = _ladder(state)
-    out = [CheckResult(contrast="all", name=f"threat.{t.name}", level=t.level, detail=t.text) for t in (lad.threats.items if lad.threats else [])]
-    declines: list[Decline] = []
-    have = {(d.about, d.check) for d in state.get("declines") or []}
-    for rung, u in lad.unsure_all():
-        out.append(CheckResult(contrast="all", name=f"unsure.{_slug(u.about)}", level="soft", detail=f"the {rung} rung would not settle {u.about}: {u.reason}"))
-        if _catalogue_address(u.about) and (u.about, "needs.unsettled") not in have:
-            declines.append(
-                Decline(
-                    stage=rung,
-                    kind="declined",
-                    about=u.about,
-                    reason=f"{u.reason}; the interview could have settled this before the run, so a decision in family.yaml should rest on it",
-                    check="needs.unsettled",
-                )
-            )
-    return out, declines
 
 
 def check_design(state: SpecialistState) -> dict:
@@ -1166,7 +1075,7 @@ def check_design(state: SpecialistState) -> dict:
             )
     W.say(results, cfg, state.get("columns") or {})  # the sentence before the number, for the reader
     results += C.as_checks(_case(state))
-    more, declines = _ladder_checks(state)
+    more, declines = LAD.checks_and_declines(_ladder(state), _ladder(state).threats, state.get("declines") or [])
     results += more
     _writer()({"checks": [f"{r.level} {r.address} {r.detail}" for r in results]})
     return {"checks": results, "check_facts": facts, "declines": declines}
@@ -1632,7 +1541,7 @@ def figures(state: SpecialistState) -> dict:
     specs.append(PV.effect_and_refutations([e for e in ests if e.get("modifier") is None], [r.model_dump() for r in state.get("refutations") or []], "refute"))
     d = state.get("design")
     for c in d.contrasts if d is not None else []:
-        specs.append(PA.effect_by_modifier(ests, c.key, names))
+        specs.append(PV.effect_by_modifier(ests, c.key, names))
     kept, declines = LF.write(state.get("run_dir"), specs, LF.ok_addresses(h, state, "refute"))
     _writer()({"figures": [s.id for s in kept]})
     return {"figures": [s.model_dump() for s in kept], "declines": declines}

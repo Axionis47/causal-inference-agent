@@ -17,18 +17,16 @@ from causal_agent.families.adjustment.lane.contracts import (
     Contrasts,
     DesignAssessment,
     EstimatorPick,
-    Heterogeneity,
     Mechanism,
-    Modifier,
     PostRole,
     PostRoles,
     Revision,
     Road,
     Role,
     Roles,
-    Unsure,
 )
 from causal_agent.families.adjustment.lane.graph import compile_local
+from causal_agent.lane.ladder import Heterogeneity, Modifier, Unsure
 from causal_agent.memory import store
 
 CITE = "col:test_preparation_course.note"
