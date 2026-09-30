@@ -32,7 +32,8 @@ brief and the person's words, the probes, and the case as code weighed it.
 [families/adjustment/lane/](../causal_agent/families/adjustment/lane/): `graph.py` wires it, `nodes.py` holds the stages,
 `prompts.py` the judgements, `adapter.py` is the only file that imports DoWhy. The design is climbed as a ladder, in the order an
 analyst reads the problem: the pair, the mechanism, time, the columns fixed before the change all together, the columns set at or
-after it all together, then the graph. Each rung is code where the pack settles it and a bounded episode where it does not
+after it all together, the graph, the road, where the effect could differ, and the threats. Each rung is code where the pack
+settles it and a bounded episode where it does not
 ([lane/episode.py](../causal_agent/lane/episode.py)): the model may look at the data through six read-only tools
 ([lane/tools.py](../causal_agent/lane/tools.py)), every fact it asks for comes back as an addressed line (`probe:<rung>.<n>`), and the
 answer is one typed record that code gates, three tries inside the episode. No tool joins the outcome with the treatment before the
@@ -63,22 +64,38 @@ above it, by the interpretation, by the report and by the chat after.
    does not feed the treatment is excluded, a named mediator replaces the direct edge, a declared hidden factor becomes a node feeding
    both; of two columns that carry one thing the graph keeps one, the finer of a nested pair, and says why. Then the graph as a whole:
    acyclic, every node a column, a role for every column; a graph that fails is an honest stop.
-9. **identify** (code). DoWhy finds every road: back door, instrument, front door. If nothing identifies while a hidden factor
-   stands, the lane asks the desk the one question that could open a road and stops. Once the person has said there is neither, the
-   back door is taken with the hidden factor as a sensitivity range and a caveat. A brief that names a road must find it.
-10. **check_design** (code). Per contrast: the smallest arm, common support, the score model's AUC, the standardised mean difference
-   per adjustment column; thresholds from `checks.yaml` mark each soft or hard. The person's flags join as checks.
-11. **assess** (yaml first, then a judgement, only when something flagged). Proceed, revise, or stop; a hard flag never permits proceed;
+9. **road** (rung 6; code, an episode only when more than one road is open). DoWhy finds every road: back door, instrument, front
+   door. If nothing identifies while a hidden factor stands, the lane asks the desk the one question that could open a road and
+   stops; that is the only question a lane asks, because it depends on the lane's own graph. Once the person has said there is
+   neither, the back door is taken with the hidden factor as a sensitivity range and a caveat. A brief that names a road must find
+   it. With one road open, code takes it; with more, a judgement argues which from the hidden factors, the mechanism and the roles,
+   and the estimator pick then offers only that road's estimators.
+10. **heterogeneity** (rung 7; an episode over the candidates, the target by code). The candidates are the pre-treatment columns
+    the roles rung, or the person, marked as ones the effect could differ by. The judgement names at most three, each cited, for a
+    reason in the story; the outcome by arm is refused to it. The target follows from the mechanism and the question: what the
+    question asked when it asked; else the effect on the treated when units chose after an offer; else the average.
+11. **threats** (rung 8; code). The risks of this design that no check measures, each from a pack line or a rung below: selection
+    into the file, the outcome's timing, an offer that differs from the taking, choice with the hidden factors unsettled, gaps whose
+    reason is not settled. Each is a flag the assessment must answer and the interpretation must cite. Beside them, every item a
+    rung would not guess (`unsure`) is a soft flag; when it names a claim the interview could have settled, it is also a decline,
+    `needs.unsettled`, which says a decision in `family.yaml` should rest on it so the next interview asks first.
+12. **check_design** (code). Per contrast: the smallest arm, common support, the score model's AUC, the standardised mean difference
+    per adjustment column; thresholds from `checks.yaml` mark each soft or hard. The person's flags, the threats and the unsure
+    items join as checks.
+13. **assess** (yaml first, then a judgement, only when something flagged). Proceed, revise, or stop; a hard flag never permits proceed;
    a revision must touch a flagged column and loops to merge, three times at most.
-12. **pick_estimator** (judgement). Code filters `estimators.yaml` by road, treatment type, outcome kind and adjustment set; the model
+14. **pick_estimator** (judgement). Code filters `estimators.yaml` by road, treatment type, outcome kind and adjustment set; the model
    picks one of the survivors by name, citing check addresses.
-13. **freeze_design** (code). `design.json`: contrasts, graph, estimand, checks, estimator and its secondary, every refuter whose
+15. **freeze_design** (code). `design.json`: contrasts, graph, estimand, checks, estimator and its secondary, every refuter whose
     conditions match. Nothing loops after an estimate exists.
-14. **analyse** (code, per contrast). DoWhy fits the primary, runs every matching refuter, fits the secondary. A failed fit excludes
-    that estimator and picks once more.
-15. **interpret** (judgement, per contrast). The answer from addressed material, the ladder's lines and the episodes' facts among
-    it; every number must resolve within one percent.
-13. **figures, assemble** (code). The graph, the balance, the effect against its refutations; the report and `result.json`.
+16. **analyse** (code, per contrast). DoWhy fits the primary, runs every matching refuter, fits the secondary, then the primary
+    again within each level of each modifier, on the graph without that column; too few rows in an arm is recorded, never skipped
+    in silence. A failed primary fit excludes that estimator and picks once more.
+17. **interpret** (judgement, per contrast). The answer from addressed material, the ladder's lines, the episodes' facts and the
+    effect within each modifier's levels among it; every flag and every within-level estimate must be cited; every number must
+    resolve within one percent.
+18. **figures, assemble** (code). The graph, the balance, the effect against its refutations, the effect within each modifier's
+    levels; the report with the ladder and what each episode looked at, and `result.json`.
 
 Three yaml catalogues hold the knowledge, and none of it is a rule the model can bend:
 [checks.yaml](../causal_agent/families/adjustment/lane/knowledge/checks.yaml) declares thresholds;

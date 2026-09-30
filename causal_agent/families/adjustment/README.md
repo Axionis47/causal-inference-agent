@@ -4,21 +4,24 @@ Effect of a change on an outcome when the things that drove the change are measu
 the lane turns it into a frozen design, runs it on DoWhy, and writes a report or an honest stop.
 
 ```
-load ─ case ─ pair ─ mechanism ─ time ─ roles ─ post_roles ─ merge_graph ─ verify_graph ─ identify ─ check_design
-     ─(assess, only when flagged)─ pick_estimator ─ freeze_design ─(analyse × C)─ after_analyse
+load ─ case ─ pair ─ mechanism ─ time ─ roles ─ post_roles ─ merge_graph ─ verify_graph ─ road ─ heterogeneity ─ threats
+     ─ check_design ─(assess, only when flagged)─ pick_estimator ─ freeze_design ─(analyse × C)─ after_analyse
      ─(interpret × C)─ figures ─ assemble
 any typed stop, or a question back to the desk ─────────────────▶ feasibility ─ figures ─ assemble
 ```
 
-C is the contrasts; it does not appear in the graph. `pair`, `mechanism`, `time`, `roles` and `post_roles` are the rungs of the
-ladder (`lane/contracts.py`, `Ladder`): the pair, how the treatment was set, every column's place in time, the pre-treatment
-columns placed together, the post-treatment columns placed together. A rung is code where the pack settles it and a bounded
-episode where it does not, with the data tools and the budgets `knowledge/checks.yaml` declares. The stages are walked in
+C is the contrasts; it does not appear in the graph. `pair`, `mechanism`, `time`, `roles`, `post_roles`, `road`, `heterogeneity`
+and `threats` are the rungs of the ladder (`lane/contracts.py`, `Ladder`): the pair, how the treatment was set, every column's
+place in time, the pre-treatment columns placed together, the post-treatment columns placed together, the road taken among those
+open, where the effect could differ and for whom it is wanted, and the risks of the design. A rung is code where the pack settles
+it and a bounded episode where it does not, with the data tools and the budgets `knowledge/checks.yaml` declares. A rung never
+asks the person: what it would not guess is a flag, and a flag on a claim the interview could have settled is a decline that
+names the line `family.yaml` should gain. The stages are walked in
 [docs/lanes.md](../../../docs/lanes.md); the judgements and their gates are in [docs/gates.md](../../../docs/gates.md).
 
 ## The roads
 
-`identify` reads every road DoWhy finds on the graph: the back door, the front door, an instrument. The graph carries what the pack
+`road` reads every road DoWhy finds on the graph: the back door, the front door, an instrument. The graph carries what the pack
 settled as facts: a column the offer looked at and fixed before the change is a parent of both; the instrument the person named
 points at the treatment alone; the mediator the person named carries the whole effect, so the direct edge goes; and when the person
 says something outside the file drove both, a hidden node says so, which closes the back door. The estimator pick then chooses among
@@ -29,11 +32,11 @@ reading says the effect holds only if that factor is no stronger than the simula
 
 ## The rule every node follows
 
-- **Facts** are computed by code from declared inputs: `load`, `case`, `time`, `merge_graph`, `verify_graph`, `identify`,
+- **Facts** are computed by code from declared inputs: `load`, `case`, `time`, `merge_graph`, `verify_graph`, `threats`,
   `check_design`, `freeze_design`, `analyse`, `figures`, `assemble`. A missing input or a failed assumption is a typed `Feasibility`
   stop, never a guess.
-- **Judgements** are bounded episodes or single calls, cite addresses, and pass a gate: `pair`, `mechanism`, `roles`, `post_roles`
-  (episodes, each only for what the pack leaves open), `assess`, `pick_estimator`, `interpret`. A rung cites the pack, a fact it
+- **Judgements** are bounded episodes or single calls, cite addresses, and pass a gate: `pair`, `mechanism`, `roles`, `post_roles`,
+  `road`, `heterogeneity` (episodes, each only for what the pack leaves open), `assess`, `pick_estimator`, `interpret`. A rung cites the pack, a fact it
   asked the data for, or a rung below it; no tool joins the outcome with the treatment before the design is frozen.
 - **The pack is weighed first.** `case` turns the pack into facts, drafts, open and contested fields, and the person's beliefs into
   flags by `knowledge/beliefs.yaml`; `decide_by_code` may stop or ask before any judgement. A column the pack settles never reaches

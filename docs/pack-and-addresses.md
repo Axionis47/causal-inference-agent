@@ -59,6 +59,7 @@ population filter was not in a form the code can apply, so every row was kept an
 | `design.<...>`, `design.brief.<...>` | the frozen design and the brief | `design.estimand.adjustment_set` |
 | `check:<contrast>.<name>` | a design check with its number | `check:completed_vs_none.balance.lunch` |
 | `estimate:<contrast>.value`, `.ci`, `.n` | an estimate | `estimate:completed_vs_none.ci` |
+| `estimate:<contrast>.by.<modifier>.<level>.value`, `.ci`, `.n` | the effect within one level of a modifier | `estimate:completed_vs_none.by.gender.female.value` |
 | `refute:<contrast>.<name>.<field>` or `placebo:` | a falsification | `refute:completed_vs_none.placebo_treatment_refuter.p_value` |
 | `decline:<stage>.<about>` | where the lane disagreed with the pack | `decline:load.scope_population_filter` |
 | `figure:<id>`, `figure:<id>.<series>.<i>` | a run figure and one of its marks | `figure:balance_completed_vs_none` |
