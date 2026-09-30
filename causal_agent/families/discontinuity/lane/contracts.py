@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 from causal_agent.common.contracts import Checks, Cited, Contrast, Departure, Interpretation
 from causal_agent.lane.ladder import Heterogeneity, LadderBase, Threats, Unsure
 
-Estimand = Literal["effect_at_cutoff", "complier_effect_at_cutoff", "itt_at_cutoff"]
+Estimand = Literal["effect_at_cutoff", "complier_effect_at_cutoff", "itt_at_cutoff", "effect_in_window"]
 
 
 class Score(BaseModel):
@@ -441,7 +441,7 @@ class RDInterpretation(Interpretation):
     """The interpretation, with the fields the gate compares against the Design and the primary estimate."""
 
     estimand: Estimand = Field(
-        description="which quantity the estimate is: effect_at_cutoff (sharp), complier_effect_at_cutoff (fuzzy), or itt_at_cutoff (effect of crossing the cutoff, whatever was taken up)"
+        description="which quantity the estimate is: effect_at_cutoff (sharp), complier_effect_at_cutoff (fuzzy), itt_at_cutoff (effect of crossing the cutoff, whatever was taken up), or effect_in_window (local randomisation: the units in a small window either side of the line)"
     )
     bandwidth_left_stated: float = Field(description="the estimation bandwidth on the control side, copied from the estimate")
     bandwidth_right_stated: float = Field(

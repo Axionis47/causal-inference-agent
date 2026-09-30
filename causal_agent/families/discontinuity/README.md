@@ -30,6 +30,12 @@ it does not, with the data tools and the budgets `knowledge/checks.yaml` declare
   rows a side and the citation a departure needs. When the score has fewer distinct values than `checks.yaml` declares there is
   nothing to judge: `h` keeps three support points a side and the design says so. The primary fits in the chosen window on both
   sides; a refit on other rows re-selects with the same selector, or keeps the pinned window when the rule has no selector.
+- **Local randomisation.** For a score with few distinct values (below `checks.yaml support.distinct_min`) the catalogue offers
+  `local_randomisation` on rdlocrand: the window rung takes the largest window in which the predetermined covariates stay
+  balanced (or the support-points window when there are none), the estimate is the difference in means inside it (the
+  Anderson-Rubin statistic and the Wald ratio when take-up is partial), the p-value comes from reshuffling the sides and the
+  interval from inverting that test over a grid. Its own sensitivities run instead of the polynomial falsifications: the estimate
+  across narrower and wider windows, and Rosenbaum bounds on the p-value.
 - **Inference.** `knowledge/inference.yaml`: the point estimate from the conventional row, the interval from the robust
   bias-corrected row, clustered by the entity column when one exists. No model call.
 - **Evidence before the judgement.** The density rung (`checks.density_evidence`) runs rddensity once with the settings
@@ -97,6 +103,5 @@ uv run pytest causal_agent/families/discontinuity -q
 
 ## Known limits
 
-- Local randomisation for scores with very few support points is declared, not built.
 - One cutoff. Multiple cutoffs and kink designs are not handled.
 - Rows with a missing outcome, score or take-up value are dropped at `shape_table` and counted.

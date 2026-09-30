@@ -607,8 +607,11 @@ def test_discrete_score_flags_support_and_density(tmp_path, monkeypatch):
         {"x": "The score, an integer from 1 to 12, fixed before the grant.", "y": "The outcome, measured after."},
     )
     sc = Score(column="x", cutoff=7.0, treated_side="above", cutoff_value_treated=True, takeup_column=None, takeup_level=None, reason="r", cites=["col:x.note"])
-    fake = FakeLLM(sc, {}, "col:x.note")
+    fake = FakeLLM(
+        sc, {}, "col:x.note", pick_script=["local_linear"]
+    )  # the local polynomial under the support-points rule; local randomisation has its own test
     out = _run(fake, handoff("disc", "y", None, ["x", "y"], "col:x.note"))
+    assert "NAMES YOU MAY PICK: local_randomisation, local_linear" in fake.humans_of("EstimatorPick")[0]
     levels = {c.name: c.level for c in out["checks"]}
     details = {c.name: c.detail for c in out["checks"]}
     assert levels["support"] == "soft" and levels["mass_points"] == "soft"
@@ -698,12 +701,21 @@ def test_catalogues_and_thresholds():
     toy = fuzzy_above(n=1500, seed=9).rename(columns={"received": "t"})
     toy["side"] = (toy["x"] >= 0).astype(int)
     for e in load_estimators():
-        if e.name == "local_randomisation":
+        if e.engine != "local_polynomial":
             continue
         f = adapter.fit(e.params, toy, fuzzy=bool(e.fuzzy is True), covs=None)
         assert f.error is None, (e.name, f.error)
     assert [i.name for i in load_inference()] == ["cluster_entity", "robust_bc"]
-    assert {p.name for p in load_placebos()} == {"placebo_cutoffs", "bandwidth_grid", "donut"}
+    assert {p.name for p in load_placebos()} == {"placebo_cutoffs", "bandwidth_grid", "donut", "window_sensitivity", "rosenbaum_bounds"}
+    assert {p.name for p in load_placebos() if p.applies(engine="local_polynomial", kind="sharp", rule="mse", distinct_scores=100)} == {
+        "placebo_cutoffs",
+        "bandwidth_grid",
+        "donut",
+    }
+    assert {p.name for p in load_placebos() if p.applies(engine="local_randomisation", kind="sharp", rule="local_randomisation", distinct_scores=12)} == {
+        "window_sensitivity",
+        "rosenbaum_bounds",
+    }
     cfg = load_checks()
     assert cfg["sides"]["min_rows"]["hard"] < cfg["sides"]["min_rows"]["soft"]
     text = Path(__file__).resolve().parents[1].joinpath("lane", "knowledge", "checks.yaml").read_text().lower()
@@ -1257,3 +1269,77 @@ def test_when_the_width_judgement_never_settles_the_default_stands_with_a_flag(t
     w = out["ladder"].window
     assert w.by == "code" and w.selector == "mserd" and w.unsure and w.unsure[0].about == "window"
     assert any(c.name == "unsure.window" for c in out["design"].checks.results)
+
+
+# ------------------------------------------------------------------ local randomisation on a discrete score, end to end
+
+
+def discrete_with_covariate(n=3000, seed=5) -> pd.DataFrame:
+    rng = np.random.default_rng(seed)
+    x = rng.integers(1, 13, n)
+    age = 30 + 0.3 * x + rng.normal(0, 4, n)
+    y = 0.2 * x + 1.0 * (x >= 7) + rng.normal(0, 0.5, n)
+    return pd.DataFrame({"x": x, "y": y, "age": age})
+
+
+def test_local_randomisation_runs_end_to_end_on_a_discrete_score(tmp_path, monkeypatch):
+    from causal_agent.families.discontinuity.lane.knowledge import estimator as estimator_entry
+    from causal_agent.families.discontinuity.lane.knowledge import placebo as placebo_entry
+
+    monkeypatch.setitem(estimator_entry("local_randomisation").params, "reps", 150)  # the budgets, kept small in the test
+    monkeypatch.setitem(placebo_entry("rosenbaum_bounds").params, "reps", 40)
+    make_pack(
+        tmp_path,
+        monkeypatch,
+        "disc",
+        discrete_with_covariate(),
+        "Units with a score at or above 7 got the grant.",
+        {"x": "The score, an integer from 1 to 12, fixed before the grant.", "y": "The outcome, measured after.", "age": "Age, fixed before the grant."},
+    )
+    sc = Score(column="x", cutoff=7.0, treated_side="above", cutoff_value_treated=True, takeup_column=None, takeup_level=None, reason="r", cites=["col:x.note"])
+    fake = FakeLLM(sc, {"age": dict(predetermined=True)}, "col:x.note")
+    out = _run(fake, handoff("disc", "y", None, ["x", "y", "age"], "col:x.note"))
+    r = out["specialist_result"]
+    assert r["status"] == "done", r.get("feasibility")
+    d = out["design"]
+    assert d.estimator == "local_randomisation" and d.estimand == "effect_in_window" and d.bandwidths.rule == "local_randomisation"
+    w = out["ladder"].window
+    assert w.by == "code" and w.selector.startswith("window ") and "stay balanced" in w.why and "ladder:balance.age" in w.cites
+    assert "WindowPick" not in fake.calls  # the balance window is the library's recommendation, not a judgement
+    primary = next(e for e in out["estimates"] if e.method == "local_randomisation")
+    assert primary.error is None and primary.p_value_source == "randomisation" and primary.p_value is not None and primary.p_value < 0.05
+    assert primary.ci_low <= primary.value <= primary.ci_high and primary.value > 0.5  # the jump plus at most a few steps of slope
+    assert out["primary"]["vce"] == "randomisation" and "randomisation p =" in fake.humans_of("RDInterpretation")[0]
+    assert {x.refuter for x in out["refutations"]} == {"window_sensitivity", "rosenbaum_bounds"}
+    sens = next(x for x in out["refutations"] if x.refuter == "window_sensitivity")
+    assert sens.kind == "sensitivity" and sens.passed is None and sens.range_low is not None and sens.range_low <= primary.value <= sens.range_high + 1e-9
+    bounds = next(x for x in out["refutations"] if x.refuter == "rosenbaum_bounds")
+    assert bounds.kind == "sensitivity" and "gamma 0.1: p between" in bounds.detail
+    itp = out["interpretations"][0]
+    assert itp.estimand == "effect_in_window" and not out.get("interpret_errors")
+    figs = {f["id"]: f for f in __import__("json").loads(open(f"{r['run_dir']}/figures.json").read())}
+    c = d.contrast.key
+    assert f"windows_{c}" in figs and figs[f"windows_{c}"]["title"] == "The estimate across windows" and f"bandwidths_{c}" not in figs
+
+
+def test_local_randomisation_without_a_covariate_falls_back_to_the_support_points_window(tmp_path, monkeypatch):
+    from causal_agent.families.discontinuity.lane.knowledge import estimator as estimator_entry
+    from causal_agent.families.discontinuity.lane.knowledge import placebo as placebo_entry
+
+    monkeypatch.setitem(estimator_entry("local_randomisation").params, "reps", 150)
+    monkeypatch.setitem(placebo_entry("rosenbaum_bounds").params, "reps", 40)
+    make_pack(
+        tmp_path,
+        monkeypatch,
+        "disc",
+        discrete(n=900),
+        "Units with a score at or above 7 got the grant.",
+        {"x": "The score, an integer from 1 to 12, fixed before the grant.", "y": "The outcome, measured after."},
+    )
+    sc = Score(column="x", cutoff=7.0, treated_side="above", cutoff_value_treated=True, takeup_column=None, takeup_level=None, reason="r", cites=["col:x.note"])
+    fake = FakeLLM(sc, {}, "col:x.note")
+    out = _run(fake, handoff("disc", "y", None, ["x", "y"], "col:x.note"))
+    assert out["specialist_result"]["status"] == "done", out["specialist_result"].get("feasibility")
+    w = out["ladder"].window
+    assert w.selector == "support_points" and w.rule == "local_randomisation" and "no predetermined covariate" in w.why and w.h_left == 3.5 == w.h_right
+    assert out["design"].estimator == "local_randomisation" and next(e for e in out["estimates"] if e.method == "local_randomisation").error is None

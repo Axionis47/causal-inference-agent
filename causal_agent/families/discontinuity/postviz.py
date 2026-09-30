@@ -145,17 +145,19 @@ def covariate_continuity(per: dict[str, dict] | None, contrast: str, names: dict
     )
 
 
-def bandwidth_curve(points: list[dict] | None, primary_h: float | None, contrast: str) -> FigureSpec | None:
-    """The estimate at every bandwidth the falsification tried, with the one the design used marked."""
+def bandwidth_curve(points: list[dict] | None, primary_h: float | None, contrast: str, *, name: str = "bandwidth_grid") -> FigureSpec | None:
+    """The estimate at every width the falsification tried, with the one the design used marked; `name` is the placebo the
+    points came from (the bandwidth grid, or the window sensitivity of a local randomisation design)."""
     pts = sorted((p for p in points or [] if "value" in p and p.get("at") is not None), key=lambda p: p["at"])
     if not pts:
         return None
     marks = [Mark(kind="vline", at=float(primary_h), label="h used")] if primary_h else []
+    windowed = name != "bandwidth_grid"
     return FigureSpec(
-        id=f"bandwidths_{contrast}",
+        id=f"{'windows' if windowed else 'bandwidths'}_{contrast}",
         kind="interval",
-        title="The estimate across bandwidths",
-        x_label="bandwidth",
+        title="The estimate across windows" if windowed else "The estimate across bandwidths",
+        x_label="window half-width" if windowed else "bandwidth",
         y_label="effect",
         series=[
             Series(
@@ -168,9 +170,9 @@ def bandwidth_curve(points: list[dict] | None, primary_h: float | None, contrast
             )
         ],
         marks=marks + [Mark(kind="hline", at=0.0, label="no effect")],
-        note="the conclusion should not depend on the bandwidth"
+        note=("the conclusion should not hinge on the window" if windowed else "the conclusion should not depend on the bandwidth")
         + ("; a point marked uninformative had too few rows" if any(not p.get("informative") for p in pts) else ""),
-        draws_on=[f"placebo:{contrast}.bandwidth_grid.detail", "design.bandwidth"],
+        draws_on=[f"placebo:{contrast}.{name}.detail", "design.bandwidth"],
     )
 
 

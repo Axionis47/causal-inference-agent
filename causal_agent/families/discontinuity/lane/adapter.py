@@ -300,10 +300,14 @@ def _randinf(canon: pd.DataFrame, wl: float, wr: float, *, fuzzy: bool, reps: in
     return o
 
 
-def fit_local_random(canon: pd.DataFrame, wl: float, wr: float, *, fuzzy: bool = False, reps: int = 1000, seed: int = 7, alpha: float = 0.05) -> Fit:
+def fit_local_random(
+    canon: pd.DataFrame, wl: float, wr: float, *, fuzzy: bool = False, reps: int = 1000, seed: int = 7, alpha: float = 0.05, mask: pd.Series | None = None
+) -> Fit:
     """The local randomisation estimate in the window [wl, wr] of the recentred score: the difference in means (sharp) or the
     Wald ratio of the outcome's jump to take-up's jump (fuzzy), the randomisation p-value under no effect, and the interval of
     effects the randomisation test does not reject at `alpha`, found by inverting the test over a grid."""
+    if mask is not None:
+        canon = canon[mask]
     try:
         base = _randinf(canon, wl, wr, fuzzy=fuzzy, reps=reps, seed=seed)
     except Exception as ex:
@@ -432,4 +436,6 @@ def to_estimate(f: Fit, contrast_key: str, method: str, target_units: str, *, se
         n_control=f.n_h_left,
         target_units=target_units,
         secondary=secondary,
+        p_value=f.p,
+        p_value_source="randomisation" if f.vce == "randomisation" else f"robust bias-corrected ({f.vce})" if f.vce else None,
     )

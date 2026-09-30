@@ -1132,7 +1132,7 @@ def window(state: SpecialistState) -> Command:
     fuzzy = _is_fuzzy(entry, False)
     canon = _canon(state)
     table = CK.window_table(
-        entry.params,
+        CK.SHARP if entry.engine == "local_randomisation" else entry.params,
         canon,
         s,
         _cfg(),
@@ -1162,6 +1162,42 @@ def window(state: SpecialistState) -> Command:
         update.update(extra or {})
         return Command(goto="freeze_design", update=update)
 
+    if entry.engine == "local_randomisation":
+        # the largest window in which the predetermined covariates stay balanced (rdwinselect), else the support-points window
+        prm = entry.params
+        lr = adapter.local_random_windows(canon, [SH.covcol(k) for k in covs.balance_tested], reps=int(prm.get("reps", 1000)), seed=int(prm.get("seed", 7)))
+        lr_rows: dict[str, dict] = {}
+        chosen = None
+        for r in lr.get("windows") or []:
+            name = f"window {r['w_left']:.4g} to {r['w_right']:.4g}"
+            lr_rows[name] = dict(
+                rule="local_randomisation",
+                h_left=-r["w_left"],
+                h_right=r["w_right"],
+                b_left=-r["w_left"],
+                b_right=r["w_right"],
+                n_left=r["n_left"],
+                n_right=r["n_right"],
+            )
+            if lr.get("w_left") is not None and r["w_left"] == lr["w_left"] and r["w_right"] == lr["w_right"]:
+                chosen = name
+        table = dict(rule="local_randomisation", default=chosen or "support_points", rows={**lr_rows, **rows}, notes=lr.get("notes") or [])
+        if chosen is not None:
+            why = (
+                f"the largest window in which the predetermined covariates ({', '.join(covs.balance_tested)}) stay balanced across the line, by the "
+                f"library's window selector; {lr_rows[chosen]['n_left']}/{lr_rows[chosen]['n_right']} rows inside"
+            )
+            return settle(_window_from(chosen, lr_rows[chosen], why, ["ladder:shape.sides", *[f"ladder:balance.{k}" for k in covs.balance_tested]], "code"))
+        row = dict(rows["support_points"], rule="local_randomisation")
+        return settle(
+            _window_from(
+                "support_points",
+                row,
+                "no predetermined covariate to choose the window by balance, so the window keeps the declared support points on each side",
+                ["ladder:shape.sides"],
+                "code",
+            )
+        )
     if table["rule"] == "support_points":
         row = rows["support_points"]
         return settle(
@@ -1256,7 +1292,7 @@ def freeze_design(state: SpecialistState) -> Command:
             n_h_right=w.n_right,
         ),
         sharp_bandwidth_used=bool(fuzzy and (s.takeup_left == 0.0 or s.takeup_right == 1.0)),
-        placebos=[p.name for p in load_placebos() if p.applies()],
+        placebos=[p.name for p in load_placebos() if p.applies(engine=entry.engine, kind=s.kind, rule=w.rule, distinct_scores=s.distinct_scores)],
         target_units=state["target_units"],
         modifiers=[m.column for m in lad.heterogeneity.modifiers] if lad.heterogeneity is not None else [],
     )
@@ -1284,7 +1320,23 @@ def _reselect_kw(d: Design) -> dict:
     return _window_kw(d) if d.bandwidths.rule in ("support_points", "local_randomisation") else {"bwselect": d.bandwidths.selector}
 
 
+def _fit_local_random(d: Design, entry: EstimatorEntry, canon: pd.DataFrame, fuzzy: bool, mask: pd.Series | None = None) -> adapter.Fit:
+    prm = entry.params
+    return adapter.fit_local_random(
+        canon,
+        -d.bandwidths.h_left,
+        d.bandwidths.h_right,
+        fuzzy=fuzzy,
+        reps=int(prm.get("reps", 1000)),
+        seed=int(prm.get("seed", 7)),
+        alpha=float(prm.get("alpha", 0.05)),
+        mask=mask,
+    )
+
+
 def _fit_entry(d: Design, entry: EstimatorEntry, canon: pd.DataFrame, primary_fuzzy: bool, *, primary: bool) -> adapter.Fit:
+    if entry.engine == "local_randomisation":
+        return _fit_local_random(d, entry, canon, _is_fuzzy(entry, primary_fuzzy))
     return adapter.fit(
         entry.params,
         canon,
@@ -1300,7 +1352,7 @@ def estimate(state: SpecialistState) -> Command:
     d: Design = state["design"]
     canon = _canon(state)
     entry = estimator_entry(d.estimator)
-    primary_fuzzy = _is_fuzzy(entry, False)
+    primary_fuzzy = _is_fuzzy(entry, d.shape.kind == "fuzzy")
     key = d.contrast.key
     f = _fit_entry(d, entry, canon, primary_fuzzy, primary=True)
     ests: list[Estimate] = [adapter.to_estimate(f, key, d.estimator, d.target_units)]
@@ -1367,6 +1419,7 @@ def _by_modifier(canon: pd.DataFrame, d: Design, primary_fuzzy: bool) -> list[Es
     """The primary spec fitted again within each level of each modifier, at the design's bandwidth so the levels compare, without
     that column among the covariates. Too few effective rows on a side is recorded as the estimate's error, never skipped in silence."""
     cfg = _cfg()
+    entry = estimator_entry(d.estimator)
     floor = int(cfg["effective_rows"]["min"]["soft"])
     out: list[Estimate] = []
     for col in d.modifiers:
@@ -1374,7 +1427,10 @@ def _by_modifier(canon: pd.DataFrame, d: Design, primary_fuzzy: bool) -> list[Es
         if cc not in canon.columns:
             continue
         for level, mask in _modifier_groups(canon, cc, int((cfg.get("modifiers") or {}).get("max_levels", 4))):
-            f = adapter.fit(d.spec, canon, fuzzy=primary_fuzzy, cluster=bool(d.cluster), vce=d.vce, mask=mask, **_window_kw(d))
+            if entry.engine == "local_randomisation":
+                f = _fit_local_random(d, entry, canon, primary_fuzzy, mask=mask)
+            else:
+                f = adapter.fit(d.spec, canon, fuzzy=primary_fuzzy, cluster=bool(d.cluster), vce=d.vce, mask=mask, **_window_kw(d))
             e = adapter.to_estimate(f, d.contrast.key, d.estimator, d.target_units)
             if e.error is None and min(f.n_h_left, f.n_h_right) < floor:
                 e = e.model_copy(
@@ -1435,7 +1491,7 @@ def placebo(task: PlaceboTask) -> dict:
     prim = task["primary"]
     entry = placebo_entry(task["name"])
     pentry = estimator_entry(d.estimator)
-    primary_fuzzy = _is_fuzzy(pentry, False)
+    primary_fuzzy = _is_fuzzy(pentry, d.shape.kind == "fuzzy")
     floor = int(_cfg()["effective_rows"]["min"]["soft"])
     key = d.contrast.key
     points: list[tuple[str, adapter.Fit | None, bool, str]] = []
@@ -1488,6 +1544,55 @@ def placebo(task: PlaceboTask) -> dict:
             label = f"radius {share:.0%} of h ({dropped} rows dropped)"
             at[label] = r
             points.append((label, f, ok, note))
+    elif entry.name == "window_sensitivity":
+        for share in entry.params.get("window_shares", [0.5, 1.0, 2.0]):
+            hl, hr = share * d.bandwidths.h_left, share * d.bandwidths.h_right
+            f = _fit_local_random(
+                d.model_copy(update={"bandwidths": d.bandwidths.model_copy(update={"h_left": hl, "h_right": hr})}), pentry, canon, primary_fuzzy
+            )
+            label = f"window ×{share:g} ({hl:.4g}/{hr:.4g})"
+            at[label] = hr
+            ok, note = informative(f)
+            points.append((label, f, ok, note))
+    elif entry.name == "rosenbaum_bounds":
+        gammas = [float(g) for g in entry.params.get("gammas", [0.1, 0.5, 1.0])]
+        b = adapter.rosenbaum_bounds(
+            canon, max(d.bandwidths.h_left, d.bandwidths.h_right), gammas, reps=int(entry.params.get("reps", 500)), seed=int(pentry.params.get("seed", 7))
+        )
+        if "error" in b:
+            r = Refutation(contrast=key, refuter=entry.name, kind="sensitivity", passed=None, detail=f"could not run ({b['error']})")
+        else:
+            parts = [f"gamma {g:g}: p between {lo:.3g} and {hi:.3g}" for g, lo, hi in zip(b["gamma"], b["lower"], b["upper"], strict=True)]
+            holds = [g for g, hi in zip(b["gamma"], b["upper"], strict=True) if hi < 0.05]
+            r = Refutation(
+                contrast=key,
+                refuter=entry.name,
+                kind="sensitivity",
+                p_value=b["p"],
+                range_low=float(min(b["lower"])),
+                range_high=float(max(b["upper"])),
+                passed=None,
+                detail=f"randomisation p = {b['p']:.3g} under a coin toss; "
+                + "; ".join(parts)
+                + (f"; the verdict holds up to gamma {max(holds):g}" if holds else "; the verdict does not survive the smallest departure tried"),
+            )
+        _writer()({"placebo": {r.refuter: r.detail}})
+        return {"refutations": [r]}
+    if entry.kind == "sensitivity":
+        values = [f.value for _, f, ok, _ in points if f is not None and not f.error and ok]
+        _, detail = _refit_rule(points, prim, entry)
+        r = Refutation(
+            contrast=key,
+            refuter=entry.name,
+            kind="sensitivity",
+            new_effect=float(np.mean(values)) if values else None,
+            range_low=float(min(values)) if values else None,
+            range_high=float(max(values)) if values else None,
+            passed=None,
+            detail=detail,
+        )
+        _writer()({"placebo": {r.refuter: r.detail}})
+        return {"refutations": [r], "placebo_points": {entry.name: _points_record(points, at)}}
     passed, detail = _refit_rule(points, prim, entry)
     values = [f.value for _, f, ok, _ in points if f is not None and not f.error and ok]
     r = Refutation(
@@ -1584,7 +1689,7 @@ def _material(state: SpecialistState) -> str:
             tag = f"estimate:{c}"
             lines.append(f"[{tag}.value] {e.value:.4g} (primary: {e.method}, {d.estimand})")
             lines.append(f"[{tag}.ci] 95% robust interval {e.ci_low:.4g} to {e.ci_high:.4g}")
-            lines.append(f"[{tag}.p] robust p = {prim.get('p', float('nan')):.3g}")
+            lines.append(f"[{tag}.p] {'randomisation' if prim.get('vce') == 'randomisation' else 'robust'} p = {prim.get('p', float('nan')):.3g}")
             lines.append(f"[{tag}.n] {e.n_control} control-side and {e.n_treated} treated-side rows inside the bandwidth")
             lines.append(
                 f"[{tag}.bandwidth] h = {prim.get('h', d.bandwidths.h_left):.4g} on the control side, {prim.get('h_right', d.bandwidths.h_right):.4g} on the treated side"
@@ -1680,6 +1785,7 @@ def figures(state: SpecialistState) -> dict:
     if c:
         specs.append(PR.covariate_continuity(cf.get("continuity"), c, names, float(_cfg()["covariate_continuity"]["p_value"]["soft"])))
         specs.append(PR.bandwidth_curve(pts.get("bandwidth_grid"), d.bandwidths.h_left if d is not None else None, c))
+        specs.append(PR.bandwidth_curve(pts.get("window_sensitivity"), d.bandwidths.h_right if d is not None else None, c, name="window_sensitivity"))
         specs.append(PR.placebo_cutoffs(pts.get("placebo_cutoffs"), state.get("primary"), c))
     ests = [e.model_dump() for e in state.get("estimates") or []]
     specs.append(PV.effect_and_refutations([e for e in ests if e.get("modifier") is None], [r.model_dump() for r in state.get("refutations") or []], "placebo"))

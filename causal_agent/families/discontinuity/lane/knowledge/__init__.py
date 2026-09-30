@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from causal_agent.lane.knowledge import Knowledge
+from causal_agent.lane.knowledge import Knowledge, matches
 
 _HERE = Path(__file__).parent
 
@@ -15,6 +15,7 @@ _HERE = Path(__file__).parent
 class EstimatorEntry(BaseModel):
     name: str
     in_words: str
+    engine: Literal["local_polynomial", "local_randomisation"] = "local_polynomial"
     params: dict[str, Any] = Field(default_factory=dict)
     fuzzy: Any = False  # True | False | "inherit"
     covs: bool = False
@@ -59,17 +60,19 @@ class InferenceEntry(BaseModel):
 class PlaceboEntry(BaseModel):
     name: str
     in_words: str
+    kind: Literal["falsification", "sensitivity"] = "falsification"
     source: str = ""
     spec: str = "primary"
     placement: str | None = None
     grid: list[str] = Field(default_factory=list)
     hold_b: bool = False
     radii_share_of_h: list[float] = Field(default_factory=list)
+    params: dict[str, Any] = Field(default_factory=dict)
     applies_when: dict[str, Any] = Field(default_factory=dict)
     pass_when: dict[str, Any] = Field(default_factory=dict)
 
-    def applies(self) -> bool:
-        return True
+    def applies(self, **facts: Any) -> bool:
+        return matches(self.applies_when, facts)
 
 
 # ------------------------------------------------------------------ the files, through the shared loader

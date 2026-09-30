@@ -1,4 +1,6 @@
-# Falsification runs after the estimate. Every placebo whose applies_when holds runs; no choice is made.
+# Falsification runs after the estimate. Every placebo whose applies_when holds runs; no choice is made. applies_when is
+# keyed on facts of the frozen design: engine (local_polynomial or local_randomisation), kind (sharp or fuzzy), rule (the
+# window rule). kind: falsification carries a verdict under pass_when; kind: sensitivity reports a range and no verdict.
 # Every run reports its effective rows on each side and the rows it dropped. A run with fewer effective
 # rows than checks.yaml effective_rows.min on either side, or whose cutoff is not strictly inside its rows'
 # score range, or a donut that dropped no rows, is uninformative: passed is null, never a failure.
@@ -10,7 +12,7 @@ placebo_cutoffs:
   source: Foundations 5.3 (artificial cutoffs above the real one use only treated observations, and below it only control observations)
   spec: sharp_reduced_form     # always the sharp local linear on assignment, whatever the primary; falsification tests continuity of the outcome, not the ratio, and a fuzzy refit fails on a side where take-up never varies
   placement: side_median
-  applies_when: {}
+  applies_when: {engine: [local_polynomial]}
   pass_when: {interval_covers_zero: true}
 
 bandwidth_grid:
@@ -19,7 +21,7 @@ bandwidth_grid:
   spec: primary
   grid: [h_cer, h_mse, 2h_cer, 2h_mse]
   hold_b: true
-  applies_when: {}
+  applies_when: {engine: [local_polynomial]}
   pass_when: {interval_overlaps_primary: true, sign_stable_when_primary_excludes_zero: true}
 
 donut:
@@ -27,5 +29,21 @@ donut:
   source: Foundations 5.4; the radii as shares of the bandwidth are ours (the Foundations use radii in score units, which differ by dataset)
   spec: primary
   radii_share_of_h: [0.05, 0.10]
-  applies_when: {}
+  applies_when: {engine: [local_polynomial]}
   pass_when: {interval_overlaps_primary: true, sign_stable_when_primary_excludes_zero: true}
+
+window_sensitivity:
+  kind: sensitivity
+  in_words: the local randomisation estimate in windows narrower and wider than the one the design used; the conclusion should not hinge on the window
+  source: Extensions 2.4.1, the sensitivity of the randomisation p-value and interval to the window length
+  spec: primary
+  params: {window_shares: [0.5, 0.75, 1.0, 1.5, 2.0]}   # the shares of the design's window on each side; ours
+  applies_when: {engine: [local_randomisation]}
+
+rosenbaum_bounds:
+  kind: sensitivity
+  in_words: how far assignment inside the window could depart from a coin toss before the randomisation p-value would change its verdict
+  source: Extensions 2.4.2, Rosenbaum bounds on the randomisation p-value; the gammas are ours
+  spec: primary
+  params: {gammas: [0.1, 0.3, 0.5, 1.0], reps: 500}   # the bounds re-run the permutation test for each gamma; 500 is ours
+  applies_when: {engine: [local_randomisation], kind: [sharp]}

@@ -172,12 +172,13 @@ an analyst reads a cutoff design.
 
 | | diff-in-diff | discontinuity |
 |---|---|---|
-| engine | pyfixest | rdrobust and rddensity |
-| stages | load, case, groups, periods, shape_table, comparison, controls, merge_controls, verify, heterogeneity, threats, check_design, assess, pick_estimator, freeze_design, estimate, placebo, interpret, figures, assemble | load, case, score, shape_table, line, covariates, merge_covariates, verify, heterogeneity, threats, check_design, assess, pick_estimator, freeze_design, estimate, placebo, interpret, figures, assemble |
-| its own judgements | groups, periods, comparison, controls, heterogeneity | score, line, covariates, heterogeneity |
-| the canonical shape code builds | `y, unit, time, treated, post, treat, rel_time, cohort` from a long or a wide table | `y, x, side` with the score recentred on the cutoff and the treated side positive |
+| engine | pyfixest | rdrobust and rddensity; rdlocrand for a discrete score |
+| stages | load, case, groups, periods, shape_table, comparison, controls, merge_controls, verify, heterogeneity, threats, check_design, assess, pick_estimator, freeze_design, estimate, placebo, interpret, figures, assemble | load, case, score, shape_table, density, line, balance, covariates, merge_covariates, verify, heterogeneity, threats, check_design, assess, pick_estimator, window, freeze_design, estimate, placebo, interpret, figures, assemble |
+| its own judgements | groups, periods, comparison, controls, heterogeneity | score, line, covariates, heterogeneity, window |
+| its evidence rungs, by code | | density, balance |
+| the canonical shape code builds | `y, unit, time, treated, post, treat, rel_time, cohort` from a long or a wide table | `y, x, side, row` with the score recentred on the cutoff and the treated side positive |
 | what the yaml declares | formulas over the canonical names, the inference rule, the placebos, the thresholds | the local polynomial specs, the inference rule, the placebo cutoffs and bandwidth grid, the thresholds |
-| falsifications | placebo group, placebo timing | placebo cutoffs, the bandwidth grid, donuts |
+| falsifications | placebo group, placebo timing | placebo cutoffs, the bandwidth grid, donuts; for local randomisation the window sensitivity and Rosenbaum bounds |
 
 Each is one package: `family.yaml`, `design.py`, `handoff.py`, `probes.py`, `postviz.py`, `lane/`, `evals/`, `tests/`, and one
 line in [families/registry.py](../causal_agent/families/registry.py). The core never names a family;
