@@ -4,13 +4,16 @@ Effect of a change on an outcome when the things that drove the change are measu
 the lane turns it into a frozen design, runs it on DoWhy, and writes a report or an honest stop.
 
 ```
-load ─ case ─ contrast ─(relate × N)─ merge_graph ─ verify_graph ─ identify ─ check_design
+load ─ case ─ pair ─ mechanism ─ time ─ roles ─ post_roles ─ merge_graph ─ verify_graph ─ identify ─ check_design
      ─(assess, only when flagged)─ pick_estimator ─ freeze_design ─(analyse × C)─ after_analyse
      ─(interpret × C)─ figures ─ assemble
 any typed stop, or a question back to the desk ─────────────────▶ feasibility ─ figures ─ assemble
 ```
 
-N is the columns the pack leaves open, C the contrasts. Neither appears in the graph. The stages are walked in
+C is the contrasts; it does not appear in the graph. `pair`, `mechanism`, `time`, `roles` and `post_roles` are the rungs of the
+ladder (`lane/contracts.py`, `Ladder`): the pair, how the treatment was set, every column's place in time, the pre-treatment
+columns placed together, the post-treatment columns placed together. A rung is code where the pack settles it and a bounded
+episode where it does not, with the data tools and the budgets `knowledge/checks.yaml` declares. The stages are walked in
 [docs/lanes.md](../../../docs/lanes.md); the judgements and their gates are in [docs/gates.md](../../../docs/gates.md).
 
 ## The roads
@@ -26,16 +29,19 @@ reading says the effect holds only if that factor is no stronger than the simula
 
 ## The rule every node follows
 
-- **Facts** are computed by code from declared inputs: `load`, `case`, `merge_graph`, `verify_graph`, `identify`, `check_design`,
-  `freeze_design`, `analyse`, `figures`, `assemble`. A missing input or a failed assumption is a typed `Feasibility` stop, never a guess.
-- **Judgements** call the model once, cite addresses, and pass a gate: `contrast`, `relate`, `assess`, `pick_estimator`, `interpret`.
+- **Facts** are computed by code from declared inputs: `load`, `case`, `time`, `merge_graph`, `verify_graph`, `identify`,
+  `check_design`, `freeze_design`, `analyse`, `figures`, `assemble`. A missing input or a failed assumption is a typed `Feasibility`
+  stop, never a guess.
+- **Judgements** are bounded episodes or single calls, cite addresses, and pass a gate: `pair`, `mechanism`, `roles`, `post_roles`
+  (episodes, each only for what the pack leaves open), `assess`, `pick_estimator`, `interpret`. A rung cites the pack, a fact it
+  asked the data for, or a rung below it; no tool joins the outcome with the treatment before the design is frozen.
 - **The pack is weighed first.** `case` turns the pack into facts, drafts, open and contested fields, and the person's beliefs into
   flags by `knowledge/beliefs.yaml`; `decide_by_code` may stop or ask before any judgement. A column the pack settles never reaches
   the model.
 - **Declarations live in `knowledge/`.** Thresholds in `checks.yaml`; the estimator catalogue in `estimators.yaml`, filtered by code
   before the model sees it, with parameters the model never sets; every refuter in `refuters.yaml` whose conditions match runs.
 - **Design freeze.** `freeze_design` writes the design before any estimate exists. Loops happen only on failure facts: a rejected
-  relation, a flagged check, a fit error. Nothing loops after an estimate.
+  answer inside an episode, a flagged check, a fit error. Nothing loops after an estimate.
 - **The model never touches DoWhy.** `lane/adapter.py` is the only file that imports it and it reads the design.
 
 ## Files

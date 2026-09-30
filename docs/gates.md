@@ -5,11 +5,11 @@ fails. This is the page that proves the thesis: the model answers closed questio
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="diagrams/judgement-relate-dark.svg">
-  <img alt="One relate judgement opened up: the prompt, the structured answer, and the gate's six checks" src="diagrams/judgement-relate-light.svg">
+  <img alt="One column of the roles rung opened up: the prompt, the structured answer, and the gate's checks" src="diagrams/judgement-relate-light.svg">
 </picture>
 
-The picture is one relate call from the checked-in run under `docs/demo/run/`: the prompt rendered again from the stored pack
-by the lane's own helpers, the answer as the frozen graph records it, and the gate's checks run again on that answer.
+The picture is one column of the roles rung, from the checked-in run under `docs/demo/run/`: the prompt rendered again from the
+stored pack by the lane's own helpers, the answer as the frozen graph records it, and the gate's checks run again on that answer.
 
 ## How every judgement is made
 
@@ -36,8 +36,11 @@ Around every call: a loop of at most three tries, a gate written in code, and th
 
 | node | given | returns | the gate checks | on failure |
 |---|---|---|---|---|
-| `contrast` (only if the pack does not name the treated level) | the question, the scope, the treatment card, the observed levels | `Contrasts`: control and treated pairs | every level is observed; control differs from treated; no duplicate pair | three tries, then a Feasibility stop |
-| `relate` (one call per column the pack leaves open) | the question, the frame, the treatment and outcome cards, one column's card, what the pack settled for it | `Relation`: four yes/no, a cited reason per claim marked true | `verify_graph` ([families/adjustment/lane/nodes.py:448](../causal_agent/families/adjustment/lane/nodes.py)): a claim marked true has a reason; every reason cites; every cite resolves; not both feeding and fed by the treatment; no contradiction with a pack fact; no unexplained departure from the last run's reading; the whole graph is acyclic | the failing columns are re-sent with their errors; three rounds, then a stop |
+| `pair` (rung 0; only if the pack does not name the treated level) | the question, the scope, the treatment card, the observed levels; may describe the treatment | `Contrasts`: control and treated pairs | every level is observed; control differs from treated; no duplicate pair | three tries inside the episode, then a Feasibility stop |
+| `mechanism` (rung 1; only when the pack names no drivers) | the case, the treatment card, the column index; may describe, tabulate cells, or ask a candidate's association with the treatment | `Mechanism`: drivers, an offer and an uptake column or null, whether units could move themselves, cites | every driver is a column in play; an offer or uptake named is a column; the two differ; no self-selection under a lottery; cites resolve in the pack, the facts asked for, or the rungs below | three tries, then a stop |
+| `roles` (rung 3; one episode over every pre-treatment column the pack leaves open) | the case with the ladder so far, the pair's cards, one block per column with what the pack settled and the last reading; may look by arm, at associations, redundancy, cells | `Roles`: one `Role` per column, the four claims with a cited reason each, what it stands for, `redundant_with`, `nested_in`, a modifier candidate, links, departures | `roles` gate ([families/adjustment/lane/nodes.py](../causal_agent/families/adjustment/lane/nodes.py)): every listed column once and nothing else; the settled claims copied; a claim marked true has a cited reason; every cite resolves; not both feeding and fed by the treatment; no contradiction with a pack fact; a departure from the last reading names a `Departure` with a cite; a redundancy or nesting names another column in play and rests on a redundancy fact; the outcome by arm is refused before the answer is asked | the errors go back with the log kept, three tries, then a stop |
+| `post_roles` (rung 4; one episode over every at-or-after column the pack leaves open) | as `roles`; may describe or ask a column's association with the treatment, never with the outcome | `PostRoles`: one `PostRole` per column with its kind and a cited reason | every listed column once; a cite per column; cites resolve; the settled claims copied; no contradiction; no unexplained departure | three tries, then a stop |
+| `verify_graph` (code, no model) | the merged graph | | acyclic; every node a table column; a role for every column | an honest stop |
 | `assess` (only when a check flagged) | the frame, the graph, the adjustment set, the flagged checks with numbers | `DesignAssessment`: proceed, revise or stop, revisions, cites | proceed is refused while a hard flag stands; a revision must name a flagged column; every cite is a check or pack address | revise loops to `merge_graph`, three revisions at most; stop is honest |
 | `pick_estimator` | the design facts, the estimators that apply with what each assumes, the ranked preferences | `EstimatorPick`: one name, why, cites | the name is in the filtered list; cites are check or pack addresses | a failed fit later excludes the pick and asks once more |
 | `interpret` (one call per contrast) | the material as addressed lines, the addresses it may cite, the ones it must | `Interpretation`: the answer, the caveats, the effect stated, cites | every cite is allowed; every required address is cited, the flagged checks and the interval among them; the effect stated matches the estimate within one percent | three tries; a failed gate is written into the report |
@@ -47,8 +50,20 @@ Two rules that are code, not judgement: the checks' thresholds are declared in
 [refuters.yaml](../causal_agent/families/adjustment/lane/knowledge/refuters.yaml) match the design runs. The model never picks
 the tests its own design faces.
 
-The other two lanes have the same shape with their own judgements: diff-in-diff adds `groups` and `periods`, discontinuity adds
-`score`. See [lanes.md](lanes.md).
+The other two lanes keep the earlier shape for now, a one-shot `relate` per column with their own setup judgements: diff-in-diff
+adds `groups` and `periods`, discontinuity adds `score`. Their ladders follow. See [lanes.md](lanes.md).
+
+## What an episode is
+
+A rung that needs a judgement runs as a bounded episode ([lane/episode.py](../causal_agent/lane/episode.py)). The model first
+reads its material with the data tools bound and may call them, at most the budget `checks.yaml` declares for that rung (two for
+the pair, four for the mechanism, eight for the roles, four for the post-treatment roles). Each result comes back as a tool message
+with an address, `probe:<rung>.<n>`, and is logged. Then the facts it gathered are rendered under FACTS YOU ASKED FOR and the record
+is asked for with the same structured call as every other judgement. The gate's errors go back with the log kept, and the model may
+look again while budget remains; three refusals return no record and the rung stops. The tools are describe, by arm, association,
+redundancy, cells and timing ([lane/tools.py](../causal_agent/lane/tools.py)); a call that would join the outcome with the treatment
+is refused by code with a reason the model reads, and the refusal is logged too. The report lists every episode's calls, facts and
+refusals.
 
 ## Why this shape
 

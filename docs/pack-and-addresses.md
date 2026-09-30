@@ -52,6 +52,8 @@ population filter was not in a form the code can apply, so every row was kept an
 | `user:turn:<n>` | the turn a field came from | `user:turn:3` |
 | `probe:<family>.<name>` | a probe's result | `probe:adjustment.overlap` |
 | `probe:data.<name>` | a data fact computed before the run, with a number and no verdict | `probe:data.by_arm.lunch` |
+| `probe:<rung>.<n>` | a fact a lane's episode asked the data for, in the order it asked | `probe:roles.1` |
+| `ladder:<rung>.<field>` | one line of the lane's ladder: the pair, the mechanism, time, a column's role | `ladder:roles.lunch` |
 | `matrix:<family>.<kind>` | one cell of the matrix | `matrix:instrument.exclusion` |
 | `step:<n>` | one step of the conversation's journal | `step:10` |
 | `design.<...>`, `design.brief.<...>` | the frozen design and the brief | `design.estimand.adjustment_set` |
