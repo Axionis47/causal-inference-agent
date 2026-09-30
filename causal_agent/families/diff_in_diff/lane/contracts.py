@@ -220,7 +220,8 @@ class Design(BaseModel):
     controls: Controls
     checks: Checks
     estimator: str
-    formula: str
+    engine: str = "feols"
+    formula: str = Field(description="what runs: the feols formula, the two stages, or the surface's own words")
     also_run: str | None = None
     also_formula: str | None = None
     inference: str

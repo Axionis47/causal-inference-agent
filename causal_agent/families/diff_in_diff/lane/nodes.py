@@ -55,15 +55,16 @@ from causal_agent.families.diff_in_diff.lane.contracts import (
     ShapeFacts,
 )
 from causal_agent.families.diff_in_diff.lane.knowledge import (
-    estimator as estimator_entry,
-)
-from causal_agent.families.diff_in_diff.lane.knowledge import (
+    EstimatorEntry,
     load_beliefs,
     load_checks,
     load_estimators,
     load_placebos,
     pick_inference,
     render_preferences,
+)
+from causal_agent.families.diff_in_diff.lane.knowledge import (
+    estimator as estimator_entry,
 )
 from causal_agent.families.diff_in_diff.lane.knowledge import (
     placebo as placebo_entry,
@@ -841,7 +842,13 @@ def threats(state: SpecialistState) -> dict:
 
 def check_design(state: SpecialistState) -> dict:
     panel = pd.read_csv(state["panel_path"])
-    results, facts = CK.run_checks(panel, state["shape"], state["controls"].included, state["contrast"].key, load_checks())
+    s: ShapeFacts = state["shape"]
+    facts_in = _facts(state)
+    robust = any(e.engine != "feols" for e in _applicable(facts_in)) if s.cohorts > 1 else True
+    heterogeneity = adapter.cohort_heterogeneity(panel) if s.cohorts > 1 and s.never_treated_exists else None
+    results, facts = CK.run_checks(
+        panel, s, state["controls"].included, state["contrast"].key, load_checks(), robust_available=robust, heterogeneity=heterogeneity
+    )
     W.say(results, load_checks(), state.get("columns") or {})  # the sentence before the number, for the reader
     results += C.as_checks(_case(state))
     more, declines = LAD.checks_and_declines(_ladder(state), _ladder(state).threats, state.get("declines") or [])
@@ -937,6 +944,7 @@ def assess(state: SpecialistState) -> Command:
 
 
 def _facts(state: SpecialistState) -> dict[str, Any]:
+    """The facts the catalogues apply by: the shape, the adoption pattern, the controls in play."""
     s = state["shape"]
     return {
         "kind": s.kind,
@@ -945,15 +953,20 @@ def _facts(state: SpecialistState) -> dict[str, Any]:
         "periods_pre": s.periods_pre,
         "periods_post": s.periods_post,
         "cohorts": s.cohorts,
+        "never_treated": s.never_treated_exists,
+        "clusters": s.clusters,
         "controls": state["controls"].included,
     }
 
 
+def _applicable(facts: dict[str, Any]) -> list[EstimatorEntry]:
+    return [e for e in load_estimators() if e.applies(**facts)]
+
+
 def pick_estimator(state: SpecialistState) -> Command:
     facts = _facts(state)
-    s = state["shape"]
     excluded = set(state.get("excluded_estimators") or [])
-    allowed = [e for e in load_estimators() if e.applies(cohorts=s.cohorts, periods_pre=s.periods_pre, periods_post=s.periods_post) and e.name not in excluded]
+    allowed = [e for e in _applicable(facts) if e.name not in excluded]
     if not allowed:
         return _stop(
             "pick_estimator",
@@ -1003,7 +1016,7 @@ def freeze_design(state: SpecialistState) -> dict:
     also = None
     if entry.also_run:
         alt = estimator_entry(entry.also_run)
-        if alt.applies(cohorts=s.cohorts, periods_pre=s.periods_pre, periods_post=s.periods_post):
+        if alt.applies(**_facts(state)):
             also = alt
     inf = pick_inference(units_treated=s.units_treated, kind=s.kind)
     vcov: Any = inf.vcov
@@ -1034,7 +1047,8 @@ def freeze_design(state: SpecialistState) -> dict:
                 )
             )
     units = s.units_treated + s.units_control
-    placebos = [p.name for p in load_placebos() if p.applies(units=units, periods_pre=s.periods_pre)]
+    # the placebos refit the feols shape; an estimator on another engine gets none until its own falsifications are wired
+    placebos = [p.name for p in load_placebos() if p.applies(units=units, periods_pre=s.periods_pre)] if entry.engine == "feols" else []
     lad = _ladder(state)
     level = "the pack's cluster column" if vcov == {"CRV1": "cluster"} else "the unit" if isinstance(vcov, dict) else f"none: {inf.name}"
     cluster = Cluster(level=level, why=f"{inf.name}: {s.units_treated} treated units on a {s.kind} table" + ("; " + declines[0].reason if declines else ""))
@@ -1046,9 +1060,10 @@ def freeze_design(state: SpecialistState) -> dict:
         controls=state["controls"],
         checks=Checks(results=state["checks"]),
         estimator=entry.name,
-        formula=adapter.formula_for(entry, controls),
+        engine=entry.engine,
+        formula=adapter.describe_spec(entry, controls),
         also_run=also.name if also else None,
-        also_formula=adapter.formula_for(also, controls) if also else None,
+        also_formula=adapter.describe_spec(also, controls) if also else None,
         inference=inf.name,
         vcov=vcov,
         placebos=placebos,
@@ -1068,18 +1083,21 @@ def freeze_design(state: SpecialistState) -> dict:
 def estimate(state: SpecialistState) -> Command:
     d: Design = state["design"]
     panel = pd.read_csv(state["panel_path"])
-    ests, model = adapter.estimate(estimator_entry(d.estimator), d.formula, panel, d.vcov, d.contrast.key, d.target_units)
+    controls = d.controls.included
+    fit = adapter.run(estimator_entry(d.estimator), panel, d.vcov, d.contrast.key, d.target_units, controls=controls)
+    ests, model = list(fit.estimates), fit.model
     refs: list[Refutation] = []
-    dynamic: dict = {}
-    primary = next((e for e in ests if not e.secondary), ests[0])
+    dynamic: dict = {str(k): v for k, v in fit.dynamic.items()}
+    primary = fit.primary
     if primary.error is None and d.also_run:
-        more, alt_model = adapter.estimate(estimator_entry(d.also_run), d.also_formula, panel, d.vcov, d.contrast.key, d.target_units, secondary=True)
-        ests += more
-        if alt_model is not None and d.also_run == "twfe_dynamic":
-            dynamic = {str(k): v for k, v in adapter.dynamic_coefficients(alt_model).items()}
+        alt = adapter.run(estimator_entry(d.also_run), panel, d.vcov, d.contrast.key, d.target_units, controls=controls, secondary=True)
+        ests += alt.estimates
+        if alt.dynamic and not dynamic:
+            dynamic = {str(k): v for k, v in alt.dynamic.items()}
     if not dynamic:
         dynamic = dict((state.get("check_facts") or {}).get("dynamic") or {})  # the pre-trends fit, when it ran
     if primary.error is None:
+        ests += fit.by_cohort  # each cohort's own effect, when the engine reports it, as the effect within a level of "cohort"
         ests += _by_modifier(panel, d)
     inf = pick_inference(units_treated=d.shape.units_treated, kind=d.shape.kind)
     if primary.error is None and inf.resample == "wild_bootstrap" and model is not None:
@@ -1124,7 +1142,7 @@ def _by_modifier(panel: pd.DataFrame, d: Design) -> list[Estimate]:
     for col in d.modifiers:
         if col not in panel.columns:
             continue
-        formula = adapter.formula_for(entry, [c for c in d.controls.included if c != col])
+        controls = [c for c in d.controls.included if c != col]
         for level, part in _modifier_groups(panel, col, int(cfg.get("max_levels", 4))):
             n_t = int(part.loc[part["treated"] == 1, "unit"].nunique())
             n_c = int(part.loc[part["treated"] == 0, "unit"].nunique())
@@ -1142,8 +1160,7 @@ def _by_modifier(panel: pd.DataFrame, d: Design) -> list[Estimate]:
                     )
                 )
                 continue
-            ests, _ = adapter.estimate(entry, formula, part, d.vcov, d.contrast.key, d.target_units)
-            prim = next((e for e in ests if not e.secondary), ests[0])
+            prim = adapter.run(entry, part, d.vcov, d.contrast.key, d.target_units, controls=controls).primary
             out.append(prim.model_copy(update={"modifier": col, "level": level, "secondary": False}))
     return out
 

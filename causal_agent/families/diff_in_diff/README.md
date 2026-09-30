@@ -27,13 +27,25 @@ pyfixest has four independent axes and the lane maps one artifact onto each.
   pack's adoption column when it names one, else from a treatment indicator that switches on within a unit and stays on, else from
   the treated label and the one change period. One first period is one-shot adoption; several is staggered, and the shape facts say
   which units got the change when and whether any unit is never treated. Every helper reads this shape.
-- **Formula shapes.** `knowledge/estimators.yaml` holds formulas over the canonical names. Static: `y ~ treat | unit+time`. Dynamic:
-  `y ~ i(rel_time, treated, ref=-1) | unit+time`. Controls are filled in by the adapter; the static shape uses `csw0()` so the report
-  shows the effect with no controls and with each control added.
+- **Estimators by engine.** `knowledge/estimators.yaml` holds one entry per estimator with the library surface that runs it. On
+  feols, formulas over the canonical names: static `y ~ treat | unit+time`, dynamic `y ~ i(rel_time, treated, ref=-1) | unit+time`,
+  controls filled in by the adapter, the static shape with `csw0()` so the report shows the effect with no controls and with each
+  control added. On did2s, Gardner's two stages, the controls in the first. On lpdid, local projections pooled into the effect on
+  the treated. On the saturated event study, a coefficient per cohort and period, whose pooled effect, each cohort's effect and
+  each period's effect the adapter computes as share-weighted sums with intervals from the fit's covariance, because the library's
+  own aggregates are not implemented in this version. Every entry applies by facts (`cohorts`, `never_treated`, the periods),
+  matched by one rule.
 - **Inference.** `knowledge/inference.yaml` picks the `vcov` and any resampling from facts: robust errors on wide two-period data,
   cluster by unit with many treated units, a wild cluster bootstrap with few, the placebo-group p-value when there is one treated unit.
-- **Adoption pattern.** `cohorts` is a fact from the panel. One cohort is the built path; the staggered entries are declared and gated
-  by `cohorts_min`, and `staggered` is a hard check until they are exercised on a staggered dataset.
+- **Adoption pattern.** `cohorts` is a fact from the panel. With one cohort the two-way fixed effects entries apply; with several
+  they never do, because a unit already treated would serve as a control for one treated later, and the pick sees did2s, lpdid and
+  the saturated event study. The two-stage and the saturated designs need never-treated units in this version of the library;
+  local projections do not, and without them the lane caps the post horizons at those where every cohort but the last still has
+  a unit not yet treated to compare with, and the pre-trends check reads the local-projection leads with a Bonferroni correction
+  instead of the two-stage dynamic fit. The `staggered` check is then informative, not a stop, and a
+  `cohort_heterogeneity` check tests whether the cohorts' pooled effects are equal, a contrast the adapter builds on the saturated
+  fit (the library's own test in this version tests whether the effects are zero at all). Each cohort's effect is reported as the
+  effect within a level of `cohort`.
 
 The pre-trends check is a joint Wald test on the lead coefficients of the dynamic fit. Placebos refit the bare formula on a perturbed
 panel: the treated label reassigned across units, or a fake change in the middle of the pre-window.

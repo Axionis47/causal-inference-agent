@@ -12,7 +12,15 @@ pre_trends:
   p_value: {soft: 0.10, hard: 0.01}
 
 adoption:
-  staggered_is_hard: true                 # more than one first-treated period stops the built path until staggered entries are wired
+  # more than one first-treated period is a fact the estimator filter reads: the two-way fixed effects entries apply to one
+  # cohort only, and the staggered-robust entries to several. The check is informative when such an entry applies to the
+  # panel and hard only when none does, which the catalogue makes impossible; the rule is declared all the same.
+  hard_when_no_estimator_applies: true
+
+cohort_heterogeneity:
+  # under staggered adoption with never-treated units, the saturated event study tests whether the cohorts' effects are
+  # equal (Lal 2025, as pyfixest implements it); a difference is a soft flag the assessment answers and the report shows
+  p_value: {soft: 0.05}   # ours
 
 # hand-off scope target -> what diff-in-diff identifies
 target_units:
@@ -30,6 +38,7 @@ in_words:
   parallel_untestable: "whether there is more than one period before the change to see if the groups moved together"
   pre_trends: "whether the two groups were already moving apart before the change"
   staggered: "whether units got the change at different times"
+  cohort_heterogeneity: "whether the units that got the change at different times moved alike after it"
 
 # How many tool calls each reasoning episode may make before it must answer. The leash, declared.
 episode_budget:

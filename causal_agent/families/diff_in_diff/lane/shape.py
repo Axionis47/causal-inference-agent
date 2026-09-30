@@ -120,7 +120,7 @@ def _from_long(
     df = df.copy()
     periods_sorted = sorted(df["time"].unique())
     index = {v: i + 1 for i, v in enumerate(periods_sorted)}  # 1-based: pyfixest's gname reads 0 as never treated
-    labels = {i: str(v) for v, i in index.items()}
+    labels = {i: period_label(v) for v, i in index.items()}
     df["time_index"] = df["time"].map(index).astype(int)
     post_index = next((index[v] for v in periods_sorted if v >= first_post), len(periods_sorted) + 1)
     first, source = _first_treated(df, table, table[unit_column].astype(str), time, index, post_index, cohort_column)
@@ -174,6 +174,15 @@ def _first_treated(
 # ------------------------------------------------------------------ helpers
 
 
+def period_label(v) -> str:
+    """A period as the reader knows it: a whole number without a trailing .0, a date as the file wrote it."""
+    if isinstance(v, (float, np.floating)) and np.isfinite(v) and float(v) == int(v):
+        return str(int(v))
+    if hasattr(v, "date") and hasattr(v, "hour"):
+        return str(v.date()) if (v.hour, v.minute, v.second) == (0, 0, 0) else str(v)
+    return str(v)
+
+
 def _ordered(s: pd.Series) -> pd.Series | None:
     if pd.api.types.is_numeric_dtype(s):
         return s.astype(float)
@@ -218,7 +227,7 @@ def _facts(df: pd.DataFrame, *, kind: str, source: str, labels: dict[int, str]) 
         first_treated_source=source,
         treatment_reversals=0,
         balanced=bool(len(present) and present.nunique() == 1 and int(present.iloc[0]) == int(idx.nunique())),
-        time_values=[str(v) for v in sorted(df["time"].unique())][:40],
+        time_values=[period_label(v) for v in sorted(df["time"].unique())][:40],
     )
 
 

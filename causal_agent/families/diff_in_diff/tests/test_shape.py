@@ -39,7 +39,7 @@ def staggered(cohorts=(4, 6, 8), never=3, per=2, periods=10, *, reversal=False) 
 def test_a_label_and_one_change_period_read_as_one_shot_adoption():
     panel, f = SH.canonical(one_shot(), GROUPS, PERIODS, "y", [], unit_column="unit")
     assert list(panel.columns) == SH.CANON
-    assert f.adoption == "one_shot" and f.first_treated_source == "label" and f.cohorts == 1 and f.units_by_cohort == {"6.0": 4}
+    assert f.adoption == "one_shot" and f.first_treated_source == "label" and f.cohorts == 1 and f.units_by_cohort == {"6": 4}
     assert f.units_treated == 4 and f.units_control == 6 == f.units_never_treated and f.never_treated_exists and f.balanced and f.clusters == 10
     assert f.periods_pre == 5 and f.periods_post == 3
     treated = panel[panel["unit"] == "u0"].sort_values("time")
@@ -53,14 +53,14 @@ def test_a_label_and_one_change_period_read_as_one_shot_adoption():
 def test_an_indicator_that_switches_on_within_units_reads_as_staggered_adoption():
     panel, f = SH.canonical(staggered(), GROUPS, PERIODS, "y", [], unit_column="unit")
     assert f.adoption == "staggered" and f.first_treated_source == "indicator" and f.cohorts == 3
-    assert f.units_by_cohort == {"4.0": 2, "6.0": 2, "8.0": 2} and f.units_treated == 6 and f.units_never_treated == 3 and f.never_treated_exists
+    assert f.units_by_cohort == {"4": 2, "6": 2, "8": 2} and f.units_treated == 6 and f.units_never_treated == 3 and f.never_treated_exists
     assert f.periods_pre == 3 and f.periods_post == 7  # before and from the earliest cohort
     by_unit = panel.groupby("unit")["cohort"].first()
     assert by_unit["u0"] == 4 and by_unit["u2"] == 6 and by_unit["u4"] == 8 and by_unit["u6"] == 0
     late = panel[panel["unit"] == "u4"].sort_values("time")
     assert late["treat"].tolist() == [0.0] * 7 + [1.0] * 3 and late["rel_time"].tolist() == list(range(-7, 3)) and late["treated"].unique().tolist() == [1]
     assert (panel["post"] == (panel["time_index"] >= 4).astype(int)).all()  # post is from the earliest cohort, for everyone
-    assert "3 first-treated periods: 4.0 (2 units), 6.0 (2 units), 8.0 (2 units)" in dict(f.lines())["ladder:shape.adoption"]
+    assert "3 first-treated periods: 4 (2 units), 6 (2 units), 8 (2 units)" in dict(f.lines())["ladder:shape.adoption"]
 
 
 def test_a_unit_that_leaves_the_treatment_is_a_typed_stop():
@@ -74,7 +74,7 @@ def test_an_adoption_column_from_the_pack_sets_the_cohorts():
     df["adopt"] = df["unit"].map(adopt)
     df["arm"] = "no"
     panel, f = SH.canonical(df, GROUPS, PERIODS, "y", [], unit_column="unit", cohort_column="adopt")
-    assert f.first_treated_source == "cohort_column" and f.adoption == "staggered" and f.units_by_cohort == {"3.0": 2, "5.0": 2}
+    assert f.first_treated_source == "cohort_column" and f.adoption == "staggered" and f.units_by_cohort == {"3": 2, "5": 2}
     assert f.units_never_treated == 5 and f.periods_pre == 2
     by_unit = panel.groupby("unit")["cohort"].first()
     assert by_unit["u0"] == 3 and by_unit["u2"] == 5 and by_unit["u4"] == 0 and by_unit["u5"] == 0 and by_unit["u6"] == 0

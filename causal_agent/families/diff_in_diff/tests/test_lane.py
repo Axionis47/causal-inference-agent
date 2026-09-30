@@ -315,11 +315,20 @@ def test_catalogues_parse_on_a_toy_panel():
     toy["x1"] = toy["time"] * 0.3 + toy["unit"].astype(int) * 0.1
     toy["y"] = 1.0 + 2.0 * toy["treat"] + toy["x1"] + toy["unit"].astype(int) * 0.5
     for e in load_estimators():
-        if e.formula in ("did2s", "lpdid"):
+        if e.engine != "feols":
+            assert e.formula == "" and (e.first_stage or e.engine != "did2s"), e.name  # the other engines carry no feols formula
             continue
         f = adapter.formula_for(e, ["x1"])
         m = pf.feols(f, toy, vcov="hetero")
         assert m is not None, e.name
+    assert {e.name for e in load_estimators() if e.applies(cohorts=1, never_treated=True, periods_pre=3, periods_post=2)} == {"twfe_static", "twfe_dynamic"}
+    assert {e.name for e in load_estimators() if e.applies(cohorts=3, never_treated=True, periods_pre=3, periods_post=2)} == {
+        "did2s",
+        "did2s_dynamic",
+        "lpdid",
+        "saturated_event_study",
+    }
+    assert {e.name for e in load_estimators() if e.applies(cohorts=3, never_treated=False, periods_pre=3, periods_post=2)} == {"lpdid"}
     assert [i.name for i in load_inference()] == ["randomisation", "wild_bootstrap", "cluster_unit", "robust_rows"]
     assert {p.name for p in load_placebos()} == {"placebo_group", "placebo_timing"}
     cfg = load_checks()
@@ -679,3 +688,129 @@ def test_the_effect_is_estimated_within_each_level_of_a_unit_trait(tmp_path):
     )
     assert "within region = north" in r["report"] and "[ladder:heterogeneity.modifiers] region" in r["report"] and "modifiers    region" in r["report"]
     assert any(x["column"] == "region" for x in r["relations"]) is False or True  # region is absorbed, not a control; the rung still placed it
+
+
+def _staggered_panel(tmp_path, *, never_treated=True, cohorts=(4, 6, 8), per=6, never=10, periods=12, effect=2.0, seed=2):
+    """Units that got the change in three different periods, read off a treatment indicator that switches on and stays on, plus
+    units that never did (or none); a region trait; the same effect for every cohort."""
+    import numpy as np
+
+    from causal_agent.memory import ops
+    from causal_agent.profile.profiler import profile
+
+    rng = np.random.default_rng(seed)
+    rows = []
+    u = 0
+    for start in cohorts:
+        for _ in range(per):
+            ue = rng.normal(0, 1)
+            region = "north" if u % 2 == 0 else "south"
+            for t in range(1, periods + 1):
+                on = t >= start
+                rows.append(
+                    {"unit": f"u{u}", "time": t, "arm": "yes" if on else "no", "region": region, "y": 10 + ue + 0.3 * t + effect * on + rng.normal(0, 0.4)}
+                )
+            u += 1
+    for _ in range(never if never_treated else 0):
+        ue = rng.normal(0, 1)
+        region = "north" if u % 2 == 0 else "south"
+        for t in range(1, periods + 1):
+            rows.append({"unit": f"u{u}", "time": t, "arm": "no", "region": region, "y": 10 + ue + 0.3 * t + rng.normal(0, 0.4)})
+        u += 1
+    csv = tmp_path / "toy_staggered.csv"
+    pd.DataFrame(rows).to_csv(csv, index=False)
+    m = ops.seed("toy_staggered", profile(csv), csv=str(csv))
+    src = "user:turn:1"
+    m.set("claim:grain.row_is", "one unit in one period", status="confirmed", source=src)
+    m.set("claim:grain.key_columns", ["unit", "time"], status="confirmed", source=src)
+    m.set("claim:grain.panel", True, status="confirmed", source=src)
+    m.set("claim:sampling.how", "whole", status="confirmed", source=src)
+    m.set("claim:change.what", "the programme", status="confirmed", source=src)
+    m.set("claim:change.to_whom", "the units it reached, in waves", status="confirmed", source=src)
+    m.set("claim:change.when", f"from period {cohorts[0]}, in waves", status="confirmed", source=src)
+    m.set("claim:change.date_column", "time", status="confirmed", source=src)
+    m.set("claim:change.period_value", str(cohorts[0]), status="confirmed", source=src)
+    m.set("claim:assignment.kind", "date_by_others", status="confirmed", source=src)
+    m.set(
+        "claim:assignment.rule",
+        "the programme reached units in waves; the arm column says whether a unit had it in that period",
+        status="confirmed",
+        source=src,
+    )
+    m.set("claim:assignment.treatment_column", "arm", status="confirmed", source=src)
+    m.set("claim:assignment.treated_level", "yes", status="confirmed", source=src)
+    m.set("claim:trend_continues.believed", True, status="confirmed", source=src, said="the units moved together before their changes")
+    m.set("claim:spillover.possible", False, status="confirmed", source=src)
+    for c, when in (("y", "after"), ("arm", "at"), ("time", "at"), ("region", "before"), ("unit", "before")):
+        m.set(f"col:{c}.meaning", f"{c} as recorded", status="confirmed", source=src)
+        m.set(f"col:{c}.when", when, status="confirmed", source=src)
+    return forced(
+        "toy_staggered", "Did the programme raise y?", "diff_in_diff", "y", "arm", ["y", "arm", "time", "region", "unit"], cite="col:arm.note", memory=m
+    )
+
+
+def _staggered_script():
+    return dict(
+        groups=("arm", "yes"), periods=Periods(kind="long", time_column="time", first_post="4", reason="period 4", cites=["change:1.note"]), relations={}
+    )
+
+
+def test_a_staggered_panel_with_never_treated_units_runs_a_robust_estimator_and_shows_each_cohort(tmp_path):
+    h = _staggered_panel(tmp_path)
+    fake = FakeLLM(_staggered_script(), "col:arm.note")
+    out = _run(fake, h, question="Did the programme raise y?")
+    r = out["specialist_result"]
+    assert r["status"] == "done", r.get("feasibility")
+    s = out["shape"]
+    assert s.adoption == "staggered" and s.cohorts == 3 and s.first_treated_source == "indicator" and s.never_treated_exists and s.units_never_treated == 10
+    assert "[ladder:shape.adoption] staggered: 3 first-treated periods" in fake.humans_of("Comparison")[0]
+    checks = {c.name: c for c in out["checks"]}
+    assert checks["staggered"].level == "pass" and "not yet treated or never treated" in checks["staggered"].detail
+    assert checks["cohort_heterogeneity"].level == "pass" and "no sign the cohorts differ" in checks["cohort_heterogeneity"].detail
+    names = re.search(r"NAMES YOU MAY PICK: (.*)", fake.humans_of("EstimatorPick")[0]).group(1)
+    assert names == "did2s, lpdid, saturated_event_study, did2s_dynamic"  # two-way fixed effects is never offered on a staggered panel
+    d = out["design"]
+    assert d.estimator == "did2s" and d.engine == "did2s" and d.also_run == "did2s_dynamic" and d.formula.startswith("first stage ~ 0 | unit+time")
+    primary = next(e for e in out["estimates"] if e.method == "did2s" and e.modifier is None)
+    assert abs(primary.value - 2.0) < 0.3 and primary.ci_low < 2.0 < primary.ci_high and primary.p_value is not None and "two-stage" in primary.p_value_source
+    dyn = out["dynamic"]
+    assert any(int(k) < 0 for k in dyn) and any(int(k) >= 0 for k in dyn) and abs(dyn["1"][0] - 2.0) < 0.5  # leads and lags from the two-stage dynamic fit
+    assert d.placebos == []  # the feols placebos do not refit a two-stage design; its own falsifications come later
+    assert not out.get("interpret_errors") and "did2s" in r["report"]
+
+
+def test_a_staggered_panel_without_never_treated_units_offers_the_not_yet_treated_estimators(tmp_path):
+    h = _staggered_panel(tmp_path, never_treated=False)
+    fake = FakeLLM(_staggered_script(), "col:arm.note", pick_script=["lpdid"])
+    out = _run(fake, h, question="Did the programme raise y?")
+    r = out["specialist_result"]
+    assert r["status"] == "done", r.get("feasibility")
+    s = out["shape"]
+    assert s.adoption == "staggered" and not s.never_treated_exists and s.units_control == 0
+    names = re.search(r"NAMES YOU MAY PICK: (.*)", fake.humans_of("EstimatorPick")[0]).group(1)
+    assert names == "lpdid"  # the saturated design and the two-stage one need never-treated units; local projections do not
+    checks = {c.name: c for c in out["checks"]}
+    assert "cohort_heterogeneity" not in checks  # the test needs never-treated units
+    assert checks["units"].level == "pass" and "12 treated later serve as comparison" in checks["units"].detail
+    assert checks["pre_trends"].level == "pass" and "local projections against units not yet treated" in checks["pre_trends"].detail
+    d = out["design"]
+    assert d.estimator == "lpdid" and d.engine == "lpdid" and d.formula.startswith("local projections")
+    primary = next(e for e in out["estimates"] if e.method == "lpdid" and e.modifier is None)
+    assert abs(primary.value - 2.0) < 0.4 and "local projections" in primary.p_value_source
+    assert out["dynamic"] and all(int(k) != -1 for k in out["dynamic"])  # one horizon per period, the reference left out
+
+
+def test_the_saturated_event_study_reports_each_cohorts_effect(tmp_path):
+    h = _staggered_panel(tmp_path)
+    fake = FakeLLM(_staggered_script(), "col:arm.note", pick_script=["saturated_event_study"])
+    out = _run(fake, h, question="Did the programme raise y?")
+    r = out["specialist_result"]
+    assert r["status"] == "done", r.get("feasibility")
+    d = out["design"]
+    assert d.estimator == "saturated_event_study" and d.engine == "saturated"
+    primary = next(e for e in out["estimates"] if e.method == "saturated_event_study" and e.modifier is None)
+    assert abs(primary.value - 2.0) < 0.3 and primary.ci_low < 2.0 < primary.ci_high and "share-weighted" in primary.p_value_source
+    cohorts = [e for e in out["estimates"] if e.modifier == "cohort"]
+    assert [e.level for e in cohorts] == ["4", "6", "8"] and all(abs(e.value - 2.0) < 0.5 for e in cohorts)
+    assert {f"{e.tag}.value" for e in cohorts} <= set(out["interpretations"][0].cites) and not out.get("interpret_errors")
+    assert any(f["id"].startswith("effect_by_modifier_") for f in out["figures"]) and "within cohort = 6" in r["report"]

@@ -3,20 +3,29 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from causal_agent.lane.knowledge import Knowledge
+from causal_agent.lane.knowledge import Knowledge, matches
 
 _HERE = Path(__file__).parent
 
 
 class EstimatorEntry(BaseModel):
+    """One estimator the catalogue offers. `engine` names the library surface: feols runs `formula`; did2s runs `first_stage`
+    on the untreated observations and `second_stage` on the residual; lpdid and saturated take the canonical panel whole.
+    `applies_when` is keyed on the facts the lane computes (cohorts, never_treated, periods, units) and matched by one rule."""
+
     name: str
     in_words: str
-    formula: str
-    controls_mode: str = "plain"  # plain | csw0 | none
+    engine: Literal["feols", "did2s", "lpdid", "saturated"] = "feols"
+    formula: str = ""
+    first_stage: str = ""
+    second_stage: str = ""
+    controls_mode: str = "plain"  # plain | csw0 | none | first_stage | xfml
+    params: dict[str, Any] = Field(default_factory=dict)
+    reports: list[str] = Field(default_factory=list, description="what the fit yields beside the estimate: dynamic, by_cohort")
     applies_when: dict[str, Any]
     assumes: str
     weak_when: str
@@ -24,13 +33,8 @@ class EstimatorEntry(BaseModel):
     rank: int = 99
     also_run: str | None = None
 
-    def applies(self, *, cohorts: int, periods_pre: int, periods_post: int) -> bool:
-        w = self.applies_when
-        if "cohorts" in w and cohorts not in w["cohorts"]:
-            return False
-        if "cohorts_min" in w and cohorts < w["cohorts_min"]:
-            return False
-        return periods_pre >= w.get("periods_pre_min", 0) and periods_post >= w.get("periods_post_min", 0)
+    def applies(self, **facts: Any) -> bool:
+        return matches(self.applies_when, facts)
 
     def render(self) -> str:
         return f"estimator: {self.name}\n  what it does: {self.in_words}\n  assumes: {self.assumes}\n  weak when: {self.weak_when}"

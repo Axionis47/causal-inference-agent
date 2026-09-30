@@ -1,12 +1,16 @@
-# Estimators are formula shapes over the canonical panel: y, unit, time, treated, post, treat, rel_time.
-# {controls} is filled by the adapter from the Design's control list; never a raw column name here.
-# Fixed effects are written without spaces (unit+time): pyfixest 0.60 splits the fixed-effects string on
-# "+" without stripping, and a spaced spelling breaks its randomisation-inference path.
-# applies_when is keyed on facts from the shape step. rank orders the filtered list, lowest first.
-# also_run names a second shape run beside the primary for the report.
+# Estimators over the canonical panel: y, unit, time, time_index, treated, post, treat, rel_time, cohort.
+# engine says which library surface runs the entry. feols runs `formula`, with {controls} filled by the adapter from
+# the Design's control list (never a raw column name here). did2s runs `first_stage` (unit and period effects, with
+# the controls, on the untreated observations only) and `second_stage` on the residual. lpdid and saturated take the
+# panel whole, with the canonical names. Fixed effects are written without spaces (unit+time): pyfixest 0.60 splits
+# the fixed-effects string on "+" without stripping, and a spaced spelling breaks its randomisation-inference path.
+# applies_when is keyed on facts from the shape step and matched by one rule: cohorts (how many first-treated
+# periods), never_treated (whether any unit never got the change), periods_pre, periods_post. rank orders the filtered
+# list, lowest first. also_run names a second entry run beside the primary for the report.
 
 twfe_static:
   in_words: two-way fixed effects; the treated-times-post indicator's coefficient is the effect on the treated, net of everything fixed within a unit and everything common to a period
+  engine: feols
   formula: "y ~ treat{controls} | unit+time"
   controls_mode: csw0        # each control added cumulatively; the report shows the effect with none, then with each
   applies_when: {cohorts: [1], periods_pre_min: 1, periods_post_min: 1}
@@ -18,32 +22,68 @@ twfe_static:
 
 twfe_dynamic:
   in_words: the same two-way fixed effects model with one coefficient per period relative to the change, so the pre-period coefficients test parallel trends and the post-period ones show the effect over time
+  engine: feols
   formula: "y ~ i(rel_time, treated, ref=-1){controls} | unit+time"
   controls_mode: plain
+  reports: [dynamic]
   applies_when: {cohorts: [1], periods_pre_min: 2, periods_post_min: 1}
   assumes: as twfe_static
   weak_when: few units, so each period coefficient is noisy
   prefer_over: {}
   rank: 2
 
-# Declared for staggered adoption (more than one first-treated period). Not runnable on the five eval
-# datasets, none of which is staggered; exercised in tests on a synthetic staggered panel.
+# Staggered adoption: units got the change in more than one period. Two-way fixed effects is biased then, because units
+# already treated serve as controls for units treated later, so the pick never sees it and a sensitivity runs it to show
+# the bias. The entries below compare each cohort only with units not yet treated or never treated.
 did2s:
-  in_words: Gardner's two-stage estimator; fits unit and period effects on untreated observations only, then regresses the residual on treatment, which avoids the bias of two-way fixed effects under staggered adoption
-  formula: "did2s"
-  controls_mode: none
-  applies_when: {cohorts_min: 2, periods_pre_min: 1, periods_post_min: 1}
-  assumes: parallel trends across cohorts and no anticipation
-  weak_when: few never-treated units
-  prefer_over: {}
+  in_words: Gardner's two-stage estimator; unit and period effects are fitted on the untreated observations only (never treated and not yet treated), then the residual is regressed on the treatment indicator, so a unit already treated never serves as a control for one treated later
+  engine: did2s
+  first_stage: "~ {controls} | unit+time"
+  second_stage: "~ treat"
+  controls_mode: first_stage
+  applies_when: {cohorts_min: 2, never_treated: [true], periods_pre_min: 1, periods_post_min: 1}   # the library's variance step needs never-treated units
+  assumes: parallel trends across cohorts and against the never-treated or not-yet-treated units; no anticipation
+  weak_when: few untreated observations in the later periods, so the period effects there rest on little
+  prefer_over:
+    lpdid: when the panel is short or unbalanced; the two-stage fit uses every untreated observation for the fixed effects, local projections one window per horizon
+    saturated_event_study: when cohorts are many and small, so cohort-by-period cells would be thin
   rank: 1
+  also_run: did2s_dynamic
+
+did2s_dynamic:
+  in_words: the two-stage estimator with one coefficient per period relative to each unit's own change; the pre-period coefficients test parallel trends across cohorts without the contamination two-way fixed effects suffers
+  engine: did2s
+  first_stage: "~ {controls} | unit+time"
+  second_stage: "~ i(rel_time, ref=-1)"
+  controls_mode: first_stage
+  reports: [dynamic]
+  applies_when: {cohorts_min: 2, never_treated: [true], periods_pre_min: 2, periods_post_min: 1}
+  assumes: as did2s
+  weak_when: few units at a given distance from their change, so that period's coefficient is noisy
+  prefer_over: {}
+  rank: 4
 
 lpdid:
-  in_words: local projections; one regression per horizon on clean comparisons, robust to staggered adoption
-  formula: "lpdid"
-  controls_mode: none
+  in_words: local projections; one regression per horizon on clean comparisons, each cohort against units not yet treated at that horizon, pooled into the effect on the treated; robust to staggered adoption and needs no never-treated unit
+  engine: lpdid
+  controls_mode: none        # the library documents covariates as unsupported for this estimator
+  params: {max_window: 8}   # horizons either side of the change, clipped to the panel by code
+  reports: [dynamic]
   applies_when: {cohorts_min: 2, periods_pre_min: 2, periods_post_min: 1}
-  assumes: parallel trends across cohorts and no anticipation
-  weak_when: short panels, since each horizon uses fewer rows
-  prefer_over: {}
+  assumes: parallel trends against the units not yet treated at each horizon; no anticipation
+  weak_when: short panels, since each horizon uses fewer rows; controls cannot enter; the last cohort has no comparison at long horizons
+  prefer_over:
+    did2s: when the never-treated units are few, so the comparison leans on units not yet treated, which local projections use by construction and name at each horizon
   rank: 2
+
+saturated_event_study:
+  in_words: one coefficient for every cohort at every period relative to its own change, against the never-treated units; the effect on the treated is the share-weighted average of the post-change coefficients, and the cohorts' effects can be tested against one another
+  engine: saturated
+  controls_mode: xfml
+  reports: [dynamic, by_cohort]
+  applies_when: {cohorts_min: 2, never_treated: [true], periods_pre_min: 2, periods_post_min: 1}
+  assumes: parallel trends of each cohort against the never-treated units
+  weak_when: many cohorts and few units per cohort, so each coefficient is noisy; no never-treated unit exists, since the design needs one
+  prefer_over:
+    did2s: when cohorts are few and large and the effect may differ by cohort, which this design shows and tests
+  rank: 3
