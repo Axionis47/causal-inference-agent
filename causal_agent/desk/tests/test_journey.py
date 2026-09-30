@@ -684,7 +684,7 @@ def test_the_runs_graph_comes_back_as_drafts_the_person_confirms_on_the_next_ask
     m = HELD["students"]
     for a in ("col:lunch.feeds_treatment", "col:lunch.moves_outcome"):
         f = m.field(a)
-        assert f is not None and f.value is True and f.status == "drafted" and f.source == "model:relate" and f.reason == "the run's graph drew this edge"
+        assert f is not None and f.value is True and f.status == "drafted" and f.source == "model:roles" and f.reason == "the run's graph drew this edge"
     assert m.field("col:parental_level_of_education.feeds_treatment") is None  # not placed by the graph: nothing said
     design, run, claim, brief = d.journal.steps()[-4:]
     assert [s.kind for s in (design, run, claim, brief)] == ["design", "run", "claim", "brief"]
@@ -693,7 +693,7 @@ def test_the_runs_graph_comes_back_as_drafts_the_person_confirms_on_the_next_ask
     # the next ask is a confirm turn over the drafts, like any other draft; the person's yes makes them the next run's facts
     p = d.say("gender is sex, by the way")
     assert p["kind"] == "ask" and p["ask"]["kind"] == "confirm" and set(p["ask"]["addresses"]) >= {"col:lunch.feeds_treatment", "col:lunch.moves_outcome"}
-    assert "'lunch': feeds treatment: yes; moves outcome: yes — from model:relate" in p["text"] and "Is this right?" in p["text"]
+    assert "'lunch': feeds treatment: yes; moves outcome: yes — from model:roles" in p["text"] and "Is this right?" in p["text"]
     d.say("yes, all right")
     assert m.field("col:lunch.feeds_treatment").status == "confirmed" and m.field("col:lunch.moves_outcome").status == "confirmed"
 

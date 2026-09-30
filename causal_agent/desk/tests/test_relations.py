@@ -44,7 +44,7 @@ def test_the_graph_comes_back_as_drafts_and_never_over_a_confirmed_field():
     written = absorb_relations(m, result, h)
     assert written == ["col:lunch.feeds_treatment", "col:lunch.moves_outcome", "col:gender.feeds_treatment", "col:reading_score.measures_outcome"]
     lunch_t, lunch_y = m.field("col:lunch.feeds_treatment"), m.field("col:lunch.moves_outcome")
-    assert (lunch_t.value, lunch_t.status, lunch_t.source, lunch_t.reason) == (True, "drafted", "model:relate", "the run's graph drew this edge")
+    assert (lunch_t.value, lunch_t.status, lunch_t.source, lunch_t.reason) == (True, "drafted", "model:roles", "the run's graph drew this edge")
     assert lunch_y.value is True and lunch_y.status == "drafted"
     gender_t = m.field("col:gender.feeds_treatment")
     assert gender_t.value is False and gender_t.status == "drafted" and gender_t.reason == "the run's graph drew no such edge"
@@ -56,6 +56,21 @@ def test_the_graph_comes_back_as_drafts_and_never_over_a_confirmed_field():
     # a column excluded for another reason, or not placed at all, gets nothing
     assert m.field("col:writing_score.measures_outcome") is None and m.field("col:writing_score.feeds_treatment") is None
     assert m.version == v + len(written)
+
+
+def test_the_roles_rung_s_relations_come_back_as_drafts_too():
+    m = store.migrate("students3", write=False)
+    h = _handoff(m)
+    result = _result(edges=[("test_preparation_course", "math_score"), ("lunch", "math_score"), ("gender", "math_score")])
+    result["relations"] = [
+        {"column": "lunch", "stands_for": "household income", "redundant_with": None, "nested_in": None, "modifier_candidate": True},
+        {"column": "gender", "stands_for": None, "redundant_with": None, "nested_in": None, "modifier_candidate": False},
+    ]
+    written = absorb_relations(m, result, h)
+    assert "col:lunch.stands_for" in written and "col:lunch.may_modify" in written and "col:gender.may_modify" in written
+    assert m.field("col:lunch.stands_for").value == "household income" and m.field("col:lunch.stands_for").status == "drafted"
+    assert m.field("col:lunch.may_modify").value is True and m.field("col:gender.may_modify").value is False
+    assert m.field("col:gender.stands_for") is None and m.field("col:lunch.same_as") is None
 
 
 def test_a_result_without_a_graph_writes_nothing():

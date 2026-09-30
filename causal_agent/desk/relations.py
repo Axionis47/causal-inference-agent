@@ -1,6 +1,6 @@
-"""What a run's graph says about each column, written back to the memory as drafts. A relationship between columns is a
-claim under the escalation rule: the lane's reading is drafted with its reason, the person confirms or corrects it, and
-only then does the next run take it as settled. The gate refuses a write over a confirmed field."""
+"""What a run said about each column, written back to the memory as drafts. A relationship between columns is a claim under
+the escalation rule: the lane's reading is drafted with its reason, the person confirms or corrects it, and only then does the
+next run take it as settled. The gate refuses a write over a confirmed field."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from causal_agent.memory import ops
 from causal_agent.memory.catalogue import Catalogue
 from causal_agent.memory.records import Memory
 
-SOURCE = "model:relate"
+SOURCE = "model:roles"
 MEASURE_WHY = "another measurement of the outcome"
 
 
@@ -18,9 +18,10 @@ def _edges_into(edges: list[dict], src: str, dst: str | None) -> bool:
 
 
 def absorb_relations(memory: Memory, result: dict, h: Handoff, cat: Catalogue | None = None) -> list[str]:
-    """The lane's relations as drafts: for every column in the pack that the graph placed, `feeds_treatment` (an edge into the
+    """The run's reading as drafts: for every column in the pack that the graph placed, `feeds_treatment` (an edge into the
     treatment) and `moves_outcome` (an edge into the outcome); for a column excluded as a measure of the outcome,
-    `measures_outcome`. Returns the addresses written; a result without a graph writes nothing."""
+    `measures_outcome`; and from the roles rung, `same_as`, `nested_in`, `stands_for` where it named them and `may_modify` for
+    every column it placed. Returns the addresses written; a result without a graph writes nothing."""
     design = result.get("design") if isinstance(result, dict) else None
     graph = design.get("graph") if isinstance(design, dict) else None
     if not isinstance(graph, dict):
@@ -29,6 +30,7 @@ def absorb_relations(memory: Memory, result: dict, h: Handoff, cat: Catalogue | 
     nodes = [str(n) for n in graph.get("nodes") or []]
     edges = [e for e in graph.get("edges") or [] if isinstance(e, dict)]
     excluded = {x.get("column"): str(x.get("why") or "") for x in graph.get("excluded") or [] if isinstance(x, dict)}
+    roles = {r.get("column"): r for r in (result.get("relations") or []) if isinstance(r, dict)}
     updates: list[ops.Update] = []
     for b in h.columns:
         if b.role in ("outcome", "treatment") or b.key in (t, y):
@@ -43,6 +45,22 @@ def absorb_relations(memory: Memory, result: dict, h: Handoff, cat: Catalogue | 
             updates.append(
                 ops.Update(address=f"{b.address}.measures_outcome", value=True, status="drafted", source=SOURCE, reason=f"excluded as {excluded[k]}")
             )
+        r = roles.get(k)
+        if r is None:
+            continue
+        for field, key in (("same_as", "redundant_with"), ("nested_in", "nested_in"), ("stands_for", "stands_for")):
+            if r.get(key):
+                updates.append(ops.Update(address=f"{b.address}.{field}", value=r[key], status="drafted", source=SOURCE, reason="the roles rung read it so"))
+        mod = bool(r.get("modifier_candidate"))
+        updates.append(
+            ops.Update(
+                address=f"{b.address}.may_modify",
+                value=mod,
+                status="drafted",
+                source=SOURCE,
+                reason="the roles rung marked it as one the effect could differ by" if mod else "the roles rung saw no reason the effect would differ by it",
+            )
+        )
     if not updates:
         return []
     rejected = ops.apply(memory, updates, cat)
