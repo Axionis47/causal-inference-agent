@@ -13,6 +13,7 @@ from __future__ import annotations
 import contextlib
 import io
 import os
+import threading
 import warnings
 from dataclasses import dataclass, field
 from typing import Any
@@ -63,9 +64,12 @@ class Fit:
         return self.ci_low <= 0 <= self.ci_high
 
 
+_QUIET = threading.Lock()  # redirecting stdout and recording warnings swap process-wide state; two placebo workers must not interleave
+
+
 def _run(fn, **kw):
     buf = io.StringIO()
-    with np.errstate(all="ignore"), warnings.catch_warnings(record=True) as caught, contextlib.redirect_stdout(buf):
+    with _QUIET, np.errstate(all="ignore"), warnings.catch_warnings(record=True) as caught, contextlib.redirect_stdout(buf):
         warnings.simplefilter("always")
         res = fn(**kw)
     notes = [str(w.message) for w in caught if not issubclass(w.category, RuntimeWarning)]

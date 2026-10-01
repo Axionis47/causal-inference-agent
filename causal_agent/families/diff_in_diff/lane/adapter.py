@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 import re
+import threading
 import warnings
 from dataclasses import dataclass, field
 from typing import Any
@@ -25,6 +26,7 @@ logging.getLogger("pyfixest").setLevel(logging.ERROR)
 warnings.filterwarnings("ignore", module="pyfixest")
 
 SEED = 7
+_QUIET = threading.Lock()
 COEF = "treat"
 DYNAMIC = re.compile(r"rel_time::(-?\d+)(?:\.0)?(?::treated)?$")  # the two-way and the two-stage dynamic spellings
 SATURATED = re.compile(r"rel_time::(-?\d+)(?:\.0)?:first_treated_period::(\d+)")
@@ -536,7 +538,7 @@ def ritest_collapsed(panel: pd.DataFrame, controls: list[str], *, reps: int, see
     terms = [c for c in col.columns if c.startswith("d_") and col[c].notna().all()]
     try:
         m = pf.feols("dy ~ treated" + ("".join(f" + {c}" for c in terms)), col, vcov="hetero")
-        with contextlib.redirect_stderr(io.StringIO()):
+        with _QUIET, contextlib.redirect_stderr(io.StringIO()):  # the redirect swaps process-wide state; workers must not interleave
             r = m.ritest(resampvar="treated", reps=int(reps), type=kind, rng=np.random.default_rng(int(seed)), choose_algorithm="slow")
         return float(r["Pr(>|t|)"]), float(m.coef()["treated"])
     except Exception:
