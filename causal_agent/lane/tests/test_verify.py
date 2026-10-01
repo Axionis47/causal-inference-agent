@@ -72,3 +72,21 @@ def test_a_departure_from_the_last_reading_needs_a_named_departure_that_cites():
     )
     # keeping the reading needs nothing
     assert V.departures({"affects_treatment": True}, drafted, [], h) == []
+
+
+def test_a_cite_copied_with_its_brackets_or_the_words_after_a_said_tag_still_resolves():
+    from causal_agent.common.addresses import norm_address
+
+    assert norm_address("[col:Margin.when]") == "col:margin.when" and norm_address("[claim:assignment.kind]") == "claim:assignment.kind"
+    assert norm_address("said:1 about claim:assignment.kind") == "said:1" and norm_address("[said:3]") == "said:3"
+    h = pack()
+    assert V.cites_resolve(["[col:pop.when]"], h) == [] and V.cites_resolve(["col:nope.when"], h)
+
+
+def test_resolves_reads_the_checks_the_pack_and_what_the_run_made():
+    h = pack()
+    made = lambda a: a == "ladder:trends.leads"  # noqa: E731
+    assert V.resolves("check:c.pre_trends", h, checks=["check:c.pre_trends"])
+    assert V.resolves("[check:c.pre_trends]", h, checks=["check:c.pre_trends"])
+    assert V.resolves("col:pop.when", h) and V.resolves("ladder:trends.leads", h, also=made)
+    assert not V.resolves("ladder:trends.gap_slope", h, also=made) and not V.resolves("STORY", h, checks=["check:c.x"], also=made)

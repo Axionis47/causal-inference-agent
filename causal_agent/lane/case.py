@@ -118,6 +118,10 @@ class Case(BaseModel):
     def is_fact(self, address: str) -> bool:
         return address in self.facts
 
+    def flag_addresses(self) -> list[str]:
+        """What a rung may cite of the flags: each flag's address, as the case renders it."""
+        return [f.address or f.name for f in self.flags]
+
     def flag(self, name: str) -> Flag | None:
         return next((f for f in self.flags if f.name == name), None)
 
@@ -133,7 +137,7 @@ class Case(BaseModel):
             lines += [f"  [{a}]" for a in self.contested]
         if self.flags:
             lines.append("FLAGS FROM WHAT THE PERSON SAID")
-            lines += [f"  {f.name} ({f.level}): {f.caveat}" for f in self.flags]
+            lines += [f"  [{f.address or f.name}] {f.name} ({f.level}): {f.caveat}" for f in self.flags]
         return "\n".join(lines)
 
 

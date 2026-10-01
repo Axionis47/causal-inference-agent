@@ -227,3 +227,12 @@ def test_a_stop_level_flag_stops_before_any_ask():
     assert C.as_checks(case)[0].level == "hard"
     action, payload, _ = C.decide_by_code(case, [], rules, h)
     assert action == "stop" and payload["reason"] == "something else switches at the cutoff"
+
+
+def test_a_flag_renders_with_an_address_a_rung_may_cite():
+    h = cigar()
+    h.beliefs = {"trend_continues": Belief(kind="trend_continues", value=False, status="confirmed", source="user:turn:5", said="it was already falling")}
+    case = C.weigh(h, RULES)
+    flag = next(f for f in case.flags if f.name == "belief.trend_continues")
+    assert flag.address and f"[{flag.address}] belief.trend_continues (hard):" in case.render()
+    assert flag.address in case.flag_addresses()

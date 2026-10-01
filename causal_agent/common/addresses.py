@@ -23,6 +23,10 @@ def norm_address(address: str) -> str:
     """The column segment of a col: or claim:col: address compares as a key, the rest lowercased, so a cite written
     with the column's original spelling (col:Total_Emp.note) resolves to the same card as col:total_emp.note."""
     a = str(address).strip()
+    if len(a) > 2 and a[0] == "[" and a[-1] == "]":  # a cite copied with its brackets
+        a = a[1:-1].strip()
+    if a.startswith("said:"):  # a quoted sentence copied with the words after its tag
+        a = a.split()[0]
     if a.startswith("col:"):
         name, dot, rest = a[4:].partition(".")
         return "col:" + key(name) + (dot + rest.lower() if dot else "")

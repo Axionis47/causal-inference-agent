@@ -4,7 +4,7 @@ needs a `Departure` naming it with the cite that changed it; the citations must 
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from typing import Any
 
 from causal_agent.common.addresses import norm_address
@@ -18,6 +18,18 @@ Rule = tuple[str, bool, str, tuple]
 def cites_resolve(cites: list[str], h: Handoff, also: Callable[[str], bool] | None = None) -> list[str]:
     """Errors for every cite the pack does not resolve; `also` resolves what this run itself made (an episode's facts)."""
     return [f"citation {c!r} does not resolve in the pack" for c in cites if not (h.resolve(c) or (also is not None and also(c)))]
+
+
+def is_address(cite: str) -> bool:
+    """Whether a cite is shaped like an address at all (a tag with a colon, or a dotted design line), not a heading copied from the material."""
+    a = norm_address(cite)
+    return ":" in a or a.startswith(("design.", "pair.", "time.", "dataset", "change:"))
+
+
+def resolves(cite: str, h: Handoff, *, checks: Iterable[str] = (), also: Callable[[str], bool] | None = None) -> bool:
+    """Whether one cite names a check of this run, a pack address, or what `also` resolves (the ladder, an episode's facts)."""
+    a = norm_address(cite)
+    return a in {norm_address(c) for c in checks} or h.resolve(a) or (also is not None and also(a))
 
 
 def departures(
