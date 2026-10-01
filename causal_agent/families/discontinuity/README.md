@@ -109,5 +109,5 @@ uv run pytest causal_agent/families/discontinuity -q
 
 ## Known limits
 
-- One cutoff. Multiple cutoffs and kink designs are not handled.
+- One cutoff. Many cutoffs (`rdmulti`), a kink design (`deriv=1`) and sampling weights each need a claim the interview does not ask.
 - Rows with a missing outcome, score or take-up value are dropped at `shape_table` and counted.

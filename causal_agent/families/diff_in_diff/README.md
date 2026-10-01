@@ -109,7 +109,9 @@ uv run pytest causal_agent/families/diff_in_diff -q
 
 ## Known limits
 
-- One cohort only. Staggered adoption stops at `check_design` with a hard flag.
+- Not in pyfixest 0.60, so not here: Callaway and Sant'Anna's estimator, HonestDiD bounds. Count outcomes (`fepois`) and sampling
+  weights need claims the interview does not ask; two-way, Newey-West and Driscoll-Kraay errors need claims about shared or
+  serial shocks.
 - Fixed effects are spelled `unit+time` without spaces on purpose: pyfixest 0.60 splits the string on `+` without stripping.
 - The dynamic model's summary number is the mean of the post-period coefficients; the per-period values are in the report.
 - Rows with a null in any relevant column are dropped at `load`.

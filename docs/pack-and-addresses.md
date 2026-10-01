@@ -50,17 +50,17 @@ population filter was not in a form the code can apply, so every row was kept an
 | `change:1.note`, `dataset.note` | the change and the dataset as the pack renders them | `change:1.note` |
 | `said:<turn>` | one sentence the person said | `said:5` |
 | `user:turn:<n>` | the turn a field came from | `user:turn:3` |
-| `probe:<family>.<name>` | a probe's result | `probe:adjustment.overlap` |
+| `probe:<family>.<name>` | a probe's result | `probe:diff_in_diff.treated_units` |
 | `probe:data.<name>` | a data fact computed before the run, with a number and no verdict | `probe:data.by_arm.lunch` |
 | `probe:<rung>.<n>` | a fact a lane's episode asked the data for, in the order it asked | `probe:roles.1` |
-| `ladder:<rung>.<field>` | one line of the lane's ladder: the pair, the mechanism, time, a column's role | `ladder:roles.lunch` |
+| `ladder:<rung>.<field>` | one line of the lane's ladder: the pair, the mechanism, time, a column's role; an evidence rung's facts (`ladder:density.test`, `ladder:balance.<column>`, `ladder:trends.leads`, `ladder:trends.composition`), a judgement's record (`ladder:mechanism.chosen_on`, `ladder:window.selector`) | `ladder:roles.lunch` |
 | `matrix:<family>.<kind>` | one cell of the matrix | `matrix:instrument.exclusion` |
 | `step:<n>` | one step of the conversation's journal | `step:10` |
 | `design.<...>`, `design.brief.<...>` | the frozen design and the brief | `design.estimand.adjustment_set` |
 | `check:<contrast>.<name>` | a design check with its number | `check:completed_vs_none.balance.lunch` |
 | `estimate:<contrast>.value`, `.ci`, `.n`, `.p` | an estimate; `.p` carries the p-value and names how it was computed | `estimate:completed_vs_none.ci` |
 | `estimate:<contrast>.by.<modifier>.<level>.value`, `.ci`, `.n` | the effect within one level of a modifier | `estimate:completed_vs_none.by.gender.female.value` |
-| `refute:<contrast>.<name>.<field>` or `placebo:` | a falsification | `refute:completed_vs_none.placebo_treatment_refuter.p_value` |
+| `refute:<contrast>.<name>.<field>` or `placebo:` | a falsification or a sensitivity; `.passed` is a verdict for a falsification and `None` for a sensitivity, which reports a range | `placebo:yes_vs_no.leave_one_out.passed` |
 | `decline:<stage>.<about>` | where the lane disagreed with the pack | `decline:load.scope_population_filter` |
 | `figure:<id>`, `figure:<id>.<series>.<i>` | a run figure and one of its marks | `figure:balance_completed_vs_none` |
 | `artifact:<id>`, `artifact:<id>.<fact>` | a drawn picture and one of its numbers | `artifact:3f9a1c2e.mean_completed` |

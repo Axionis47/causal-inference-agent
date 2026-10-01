@@ -205,6 +205,49 @@ an analyst reads a cutoff design.
 | what the yaml declares | one estimator per engine (feols formulas over the canonical names, Gardner's two stages, local projections, the saturated event study), each applying by facts; the inference rule; the placebos; the thresholds | the local polynomial specs and local randomisation, each applying by facts; the width selectors the window rung offers; the inference rule; the falsifications and sensitivities; the thresholds |
 | falsifications | placebo group, placebo timing, placebo outcome, leave-one-out, anticipation shift, and as sensitivities a trend per unit, period effects per group, naive two-way fixed effects on a staggered panel | placebo cutoffs, the bandwidth grid, donuts, and as sensitivities the polynomial order and the kernel; for local randomisation the window sensitivity and Rosenbaum bounds |
 
+## The design space, and who decides each dimension
+
+A design is a point in the space its library spans, not a named recipe. Each dimension is decided by one of three things: a fact
+code computes, a judgement the model makes in a bounded episode, or a declaration in the lane's catalogue. Widening the space is a
+new option at an existing level, never a new rung. A test per lane asserts that every `applies_when` key in a catalogue is a fact
+the lane computes and every yaml key is a field of its entry model. [adr/0009](adr/0009-a-lane-reasons-over-its-librarys-whole-design-space.md)
+
+### Diff-in-diff on pyfixest 0.60
+
+| dimension | options in the library | decided by | carried by |
+|---|---|---|---|
+| estimator family | static and dynamic two-way fixed effects, Gardner's two stages (static, dynamic), local projections, the saturated event study | facts (cohorts, never-treated units, periods) filter; the pick judgement chooses among survivors, citing the checks and the trends lines; two-way fixed effects is never offered on a staggered panel | `estimators.yaml` `applies_when`, `engine` |
+| adoption pattern | one-shot; staggered | fact: `shape.py` derives each unit's first treated period from the pack's adoption column, else a treatment indicator that switches on and stays on, else the label and the change period | `ShapeFacts.adoption`, `ladder:shape.adoption` |
+| comparison set | never-treated; not-yet-treated; both | facts: never-treated units exist, cohorts; the `never_treated` check | `ShapeFacts`, `check:<c>.never_treated` |
+| controls | none; plain; cumulative (`csw0`); first-stage controls for the two stages; none for local projections | the controls rung places every candidate; the mode per entry | `controls_mode`, `{controls}` |
+| fixed-effect structure | `unit+time`; a linear trend per unit; period effects per group above the unit | the primary is always `unit+time`; the other two run as sensitivities when they apply | `placebos.yaml` `unit_trends`, `group_time_fe` |
+| anticipation exclusion | drop `rel_time` in `[-k, 0)` | the mechanism judgement names a lead only when the story states one; code excludes it at the freeze | `ladder:mechanism.anticipation`, `Design.excluded_rel_times` |
+| aggregation | the effect on the treated; by cohort; by period | the target is the effect on the treated; by cohort from the saturated engine; by period from the dynamic fits | `EstimatorEntry.reports` |
+| inference | row-robust, CRV1, CRV3; the wild cluster bootstrap (webb or rademacher weights); randomisation inference | `inference.yaml`, first that applies on the treated units and the cluster count: randomisation at three or fewer treated units, webb under 12 clusters, CRV3 with rademacher at 12 to 41, CRV1 at 42 or more, row-robust on a wide table; two-way, Newey-West and Driscoll-Kraay errors need claims about shared or serial shocks the interview does not ask | `Cluster`, `Estimate.p_value_source` |
+| multiple testing | Romano-Wolf across a family of fits | code, across the levels of one modifier | `checks.yaml multiple_testing` |
+| falsification | the eight entries of `placebos.yaml` | code: every entry whose `applies_when` holds on the frozen design | `Design.placebos` |
+| count outcomes (`fepois`), sampling weights, `panelview` | | out of scope: each needs a claim the interview does not ask, or a figure the drawing tool does not draw | |
+
+### Discontinuity on rdrobust, rddensity and rdlocrand
+
+| dimension (library argument) | decided by | carried by |
+|---|---|---|
+| estimand: sharp, fuzzy, intention to treat (`fuzzy=`) | facts: a take-up column and the compliance shape filter the entries; the pick chooses among them | `estimators.yaml` `fuzzy`, `estimand` |
+| kink (`deriv=1`) | out of scope: needs a claim that the rule changes a slope, not a level | |
+| polynomial order (`p`) | declaration per entry; the `polynomial_grid` sensitivity runs the orders beside it | `params.p` |
+| bias order (`q`) | the library's `p+1`, never passed | |
+| kernel | declaration; the `kernel_grid` sensitivity runs the others beside it | `params.kernel` |
+| bandwidth selector, one- or two-sided (`bwselect`, `h`, `b` per side) | judgement: the window rung, over a table code builds with every selector the library offers, both sides, the rows each leaves inside; the support-points rule or the local-randomisation window when the facts say so, by code | `WindowPick`, `Bandwidths` |
+| covariate adjustment (`covs`) | the covariates rung's adjusted set; the adjusted entry runs beside the primary | `Covariates.adjusted` |
+| variance (`vce`, `cluster`) | `inference.yaml` by the cluster column and count: the Bell-McCaffrey correction under 30 clusters, the entity cluster, else the robust bias-corrected rows | `vce` |
+| `sharpbw` | fact: take-up varies on one side only; passed to the library | `ShapeFacts`, the `one_sided_takeup` check |
+| mass points (`masspoints`) | declaration (`adjust`) | `params.masspoints` |
+| the density test (`rddensity`: `p`, `kernel`, `vce`, `bwselect`, `fitselect`) and the binomial windows | declarations in `checks.yaml density`; the evidence rung computes them once before the line is judged | `ladder:density.*` |
+| the local-randomisation window (`rdwinselect`) | code proposes the recommended window from covariate balance, the support-points window when no covariate exists | `Window.rule` |
+| the randomisation test (`rdrandinf`: statistic, draws, the interval's grid) | declarations | `estimators.yaml local_randomisation.params` |
+| window sensitivity (`rdsensitivity`) and Rosenbaum bounds (`rdrbounds`) | sensitivities that run by code when the primary is local randomisation | `placebos.yaml` |
+| many cutoffs (`rdmulti`), sampling weights | out of scope: each needs a claim the interview does not ask | |
+
 Each is one package: `family.yaml`, `design.py`, `handoff.py`, `probes.py`, `postviz.py`, `lane/`, `evals/`, `tests/`, and one
 line in [families/registry.py](../causal_agent/families/registry.py). The core never names a family;
 [families/tests/test_core_names_no_family.py](../causal_agent/families/tests/test_core_names_no_family.py) greps for it.

@@ -73,7 +73,11 @@ those claims. [docs/desk.md](docs/desk.md#the-stages-in-order)
 ## Known limits
 
 - One change at a time. The question names one cause; two treatments acting together, or a dose with many values, stop at the
-  door. Staggered adoption in the diff-in-diff lane runs on the two-stage, local-projection and saturated estimators; two-way fixed effects is never offered there.
+  door. Staggered adoption in the diff-in-diff lane runs on the two-stage, local-projection and saturated estimators; two-way
+  fixed effects is never offered there. Not in pyfixest 0.60, so not here: Callaway and Sant'Anna's estimator, HonestDiD bounds.
+- One cutoff. Many cutoffs, a kink design and sampling weights at a cutoff each need a claim the interview does not ask.
+- The two design lanes' evidence rungs, the window judgement and the staggered engines have run on scripted judgements only;
+  a real-model run on a fixture is the owner's to trigger.
 - A rung reasons from the pack, the rungs below it and six read-only tools, within a budget. What none of those can settle is a
   flag the reader carries, not a question the lane asks; the interview is where questions live.
 - The drawing tool's fence is the strongest the machine has: the seatbelt on macOS, `bwrap` or `unshare` on Linux, a container
