@@ -605,7 +605,8 @@ def test_a_field_no_decision_rests_on_is_asked_with_the_rest_of_its_claim(_no_no
     assert a2.decision == "" and a2.addresses == ["claim:change.to_whom", "claim:change.when"] and a2.kind == "open"
     assert a2.text.endswith(
         "What was the change, which units could it reach, and when did it happen; if a column records the period, which value marks when it "
-        "took effect? This turn: to whom, when. Say don't know for anything you cannot say."
+        "took effect; if units got it at different times, which column holds each unit's first period? This turn: to whom, when. Say don't know "
+        "for anything you cannot say."
     )
 
 

@@ -19,7 +19,7 @@ def test_a_built_family_lists_its_decisions_and_a_declared_one_none():
     needs = R.needs()["adjustment"]
     assert "col:<column>.may_modify" in needs.asks and "claim:assignment.offer_column" in needs.asks and "probe:adjustment.overlap" not in needs.asks
     assert adj.decision("road") is not None and "claim:unobserved.exists" in adj.decision("road").rests_on and adj.decision("nope") is None
-    assert [d.name for d in reg["diff_in_diff"].decisions] == ["groups", "periods", "comparison_holds", "controls", "cluster", "run_at_all"]
+    assert [d.name for d in reg["diff_in_diff"].decisions] == ["groups", "periods", "mechanism", "comparison_holds", "controls", "cluster", "run_at_all"]
     assert [d.name for d in reg["discontinuity"].decisions] == ["score_and_line", "sharp_or_fuzzy", "line_is_clean", "covariates", "run_at_all"]
     assert reg["diff_in_diff"].decision("road") is None and reg["discontinuity"].decision("road") is None
     assert all(not reg[n].decisions for n in ("interrupted_series", "synthetic_control", "instrument", "root_cause"))

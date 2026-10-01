@@ -51,8 +51,9 @@ kinds:
       when: {type: text}
       date_column: {type: column, optional: true, hint: "a column of dates or period numbers, only when the file has one"}
       period_value: {type: text, optional: true, required_when: {date_column: ["*"]}}   # the value in date_column at which the change took effect; required once a date column is named
+      adoption_column: {type: column, optional: true, hint: "only when units got the change at different times and no column records receipt period by period: the column holding the period each unit first got it, written like the date column; leave it empty when every unit got the change at once"}
     check: date_column_exists
-    frame: what was the change, which units could it reach, and when did it happen; if a column records the period, which value marks when it took effect
+    frame: what was the change, which units could it reach, and when did it happen; if a column records the period, which value marks when it took effect; if units got it at different times, which column holds each unit's first period
     order: 1
 
   assignment:

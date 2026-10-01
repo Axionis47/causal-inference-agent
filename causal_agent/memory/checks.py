@@ -62,6 +62,9 @@ def date_column_exists(claim: Claim, table: ClaimTable, df: pd.DataFrame, prof: 
     cp = next((x for x in prof.columns if x.name == c), None)
     if cp is not None and cp.kind not in {"datetime", "numeric", "id"}:
         return Outcome("date_column", False, f"{c!r} holds {cp.kind} values, not dates or period numbers; it cannot be the period column")
+    ac = claim.fields.get("adoption_column")
+    if ac and column(df, ac) is None:
+        return Outcome("adoption_column", False, f"{ac!r} is not a column in the file")
     pv = claim.fields.get("period_value")
     if pv is not None:
         vals = set(df[c].dropna().astype(str).str.strip())

@@ -23,6 +23,8 @@ def design_block(i: BlockInputs) -> DidDesign:
         if a.get("treatment_column") and a.get("treated_level") is not None
         else ({"column": treatment, "level": a["treated_level"]} if treatment and a.get("treated_level") is not None else {})
     )
+    if ch.get("adoption_column"):
+        treated_group = {**treated_group, "cohort_column": key(ch["adoption_column"])}
     pre = next((p for p in i.probes if p.family == "diff_in_diff" and p.name == "pre_periods"), None)
     controls = [
         b.key
@@ -35,6 +37,7 @@ def design_block(i: BlockInputs) -> DidDesign:
         period_kind=period_kind,
         change_period=str(ch["period_value"]) if ch.get("period_value") is not None else None,
         treated_group=treated_group,
+        staggered=True if ch.get("adoption_column") else None,
         pre_periods=int(pre.value) if pre and pre.value is not None else None,
         controls_allowed=controls,
         cluster_level=key(a["level_column"]) if a.get("level_column") else (key(unit) if unit else None),

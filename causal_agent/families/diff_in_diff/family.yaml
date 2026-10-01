@@ -25,6 +25,9 @@ decisions:
   - name: periods
     asks: the periods, long or wide
     rests_on: [claim:grain.panel, claim:grain.key_columns, claim:change.date_column, claim:change.period_value, "col:<column>.when"]
+  - name: mechanism
+    asks: how the treated group came to be chosen, by whom, at what level, looking at what, and whether units got the change at different times
+    rests_on: [claim:assignment.kind, claim:assignment.depends_on, claim:assignment.level_column, claim:change.adoption_column]
   - name: comparison_holds
     asks: whether the comparison holds
     rests_on: [claim:trend_continues.believed, claim:assignment.kind, claim:sampling.how]
