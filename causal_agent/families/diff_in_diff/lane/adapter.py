@@ -524,10 +524,87 @@ def ritest_collapsed(panel: pd.DataFrame, controls: list[str], *, reps: int, see
         return None, None
 
 
-def placebo_group(formula: str, panel: pd.DataFrame, observed: float, entry: PlaceboEntry, contrast_key: str) -> tuple[Refutation, list[float]]:
-    """Reassign the treated label across units at random and refit. p = share of |placebo| >= |observed|. Every placebo
-    effect comes back too, so the spread can be drawn."""
+def passes(pass_when: dict[str, Any], primary: Estimate, *, new: float | None, lo: float | None, hi: float | None, p: float | None) -> bool | None:
+    """One falsification's verdict under its declared rule: an interval that covers zero, an interval that overlaps the primary's,
+    a sign that holds when the primary excludes zero, a p below a line. None when the refit could not say (or the primary covers
+    zero and the rule is informative only when it does not)."""
+    primary_excludes_zero = primary.ci_low is not None and primary.ci_high is not None and not (primary.ci_low <= 0 <= primary.ci_high)
+    if pass_when.get("informative_only_when_primary_excludes_zero") and not primary_excludes_zero:
+        return None
+    verdicts: list[bool] = []
+    if "p_value_lt" in pass_when:
+        if p is None:
+            return None
+        verdicts.append(p < float(pass_when["p_value_lt"]))
+    if pass_when.get("interval_covers_zero"):
+        if lo is None or hi is None:
+            return None
+        verdicts.append(lo <= 0 <= hi)
+    if pass_when.get("interval_overlaps_primary"):
+        if lo is None or hi is None or primary.ci_low is None or primary.ci_high is None:
+            return None
+        verdicts.append(lo <= primary.ci_high and primary.ci_low <= hi)
+    if pass_when.get("sign_stable_when_primary_excludes_zero") and primary_excludes_zero:
+        if new is None or primary.value is None:
+            return None
+        verdicts.append(np.sign(new) == np.sign(primary.value))
+    return all(verdicts) if verdicts else None
+
+
+def _point(formula: str, panel: pd.DataFrame, vcov: Any) -> tuple[float, float, float] | None:
+    """One refit's effect and interval, or None when it could not run."""
+    try:
+        m = fit(formula, panel, vcov)
+        m = m.to_list()[-1] if hasattr(m, "to_list") else m
+        lo, hi = (float(x) for x in m.confint().loc[COEF].to_numpy())
+        return float(m.coef()[COEF]), lo, hi
+    except Exception:
+        return None
+
+
+def falsify(
+    entry: PlaceboEntry,
+    design_formula: str,
+    panel: pd.DataFrame,
+    vcov: Any,
+    primary: Estimate,
+    controls: list[str],
+    contrast_key: str,
+    *,
+    excluded: int = 0,
+    outcome_columns: list[str] | None = None,
+) -> tuple[Refutation, dict[str, Any]]:
+    """One falsification or sensitivity on the frozen design, by name: the design's formula with its controls, its rows, its
+    inference. `excluded` is the anticipation window the design left out; `outcome_columns` the columns the change could not have
+    moved. Returns the refutation and what a figure can draw."""
+    name = entry.name
+    if name == "placebo_group":
+        r, draws = placebo_group(design_formula, panel, primary, entry, contrast_key)
+        return r, {"draws": draws}
+    if name == "placebo_timing":
+        return placebo_timing(design_formula, panel, vcov, entry, primary, contrast_key), {}
+    if name == "placebo_outcome":
+        return placebo_outcome(design_formula, panel, vcov, entry, primary, contrast_key, outcome_columns or []), {}
+    if name == "leave_one_out":
+        return leave_one_out(design_formula, panel, vcov, entry, primary, contrast_key)
+    if name == "anticipation_shift":
+        return anticipation_shift(design_formula, panel, vcov, entry, primary, contrast_key, excluded=excluded), {}
+    if name in ("unit_trends", "group_time_fe", "twfe_naive"):
+        return sensitivity_refit(name, design_formula, panel, vcov, entry, contrast_key, controls), {}
+    return Refutation(contrast=contrast_key, refuter=name, kind=entry.kind, detail=f"no falsification named {name!r} in the adapter"), {}
+
+
+def _stepless(formula: str) -> str:
+    """The design formula with its cumulative-controls operator flattened: a placebo refits the full design once."""
+    m = re.search(r" \+ csw0\(([^)]*)\)", formula)
+    return formula.replace(m.group(0), " + " + " + ".join(x.strip() for x in m.group(1).split(","))) if m else formula
+
+
+def placebo_group(formula: str, panel: pd.DataFrame, primary: Estimate, entry: PlaceboEntry, contrast_key: str) -> tuple[Refutation, list[float]]:
+    """Reassign the treated label across units at random and refit the design. p = share of |placebo| >= |observed|. Every
+    placebo effect comes back too, so the spread can be drawn."""
     rng = np.random.default_rng(SEED)
+    formula = _stepless(formula)
     labels = panel.groupby("unit")["treated"].first()
     draws = int(entry.params.get("draws", 200))
     effects: list[float] = []
@@ -536,16 +613,13 @@ def placebo_group(formula: str, panel: pd.DataFrame, observed: float, entry: Pla
         p2 = panel.copy()
         p2["treated"] = p2["unit"].map(perm).astype(int)
         p2["treat"] = (p2["treated"] * p2["post"]).astype(float)
-        try:
-            m = fit(formula, p2, "iid")
-            m = m.to_list()[0] if hasattr(m, "to_list") else m
-            effects.append(float(m.coef()[COEF]))
-        except Exception:
-            continue
-    if not effects:
+        pt = _point(formula, p2, "iid")
+        if pt is not None:
+            effects.append(pt[0])
+    if not effects or primary.value is None:
         return Refutation(contrast=contrast_key, refuter=entry.name, kind="falsification", detail="no placebo fit succeeded"), []
-    p = float(np.mean(np.abs(effects) >= abs(observed)))
-    passed = p < float(entry.pass_when.get("p_value_lt", 0.05))
+    p = float(np.mean(np.abs(effects) >= abs(primary.value)))
+    passed = passes(entry.pass_when, primary, new=float(np.mean(effects)), lo=None, hi=None, p=p)
     return Refutation(
         contrast=contrast_key,
         refuter=entry.name,
@@ -554,33 +628,150 @@ def placebo_group(formula: str, panel: pd.DataFrame, observed: float, entry: Pla
         p_value=p,
         passed=passed,
         detail=f"{len(effects)} reassignments; share with an effect at least as large: {p:.2f}"
-        + (" (pass)" if passed else " (FAIL: the observed effect is not unusual)"),
+        + (
+            " (pass)"
+            if passed
+            else " (FAIL: the observed effect is not unusual)"
+            if passed is False
+            else " (uninformative: the primary's own interval covers zero)"
+        ),
     ), effects
 
 
-def placebo_timing(formula: str, panel: pd.DataFrame, entry: PlaceboEntry, contrast_key: str) -> Refutation:
-    """Pre-period rows only, with a fake change in the middle of the pre window. The effect should be about zero."""
+def placebo_timing(formula: str, panel: pd.DataFrame, vcov: Any, entry: PlaceboEntry, primary: Estimate, contrast_key: str) -> Refutation:
+    """Pre-period rows only, with a fake change where the entry says (the middle of the pre window). The effect should be about zero."""
     pre = panel[panel["post"] == 0].copy()
     times = sorted(pre["time"].unique())
     if len(times) < 3:
         return Refutation(contrast=contrast_key, refuter=entry.name, kind="falsification", detail="fewer than three pre periods")
-    cut = times[len(times) // 2]
+    cut = times[len(times) // 2] if entry.params.get("cut", "middle") == "middle" else times[-1]
     pre["post"] = (pre["time"] >= cut).astype(int)
     pre["treat"] = (pre["treated"] * pre["post"]).astype(float)
     pre["rel_time"] = pre["time"].map({v: i for i, v in enumerate(times)}) - times.index(cut)
-    try:
-        m = fit(formula, pre, {"CRV1": "unit"} if pre["unit"].nunique() > 2 else "hetero")
-        m = m.to_list()[0] if hasattr(m, "to_list") else m
-        val = float(m.coef()[COEF])
-        lo, hi = (float(x) for x in m.confint().loc[COEF].to_numpy())
-    except Exception as ex:
-        return Refutation(contrast=contrast_key, refuter=entry.name, kind="falsification", detail=f"{type(ex).__name__}: {str(ex)[:200]}")
-    passed = lo <= 0 <= hi
+    pt = _point(_stepless(formula), pre, vcov)
+    if pt is None:
+        return Refutation(contrast=contrast_key, refuter=entry.name, kind="falsification", detail="the pre-period refit did not run")
+    val, lo, hi = pt
+    passed = passes(entry.pass_when, primary, new=val, lo=lo, hi=hi, p=None)
     return Refutation(
         contrast=contrast_key,
         refuter=entry.name,
         kind="falsification",
         new_effect=val,
         passed=passed,
-        detail=f"fake change at {cut:g}: effect {val:.3g} [{lo:.3g}, {hi:.3g}]" + (" (pass)" if passed else " (FAIL: a pre-period 'effect' that is not zero)"),
+        detail=f"fake change at {period_label(cut)}: effect {val:.3g} [{lo:.3g}, {hi:.3g}]"
+        + (" (pass)" if passed else " (FAIL: a pre-period 'effect' that is not zero)"),
+    )
+
+
+def placebo_outcome(formula: str, panel: pd.DataFrame, vcov: Any, entry: PlaceboEntry, primary: Estimate, contrast_key: str, columns: list[str]) -> Refutation:
+    """A column the change could not have moved as the outcome, one refit per column (at most the entry's cap); each interval should cover zero."""
+    cols = [c for c in columns if c in panel.columns][: int(entry.params.get("max_columns", 2))]
+    if not cols:
+        return Refutation(contrast=contrast_key, refuter=entry.name, kind="falsification", detail="no column fixed before the change moves within a unit")
+    parts, verdicts, values = [], [], []
+    for c in cols:
+        f = _stepless(formula).replace("y ~", f"{c} ~", 1)
+        f = re.sub(rf" \+ {re.escape(c)}(?= \+| \|)", "", f)  # the placebo outcome is not also a control
+        pt = _point(f, panel, vcov)
+        if pt is None:
+            parts.append(f"{c}: could not run")
+            continue
+        val, lo, hi = pt
+        ok = passes(entry.pass_when, primary, new=val, lo=lo, hi=hi, p=None)
+        verdicts.append(bool(ok))
+        values.append(val)
+        parts.append(f"{c}: effect {val:.3g} [{lo:.3g}, {hi:.3g}]" + ("" if ok else " (FAIL)"))
+    passed = all(verdicts) if verdicts else None
+    return Refutation(
+        contrast=contrast_key,
+        refuter=entry.name,
+        kind="falsification",
+        new_effect=float(np.mean(values)) if values else None,
+        passed=passed,
+        detail="; ".join(parts)
+        + ("" if passed is None else " (pass)" if passed else " (FAIL: the design finds an effect on a column the change could not have moved)"),
+    )
+
+
+def leave_one_out(formula: str, panel: pd.DataFrame, vcov: Any, entry: PlaceboEntry, primary: Estimate, contrast_key: str) -> tuple[Refutation, dict[str, Any]]:
+    """Drop each treated unit in turn and refit the design; the farthest refit is the new effect, the range is every refit."""
+    units = sorted(panel.loc[panel["treated"] == 1, "unit"].unique())
+    points: list[dict[str, Any]] = []
+    for u in units:
+        pt = _point(_stepless(formula), panel[panel["unit"] != u], vcov)
+        points.append({"label": f"without {u}", "value": pt[0] if pt else None, "lo": pt[1] if pt else None, "hi": pt[2] if pt else None})
+    fitted = [pt for pt in points if pt["value"] is not None]
+    if not fitted or primary.value is None:
+        return Refutation(contrast=contrast_key, refuter=entry.name, kind="falsification", detail="no leave-one-out refit ran"), {"points": points}
+    far = max(fitted, key=lambda pt: abs(pt["value"] - primary.value))
+    verdicts = [passes(entry.pass_when, primary, new=pt["value"], lo=pt["lo"], hi=pt["hi"], p=None) for pt in fitted]
+    passed = all(v for v in verdicts if v is not None) if any(v is not None for v in verdicts) else None
+    kept_sign = sum(1 for pt in fitted if np.sign(pt["value"]) == np.sign(primary.value))
+    return Refutation(
+        contrast=contrast_key,
+        refuter=entry.name,
+        kind="falsification",
+        new_effect=float(far["value"]),
+        range_low=float(min(pt["value"] for pt in fitted)),
+        range_high=float(max(pt["value"] for pt in fitted)),
+        passed=passed,
+        detail=f"{len(fitted)} refits, each without one treated unit: effects from {min(pt['value'] for pt in fitted):.3g} to {max(pt['value'] for pt in fitted):.3g}; "
+        f"the farthest, {far['label']}, gives {far['value']:.3g} [{far['lo']:.3g}, {far['hi']:.3g}]; {kept_sign} of {len(fitted)} keep the sign"
+        + (" (pass)" if passed else " (FAIL: one unit carries the conclusion)" if passed is False else ""),
+    ), {"points": points}
+
+
+def anticipation_shift(
+    formula: str, panel: pd.DataFrame, vcov: Any, entry: PlaceboEntry, primary: Estimate, contrast_key: str, *, excluded: int = 0
+) -> Refutation:
+    """A fake change `lead` periods before the real one (past the `excluded` periods the design left out), on the rows before the
+    real change only; an effect there means units moved before the change."""
+    lead = int(entry.params.get("lead", 1))
+    pre = panel[panel["post"] == 0].copy()
+    k = -(excluded + lead)  # the first period the fake change covers, relative to the real one
+    pre["treat"] = ((pre["treated"] == 1) & (pre["rel_time"] >= k)).astype(float)
+    if pre.loc[pre["treated"] == 1, "treat"].nunique() < 2:
+        return Refutation(
+            contrast=contrast_key, refuter=entry.name, kind="falsification", detail=f"no pre period left to test a lead of {lead} past the window"
+        )
+    pt = _point(_stepless(formula), pre, vcov)
+    if pt is None:
+        return Refutation(contrast=contrast_key, refuter=entry.name, kind="falsification", detail="the lead refit did not run")
+    val, lo, hi = pt
+    passed = passes(entry.pass_when, primary, new=val, lo=lo, hi=hi, p=None)
+    return Refutation(
+        contrast=contrast_key,
+        refuter=entry.name,
+        kind="falsification",
+        new_effect=val,
+        passed=passed,
+        detail=f"a fake change {abs(k)} period(s) before the real one, on the periods before it: effect {val:.3g} [{lo:.3g}, {hi:.3g}]"
+        + (" (pass)" if passed else " (FAIL: the outcome moved before the change)"),
+    )
+
+
+def sensitivity_refit(name: str, formula: str, panel: pd.DataFrame, vcov: Any, entry: PlaceboEntry, contrast_key: str, controls: list[str]) -> Refutation:
+    """A refit that reports where the estimate lands under another structure, with no verdict: a trend per unit, period effects
+    per group above the unit, or the two-way fixed effects the design did not use on a staggered panel."""
+    base = _stepless(formula) if name != "twfe_naive" else "y ~ treat" + ("".join(f" + {c}" for c in controls)) + " | unit+time"
+    if name == "unit_trends":
+        f = base.replace("| unit+time", "| unit[time_index]+time")
+    elif name == "group_time_fe":
+        f = base.replace("| unit+time", "| unit+cluster^time")
+    else:
+        f = base
+    pt = _point(f, panel, vcov)
+    if pt is None:
+        return Refutation(contrast=contrast_key, refuter=name, kind="sensitivity", detail=f"the refit did not run ({f})")
+    val, lo, hi = pt
+    return Refutation(
+        contrast=contrast_key,
+        refuter=name,
+        kind="sensitivity",
+        new_effect=val,
+        range_low=lo,
+        range_high=hi,
+        passed=None,
+        detail=f"{entry.in_words}: {val:.3g} [{lo:.3g}, {hi:.3g}]",
     )

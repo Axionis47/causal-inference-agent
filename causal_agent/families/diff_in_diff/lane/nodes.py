@@ -1223,9 +1223,14 @@ def freeze_design(state: SpecialistState) -> dict:
     facts = {**_facts(state), "clusters": clusters, "engine": entry.engine}
     inf = pick_inference(**facts)
     vcov: Any = {k: level_col for k in inf.vcov} if isinstance(inf.vcov, dict) else inf.vcov
-    units = s.units_treated + s.units_control
-    # the placebos refit the feols shape; an estimator on another engine gets none until its own falsifications are wired
-    placebos = [p.name for p in load_placebos() if p.applies(units=units, periods_pre=s.periods_pre)] if entry.engine == "feols" else []
+    placebo_outcomes = _placebo_outcomes(state, panel, controls)
+    placebo_facts = {
+        **facts,
+        "units": s.units_treated + s.units_control,
+        "placebo_outcome_columns": len(placebo_outcomes),
+        "group_column_exists": level_col == "cluster",
+    }
+    placebos = [p.name for p in load_placebos() if p.applies(**placebo_facts)]  # every falsification that applies runs; nothing picks
     lad = _ladder(state)
     cluster = Cluster(
         level=level_words if isinstance(vcov, dict) else f"none: {inf.name}",
@@ -1249,6 +1254,7 @@ def freeze_design(state: SpecialistState) -> dict:
         inference=inf.name,
         vcov=vcov,
         placebos=placebos,
+        placebo_outcomes=placebo_outcomes,
         target_units=state["target_units"],
         modifiers=[m.column for m in lad.heterogeneity.modifiers] if lad.heterogeneity is not None else [],
         excluded_rel_times=list(range(-int(lad.mechanism.anticipation_periods), 0)) if lad.mechanism is not None and lad.mechanism.anticipation_periods else [],
@@ -1258,6 +1264,23 @@ def freeze_design(state: SpecialistState) -> dict:
     (run_dir / "design.md").write_text(d.render())
     _writer()({"design": d.render(), "declines": [x.render() for x in declines]})
     return {"design": d, "declines": declines, "ladder": lad.model_copy(update={"cluster": cluster})}
+
+
+def _placebo_outcomes(state: SpecialistState, panel: pd.DataFrame, controls: list[str]) -> list[str]:
+    """Columns the change could not have moved that still move within a unit: the pack's word (fixed before the change, or not
+    moved by it) or the design's own controls, numeric, not constant within a unit. The placebo-outcome falsification fits the
+    design on each; the catalogue caps how many."""
+    case = _case(state)
+    out: list[str] = []
+    for c in panel.columns:
+        if c in SH.CANON or c == "cluster" or not pd.api.types.is_numeric_dtype(panel[c]):
+            continue
+        settled = case.fact(f"col:{c}.when") == "before" or case.fact(f"col:{c}.moved_by_change") is False
+        if not (settled or c in controls):
+            continue
+        if (panel.groupby("unit")[c].nunique(dropna=True) > 1).any():
+            out.append(c)
+    return out
 
 
 # ------------------------------------------------------------------ estimate (fact) + placebos (fact, fan-out)
@@ -1300,7 +1323,7 @@ def estimate(state: SpecialistState) -> Command:
             update["excluded_estimators"] = (state.get("excluded_estimators") or []) + [d.estimator]
             return Command(goto="pick_estimator", update=update)
         return _stop("estimate", "the estimator failed to fit and the re-pick failed too", [primary.error], "a different estimator entry", update)
-    sends = [Send("placebo", PlaceboTask(name=n, design=d.model_dump(), panel_path=state["panel_path"], observed=primary.value)) for n in d.placebos]
+    sends = [Send("placebo", PlaceboTask(name=n, design=d.model_dump(), panel_path=state["panel_path"], primary=primary.model_dump())) for n in d.placebos]
     return Command(goto=sends or "interpret", update=update)
 
 
@@ -1386,18 +1409,25 @@ def _by_modifier(panel: pd.DataFrame, d: Design) -> list[Estimate]:
 
 
 def placebo(task: PlaceboTask) -> dict:
+    """One falsification or sensitivity on the design as frozen: the same rows, the same controls, the same inference; the
+    catalogue entry says what is perturbed and what counts as a pass."""
     d = Design.model_validate(task["design"])
-    panel = pd.read_csv(task["panel_path"])
+    panel = _estimation_rows(pd.read_csv(task["panel_path"]), d)
     entry = placebo_entry(task["name"])
-    base = adapter.formula_for(estimator_entry(d.estimator), [])  # placebos refit the bare shape; controls do not change what a placebo tests
-    draws: dict = {}
-    if task["name"] == "placebo_group":
-        r, effects = adapter.placebo_group(base, panel, task["observed"], entry, d.contrast.key)
-        draws = {task["name"]: effects}
-    else:
-        r = adapter.placebo_timing(base, panel, entry, d.contrast.key)
+    primary = Estimate.model_validate(task["primary"])
+    est = estimator_entry(d.estimator)
+    controls = d.controls.included
+    formula = adapter.formula_for(est, controls) if est.engine == "feols" else ""
+    r, extra = adapter.falsify(
+        entry, formula, panel, d.vcov, primary, controls, d.contrast.key, excluded=len(d.excluded_rel_times), outcome_columns=d.placebo_outcomes
+    )
     _writer()({"placebo": {r.refuter: r.detail}})
-    return {"refutations": [r], "placebo_draws": draws}
+    out: dict[str, Any] = {"refutations": [r]}
+    if "draws" in extra:
+        out["placebo_draws"] = {r.refuter: extra["draws"]}
+    if "points" in extra:
+        out["placebo_points"] = {r.refuter: extra["points"]}
+    return out
 
 
 # ------------------------------------------------------------------ interpret (judgement)
@@ -1443,6 +1473,9 @@ def _required(state: SpecialistState) -> list[str]:
         out.append(f"estimate:{d.contrast.key}.ci")
         if primary.p_value is not None and any(w in (primary.p_value_source or "") for w in ("randomisation", "bootstrap")):
             out.append(f"estimate:{d.contrast.key}.p")  # a resampled p-value is the honest inference; the reader must see it
+    out += [
+        f"placebo:{d.contrast.key}.{r.refuter}.passed" for r in state.get("refutations") or [] if r.passed is False
+    ]  # a failed falsification is not left out
     out += [f"{e.tag}.value" for e in state.get("estimates") or [] if e.modifier is not None and e.error is None]
     return out
 
@@ -1492,7 +1525,9 @@ def _material(state: SpecialistState) -> str:
                 lines.append(f"[{tag}.p] p = {e.p_value:.3g} ({e.p_value_source})")
     for r in state.get("refutations") or []:
         lines.append(
-            f"[placebo:{c}.{r.refuter}.passed] {r.passed}  [placebo:{c}.{r.refuter}.new_effect] {r.new_effect}  [placebo:{c}.{r.refuter}.p_value] {r.p_value}  ({r.detail})"
+            f"[placebo:{c}.{r.refuter}.passed] {r.passed}  [placebo:{c}.{r.refuter}.new_effect] {r.new_effect}  [placebo:{c}.{r.refuter}.p_value] {r.p_value}  ({r.detail}"
+            + (f"; {placebo_entry(r.refuter).note}" if placebo_entry(r.refuter).note else "")
+            + ")"
         )
     return "\n".join(lines)
 
@@ -1562,6 +1597,9 @@ def figures(state: SpecialistState) -> dict:
                     (state.get("placebo_draws") or {}).get("placebo_group") or [], primary.get("value") if primary else None, group.get("p_value"), c
                 )
             )
+        loo = (state.get("placebo_points") or {}).get("leave_one_out")
+        if loo:
+            specs.append(PD.leave_one_out_spread(loo, primary, c))
     specs.append(PV.effect_and_refutations([e for e in ests if e.get("modifier") is None], refs, "placebo"))
     if c:
         specs.append(PV.effect_by_modifier(ests, c, state.get("columns") or {}))
@@ -1604,7 +1642,7 @@ def assemble(state: SpecialistState) -> dict:
                 v, lo, hi = dyn[k]
                 lines.append(f"      {int(k):+d}: {v:+.3g} [{lo:.3g}, {hi:.3g}]")
         for r in state.get("refutations") or []:
-            lines.append(f"    placebo {r.refuter:26} {r.detail}")
+            lines.append(f"    placebo {r.refuter:26} {r.detail}  (source: {placebo_entry(r.refuter).source})")
         for i in state.get("interpretations") or []:
             lines.append(f"    ANSWER  {i.answer}")
             lines += [f"    CAVEAT  {cv}" for cv in i.caveats]
@@ -1637,6 +1675,7 @@ def assemble(state: SpecialistState) -> dict:
         "controls": state.get("controls"),
         "dynamic": state.get("dynamic") or {},
         "placebo_draws": state.get("placebo_draws") or {},
+        "placebo_points": state.get("placebo_points") or {},
     }
     records.write(state.get("run_dir"), records.artifacts(state, extra), report)
     result = records.result(

@@ -380,7 +380,8 @@ class Design(BaseModel):
     also_formula: str | None = None
     inference: str
     vcov: str | dict
-    placebos: list[str]
+    placebos: list[str] = Field(description="every falsification and sensitivity in the catalogue whose applies_when holds on this design")
+    placebo_outcomes: list[str] = Field(default_factory=list, description="columns the change could not have moved, for the placebo-outcome falsification")
     target_units: str
     modifiers: list[str] = Field(default_factory=list, description="the unit traits the effect is also estimated within, level by level")
     excluded_rel_times: list[int] = Field(

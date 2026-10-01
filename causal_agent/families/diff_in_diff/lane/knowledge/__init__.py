@@ -55,16 +55,20 @@ class InferenceEntry(BaseModel):
 
 
 class PlaceboEntry(BaseModel):
+    """One falsification or sensitivity. A falsification carries a verdict under `pass_when`; a sensitivity reports a range and
+    no verdict. `applies_when` is keyed on facts of the frozen design and matched by one rule."""
+
     name: str
     in_words: str
+    kind: Literal["falsification", "sensitivity"] = "falsification"
+    source: str = ""
     applies_when: dict[str, Any]
     params: dict[str, Any] = Field(default_factory=dict)
     pass_when: dict[str, Any] = Field(default_factory=dict)
     note: str = ""
 
-    def applies(self, *, units: int, periods_pre: int) -> bool:
-        w = self.applies_when
-        return units >= w.get("units_min", 0) and periods_pre >= w.get("periods_pre_min", 0)
+    def applies(self, **facts: Any) -> bool:
+        return matches(self.applies_when, facts)
 
 
 # ------------------------------------------------------------------ the files, through the shared loader

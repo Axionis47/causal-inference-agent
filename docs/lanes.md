@@ -146,7 +146,11 @@ not, with the budgets its `checks.yaml` declares; every claim cites the pack, a 
 10. Then as before: `check_design` (the pre-trends flag read off the rung, the composition, among the checks), `assess`, `pick_estimator`, `freeze_design` (which adds the
    clustering rung, `ladder:cluster.*`, by code: the level, how many clusters, the inference entry and whether the p-value is
    resampled), `estimate` (the primary carries the p-value its inference calls for: the fit's own, a wild cluster bootstrap, or
-   randomisation inference on the unit-level before-after differences), the placebos, `interpret`, `figures`, `assemble`.
+   randomisation inference on the unit-level before-after differences), the falsifications (every entry of `placebos.yaml` whose
+   facts hold, each a refit of the design as frozen with its controls and its inference: the label reassigned, a fake change in
+   the pre window, a column the change could not have moved as the outcome, each treated unit left out, a lead past the excluded
+   window; and the sensitivities with no verdict: a trend per unit, period effects per group, the naive two-way fit on a
+   staggered panel), `interpret`, `figures`, `assemble`.
 
 ## The discontinuity lane, rung by rung
 
@@ -198,7 +202,7 @@ an analyst reads a cutoff design.
 | its evidence rungs, by code | | density, balance |
 | the canonical shape code builds | `y, unit, time, time_index, treated, post, treat, rel_time, cohort` from a long or a wide table, with each unit's first treated period as `cohort` (0 for never treated) | `y, x, side, row` with the score recentred on the cutoff and the treated side positive |
 | what the yaml declares | one estimator per engine (feols formulas over the canonical names, Gardner's two stages, local projections, the saturated event study), each applying by facts; the inference rule; the placebos; the thresholds | the local polynomial specs and local randomisation, each applying by facts; the width selectors the window rung offers; the inference rule; the falsifications and sensitivities; the thresholds |
-| falsifications | placebo group, placebo timing | placebo cutoffs, the bandwidth grid, donuts, and as sensitivities the polynomial order and the kernel; for local randomisation the window sensitivity and Rosenbaum bounds |
+| falsifications | placebo group, placebo timing, placebo outcome, leave-one-out, anticipation shift, and as sensitivities a trend per unit, period effects per group, naive two-way fixed effects on a staggered panel | placebo cutoffs, the bandwidth grid, donuts, and as sensitivities the polynomial order and the kernel; for local randomisation the window sensitivity and Rosenbaum bounds |
 
 Each is one package: `family.yaml`, `design.py`, `handoff.py`, `probes.py`, `postviz.py`, `lane/`, `evals/`, `tests/`, and one
 line in [families/registry.py](../causal_agent/families/registry.py). The core never names a family;

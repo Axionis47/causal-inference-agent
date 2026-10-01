@@ -58,8 +58,16 @@ states a lead. A group chosen for its trend is a threat by code, hard when the p
 the estimate (`Design.excluded_rel_times`) and named as a threat; few treated units are a threat too. The trends rung (`checks.trend_facts`) runs before the comparison is judged: the pre-period paths by group, the drift of the gap,
 the joint Wald test on the lead coefficients of the dynamic fit with each lead, and the composition of the panel over time, each an
 addressed line the comparison rung reads. The pre-trends check reads the rung when the design has no controls and fits again with
-them when it does; the post-period coefficients never reach the ladder. Placebos refit the bare formula on a perturbed panel: the
-treated label reassigned across units, or a fake change in the middle of the pre-window.
+them when it does; the post-period coefficients never reach the ladder.
+
+Falsification runs after the estimate, by code, every entry of `placebos.yaml` whose `applies_when` holds on the frozen design
+(units, treated units, pre periods, cohorts, the engine, whether a column the change could not have moved rides in the panel,
+whether a level above the unit does). Each refits the design as frozen: the same rows, the same controls, the same inference. The
+falsifications carry a verdict under one declared rule (`adapter.passes`): the treated label reassigned across units; a fake change
+in the middle of the pre window; a column fixed before the change as the outcome; each treated unit left out in turn; a fake change
+one period before the real one, past any anticipation window the design left out. The sensitivities report where the estimate lands
+and no verdict: a linear trend per unit; period effects per group above the unit; the two-way fixed effects a staggered design did
+not use, to show the bias it avoided. A failed falsification is an address the interpretation must cite.
 
 ## The rule every node follows
 

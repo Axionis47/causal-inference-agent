@@ -397,7 +397,33 @@ def test_catalogues_parse_on_a_toy_panel():
     assert pick(kind="long", units_treated=16, clusters=40, engine="feols") == "moderate_clusters"
     assert pick(kind="long", units_treated=16, clusters=40, engine="did2s") == "cluster"  # the resamples run on feols fits only
     assert pick(kind="long", units_treated=60, clusters=120, engine="feols") == "cluster"
-    assert {p.name for p in load_placebos()} == {"placebo_group", "placebo_timing"}
+    assert {p.name for p in load_placebos()} == {
+        "placebo_group",
+        "placebo_timing",
+        "placebo_outcome",
+        "leave_one_out",
+        "anticipation_shift",
+        "unit_trends",
+        "group_time_fe",
+        "twfe_naive",
+    }
+    falsify = lambda **f: sorted(p.name for p in load_placebos() if p.applies(**f))  # noqa: E731
+    one_shot = dict(
+        units=40, units_treated=16, periods_pre=5, cohorts=1, engine="feols", never_treated=True, placebo_outcome_columns=0, group_column_exists=False
+    )
+    assert falsify(**one_shot) == ["anticipation_shift", "leave_one_out", "placebo_group", "placebo_timing", "unit_trends"]
+    assert falsify(**{**one_shot, "placebo_outcome_columns": 1, "group_column_exists": True}) == [
+        "anticipation_shift",
+        "group_time_fe",
+        "leave_one_out",
+        "placebo_group",
+        "placebo_outcome",
+        "placebo_timing",
+        "unit_trends",
+    ]
+    assert falsify(**{**one_shot, "units_treated": 1}) == ["anticipation_shift", "placebo_group", "placebo_timing", "unit_trends"]
+    assert falsify(**{**one_shot, "periods_pre": 1}) == ["leave_one_out", "placebo_group"]  # Card-Krueger: one pre period
+    assert falsify(**{**one_shot, "cohorts": 3, "engine": "did2s"}) == ["twfe_naive"]  # the feols refits do not test a two-stage design
     cfg = load_checks()
     assert cfg["pre_trends"]["p_value"]["hard"] < cfg["pre_trends"]["p_value"]["soft"]
 
@@ -757,6 +783,14 @@ def test_the_effect_is_estimated_within_each_level_of_a_unit_trait(tmp_path):
         x["check"] == "figure.check" for x in r["declines"]
     )
     assert "within region = north" in r["report"] and "[ladder:heterogeneity.modifiers] region" in r["report"] and "modifiers    region" in r["report"]
+    # every falsification and sensitivity that applies ran on the design as frozen, with its controls and its inference
+    d = out["design"]
+    assert d.placebos == ["placebo_group", "placebo_timing", "leave_one_out", "anticipation_shift", "unit_trends"] and d.placebo_outcomes == []
+    refs = {x.refuter: x for x in out["refutations"]}
+    assert set(refs) == set(d.placebos) and all(refs[n].passed is True for n in d.placebos[:4]) and refs["unit_trends"].passed is None
+    assert "16 refits" in refs["leave_one_out"].detail and abs(refs["unit_trends"].new_effect - prim.value) < 1.0
+    assert f"leave_one_out_{c}" in figs and len(figs[f"leave_one_out_{c}"]["series"][0]["x"]) == 16
+    assert "(source: Bertrand, Duflo and Mullainathan (2004)" in r["report"] and f"placebo:{c}.leave_one_out.passed" not in N._required(state=out)
     assert any(x["column"] == "region" for x in r["relations"]) is False or True  # region is absorbed, not a control; the rung still placed it
 
 
@@ -845,7 +879,9 @@ def test_a_staggered_panel_with_never_treated_units_runs_a_robust_estimator_and_
     assert abs(primary.value - 2.0) < 0.3 and primary.ci_low < 2.0 < primary.ci_high and primary.p_value is not None and "two-stage" in primary.p_value_source
     dyn = out["dynamic"]
     assert any(int(k) < 0 for k in dyn) and any(int(k) >= 0 for k in dyn) and abs(dyn["1"][0] - 2.0) < 0.5  # leads and lags from the two-stage dynamic fit
-    assert d.placebos == []  # the feols placebos do not refit a two-stage design; its own falsifications come later
+    assert d.placebos == ["twfe_naive"]  # the feols refits do not test a two-stage design; the naive two-way fit shows the bias it avoided
+    naive = next(x for x in out["refutations"] if x.refuter == "twfe_naive")
+    assert naive.kind == "sensitivity" and naive.passed is None and naive.new_effect is not None and naive.range_low < naive.new_effect < naive.range_high
     assert not out.get("interpret_errors") and "did2s" in r["report"]
 
 

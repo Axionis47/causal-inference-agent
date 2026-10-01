@@ -51,6 +51,7 @@ class SpecialistState(LaneState, total=False):
     dynamic: dict  # rel_time -> (value, lo, hi) when the dynamic model ran
     trends_raw: dict  # the trends rung's leads fit as computed, every period's coefficient, for the check and the figure
     placebo_draws: Annotated[dict, merge_dicts]  # placebo name -> every placebo effect, so the spread can be drawn
+    placebo_points: Annotated[dict, merge_dicts]  # placebo name -> every refit as data a figure can draw
     interpretations: Annotated[list[Interpretation], operator.add]
     interpret_errors: Annotated[dict[str, list[str]], merge_dicts]
 
@@ -59,4 +60,4 @@ class PlaceboTask(TypedDict):
     name: str
     design: dict
     panel_path: str
-    observed: float
+    primary: dict

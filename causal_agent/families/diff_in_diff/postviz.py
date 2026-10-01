@@ -90,3 +90,32 @@ def placebo_distribution(draws: list[float], observed: float | None, p: float | 
         note=f"{len(vals)} reassignments; {share}",
         draws_on=[f"placebo:{contrast}.placebo_group.p_value"] + ([f"estimate:{contrast}.value"] if observed is not None else []),
     )
+
+
+def leave_one_out_spread(points: list[dict], primary: dict | None, contrast: str) -> FigureSpec | None:
+    """The estimate with each treated unit left out in turn, beside the design's own; no single point should carry the conclusion."""
+    pts = [p for p in points or [] if p.get("value") is not None]
+    if not pts:
+        return None
+    marks = [Mark(kind="hline", at=0.0, label="no effect")]
+    if primary and primary.get("value") is not None:
+        marks.append(Mark(kind="hline", at=float(primary["value"]), label="the design's estimate"))
+    return FigureSpec(
+        id=f"leave_one_out_{contrast}",
+        kind="interval",
+        title="The estimate with each treated unit left out",
+        x_label="",
+        y_label="effect",
+        series=[
+            Series(
+                name="estimate",
+                x=[str(p["label"]) for p in pts],
+                y=[float(p["value"]) for p in pts],
+                lo=[p.get("lo") for p in pts],
+                hi=[p.get("hi") for p in pts],
+            )
+        ],
+        marks=marks,
+        note=f"{len(pts)} refits, each without one treated unit",
+        draws_on=[f"placebo:{contrast}.leave_one_out.passed"] + ([f"estimate:{contrast}.value"] if primary and primary.get("value") is not None else []),
+    )
