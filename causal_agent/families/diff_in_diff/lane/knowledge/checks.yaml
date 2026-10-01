@@ -77,3 +77,11 @@ modifiers:
   max: 3
   max_levels: 4
   min_units_per_group: 2   # a level with fewer treated or control units than this is recorded as too thin, not estimated
+
+# The effect within each level of one modifier is a family of hypotheses; the p-value on each level is corrected across the
+# family by the Romano-Wolf step-down procedure, resampled by the wild cluster bootstrap, clustered as the design is. A family
+# of one is not corrected. The estimators on another library surface than feols keep the fit's own p-value.
+multiple_testing:
+  method: rwolf
+  reps: 199
+  source: Romano and Wolf (2005) for the step-down procedure; Clarke, Romano and Wolf (2020) for the resampled implementation; 199 draws is ours

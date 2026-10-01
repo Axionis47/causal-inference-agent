@@ -476,19 +476,38 @@ def leads_test(model) -> tuple[float, float, int] | None:
 def wild_bootstrap(model, *, vcov: Any, reps: int, seed: int, weights_type: str = "rademacher", bootstrap_type: str = "11") -> float | None:
     """The wild cluster bootstrap p-value for the effect, clustered as the fit was. The bootstrap needs a numeric cluster
     column, so the fit is redone on its own rows with the cluster coded as integers when it is not."""
-    import pyfixest as pf
-
     try:
-        m = model
-        col = _cluster_of(vcov) if isinstance(vcov, dict) else None
-        data = getattr(model, "_data", None)
-        if col is not None and data is not None and col in data.columns and not pd.api.types.is_numeric_dtype(data[col]):
-            coded = data.copy()
-            coded[col] = pd.factorize(coded[col])[0]
-            m = pf.feols(model._fml, coded, vcov=vcov)
+        m = _numeric_cluster_fit(model, vcov)
         r = m.wildboottest(param=COEF, reps=int(reps), seed=int(seed), weights_type=weights_type, bootstrap_type=str(bootstrap_type))
         p = r.get("Pr(>|t|)") if hasattr(r, "get") else None
         return float(p) if p is not None else None
+    except Exception:
+        return None
+
+
+def _numeric_cluster_fit(model, vcov: Any):
+    """The fit redone on its own rows with the cluster coded as integers when it is not: the bootstrap code needs it so."""
+    import pyfixest as pf
+
+    col = _cluster_of(vcov) if isinstance(vcov, dict) else None
+    data = getattr(model, "_data", None)
+    if col is None or data is None or col not in data.columns or pd.api.types.is_numeric_dtype(data[col]):
+        return model
+    coded = data.copy()
+    coded[col] = pd.factorize(coded[col])[0]
+    return pf.feols(model._fml, coded, vcov=vcov)
+
+
+def rwolf_p(models: list, *, vcov: Any, reps: int, seed: int) -> list[float] | None:
+    """Romano-Wolf step-down p-values for the effect across a family of fits (the levels of one modifier), resampled by the wild
+    cluster bootstrap, clustered as the fits were. None when the correction could not run; the fits keep their own p-values."""
+    import pyfixest as pf
+
+    try:
+        coded = [_numeric_cluster_fit(m, vcov) for m in models]
+        table = pf.rwolf(coded, COEF, reps=int(reps), seed=int(seed))
+        row = table.loc["RW Pr(>|t|)"]
+        return [float(row.iloc[i]) for i in range(len(models))]
     except Exception:
         return None
 

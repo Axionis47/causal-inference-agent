@@ -773,10 +773,13 @@ def test_the_effect_is_estimated_within_each_level_of_a_unit_trait(tmp_path):
     within = {e.level: e for e in out["estimates"] if e.modifier == "region"}
     assert set(within) == {"north", "south"} and all(e.error is None for e in within.values())
     assert within["north"].value > within["south"].value + 1.5 and abs(within["south"].value - 2.0) < 0.6
+    assert all(e.p_value is not None and e.p_value_source.startswith("rwolf, corrected across the 2 levels of region") for e in within.values())
+    assert within["north"].p_value < 0.05
     prim = next(e for e in out["estimates"] if e.method == out["design"].estimator and e.modifier is None and not e.secondary)
     assert abs(prim.value - 3.5) < 0.6
     c = out["design"].contrast.key
     assert f"estimate:{c}.by.region.north.value" in N._required(state=out) and f"[estimate:{c}.by.region.south.value]" in N._material(out)
+    assert f"[estimate:{c}.by.region.north.p] p =" in N._material(out) and f"estimate:{c}.by.region.north.p" in N._addresses(out)
     assert {f"estimate:{c}.by.region.north.value", f"estimate:{c}.by.region.south.value"} <= set(out["interpretations"][0].cites)
     figs = {f["id"]: f for f in json.loads(open(f"{r['run_dir']}/figures.json").read())}
     assert figs[f"effect_by_modifier_{c}"]["series"][0]["x"] == ["all rows", "region = north", "region = south"] and not any(

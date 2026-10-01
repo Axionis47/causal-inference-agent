@@ -1377,8 +1377,10 @@ def _modifier_groups(panel: pd.DataFrame, column: str, max_levels: int) -> list[
 
 def _by_modifier(panel: pd.DataFrame, d: Design) -> list[Estimate]:
     """The primary estimator run again within each level of each modifier, without that column among the controls. Too few units
-    in a group is recorded as the estimate's error, never skipped in silence."""
+    in a group is recorded as the estimate's error, never skipped in silence. The levels of one modifier are a family of
+    hypotheses: their p-values are corrected across the family (checks.yaml multiple_testing) when the engine's fits allow it."""
     cfg = load_checks().get("modifiers") or {}
+    mt = load_checks().get("multiple_testing") or {}
     floor = int(cfg.get("min_units_per_group", 2))
     entry = estimator_entry(d.estimator)
     out: list[Estimate] = []
@@ -1386,6 +1388,7 @@ def _by_modifier(panel: pd.DataFrame, d: Design) -> list[Estimate]:
         if col not in panel.columns:
             continue
         controls = [c for c in d.controls.included if c != col]
+        family: list[tuple[int, Any]] = []  # (index in out, the fit) for the levels that fitted
         for level, part in _modifier_groups(panel, col, int(cfg.get("max_levels", 4))):
             n_t = int(part.loc[part["treated"] == 1, "unit"].nunique())
             n_c = int(part.loc[part["treated"] == 0, "unit"].nunique())
@@ -1403,8 +1406,17 @@ def _by_modifier(panel: pd.DataFrame, d: Design) -> list[Estimate]:
                     )
                 )
                 continue
-            prim = adapter.run(entry, part, d.vcov, d.contrast.key, d.target_units, controls=controls).primary
-            out.append(prim.model_copy(update={"modifier": col, "level": level, "secondary": False}))
+            fit = adapter.run(entry, part, d.vcov, d.contrast.key, d.target_units, controls=controls)
+            out.append(fit.primary.model_copy(update={"modifier": col, "level": level, "secondary": False}))
+            if fit.primary.error is None and fit.model is not None and entry.engine == "feols":
+                family.append((len(out) - 1, fit.model))
+        if len(family) >= 2 and mt.get("method") == "rwolf":
+            ps = adapter.rwolf_p([m for _, m in family], vcov=d.vcov, reps=int(mt.get("reps", 199)), seed=adapter.SEED)
+            if ps is not None:
+                for (i, _), p in zip(family, ps, strict=True):
+                    out[i] = out[i].model_copy(
+                        update={"p_value": p, "p_value_source": f"rwolf, corrected across the {len(family)} levels of {col}; {int(mt.get('reps', 199))} draws"}
+                    )
     return out
 
 

@@ -69,6 +69,11 @@ one period before the real one, past any anticipation window the design left out
 and no verdict: a linear trend per unit; period effects per group above the unit; the two-way fixed effects a staggered design did
 not use, to show the bias it avoided. A failed falsification is an address the interpretation must cite.
 
+The effect within each level of a modifier is one family of hypotheses: the p-value on each level is corrected across the family by
+the Romano-Wolf step-down procedure, resampled by the wild cluster bootstrap and clustered as the design is
+(`checks.yaml multiple_testing`); the source on the estimate says so. A family of one is not corrected, and an estimator on another
+library surface than feols keeps the fit's own p-value.
+
 ## The rule every node follows
 
 - **Facts**: `load`, `case`, `shape_table`, `merge_controls`, `verify`, `threats`, `check_design`, `freeze_design`, `estimate`,

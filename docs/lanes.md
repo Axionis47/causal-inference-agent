@@ -138,7 +138,8 @@ not, with the budgets its `checks.yaml` declares; every claim cites the pack, a 
    by code: a column fixed within a unit or within a period is absorbed by the fixed effects whatever the model said.
 8. **heterogeneity** (rung 6). The candidates are the unit traits, read off the panel, that the controls rung or the person marked;
    a judgement names at most three; the primary estimator runs again within each level of each, without that column among the
-   controls. The target is the effect on the treated, which is what this design identifies.
+   controls, and the p-values across one modifier's levels are corrected as a family (Romano-Wolf, by the wild cluster
+   bootstrap). The target is the effect on the treated, which is what this design identifies.
 9. **threats** (rung 7; code). The risks every design carries from the pack; this design's own from the mechanism rung (a group
    chosen for its trend or its level, a stated lead, few treated units); and the risks the comparison rung named, one flag per
    name with every citation. Each is a flag
