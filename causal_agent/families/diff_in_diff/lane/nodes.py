@@ -14,6 +14,7 @@ Nothing here names a column, a method, or a dataset.
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +22,7 @@ import pandas as pd
 from langgraph.types import Command, Send
 
 from causal_agent.common.addresses import key as _key
+from causal_agent.common.addresses import norm_address
 from causal_agent.common.contracts import (
     Checks,
     Cited,
@@ -230,11 +232,12 @@ def _panel_tools(state: SpecialistState):
     )
 
 
-def _resolver(h: Handoff, log: EpisodeLog, ladder: Ladder):
-    """What a rung may cite: the pack, the facts this episode asked for, and the rungs below."""
+def _resolver(h: Handoff, log: EpisodeLog, ladder: Ladder, flags: Iterable[str] = ()):
+    """What a rung may cite: the pack, the facts this episode asked for, the rungs below, and the case's flags."""
+    flagged = {norm_address(a) for a in flags}
 
     def ok(address: str) -> bool:
-        return h.resolve(address) or log.resolve(address) or ladder.resolve(address)
+        return h.resolve(address) or log.resolve(address) or ladder.resolve(address) or norm_address(address) in flagged
 
     return ok
 
@@ -577,13 +580,15 @@ def mechanism(state: SpecialistState) -> Command:
     window_max = int(load_checks().get("anticipation", {}).get("window_max", 3))
 
     def gate(r: Mechanism, log: EpisodeLog) -> list[str]:
-        ok = _resolver(h, log, lad)
+        ok = _resolver(h, log, lad, _case(state).flag_addresses())
         errs: list[str] = []
         pack = [c for c in r.cites if h.resolve(c)]
         if r.chosen_on == "trends" and not pack:
             errs.append("chosen_on says trends; cite the line that says the group was picked for where its outcome was heading")
         if r.chosen_on == "levels" and not pack:
             errs.append("chosen_on says levels; cite what the choice looked at")
+        if r.anticipation_periods == 0:
+            r.anticipation_periods = None  # zero periods is no window; the field says so either way
         if r.anticipation_periods is not None:
             if r.anticipation_periods < 1:
                 errs.append("anticipation_periods is a whole number of periods, at least 1, or null")
@@ -648,12 +653,12 @@ def comparison(state: SpecialistState) -> Command:
     named = lambda name, r: any(k.name == name for k in r.risks)  # noqa: E731
 
     def gate(r: Comparison, log: EpisodeLog) -> list[str]:
-        ok = _resolver(h, log, lad)
+        ok = _resolver(h, log, lad, _case(state).flag_addresses())
         errs: list[str] = []
         if not r.why.strip():
             errs.append("say why, from the evidence and the story")
-        if not r.fair and not r.risks:
-            errs.append("a comparison judged unfair names at least one risk")
+        if not r.fair and not r.risks and r.leads_read != "diverging":
+            errs.append("a comparison judged unfair names at least one risk, unless the leads test itself says the paths diverged")
         cited = set(r.cites) | {c for k in r.risks for c in k.cites} | set(r.why_despite.cites if r.why_despite else [])
         if tr is not None:
             if "ladder:trends.leads" not in cited and "ladder:trends.paths" not in cited:
@@ -769,7 +774,7 @@ def controls(state: SpecialistState) -> Command:
         return Command(goto="merge_controls", update={"ladder": lad.model_copy(update={"controls": ControlRoles(items=[])})})
 
     def gate(r: ControlRoles, log: EpisodeLog) -> list[str]:
-        ok = _resolver(h, log, lad)
+        ok = _resolver(h, log, lad, _case(state).flag_addresses())
         errs = _presence_errors(asked, [x.column for x in r.items])
         for x in r.items:
             if x.column in asked:
@@ -910,7 +915,7 @@ def heterogeneity(state: SpecialistState) -> Command:
         return Command(goto="threats", update={"ladder": lad.model_copy(update={"heterogeneity": het})})
 
     def gate(r: Heterogeneity, log: EpisodeLog) -> list[str]:
-        ok = _resolver(h, log, lad)
+        ok = _resolver(h, log, lad, _case(state).flag_addresses())
         errs = [f"at most {max_m} modifiers; {len(r.modifiers)} named"] if len(r.modifiers) > max_m else []
         seen: set[str] = set()
         for m in r.modifiers:
@@ -1077,8 +1082,8 @@ def assess(state: SpecialistState) -> Command:
                 elif rv.change == "add_control" and rv.column in absorbed:
                     errors.append(f"{rv.column!r} is absorbed by the fixed effects and cannot be a control")
         for c in parsed.cites:
-            if not (any(c == r.address for r in results) or h.resolve(c)):
-                errors.append(f"{c} is not a check or pack address")
+            if not V.resolves(c, h, checks=[r.address for r in results], also=_made_here(state)):
+                errors.append(f"{c} is not a check, pack or ladder address")
         if errors:
             continue
         _writer()({"assess": parsed.model_dump()})
@@ -1167,9 +1172,10 @@ def pick_estimator(state: SpecialistState) -> Command:
         errors = []
         if parsed.name not in names:
             errors.append(f"{parsed.name!r} is not one of {names}")
+        parsed.cites = [c for c in parsed.cites if V.is_address(c)]  # a section header of the material is no cite; the pick stands without it
         for c in parsed.cites:
-            if not (any(c == r.address for r in state["checks"]) or state["handoff"].resolve(c)):
-                errors.append(f"{c} is not a check or pack address")
+            if not V.resolves(c, state["handoff"], checks=[r.address for r in state["checks"]] + [f"estimator:{n}" for n in names], also=_made_here(state)):
+                errors.append(f"{c} is not a check, pack, ladder or estimator address")
         if not errors:
             _writer()({"estimator": parsed.model_dump()})
             return Command(
@@ -1470,6 +1476,12 @@ def _tag(e: Estimate, d: Design) -> str:
     if e.modifier is not None:
         return e.tag
     return f"estimate:{d.contrast.key}" if e.method == d.estimator else f"estimate:{d.contrast.key}.{e.method}"
+
+
+def _made_here(state: SpecialistState):
+    """What this run itself made and a judgement may cite: the ladder's lines and the facts the episodes asked for."""
+    lad, logs = _ladder(state), list(_episodes(state).values())
+    return lambda a: lad.resolve(a) or any(log.resolve(a) for log in logs)
 
 
 def _episodes(state: SpecialistState) -> dict[str, EpisodeLog]:

@@ -129,7 +129,8 @@ class DensityFacts(BaseModel):
                 (
                     "ladder:density.windows",
                     "rows below | above the line within nested windows, and the coin-toss p: "
-                    + "; ".join(f"±{w.width:.3g}: {w.n_left} | {w.n_right} (p = {w.p:.2g})" for w in self.windows),
+                    + "; ".join(f"±{w.width:.3g}: {w.n_left} | {w.n_right} (p = {w.p:.2g})" for w in self.windows)
+                    + " (only the narrowest window speaks to bunching; a wider window's split follows the slope of the density)",
                 )
             )
         if self.histogram:

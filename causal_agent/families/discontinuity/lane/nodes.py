@@ -15,6 +15,7 @@ Nothing here names a column, a method, a cutoff, or a dataset.
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +24,7 @@ import pandas as pd
 from langgraph.types import Command, Send
 
 from causal_agent.common.addresses import key as _key
+from causal_agent.common.addresses import norm_address
 from causal_agent.common.contracts import CheckResult, Checks, Cited, Contrast, Decline, Estimate, Feasibility, Handoff, LaneAsk, Refutation
 from causal_agent.common.llm import structured
 from causal_agent.families.discontinuity.design import RdDesign
@@ -251,11 +253,12 @@ def _canon_tools(state: SpecialistState):
     return L.data_tools(state, df["x"] >= 0, table_=df, aliases=aliases)
 
 
-def _resolver(h: Handoff, log: EpisodeLog, ladder: Ladder):
-    """What a rung may cite: the pack, the facts this episode asked for, and the rungs below."""
+def _resolver(h: Handoff, log: EpisodeLog, ladder: Ladder, flags: Iterable[str] = ()):
+    """What a rung may cite: the pack, the facts this episode asked for, the rungs below, and the case's flags."""
+    flagged = {norm_address(a) for a in flags}
 
     def ok(address: str) -> bool:
-        return h.resolve(address) or log.resolve(address) or ladder.resolve(address)
+        return h.resolve(address) or log.resolve(address) or ladder.resolve(address) or norm_address(address) in flagged
 
     return ok
 
@@ -455,7 +458,7 @@ def score(state: SpecialistState) -> Command:
 
     def gate(r: Score, log: EpisodeLog) -> list[str]:
         try:
-            return _score_errors(state, r, table, t, _resolver(h, log, lad))
+            return _score_errors(state, r, table, t, _resolver(h, log, lad, _case(state).flag_addresses()))
         except (_NoRule, _WrongSide) as fact:
             ended["fact"], ended["score"] = fact, r
             return []  # a fact ends the episode; the node reads it below
@@ -582,12 +585,14 @@ def line(state: SpecialistState) -> Command:
     movable = _case(state).beliefs.get("movable") == "confirmed_true"
 
     def gate(r: Line, log: EpisodeLog) -> list[str]:
-        ok = _resolver(h, log, lad)
+        ok = _resolver(h, log, lad, _case(state).flag_addresses())
         errs: list[str] = []
         if not r.why.strip():
             errs.append("say why, from the story and the facts")
         if not r.clean and not r.risks:
-            errs.append("a line judged not clean names at least one risk")
+            errs.append(
+                "a line judged not clean names at least one risk: manipulation, other_change_at_line, score_set_after or cutoff_known_in_advance, cited"
+            )
         cited = set(r.cites) | {c for k in r.risks for c in k.cites}
         if bunching and r.clean and "ladder:density.test" not in cited:
             errs.append("the score bunches at the line [ladder:density.test]; a clean verdict must answer it, citing that line")
@@ -715,7 +720,7 @@ def covariates(state: SpecialistState) -> Command:
     bal: BalanceFacts = lad.balance or BalanceFacts()
 
     def gate(r: CovariateRoles, log: EpisodeLog) -> list[str]:
-        ok = _resolver(h, log, lad)
+        ok = _resolver(h, log, lad, _case(state).flag_addresses())
         errs = _presence_errors(asked, [x.column for x in r.items])
         for x in r.items:
             if x.column in asked:
@@ -725,7 +730,7 @@ def covariates(state: SpecialistState) -> Command:
                     x.predetermined
                     and item is not None
                     and item.flagged(bal.threshold)
-                    and f"ladder:balance.{x.column}" not in {c for rs in x.reasons for c in rs.cites}
+                    and f"ladder:balance.{x.column}" not in {norm_address(c) for part in (*x.reasons, *x.departures) for c in part.cites}
                 ):
                     errs.append(
                         f"{x.column} jumps at the line [ladder:balance.{x.column}]; a column called fixed before the line must say why it still is, citing that line"
@@ -863,7 +868,7 @@ def heterogeneity(state: SpecialistState) -> Command:
         return Command(goto="threats", update={"ladder": lad.model_copy(update={"heterogeneity": het})})
 
     def gate(r: Heterogeneity, log: EpisodeLog) -> list[str]:
-        ok = _resolver(h, log, lad)
+        ok = _resolver(h, log, lad, _case(state).flag_addresses())
         errs = [f"at most {max_m} modifiers; {len(r.modifiers)} named"] if len(r.modifiers) > max_m else []
         seen: set[str] = set()
         for m in r.modifiers:
@@ -1044,7 +1049,7 @@ def assess(state: SpecialistState) -> Command:
         )
         parsed, th = structured(DesignAssessment, P.ASSESS_SYSTEM, user, node="assess")
         debug.append(th)
-        errors = [f"{c} is not a check or pack address" for c in parsed.cites if not (c in check_addresses or h.resolve(c))]
+        errors = [f"{c} is not a check, pack or ladder address" for c in parsed.cites if not V.resolves(c, h, checks=check_addresses, also=_made_here(state))]
         if parsed.action == "proceed":
             if hard:
                 errors.append("proceed is not allowed while a hard flag stands: " + ", ".join(r.address for r in hard))
@@ -1129,9 +1134,10 @@ def pick_estimator(state: SpecialistState) -> Command:
         errors = []
         if parsed.name not in names:
             errors.append(f"{parsed.name!r} is not one of {names}")
+        parsed.cites = [c for c in parsed.cites if V.is_address(c)]  # a section header of the material is no cite; the pick stands without it
         for c in parsed.cites:
-            if not (c in check_addresses or state["handoff"].resolve(c)):
-                errors.append(f"{c} is not a check or pack address")
+            if not V.resolves(c, state["handoff"], checks=list(check_addresses) + [f"estimator:{n}" for n in names], also=_made_here(state)):
+                errors.append(f"{c} is not a check, pack, ladder or estimator address")
         if not errors:
             _writer()({"estimator": parsed.model_dump()})
             return Command(
@@ -1255,7 +1261,7 @@ def window(state: SpecialistState) -> Command:
         )
 
     def gate(r: WindowPick, log: EpisodeLog) -> list[str]:
-        ok = _resolver(h, log, lad)
+        ok = _resolver(h, log, lad, _case(state).flag_addresses())
         errs: list[str] = []
         if r.selector not in rows:
             errs.append(f"{r.selector!r} is not one of the selectors on offer: {', '.join(rows)}")
@@ -1706,6 +1712,12 @@ def _tag(e: Estimate, d: Design) -> str:
     if e.modifier is not None:
         return e.tag
     return f"estimate:{d.contrast.key}" if e.method == d.estimator else f"estimate:{d.contrast.key}.{e.method}"
+
+
+def _made_here(state: SpecialistState):
+    """What this run itself made and a judgement may cite: the ladder's lines and the facts the episodes asked for."""
+    lad, logs = _ladder(state), list(_episodes(state).values())
+    return lambda a: lad.resolve(a) or any(log.resolve(a) for log in logs)
 
 
 def _episodes(state: SpecialistState) -> dict[str, EpisodeLog]:

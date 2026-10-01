@@ -12,6 +12,7 @@ Nothing here names a column, a method, or a dataset.
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any, Literal
 
@@ -19,6 +20,7 @@ import pandas as pd
 from langgraph.types import Command, Send
 
 from causal_agent.common.addresses import key as _key
+from causal_agent.common.addresses import norm_address
 from causal_agent.common.contracts import (
     CheckResult,
     Checks,
@@ -218,11 +220,12 @@ def _treated_mask(state: SpecialistState) -> pd.Series | None:
     return _table(state)[t].astype(str) == str(cs[0].treated)
 
 
-def _resolver(h: Handoff, log: EpisodeLog, ladder: Ladder):
-    """What a rung may cite: the pack, the facts this episode asked for, and the rungs below."""
+def _resolver(h: Handoff, log: EpisodeLog, ladder: Ladder, flags: Iterable[str] = ()):
+    """What a rung may cite: the pack, the facts this episode asked for, the rungs below, and the case's flags."""
+    flagged = {norm_address(a) for a in flags}
 
     def ok(address: str) -> bool:
-        return h.resolve(address) or log.resolve(address) or ladder.resolve(address)
+        return h.resolve(address) or log.resolve(address) or ladder.resolve(address) or norm_address(address) in flagged
 
     return ok
 
@@ -346,10 +349,13 @@ def mechanism(state: SpecialistState) -> Command:
     t, _, others = _keys(state)
 
     def gate(r: Mechanism, log: EpisodeLog) -> list[str]:
-        ok = _resolver(h, log, lad)
+        ok = _resolver(h, log, lad, _case(state).flag_addresses())
         errs = [f"driver {d!r} is not a column in play" for d in r.drivers if _column_key(state, d) is None]
         for f in ("offer_column", "uptake_column"):
             v = getattr(r, f)
+            if isinstance(v, str) and v.strip().lower() in {"", "null", "none"}:
+                setattr(r, f, None)  # the word null, or nothing, is no column
+                v = None
             if v is not None and _column_key(state, v) is None:
                 errs.append(f"{f} names {v!r}, which is not a column in play; use null when there is no such column")
         if r.offer_column and r.uptake_column and _column_key(state, r.offer_column) == _column_key(state, r.uptake_column):
@@ -523,9 +529,9 @@ def _relation_errors(r: Relation, k: str, h: Handoff, case: C.Case, ok: Any) -> 
     errs: list[str] = []
     if sum([r.affects_treatment, r.affects_outcome, r.affected_by_treatment, r.is_outcome_measure]) and not r.reasons:
         errs.append("claims marked true but no reasons given")
+    if sum([r.affects_treatment, r.affects_outcome, r.affected_by_treatment, r.is_outcome_measure]) and not any(reason.cites for reason in r.reasons):
+        errs.append("no reason carries a citation; what is marked true must rest on a cited line (a reason from silence may stand uncited)")
     for reason in r.reasons:
-        if not reason.cites:
-            errs.append("a reason has no citation")
         errs += [f"{c} is not an address you may cite" for c in reason.cites if not ok(c)]
     if r.affects_treatment and r.affected_by_treatment:
         errs.append("cannot both feed the treatment and be changed by it")
@@ -569,7 +575,7 @@ def roles(state: SpecialistState) -> Command:
     t, y, _ = _keys(state)
 
     def gate(r: Roles, log: EpisodeLog) -> list[str]:
-        ok = _resolver(h, log, lad)
+        ok = _resolver(h, log, lad, _case(state).flag_addresses())
         errs = _presence_errors(asked, [x.column for x in r.items])
         for x in r.items:
             if x.column not in asked:
@@ -579,6 +585,9 @@ def roles(state: SpecialistState) -> Command:
             backed = any(any(pat in c for pat in LINK_CITES) or ((f := log.find(c)) is not None and f.tool == "redundancy") for c in link_cites)
             for field in ("redundant_with", "nested_in"):
                 v = getattr(x, field)
+                if isinstance(v, str) and v.strip().lower() in {"", "null", "none"}:
+                    setattr(x, field, None)  # the word null is no link
+                    v = None
                 if v is None:
                     continue
                 if _column_key(state, v) is None or _column_key(state, v) == x.column:
@@ -628,7 +637,7 @@ def post_roles(state: SpecialistState) -> Command:
     t, y, _ = _keys(state)
 
     def gate(r: PostRoles, log: EpisodeLog) -> list[str]:
-        ok = _resolver(h, log, lad)
+        ok = _resolver(h, log, lad, _case(state).flag_addresses())
         errs = _presence_errors(asked, [x.column for x in r.items])
         for x in r.items:
             if x.column not in asked:
@@ -897,7 +906,7 @@ def road(state: SpecialistState) -> Command[Literal["heterogeneity", "feasibilit
             errs = [] if r.taken in est.roads else [f"the {r.taken} road is not open; open: {', '.join(est.roads)}"]
             if not r.why.strip():
                 errs.append("say why this road over the others")
-            return errs + V.cites_resolve(r.cites, h, _resolver(h, log, lad))
+            return errs + V.cites_resolve(r.cites, h, _resolver(h, log, lad, _case(state).flag_addresses()))
 
         user = P.ROAD_USER.format(question=_question(state), frame=L.frame_text(state), graph=g.render(), roads=_roads_text(est), errors="")
         rec, log, thoughts, errors = run_episode(Road, P.ROAD_SYSTEM, user, tools=None, budget=_budget("road"), gate=gate, node="road")
@@ -959,7 +968,7 @@ def heterogeneity(state: SpecialistState) -> Command[Literal["threats", "feasibi
         return Command(goto="threats", update={"ladder": lad.model_copy(update={"heterogeneity": het}), "target_units": target})
 
     def gate(r: Heterogeneity, log: EpisodeLog) -> list[str]:
-        ok = _resolver(h, log, lad)
+        ok = _resolver(h, log, lad, _case(state).flag_addresses())
         errs = [f"at most {max_m} modifiers; {len(r.modifiers)} named"] if len(r.modifiers) > max_m else []
         seen: set[str] = set()
         for m in r.modifiers:
@@ -1134,8 +1143,8 @@ def assess(state: SpecialistState) -> Command:
                     if not h.resolve(c):
                         errors.append(f"{c} is not a pack address")
         for c in parsed.cites:
-            if not (c.startswith("check:") and any(c == r.address for r in results)) and not h.resolve(c):
-                errors.append(f"{c} is not a check or pack address")
+            if not V.resolves(c, h, checks=[r.address for r in results], also=_made_here(state)):
+                errors.append(f"{c} is not a check, pack or ladder address")
         if errors:
             continue
         _writer()({"assess": parsed.model_dump()})
@@ -1241,9 +1250,10 @@ def pick_estimator(state: SpecialistState) -> Command:
         errors = []
         if parsed.name not in names:
             errors.append(f"{parsed.name!r} is not one of {names}")
+        parsed.cites = [c for c in parsed.cites if V.is_address(c)]  # a section header of the material is no cite; the pick stands without it
         for c in parsed.cites:
-            if not (any(c == r.address for r in state["checks"]) or state["handoff"].resolve(c)):
-                errors.append(f"{c} is not a check or pack address")
+            if not V.resolves(c, state["handoff"], checks=[r.address for r in state["checks"]] + [f"estimator:{n}" for n in names], also=_made_here(state)):
+                errors.append(f"{c} is not a check, pack, ladder or estimator address")
         if not errors:
             _writer()({"estimator": parsed.model_dump()})
             return Command(
@@ -1391,6 +1401,12 @@ def after_analyse(state: SpecialistState) -> Command:
 
 
 # ------------------------------------------------------------------ interpret (judgement, fan-out per contrast)
+
+
+def _made_here(state: SpecialistState):
+    """What this run itself made and a judgement may cite: the ladder's lines and the facts the episodes asked for."""
+    lad, logs = _ladder(state), list(_episodes(state).values())
+    return lambda a: lad.resolve(a) or any(log.resolve(a) for log in logs)
 
 
 def _episodes(state: SpecialistState) -> dict[str, EpisodeLog]:
