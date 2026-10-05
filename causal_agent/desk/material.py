@@ -134,8 +134,10 @@ def render(
         m.add(f"decision.over:{fam}", why)
     sr = run.specialist_result or {}
     design = sr.get("design") or {}
+    if run.estimator:
+        m.add("design.estimator", run.estimator)
     if design:
-        for k in ("estimator", "estimand", "formula", "inference", "vce", "cluster", "target_units", "sharp_bandwidth_used"):
+        for k in ("estimand", "formula", "inference", "vce", "cluster", "target_units", "sharp_bandwidth_used"):
             if design.get(k) is not None:
                 m.add(f"design.{k}", str(design[k]))
         if isinstance(design.get("estimand"), dict):

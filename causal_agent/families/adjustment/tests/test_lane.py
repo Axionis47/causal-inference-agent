@@ -260,7 +260,7 @@ def test_students_happy_path():
     d = out["design"]
     assert set(d.estimand.adjustment_set) == {"lunch", "parental_level_of_education"}
     assert {x.column for x in d.graph.excluded} == {"reading_score", "writing_score"}
-    assert d.estimator == "propensity_score_stratification" and d.also_run == "linear_regression"
+    assert d.estimator.name == "propensity_score_stratification" and d.also_run is not None and d.also_run.name == "linear_regression"
     primary = [e for e in out["estimates"] if not e.secondary and e.modifier is None]
     assert len(primary) == 1 and primary[0].error is None and primary[0].value > 0
     assert (
@@ -295,7 +295,7 @@ def test_students_happy_path():
         "[ladder:roles.lunch] confounder" in fake.humans_of("Interpretation")[0]
         and "ladder:roles.lunch" in fake.humans_of("Interpretation")[0].split("ADDRESSES YOU MAY CITE")[1]
     )
-    assert (json.loads(open(f"{r['run_dir']}/design.json").read())["estimator"]) == "propensity_score_stratification"
+    assert (json.loads(open(f"{r['run_dir']}/design.json").read())["estimator"]["name"]) == "propensity_score_stratification"
 
 
 def test_bad_cites_are_refused_three_times_then_the_rung_stops():
@@ -357,7 +357,7 @@ def test_estimator_outside_list_is_rejected_then_accepted():
     fake = FakeLLM(pick_script=["econml_magic", "linear_regression"])
     out = _run(fake, students_handoff())
     assert out["specialist_result"]["status"] == "done"
-    assert out["design"].estimator == "linear_regression"
+    assert out["design"].estimator.name == "linear_regression"
     assert fake.calls.count("EstimatorPick") == 2
     log = out["episodes"]["pick_estimator"]
     assert [t.errors for t in log.tries] == [
@@ -521,7 +521,7 @@ def test_instrument_and_mediator_open_roads_around_a_hidden_factor(tmp_path):
     est = out["estimand"]
     assert "backdoor" not in est.roads and {"iv", "frontdoor"} <= set(est.roads) and est.instruments == ["z"] and est.frontdoor_set == ["m"]
     d = out["design"]
-    assert d.estimator == "instrumental_variable" and d.estimand.kind == "iv" and d.estimand.adjustment_set == []
+    assert d.estimator.name == "instrumental_variable" and d.estimand.kind == "iv" and d.estimand.adjustment_set == []
     assert (
         fake.calls.count("Road") == 1
         and out["ladder"].road.by == "judgement"
@@ -843,7 +843,7 @@ def test_a_brief_naming_the_front_door_takes_it_over_the_instrument(tmp_path):
     r = out["specialist_result"]
     assert r["status"] == "done", r.get("feasibility")
     assert {"iv", "frontdoor"} <= set(out["estimand"].roads) and out["estimand"].kind == "frontdoor"
-    assert out["design"].estimator == "frontdoor_two_stage" and out["design"].estimand.kind == "frontdoor"
+    assert out["design"].estimator.name == "frontdoor_two_stage" and out["design"].estimand.kind == "frontdoor"
     assert "NAMES YOU MAY PICK: frontdoor_two_stage" in fake.humans_of("EstimatorPick")[0]
     assert (
         fake.calls.count("Road") == 0
@@ -1062,3 +1062,35 @@ def test_the_lane_state_comes_back_from_the_dev_servers_serialiser_as_itself():
     assert isinstance(back["handoff"], Handoff) and isinstance(back["ladder"], Ladder) and isinstance(back["ladder"].pair, Pair)
     assert isinstance(back["episodes"]["roles"], EpisodeLog) and back["episodes"]["roles"].facts[0].address == "probe:roles.1"
     assert isinstance(back["case"], Case) and back["case"].open
+
+
+# ------------------------------------------------------------------ the frozen design is the contract
+
+
+def test_after_the_freeze_the_run_reads_the_design_and_never_the_catalogue(monkeypatch):
+    """design.json carries the estimator, its secondary and the refuters as the catalogue entries themselves, and the rules the
+    within-level runs follow. Every catalogue loader raises after the freeze and the run still completes."""
+    from langgraph.checkpoint.memory import InMemorySaver
+
+    from causal_agent.families.adjustment.lane import nodes as N
+    from causal_agent.families.adjustment.lane.graph import build
+
+    set_llm(FakeLLM(overrides={"gender": dict(affects_outcome=True, modifier_candidate=True)}))
+    g = build().compile(checkpointer=InMemorySaver(), interrupt_after=["freeze_design"])
+    cfg = {"configurable": {"thread_id": str(uuid.uuid4())}}
+    h = _students3()
+    g.invoke({"question": "q", "handoff": h, "dataset": h.pack_name}, cfg)
+    d = g.get_state(cfg).values["design"]
+    assert d.estimator.name == "propensity_score_stratification" and d.also_run is not None and d.also_run.name == "linear_regression"
+    assert [r.name for r in d.refuters] == ["placebo_treatment_refuter", "random_common_cause", "data_subset_refuter"]
+    assert d.within_rules.floor == 20 and d.within_rules.max_levels == 4 and d.effect_tolerance == 0.01
+
+    def boom(*_a, **_k):
+        raise AssertionError("the catalogue was read after the freeze")
+
+    monkeypatch.setattr(N, "estimator_entry", boom)
+    monkeypatch.setattr(N, "load_refuters", boom)
+    monkeypatch.setattr(N, "load_estimators", boom)
+    out = g.invoke(None, cfg)
+    assert out["specialist_result"]["status"] == "done", out.get("feasibility")
+    assert any(e.modifier == "gender" and e.error is None for e in out["estimates"]) and len(out["refutations"]) == 3

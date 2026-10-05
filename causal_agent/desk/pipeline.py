@@ -66,7 +66,6 @@ def record(
     dataset: str, question: str, index: int, h: Handoff | None, sr: dict, decision: dict, decision_record: str, design_dir: str | None = None
 ) -> RunRecord:
     """A RunRecord from a lane's result, whether live or read back from the file it wrote."""
-    design = sr.get("design") or {}
     est = next((e for e in sr.get("estimates") or [] if not e.get("secondary") and e.get("error") is None), None)
     run_dir = sr.get("run_dir")
     artifacts = {}
@@ -87,7 +86,7 @@ def record(
         effect=est.get("value") if est else None,
         ci_low=est.get("ci_low") if est else None,
         ci_high=est.get("ci_high") if est else None,
-        estimator=design.get("estimator") if isinstance(design.get("estimator"), str) else (est.get("method") if est else None),
+        estimator=est.get("method") if est else None,
         decision_record=decision_record,
         decision=decision,
         specialist_result=sr,

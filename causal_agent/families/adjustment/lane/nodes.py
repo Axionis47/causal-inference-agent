@@ -57,6 +57,7 @@ from causal_agent.families.adjustment.lane.contracts import (
     Role,
     Roles,
     Timing,
+    WithinRules,
 )
 from causal_agent.families.adjustment.lane.knowledge import (
     estimator as estimator_entry,
@@ -1270,24 +1271,24 @@ def pick_estimator(state: SpecialistState) -> Command[Literal["freeze_design", "
 
 
 def freeze_design(state: SpecialistState) -> dict:
+    """The design as the catalogue entries themselves: nothing after this node reads the yaml."""
     est: Estimand = state["estimand"]
     entry = estimator_entry(state["estimator"])
     adj = "nonempty" if est.adjustment_set else "empty"
-    refuters = [r.name for r in load_refuters() if r.applies(estimand=est.kind, adjustment_set=adj, hidden=est.sensitivity_required)]
-    also = (
-        entry.also_run
-        if entry.also_run and estimator_entry(entry.also_run).applies(estimand=est.kind, treatment="binary", outcome=state["outcome_kind"], adjustment_set=adj)
-        else None
-    )
+    refuters = [r for r in load_refuters() if r.applies(estimand=est.kind, adjustment_set=adj, hidden=est.sensitivity_required)]
+    second = estimator_entry(entry.also_run) if entry.also_run else None
+    also = second if second is not None and second.applies(estimand=est.kind, treatment="binary", outcome=state["outcome_kind"], adjustment_set=adj) else None
+    cfg = load_checks()
     d = Design(
         contrasts=state["contrasts"],
         graph=state["graph"],
         estimand=est,
         checks=Checks(results=state["checks"]),
-        estimator=entry.name,
-        params=entry.params,
+        estimator=entry,
         also_run=also,
         refuters=refuters,
+        within_rules=WithinRules(floor=int(cfg["arms"]["min_per_arm"]["hard"]), max_levels=int((cfg.get("modifiers") or {}).get("max_levels", 4))),
+        effect_tolerance=float(cfg.get("effect_tolerance", 0.01)),
         target_units=state["target_units"],
         modifiers=[m.column for m in lad.heterogeneity.modifiers] if (lad := _ladder(state)).heterogeneity is not None else [],
     )
@@ -1313,14 +1314,12 @@ def analyse(task: ContrastTask) -> dict:
     model = adapter.build_model(sub, d.graph, d.graph.outcome)
     estimates: list[Estimate] = []
     refutations: list[Refutation] = []
-    primary, bundle = adapter.estimate(model, estimator_entry(d.estimator), c.key, d.target_units)
+    primary, bundle = adapter.estimate(model, d.estimator, c.key, d.target_units)
     estimates.append(primary)
     if primary.error is None:
-        for name in d.refuters:
-            rf = next(r for r in load_refuters() if r.name == name)
-            refutations.append(adapter.refute(model, bundle, primary, rf, c.key))
-    if d.also_run:
-        sec, _ = adapter.estimate(model, estimator_entry(d.also_run), c.key, d.target_units, secondary=True)
+        refutations += [adapter.refute(model, bundle, primary, rf, c.key) for rf in d.refuters]
+    if d.also_run is not None:
+        sec, _ = adapter.estimate(model, d.also_run, c.key, d.target_units, secondary=True)
         estimates.append(sec)
     if primary.error is None:
         estimates += _by_modifier(sub, d, c.key)
@@ -1342,10 +1341,9 @@ def _modifier_groups(sub: pd.DataFrame, column: str, max_levels: int) -> list[tu
 def _by_modifier(sub: pd.DataFrame, d: Design, contrast_key: str) -> list[Estimate]:
     """The primary estimator run again within each level of each modifier, on the graph without the modifier (constant within a
     level). Too few rows in an arm is recorded as the estimate's error, never skipped in silence."""
-    cfg = load_checks()
-    floor = int(cfg["arms"]["min_per_arm"]["hard"])
+    floor = d.within_rules.floor
     out: list[Estimate] = []
-    entry = estimator_entry(d.estimator)
+    entry = d.estimator
     for col in d.modifiers:
         if col not in sub.columns:
             continue
@@ -1356,13 +1354,13 @@ def _by_modifier(sub: pd.DataFrame, d: Design, contrast_key: str) -> list[Estima
             edges=[e for e in d.graph.edges if col not in (e.src, e.dst)],
             excluded=d.graph.excluded,
         )
-        for level, part in _modifier_groups(sub, col, int((cfg.get("modifiers") or {}).get("max_levels", 4))):
+        for level, part in _modifier_groups(sub, col, d.within_rules.max_levels):
             n_t, n_c = int((part[adapter.TREATED] == 1).sum()), int((part[adapter.TREATED] == 0).sum())
             if min(n_t, n_c) < floor:
                 out.append(
                     Estimate(
                         contrast=contrast_key,
-                        method=d.estimator,
+                        method=entry.name,
                         n_treated=n_t,
                         n_control=n_c,
                         target_units=d.target_units,
@@ -1494,7 +1492,7 @@ def fan_out_interpret(state: SpecialistState):
                 addresses="\n".join(_addresses(state, c.key)),
                 required="\n".join(_required(state, c.key)),
                 primary_value=_latest_primary(state)[c.key].value,
-                tolerance=load_checks().get("effect_tolerance", 0.01),
+                tolerance=state["design"].effect_tolerance,
             ),
         )
         for c in state["contrasts"]

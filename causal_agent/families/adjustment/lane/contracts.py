@@ -14,6 +14,7 @@ import networkx as nx
 from pydantic import BaseModel, Field
 
 from causal_agent.common.contracts import Checks, Cited, Contrast, Departure
+from causal_agent.families.adjustment.lane.knowledge import EstimatorEntry, RefuterEntry
 from causal_agent.lane.ladder import Heterogeneity, LadderBase, Threats, Unsure
 
 
@@ -260,9 +261,7 @@ class Estimand(BaseModel):
     adjustment_set: list[str] = Field(default_factory=list)
     instruments: list[str] = Field(default_factory=list)
     frontdoor_set: list[str] = Field(default_factory=list)
-    alternatives: dict[str, list[str]] = Field(default_factory=dict)
     sensitivity_required: bool = Field(default=False, description="the person says a hidden factor exists and no road avoids it: the caveat must say so")
-    dowhy_text: str = ""
 
 
 class Revision(BaseModel):
@@ -285,17 +284,27 @@ class EstimatorPick(BaseModel):
     cites: list[str] = Field(default_factory=list, description="check addresses and pack addresses that support the pick")
 
 
+class WithinRules(BaseModel):
+    """What the within-level runs follow, frozen with the design: the smallest arm a level must keep, and how many levels or bins
+    a modifier is cut into."""
+
+    floor: int
+    max_levels: int
+
+
 class Design(BaseModel):
-    """The frozen design. Everything after this is deterministic execution."""
+    """The frozen design. Everything after this is deterministic execution, and reads this record and nothing else: the
+    estimator, its secondary and the refuters are the catalogue entries themselves, not names to look up again."""
 
     contrasts: list[Contrast]
     graph: Graph
     estimand: Estimand
     checks: Checks
-    estimator: str
-    params: dict = Field(default_factory=dict)
-    also_run: str | None = None
-    refuters: list[str]
+    estimator: EstimatorEntry
+    also_run: EstimatorEntry | None = None
+    refuters: list[RefuterEntry]
+    within_rules: WithinRules
+    effect_tolerance: float = Field(description="the interpretation's stated effect must match the estimate within this relative tolerance")
     target_units: str
     modifiers: list[str] = Field(default_factory=list, description="the columns the effect is also estimated within, level by level")
     frozen_at: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
@@ -321,8 +330,10 @@ class Design(BaseModel):
         )
         for r in self.checks.results:
             lines.append(f"  check        {r.level:4} {r.address}  {r.detail}")
-        lines.append(f"  estimator    {self.estimator}" + (f" (+ {self.also_run} as secondary)" if self.also_run else "") + f"  params {self.params}")
-        lines.append(f"  refuters     {', '.join(self.refuters)}")
+        lines.append(
+            f"  estimator    {self.estimator.name}" + (f" (+ {self.also_run.name} as secondary)" if self.also_run else "") + f"  params {self.estimator.params}"
+        )
+        lines.append(f"  refuters     {', '.join(r.name for r in self.refuters)}")
         lines.append(f"  target       {self.target_units}")
         lines.append(f"  modifiers    {', '.join(self.modifiers) or 'none'}")
         lines.append(f"  frozen at    {self.frozen_at}")

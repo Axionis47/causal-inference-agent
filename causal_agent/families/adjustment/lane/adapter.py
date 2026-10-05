@@ -57,16 +57,13 @@ def identify(model) -> Estimand:
     ests = getattr(ide, "estimands", {}) or {}
     roads = [k for k in ("backdoor", "frontdoor", "iv") if ests.get(k) is not None]
     if not roads:
-        return Estimand(kind="none", dowhy_text=str(ide))
-    alts = {k: list(v) for k, v in (getattr(ide, "backdoor_variables", {}) or {}).items() if k != "backdoor"}
+        return Estimand(kind="none")
     return Estimand(
         kind=roads[0],
         roads=roads,
         adjustment_set=list(ide.get_backdoor_variables()) if "backdoor" in roads else [],
         instruments=[str(v) for v in (ide.get_instrumental_variables() or [])] if "iv" in roads else [],
         frontdoor_set=[str(v) for v in (ide.get_frontdoor_variables() or [])] if "frontdoor" in roads else [],
-        alternatives=alts,
-        dowhy_text=str(ide),
     )
 
 

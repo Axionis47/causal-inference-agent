@@ -17,7 +17,7 @@ def summarise(result: dict) -> dict:
         "adjustment_set": (d.get("estimand") or {}).get("adjustment_set"),
         "excluded": [x["column"] for x in (d.get("graph") or {}).get("excluded") or []],
         "nodes": list((d.get("graph") or {}).get("nodes") or []),
-        "estimator": d.get("estimator"),
+        "estimator": (d.get("estimator") or {}).get("name"),
         "contrasts": len(d.get("contrasts") or []) or None,
         "effects": {e["contrast"]: e["value"] for e in est},
         "refuters": refs,
