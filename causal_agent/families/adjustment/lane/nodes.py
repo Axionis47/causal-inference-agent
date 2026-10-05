@@ -61,14 +61,15 @@ from causal_agent.families.adjustment.lane.contracts import (
     WithinRules,
 )
 from causal_agent.families.adjustment.lane.knowledge import (
-    estimator as estimator_entry,
-)
-from causal_agent.families.adjustment.lane.knowledge import (
+    SPACE,
     load_beliefs,
     load_checks,
     load_estimators,
     load_refuters,
     render_preferences,
+)
+from causal_agent.families.adjustment.lane.knowledge import (
+    estimator as estimator_entry,
 )
 from causal_agent.families.adjustment.lane.state import ContrastTask, InterpretTask, SpecialistState
 from causal_agent.lane import asks, intake, records
@@ -76,6 +77,7 @@ from causal_agent.lane import case as C
 from causal_agent.lane import figures as LF
 from causal_agent.lane import ladder as LAD
 from causal_agent.lane import nodes as L
+from causal_agent.lane import space as SP
 from causal_agent.lane import verify as V
 from causal_agent.lane import words as W
 from causal_agent.lane.episode import EpisodeLog, run_episode
@@ -83,7 +85,6 @@ from causal_agent.lane.ladder import Heterogeneity, Threat, Threats
 from causal_agent.lane.nodes import MAX_PICK_ATTEMPTS, MAX_REVISIONS
 from causal_agent.viz.postviz import common as PV
 
-MAX_DOSE_LEVELS = 12
 CLAIMS = ("affects_treatment", "affects_outcome", "affected_by_treatment", "is_outcome_measure")
 # a model claim that contradicts a pack fact on a claim the pack did not itself settle
 CONTRADICTION_RULES: list[V.Rule] = [("affects_treatment", True, "when", ("after",))]
@@ -111,11 +112,6 @@ def _block(h: Handoff) -> AdjustmentDesign | None:
     return h.design if isinstance(h.design, AdjustmentDesign) else None
 
 
-def _thought(t, node: str):
-    t.node = node
-    return t
-
-
 # ------------------------------------------------------------------ load (fact) and the case (fact)
 
 
@@ -137,33 +133,19 @@ def load(state: SpecialistState) -> Command[Literal["case", "feasibility"]]:
         return Command(goto="feasibility", update={"feasibility": e.feasibility, "handoff": h})
     t, y = _key(h.treatment), _key(h.outcome)
     table = it.table
-    ok = CK.outcome_kind(table[y])
-    if ok is None:
-        return _stop(
-            "load",
-            "the outcome is neither numeric nor two-valued",
-            [f"outcome {y} has {table[y].nunique()} distinct non-numeric values"],
-            "an outcome measured as a number or a yes/no",
-            {"declines": it.declines, "handoff": h},
-        )
-    cfg = load_checks()
-    target = cfg["target_units"].get(h.scope.target)
-    if target is None:
-        return _stop(
-            "load",
-            f"target '{h.scope.target}' is not supported by this lane yet",
-            [],
-            "a question asking for the average effect, or the effect on the treated",
-            {"declines": it.declines, "handoff": h},
-        )
+    ok = CK.outcome_kind(table[y]) or "other"
+    target = load_checks()["target_units"].get(h.scope.target, h.scope.target)
     tcol = table[t]
-    numeric_dose = pd.api.types.is_numeric_dtype(tcol) and tcol.nunique() > MAX_DOSE_LEVELS
-    if numeric_dose:
+    distinct = int(tcol.nunique())
+    # the file projected onto the lane's space (ADR 0011): a shape the lane cannot reach stops here, before any model call
+    observed = {"treatment": "binary", "outcome": ok, "target": target, "contrasts": max(distinct - 1, 1)}
+    out = SP.bounds(SPACE, observed)
+    if out is not None:
         return _stop(
             "load",
-            "the treatment is a dose with many values; this lane compares levels",
-            [f"{t} has {tcol.nunique()} distinct values"],
-            "a two-level or few-level treatment, or a dose-response lane",
+            out.reason,
+            [out.render(), f"outcome {y}: {ok}", f"{t} has {distinct} distinct values", f"target asked: {h.scope.target}"],
+            "a shape inside this lane's space, declared in knowledge/space.yaml",
             {"declines": it.declines, "handoff": h},
         )
     levels = [str(v) for v in sorted(tcol.unique(), key=lambda v: str(v))]
@@ -190,12 +172,12 @@ def load(state: SpecialistState) -> Command[Literal["case", "feasibility"]]:
             "declines": it.declines,
             "check_facts": {"intake": it.facts} if it.facts else {},
             "outcome_kind": ok,
+            "treatment_kind": observed["treatment"],
             "target_units": target,
             "treatment_levels": levels,
             "ladder": Ladder(),
             "revisions": 0,
             "pick_attempts": 0,
-            "interpret_attempts": 0,
             "excluded_estimators": [],
             "applied_revisions": [],
         },
@@ -800,15 +782,15 @@ _ROAD_QUESTIONS = {
 }
 
 
-def _roads_text(est: Estimand) -> str:
-    parts = []
-    if "backdoor" in est.roads:
-        parts.append(f"backdoor: adjust for {', '.join(est.adjustment_set) or 'nothing'}")
-    if "frontdoor" in est.roads:
-        parts.append(f"frontdoor: through the mediator {', '.join(est.frontdoor_set)}")
-    if "iv" in est.roads:
-        parts.append(f"iv: through the instrument {', '.join(est.instruments)}")
-    return "\n".join(parts)
+def _roads_text(est: Estimand, runnable: list[str]) -> str:
+    """The roads the graph opens, and which of them the library runs on this shape: the judgement may take only those."""
+    words = {
+        "backdoor": f"backdoor: adjust for {', '.join(est.adjustment_set) or 'nothing'}",
+        "frontdoor": f"frontdoor: through the mediator {', '.join(est.frontdoor_set)}",
+        "iv": f"iv: through the instrument {', '.join(est.instruments)}",
+    }
+    parts = [words[r] + ("" if r in runnable else "  (open on the graph, but no estimator runs it on this outcome)") for r in est.roads if r in words]
+    return "\n".join(parts) + f"\nroads you may take: {', '.join(runnable)}"
 
 
 def road(state: SpecialistState) -> Command[Literal["heterogeneity", "feasibility"]]:
@@ -888,6 +870,9 @@ def road(state: SpecialistState) -> Command[Literal["heterogeneity", "feasibilit
         est.sensitivity_required = True  # a revise loop re-identifies without the hidden node; the range and the caveat stay
     extra: dict[str, Any] = {}
     brief_road = h.brief.road if h.brief is not None else None
+    # the roads the graph opens that the library also runs on this shape (ADR 0011): the judgement is offered these and no other
+    fixed = {"treatment": state["treatment_kind"], "outcome": state["outcome_kind"], "sensitivity_required": est.sensitivity_required}
+    runnable = [r for r in est.roads if r in SP.offer(SPACE, load_estimators(), fixed)["estimand"]]
     if est.kind == "none":  # nothing identifies and no hidden factor is declared: check_design's hard identification flag says so
         rd = Road(taken="none", why="nothing identifies the effect on this graph", open=[], hidden_factor=hidden, by="code")
     elif brief_road is not None:  # the design brief names the road: the graph must have it, and the design takes it
@@ -899,19 +884,35 @@ def road(state: SpecialistState) -> Command[Literal["heterogeneity", "feasibilit
                 "a brief whose road the graph opens, or a graph with that road",
                 {"estimand": est},
             )
+        if brief_road not in runnable:
+            return _stop(
+                "road",
+                SPACE.reason_for({"estimand": brief_road, "outcome": state["outcome_kind"]}) or f"no estimator runs the {brief_road} road on this shape",
+                [f"roads the graph opens: {', '.join(est.roads)}", f"roads the library runs here: {', '.join(runnable) or 'none'}"],
+                "a shape inside this lane's space, declared in knowledge/space.yaml",
+                {"estimand": est},
+            )
         est = est.model_copy(update={"kind": brief_road})
         rd = Road(taken=brief_road, why="the design brief names it", cites=["design.brief.road"], open=est.roads, hidden_factor=hidden, by="pack")
-    elif len(est.roads) == 1:
-        rd = Road(taken=est.roads[0], why="the only road the graph opens", open=est.roads, hidden_factor=hidden, by="code")
+    elif not runnable:  # the graph opens roads the library does not run on this shape: the declared reason, before any judgement
+        return _stop(
+            "road",
+            SPACE.reason_for({"estimand": est.roads[0], "outcome": state["outcome_kind"]}) or f"no estimator runs the {est.roads[0]} road on this shape",
+            [f"roads the graph opens: {', '.join(est.roads)}", f"outcome: {state['outcome_kind']}"],
+            "a shape inside this lane's space, declared in knowledge/space.yaml",
+            {"estimand": est},
+        )
+    elif len(runnable) == 1:
+        rd = Road(taken=runnable[0], why="the only road the graph opens that the library runs", open=est.roads, hidden_factor=hidden, by="code")
     else:
 
         def gate(r: Road, log: EpisodeLog) -> list[str]:
-            errs = [] if r.taken in est.roads else [f"the {r.taken} road is not open; open: {', '.join(est.roads)}"]
+            errs = [] if r.taken in runnable else [f"the {r.taken} road is not open and runnable; open: {', '.join(runnable)}"]
             if not r.why.strip():
                 errs.append("say why this road over the others")
             return errs + V.cites_resolve(r.cites, h, _resolver(h, log, lad, _case(state).flag_addresses()))
 
-        user = P.ROAD_USER.format(question=_question(state), frame=L.frame_text(state), graph=g.render(), roads=_roads_text(est), errors="")
+        user = P.ROAD_USER.format(question=_question(state), frame=L.frame_text(state), graph=g.render(), roads=_roads_text(est, runnable), errors="")
         rec, log, thoughts, errors = run_episode(Road, P.ROAD_SYSTEM, user, tools=None, budget=_budget("road"), gate=gate, node="road")
         if rec is None:
             return _stop(
@@ -963,8 +964,7 @@ def heterogeneity(state: SpecialistState) -> Command[Literal["threats", "feasibi
     lad = _ladder(state)
     cands = _modifier_candidates(state)
     target = _target_units(state)
-    cfg = load_checks().get("modifiers") or {}
-    max_m = int(cfg.get("max", 3))
+    max_m = int(SP.limit(SPACE, "modifiers"))
     if not cands:
         het = Heterogeneity(modifiers=[], why="no column was marked as one the effect could differ by", target_units=target, by="code")
         _writer()({"heterogeneity": het.model_dump()})
@@ -1176,29 +1176,38 @@ def assess(state: SpecialistState) -> Command[Literal["pick_estimator", "merge_g
 # ------------------------------------------------------------------ pick estimator (judgement)
 
 
-def _design_facts(state: SpecialistState) -> dict[str, Any]:
+def _shape_facts(state: SpecialistState) -> dict[str, Any]:
+    """The design's point in the lane's space, keyed as the catalogue keys it, plus the arm the confounder bound reads."""
     est: Estimand = state["estimand"]
-    checks: list[CheckResult] = state["checks"]
-    arms = [r for r in checks if r.name == "arms"]
+    lad = _ladder(state)
+    arms = [r for r in state["checks"] if r.name == "arms"]
+    return {
+        "estimand": est.kind,
+        "treatment": state["treatment_kind"],
+        "outcome": state["outcome_kind"],
+        "adjustment_set": "nonempty" if est.adjustment_set else "empty",
+        "sensitivity_required": est.sensitivity_required,
+        "target": state["target_units"],
+        "contrasts": len(state["contrasts"]),
+        "confounders": len(est.adjustment_set),
+        "modifiers": len(lad.heterogeneity.modifiers) if lad.heterogeneity is not None else 0,
+        "smallest_arm": min((int(r.value) for r in arms if r.value is not None), default=0),
+    }
+
+
+def _pick_context(state: SpecialistState) -> dict[str, Any]:
+    """What the pick reads beside the shape: the roads open, the columns on them, and the person's words, so the pick is not made by habit."""
+    est: Estimand = state["estimand"]
     h = state["handoff"]
     b = _block(h)
     lad = _ladder(state)
     return {
-        "estimand": est.kind,
         "roads": est.roads,
         "road_from_brief": h.brief.road if h.brief is not None else None,
-        "modifiers": [m.column for m in lad.heterogeneity.modifiers] if lad.heterogeneity is not None else [],
+        "modifier_columns": [m.column for m in lad.heterogeneity.modifiers] if lad.heterogeneity is not None else [],
         "instruments": est.instruments,
         "frontdoor_set": est.frontdoor_set,
-        "sensitivity_required": est.sensitivity_required,
-        "treatment": "binary",
-        "outcome": state["outcome_kind"],
-        "adjustment_set": "nonempty" if est.adjustment_set else "empty",
         "adjustment_columns": est.adjustment_set,
-        "target": state["target_units"],
-        "contrasts": len(state["contrasts"]),
-        "smallest_arm": min((int(r.value) for r in arms if r.value is not None), default=0),
-        # from the pack: what the person said, so the pick is not made by habit
         "instrument_named": b.instrument if b else None,
         "mediator_named": b.mediator if b else None,
         "hidden_confounding_per_person": b.unobserved_confounding if b else None,
@@ -1207,8 +1216,13 @@ def _design_facts(state: SpecialistState) -> dict[str, Any]:
 
 
 def pick_estimator(state: SpecialistState) -> Command[Literal["freeze_design", "feasibility"]]:
-    """The catalogue filtered by the facts: the road the road rung took, the treatment and outcome kinds, the adjustment set."""
-    facts = _design_facts(state)
+    """The catalogue filtered by the design's cell in the space: the road the road rung took, the treatment and outcome kinds,
+    the adjustment set. A design outside the space stops with the declared reason; every rung above was offered only runnable
+    values, so this is a check, not a decision."""
+    shape = SP.cell(SPACE, _shape_facts(state))
+    if isinstance(shape, SP.Outside):
+        return _stop("pick_estimator", shape.reason, [shape.render()], "a design inside this lane's space, declared in knowledge/space.yaml")
+    facts = {**shape, **_pick_context(state)}
     excluded = set(state.get("excluded_estimators") or [])
     on_road = [
         e
@@ -1317,7 +1331,8 @@ def freeze_design(state: SpecialistState) -> dict:
     second = estimator_entry(entry.also_run) if entry.also_run else None
     also = (
         second
-        if second is not None and second.applies(estimand=est.kind, treatment="binary", outcome=state["outcome_kind"], adjustment_set=adj, target=target)
+        if second is not None
+        and second.applies(estimand=est.kind, treatment=state["treatment_kind"], outcome=state["outcome_kind"], adjustment_set=adj, target=target)
         else None
     )
     cfg = load_checks()

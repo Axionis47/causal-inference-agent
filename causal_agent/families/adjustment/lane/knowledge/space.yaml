@@ -1,0 +1,52 @@
+# The design space this lane runs (ADR 0011), declared once. A dimension's name is the key the estimator and refuter
+# entries use in `applies_when`, so those entries are the allowed tuples over this space. `decided_by` names the rung
+# that fixes the dimension; `read_from` the fact it is read from; `unsupported` the values the library does not run,
+# each with the reason a stop carries. A range bound may be a number, inf, or <fact>/<n>.
+#
+# A test proves every cell of the keyed dimensions is served by an estimator and a refuter, or is declared unsupported.
+# `load` projects the file onto this space and stops, typed, before any model call when it reaches no cell. A rung that
+# decides a dimension is offered only the values still runnable given what the rungs below fixed.
+
+dimensions:
+  treatment:
+    values: [binary]                     # every contrast compares two levels; a few-level treatment is several contrasts
+    decided_by: pair
+    read_from: probe:data.levels
+  outcome:
+    values: [continuous, binary]
+    decided_by: load
+    read_from: col:<outcome>.profile.kind
+    unsupported:
+      other: the outcome is neither a number nor a yes/no; no estimator fits it
+  estimand:                              # the road
+    values: [backdoor, iv, frontdoor]
+    decided_by: road
+  adjustment_set:
+    values: [empty, nonempty]
+    decided_by: road
+  sensitivity_required:                  # a hidden factor the person declared, left in as a range
+    values: [false, true]
+    decided_by: road
+    read_from: claim:unobserved.exists
+  target:
+    values: [ate, att, atc]
+    decided_by: pair
+    read_from: scope.target
+    soft: true                           # a target no entry on the road serves is a decline at the freeze, not a wall
+  contrasts:
+    range: [1, 11]
+    decided_by: pair
+    unsupported:
+      above: more than twelve treatment levels; this lane compares levels, one contrast per level, and a numeric treatment with that many values is a dose that needs a dose-response lane
+  confounders:
+    range: [0, smallest_arm/10]
+    decided_by: road
+    unsupported:
+      above: more adjustment columns than the smaller arm can support, at ten rows each
+  modifiers:
+    range: [0, 3]
+    decided_by: heterogeneity
+
+unsupported:
+  - when: {estimand: frontdoor, outcome: binary}
+    reason: the front-door two-stage regression fits a continuous outcome; no entry runs it on a yes/no

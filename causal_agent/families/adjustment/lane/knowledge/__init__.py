@@ -8,8 +8,10 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 from causal_agent.lane.knowledge import Knowledge
+from causal_agent.lane.space import load_space
 
 _HERE = Path(__file__).parent
+SPACE = load_space(_HERE / "space.yaml")  # the shapes this lane runs (ADR 0011); read at load, at the deciding rungs, at the freeze
 
 
 class EstimatorEntry(BaseModel):

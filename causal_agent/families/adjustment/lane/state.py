@@ -19,6 +19,7 @@ from causal_agent.lane.state import LaneState, by_key, merge_dicts
 
 class SpecialistState(LaneState, total=False):
     outcome_kind: str
+    treatment_kind: str  # the treatment's place in the lane's space, observed at load
     target_units: str
     treatment_levels: list[str]
     contrasts: list[Contrast]
@@ -39,7 +40,6 @@ class SpecialistState(LaneState, total=False):
     mismatches: Annotated[dict[str, str], merge_dicts]  # contrast -> why the engine's identified set differed from the frozen design
     interpretations: Annotated[list[Interpretation], operator.add]
     interpret_errors: Annotated[dict[str, list[str]], merge_dicts]
-    interpret_attempts: int
 
 
 class ContrastTask(TypedDict):

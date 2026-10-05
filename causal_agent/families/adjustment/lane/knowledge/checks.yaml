@@ -43,7 +43,7 @@ episode_budget:
   road: 0
   heterogeneity: 4
 
-# How many modifiers the heterogeneity rung may name; the effect is estimated within each level of each.
+# The effect is estimated within each level of each modifier the heterogeneity rung names; how many it may name is a
+# dimension of space.yaml.
 modifiers:
-  max: 3
   max_levels: 4          # a modifier with more levels, or a number, is cut into this many groups
