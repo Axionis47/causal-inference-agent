@@ -86,10 +86,13 @@ def structured(schema: type[T], system: str, user: str, *, node: str) -> tuple[T
     out = runnable.invoke([("system", system), ("human", user)])
     if isinstance(out, dict) and "parsed" in out:
         parsed, raw = out["parsed"], out.get("raw")
-        if out.get("parsing_error") and parsed is None:
-            raise ValueError(f"{node}: structured output failed to parse: {out['parsing_error']}")
+        if parsed is None:  # the model answered with no record, parseable or not: the caller's retry sees one error, never a None
+            why = out.get("parsing_error")
+            raise ValueError(f"{node}: structured output failed to parse: {why}" if why else f"{node}: the model returned no structured answer")
     else:  # a fake that returns the object directly
         parsed, raw = out, None
+    if parsed is None:
+        raise ValueError(f"{node}: the model returned no structured answer")
     if isinstance(parsed, dict):
         parsed = schema.model_validate(parsed)
     text, tt, ot = extract_thoughts(raw) if raw is not None else ("", None, None)

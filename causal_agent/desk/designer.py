@@ -105,26 +105,31 @@ def design_brief(state: RouteState, runtime: Runtime[Context] | None = None) -> 
     brief: DesignBrief | None = None
     for attempt in range(1, MAX_DESIGN_ATTEMPTS + 1):
         prev = ("PREVIOUS ATTEMPT FAILED THESE CHECKS; fix them:\n" + "\n".join(f"- {e}" for e in errors)) if errors else ""
-        brief, thought = structured(
-            DesignBrief,
-            P.DESIGN_SYSTEM,
-            P.DESIGN_USER.format(
-                question=state.get("question") or "",
-                intent=fr.intent,
-                outcome=fr.outcome or "none",
-                cause=fr.cause or "none",
-                scope=D._scope_text(fr),
-                family=family.render(),
-                memory=memory.render() or "(nothing known yet)",
-                probes="\n".join(p.render() for p in probes) or "(no probe applies)",
-                verdict=_render_verdict(verdict),
-                said=said,
-                previous=previous.render() if previous else "(none: this is the first design)",
-                addresses=", ".join(addresses),
-                previous_errors=prev,
-            ),
-            node=f"design:{attempt}",
-        )
+        try:
+            brief, thought = structured(
+                DesignBrief,
+                P.DESIGN_SYSTEM,
+                P.DESIGN_USER.format(
+                    question=state.get("question") or "",
+                    intent=fr.intent,
+                    outcome=fr.outcome or "none",
+                    cause=fr.cause or "none",
+                    scope=D._scope_text(fr),
+                    family=family.render(),
+                    memory=memory.render() or "(nothing known yet)",
+                    probes="\n".join(p.render() for p in probes) or "(no probe applies)",
+                    verdict=_render_verdict(verdict),
+                    said=said,
+                    previous=previous.render() if previous else "(none: this is the first design)",
+                    addresses=", ".join(addresses),
+                    previous_errors=prev,
+                ),
+                node=f"design:{attempt}",
+            )
+        except ValueError as e:  # no brief came back: a failed check, re-prompted like any other, the fallback after the last try
+            errors = [str(e)]
+            D._writer()({"design": {"attempt": attempt, "errors": errors}})
+            continue
         thoughts.append(thought)
         errors = check(brief, family, d.chosen, memory, probes)
         D._writer()({"design": {"attempt": attempt, "errors": errors}})

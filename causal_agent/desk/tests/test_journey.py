@@ -331,6 +331,16 @@ def test_a_brief_that_cites_nothing_real_is_refused_three_times_then_falls_back_
     assert brief_by_rule(fake.humans["DesignBrief"][0]).family == "adjustment"  # what the rule would have said, had it been asked
 
 
+def test_a_model_that_returns_no_brief_is_asked_again_and_the_third_answer_stands():
+    fake = DeskFake(brief=[None, None])  # two empty answers, then the rule's brief
+    d = Desk(fake)
+    d.say(QUESTION)
+    d.to_ready()
+    assert fake.calls.count("DesignBrief") == 3
+    assert "the model returned no structured answer" in fake.humans["DesignBrief"][1]
+    assert d.values["brief"].road == "backdoor" and d.values["brief"].decisions[0].choice != "not decided"
+
+
 def test_the_chat_after_a_run_can_cite_what_the_design_rested_on():
     from causal_agent.desk import material as M
 
