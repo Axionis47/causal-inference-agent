@@ -199,7 +199,7 @@ ADJUSTMENT SET
 
 FLAGGED CHECKS
 {flags}
-{errors}
+
 Decide: proceed, revise, or stop.
 """
 

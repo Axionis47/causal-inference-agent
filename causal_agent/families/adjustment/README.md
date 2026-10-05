@@ -35,9 +35,10 @@ reading says the effect holds only if that factor is no stronger than the simula
 - **Facts** are computed by code from declared inputs: `load`, `case`, `time`, `merge_graph`, `verify_graph`, `threats`,
   `check_design`, `freeze_design`, `analyse`, `figures`, `assemble`. A missing input or a failed assumption is a typed `Feasibility`
   stop, never a guess.
-- **Judgements** are bounded episodes or single calls, cite addresses, and pass a gate: `pair`, `mechanism`, `roles`, `post_roles`,
-  `road`, `heterogeneity` (episodes, each only for what the pack leaves open), `assess`, `pick_estimator`, `interpret`. A rung cites the pack, a fact it
-  asked the data for, or a rung below it; no tool joins the outcome with the treatment before the design is frozen.
+- **Judgements** are bounded episodes, cite addresses, and pass a gate: `pair`, `mechanism`, `roles`, `post_roles`, `road`,
+  `heterogeneity` (each only for what the pack leaves open, with the data tools), `assess`, `pick_estimator`, `interpret` (no tools).
+  Every try is kept: what the model was shown, what it answered, what the gate said. A rung cites the pack, a fact it asked the
+  data for, or a rung below it; no tool joins the outcome with the treatment before the design is frozen.
 - **The pack is weighed first.** `case` turns the pack into facts, drafts, open and contested fields, and the person's beliefs into
   flags by `knowledge/beliefs.yaml`; `decide_by_code` may stop or ask before any judgement. A column the pack settles never reaches
   the model.

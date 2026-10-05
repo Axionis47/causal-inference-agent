@@ -348,6 +348,9 @@ def test_hard_flag_blocks_proceed():
     assert out["specialist_result"]["status"] == "infeasible"
     assert fake.calls.count("DesignAssessment") == 3
     assert out["feasibility"].stage == "assess"
+    log = out["episodes"]["assess"]
+    assert len(log.tries) == 3 and all("proceed is not allowed while a hard flag stands" in t.errors[0] for t in log.tries)
+    assert log.tries[0].answer["action"] == "proceed" and "FLAGGED CHECKS" in log.tries[0].user and "PREVIOUS ANSWER WAS REJECTED" in log.tries[1].user
 
 
 def test_estimator_outside_list_is_rejected_then_accepted():
@@ -356,6 +359,14 @@ def test_estimator_outside_list_is_rejected_then_accepted():
     assert out["specialist_result"]["status"] == "done"
     assert out["design"].estimator == "linear_regression"
     assert fake.calls.count("EstimatorPick") == 2
+    log = out["episodes"]["pick_estimator"]
+    assert [t.errors for t in log.tries] == [
+        [
+            "'econml_magic' is not one of "
+            + str([e for e in ["propensity_score_stratification", "propensity_score_weighting", "linear_regression", "propensity_score_matching"]])
+        ],
+        [],
+    ]
 
 
 def test_interpretation_bad_cite_is_retried():
@@ -364,6 +375,8 @@ def test_interpretation_bad_cite_is_retried():
     assert out["specialist_result"]["status"] == "done"
     assert fake.calls.count("Interpretation") == 2
     assert not out.get("interpret_errors")
+    log = out["episodes"]["interpret:completed_vs_none"]
+    assert len(log.tries) == 2 and log.tries[0].errors and log.tries[1].errors == [] and "try 1 refused:" in out["specialist_result"]["report"]
 
 
 def test_catalogues_name_real_dowhy_methods():

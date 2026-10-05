@@ -34,7 +34,6 @@ from causal_agent.common.contracts import (
     LaneAsk,
     Refutation,
 )
-from causal_agent.common.llm import structured
 from causal_agent.families.adjustment.design import AdjustmentDesign
 from causal_agent.families.adjustment.lane import adapter
 from causal_agent.families.adjustment.lane import checks as CK
@@ -79,7 +78,7 @@ from causal_agent.lane import verify as V
 from causal_agent.lane import words as W
 from causal_agent.lane.episode import EpisodeLog, run_episode
 from causal_agent.lane.ladder import Heterogeneity, Threat, Threats
-from causal_agent.lane.nodes import MAX_MODEL_RETRIES, MAX_PICK_ATTEMPTS, MAX_REVISIONS
+from causal_agent.lane.nodes import MAX_PICK_ATTEMPTS, MAX_REVISIONS
 from causal_agent.viz.postviz import common as PV
 
 MAX_DOSE_LEVELS = 12
@@ -1119,67 +1118,57 @@ def assess(state: SpecialistState) -> Command[Literal["pick_estimator", "merge_g
     if any(r.name in ("overlap", "separation", "identification") for r in flags):
         flagged_cols |= set(est.adjustment_set) | {n for n in g.nodes if n not in (g.treatment, g.outcome)}
     flag_text = "\n".join(f"[{r.address}] {r.level.upper()}: {r.detail}" for r in flags)
-    errors: list[str] = []
-    debug = []
-    for _ in range(MAX_MODEL_RETRIES):
-        user = P.ASSESS_USER.format(
-            frame=L.frame_text(state),
-            question=_question(state),
-            graph=g.render(),
-            estimand=(", ".join(est.adjustment_set) or "nothing") if est.kind == "backdoor" else "none found",
-            flags=flag_text,
-            errors=_rejected(errors),
-        )
-        parsed, th = structured(DesignAssessment, P.ASSESS_SYSTEM, user, node="assess")
-        debug.append(th)
-        errors = []
-        if parsed.action == "proceed" and hard:
-            errors.append("proceed is not allowed while a hard flag stands: " + ", ".join(r.address for r in hard))
-        if parsed.action == "revise":
-            if not parsed.revisions:
-                errors.append("revise needs at least one revision")
-            for rv in parsed.revisions:
+    check_addresses = [r.address for r in results]
+
+    def gate(r: DesignAssessment, _log: EpisodeLog) -> list[str]:
+        errs: list[str] = []
+        if r.action == "proceed" and hard:
+            errs.append("proceed is not allowed while a hard flag stands: " + ", ".join(x.address for x in hard))
+        if r.action == "revise":
+            if not r.revisions:
+                errs.append("revise needs at least one revision")
+            for rv in r.revisions:
                 if rv.column not in flagged_cols:
-                    errors.append(f"revision names {rv.column!r}, which no flag mentions; flagged: {sorted(flagged_cols)}")
-                for c in rv.cites:
-                    if not h.resolve(c):
-                        errors.append(f"{c} is not a pack address")
-        for c in parsed.cites:
-            if not V.resolves(c, h, checks=[r.address for r in results], also=_made_here(state)):
-                errors.append(f"{c} is not a check, pack or ladder address")
-        if errors:
-            continue
-        _writer()({"assess": parsed.model_dump()})
-        if parsed.action == "proceed":
-            return Command(goto="pick_estimator", update={"assessment": parsed, "debug": debug, "checks": results})
-        if parsed.action == "stop":
-            return _stop(
-                "assess",
-                parsed.reason,
-                [f"{r.address}: {r.detail}" for r in flags],
-                "a design whose comparison the data can support; see the flags",
-                {"assessment": parsed, "debug": debug, "checks": results},
-            )
-        n = state.get("revisions", 0) + 1
-        if n > MAX_REVISIONS:
-            return _stop(
-                "assess",
-                "three revisions did not clear the flags",
-                [f"{r.address}: {r.detail}" for r in flags],
-                "a different design or better column notes",
-                {"assessment": parsed, "debug": debug, "revisions": n, "checks": results},
-            )
-        return Command(
-            goto="merge_graph",
-            update={
-                "assessment": parsed,
-                "debug": debug,
-                "revisions": n,
-                "checks": results,
-                "applied_revisions": (state.get("applied_revisions") or []) + parsed.revisions,
-            },
+                    errs.append(f"revision names {rv.column!r}, which no flag mentions; flagged: {sorted(flagged_cols)}")
+                errs += [f"{c} is not a pack address" for c in rv.cites if not h.resolve(c)]
+        errs += [f"{c} is not a check, pack or ladder address" for c in r.cites if not V.resolves(c, h, checks=check_addresses, also=_made_here(state))]
+        return errs
+
+    user = P.ASSESS_USER.format(
+        frame=L.frame_text(state),
+        question=_question(state),
+        graph=g.render(),
+        estimand=(", ".join(est.adjustment_set) or "nothing") if est.kind == "backdoor" else "none found",
+        flags=flag_text,
+    )
+    parsed, log, thoughts, errors = run_episode(DesignAssessment, P.ASSESS_SYSTEM, user, tools=None, budget=0, gate=gate, node="assess")
+    extra: dict[str, Any] = {"debug": thoughts, "checks": results, "episodes": {"assess": log}}
+    if parsed is None:
+        return _stop("assess", "the design assessment could not be validated", errors, "see the gate errors", extra)
+    _writer()({"assess": parsed.model_dump()})
+    if parsed.action == "proceed":
+        return Command(goto="pick_estimator", update={"assessment": parsed, **extra})
+    if parsed.action == "stop":
+        return _stop(
+            "assess",
+            parsed.reason,
+            [f"{r.address}: {r.detail}" for r in flags],
+            "a design whose comparison the data can support; see the flags",
+            {"assessment": parsed, **extra},
         )
-    return _stop("assess", "the design assessment could not be validated", errors, "see the gate errors", {"debug": debug, "checks": results})
+    n = state.get("revisions", 0) + 1
+    if n > MAX_REVISIONS:
+        return _stop(
+            "assess",
+            "three revisions did not clear the flags",
+            [f"{r.address}: {r.detail}" for r in flags],
+            "a different design or better column notes",
+            {"assessment": parsed, "revisions": n, **extra},
+        )
+    return Command(
+        goto="merge_graph",
+        update={"assessment": parsed, "revisions": n, "applied_revisions": (state.get("applied_revisions") or []) + parsed.revisions, **extra},
+    )
 
 
 # ------------------------------------------------------------------ pick estimator (judgement)
@@ -1235,34 +1224,48 @@ def pick_estimator(state: SpecialistState) -> Command[Literal["freeze_design", "
         )
     names = [e.name for e in allowed]
     check_text = "\n".join(f"[{r.address}] {r.level}: {r.detail}" for r in state["checks"])
-    errors: list[str] = []
-    debug = []
-    for _ in range(MAX_MODEL_RETRIES):
-        user = P.PICK_USER.format(
-            frame=L.frame_text(state),
-            facts=json.dumps(facts),
-            checks=check_text,
-            estimators="\n\n".join(e.render() for e in allowed),
-            preferences=render_preferences(allowed),
-            names=", ".join(names),
-            errors=_rejected(errors),
+    may_cite = [r.address for r in state["checks"]] + [f"estimator:{n}" for n in names]
+
+    def gate(r: EstimatorPick, _log: EpisodeLog) -> list[str]:
+        errs = [] if r.name in names else [f"{r.name!r} is not one of {names}"]
+        # a section header of the material is no cite and is dropped after the gate; an address-shaped cite must resolve
+        errs += [
+            f"{c} is not a check, pack, ladder or estimator address"
+            for c in r.cites
+            if V.is_address(c) and not V.resolves(c, state["handoff"], checks=may_cite, also=_made_here(state))
+        ]
+        return errs
+
+    user = P.PICK_USER.format(
+        frame=L.frame_text(state),
+        facts=json.dumps(facts),
+        checks=check_text,
+        estimators="\n\n".join(e.render() for e in allowed),
+        preferences=render_preferences(allowed),
+        names=", ".join(names),
+        errors="",
+    )
+    parsed, log, thoughts, errors = run_episode(EstimatorPick, P.PICK_SYSTEM, user, tools=None, budget=0, gate=gate, node="pick_estimator")
+    if parsed is None:
+        return _stop(
+            "pick_estimator",
+            "the estimator pick could not be validated",
+            errors,
+            "see the gate errors",
+            {"debug": thoughts, "episodes": {"pick_estimator": log}},
         )
-        parsed, th = structured(EstimatorPick, P.PICK_SYSTEM, user, node="pick_estimator")
-        debug.append(th)
-        errors = []
-        if parsed.name not in names:
-            errors.append(f"{parsed.name!r} is not one of {names}")
-        parsed.cites = [c for c in parsed.cites if V.is_address(c)]  # a section header of the material is no cite; the pick stands without it
-        for c in parsed.cites:
-            if not V.resolves(c, state["handoff"], checks=[r.address for r in state["checks"]] + [f"estimator:{n}" for n in names], also=_made_here(state)):
-                errors.append(f"{c} is not a check, pack, ladder or estimator address")
-        if not errors:
-            _writer()({"estimator": parsed.model_dump()})
-            return Command(
-                goto="freeze_design",
-                update={"estimator": parsed.name, "estimator_pick": parsed, "debug": debug, "pick_attempts": state.get("pick_attempts", 0) + 1},
-            )
-    return _stop("pick_estimator", "the estimator pick could not be validated", errors, "see the gate errors", {"debug": debug})
+    pick = parsed.model_copy(update={"cites": [c for c in parsed.cites if V.is_address(c)]})
+    _writer()({"estimator": pick.model_dump()})
+    return Command(
+        goto="freeze_design",
+        update={
+            "estimator": pick.name,
+            "estimator_pick": pick,
+            "debug": thoughts,
+            "pick_attempts": state.get("pick_attempts", 0) + 1,
+            "episodes": {"pick_estimator": log},
+        },
+    )
 
 
 # ------------------------------------------------------------------ freeze (fact)
@@ -1494,7 +1497,6 @@ def fan_out_interpret(state: SpecialistState):
                 material=_material(state, c.key),
                 addresses="\n".join(_addresses(state, c.key)),
                 required="\n".join(_required(state, c.key)),
-                errors="",
                 primary_value=_latest_primary(state)[c.key].value,
                 tolerance=load_checks().get("effect_tolerance", 0.01),
             ),
@@ -1505,38 +1507,40 @@ def fan_out_interpret(state: SpecialistState):
 
 
 def interpret(task: InterpretTask) -> dict:
+    """One episode per contrast, no tools. After three refusals the last answer still stands in the report, marked as having
+    failed its gate, so the reader sees what the model wrote and why it was refused."""
     allowed = set(task["addresses"].splitlines())
     required = [a for a in task["required"].splitlines() if a]
-    errors: list[str] = []
-    debug = []
-    parsed = None
-    for _ in range(MAX_MODEL_RETRIES):
-        user = P.INTERPRET_USER.format(
-            frame=task["frame"],
-            question=task["question"],
-            contrast=task["contrast"],
-            material=task["material"],
-            addresses=task["addresses"],
-            required="\n".join(required) or "(none)",
-            errors=_rejected(errors),
-        )
-        parsed, th = structured(Interpretation, P.INTERPRET_SYSTEM, user, node=f"interpret:{task['contrast']}")
-        debug.append(th)
-        parsed.contrast = task["contrast"]
-        errors = [f"{c} is not an address you may cite" for c in parsed.cites if c not in allowed]
-        if not parsed.cites:
-            errors.append("no citations given")
-        missing = [a for a in required if a not in parsed.cites]
+    contrast = task["contrast"]
+
+    def gate(r: Interpretation, _log: EpisodeLog) -> list[str]:
+        errs = [f"{c} is not an address you may cite" for c in r.cites if c not in allowed]
+        if not r.cites:
+            errs.append("no citations given")
+        missing = [a for a in required if a not in r.cites]
         if missing:
-            errors.append("these must be cited: " + ", ".join(missing))
+            errs.append("these must be cited: " + ", ".join(missing))
         v = task["primary_value"]
-        if v is not None and abs(parsed.effect_stated - v) > max(abs(v), 1e-9) * task["tolerance"]:
-            errors.append(f"effect_stated {parsed.effect_stated} does not match the primary estimate {v:.4g}")
-        if not errors:
-            break
-    out: dict[str, Any] = {"interpretations": [parsed], "debug": debug}
+        if v is not None and abs(r.effect_stated - v) > max(abs(v), 1e-9) * task["tolerance"]:
+            errs.append(f"effect_stated {r.effect_stated} does not match the primary estimate {v:.4g}")
+        return errs
+
+    user = P.INTERPRET_USER.format(
+        frame=task["frame"],
+        question=task["question"],
+        contrast=contrast,
+        material=task["material"],
+        addresses=task["addresses"],
+        required="\n".join(required) or "(none)",
+        errors="",
+    )
+    node = f"interpret:{contrast}"
+    parsed, log, thoughts, errors = run_episode(Interpretation, P.INTERPRET_SYSTEM, user, tools=None, budget=0, gate=gate, node=node)
+    if parsed is None:
+        parsed = Interpretation.model_validate(log.tries[-1].answer)
+    out: dict[str, Any] = {"interpretations": [parsed.model_copy(update={"contrast": contrast})], "debug": thoughts, "episodes": {node: log}}
     if errors:
-        out["interpret_errors"] = {task["contrast"]: errors}
+        out["interpret_errors"] = {contrast: errors}
     return out
 
 
@@ -1575,12 +1579,13 @@ def assemble(state: SpecialistState) -> dict:
     if lad.lines():
         lines += ["THE LADDER"] + [f"  [{a}] {text}" for a, text in lad.lines()] + [""]
     episodes = _episodes(state)
-    if any(log.facts or log.refusals for log in episodes.values()):
+    if any(log.facts or log.refusals or any(t.errors for t in log.tries) for log in episodes.values()):
         lines.append("WHAT THE EPISODES LOOKED AT")
         for name, log in episodes.items():
             lines.append(f"  {name}: {log.calls} call{'s' if log.calls != 1 else ''}, {len(log.tries)} tr{'ies' if len(log.tries) != 1 else 'y'}")
             lines += [f"    {f.render()}" for f in log.facts]
             lines += [f"    refused {r.tool}({', '.join(f'{k}={v!r}' for k, v in r.args.items())}): {r.reason}" for r in log.refusals]
+            lines += [f"    try {t.n} refused: " + "; ".join(t.errors) for t in log.tries if t.errors]
         lines.append("")
     if d:
         lines += d.render().splitlines()

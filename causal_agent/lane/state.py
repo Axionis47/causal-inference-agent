@@ -78,6 +78,5 @@ class InterpretTask(TypedDict):
     material: str
     addresses: str
     required: str
-    errors: str
     primary_value: float | None
     tolerance: float
