@@ -42,7 +42,7 @@ from causal_agent.desk.readback import compose_readback
 from causal_agent.desk.state import Context, DeskState
 from causal_agent.families import registry as R
 from causal_agent.families.base import Decision, Family
-from causal_agent.memory import ops, store
+from causal_agent.memory import ops
 from causal_agent.memory import views as V
 from causal_agent.memory.matrix import Matrix
 from causal_agent.memory.records import Memory
@@ -73,8 +73,7 @@ def check(state: DeskState) -> dict:
                 refs[fd.address] = refs.get(fd.address, 0) + 1
                 if refs[fd.address] >= max_asks:
                     f.status = "contradiction"
-    store.save(memory)
-    return {"findings": [Finding.of(f) for f in findings], "refutations": refs}
+    return {"findings": [Finding.of(f) for f in findings], "refutations": refs, **F.saved(memory)}
 
 
 def probe_fit(state: DeskState) -> dict:
@@ -441,10 +440,10 @@ def listen(state: DeskState) -> Command[Literal["infer", "fit", "handoff", "chec
     _remember(memory, turn, ", ".join((("lane:" + x) if a.from_lane else x) for x in a.addresses) if a else "", answer)
     if low in RUN_WORDS:
         if st and st.ready:
-            store.save(memory)
+            mirror = F.saved(memory)
             if state.get("decision") is not None and state.get("convinced_version") == memory.version:  # decided at the ready moment; nothing moved since
-                return Command(goto="handoff", update={"turn": turn, "message": answer, "run_requested": False, "artifact": None})
-            return Command(goto="fit", update={"turn": turn, "message": answer, "run_requested": False, "artifact": None})
+                return Command(goto="handoff", update={"turn": turn, "message": answer, "run_requested": False, "artifact": None, **mirror})
+            return Command(goto="fit", update={"turn": turn, "message": answer, "run_requested": False, "artifact": None, **mirror})
         # "run" is the person's word that the drafts they were shown stand; empty and refuted fields stay open
         confirmed = []
         for o in state.get("open") or []:
@@ -452,7 +451,7 @@ def listen(state: DeskState) -> Command[Literal["infer", "fit", "handoff", "chec
             if o.status == "drafted" and f is not None and f.value is not None:
                 memory.set(o.address, f.value, status="confirmed", source=f"user:turn:{turn}", said=answer)
                 confirmed.append(o.address)
-        store.save(memory)
+        mirror = F.saved(memory)
         if confirmed:
             record(
                 state,
@@ -463,9 +462,10 @@ def listen(state: DeskState) -> Command[Literal["infer", "fit", "handoff", "chec
                 read=[f"user:turn:{turn}"],
                 note="confirmed as drafted: " + ", ".join(confirmed),
             )
-        return Command(goto="check", update={"turn": turn, "message": answer, "run_requested": True, "settled_now": confirmed, "artifact": None})
-    store.save(memory)
-    return Command(goto="infer", update={"turn": turn, "message": answer, "infer_errors": [], "infer_attempts": 0, "settled_now": [], "artifact": None})
+        return Command(goto="check", update={"turn": turn, "message": answer, "run_requested": True, "settled_now": confirmed, "artifact": None, **mirror})
+    return Command(
+        goto="infer", update={"turn": turn, "message": answer, "infer_errors": [], "infer_attempts": 0, "settled_now": [], "artifact": None, **F.saved(memory)}
+    )
 
 
 # ------------------------------------------------------------------ infer: the Reader over a message, gated by apply
@@ -505,8 +505,8 @@ def infer(state: DeskState) -> Command[Literal["infer", "draw", "check", "explai
     asked_desk = (out.question or "").strip() or state.get("desk_question") or None  # kept across retries
     asked_draw = (out.draw or "").strip() or state.get("draw_request") or None
     _writer()({"infer": {"settled": settled, "rejected": rejected, "attempt": attempts, **({"focus": focus_update["focus"]} if focus_update else {})}})
-    store.save(memory)
     update = {
+        **F.saved(memory),
         "infer_errors": rejected,
         "infer_attempts": attempts,
         "settled_now": settled,

@@ -3,7 +3,9 @@ The memory is held in this process; nothing is written under data/."""
 
 from __future__ import annotations
 
+import re
 import uuid
+from pathlib import Path
 
 import pytest
 from langgraph.types import Command
@@ -1183,3 +1185,29 @@ def test_a_picture_asked_for_after_the_run_lands_in_the_design_and_is_citable(_a
     fake.after[0].cites = [f"artifact:{a['id']}.mean_standard"]
     p = d.say("who does better?")
     assert p["text"].startswith("Standard lunch") and p["artifact"]["id"] == a["id"]  # an answer that cites the picture shows it
+
+
+# ------------------------------------------------------------------ the memory mirrored for a watcher
+
+
+def test_the_memory_is_mirrored_into_the_state_after_every_save_and_no_node_reads_it():
+    """Studio shows the state and the memory lives on disk, so every node that saves the memory mirrors it into the state, and
+    the mirror is written only: no node under desk/ reads it."""
+    desk = Desk(DeskFake())
+    assert "memory" not in desk.values  # nothing is saved before the question is answered
+    desk.say(QUESTION)
+    m = desk.values["memory"]
+    held = store.memory_for("students")
+    assert isinstance(m, Memory) and m.version == held.version and m.fields == held.fields
+    before = m.version
+    desk.say(answer_ask(desk.payload))
+    assert desk.values["memory"].version > before
+    root = Path(G.__file__).resolve().parent
+    hits = [
+        f"{p.relative_to(root)}:{n}"
+        for p in root.rglob("*.py")
+        if "tests" not in p.parts
+        for n, line in enumerate(p.read_text().splitlines(), 1)
+        if re.search(r'state(\.get\(|\[)"memory"', line)
+    ]
+    assert not hits, hits

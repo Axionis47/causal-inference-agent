@@ -1,5 +1,5 @@
-"""The desk state: the dataset name and each step's artifacts. The memory itself lives on disk and is loaded by the nodes,
-never held in state."""
+"""The desk state: the dataset name and each step's artifacts. The memory itself lives on disk and is loaded by the nodes;
+`memory` mirrors it as last saved so a watcher sees it move, and no node reads the mirror."""
 
 from __future__ import annotations
 
@@ -37,6 +37,7 @@ class RouteState(TypedDict, total=False):
     decision_record: str
     specialist_result: dict | None
     debug: Annotated[list[Thought], operator.add]
+    memory: object | None  # records.Memory as last saved: a mirror for a watcher such as Studio, written by the nodes, read by none
 
 
 class DeskState(RouteState, total=False):

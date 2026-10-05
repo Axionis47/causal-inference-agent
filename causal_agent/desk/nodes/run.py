@@ -109,12 +109,13 @@ def run(state: DeskState) -> dict:
         note += f", effect {rec.effect:g} [{_g(rec.ci_low)}, {_g(rec.ci_high)}] by {rec.estimator}"
     memory = F.memory_of(state)
     record(state, "run", by="code", memory=memory, design=n, read=[design_step.address] if design_step else [], left=left, note=note)
+    mirror: dict = {}
     if h is not None and rec.specialist_result:  # the lane's relations come back as drafts, for the person to confirm or correct
         written = absorb_relations(memory, rec.specialist_result, h, CAT)
         if written:
-            store.save(memory)
+            mirror = F.saved(memory)
             record(state, "claim", by="model", memory=memory, design=n, read=written, note="drafted from the run's graph: " + ", ".join(written))
-    return {"runs": runs + [rec], "phase": "after"}
+    return {"runs": runs + [rec], "phase": "after", **mirror}
 
 
 def _g(x: float | None) -> str:

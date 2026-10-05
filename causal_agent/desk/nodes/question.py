@@ -11,7 +11,7 @@ from causal_agent.desk.nodes import frame as F
 from causal_agent.desk.nodes.shared import CAT, QUIT_WORDS, _remember, _writer, record
 from causal_agent.desk.state import DeskState
 from causal_agent.memory import journal as J
-from causal_agent.memory import ops, store
+from causal_agent.memory import ops
 from causal_agent.memory.records import Memory
 
 # ------------------------------------------------------------------ load and the question
@@ -84,8 +84,7 @@ def ask_question(state: DeskState) -> Command[Literal["mine", "__end__"]]:
         return Command(goto="__end__")
     turn = int(state.get("turn") or 0) + 1
     _remember(memory, turn, "question", answer)
-    store.save(memory)
-    return Command(goto="mine", update={"question": answer, "message": answer, "turn": turn, "invalid": None, "prefilter_votes": []})
+    return Command(goto="mine", update={"question": answer, "message": answer, "turn": turn, "invalid": None, "prefilter_votes": [], **F.saved(memory)})
 
 
 def validate(frame: QuestionFrame, memory: Memory) -> list[str]:
@@ -157,7 +156,7 @@ def read_question(state: DeskState) -> Command[Literal["ask_question", "check"]]
             ],
             CAT,
         )
-    store.save(memory)
+    mirror = F.saved(memory)
     cols = [f"col:{memory.column(c).key}" for c in (fr.outcome, fr.cause) if c and memory.column(c) is not None]
     record(
         state,
@@ -167,4 +166,6 @@ def read_question(state: DeskState) -> Command[Literal["ask_question", "check"]]
         read=[f"user:turn:{int(state.get('turn') or 0)}", *cols],
         note=f"{fr.intent}: {fr.outcome} against {fr.cause}. {note}",
     )
-    return Command(goto="check", update={"frame": fr, "invalid": None, "frame_attempts": attempts, "debug": out["debug"], "settled_now": [], "note": note})
+    return Command(
+        goto="check", update={"frame": fr, "invalid": None, "frame_attempts": attempts, "debug": out["debug"], "settled_now": [], "note": note, **mirror}
+    )

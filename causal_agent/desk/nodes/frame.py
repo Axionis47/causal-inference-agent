@@ -38,6 +38,12 @@ def memory_of(state: RouteState) -> Memory:
     return store.memory_for(state["dataset"])
 
 
+def saved(memory: Memory) -> dict:
+    """Save the memory and mirror it into the state, so a watcher sees it as it stands after this node. No node reads the mirror."""
+    store.save(memory)
+    return {"memory": memory}
+
+
 # ------------------------------------------------------------------ load and mine
 
 
@@ -78,9 +84,9 @@ def mine(state: RouteState) -> dict:
             break
         errors = rejected
     ops.apply(memory, [ops.Update(address="claim:story.text", value=text, status="drafted", source=f"doc:{name}", said=text, verbatim=True)])
-    store.save(memory)
+    mirror = saved(memory)
     _writer()({"mine": {"drafted": memory.version, "rejected": rejected}})
-    return {"debug": debug}
+    return {"debug": debug, **mirror}
 
 
 # ------------------------------------------------------------------ prefilter (wide tables only) and frame

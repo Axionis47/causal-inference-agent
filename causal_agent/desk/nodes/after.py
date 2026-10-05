@@ -20,7 +20,7 @@ from causal_agent.desk.nodes.interview import draw_context
 from causal_agent.desk.nodes.journey import CAT, QUIT_WORDS
 from causal_agent.desk.nodes.shared import _csv_path, design_now, journal_of, record
 from causal_agent.desk.state import DeskState
-from causal_agent.memory import ops, store
+from causal_agent.memory import ops
 from causal_agent.memory.matrix import Matrix
 from causal_agent.viz import draw as VD
 from causal_agent.viz import store as VS
@@ -135,10 +135,11 @@ def talk(state: DeskState) -> Command[Literal["turn", "__end__"]]:
         return Command(goto="__end__")
     memory = F.memory_of(state)
     turn = int(state.get("turn") or 0) + 1
+    mirror: dict = {}
     if not any(s.turn == turn for s in memory.said):
         memory.said.append(Said(turn=turn, about="after", text=answer))
-        store.save(memory)
-    return Command(goto="turn", update={"message": answer, "turn": turn, "after_errors": [], "after_attempts": 0, "artifact": None})
+        mirror = F.saved(memory)
+    return Command(goto="turn", update={"message": answer, "turn": turn, "after_errors": [], "after_attempts": 0, "artifact": None, **mirror})
 
 
 def turn(state: DeskState) -> Command[Literal["turn", "answer", "revise", "what_if", "requestion", "draw_after", "__end__"]]:
@@ -191,14 +192,23 @@ def revise(state: DeskState) -> Command[Literal["check", "talk"]]:
     before = {a: (f.value, f.status) for a, f in memory.fields.items()}
     rejected = ops.apply(memory, updates, CAT)
     settled = [a for a, f in memory.fields.items() if before.get(a) != (f.value, f.status)]
-    store.save(memory)
+    mirror = F.saved(memory)
     if not settled:
         note = "I could not apply that change: " + "; ".join(rejected)
-        return Command(goto="talk", update={"after_reply": reply.model_copy(update={"text": note, "kind": "answer"})})
+        return Command(goto="talk", update={"after_reply": reply.model_copy(update={"text": note, "kind": "answer"}), **mirror})
     record(state, "revise", by="person", memory=memory, design=design_now(state), read=[src], note=", ".join(settled))
     return Command(
         goto="check",
-        update={"phase": "before", "settled_now": settled, "run_requested": False, "infer_errors": [], "infer_attempts": 0, "handoff": None, "brief": None},
+        update={
+            "phase": "before",
+            "settled_now": settled,
+            "run_requested": False,
+            "infer_errors": [],
+            "infer_attempts": 0,
+            "handoff": None,
+            "brief": None,
+            **mirror,
+        },
     )
 
 

@@ -68,6 +68,24 @@ the answer, the caveats, the checks that did not pass clean, the refutations, wh
 `turn` is the Explainer routing each message: answer, revise (back through the gate and the checks), what_if (on a copy of the
 memory, a new design), requestion, draw, done.
 
+## Watching the desk in Studio
+
+`make studio` starts `langgraph dev` on port 2024 with the server's pickled threads wiped, and the desk graph is registered in
+`langgraph.json`. Open `https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2024` in your own browser, in Chrome
+rather than Safari, which refuses a page's calls to a plain-http local port. Sign in to LangSmith once; the server and every
+thread stay on your machine. Pick `desk`, give `{"dataset": "students"}` as the input and submit. The first stop is the
+question interrupt: resume with the question text. Every later interrupt shows the `text`, the `ask` and the `status`; resume
+with your answer, or `run`, or `done`.
+
+Click a node to read what it wrote. `memory` is the memory as it stands after that node saved it, mirrored into the state for
+this view and read by no node; the diff against the node before is what the turn changed. `settled_now` is the list of
+addresses this turn wrote. `infer_errors`, `explain_errors`, `gate_errors` and `after_errors` are the gate refusing a
+judgement, try by try. `status`, `matrix` and `open` are the fit. `debug` holds one `Thought` per model call, so a node with
+none ran as code. The judgement nodes are `mine`, `prefilter`, `read_question`, `infer`, `explain`, `draw`, `decide`,
+`design`, `convince` and `turn`; every other node is code. `run` is one box, because the lane runs in its own process; watch a
+lane in its own graph ([lanes.md](lanes.md)). With `LANGSMITH_TRACING=true` in `.env`, Studio links each node to its trace,
+where the prompt text is; without it, the state is the record.
+
 ## The journal
 
 Every step writes itself into `analyses/<id>/journal.jsonl` through `record` ([desk/nodes/shared.py](../causal_agent/desk/nodes/shared.py)):
