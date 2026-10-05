@@ -96,7 +96,9 @@ class Memory(BaseModel):
         return f"{where}:{name}" + (f".{field}" if field else "")
 
     def column(self, name_or_key: str) -> Column | None:
-        k = _key(name_or_key)
+        """By key, by the file's own name, or by address: a model reads the index as addresses and may name a column col:math_score."""
+        s = str(name_or_key).strip()
+        k = self.parse(s)[1] if s.startswith(("col:", "claim:col:")) else _key(s)
         c = self.columns.get(k)
         if c is not None:
             return c

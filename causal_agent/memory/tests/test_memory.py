@@ -43,6 +43,8 @@ def test_claims_round_trip_through_memory():
     assert m.field("col:reading_score.moved_by_change").value is True
     # every profiled column carries the file's facts, even one with no claim
     assert m.column("math score").facts.kind == "numeric" and m.column("math score").facts.distinct > 50
+    # a column is found by name, by key, or by the address the model reads it under
+    assert m.column("math_score") is m.column("math score") is m.column("col:math_score") is m.column("claim:col:math_score")
     # the map holds only what was said: no empty field for a column nobody described
     assert not any(a.startswith("col:math_score.") for a in m.fields) or m.field("col:math_score.meaning") is not None
 
