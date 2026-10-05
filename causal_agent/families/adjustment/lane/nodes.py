@@ -57,6 +57,7 @@ from causal_agent.families.adjustment.lane.contracts import (
     Role,
     Roles,
     Timing,
+    Within,
     WithinRules,
 )
 from causal_agent.families.adjustment.lane.knowledge import (
@@ -1270,6 +1271,21 @@ def pick_estimator(state: SpecialistState) -> Command[Literal["freeze_design", "
 # ------------------------------------------------------------------ freeze (fact)
 
 
+def _within(state: SpecialistState) -> dict[str, Within]:
+    """Per modifier the heterogeneity rung named: the graph without it and the estimand the engine identifies on that graph, frozen
+    here so the within-level runs are checked against what was written, not against the main estimand."""
+    lad = _ladder(state)
+    g: Graph = state["graph"]
+    if lad.heterogeneity is None or not lad.heterogeneity.modifiers:
+        return {}
+    sub = adapter.contrast_table(_table(state), g.treatment, state["contrasts"][0])
+    out: dict[str, Within] = {}
+    for m in lad.heterogeneity.modifiers:
+        gm = _graph_without(g, m.column)
+        out[m.column] = Within(graph=gm, estimand=adapter.identify(adapter.build_model(sub, gm, gm.outcome)))
+    return out
+
+
 def freeze_design(state: SpecialistState) -> dict:
     """The design as the catalogue entries themselves: nothing after this node reads the yaml."""
     est: Estimand = state["estimand"]
@@ -1290,7 +1306,7 @@ def freeze_design(state: SpecialistState) -> dict:
         within_rules=WithinRules(floor=int(cfg["arms"]["min_per_arm"]["hard"]), max_levels=int((cfg.get("modifiers") or {}).get("max_levels", 4))),
         effect_tolerance=float(cfg.get("effect_tolerance", 0.01)),
         target_units=state["target_units"],
-        modifiers=[m.column for m in lad.heterogeneity.modifiers] if (lad := _ladder(state)).heterogeneity is not None else [],
+        within=_within(state),
     )
     run_dir = Path(state["run_dir"])
     (run_dir / "design.json").write_text(d.model_dump_json(indent=2))
@@ -1314,17 +1330,20 @@ def analyse(task: ContrastTask) -> dict:
     model = adapter.build_model(sub, d.graph, d.graph.outcome)
     estimates: list[Estimate] = []
     refutations: list[Refutation] = []
-    primary, bundle = adapter.estimate(model, d.estimator, c.key, d.target_units)
+    primary, bundle = adapter.estimate(model, d.estimator, c.key, d.target_units, frozen=d.estimand)
     estimates.append(primary)
     if primary.error is None:
         refutations += [adapter.refute(model, bundle, primary, rf, c.key) for rf in d.refuters]
     if d.also_run is not None:
-        sec, _ = adapter.estimate(model, d.also_run, c.key, d.target_units, secondary=True)
+        sec, _ = adapter.estimate(model, d.also_run, c.key, d.target_units, frozen=d.estimand, secondary=True)
         estimates.append(sec)
     if primary.error is None:
         estimates += _by_modifier(sub, d, c.key)
     _writer()({"analyse": {c.key: {"estimate": primary.model_dump(exclude_none=True), "refutations": [r.detail for r in refutations]}}})
-    return {"estimates": estimates, "refutations": refutations}
+    out: dict[str, Any] = {"estimates": estimates, "refutations": refutations}
+    if primary.error and primary.error.startswith("design:"):
+        out["mismatches"] = {c.key: primary.error}
+    return out
 
 
 def _modifier_groups(sub: pd.DataFrame, column: str, max_levels: int) -> list[tuple[str, pd.DataFrame]]:
@@ -1338,22 +1357,27 @@ def _modifier_groups(sub: pd.DataFrame, column: str, max_levels: int) -> list[tu
     return [(str(v), sub[s.astype(str) == v]) for v in levels]
 
 
+def _graph_without(g: Graph, col: str) -> Graph:
+    """The graph with one column removed: what a level of that column is estimated on, since the column is constant within it."""
+    return Graph(
+        treatment=g.treatment,
+        outcome=g.outcome,
+        nodes=[n for n in g.nodes if n != col],
+        edges=[e for e in g.edges if col not in (e.src, e.dst)],
+        excluded=g.excluded,
+    )
+
+
 def _by_modifier(sub: pd.DataFrame, d: Design, contrast_key: str) -> list[Estimate]:
-    """The primary estimator run again within each level of each modifier, on the graph without the modifier (constant within a
-    level). Too few rows in an arm is recorded as the estimate's error, never skipped in silence."""
+    """The primary estimator run again within each level of each modifier, on the design frozen for that modifier. Too few rows in
+    an arm is recorded as the estimate's error, never skipped in silence."""
     floor = d.within_rules.floor
     out: list[Estimate] = []
     entry = d.estimator
-    for col in d.modifiers:
+    for col, w in d.within.items():
         if col not in sub.columns:
             continue
-        g = Graph(
-            treatment=d.graph.treatment,
-            outcome=d.graph.outcome,
-            nodes=[n for n in d.graph.nodes if n != col],
-            edges=[e for e in d.graph.edges if col not in (e.src, e.dst)],
-            excluded=d.graph.excluded,
-        )
+        g = w.graph
         for level, part in _modifier_groups(sub, col, d.within_rules.max_levels):
             n_t, n_c = int((part[adapter.TREATED] == 1).sum()), int((part[adapter.TREATED] == 0).sum())
             if min(n_t, n_c) < floor:
@@ -1370,7 +1394,7 @@ def _by_modifier(sub: pd.DataFrame, d: Design, contrast_key: str) -> list[Estima
                     )
                 )
                 continue
-            e, _ = adapter.estimate(adapter.build_model(part.drop(columns=[col]), g, g.outcome), entry, contrast_key, d.target_units)
+            e, _ = adapter.estimate(adapter.build_model(part.drop(columns=[col]), g, g.outcome), entry, contrast_key, d.target_units, frozen=w.estimand)
             out.append(e.model_copy(update={"modifier": col, "level": level}))
     return out
 
@@ -1384,6 +1408,14 @@ def _latest_primary(state: SpecialistState) -> dict[str, Estimate]:
 
 
 def after_analyse(state: SpecialistState) -> Command[Literal["interpret", "pick_estimator", "figures", "feasibility"]]:
+    mismatches = state.get("mismatches") or {}
+    if mismatches:  # the engine did not identify what the design froze: a stop, never a re-pick
+        return _stop(
+            "analyse",
+            "the engine identified a different set than the design froze",
+            [f"{c}: {why}" for c, why in mismatches.items()],
+            "a design frozen on the graph the engine runs",
+        )
     failed = [e for e in _latest_primary(state).values() if e.error]
     if not failed:
         sends = fan_out_interpret(state)

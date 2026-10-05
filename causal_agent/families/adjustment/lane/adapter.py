@@ -67,11 +67,35 @@ def identify(model) -> Estimand:
     )
 
 
-def estimate(model, entry: EstimatorEntry, contrast_key: str, target_units: str, *, secondary: bool = False) -> tuple[Estimate, Any]:
-    """Returns the artifact and DoWhy's estimate object (needed by refuters; never stored in state)."""
+def _road_set(ide, road: str) -> set[str] | None:
+    """The set DoWhy's identification gives the road an estimator runs on, or None when the road is not open on this graph."""
+    if (getattr(ide, "estimands", {}) or {}).get(road) is None:
+        return None
+    if road == "backdoor":
+        return {str(v) for v in ide.get_backdoor_variables()}
+    if road == "iv":
+        return {str(v) for v in (ide.get_instrumental_variables() or [])}
+    return {str(v) for v in (ide.get_frontdoor_variables() or [])}
+
+
+def _frozen_set(frozen: Estimand, road: str) -> set[str]:
+    return set({"backdoor": frozen.adjustment_set, "iv": frozen.instruments, "frontdoor": frozen.frontdoor_set}.get(road, []))
+
+
+def estimate(model, entry: EstimatorEntry, contrast_key: str, target_units: str, *, frozen: Estimand, secondary: bool = False) -> tuple[Estimate, Any]:
+    """Returns the artifact and DoWhy's estimate object (needed by refuters; never stored in state). The engine identifies again on
+    the frozen graph; its set for the entry's road must be the one the design froze, or nothing runs and the mismatch is the fact."""
     table = model._data
     n_t, n_c = int((table[TREATED] == 1).sum()), int((table[TREATED] == 0).sum())
     ide = model.identify_effect(proceed_when_unidentifiable=True)
+    found, want = _road_set(ide, entry.estimand), _frozen_set(frozen, entry.estimand)
+    if found != want:
+        why = (
+            f"design: the engine opens no {entry.estimand} road on the frozen graph"
+            if found is None
+            else f"design: the engine identified {sorted(found)} for the {entry.estimand} road and the design froze {sorted(want)}"
+        )
+        return Estimate(contrast=contrast_key, method=entry.name, n_treated=n_t, n_control=n_c, target_units=target_units, secondary=secondary, error=why), None
     try:
         est = model.estimate_effect(
             ide,

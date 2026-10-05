@@ -292,6 +292,14 @@ class WithinRules(BaseModel):
     max_levels: int
 
 
+class Within(BaseModel):
+    """The design within one modifier: the frozen graph without that column, constant within a level, and the estimand the engine
+    identified on it at the freeze. The within-level runs are checked against this, not against the main estimand."""
+
+    graph: Graph
+    estimand: Estimand
+
+
 class Design(BaseModel):
     """The frozen design. Everything after this is deterministic execution, and reads this record and nothing else: the
     estimator, its secondary and the refuters are the catalogue entries themselves, not names to look up again."""
@@ -306,7 +314,7 @@ class Design(BaseModel):
     within_rules: WithinRules
     effect_tolerance: float = Field(description="the interpretation's stated effect must match the estimate within this relative tolerance")
     target_units: str
-    modifiers: list[str] = Field(default_factory=list, description="the columns the effect is also estimated within, level by level")
+    within: dict[str, Within] = Field(default_factory=dict, description="per modifier, the design the effect is re-estimated within each level of")
     frozen_at: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     def render(self) -> str:
@@ -335,6 +343,6 @@ class Design(BaseModel):
         )
         lines.append(f"  refuters     {', '.join(r.name for r in self.refuters)}")
         lines.append(f"  target       {self.target_units}")
-        lines.append(f"  modifiers    {', '.join(self.modifiers) or 'none'}")
+        lines.append(f"  modifiers    {', '.join(self.within) or 'none'}")
         lines.append(f"  frozen at    {self.frozen_at}")
         return "\n".join(lines)

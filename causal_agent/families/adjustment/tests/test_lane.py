@@ -941,7 +941,8 @@ def test_a_modifier_candidate_leads_to_the_effect_within_its_levels():
     het = out["ladder"].heterogeneity
     assert het.by == "judgement" and [m.column for m in het.modifiers] == ["gender"] and het.target_units == "att"
     d = out["design"]
-    assert d.modifiers == ["gender"] and d.target_units == "att"
+    assert list(d.within) == ["gender"] and d.target_units == "att"
+    assert "gender" not in d.within["gender"].graph.nodes and d.within["gender"].estimand.kind == "backdoor"
     within = [e for e in out["estimates"] if e.modifier == "gender"]
     assert sorted(e.level for e in within) == ["female", "male"] and all(e.error is None and e.value is not None for e in within)
     assert {e.tag for e in within} == {"estimate:completed_vs_none.by.gender.female", "estimate:completed_vs_none.by.gender.male"}
@@ -1094,3 +1095,23 @@ def test_after_the_freeze_the_run_reads_the_design_and_never_the_catalogue(monke
     out = g.invoke(None, cfg)
     assert out["specialist_result"]["status"] == "done", out.get("feasibility")
     assert any(e.modifier == "gender" and e.error is None for e in out["estimates"]) and len(out["refutations"]) == 3
+
+
+def test_the_engines_set_is_checked_against_the_frozen_design_before_any_estimate():
+    """The adapter refuses to run when the set DoWhy identifies differs from the one the design froze. The design is edited between
+    the freeze and the run, and the run stops at analyse naming both sets."""
+    from langgraph.checkpoint.memory import InMemorySaver
+
+    from causal_agent.families.adjustment.lane.graph import build
+
+    set_llm(FakeLLM())
+    g = build().compile(checkpointer=InMemorySaver(), interrupt_after=["freeze_design"])
+    cfg = {"configurable": {"thread_id": str(uuid.uuid4())}}
+    h = students_handoff()
+    g.invoke({"question": h.question, "handoff": h, "dataset": h.pack_name}, cfg)
+    d = g.get_state(cfg).values["design"]
+    g.update_state(cfg, {"design": d.model_copy(update={"estimand": d.estimand.model_copy(update={"adjustment_set": ["lunch"]})})})
+    out = g.invoke(None, cfg)
+    f = out["feasibility"]
+    assert out["specialist_result"]["status"] == "infeasible" and f.stage == "analyse"
+    assert "['lunch', 'parental_level_of_education']" in f.facts[0] and "['lunch']" in f.facts[0] and out["estimates"][0].error.startswith("design:")

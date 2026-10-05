@@ -36,6 +36,7 @@ class SpecialistState(LaneState, total=False):
     estimates: Annotated[list[Estimate], by_key(lambda e: (e.contrast, e.method, e.modifier, e.level))]  # a re-pick replaces, never duplicates
     refutations: Annotated[list[Refutation], by_key(lambda r: (r.contrast, r.refuter))]
     hidden_dropped: bool
+    mismatches: Annotated[dict[str, str], merge_dicts]  # contrast -> why the engine's identified set differed from the frozen design
     interpretations: Annotated[list[Interpretation], operator.add]
     interpret_errors: Annotated[dict[str, list[str]], merge_dicts]
     interpret_attempts: int
