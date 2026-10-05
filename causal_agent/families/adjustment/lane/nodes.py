@@ -1184,7 +1184,6 @@ def _design_facts(state: SpecialistState) -> dict[str, Any]:
     return {
         "estimand": est.kind,
         "roads": est.roads,
-        "road_taken": lad.road.taken if lad.road is not None else None,
         "road_from_brief": h.brief.road if h.brief is not None else None,
         "modifiers": [m.column for m in lad.heterogeneity.modifiers] if lad.heterogeneity is not None else [],
         "instruments": est.instruments,
@@ -1205,14 +1204,13 @@ def _design_facts(state: SpecialistState) -> dict[str, Any]:
 
 
 def pick_estimator(state: SpecialistState) -> Command[Literal["freeze_design", "feasibility"]]:
-    """The catalogue filtered by the facts; when the brief names the road, only that road's estimators are offered."""
+    """The catalogue filtered by the facts: the road the road rung took, the treatment and outcome kinds, the adjustment set."""
     facts = _design_facts(state)
     excluded = set(state.get("excluded_estimators") or [])
-    roads = [facts["road_taken"]] if facts["road_taken"] and facts["road_taken"] != "none" else facts["roads"]
     allowed = [
         e
         for e in load_estimators()
-        if e.applies(estimand=facts["estimand"], treatment=facts["treatment"], outcome=facts["outcome"], adjustment_set=facts["adjustment_set"], roads=roads)
+        if e.applies(estimand=facts["estimand"], treatment=facts["treatment"], outcome=facts["outcome"], adjustment_set=facts["adjustment_set"])
         and e.name not in excluded
     ]
     if not allowed:
@@ -1274,8 +1272,6 @@ def pick_estimator(state: SpecialistState) -> Command[Literal["freeze_design", "
 def freeze_design(state: SpecialistState) -> dict:
     est: Estimand = state["estimand"]
     entry = estimator_entry(state["estimator"])
-    if entry.estimand in est.roads and entry.estimand != est.kind:  # the pick took another open road: the design records it
-        est = est.model_copy(update={"kind": entry.estimand, "adjustment_set": est.adjustment_set if entry.estimand == "backdoor" else []})
     adj = "nonempty" if est.adjustment_set else "empty"
     refuters = [r.name for r in load_refuters() if r.applies(estimand=est.kind, adjustment_set=adj, hidden=est.sensitivity_required)]
     also = (

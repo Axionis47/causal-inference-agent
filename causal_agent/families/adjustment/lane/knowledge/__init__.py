@@ -28,11 +28,15 @@ class EstimatorEntry(BaseModel):
     def estimand(self) -> str:
         return str(self.applies_when.get("estimand"))
 
-    def applies(self, *, estimand: str, treatment: str, outcome: str, adjustment_set: str, roads: list[str] | None = None) -> bool:
-        """The entry runs on a design whose taken road, or any open road when `roads` is given, is the entry's."""
+    def applies(self, *, estimand: str, treatment: str, outcome: str, adjustment_set: str) -> bool:
+        """The entry runs on a design whose road, treatment kind, outcome kind and adjustment set are the entry's."""
         w = self.applies_when
-        on_road = w.get("estimand") in (roads or [estimand])
-        return on_road and treatment in w.get("treatment", []) and outcome in w.get("outcome", []) and adjustment_set in w.get("adjustment_set", [])
+        return (
+            w.get("estimand") == estimand
+            and treatment in w.get("treatment", [])
+            and outcome in w.get("outcome", [])
+            and adjustment_set in w.get("adjustment_set", [])
+        )
 
     def render(self) -> str:
         return f"estimator: {self.name}\n  what it does: {self.in_words}\n  assumes: {self.assumes}\n  weak when: {self.weak_when}"

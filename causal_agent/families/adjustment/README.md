@@ -25,7 +25,7 @@ names the line `family.yaml` should gain. The stages are walked in
 settled as facts: a column the offer looked at and fixed before the change is a parent of both; the instrument the person named
 points at the treatment alone; the mediator the person named carries the whole effect, so the direct edge goes; and when the person
 says something outside the file drove both, a hidden node says so, which closes the back door. The estimator pick then chooses among
-the estimators of the open roads, and the frozen design records the road taken. With no road open the lane asks the desk one
+the taken road's estimators, and the frozen design carries that road. With no road open the lane asks the desk one
 question, the mediator, then the instrument, and stops with status `ask`; the desk asks it like any other and runs again. When the
 person has said there is neither, the lane takes the back door with the hidden factor left in as a sensitivity range, and the
 reading says the effect holds only if that factor is no stronger than the simulated ones.
