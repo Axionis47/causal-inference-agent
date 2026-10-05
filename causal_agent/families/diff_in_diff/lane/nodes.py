@@ -862,6 +862,7 @@ def merge_controls(state: SpecialistState) -> dict:
             included.append(rv.column)
             excluded = [x for x in excluded if x.column != rv.column]
             dropped = [x for x in dropped if x.column != rv.column]
+    included = [k for k in _candidates(state) if k in included]  # the pack's order, whatever order the revisions came in: csw0 adds them in sequence
     c = Controls(included=included, dropped_fixed=dropped, excluded=excluded)
     _writer()({"controls": c.render()})
     return {"controls": c}

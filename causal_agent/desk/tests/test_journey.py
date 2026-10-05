@@ -187,7 +187,9 @@ def test_students_reaches_ready_in_the_frame_plus_a_few_questions_then_runs():
         "HIDDEN FACTORS"
     ) < text.index("Design: adjustment")
     assert "[pair.outcome] the outcome is 'math score' [col:math_score]" in text and "[pair.levels] treated = 'completed', control = 'none'" in text
-    assert "[time.before] fixed before the change: lunch, parental level of education" in text and "[time.after] measured after the change: math score" in text
+    # every column is carried (ADR 0011): the ones the frame never named stand in the time lines beside the ones it did
+    assert "[time.before] fixed before the change: lunch, parental level of education, gender, race/ethnicity" in text
+    assert "[time.after] measured after the change: math score, reading score, writing score" in text
     assert "no reason the effect differs by it" in text  # the person's answer on heterogeneity, read back
     assert "Set aside: " in text and "diff_in_diff" in text and "discontinuity" in text
     # the Designer's brief replaces the canned assumption: what it bets on, one line per decision, the road, the threats
@@ -768,7 +770,7 @@ def test_a_timing_answer_the_file_refutes_is_asked_again_then_stands_as_a_contra
     d.to_ready()
     assert d.payload["ready"]
     d.say("run")
-    assert "col:lunch.when" in d.values["handoff"].contradictions
+    assert "col:lunch.when" in d.values["handoff"].by_status("contradiction")
 
 
 def test_run_before_ready_takes_the_drafts_on_their_word_and_asks_the_rest():

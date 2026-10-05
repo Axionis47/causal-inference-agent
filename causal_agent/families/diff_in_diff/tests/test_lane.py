@@ -301,7 +301,8 @@ def test_cigar_long_stops_on_pre_trends():
         "with the design's controls; without them the trends rung read p =" in pre.detail
     )  # the design has controls: fitted again with them, the rung's number kept
     assert out["ladder"].trends.leads_level == "hard" and "[ladder:trends.leads]" in fake.humans_of("Comparison")[0]
-    assert fake.calls.count("ControlRoles") == 1 and sorted(fake.asked("ControlRoles")) == ["cpi", "ndi", "pimin", "pop", "price"]
+    # every column is carried (ADR 0011): pop16, which nobody named, is judged beside the ones the question named
+    assert fake.calls.count("ControlRoles") == 1 and sorted(fake.asked("ControlRoles")) == ["cpi", "ndi", "pimin", "pop", "pop16", "price"]
     assert "[ladder:controls.price] changed by the treatment" in out["specialist_result"]["report"]
 
 
@@ -598,7 +599,7 @@ def test_controls_allowed_is_honoured_and_a_moved_column_is_never_asked_about():
     c = out["controls"]
     why = {x.column: x.why for x in c.excluded}
     assert c.included == ["pimin", "ndi"] and "design.controls_allowed" in why["pop"] and "col:price.moved" in why["price"]
-    assert sorted(fake.asked("ControlRoles")) == ["cpi", "ndi", "pimin", "pop"]  # price was settled by the person's word
+    assert sorted(fake.asked("ControlRoles")) == ["cpi", "ndi", "pimin", "pop", "pop16"]  # price was settled by the person's word; pop16 is carried
 
 
 def test_a_cluster_level_the_inference_cannot_honour_is_declined_with_a_record():

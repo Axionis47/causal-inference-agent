@@ -15,10 +15,13 @@ import argparse
 import json
 from pathlib import Path
 
+import pandas as pd
+
 from causal_agent.common.addresses import key
 from causal_agent.common.contracts import (
     Candidate,
     DesignBrief,
+    Fact,
     FamilyDecision,
     Handoff,
     Probe,
@@ -27,10 +30,11 @@ from causal_agent.common.contracts import (
 )
 from causal_agent.families import registry as R
 from causal_agent.families.registry import BlockInputs, FamilyDef
+from causal_agent.memory import facts as FX
 from causal_agent.memory import ops, store
 from causal_agent.memory.claims import ProbeResult
-from causal_agent.memory.records import COLUMN_KIND, Memory
-from causal_agent.memory.views import BELIEF_KINDS, belief_of, brief_of, fields_of, in_play, said_of
+from causal_agent.memory.records import Memory
+from causal_agent.memory.views import BELIEF_KINDS, belief_of, brief_of, fields_of, in_play, index_records, said_of
 from causal_agent.profile import datasets as DS
 
 # ------------------------------------------------------------------ the builder
@@ -46,9 +50,11 @@ def build(
     probes: list[ProbeResult] | list[Probe] = (),
     design_id: int = 0,
     brief: DesignBrief | None = None,
+    df: pd.DataFrame | None = None,
 ) -> Handoff:
     """The one hand-off, projected from the memory. The memory is not changed. The brief, when there is one, is what the design
-    bets on; without one the decision's assumption stands."""
+    bets on; without one the decision's assumption stands. Every column of the file but ids and constants is carried, with every
+    word about it and its status (ADR 0011); the data facts are computed for all of them here, in one pass over the file."""
     m = memory
     entry = DS.dataset_entries().get(m.name) or {}
     a, ch, g, samp, miss = (fields_of(m, k) for k in ("assignment", "change", "grain", "sampling", "missing"))
@@ -61,14 +67,26 @@ def build(
         if n and m.column(n) is not None:
             role.setdefault(m.column(n).key, "unit")
 
-    names = in_play(m, frame, entry)
-    for n in [treatment] if treatment else []:
-        if m.column(n) is not None and m.column(n).name not in names:
-            names.insert(1, m.column(n).name)
+    # every column is carried (ADR 0011): the pair first, then the columns the question or the rule named, then the rest of the
+    # file but ids and constants, in the file's order
+    pair = [m.column(n).name for n in (outcome, treatment) if n and m.column(n) is not None]
+    named = [n for n in in_play(m, frame, entry) if n not in pair]
+    rest = [c.name for c in index_records(m) if c.name not in pair and c.name not in named]
+    names = pair + named + rest
     briefs = [brief_of(m, m.column(n), role.get(key(n))) for n in names]
+    carried = {b.key for b in briefs}
+    facts = {
+        a: Fact(value=f.value, status=f.status, source=f.source, said=f.said, reason=f.reason)
+        for a, f in m.fields.items()
+        if (f.value is not None or f.status != "empty") and (not a.startswith("col:") or Memory.parse(a)[1] in carried)
+    }
 
     beliefs = {k: b for k in BELIEF_KINDS if (b := belief_of(m, k)) is not None}
-    probe_list = [p if isinstance(p, Probe) else Probe(family=p.family, name=p.name, value=p.value, passed=p.passed, detail=p.detail) for p in probes]
+    probe_list = [
+        p if isinstance(p, Probe) else Probe(family=p.family, name=p.name, value=p.value, passed=p.passed, detail=p.detail)
+        for p in probes
+        if p.family != "data"  # the caller's data facts covered the columns in play; the pack's cover every carried column
+    ] + data_facts(m, outcome, treatment, names, df)
     tb = next((b for b in briefs if b.role == "treatment"), None)
     treated_level = str(a["treated_level"]) if a.get("treated_level") is not None else None
     control_level = None
@@ -86,10 +104,6 @@ def build(
         treatment=treatment,
     )
     design = family.design_block(inputs) if family.design_block else None
-
-    table = m.to_claims()
-    unknowns = [address for address, f in m.fields.items() if f.status == "unknown"]
-    contradictions = [address for address, f in m.fields.items() if f.status == "contradiction"]
     return Handoff(
         family=family.name,
         specialist=family.specialist,
@@ -118,29 +132,24 @@ def build(
         columns=briefs,
         change=ch,
         assignment=a,
+        facts=facts,
         beliefs=beliefs,
-        unknowns=unknowns,
-        contradictions=contradictions,
         said=said_of(m),
         probes=probe_list,
-        claims={
-            c.key: {
-                "kind": c.kind,
-                "fields": {k: v for k, v in c.fields.items() if v is not None},
-                "status": c.status,
-                "source": c.source,
-                "fields_status": {
-                    n: f.status
-                    for n, f in m.fields_of(c.key if c.kind == COLUMN_KIND else f"claim:{c.kind}").items()
-                    if f.value is not None or f.status != "empty"
-                },
-            }
-            for c in table.claims.values()
-            if c.status != "empty"
-        },
         design=design,
         brief=brief,
     )
+
+
+def data_facts(m: Memory, outcome: str, treatment: str | None, names: list[str], df: pd.DataFrame | None = None) -> list[Probe]:
+    """The `probe:data.*` facts for every carried column, from the file: one read, unless the caller has the table already."""
+    if df is None:
+        path = DS.csv_path(m.name, m.csv)
+        if path is None or not path.exists():
+            return []
+        df = pd.read_csv(path)
+    out = FX.facts(df, m, m.to_claims(), outcome=outcome, treatment=treatment, columns=names)
+    return [Probe(family=p.family, name=p.name, value=p.value, passed=p.passed, detail=p.detail) for p in out]
 
 
 def forced(
@@ -158,8 +167,6 @@ def forced(
 ) -> Handoff:
     """A hand-off without a frame or a decision: the family, the outcome, the treatment, and the columns are given.
     For tests and evals. The memory on disk, when the dataset has one, fills the briefs and the family block."""
-    import pandas as pd
-
     fam = R.family(family)
     m = memory or store.memory_for(pack_name)
     cite_of = lambda c: [cite] if cite else [f"col:{key(c)}.note"]  # noqa: E731
@@ -175,15 +182,9 @@ def forced(
     )
     decision = FamilyDecision(admissible=[family], chosen=family, chosen_assumption=assumption, why_over_alternatives="forced", rejected=[])
     path = DS.csv_path(pack_name, m.csv)
-    probes: list = []
-    if path is not None and path.exists():
-        from causal_agent.memory import facts as FX
-
-        df = pd.read_csv(path)
-        probes = ops.probe(m, df, R.REGISTRY.values()) + FX.facts(
-            df, m, m.to_claims(), outcome=outcome, treatment=treatment, columns=[outcome, *([treatment] if treatment else []), *columns]
-        )
-    return build(question=question, frame=frame, decision=decision, family=fam, memory=m, probes=probes)
+    df = pd.read_csv(path) if path is not None and path.exists() else None
+    probes: list = ops.probe(m, df, R.REGISTRY.values()) if df is not None else []
+    return build(question=question, frame=frame, decision=decision, family=fam, memory=m, probes=probes, df=df)
 
 
 # ------------------------------------------------------------------ CLI

@@ -3,7 +3,7 @@ carries them to a lane. Every claim carries the addresses it cites."""
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, SerializeAsAny, field_validator
 
@@ -86,6 +86,13 @@ class Provenance(BaseModel):
             + (f' · said "{self.said}"' if self.said else "")
             + (f" · because {self.reason}" if self.reason else "")
         )
+
+
+class Fact(Provenance):
+    """One field of the memory as the pack carries it: the value beside how it was settled. The one place a word lives
+    (ADR 0011); a rung reads the word with its status and cites the address."""
+
+    value: Any = None
 
 
 class ColumnBrief(BaseModel):
@@ -230,7 +237,8 @@ class Belief(BaseModel):
         return f"claim:{self.kind}"
 
     def known(self) -> bool:
-        return self.status in {"confirmed", "drafted"} and self.value is not None
+        """Settled on the person's word. A draft is the last reading, shown as such and never acted on by code (ADR 0011)."""
+        return self.status == "confirmed" and self.value is not None
 
     def render(self) -> str:
         words = {
@@ -254,6 +262,8 @@ class Belief(BaseModel):
         }.get(self.kind, (f"{self.kind}: yes", f"{self.kind}: no"))
         if self.status == "unknown":
             body = f"the person does not know ({self.kind.replace('_', ' ')})"
+        elif self.status == "drafted" and self.value is not None:
+            body = f"drafted, unconfirmed: {words[0] if self.value else words[1]}"
         elif not self.known():
             body = f"not asked ({self.kind.replace('_', ' ')})"
         else:
@@ -372,14 +382,15 @@ class Handoff(BaseModel):
         default_factory=dict,
         description="kind, rule, depends_on, treatment_column, treated_level, score_column, cutoff, treated_side, cutoff_value_treated, level_column, movable",
     )
-    # what the person believes and could not say
+    # every word, with its status: the one map a rung reads a claim from (ADR 0011)
+    facts: dict[str, Fact] = Field(
+        default_factory=dict, description="address -> the value and how it was settled, for every claim field and every carried column's fields"
+    )
+    # what the person believes
     beliefs: dict[str, Belief] = Field(default_factory=dict)
-    unknowns: list[str] = Field(default_factory=list, description="addresses the person could not settle")
-    contradictions: list[str] = Field(default_factory=list, description="addresses the data refuted and the person kept, or two confirmed fields at odds")
     said: list[Said] = Field(default_factory=list)
-    # evidence and the record
+    # evidence
     probes: list[Probe] = Field(default_factory=list)
-    claims: dict = Field(default_factory=dict, description="claim key -> {kind, fields, status, source}")
     # the family block, and the brief: what the design rests on, in the dataset's terms
     design: SerializeAsAny[Design] | None = None
     brief: DesignBrief | None = None
@@ -388,6 +399,22 @@ class Handoff(BaseModel):
     @classmethod
     def _design(cls, v: object) -> object:
         return parse_design(v)
+
+    # ------------------------------------------------------------- the facts
+    def fact(self, address: str) -> Fact | None:
+        from causal_agent.common.addresses import norm_address
+
+        a = norm_address(address)
+        return next((f for k, f in self.facts.items() if norm_address(k) == a), None)
+
+    def status(self, address: str) -> str:
+        f = self.fact(address)
+        return f.status if f is not None else "empty"
+
+    def by_status(self, status: str) -> list[str]:
+        """The addresses whose word stands at this status: unknown (the person could not say), contradiction (the file and the
+        person disagree), drafted, confirmed."""
+        return [a for a, f in self.facts.items() if f.status == status]
 
     # ------------------------------------------------------------- columns
     def column(self, name_or_key: str) -> ColumnBrief | None:
@@ -431,12 +458,11 @@ class Handoff(BaseModel):
     def render_open(self) -> str:
         """What the memory could not settle: the fields the person could not say, and the ones the data refuted and they kept."""
         lines = []
-        if self.unknowns:
-            lines.append("UNKNOWN (the person could not say): " + ", ".join(f"[{a}]" for a in self.unknowns))
-        if self.contradictions:
+        if unknown := self.by_status("unknown"):
+            lines.append("UNKNOWN (the person could not say): " + ", ".join(f"[{a}]" for a in unknown))
+        if contradicted := self.by_status("contradiction"):
             lines.append(
-                "CONTRADICTION (the file disagrees and the person kept it; weigh it, and say which you took): "
-                + ", ".join(f"[{a}]" for a in self.contradictions)
+                "CONTRADICTION (the file disagrees and the person kept it; weigh it, and say which you took): " + ", ".join(f"[{a}]" for a in contradicted)
             )
         return "\n".join(lines)
 
@@ -598,9 +624,11 @@ class Handoff(BaseModel):
                 }
             )
             out.update(f"{a}.profile.{f}" for f in _COLUMN_FACETS)
-        for k, c in self.claims.items():
-            out.update({f"claim:{k}", f"claim:{k}.check"})
-            out.update(f"claim:{k}.{f}" for f in (c.get("fields") or {}))
+        out.update(self.facts)
+        for a in self.facts:
+            if a.startswith("claim:"):
+                kind = a[6:].split(".", 1)[0]
+                out.update({f"claim:{kind}", f"claim:{kind}.check"})
         for bl in self.beliefs.values():
             out.update(
                 {

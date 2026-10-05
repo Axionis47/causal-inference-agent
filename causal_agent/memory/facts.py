@@ -134,7 +134,6 @@ def facts(df: pd.DataFrame, memory: Memory, table: ClaimTable, *, outcome: str |
         c = column(df, n)
         if c is not None and c not in (oc, tc) and c not in cands and df[c].nunique(dropna=True) > 1:
             cands.append(c)
-    cands = cands[:MAX_COVARIATES]
     treated = treated_mask(df, table)
     for c in cands:
         if treated is not None:
@@ -144,7 +143,7 @@ def facts(df: pd.DataFrame, memory: Memory, table: ClaimTable, *, outcome: str |
             if v is not None:
                 out.append(_fact(f"with_outcome.{_key(c)}", f"{c!r} against the outcome {oc!r}: {how} {v:.2f}", v))
     quiet: list[str] = []
-    for a, b in combinations(cands, 2):
+    for a, b in combinations(cands[:MAX_COVARIATES], 2):  # the pairwise facts stop here; every column gets its own
         v, how = association(df[a], df[b])
         pair = f"{_key(a)}~{_key(b)}"
         if v is not None and abs(v) >= NOTABLE:

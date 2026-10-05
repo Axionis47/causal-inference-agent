@@ -24,6 +24,12 @@ def test_brief_renders_every_field_with_status_source_and_said():
     assert "[col:gender.stands_for] sex as recorded · drafted · model:infer" in h.column("gender").render()
     assert h.memory_version == m.version and h.design_id == 0
     assert h.resolve("col:lunch.set_by") and h.resolve("col:gender.stands_for")
+    # every column of the file but ids and constants is carried, whatever the frame named (ADR 0011), each word with its status
+    assert [b.key for b in h.columns][:2] == ["math_score", "test_preparation_course"] and len(h.columns) == 8
+    assert {b.key for b in h.columns} >= {"reading_score", "writing_score", "race_ethnicity"}
+    assert h.facts["col:lunch.set_by"].status == "confirmed" and h.facts["col:lunch.set_by"].value == "the district"
+    assert h.facts["col:gender.stands_for"].status == "drafted" and h.status("col:gender.feeds_treatment") == "empty"
+    assert any(p.name == "with_outcome.reading_score" for p in h.probes), "the data facts cover every carried column"
 
 
 def test_unknowns_and_contradictions_reach_the_lane():
@@ -31,7 +37,8 @@ def test_unknowns_and_contradictions_reach_the_lane():
     m.set("claim:sampling.detail", None, status="unknown", source="user:turn:4")
     f = m.set("col:lunch.when", "after", status="contradiction", source="user:turn:6", said="no, it really was after")
     h = forced("students3", "q", "adjustment", "math score", "test preparation course", COLS, memory=m)
-    assert h.unknowns == ["claim:sampling.detail"] and h.contradictions == ["col:lunch.when"]
+    assert h.by_status("unknown") == ["claim:sampling.detail"] and h.by_status("contradiction") == ["col:lunch.when"]
+    assert h.fact("col:lunch.when").value == "after" and h.fact("col:lunch.when").said == "no, it really was after"
     words = h.render_words()
     assert "CONTRADICTION" in words and "[col:lunch.when]" in words and "UNKNOWN" in words
     assert "[said:6]" in words and f.said in words

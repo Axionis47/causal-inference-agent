@@ -42,6 +42,7 @@ from causal_agent.common.contracts.pack import (
     ColumnBrief,
     ColumnFacts,
     Design,
+    Fact,
     Handoff,
     Probe,
     Provenance,
@@ -59,6 +60,7 @@ from causal_agent.common.contracts.text import (
 __all__ = [
     "DESIGNS",
     "Belief",
+    "Fact",
     "Candidate",
     "CheckResult",
     "Checks",

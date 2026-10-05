@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from causal_agent.common.contracts import ColumnBrief, Provenance
+from causal_agent.common.contracts import ColumnBrief, Fact, Provenance
 from causal_agent.desk.handoff import forced
 from causal_agent.lane import case as C
 from causal_agent.lane import verify as V
@@ -35,7 +35,7 @@ def test_a_contradicting_claim_is_rejected_without_a_cite_and_accepted_with_one(
     assert len(errs) == 1 and "[col:pop.when] = 'before'" in errs[0]
     assert V.contradictions({"affected_by_treatment": False, "usable_as_control": False}, "pop", case, RULES, [], h) == []
     # the pack itself marks the field contested: citing it is enough
-    h.contradictions = ["col:pop.when"]
+    h.facts = {"col:pop.when": Fact(value="before", status="contradiction")}
     assert V.contradictions({"affected_by_treatment": True}, "pop", case, RULES, ["col:pop.when"], h) == []
     assert len(V.contradictions({"affected_by_treatment": True}, "pop", case, RULES, ["col:pop.note"], h)) == 1
     # a drafted field is not a fact and cannot be contradicted

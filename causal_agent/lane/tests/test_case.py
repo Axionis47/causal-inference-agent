@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import yaml
 
-from causal_agent.common.contracts import Belief, CheckResult, ColumnBrief, Provenance, Said
+from causal_agent.common.contracts import Belief, CheckResult, ColumnBrief, Fact, Provenance, Said
 from causal_agent.desk.handoff import forced
 from causal_agent.lane import case as C
 from causal_agent.memory import store
@@ -115,8 +115,11 @@ def test_weigh_sorts_fields_and_makes_flags_from_beliefs_unknowns_and_contradict
         "trend_continues": Belief(kind="trend_continues", value=False, status="confirmed", source="user:turn:5", said="the state was already falling"),
         "spillover": Belief(kind="spillover", value=True, status="confirmed", source="user:turn:6"),
     }
-    h.unknowns = ["col:ndi.when", "claim:change.period_value"]
-    h.contradictions = ["col:pop.when"]
+    h.facts = {
+        "col:ndi.when": Fact(status="unknown"),
+        "claim:change.period_value": Fact(status="unknown"),
+        "col:pop.when": Fact(value="before", status="contradiction"),
+    }
     case = C.weigh(h, RULES)
     assert case.facts["col:price.when"] == "after" and case.facts["col:price.moved_by_change"] is True and case.facts["claim:trend_continues.believed"] is False
     assert case.drafts == {"col:pop.when": "before"} and "col:ndi.when" in case.open and "col:ndi.moved_by_change" in case.open
@@ -137,11 +140,13 @@ def test_weigh_sorts_fields_and_makes_flags_from_beliefs_unknowns_and_contradict
 def test_a_dataset_field_read_as_a_belief():
     h = cigar()
     h.assignment = {"kind": "cutoff_rule", "movable": True}
-    h.claims = {"assignment": {"kind": "assignment", "fields": h.assignment, "status": "confirmed", "source": "user:turn:3"}}
+    h.facts = {"claim:assignment.movable": Fact(value=True, status="confirmed", source="user:turn:3")}
     case = C.weigh(h, RULES)
     assert case.beliefs["movable"] == "confirmed_true" and case.facts["claim:assignment.movable"] is True
-    h.unknowns = ["claim:assignment.movable"]
+    h.facts = {"claim:assignment.movable": Fact(status="unknown")}
     assert C.weigh(h, RULES).beliefs["movable"] == "unknown"
+    h.facts = {"claim:assignment.movable": Fact(value=True, status="drafted", source="model:infer")}
+    assert C.weigh(h, RULES).beliefs["movable"] == "drafted", "a draft is the last reading, never a fact"
 
 
 # ------------------------------------------------------------------ decide_by_code
@@ -200,7 +205,7 @@ def test_harden_unless_a_fact_stands():
     h.design = RdDesign(score="pop", cutoff=1.0, treated_side="above")
     h.beliefs = {"trend_continues": Belief(kind="trend_continues", value=True, status="confirmed")}  # settled, so no ask stands in the way
     h.assignment = {"kind": "cutoff_rule", "movable": True}
-    h.claims = {"assignment": {"kind": "assignment", "fields": h.assignment, "status": "confirmed"}}
+    h.facts = {"claim:assignment.movable": Fact(value=True, status="confirmed")}
     case = C.weigh(h, RULES)
     action, _, checks = C.decide_by_code(case, _checks("soft", "density", 0.04), RULES, h)
     assert action == "proceed" and checks[0].level == "hard" and "bunches" in checks[0].detail

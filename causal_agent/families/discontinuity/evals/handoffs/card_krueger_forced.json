@@ -50,6 +50,7 @@
     }
   ],
   "question": "Did New Jersey's 1992 minimum wage rise reduce fast food employment?",
+  "story": null,
   "intent": "effect_of_change",
   "design_id": 0,
   "memory_version": 25,
@@ -88,29 +89,38 @@
       "proxy": null,
       "when": "after",
       "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
       "moved_by_change": true,
       "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": null,
       "source": "doc:context",
       "provenance": {
         "meaning": {
           "status": "drafted",
           "source": "doc:context",
-          "said": null
+          "said": null,
+          "reason": null
         },
         "stands_for": {
           "status": "drafted",
           "source": "doc:context",
-          "said": null
+          "said": null,
+          "reason": null
         },
         "when": {
           "status": "drafted",
           "source": "doc:context",
-          "said": null
+          "said": null,
+          "reason": null
         },
         "moved_by_change": {
           "status": "drafted",
           "source": "doc:context",
-          "said": null
+          "said": null,
+          "reason": null
         }
       },
       "facts": {
@@ -149,34 +159,44 @@
       "proxy": "exact",
       "when": "before",
       "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
       "moved_by_change": false,
       "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": null,
       "source": "doc:context",
       "provenance": {
         "meaning": {
           "status": "drafted",
           "source": "doc:context",
-          "said": null
+          "said": null,
+          "reason": null
         },
         "stands_for": {
           "status": "drafted",
           "source": "doc:context",
-          "said": null
+          "said": null,
+          "reason": null
         },
         "proxy": {
           "status": "drafted",
           "source": "doc:context",
-          "said": null
+          "said": null,
+          "reason": null
         },
         "when": {
           "status": "drafted",
           "source": "doc:context",
-          "said": null
+          "said": null,
+          "reason": null
         },
         "moved_by_change": {
           "status": "drafted",
           "source": "doc:context",
-          "said": null
+          "said": null,
+          "reason": null
         }
       },
       "facts": {
@@ -217,29 +237,38 @@
       "proxy": null,
       "when": "before",
       "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
       "moved_by_change": false,
       "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": null,
       "source": "doc:context",
       "provenance": {
         "meaning": {
           "status": "drafted",
           "source": "doc:context",
-          "said": null
+          "said": null,
+          "reason": null
         },
         "stands_for": {
           "status": "drafted",
           "source": "doc:context",
-          "said": null
+          "said": null,
+          "reason": null
         },
         "when": {
           "status": "drafted",
           "source": "doc:context",
-          "said": null
+          "said": null,
+          "reason": null
         },
         "moved_by_change": {
           "status": "drafted",
           "source": "doc:context",
-          "said": null
+          "said": null,
+          "reason": null
         }
       },
       "facts": {
@@ -281,9 +310,184 @@
     "treatment_column": "state",
     "treated_level": "1"
   },
+  "facts": {
+    "claim:missing.why": {
+      "status": "confirmed",
+      "source": "data",
+      "said": null,
+      "reason": null,
+      "value": "none"
+    },
+    "claim:grain.row_is": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "one fast food restaurant"
+    },
+    "claim:grain.panel": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": false
+    },
+    "claim:change.what": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "New Jersey minimum wage rise from 4.25 to 5.05 dollars an hour"
+    },
+    "claim:change.to_whom": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "Every employer in New Jersey"
+    },
+    "claim:change.when": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "1 April 1992"
+    },
+    "claim:assignment.kind": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "date_by_others"
+    },
+    "claim:assignment.rule": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "The change was a state law, decided by the legislature; which restaurants got it was decided entirely by which side of the state line they sat on."
+    },
+    "claim:assignment.treatment_column": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "state"
+    },
+    "claim:assignment.treated_level": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "1"
+    },
+    "col:state.meaning": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "1 for New Jersey, 0 for Pennsylvania. Where the restaurant is, and therefore whether the wage rise applied to it."
+    },
+    "col:state.stands_for": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "state of restaurant location"
+    },
+    "col:state.proxy": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "exact"
+    },
+    "col:state.when": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "before"
+    },
+    "col:state.moved_by_change": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": false
+    },
+    "col:total_emp_feb.meaning": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "Full-time equivalent employment in February and March 1992. Counted as full-time staff plus managers plus half of part-time staff."
+    },
+    "col:total_emp_feb.stands_for": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "employment"
+    },
+    "col:total_emp_feb.when": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "before"
+    },
+    "col:total_emp_feb.moved_by_change": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": false
+    },
+    "col:total_emp_nov.meaning": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "Full-time equivalent employment in November and December 1992. Counted as full-time staff plus managers plus half of part-time staff."
+    },
+    "col:total_emp_nov.stands_for": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "employment"
+    },
+    "col:total_emp_nov.when": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "after"
+    },
+    "col:total_emp_nov.moved_by_change": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": true
+    },
+    "claim:sampling.how": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "unknown"
+    },
+    "claim:sampling.detail": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "This file is a trimmed version of the original survey, 384 restaurants. Restaurants are Burger King, KFC, Wendy's, and Roy Rogers outlets in New Jersey and in eastern Pennsylvania just across the border."
+    }
+  },
   "beliefs": {},
-  "unknowns": [],
-  "contradictions": [],
   "said": [],
   "probes": [
     {
@@ -301,11 +505,11 @@
       "detail": "period column or change period not settled"
     },
     {
-      "family": "synthetic_control",
-      "name": "pre_periods",
-      "value": null,
-      "passed": null,
-      "detail": "period column or change period not settled"
+      "family": "diff_in_diff",
+      "name": "treated_units",
+      "value": 309.0,
+      "passed": true,
+      "detail": "309 treated rows; no unit column is settled, so rows stand for units"
     },
     {
       "family": "interrupted_series",
@@ -313,91 +517,36 @@
       "value": null,
       "passed": null,
       "detail": "period column or change period not settled"
+    },
+    {
+      "family": "synthetic_control",
+      "name": "pre_periods",
+      "value": null,
+      "passed": null,
+      "detail": "period column or change period not settled"
+    },
+    {
+      "family": "data",
+      "name": "by_arm.total_emp_feb",
+      "value": 0.2755581835264181,
+      "passed": null,
+      "detail": "'total_emp_feb' by arm: mean 20.4 among the treated, 23.4 among the others; standardised difference 0.28"
+    },
+    {
+      "family": "data",
+      "name": "with_outcome.total_emp_feb",
+      "value": 0.5537823055899392,
+      "passed": null,
+      "detail": "'total_emp_feb' against the outcome 'total_emp_nov': correlation 0.55"
+    },
+    {
+      "family": "data",
+      "name": "timing",
+      "value": null,
+      "passed": null,
+      "detail": "before: state, total_emp_feb; at: none; after: total_emp_nov; unknown: none"
     }
   ],
-  "claims": {
-    "assignment": {
-      "kind": "assignment",
-      "fields": {
-        "kind": "date_by_others",
-        "rule": "The change was a state law, decided by the legislature; which restaurants got it was decided entirely by which side of the state line they sat on.",
-        "treatment_column": "state",
-        "treated_level": "1"
-      },
-      "status": "drafted",
-      "source": "doc:context"
-    },
-    "change": {
-      "kind": "change",
-      "fields": {
-        "what": "New Jersey minimum wage rise from 4.25 to 5.05 dollars an hour",
-        "to_whom": "Every employer in New Jersey",
-        "when": "1 April 1992"
-      },
-      "status": "drafted",
-      "source": "doc:context"
-    },
-    "grain": {
-      "kind": "grain",
-      "fields": {
-        "row_is": "one fast food restaurant",
-        "panel": false
-      },
-      "status": "drafted",
-      "source": "doc:context"
-    },
-    "sampling": {
-      "kind": "sampling",
-      "fields": {
-        "how": "unknown",
-        "detail": "This file is a trimmed version of the original survey, 384 restaurants. Restaurants are Burger King, KFC, Wendy's, and Roy Rogers outlets in New Jersey and in eastern Pennsylvania just across the border."
-      },
-      "status": "drafted",
-      "source": "doc:context"
-    },
-    "missing": {
-      "kind": "missing",
-      "fields": {
-        "why": "none"
-      },
-      "status": "confirmed",
-      "source": "data"
-    },
-    "col:state": {
-      "kind": "measured",
-      "fields": {
-        "meaning": "1 for New Jersey, 0 for Pennsylvania. Where the restaurant is, and therefore whether the wage rise applied to it.",
-        "stands_for": "state of restaurant location",
-        "proxy": "exact",
-        "when": "before",
-        "moved_by_change": false
-      },
-      "status": "drafted",
-      "source": "doc:context"
-    },
-    "col:total_emp_feb": {
-      "kind": "measured",
-      "fields": {
-        "meaning": "Full-time equivalent employment in February and March 1992. Counted as full-time staff plus managers plus half of part-time staff.",
-        "stands_for": "employment",
-        "when": "before",
-        "moved_by_change": false
-      },
-      "status": "drafted",
-      "source": "doc:context"
-    },
-    "col:total_emp_nov": {
-      "kind": "measured",
-      "fields": {
-        "meaning": "Full-time equivalent employment in November and December 1992. Counted as full-time staff plus managers plus half of part-time staff.",
-        "stands_for": "employment",
-        "when": "after",
-        "moved_by_change": true
-      },
-      "status": "drafted",
-      "source": "doc:context"
-    }
-  },
   "design": {
     "kind": "discontinuity",
     "score": null,
@@ -416,5 +565,6 @@
     "cluster": null,
     "sampled_by_side": false,
     "cutoff_only": null
-  }
+  },
+  "brief": null
 }

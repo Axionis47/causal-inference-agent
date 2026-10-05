@@ -64,6 +64,7 @@
     }
   ],
   "question": "Which of the three promotions produced the highest weekly sales?",
+  "story": null,
   "intent": "effect_of_change",
   "design_id": 0,
   "memory_version": 35,
@@ -122,24 +123,32 @@
       "proxy": null,
       "when": "after",
       "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
       "moved_by_change": null,
       "measures_outcome": true,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": null,
       "source": "doc:context",
       "provenance": {
         "meaning": {
           "status": "drafted",
           "source": "doc:context",
-          "said": null
+          "said": null,
+          "reason": null
         },
         "when": {
           "status": "drafted",
           "source": "doc:context",
-          "said": null
+          "said": null,
+          "reason": null
         },
         "measures_outcome": {
           "status": "drafted",
           "source": "doc:context",
-          "said": null
+          "said": null,
+          "reason": null
         }
       },
       "facts": {
@@ -178,19 +187,26 @@
       "proxy": null,
       "when": "before",
       "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
       "moved_by_change": null,
       "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": null,
       "source": "doc:context",
       "provenance": {
         "meaning": {
           "status": "drafted",
           "source": "doc:context",
-          "said": null
+          "said": null,
+          "reason": null
         },
         "when": {
           "status": "drafted",
           "source": "doc:context",
-          "said": null
+          "said": null,
+          "reason": null
         }
       },
       "facts": {
@@ -236,14 +252,20 @@
       "proxy": null,
       "when": "unknown",
       "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
       "moved_by_change": null,
       "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": null,
       "source": "doc:context",
       "provenance": {
         "meaning": {
           "status": "drafted",
           "source": "doc:context",
-          "said": null
+          "said": null,
+          "reason": null
         }
       },
       "facts": {
@@ -294,19 +316,26 @@
       "proxy": null,
       "when": "before",
       "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
       "moved_by_change": null,
       "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": null,
       "source": "doc:context",
       "provenance": {
         "meaning": {
           "status": "drafted",
           "source": "doc:context",
-          "said": null
+          "said": null,
+          "reason": null
         },
         "when": {
           "status": "drafted",
           "source": "doc:context",
-          "said": null
+          "said": null,
+          "reason": null
         }
       },
       "facts": {
@@ -352,19 +381,26 @@
       "proxy": null,
       "when": "before",
       "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
       "moved_by_change": null,
       "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": null,
       "source": "doc:context",
       "provenance": {
         "meaning": {
           "status": "drafted",
           "source": "doc:context",
-          "said": null
+          "said": null,
+          "reason": null
         },
         "when": {
           "status": "drafted",
           "source": "doc:context",
-          "said": null
+          "said": null,
+          "reason": null
         }
       },
       "facts": {
@@ -393,6 +429,154 @@
         "bounds": null,
         "role_hints": []
       }
+    },
+    {
+      "name": "MarketID",
+      "key": "marketid",
+      "role": "candidate",
+      "meaning": "Which of the 10 markets the store belongs to",
+      "stands_for": null,
+      "proxy": null,
+      "when": "before",
+      "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": null,
+      "source": "doc:context",
+      "provenance": {
+        "meaning": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null,
+          "reason": null
+        },
+        "when": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null,
+          "reason": null
+        }
+      },
+      "facts": {
+        "kind": "categorical",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 10,
+        "constant": false,
+        "varies_over": "entity",
+        "numeric": null,
+        "top_values": [
+          {
+            "value": "3",
+            "count": 88,
+            "share": 0.1606
+          },
+          {
+            "value": "10",
+            "count": 80,
+            "share": 0.146
+          },
+          {
+            "value": "5",
+            "count": 60,
+            "share": 0.1095
+          },
+          {
+            "value": "6",
+            "count": 60,
+            "share": 0.1095
+          },
+          {
+            "value": "7",
+            "count": 60,
+            "share": 0.1095
+          },
+          {
+            "value": "1",
+            "count": 52,
+            "share": 0.0949
+          },
+          {
+            "value": "8",
+            "count": 48,
+            "share": 0.0876
+          },
+          {
+            "value": "9",
+            "count": 40,
+            "share": 0.073
+          }
+        ],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    {
+      "name": "AgeOfStore",
+      "key": "ageofstore",
+      "role": "candidate",
+      "meaning": "Years since the store opened, at the start of the test",
+      "stands_for": null,
+      "proxy": null,
+      "when": "before",
+      "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": null,
+      "source": "doc:context",
+      "provenance": {
+        "meaning": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null,
+          "reason": null
+        },
+        "when": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": null,
+          "reason": null
+        }
+      },
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 25,
+        "constant": false,
+        "varies_over": "entity",
+        "numeric": {
+          "min": 1.0,
+          "max": 28.0,
+          "mean": 8.50365,
+          "p01": 1.0,
+          "p25": 4.0,
+          "p50": 7.0,
+          "p75": 12.0,
+          "p99": 27.0
+        },
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
     }
   ],
   "change": {
@@ -405,9 +589,187 @@
     "rule": "assigned at random by the chain's marketing team",
     "treatment_column": "Promotion"
   },
+  "facts": {
+    "claim:missing.why": {
+      "status": "confirmed",
+      "source": "data",
+      "said": null,
+      "reason": null,
+      "value": "none"
+    },
+    "claim:grain.panel": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": true
+    },
+    "claim:grain.key_columns": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": [
+        "LocationID",
+        "week"
+      ]
+    },
+    "claim:grain.row_is": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "one store's sales for one week"
+    },
+    "claim:change.what": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "a promotion for a new menu item"
+    },
+    "claim:change.to_whom": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "each store"
+    },
+    "claim:change.when": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "from week 1 to week 4 of the test"
+    },
+    "claim:assignment.kind": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "lottery"
+    },
+    "claim:assignment.rule": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "assigned at random by the chain's marketing team"
+    },
+    "claim:assignment.treatment_column": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "Promotion"
+    },
+    "col:marketid.meaning": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "Which of the 10 markets the store belongs to"
+    },
+    "col:marketid.when": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "before"
+    },
+    "col:marketsize.meaning": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "Small, medium, or large, the chain's classification of the market"
+    },
+    "col:marketsize.when": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "before"
+    },
+    "col:locationid.meaning": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "Store number"
+    },
+    "col:locationid.when": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "before"
+    },
+    "col:ageofstore.meaning": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "Years since the store opened, at the start of the test"
+    },
+    "col:ageofstore.when": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "before"
+    },
+    "col:promotion.meaning": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "1, 2, or 3. Which promotion the store ran"
+    },
+    "col:promotion.when": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "before"
+    },
+    "col:week.meaning": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "Test week, 1 to 4"
+    },
+    "col:salesinthousands.meaning": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "Sales of the new item in that store in that week, in thousands of dollars"
+    },
+    "col:salesinthousands.when": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "after"
+    },
+    "col:salesinthousands.measures_outcome": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": true
+    },
+    "claim:sampling.how": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "whole"
+    }
+  },
   "beliefs": {},
-  "unknowns": [],
-  "contradictions": [],
   "said": [],
   "probes": [
     {
@@ -425,6 +787,13 @@
       "detail": "period column or change period not settled"
     },
     {
+      "family": "interrupted_series",
+      "name": "pre_periods",
+      "value": null,
+      "passed": null,
+      "detail": "period column or change period not settled"
+    },
+    {
       "family": "synthetic_control",
       "name": "pre_periods",
       "value": null,
@@ -432,127 +801,111 @@
       "detail": "period column or change period not settled"
     },
     {
-      "family": "interrupted_series",
-      "name": "pre_periods",
+      "family": "data",
+      "name": "with_outcome.week",
+      "value": 0.012520427376337321,
+      "passed": null,
+      "detail": "'week' against the outcome 'SalesInThousands': correlation ratio 0.01"
+    },
+    {
+      "family": "data",
+      "name": "with_outcome.marketsize",
+      "value": 0.7047605217974089,
+      "passed": null,
+      "detail": "'MarketSize' against the outcome 'SalesInThousands': correlation ratio 0.70"
+    },
+    {
+      "family": "data",
+      "name": "with_outcome.locationid",
+      "value": -0.18785182678380313,
+      "passed": null,
+      "detail": "'LocationID' against the outcome 'SalesInThousands': correlation -0.19"
+    },
+    {
+      "family": "data",
+      "name": "with_outcome.marketid",
+      "value": 0.9242811697257368,
+      "passed": null,
+      "detail": "'MarketID' against the outcome 'SalesInThousands': correlation ratio 0.92"
+    },
+    {
+      "family": "data",
+      "name": "with_outcome.ageofstore",
+      "value": -0.028532881102495657,
+      "passed": null,
+      "detail": "'AgeOfStore' against the outcome 'SalesInThousands': correlation -0.03"
+    },
+    {
+      "family": "data",
+      "name": "assoc.marketsize~locationid",
+      "value": 0.3210084370305247,
+      "passed": null,
+      "detail": "'MarketSize' and 'LocationID': correlation ratio 0.32"
+    },
+    {
+      "family": "data",
+      "name": "redundancy.marketsize~locationid",
+      "value": 1.0,
+      "passed": null,
+      "detail": "'LocationID' sits inside 'MarketSize': every value of 'LocationID' maps to one value of 'MarketSize', and 'MarketSize' has fewer levels"
+    },
+    {
+      "family": "data",
+      "name": "assoc.marketsize~marketid",
+      "value": 1.0,
+      "passed": null,
+      "detail": "'MarketSize' and 'MarketID': Cram\u00e9r's V 1.00"
+    },
+    {
+      "family": "data",
+      "name": "redundancy.marketsize~marketid",
+      "value": 1.0,
+      "passed": null,
+      "detail": "'MarketID' sits inside 'MarketSize': every value of 'MarketID' maps to one value of 'MarketSize', and 'MarketSize' has fewer levels"
+    },
+    {
+      "family": "data",
+      "name": "assoc.locationid~marketid",
+      "value": 0.9998732120490957,
+      "passed": null,
+      "detail": "'LocationID' and 'MarketID': correlation ratio 1.00"
+    },
+    {
+      "family": "data",
+      "name": "redundancy.locationid~marketid",
+      "value": 1.0,
+      "passed": null,
+      "detail": "'LocationID' sits inside 'MarketID': every value of 'LocationID' maps to one value of 'MarketID', and 'MarketID' has fewer levels"
+    },
+    {
+      "family": "data",
+      "name": "redundancy.locationid~ageofstore",
+      "value": 1.0,
+      "passed": null,
+      "detail": "'LocationID' sits inside 'AgeOfStore': every value of 'LocationID' maps to one value of 'AgeOfStore', and 'AgeOfStore' has fewer levels"
+    },
+    {
+      "family": "data",
+      "name": "assoc.marketid~ageofstore",
+      "value": 0.2648278150215145,
+      "passed": null,
+      "detail": "'MarketID' and 'AgeOfStore': correlation ratio 0.26"
+    },
+    {
+      "family": "data",
+      "name": "assoc.quiet",
       "value": null,
       "passed": null,
-      "detail": "period column or change period not settled"
+      "detail": "associations below 0.2 among the candidates: 'week' and 'MarketSize' (0.00); 'week' and 'LocationID' (0.00); 'week' and 'MarketID' (0.00); 'week' and 'AgeOfStore' (0.00); 'MarketSize' and 'AgeOfStore' (0.16); 'LocationID' and 'AgeOfStore' (-0.05)"
+    },
+    {
+      "family": "data",
+      "name": "timing",
+      "value": null,
+      "passed": null,
+      "detail": "before: Promotion, MarketSize, LocationID, MarketID, AgeOfStore; at: none; after: SalesInThousands; unknown: week"
     }
   ],
-  "claims": {
-    "assignment": {
-      "kind": "assignment",
-      "fields": {
-        "kind": "lottery",
-        "rule": "assigned at random by the chain's marketing team",
-        "treatment_column": "Promotion"
-      },
-      "status": "drafted",
-      "source": "doc:context"
-    },
-    "change": {
-      "kind": "change",
-      "fields": {
-        "what": "a promotion for a new menu item",
-        "to_whom": "each store",
-        "when": "from week 1 to week 4 of the test"
-      },
-      "status": "drafted",
-      "source": "doc:context"
-    },
-    "grain": {
-      "kind": "grain",
-      "fields": {
-        "panel": true,
-        "key_columns": [
-          "LocationID",
-          "week"
-        ],
-        "row_is": "one store's sales for one week"
-      },
-      "status": "drafted",
-      "source": "doc:context"
-    },
-    "sampling": {
-      "kind": "sampling",
-      "fields": {
-        "how": "whole"
-      },
-      "status": "drafted",
-      "source": "doc:context"
-    },
-    "missing": {
-      "kind": "missing",
-      "fields": {
-        "why": "none"
-      },
-      "status": "confirmed",
-      "source": "data"
-    },
-    "col:marketid": {
-      "kind": "measured",
-      "fields": {
-        "meaning": "Which of the 10 markets the store belongs to",
-        "when": "before"
-      },
-      "status": "drafted",
-      "source": "doc:context"
-    },
-    "col:marketsize": {
-      "kind": "measured",
-      "fields": {
-        "meaning": "Small, medium, or large, the chain's classification of the market",
-        "when": "before"
-      },
-      "status": "drafted",
-      "source": "doc:context"
-    },
-    "col:locationid": {
-      "kind": "measured",
-      "fields": {
-        "meaning": "Store number",
-        "when": "before"
-      },
-      "status": "drafted",
-      "source": "doc:context"
-    },
-    "col:ageofstore": {
-      "kind": "measured",
-      "fields": {
-        "meaning": "Years since the store opened, at the start of the test",
-        "when": "before"
-      },
-      "status": "drafted",
-      "source": "doc:context"
-    },
-    "col:promotion": {
-      "kind": "measured",
-      "fields": {
-        "meaning": "1, 2, or 3. Which promotion the store ran",
-        "when": "before"
-      },
-      "status": "drafted",
-      "source": "doc:context"
-    },
-    "col:week": {
-      "kind": "measured",
-      "fields": {
-        "meaning": "Test week, 1 to 4"
-      },
-      "status": "drafted",
-      "source": "doc:context"
-    },
-    "col:salesinthousands": {
-      "kind": "measured",
-      "fields": {
-        "meaning": "Sales of the new item in that store in that week, in thousands of dollars",
-        "when": "after",
-        "measures_outcome": true
-      },
-      "status": "drafted",
-      "source": "doc:context"
-    }
-  },
   "design": {
     "kind": "diff_in_diff",
     "unit": "locationid",
@@ -561,14 +914,16 @@
     "change_period": null,
     "treated_group": {},
     "staggered": null,
-    "never_treated_exists": null,
     "pre_periods": null,
     "post_periods": null,
     "controls_allowed": [
-      "marketsize"
+      "marketsize",
+      "marketid",
+      "ageofstore"
     ],
     "cluster_level": "locationid",
     "trend_belief": null,
     "spillover": null
-  }
+  },
+  "brief": null
 }

@@ -159,20 +159,10 @@ def _belief(h: Handoff, kind: str, spec: dict) -> Belief | None:
         value = getattr(h.design, fld, None) if h.design is not None else None
         return Belief(kind=kind, value=bool(value) if value is not None else None, status="confirmed" if value is not None else "empty")
     if spec.get("from"):
-        claim, _, fld = str(spec["from"]).partition(".")
-        d = getattr(h, claim, None) or {}
-        c = (h.claims or {}).get(claim) or {}
-        value = d.get(fld) if isinstance(d, dict) else None
-        addr = f"claim:{claim}.{fld}"
-        own = (c.get("fields_status") or {}).get(fld)  # the field's own status when the pack carries it; the claim's is a poor proxy
-        status = (
-            "unknown"
-            if addr in h.unknowns
-            else "contradiction"
-            if addr in h.contradictions
-            else own or ("empty" if value is None else c.get("status") or "confirmed")
-        )
-        return Belief(kind=kind, value=bool(value) if value is not None else None, status=status, source=c.get("source"))
+        f = h.fact(f"claim:{spec['from']}")  # the field's own word and status, from the one map the pack carries
+        if f is None:
+            return Belief(kind=kind, status="empty")
+        return Belief(kind=kind, value=bool(f.value) if f.value is not None else None, status=f.status, source=f.source, said=f.said)
     return h.beliefs.get(kind)
 
 
@@ -236,7 +226,7 @@ def weigh(h: Handoff, rules: dict | None) -> Case:
             caveat = _fill(str(by.get("caveat") or ""), h, said=said, column="")
             ask = _ask(by["ask"], addr, h, said=said) if by.get("ask") else None
             case.flags.append(Flag(name=f"belief.{kind}", level=by.get("level", "soft"), caveat=caveat, cites=[addr], ask=ask, address=addr, status=st))
-    for addr in h.unknowns:
+    for addr in h.by_status("unknown"):
         spec = _match(rules.get("unknowns") or {}, addr)
         if spec:
             col = addr.split(":", 1)[-1].split(".")[0] if addr.startswith("col:") else ""
@@ -252,7 +242,7 @@ def weigh(h: Handoff, rules: dict | None) -> Case:
                     status="unknown",
                 )
             )
-    for addr in h.contradictions:
+    for addr in h.by_status("contradiction"):
         spec = _match(rules.get("contradictions") or {}, addr)
         if spec:
             col = addr.split(":", 1)[-1].split(".")[0] if addr.startswith("col:") else ""

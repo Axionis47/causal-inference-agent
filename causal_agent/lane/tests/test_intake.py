@@ -111,9 +111,10 @@ def test_load_applies_the_scope_and_records_the_facts(tmp_path):
     assert it.declines == [] and it.facts["time_column"] == "year" and it.table["year"].min() == 80 and it.table["year"].max() == 92
 
 
-def test_load_takes_every_column_the_design_block_names_and_declines_a_missing_one():
+def test_load_takes_every_carried_column_and_the_design_blocks_and_declines_a_missing_one():
     h = students()
-    assert "lunch" in intake.wanted_columns(h) and "reading_score" not in intake.wanted_columns(h)
+    wanted = intake.wanted_columns(h)
+    assert wanted[:2] == ["test_preparation_course", "math_score"] and "lunch" in wanted and "reading_score" in wanted  # every carried column
     h.design = AdjustmentDesign(adjustment_candidates=["parental level of education"], mediator="reading score", instrument="offer_rank")
     wanted = intake.wanted_columns(h)
     assert "parental_level_of_education" in wanted and "reading_score" in wanted and "offer_rank" in wanted

@@ -64,6 +64,7 @@
     }
   ],
   "question": "Did receiving the transfer raise support for the government?",
+  "story": null,
   "intent": "effect_of_change",
   "design_id": 0,
   "memory_version": 33,
@@ -101,19 +102,26 @@
       "proxy": null,
       "when": "after",
       "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
       "moved_by_change": null,
       "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": null,
       "source": "doc:context",
       "provenance": {
         "meaning": {
           "status": "drafted",
           "source": "doc:context",
-          "said": null
+          "said": null,
+          "reason": null
         },
         "when": {
           "status": "drafted",
           "source": "doc:context",
-          "said": null
+          "said": null,
+          "reason": null
         }
       },
       "facts": {
@@ -152,24 +160,32 @@
       "proxy": null,
       "when": "before",
       "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
       "moved_by_change": false,
       "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": null,
       "source": "doc:context",
       "provenance": {
         "meaning": {
           "status": "drafted",
           "source": "doc:context",
-          "said": null
+          "said": null,
+          "reason": null
         },
         "when": {
           "status": "drafted",
           "source": "doc:context",
-          "said": null
+          "said": null,
+          "reason": null
         },
         "moved_by_change": {
           "status": "drafted",
           "source": "doc:context",
-          "said": null
+          "said": null,
+          "reason": null
         }
       },
       "facts": {
@@ -210,29 +226,38 @@
       "proxy": "derived",
       "when": "before",
       "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
       "moved_by_change": false,
       "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": null,
       "source": "doc:context",
       "provenance": {
         "meaning": {
           "status": "drafted",
           "source": "doc:context",
-          "said": null
+          "said": null,
+          "reason": null
         },
         "proxy": {
           "status": "drafted",
           "source": "doc:context",
-          "said": null
+          "said": null,
+          "reason": null
         },
         "when": {
           "status": "drafted",
           "source": "doc:context",
-          "said": null
+          "said": null,
+          "reason": null
         },
         "moved_by_change": {
           "status": "drafted",
           "source": "doc:context",
-          "said": null
+          "said": null,
+          "reason": null
         }
       },
       "facts": {
@@ -271,24 +296,32 @@
       "proxy": null,
       "when": "before",
       "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
       "moved_by_change": false,
       "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": null,
       "source": "doc:context",
       "provenance": {
         "meaning": {
           "status": "drafted",
           "source": "doc:context",
-          "said": null
+          "said": null,
+          "reason": null
         },
         "when": {
           "status": "drafted",
           "source": "doc:context",
-          "said": null
+          "said": null,
+          "reason": null
         },
         "moved_by_change": {
           "status": "drafted",
           "source": "doc:context",
-          "said": null
+          "said": null,
+          "reason": null
         }
       },
       "facts": {
@@ -327,24 +360,32 @@
       "proxy": null,
       "when": "before",
       "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
       "moved_by_change": false,
       "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": null,
       "source": "doc:context",
       "provenance": {
         "meaning": {
           "status": "drafted",
           "source": "doc:context",
-          "said": null
+          "said": null,
+          "reason": null
         },
         "when": {
           "status": "drafted",
           "source": "doc:context",
-          "said": null
+          "said": null,
+          "reason": null
         },
         "moved_by_change": {
           "status": "drafted",
           "source": "doc:context",
-          "said": null
+          "said": null,
+          "reason": null
         }
       },
       "facts": {
@@ -390,9 +431,219 @@
     "treated_level": "1",
     "movable": false
   },
+  "facts": {
+    "claim:grain.row_is": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "one household from a 2007 survey in Uruguay"
+    },
+    "claim:change.what": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "PANES cash transfer"
+    },
+    "claim:change.to_whom": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "poor households"
+    },
+    "claim:change.when": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "2005 to 2007"
+    },
+    "claim:assignment.kind": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "cutoff_rule"
+    },
+    "claim:assignment.rule": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "households with a score below a fixed cutoff were eligible, households above were not; the rule was applied mechanically, and take-up among the eligible was near universal"
+    },
+    "claim:assignment.score_column": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "Income_Centered"
+    },
+    "claim:assignment.cutoff": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": 0.0
+    },
+    "claim:assignment.treated_side": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "below"
+    },
+    "claim:assignment.treatment_column": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "Participation"
+    },
+    "claim:assignment.treated_level": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "1"
+    },
+    "claim:assignment.movable": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": false
+    },
+    "claim:sampling.how": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "by_side"
+    },
+    "claim:sampling.detail": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "The file keeps only households whose eligibility score sits within a narrow band around the programme's cutoff, so it is the households closest to the line on either side. The survey sample was drawn by side of the cutoff, two eligible households for every ineligible one."
+    },
+    "col:income_centered.meaning": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "The eligibility score minus the cutoff, so the cutoff is at zero. Negative means eligible. Values run from about minus 0.02 to plus 0.02, the band kept in the file."
+    },
+    "col:income_centered.proxy": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "derived"
+    },
+    "col:income_centered.when": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "before"
+    },
+    "col:income_centered.moved_by_change": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": false
+    },
+    "col:education.meaning": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "Years of schooling of the household head."
+    },
+    "col:education.when": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "before"
+    },
+    "col:education.moved_by_change": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": false
+    },
+    "claim:missing.why": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "Missing for 51 households in the survey."
+    },
+    "col:age.meaning": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "Age of the household head at the survey."
+    },
+    "col:age.when": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "before"
+    },
+    "col:age.moved_by_change": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": false
+    },
+    "col:participation.meaning": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "1 if the household received the transfer, 0 if not."
+    },
+    "col:participation.when": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "before"
+    },
+    "col:participation.moved_by_change": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": false
+    },
+    "col:support.meaning": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "The respondent's stated support for the government in the 2007 survey, scored 0, 0.5, or 1."
+    },
+    "col:support.when": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": null,
+      "reason": null,
+      "value": "after"
+    }
+  },
   "beliefs": {},
-  "unknowns": [],
-  "contradictions": [],
   "said": [],
   "probes": [
     {
@@ -410,11 +661,25 @@
       "detail": "period column or change period not settled"
     },
     {
+      "family": "diff_in_diff",
+      "name": "treated_units",
+      "value": 1127.0,
+      "passed": true,
+      "detail": "1127 treated rows; no unit column is settled, so rows stand for units"
+    },
+    {
       "family": "discontinuity",
       "name": "rows_by_side",
       "value": 821.0,
       "passed": true,
       "detail": "1127 rows below 0.0 and 821 above on 'Income_Centered'; floor 20 a side"
+    },
+    {
+      "family": "interrupted_series",
+      "name": "pre_periods",
+      "value": null,
+      "passed": null,
+      "detail": "period column or change period not settled"
     },
     {
       "family": "synthetic_control",
@@ -424,115 +689,62 @@
       "detail": "period column or change period not settled"
     },
     {
-      "family": "interrupted_series",
-      "name": "pre_periods",
+      "family": "data",
+      "name": "by_arm.income_centered",
+      "value": 3.593075210766577,
+      "passed": null,
+      "detail": "'Income_Centered' by arm: mean -0.0102 among the treated, 0.0103 among the others; standardised difference 3.59"
+    },
+    {
+      "family": "data",
+      "name": "with_outcome.income_centered",
+      "value": 0.1718420953637743,
+      "passed": null,
+      "detail": "'Income_Centered' against the outcome 'Support': correlation ratio 0.17"
+    },
+    {
+      "family": "data",
+      "name": "by_arm.education",
+      "value": 0.03250068439659365,
+      "passed": null,
+      "detail": "'Education' by arm: mean 4.09 among the treated, 4.04 among the others; standardised difference 0.03"
+    },
+    {
+      "family": "data",
+      "name": "with_outcome.education",
+      "value": 0.023885618233997902,
+      "passed": null,
+      "detail": "'Education' against the outcome 'Support': correlation ratio 0.02"
+    },
+    {
+      "family": "data",
+      "name": "by_arm.age",
+      "value": 0.29288716536320936,
+      "passed": null,
+      "detail": "'Age' by arm: mean 27.3 among the treated, 31.6 among the others; standardised difference 0.29"
+    },
+    {
+      "family": "data",
+      "name": "with_outcome.age",
+      "value": 0.05981152294364194,
+      "passed": null,
+      "detail": "'Age' against the outcome 'Support': correlation ratio 0.06"
+    },
+    {
+      "family": "data",
+      "name": "assoc.quiet",
       "value": null,
       "passed": null,
-      "detail": "period column or change period not settled"
+      "detail": "associations below 0.2 among the candidates: 'Income_Centered' and 'Education' (-0.01); 'Income_Centered' and 'Age' (0.15); 'Education' and 'Age' (-0.04)"
+    },
+    {
+      "family": "data",
+      "name": "timing",
+      "value": null,
+      "passed": null,
+      "detail": "before: Participation, Income_Centered, Education, Age; at: none; after: Support; unknown: none"
     }
   ],
-  "claims": {
-    "assignment": {
-      "kind": "assignment",
-      "fields": {
-        "kind": "cutoff_rule",
-        "rule": "households with a score below a fixed cutoff were eligible, households above were not; the rule was applied mechanically, and take-up among the eligible was near universal",
-        "score_column": "Income_Centered",
-        "cutoff": 0.0,
-        "treated_side": "below",
-        "treatment_column": "Participation",
-        "treated_level": "1",
-        "movable": false
-      },
-      "status": "drafted",
-      "source": "doc:context"
-    },
-    "change": {
-      "kind": "change",
-      "fields": {
-        "what": "PANES cash transfer",
-        "to_whom": "poor households",
-        "when": "2005 to 2007"
-      },
-      "status": "drafted",
-      "source": "doc:context"
-    },
-    "grain": {
-      "kind": "grain",
-      "fields": {
-        "row_is": "one household from a 2007 survey in Uruguay"
-      },
-      "status": "drafted",
-      "source": "doc:context"
-    },
-    "sampling": {
-      "kind": "sampling",
-      "fields": {
-        "how": "by_side",
-        "detail": "The file keeps only households whose eligibility score sits within a narrow band around the programme's cutoff, so it is the households closest to the line on either side. The survey sample was drawn by side of the cutoff, two eligible households for every ineligible one."
-      },
-      "status": "drafted",
-      "source": "doc:context"
-    },
-    "missing": {
-      "kind": "missing",
-      "fields": {
-        "why": "Missing for 51 households in the survey."
-      },
-      "status": "drafted",
-      "source": "doc:context"
-    },
-    "col:income_centered": {
-      "kind": "measured",
-      "fields": {
-        "meaning": "The eligibility score minus the cutoff, so the cutoff is at zero. Negative means eligible. Values run from about minus 0.02 to plus 0.02, the band kept in the file.",
-        "proxy": "derived",
-        "when": "before",
-        "moved_by_change": false
-      },
-      "status": "drafted",
-      "source": "doc:context"
-    },
-    "col:education": {
-      "kind": "measured",
-      "fields": {
-        "meaning": "Years of schooling of the household head.",
-        "when": "before",
-        "moved_by_change": false
-      },
-      "status": "drafted",
-      "source": "doc:context"
-    },
-    "col:age": {
-      "kind": "measured",
-      "fields": {
-        "meaning": "Age of the household head at the survey.",
-        "when": "before",
-        "moved_by_change": false
-      },
-      "status": "drafted",
-      "source": "doc:context"
-    },
-    "col:participation": {
-      "kind": "measured",
-      "fields": {
-        "meaning": "1 if the household received the transfer, 0 if not.",
-        "when": "before",
-        "moved_by_change": false
-      },
-      "status": "drafted",
-      "source": "doc:context"
-    },
-    "col:support": {
-      "kind": "measured",
-      "fields": {
-        "meaning": "The respondent's stated support for the government in the 2007 survey, scored 0, 0.5, or 1.",
-        "when": "after"
-      },
-      "status": "drafted",
-      "source": "doc:context"
-    }
-  },
   "design": {
     "kind": "adjustment",
     "adjustment_candidates": [
@@ -547,5 +759,6 @@
     "voluntary_uptake": false,
     "target_units": "average",
     "contrast": "switch"
-  }
+  },
+  "brief": null
 }
