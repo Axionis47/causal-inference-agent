@@ -74,7 +74,7 @@ def run(fake, **kw):
 def test_the_model_looks_then_answers_and_every_fact_has_an_address():
     fake = Fake([[("by_arm", {"column": "lunch"}), ("timing", {})], []], [Record(cites=["probe:roles.1", "probe:roles.2"])])
     rec, log, thoughts, errors = run(fake)
-    assert rec is not None and errors == [] and log.tries == 1 and log.calls == 2
+    assert rec is not None and errors == [] and len(log.tries) == 1 and log.calls == 2
     assert [f.address for f in log.facts] == ["probe:roles.1", "probe:roles.2"] and log.facts[0].tool == "by_arm"
     assert fake.bound == list(tools().names()) == list(TL.NAMES[:6])  # the shape-aware tools are not offered on a plain table
     # the tool phase: the rule is in the system message; each result went back as a tool message with its address
@@ -114,16 +114,20 @@ def test_a_refused_answer_goes_back_with_the_log_kept_and_the_model_may_look_aga
         [Record(cites=["probe:roles.9"]), Record(cites=["probe:roles.1", "probe:roles.2"])],
     )
     rec, log, thoughts, errors = run(fake)
-    assert rec is not None and errors == [] and log.tries == 2 and [f.address for f in log.facts] == ["probe:roles.1", "probe:roles.2"]
+    assert rec is not None and errors == [] and len(log.tries) == 2 and [f.address for f in log.facts] == ["probe:roles.1", "probe:roles.2"]
     assert "PREVIOUS ANSWER WAS REJECTED" in fake.humans[1] and "'probe:roles.9' does not resolve" in fake.humans[1]
     assert "[probe:roles.1]" in fake.humans[1] and "[probe:roles.2]" in fake.humans[1]
     assert "PREVIOUS ANSWER WAS REJECTED" in fake.rounds[2][1].content  # the second look saw the errors too
+    # every try is kept: what was shown, what was answered, what the gate said
+    assert log.system == "SYSTEM" and [t.n for t in log.tries] == [1, 2]
+    assert log.tries[0].errors == ["citation 'probe:roles.9' does not resolve"] and log.tries[1].errors == []
+    assert log.tries[0].answer == {"ok": True, "cites": ["probe:roles.9"]} and log.tries[1].user == fake.humans[1]
 
 
 def test_three_refusals_return_no_record_and_the_errors():
     fake = Fake([[]] * 3, [Record(ok=False)] * 3)
     rec, log, _, errors = run(fake)
-    assert rec is None and log.tries == 3 and errors == ["not ok"]
+    assert rec is None and len(log.tries) == 3 and errors == ["not ok"] and [t.errors for t in log.tries] == [["not ok"]] * 3
 
 
 def test_no_tools_means_one_structured_call_and_no_binding():

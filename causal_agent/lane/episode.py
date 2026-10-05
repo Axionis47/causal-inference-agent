@@ -5,7 +5,8 @@ logged with its address, `probe:<node>.<n>`, so the record, the report and the c
 
 Looking and answering are two calls. The model looks first, in a conversation with the tools bound; then the facts it gathered
 are rendered under FACTS YOU ASKED FOR and the record is asked for with the same structured call every judgement uses. A refused
-answer goes back with its errors, the log persists, and the model may look again while budget remains.
+answer goes back with its errors, the log persists, and the model may look again while budget remains. Every try is kept: the
+text the model was shown, the answer it gave, and what the gate said, so a watcher can read why a rung went the way it did.
 """
 
 from __future__ import annotations
@@ -56,14 +57,25 @@ class Refusal(BaseModel):
     reason: str
 
 
+class Try(BaseModel):
+    """One try of a judgement: the text the model was shown, the answer as it gave it, and the gate's errors, empty when it passed."""
+
+    n: int
+    user: str
+    answer: dict[str, Any]
+    errors: list[str] = Field(default_factory=list)
+
+
 class EpisodeLog(BaseModel):
-    """What one episode looked at: the facts with their addresses, the refusals, the calls spent, the tries it took."""
+    """What one episode looked at and did: the system text once, the facts with their addresses, the refusals, the calls spent,
+    and every try with what the model was shown, what it answered, and what the gate said."""
 
     node: str
+    system: str = ""
     facts: list[Fact] = Field(default_factory=list)
     refusals: list[Refusal] = Field(default_factory=list)
     calls: int = 0
-    tries: int = 0
+    tries: list[Try] = Field(default_factory=list)
 
     def find(self, address: str) -> Fact | None:
         a = norm_address(address)
@@ -136,16 +148,18 @@ def run_episode(
 ) -> tuple[T | None, EpisodeLog, list[Thought], list[str]]:
     """Run one episode. Returns the record the gate accepted (or None after `tries` refusals), the log, the thoughts, and the
     errors of the last refusal."""
-    log = EpisodeLog(node=node)
+    log = EpisodeLog(node=node, system=system)
     thoughts: list[Thought] = []
     errors: list[str] = []
-    for _ in range(tries):
-        log.tries += 1
+    for n in range(1, tries + 1):
         if tools is not None and log.calls < budget:
             thoughts += _look(system, user, tools, budget, log, errors)
-        record, th = LLM.structured(schema, system, _material(user, log, errors), node=node)
+        shown = _material(user, log, errors)
+        record, th = LLM.structured(schema, system, shown, node=node)
         thoughts.append(th)
+        answer = record.model_dump(mode="json")  # as the model gave it, before a gate may normalise a field
         errors = gate(record, log)
+        log.tries.append(Try(n=n, user=shown, answer=answer, errors=list(errors)))
         if not errors:
             return record, log, thoughts, []
     return None, log, thoughts, errors

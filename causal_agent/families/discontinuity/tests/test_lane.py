@@ -692,7 +692,7 @@ def test_bad_cites_in_the_covariates_rung_stop_it_after_three_tries():
 
     fake = Fake(URUGUAY_SCORE, URUGUAY_RELATIONS, URUGUAY["cite"])
     out = _run(fake, handoff(**URUGUAY))
-    assert out["feasibility"].stage == "covariates" and fake.calls.count("CovariateRoles") == 3 and out["episodes"]["covariates"].tries == 3
+    assert out["feasibility"].stage == "covariates" and fake.calls.count("CovariateRoles") == 3 and len(out["episodes"]["covariates"].tries) == 3
     assert "education: col:nope.note is not an address you may cite" in fake.humans_of("CovariateRoles")[1]
 
 
@@ -1135,7 +1135,7 @@ def test_a_clean_line_over_bunching_is_re_prompted_until_it_answers_the_evidence
     rejected = fake.humans_of("Line")[1]
     assert "PREVIOUS ANSWER WAS REJECTED" in rejected
     assert "a clean verdict must answer it, citing that line" in rejected and "name the manipulation risk" in rejected
-    assert out["episodes"]["line"].tries == 2
+    assert len(out["episodes"]["line"].tries) == 2
     assert not out["ladder"].line.clean and "manipulation" in [t.name for t in out["ladder"].threats.items]
     assert next(c for c in out["checks"] if c.name == "threat.manipulation").level == "soft"
 
@@ -1286,7 +1286,7 @@ def test_a_width_other_than_the_default_needs_a_reason_and_an_unknown_selector_i
     assert "'narrowest' is not one of the selectors on offer" in humans[1]
     assert "a width other than the default needs a reason from the ladder: cite the density, the balance or the sides" in humans[2]
     w = out["ladder"].window
-    assert w.selector == "cerrd" and w.rule == "cer" and out["episodes"]["window"].tries == 3 and out["design"].bandwidths.rule == "cer"
+    assert w.selector == "cerrd" and w.rule == "cer" and len(out["episodes"]["window"].tries) == 3 and out["design"].bandwidths.rule == "cer"
 
 
 def test_when_the_width_judgement_never_settles_the_default_stands_with_a_flag(tmp_path, monkeypatch):

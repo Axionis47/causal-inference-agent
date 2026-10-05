@@ -304,7 +304,7 @@ def test_bad_cites_are_refused_three_times_then_the_rung_stops():
     r = out["specialist_result"]
     assert r["status"] == "infeasible"
     assert out["feasibility"].stage == "roles" and fake.calls.count("Roles") == 3 and fake.calls.count("PostRoles") == 0
-    assert "col:nope.note is not an address you may cite" in fake.humans_of("Roles")[1] and out["episodes"]["roles"].tries == 3
+    assert "col:nope.note is not an address you may cite" in fake.humans_of("Roles")[1] and len(out["episodes"]["roles"].tries) == 3
     assert out.get("design") is None and not out.get("estimates")
 
 
@@ -674,7 +674,7 @@ def test_a_departure_from_the_last_reading_with_no_departure_named_is_refused_on
     assert out["specialist_result"]["status"] == "done"
     seen = fake.humans_of("Roles")
     assert len(seen) == 2 and "race_ethnicity: affects_treatment = False departs from the last reading True with no departure named" in seen[1]
-    assert out["episodes"]["roles"].tries == 2
+    assert len(out["episodes"]["roles"].tries) == 2
     assert any(e.src == "race_ethnicity" and e.dst == "test_preparation_course" for e in out["graph"].edges)  # the second answer kept the reading
 
 
@@ -1043,7 +1043,7 @@ def test_the_lane_state_comes_back_from_the_dev_servers_serialiser_as_itself():
         contrasts=[Contrast(control="none", treated="completed", reason="the pack names the level", cites=[CITE])],
         target_asked="average",
     )
-    log = EpisodeLog(node="roles", facts=[Fact(node="roles", n=1, tool="describe", args={"column": "lunch"}, text="2 levels")], calls=1, tries=1)
+    log = EpisodeLog(node="roles", facts=[Fact(node="roles", n=1, tool="describe", args={"column": "lunch"}, text="2 levels")], calls=1)
     state = {"handoff": h, "ladder": Ladder(pair=pair), "episodes": {"roles": log}, "case": weigh(h, load_beliefs())}
     back = serde.loads_typed(serde.dumps_typed(state))
     assert isinstance(back["handoff"], Handoff) and isinstance(back["ladder"], Ladder) and isinstance(back["ladder"].pair, Pair)

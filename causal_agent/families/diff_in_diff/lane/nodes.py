@@ -1645,7 +1645,7 @@ def assemble(state: SpecialistState) -> dict:
     if any(log.facts or log.refusals for log in episodes.values()):
         lines.append("WHAT THE EPISODES LOOKED AT")
         for name, log in episodes.items():
-            lines.append(f"  {name}: {log.calls} call{'s' if log.calls != 1 else ''}, {log.tries} tr{'ies' if log.tries != 1 else 'y'}")
+            lines.append(f"  {name}: {log.calls} call{'s' if log.calls != 1 else ''}, {len(log.tries)} tr{'ies' if len(log.tries) != 1 else 'y'}")
             lines += [f"    {x.render()}" for x in log.facts]
             lines += [f"    refused {r.tool}({', '.join(f'{k}={v!r}' for k, v in r.args.items())}): {r.reason}" for r in log.refusals]
         lines.append("")

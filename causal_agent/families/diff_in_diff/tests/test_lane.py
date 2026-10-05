@@ -324,7 +324,7 @@ def test_bad_cites_stop_the_first_rung_that_judges():
     fake = FakeLLM(SCRIPT["cigar"], CIGAR["cite"], bad_cites=True)
     out = _run(fake, handoff(**CIGAR))
     assert out["specialist_result"]["status"] == "infeasible"
-    assert out["feasibility"].stage == "groups" and fake.calls.count("Groups") == 3 and out["episodes"]["groups"].tries == 3
+    assert out["feasibility"].stage == "groups" and fake.calls.count("Groups") == 3 and len(out["episodes"]["groups"].tries) == 3
 
 
 def test_bad_cites_in_the_controls_rung_only():
@@ -1084,7 +1084,7 @@ def test_the_mechanism_gate_holds_the_citation_and_the_anticipation_window(tmp_p
     humans = fake.humans_of("Mechanism")
     assert len(humans) == 3 and "chosen_on says trends; cite the line" in humans[1] and "only 5 periods precede the change" in humans[2]
     m = out["ladder"].mechanism
-    assert m.anticipation_periods == 2 and out["episodes"]["mechanism"].tries == 3
+    assert m.anticipation_periods == 2 and len(out["episodes"]["mechanism"].tries) == 3
     d = out["design"]
     assert d.excluded_rel_times == [-2, -1] and "left out     periods -2, -1" in d.render()
     t = next(x for x in out["ladder"].threats.items if x.name == "anticipation")
@@ -1119,7 +1119,7 @@ def test_the_comparison_is_re_prompted_when_it_calls_the_leads_parallel_against_
     assert len(humans) == 2 and "PREVIOUS ANSWER WAS REJECTED" in humans[1]
     assert "cite [ladder:trends.leads]: the paths before the change are evidence, not a story" in humans[1]
     assert "leads_read must be 'diverging': [ladder:trends.leads] says hard; read the evidence" in humans[1]
-    assert out["ladder"].comparison.leads_read == "diverging" and not out["ladder"].comparison.fair and out["episodes"]["comparison"].tries == 2
+    assert out["ladder"].comparison.leads_read == "diverging" and not out["ladder"].comparison.fair and len(out["episodes"]["comparison"].tries) == 2
 
 
 def test_a_fair_comparison_despite_diverging_paths_needs_a_pack_citation():
