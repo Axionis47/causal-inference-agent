@@ -18,10 +18,11 @@ from causal_agent.families.adjustment.lane import nodes as N
 from causal_agent.families.adjustment.lane.state import SpecialistState
 from causal_agent.lane import graph as G
 from causal_agent.lane.graph import RETRY as _retry
+from causal_agent.lane.state import LaneInput
 
 
 def build() -> StateGraph:
-    b = StateGraph(SpecialistState)
+    b = StateGraph(SpecialistState, input_schema=LaneInput)
     b.add_node("load", N.load)
     b.add_node("case", N.case)
     b.add_node("pair", N.pair, retry_policy=_retry)

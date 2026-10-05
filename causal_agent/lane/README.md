@@ -28,7 +28,8 @@ yaml in its own package, and copies nothing that is here.
   ladder so far), the data tools over the run's table, the settled and drafted blocks a rung's prompt shows.
 - `prompts.py`: the pick and interpret prompts, the cite rule, the plain-words rule.
 - `knowledge.py`: a lane's yaml files, read once and rendered for the model.
-- `graph.py`: how a lane's graph is compiled, as a node inside the desk or standalone.
+- `graph.py`: how a lane's graph is compiled, as a node inside the desk or standalone; each family's own `lane/graph.py` also
+  compiles a module-level `graph` for `langgraph dev`, and `LaneInput` in `state.py` is the form Studio shows for it.
 - `state.py`: the state keys every lane shares and the reducers that keep a fan-out honest.
 - `words.py`: what a check asks, in the question's words, from `in_words` in the lane's `checks.yaml`.
 

@@ -6,6 +6,7 @@ import operator
 from collections.abc import Callable
 from typing import Annotated, Any
 
+from pydantic import BaseModel
 from typing_extensions import TypedDict
 
 from causal_agent.common.contracts import Decline, Feasibility, Handoff, LaneAsk, Thought
@@ -33,6 +34,15 @@ def by_key(keyfn: Callable[[Any], Any]):
         return out
 
     return reduce
+
+
+class LaneInput(BaseModel):
+    """What a lane is given: the question, the pack, the dataset. The form Studio shows for a run; the graph writes the input
+    as given, so `load` validates the pack from JSON and writes it back as the object every rung reads."""
+
+    question: str = ""
+    handoff: Handoff
+    dataset: str = ""
 
 
 class LaneState(TypedDict, total=False):

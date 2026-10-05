@@ -3,7 +3,8 @@
     "."
   ],
   "graphs": {
-    "desk": "./causal_agent/desk/graph.py:graph"
+    "desk": "./causal_agent/desk/graph.py:graph",
+    "adjustment": "./causal_agent/families/adjustment/lane/graph.py:graph"
   },
   "env": "./.env",
   "python_version": "3.12"

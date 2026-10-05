@@ -990,3 +990,62 @@ def test_an_unsure_item_is_a_flag_and_an_unsure_claim_the_interview_could_have_s
     )
     assert {"check:all.unsure.col_gender_may_modify", "check:all.unsure.the_school_s_timetable"} <= set(out["interpretations"][0].cites)
     assert "[decline:roles.col_gender_may_modify]" in r["report"] and r["declines"][0]["check"] == "needs.unsettled"
+
+
+# ------------------------------------------------------------------ the lane in Studio
+
+
+def test_the_pack_may_arrive_as_json_and_every_routing_node_declares_its_destinations():
+    """Studio hands the lane its input as JSON: `load` validates the pack and writes it back as the object every rung reads. Every
+    node that routes by Command declares where it may go, so Studio draws the whole ladder and not a scatter of boxes."""
+    from langgraph.checkpoint.memory import InMemorySaver
+
+    from causal_agent.families.adjustment.lane.graph import build
+
+    h = students_handoff()
+    g = build().compile(checkpointer=InMemorySaver(), interrupt_after=["load"])
+    cfg = {"configurable": {"thread_id": str(uuid.uuid4())}}
+    g.invoke({"question": h.question, "handoff": h.model_dump(mode="json"), "dataset": h.pack_name}, cfg)
+    back = g.get_state(cfg).values["handoff"]
+    assert isinstance(back, Handoff) and back.design is not None and back.design.kind == "adjustment"
+    edges = {(e.source, e.target) for e in build().compile().get_graph().edges}
+    assert {
+        ("load", "case"),
+        ("load", "feasibility"),
+        ("pair", "mechanism"),
+        ("mechanism", "time"),
+        ("roles", "post_roles"),
+        ("post_roles", "merge_graph"),
+        ("verify_graph", "road"),
+        ("assess", "merge_graph"),
+        ("assess", "pick_estimator"),
+        ("pick_estimator", "freeze_design"),
+        ("after_analyse", "interpret"),
+        ("after_analyse", "pick_estimator"),
+    } <= edges
+
+
+def test_the_lane_state_comes_back_from_the_dev_servers_serialiser_as_itself():
+    """`langgraph dev` checkpoints with a permissive JsonPlusSerializer. The pack, the ladder, an episode and the case must come
+    back typed, because the lane's readers fall back to empty objects rather than fail when they do not."""
+    from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
+
+    from causal_agent.families.adjustment.lane.contracts import Ladder, Pair
+    from causal_agent.families.adjustment.lane.knowledge import load_beliefs
+    from causal_agent.lane.case import Case, weigh
+    from causal_agent.lane.episode import EpisodeLog, Fact
+
+    serde = JsonPlusSerializer()
+    h = students_handoff()
+    pair = Pair(
+        outcome="math_score",
+        treatment="test_preparation_course",
+        contrasts=[Contrast(control="none", treated="completed", reason="the pack names the level", cites=[CITE])],
+        target_asked="average",
+    )
+    log = EpisodeLog(node="roles", facts=[Fact(node="roles", n=1, tool="describe", args={"column": "lunch"}, text="2 levels")], calls=1, tries=1)
+    state = {"handoff": h, "ladder": Ladder(pair=pair), "episodes": {"roles": log}, "case": weigh(h, load_beliefs())}
+    back = serde.loads_typed(serde.dumps_typed(state))
+    assert isinstance(back["handoff"], Handoff) and isinstance(back["ladder"], Ladder) and isinstance(back["ladder"].pair, Pair)
+    assert isinstance(back["episodes"]["roles"], EpisodeLog) and back["episodes"]["roles"].facts[0].address == "probe:roles.1"
+    assert isinstance(back["case"], Case) and back["case"].open

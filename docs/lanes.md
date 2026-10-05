@@ -27,6 +27,21 @@ The frame text ([lane/nodes.py:52](../causal_agent/lane/nodes.py)) is the one th
 material: the decision the desk made, the pack's rendering of the dataset, the change, the beliefs, the family block, the design
 brief and the person's words, the probes, and the case as code weighed it.
 
+## Watching a lane in Studio
+
+Each lane's `graph.py` compiles a module-level `graph` for `langgraph dev`, and `langgraph.json` registers the adjustment lane
+beside the desk. `make studio` starts the server on port 2024 with its pickled threads wiped; open
+`https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2024` in Chrome (Safari refuses a page's calls to a plain-http
+local port, and so does the browser pane inside the Claude app), sign in to LangSmith once, and pick `adjustment`. The input is
+the three keys the desk passes: `{"question": <the pack's question>, "dataset": <the pack's pack_name>, "handoff": <the
+contents of designs/<n>/handoff.json>}`. `load` validates the pack from that JSON and writes it back as the object every rung
+reads. Run it, and click a rung for its update: the `ladder` as it stands, with the line the rung wrote and whether the pack,
+code or a judgement set it; `episodes` for what a judgement looked at and was refused; `declines` and `feasibility` for a stop.
+"Interrupt before" a node steps the ladder one rung at a time; forking a thread from a node reruns from there, with a fresh
+judgement where that node is one, and forking at `interpret` appends a second interpretation. The server and every thread stay
+on your machine. The other two lanes are not registered: the discontinuity lane once ended its parent process silently on
+macOS, which is why lanes run in a subprocess under the desk, and each is added once a run has proved the server survives it.
+
 ## The adjustment lane, stage by stage
 
 [families/adjustment/lane/](../causal_agent/families/adjustment/lane/): `graph.py` wires it, `nodes.py` holds the stages,

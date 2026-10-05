@@ -118,21 +118,22 @@ def _thought(t, node: str):
 # ------------------------------------------------------------------ load (fact) and the case (fact)
 
 
-def load(state: SpecialistState) -> Command:
-    h = state["handoff"]
+def load(state: SpecialistState) -> Command[Literal["case", "feasibility"]]:
+    h = Handoff.model_validate(state["handoff"])  # from the desk as the object, from Studio as JSON; every node after reads the object
     if h.intent != "effect_of_change":
         return _stop(
             "load",
             "this lane answers the effect of a change on an outcome; the question was read differently",
             [f"intent: {h.intent}"],
             "a question about the effect of a change on an outcome",
+            {"handoff": h},
         )
     if not h.treatment:
-        return _stop("load", "the hand-off names no treatment", [], "a hand-off whose columns exist in the file")
+        return _stop("load", "the hand-off names no treatment", [], "a hand-off whose columns exist in the file", {"handoff": h})
     try:
         it = intake.load(h, "dowhy")
     except intake.IntakeStop as e:
-        return Command(goto="feasibility", update={"feasibility": e.feasibility})
+        return Command(goto="feasibility", update={"feasibility": e.feasibility, "handoff": h})
     t, y = _key(h.treatment), _key(h.outcome)
     table = it.table
     ok = CK.outcome_kind(table[y])
@@ -142,7 +143,7 @@ def load(state: SpecialistState) -> Command:
             "the outcome is neither numeric nor two-valued",
             [f"outcome {y} has {table[y].nunique()} distinct non-numeric values"],
             "an outcome measured as a number or a yes/no",
-            {"declines": it.declines},
+            {"declines": it.declines, "handoff": h},
         )
     cfg = load_checks()
     target = cfg["target_units"].get(h.scope.target)
@@ -152,7 +153,7 @@ def load(state: SpecialistState) -> Command:
             f"target '{h.scope.target}' is not supported by this lane yet",
             [],
             "a question asking for the average effect, or the effect on the treated",
-            {"declines": it.declines},
+            {"declines": it.declines, "handoff": h},
         )
     tcol = table[t]
     numeric_dose = pd.api.types.is_numeric_dtype(tcol) and tcol.nunique() > MAX_DOSE_LEVELS
@@ -162,7 +163,7 @@ def load(state: SpecialistState) -> Command:
             "the treatment is a dose with many values; this lane compares levels",
             [f"{t} has {tcol.nunique()} distinct values"],
             "a two-level or few-level treatment, or a dose-response lane",
-            {"declines": it.declines},
+            {"declines": it.declines, "handoff": h},
         )
     levels = [str(v) for v in sorted(tcol.unique(), key=lambda v: str(v))]
     _writer()(
@@ -181,6 +182,7 @@ def load(state: SpecialistState) -> Command:
     return Command(
         goto="case",
         update={
+            "handoff": h,
             "run_dir": str(it.run_dir),
             "table_path": str(it.table_path),
             "columns": it.columns,
@@ -252,7 +254,7 @@ def _as_list(v: Any) -> list[str]:
 # rung 0: the pair (code from the pack; a judgement only when the pack does not name the treated level)
 
 
-def pair(state: SpecialistState) -> Command:
+def pair(state: SpecialistState) -> Command[Literal["mechanism", "feasibility"]]:
     h = state["handoff"]
     t, y, _ = _keys(state)
     assert t is not None
@@ -323,7 +325,7 @@ def _validate_contrasts(items: list[Contrast], levels: list[str]) -> list[str]:
 # rung 1: the mechanism (code from the pack; a judgement fills what the pack leaves open)
 
 
-def mechanism(state: SpecialistState) -> Command:
+def mechanism(state: SpecialistState) -> Command[Literal["time", "feasibility"]]:
     h = state["handoff"]
     lad = _ladder(state)
     blk = _block(h)
@@ -564,7 +566,7 @@ def _with_pack_links(state: SpecialistState, x: Role, h: Handoff) -> Role:
     return x.model_copy(update={"redundant_with": same or _column_key(state, x.redundant_with), "nested_in": nested or _column_key(state, x.nested_in)})
 
 
-def roles(state: SpecialistState) -> Command:
+def roles(state: SpecialistState) -> Command[Literal["post_roles", "feasibility"]]:
     """Rung 3: every pre-treatment column (and every column whose timing is unknown) that the pack leaves open, placed together."""
     h = state["handoff"]
     case = _case(state)
@@ -626,7 +628,7 @@ def roles(state: SpecialistState) -> Command:
     return Command(goto="post_roles", update={"ladder": lad.model_copy(update={"roles": out}), "debug": thoughts, "episodes": {"roles": log}})
 
 
-def post_roles(state: SpecialistState) -> Command:
+def post_roles(state: SpecialistState) -> Command[Literal["merge_graph", "feasibility"]]:
     """Rung 4: every column set at or after the treatment that the pack leaves open, placed together."""
     h = state["handoff"]
     case = _case(state)
@@ -758,7 +760,7 @@ def merge_graph(state: SpecialistState) -> dict:
     return {"graph": g}
 
 
-def verify_graph(state: SpecialistState) -> Command:
+def verify_graph(state: SpecialistState) -> Command[Literal["road", "feasibility"]]:
     """The graph as a whole: acyclic, every node a table column, a role for every column. The per-column checks were made in the
     rungs' gates; a graph that fails here is an honest stop."""
     g: Graph = state["graph"]
@@ -1093,7 +1095,7 @@ def check_design(state: SpecialistState) -> dict:
 # ------------------------------------------------------------------ assess (the yaml first, then a judgement, repair loop)
 
 
-def assess(state: SpecialistState) -> Command:
+def assess(state: SpecialistState) -> Command[Literal["pick_estimator", "merge_graph", "feasibility"]]:
     g: Graph = state["graph"]
     est: Estimand = state["estimand"]
     h = state["handoff"]
@@ -1213,7 +1215,7 @@ def _design_facts(state: SpecialistState) -> dict[str, Any]:
     }
 
 
-def pick_estimator(state: SpecialistState) -> Command:
+def pick_estimator(state: SpecialistState) -> Command[Literal["freeze_design", "feasibility"]]:
     """The catalogue filtered by the facts; when the brief names the road, only that road's estimators are offered."""
     facts = _design_facts(state)
     excluded = set(state.get("excluded_estimators") or [])
@@ -1384,7 +1386,7 @@ def _latest_primary(state: SpecialistState) -> dict[str, Estimate]:
     return out
 
 
-def after_analyse(state: SpecialistState) -> Command:
+def after_analyse(state: SpecialistState) -> Command[Literal["interpret", "pick_estimator", "figures", "feasibility"]]:
     failed = [e for e in _latest_primary(state).values() if e.error]
     if not failed:
         sends = fan_out_interpret(state)
