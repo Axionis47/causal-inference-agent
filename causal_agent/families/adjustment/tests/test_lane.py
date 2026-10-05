@@ -260,7 +260,8 @@ def test_students_happy_path():
     d = out["design"]
     assert set(d.estimand.adjustment_set) == {"lunch", "parental_level_of_education"}
     assert {x.column for x in d.graph.excluded} == {"reading_score", "writing_score"}
-    assert d.estimator.name == "propensity_score_stratification" and d.also_run is not None and d.also_run.name == "linear_regression"
+    # units chose after an offer, so the target is the effect on the treated; linear regression cannot be asked for it and is no secondary
+    assert d.estimator.name == "propensity_score_stratification" and d.also_run is None and d.target_units == "att" and not out["declines"]
     primary = [e for e in out["estimates"] if not e.secondary and e.modifier is None]
     assert len(primary) == 1 and primary[0].error is None and primary[0].value > 0
     assert (
@@ -269,7 +270,7 @@ def test_students_happy_path():
         and out["ladder"].heterogeneity.by == "code"
         and out["ladder"].threats is not None
     )
-    assert {e.method for e in out["estimates"]} == {"propensity_score_stratification", "linear_regression"}
+    assert {e.method for e in out["estimates"]} == {"propensity_score_stratification"}
     assert {x.refuter for x in out["refutations"]} == {"placebo_treatment_refuter", "random_common_cause", "data_subset_refuter"}
     placebo = next(x for x in out["refutations"] if x.refuter == "placebo_treatment_refuter")
     assert placebo.passed is True
@@ -354,19 +355,14 @@ def test_hard_flag_blocks_proceed():
 
 
 def test_estimator_outside_list_is_rejected_then_accepted():
-    fake = FakeLLM(pick_script=["econml_magic", "linear_regression"])
+    fake = FakeLLM(pick_script=["econml_magic", "propensity_score_weighting"])
     out = _run(fake, students_handoff())
     assert out["specialist_result"]["status"] == "done"
-    assert out["design"].estimator.name == "linear_regression"
+    assert out["design"].estimator.name == "propensity_score_weighting"
     assert fake.calls.count("EstimatorPick") == 2
     log = out["episodes"]["pick_estimator"]
-    assert [t.errors for t in log.tries] == [
-        [
-            "'econml_magic' is not one of "
-            + str([e for e in ["propensity_score_stratification", "propensity_score_weighting", "linear_regression", "propensity_score_matching"]])
-        ],
-        [],
-    ]
+    offered = ["propensity_score_stratification", "propensity_score_weighting", "propensity_score_matching"]  # the entries that serve the treated
+    assert [t.errors for t in log.tries] == [[f"'econml_magic' is not one of {offered}"], []]
 
 
 def test_interpretation_bad_cite_is_retried():
@@ -522,6 +518,10 @@ def test_instrument_and_mediator_open_roads_around_a_hidden_factor(tmp_path):
     assert "backdoor" not in est.roads and {"iv", "frontdoor"} <= set(est.roads) and est.instruments == ["z"] and est.frontdoor_set == ["m"]
     d = out["design"]
     assert d.estimator.name == "instrumental_variable" and d.estimand.kind == "iv" and d.estimand.adjustment_set == []
+    # the person chose after an offer, so the treated were asked for; the instrument delivers the average, and the design says so
+    decl = next(x for x in out["declines"] if x.about == "scope.target")
+    assert d.target_units == "ate" and decl.pack_value == "att" and decl.took == "ate" and decl.check == "freeze.target_not_served"
+    assert decl.address in out["interpretations"][0].cites and "cannot be asked for the effect on the treated" in r["report"]
     assert (
         fake.calls.count("Road") == 1
         and out["ladder"].road.by == "judgement"
@@ -844,6 +844,7 @@ def test_a_brief_naming_the_front_door_takes_it_over_the_instrument(tmp_path):
     assert r["status"] == "done", r.get("feasibility")
     assert {"iv", "frontdoor"} <= set(out["estimand"].roads) and out["estimand"].kind == "frontdoor"
     assert out["design"].estimator.name == "frontdoor_two_stage" and out["design"].estimand.kind == "frontdoor"
+    assert out["design"].target_units == "ate" and any(x.about == "scope.target" and x.took == "ate" for x in out["declines"])
     assert "NAMES YOU MAY PICK: frontdoor_two_stage" in fake.humans_of("EstimatorPick")[0]
     assert (
         fake.calls.count("Road") == 0
@@ -1082,7 +1083,7 @@ def test_after_the_freeze_the_run_reads_the_design_and_never_the_catalogue(monke
     h = _students3()
     g.invoke({"question": "q", "handoff": h, "dataset": h.pack_name}, cfg)
     d = g.get_state(cfg).values["design"]
-    assert d.estimator.name == "propensity_score_stratification" and d.also_run is not None and d.also_run.name == "linear_regression"
+    assert d.estimator.name == "propensity_score_stratification" and d.also_run is None
     assert [r.name for r in d.refuters] == ["placebo_treatment_refuter", "random_common_cause", "data_subset_refuter"]
     assert d.within_rules.floor == 20 and d.within_rules.max_levels == 4 and d.effect_tolerance == 0.01
 
@@ -1115,3 +1116,28 @@ def test_the_engines_set_is_checked_against_the_frozen_design_before_any_estimat
     f = out["feasibility"]
     assert out["specialist_result"]["status"] == "infeasible" and f.stage == "analyse"
     assert "['lunch', 'parental_level_of_education']" in f.facts[0] and "['lunch']" in f.facts[0] and out["estimates"][0].error.startswith("design:")
+
+
+def test_no_yaml_key_is_dead_and_every_applies_when_key_is_a_fact():
+    """Every key of every estimator and refuter entry is a field of its model; every applies_when key names a fact the pick
+    computes; every field the models declare is read somewhere in the lane or the harness's loader."""
+    from pathlib import Path
+
+    import yaml
+
+    from causal_agent.families.adjustment.lane.knowledge import EstimatorEntry, RefuterEntry
+    from causal_agent.lane.knowledge import fact_names
+
+    here = Path(__file__).resolve().parents[1] / "lane"
+    nodes = (here / "nodes.py").read_text()
+    code = nodes + "".join((here / f).read_text() for f in ("adapter.py", "contracts.py", "knowledge/__init__.py"))
+    code += (Path(__file__).resolve().parents[3] / "lane" / "knowledge.py").read_text()
+    for file, model in (("estimators", EstimatorEntry), ("refuters", RefuterEntry)):
+        raw = yaml.safe_load((here / "knowledge" / f"{file}.yaml").read_text())
+        fields = set(model.model_fields) - {"name"}
+        for name, entry in raw.items():
+            assert not set(entry) - fields, f"{name} has keys no field reads: {sorted(set(entry) - fields)}"
+            for fact in fact_names(entry["applies_when"]):
+                assert f'"{fact}"' in nodes, f"{name} applies by {fact!r}, which the pick never computes"
+        for field in fields:
+            assert f".{field}" in code, f"{field!r} is declared on {model.__name__} but nothing reads it"

@@ -99,8 +99,10 @@ above it, by the interpretation, by the report and by the chat after.
     items join as checks.
 13. **assess** (yaml first, then a judgement, only when something flagged). Proceed, revise, or stop; a hard flag never permits proceed;
    a revision must touch a flagged column and loops to merge, three times at most.
-14. **pick_estimator** (judgement). Code filters `estimators.yaml` by road, treatment type, outcome kind and adjustment set; the model
-   picks one of the survivors by name, citing check addresses.
+14. **pick_estimator** (judgement). Code filters `estimators.yaml` by road, treatment type, outcome kind, adjustment set and the
+   target asked; when no entry of the road serves that target, the road's entries are offered and the freeze records a decline
+   naming the target delivered, which the interpretation must cite. The model picks one of the survivors by name, citing check
+   addresses.
 15. **freeze_design** (code). `design.json`: contrasts, graph, estimand, checks, estimator and its secondary, every refuter whose
     conditions match. Nothing loops after an estimate exists.
 16. **analyse** (code, per contrast). DoWhy fits the primary, runs every matching refuter, fits the secondary, then the primary

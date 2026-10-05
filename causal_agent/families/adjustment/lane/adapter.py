@@ -87,6 +87,9 @@ def estimate(model, entry: EstimatorEntry, contrast_key: str, target_units: str,
     the frozen graph; its set for the entry's road must be the one the design froze, or nothing runs and the mismatch is the fact."""
     table = model._data
     n_t, n_c = int((table[TREATED] == 1).sum()), int((table[TREATED] == 0).sum())
+    if target_units not in entry.targets:
+        why = f"design: {entry.name} does not serve the target {target_units}; it serves {', '.join(entry.targets)}"
+        return Estimate(contrast=contrast_key, method=entry.name, n_treated=n_t, n_control=n_c, target_units=target_units, secondary=secondary, error=why), None
     ide = model.identify_effect(proceed_when_unidentifiable=True)
     found, want = _road_set(ide, entry.estimand), _frozen_set(frozen, entry.estimand)
     if found != want:

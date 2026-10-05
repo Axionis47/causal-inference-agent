@@ -31,7 +31,7 @@ data_subset_refuter:
 add_unobserved_common_cause:
   kind: sensitivity
   in_words: simulate a hidden factor that moves both the treatment and the outcome at the declared strengths, and report how far the estimate moves
-  applies_when: {estimand: [backdoor], hidden: [true]}
+  applies_when: {estimand: [backdoor], sensitivity_required: [true]}
   params:
     confounders_effect_on_treatment: binary_flip
     confounders_effect_on_outcome: linear

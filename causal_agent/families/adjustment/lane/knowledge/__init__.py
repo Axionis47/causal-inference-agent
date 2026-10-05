@@ -28,14 +28,21 @@ class EstimatorEntry(BaseModel):
     def estimand(self) -> str:
         return str(self.applies_when.get("estimand"))
 
-    def applies(self, *, estimand: str, treatment: str, outcome: str, adjustment_set: str) -> bool:
-        """The entry runs on a design whose road, treatment kind, outcome kind and adjustment set are the entry's."""
+    @property
+    def targets(self) -> list[str]:
+        """The units the entry can be asked the effect for: ate, att, atc."""
+        return [str(t) for t in self.applies_when.get("target", [])]
+
+    def applies(self, *, estimand: str, treatment: str, outcome: str, adjustment_set: str, target: str | None = None) -> bool:
+        """The entry runs on a design whose road, treatment kind, outcome kind and adjustment set are the entry's, and, when a
+        target is given, one the entry serves."""
         w = self.applies_when
         return (
             w.get("estimand") == estimand
             and treatment in w.get("treatment", [])
             and outcome in w.get("outcome", [])
             and adjustment_set in w.get("adjustment_set", [])
+            and (target is None or target in self.targets)
         )
 
     def render(self) -> str:
@@ -50,13 +57,13 @@ class RefuterEntry(BaseModel):
     params: dict[str, Any] = Field(default_factory=dict)
     pass_when: dict[str, Any] = Field(default_factory=dict)
 
-    def applies(self, *, estimand: str, adjustment_set: str, hidden: bool = False) -> bool:
+    def applies(self, *, estimand: str, adjustment_set: str, sensitivity_required: bool = False) -> bool:
         w = self.applies_when
-        needs_hidden = w.get("hidden")
+        needs = w.get("sensitivity_required")
         return (
             estimand in w.get("estimand", [])
             and adjustment_set in w.get("adjustment_set", ["empty", "nonempty"])
-            and (needs_hidden is None or hidden in needs_hidden)
+            and (needs is None or sensitivity_required in needs)
         )
 
 

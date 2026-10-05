@@ -1195,6 +1195,7 @@ def _design_facts(state: SpecialistState) -> dict[str, Any]:
         "outcome": state["outcome_kind"],
         "adjustment_set": "nonempty" if est.adjustment_set else "empty",
         "adjustment_columns": est.adjustment_set,
+        "target": state["target_units"],
         "contrasts": len(state["contrasts"]),
         "smallest_arm": min((int(r.value) for r in arms if r.value is not None), default=0),
         # from the pack: what the person said, so the pick is not made by habit
@@ -1209,12 +1210,15 @@ def pick_estimator(state: SpecialistState) -> Command[Literal["freeze_design", "
     """The catalogue filtered by the facts: the road the road rung took, the treatment and outcome kinds, the adjustment set."""
     facts = _design_facts(state)
     excluded = set(state.get("excluded_estimators") or [])
-    allowed = [
+    on_road = [
         e
         for e in load_estimators()
         if e.applies(estimand=facts["estimand"], treatment=facts["treatment"], outcome=facts["outcome"], adjustment_set=facts["adjustment_set"])
         and e.name not in excluded
     ]
+    # the entries that serve the target asked; when none on this road does, every entry of the road is offered and the freeze
+    # records what the pick delivers instead of what was asked
+    allowed = [e for e in on_road if facts["target"] in e.targets] or on_road
     if not allowed:
         return _stop(
             "pick_estimator",
@@ -1271,6 +1275,9 @@ def pick_estimator(state: SpecialistState) -> Command[Literal["freeze_design", "
 # ------------------------------------------------------------------ freeze (fact)
 
 
+_TARGET_WORDS = {"ate": "the average effect", "att": "the effect on the treated", "atc": "the effect on the untreated"}
+
+
 def _within(state: SpecialistState) -> dict[str, Within]:
     """Per modifier the heterogeneity rung named: the graph without it and the estimand the engine identifies on that graph, frozen
     here so the within-level runs are checked against what was written, not against the main estimand."""
@@ -1291,9 +1298,28 @@ def freeze_design(state: SpecialistState) -> dict:
     est: Estimand = state["estimand"]
     entry = estimator_entry(state["estimator"])
     adj = "nonempty" if est.adjustment_set else "empty"
-    refuters = [r for r in load_refuters() if r.applies(estimand=est.kind, adjustment_set=adj, hidden=est.sensitivity_required)]
+    refuters = [r for r in load_refuters() if r.applies(estimand=est.kind, adjustment_set=adj, sensitivity_required=est.sensitivity_required)]
+    asked = state["target_units"]
+    target = asked if asked in entry.targets else entry.targets[0]  # what the estimator delivers, when it cannot be asked for the target
+    declines: list[Decline] = []
+    if target != asked:
+        declines.append(
+            Decline(
+                stage="freeze",
+                kind="declined",
+                about="scope.target",
+                pack_value=asked,
+                took=target,
+                check="freeze.target_not_served",
+                reason=f"{entry.name} delivers {_TARGET_WORDS[target]} and cannot be asked for {_TARGET_WORDS[asked]}; the estimate is read as {_TARGET_WORDS[target]}",
+            )
+        )
     second = estimator_entry(entry.also_run) if entry.also_run else None
-    also = second if second is not None and second.applies(estimand=est.kind, treatment="binary", outcome=state["outcome_kind"], adjustment_set=adj) else None
+    also = (
+        second
+        if second is not None and second.applies(estimand=est.kind, treatment="binary", outcome=state["outcome_kind"], adjustment_set=adj, target=target)
+        else None
+    )
     cfg = load_checks()
     d = Design(
         contrasts=state["contrasts"],
@@ -1305,14 +1331,14 @@ def freeze_design(state: SpecialistState) -> dict:
         refuters=refuters,
         within_rules=WithinRules(floor=int(cfg["arms"]["min_per_arm"]["hard"]), max_levels=int((cfg.get("modifiers") or {}).get("max_levels", 4))),
         effect_tolerance=float(cfg.get("effect_tolerance", 0.01)),
-        target_units=state["target_units"],
+        target_units=target,
         within=_within(state),
     )
     run_dir = Path(state["run_dir"])
     (run_dir / "design.json").write_text(d.model_dump_json(indent=2))
     (run_dir / "design.md").write_text(d.render())
     _writer()({"design": d.render()})
-    return {"design": d}
+    return {"design": d, "declines": declines}
 
 
 # ------------------------------------------------------------------ analyse (fact, fan-out per contrast)
@@ -1469,6 +1495,7 @@ def _required(state: SpecialistState, contrast_key: str) -> list[str]:
     if any(e.contrast == contrast_key and e.error is None and not e.secondary and e.modifier is None for e in state.get("estimates") or []):
         out.append(f"estimate:{contrast_key}.ci")
     out += [f"{e.tag}.value" for e in state.get("estimates") or [] if e.contrast == contrast_key and e.modifier is not None and e.error is None]
+    out += [x.address for x in state.get("declines") or [] if x.about == "scope.target"]  # the target delivered is not the one asked
     return out
 
 
@@ -1628,9 +1655,10 @@ def assemble(state: SpecialistState) -> dict:
                         ci = f" [{e.ci_low:.3g}, {e.ci_high:.3g}]" if e.ci_low is not None else ""
                         kind = "within a level" if e.modifier is not None else "secondary" if e.secondary else "primary"
                         lines.append(f"    {label} {e.value:+.4g}{ci}  n={e.n_treated}/{e.n_control}  {kind}")
+            words = {rf.name: rf.in_words for rf in d.refuters}
             for r in state.get("refutations") or []:
                 if r.contrast == c.key:
-                    lines.append(f"    refute {r.refuter:27} {r.detail}")
+                    lines.append(f"    refute {r.refuter:27} {r.detail}  ({words.get(r.refuter, '')})")
             for i in state.get("interpretations") or []:
                 if i.contrast == c.key:
                     lines.append(f"    ANSWER  {i.answer}")
