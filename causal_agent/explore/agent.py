@@ -29,6 +29,8 @@ def explore(req: ExploreRequest) -> Trail:
     columns = "\n".join(f"- {k} -> {v}" for k, v in req.columns.items())
     dropped = P.DROPPED.format(name=req.dropped_name()) if req.dropped_name() else ""
     user = P.USER.format(ask=req.ask, context=req.context, columns=columns, dropped=dropped)
+    if req.product == "table":
+        user += P.TABLE.format(keep=", ".join(repr(c) for c in req.keep) or "(none)")
     record, log, thoughts, errors = run_episode(
         Exploration,
         P.SYSTEM,

@@ -14,6 +14,7 @@ from causal_agent.common import trace
 from causal_agent.common.addresses import key
 
 Drop = Literal["outcome", "treatment", "both"]
+ROW = "__row"  # a new version keeps every row's place: the agent sees this column and must keep it on every row it keeps
 
 
 def mentions(text: str, column: str | None) -> bool:
@@ -37,14 +38,18 @@ def choose_drop(ask: str, outcome: str | None, treatment: str | None, frozen: bo
     return "outcome"
 
 
-def project(csv: Path, out_dir: Path, *, drop: str) -> Path:
-    """The table without one column, written under the artifact's folder for the sandbox to read. One tool span naming the
-    column dropped and what was kept; the file is derivable from the dataset, so it is not attached."""
-    with trace.span("project", run_type="tool", inputs={"csv": str(csv), "dropped": drop}) as s:
+def project(csv: Path, out_dir: Path, *, drop: str | None, row_id: bool = False) -> Path:
+    """The table as the sandbox reads it, written under the folder: without one column when one is held back, and with the
+    row id first when a new version is asked for. One tool span naming the column dropped and what was kept; the file is
+    derivable from the dataset, so it is not attached."""
+    with trace.span("project", run_type="tool", inputs={"csv": str(csv), "dropped": drop, "row_id": row_id}) as s:
         df = pd.read_csv(csv)
-        if drop not in df.columns:
+        if drop is not None and drop not in df.columns:
             raise KeyError(f"the column to drop, {drop!r}, is not in {csv}")
-        kept = df.drop(columns=[drop])
+        kept = df.drop(columns=[drop]) if drop is not None else df
+        if row_id:
+            kept = kept.copy()
+            kept.insert(0, ROW, range(len(kept)))
         out = out_dir / "input"
         out.mkdir(parents=True, exist_ok=True)
         path = out / "table.csv"

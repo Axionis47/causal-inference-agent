@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 from causal_agent.common.contracts import Thought
 
 Dropped = Literal["outcome", "treatment"]
+Product = Literal["look", "table"]
 
 
 class ExploreRequest(BaseModel):
@@ -29,6 +30,9 @@ class ExploreRequest(BaseModel):
     memory_version: int = 0
     data_version: int = 0
     budget: int = Field(default=0, description="scripts the agent may run; 0 takes the budget checks.yaml declares")
+    product: Product = Field(default="look", description="look: facts, a picture or a small table of facts; table: a new version of the whole table")
+    rows: int = Field(default=0, description="for a table: how many rows the table sent has, so a row added can be told from one kept")
+    keep: list[str] = Field(default_factory=list, description="for a table: columns the new table must carry, by the file's own names (the pair)")
 
     def dropped_name(self) -> str | None:
         if self.dropped == "outcome":

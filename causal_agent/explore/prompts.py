@@ -30,3 +30,10 @@ The table's columns (key -> the file's own column name; use the file's own name)
 {dropped}"""
 
 DROPPED = "\nThe column {name!r} is not in the table you were given: it is held back until the design has run.\n"
+TABLE = """
+This time you are asked to make a new version of the whole table, not to look at it. The step whose files are the answer must
+write table.csv in the current directory: every row you keep with its __row value exactly as given (a row without one, or one
+made up, is refused; you may drop rows), every column as it was except what the person asked to add, drop or change, and the
+columns {keep} kept whatever else changes. Write facts.json with at least rows and columns, the new table's counts. In the
+answer name that step, set table to "table.csv", and say in the summary what changed and why.
+"""

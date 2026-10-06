@@ -74,6 +74,8 @@ def gate_record(record: Exploration, req: ExploreRequest, tools: CodeTools) -> l
             errors.append(f"table {record.table!r} is not a readable, non-empty CSV or JSON file")
     if not (record.facts or record.figure or record.table):
         errors.append("the record names no product: at least one fact, a figure, or a table")
+    if req.product == "table":
+        errors += new_table_errors(record, req, folder)
     if req.outcome and req.treatment and not req.frozen:
         joined = [s for s in _sentences(record.summary) if mentions(s, req.outcome) and mentions(s, req.treatment)]
         joined += [n for n in record.facts if mentions(n, req.outcome) and mentions(n, req.treatment)]
@@ -96,3 +98,36 @@ def _parses(path) -> bool:
     except (OSError, ValueError, pd.errors.ParserError):
         return False
     return False
+
+
+def new_table_errors(record: Exploration, req: ExploreRequest, folder) -> list[str]:
+    """What a new version of the table is held to: the step wrote table.csv; every row carries the row id it was given, once, and
+    no row is new; the columns the pair needs are still there."""
+    from causal_agent.explore.project import ROW
+
+    if record.table != "table.csv":
+        return ['a new version of the table is table.csv, written by the step named; set table to "table.csv"']
+    path = folder / "table.csv"
+    if not path.is_file():
+        return [f"step {record.step} wrote no table.csv"]
+    try:
+        df = pd.read_csv(path)
+    except Exception as e:  # noqa: BLE001  (whatever pandas raises is the reason)
+        return [f"table.csv does not read as a CSV: {e}"]
+    errors: list[str] = []
+    if ROW not in df.columns:
+        return [f"table.csv has no {ROW} column; keep it on every row exactly as given"]
+    ids = df[ROW]
+    if ids.isna().any() or not pd.api.types.is_integer_dtype(ids):
+        errors.append(f"{ROW} must be the integer given on every row; a row without one is a row that was not in the table")
+    else:
+        if ids.duplicated().any():
+            errors.append(f"{ROW} repeats; a row is kept once or dropped, never doubled")
+        if req.rows and ((ids < 0) | (ids >= req.rows)).any():
+            errors.append(f"{ROW} holds values outside 0 to {req.rows - 1}: a row that was not in the table cannot be added")
+    gone = [c for c in req.keep if c not in df.columns]
+    if gone:
+        errors.append("the new table must keep " + ", ".join(repr(c) for c in req.keep) + "; missing: " + ", ".join(repr(c) for c in gone))
+    if len(df) == 0:
+        errors.append("the new table has no rows")
+    return errors
