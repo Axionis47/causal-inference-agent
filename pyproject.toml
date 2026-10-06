@@ -25,6 +25,7 @@ dependencies = [
     "langgraph-checkpoint-sqlite>=2.0",
     "matplotlib>=3.9",
     "rdlocrand>=2.0",
+    "a2a-sdk[http-server]>=1.2,<2",
 ]
 
 [build-system]

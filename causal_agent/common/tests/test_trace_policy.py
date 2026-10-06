@@ -16,6 +16,7 @@ MODEL_CALLERS = {"common/llm.py", "lane/episode.py"}
 PROCESS_STARTERS = {
     "desk/pipeline.py": "the lane's process; carries the parent run and the thread",
     "viz/sandbox.py": "the drawing script, fenced; its span is opened around the call",
+    "explore/client.py": "the exploration agent's process; carries the parent run and the thread",
     "common/llm.py": "gcloud config, to find the project; no trace",
 }
 
@@ -64,6 +65,8 @@ def test_a_process_boundary_carries_the_trace():
     assert not hits, f"a new process would start a new trace root: {hits}"
     pipeline = (ROOT / "desk" / "pipeline.py").read_text()
     assert "trace.child_env(" in pipeline and "trace.parent()" in pipeline, "the lane's process must continue the desk's run"
+    client, server = (ROOT / "explore" / "client.py").read_text(), (ROOT / "explore" / "server.py").read_text()
+    assert "trace.child_env(" in client and "trace.parent()" in server, "the exploration agent's process must continue the desk's run"
 
 
 def test_a_file_under_a_design_run_or_viz_folder_is_written_through_trace_write():
