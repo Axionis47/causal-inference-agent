@@ -294,7 +294,11 @@ class Prompt(BaseModel):
     open: list[str] = Field(default_factory=list)
     runs: int = 0
     phase: str = "before"
-    kind: str | None = Field(default=None, description="question: the causal question is being asked; ask: a field; after: the chat after a run")
+    kind: str | None = Field(
+        default=None,
+        description="question: the causal question is being asked; chat: a turn with nothing asked; ask: a question rides with the reply; "
+        "ready: the design the desk would run, waiting for the word; after: the chat after a run",
+    )
 
 
 class Activity(BaseModel):

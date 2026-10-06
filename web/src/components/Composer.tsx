@@ -88,7 +88,11 @@ export default function Composer({
               ? "Ask what it found, why this design, what a flag means, or say what to change."
               : view.prompt?.kind === "question"
                 ? "What changed, and what might it have affected? Name them as they appear in the columns."
-                : "Answer in your own words, or pick a chip above and add what it misses."
+                : view.prompt?.kind === "ask"
+                  ? "Answer in your own words, or pick a chip above and add what it misses."
+                  : view.prompt?.kind === "ready"
+                    ? "Say yes to hand off, or correct any line of the design."
+                    : "Tell me about the data, ask about it, or ask for a picture."
           }
           onChange={(e) => setFree(e.target.value)}
           onKeyDown={(e) => {
@@ -103,11 +107,11 @@ export default function Composer({
             {before && (
               <button
                 className="btn sm"
-                disabled={disabled || !view.ready}
-                onClick={() => onSend("run")}
-                title={view.ready ? "Hand off to the analysis" : "Settle the open claims first"}
+                disabled={disabled}
+                onClick={() => onSend(view.prompt?.kind === "ready" ? "yes, run it" : "run the analysis")}
+                title={view.prompt?.kind === "ready" ? "Hand off to the analysis" : "The desk will ask what it still needs, then show the design"}
               >
-                Run the analysis
+                {view.prompt?.kind === "ready" ? "Yes, run it" : "Run the analysis"}
               </button>
             )}
             <button className="btn quiet sm" disabled={disabled} onClick={onNew} title="A new question of the same file; what is known carries over">

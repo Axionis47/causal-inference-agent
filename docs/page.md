@@ -28,7 +28,7 @@ each step in a worker thread and keeps the interrupt payload as the prompt is [s
 | field | what |
 |---|---|
 | `stage` | busy, waiting, ended, stale, error, new |
-| `phase`, `ready`, `prompt` | before or after the run; whether the matrix says ready; the current ask with its chips |
+| `phase`, `ready`, `prompt` | before or after the run; whether the matrix says ready; the current prompt and its kind: `question`, `chat` (nothing asked), `ask` (a question with its chips), `ready` (the design, waiting for the word), `after` |
 | `claims`, `status` | every claim with its status and source; the matrix as the page draws it |
 | `runs` | one `RunView` per design: the decision, the checks, the estimates, the refutations, the interpretations, the declines, the figures, the pictures drawn after it |
 | `transcript` | one `Turn` per line of the conversation, each with an optional figure or picture |

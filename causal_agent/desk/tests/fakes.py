@@ -306,6 +306,10 @@ def answer_ask(payload: dict) -> str:
     knows nothing else."""
     a = payload.get("ask") or {}
     addrs = a.get("addresses") or []
+    if payload.get("kind") == "ready":
+        return "yes, run it"
+    if payload.get("kind") == "chat":
+        return "let's run it"
     if a.get("kind") == "story":
         return STORY_ANSWER
     if a.get("kind") == "confirm":

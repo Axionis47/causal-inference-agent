@@ -33,18 +33,20 @@ test it failed ([desk/nodes/question.py:91](../causal_agent/desk/nodes/question.
 writes a `fit` step when a cell moves. `ask` composes the next thing by code ([desk/nodes/interview.py:288](../causal_agent/desk/nodes/interview.py)):
 
 1. The map, once per question: which families the file could answer it with, what each still needs, which are struck and why.
-2. The story, once: what the change was, who could get it and how that was decided, what each column records and when it was
-   set, what one row is. The Reader drafts every claim it can from the answer. A mined note skips the story.
+   Then nothing is asked. The person talks about the data (drafted into the memory), asks for a picture, or asks the desk
+   something, and each reply is only that, until they say they want to run.
+2. The story, once the person wants to run: what the change was, who could get it and how that was decided, what each column
+   records and when it was set, what one row is. The Reader drafts every claim it can from the answer. A mined note, or a
+   story already told in the chat, skips it.
 3. The readback ([desk/readback.py](../causal_agent/desk/readback.py)): the drafts grouped by the five claims every decision
    rests on, each line with the sentence it rests on. A yes confirms every draft shown.
-4. The gaps, asked by decision: the surviving families' decisions in the order each lists them, what blocks readiness first,
-   and every open field under one decision in one turn, prefixed "To settle <what the decision asks>, I need:". A belief is asked
-   as what the design would bet on. The relations a decision rests on (the same thing as another column, nested in one, the
-   effect could differ by it, an offer and an uptake as two columns) are asked the same way once nothing blocks, and never block:
-   the person may say run without them.
+4. The gaps that block, asked by decision: the surviving families' decisions in the order each lists them, every open blocking
+   field under one decision in one turn, prefixed "To settle <what the decision asks>, I need:". A belief is asked as what the
+   design would bet on. The relations a decision merely rests on (the same thing as another column, nested in one, the effect
+   could differ by it, an offer and an uptake as two columns) are not asked: they never block.
 5. The ready moment: the desk builds the pack and reads the assembled context back in the order the reasoning reads it, the
    pair, the mechanism, time, the relations, the hidden factors, heterogeneity, the threats, then names the design and what it
-   bets on. The person corrects any line there, before the run.
+   bets on. The person corrects any line there, or says yes, and the yes is what launches.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="diagrams/decisions-dark.svg">

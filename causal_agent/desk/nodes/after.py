@@ -249,6 +249,7 @@ def requestion(state: DeskState) -> dict:
         "invalid": None,
         "prefilter_votes": [],
         "oriented": False,
+        "run_intent": False,
         "story_asked": False,
         "readback_done": False,
         "focus": [],

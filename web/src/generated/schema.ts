@@ -666,7 +666,7 @@ export interface components {
             phase: string;
             /**
              * Kind
-             * @description question: the causal question is being asked; ask: a field; after: the chat after a run
+             * @description question: the causal question is being asked; chat: a turn with nothing asked; ask: a question rides with the reply; ready: the design the desk would run, waiting for the word; after: the chat after a run
              */
             kind?: string | null;
         };

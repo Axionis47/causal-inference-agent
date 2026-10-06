@@ -74,7 +74,11 @@ export default function Chat() {
               : view.stage === "waiting"
                 ? view.phase === "after"
                   ? `after run ${view.runs.length}`
-                  : "interviewing"
+                  : view.prompt?.kind === "ask"
+                    ? "interviewing"
+                    : view.prompt?.kind === "ready"
+                      ? "ready to run"
+                      : "talking"
                 : view.stage}
           </span>
         }

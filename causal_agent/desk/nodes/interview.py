@@ -288,8 +288,16 @@ def compose_map(status, memory: Memory, frame: QuestionFrame | None) -> str:
         lines.append(f"With this file, no family stands yet for {q}.")
     if status.struck:
         lines.append("Struck already: " + "; ".join(f"{fam.replace('_', ' ')} ({why})" for fam, why in status.struck.items()) + ".")
-    lines.append("Say which of these you care about and I will only ask what they need; or answer as we go and every one stays in play.")
+    lines.append(INVITATION + " Say which of these you care about and I will only ask what they need.")
     return "\n".join(lines)
+
+
+INVITATION = "Tell me more about the data, ask for a picture of anything in it, or say when you want to run."
+
+
+def standing(status, memory: Memory, frame: QuestionFrame | None) -> str:
+    """The reply for a turn with nothing else to say: where the question stands, and what the person can do next."""
+    return (_design_line(status, memory, frame) + " " + INVITATION).strip()
 
 
 def acknowledge(memory: Memory, addresses: list[str]) -> str:
@@ -312,45 +320,48 @@ def _told_by_note(memory: Memory, opened: list) -> bool:
 
 
 def ask(state: DeskState) -> Command[Literal["listen", "convince"]]:
-    """The next thing asked: once per question the story (unless a note told it), then the readback of the drafts, then one gap
-    question per turn asked because a decision needs it. The map comes first, once; whatever the desk answered or drew last
-    turn comes before the question. At ready the ready moment is shown every time; the person's word launches from there."""
+    """The reply this turn, and whether a question rides with it. Without run intent nothing is asked: the reply is what the desk
+    answered, drew or noted, the map once, or where the question stands. With run intent, the story once (unless a note or the
+    person told it), then the readback of the drafts, then one blocking gap per turn, and at ready the ready moment every
+    time; the person's word launches from there."""
     st = state["status"]
     memory = F.memory_of(state)
     opened = state.get("open") or []
+    intent = bool(state.get("run_intent"))
     flags: dict = {}
     a: Ask | None = None
-    if not state.get("story_asked") and opened:
+    if intent and not state.get("story_asked") and opened:
         flags["story_asked"] = True
-        if not _told_by_note(memory, opened):
+        story = memory.field("claim:story.text")
+        if not _told_by_note(memory, opened) and (story is None or story.value is None):
             a = Ask(addresses=[o.address for o in opened], kind="story", text=STORY_TEXT, because=sorted({b for o in opened for b in o.because}))
-    if a is None:
-        if state.get("run_intent"):  # the person wants to run: only what blocks is asked; a relation a decision rests on can wait
-            opened = [o for o in opened if not o.optional or o.status == "drafted"]
+    if a is None and intent:  # only what blocks is asked; a relation a decision rests on never does
+        opened = [o for o in opened if not o.optional or o.status == "drafted"]
         a = compose_ask(memory, opened, state.get("findings") or [], state.get("frame"), surviving=list(st.surviving))
         if a is not None and a.kind == "confirm":
             flags["readback_done"] = True
     head = (state.get("note") or "") + acknowledge(memory, state.get("settled_now") or [])
     if not state.get("oriented"):  # the first reply after the question is read: the map of what the file could answer
         head = compose_map(st, memory, state.get("frame")) + "\n\n" + head
-    if state.get("explained"):  # the person asked the desk something last turn: the answer comes first, then what is asked next
+    if state.get("explained"):  # the person asked the desk something last turn: the answer comes first
         head = state["explained"] + "\n\n" + head
     if state.get("drawn"):  # the person asked for a picture last turn: the caption comes first, the picture beside the reply
         head = state["drawn"] + "\n\n" + head
-    shown = {"artifact": state.get("artifact"), "drawn": None, **flags}
+    shown = {"artifact": state.get("artifact"), "drawn": None, "oriented": True, "explained": None, "note": "", **flags}
     if a is None:
-        if st.ready:
-            return Command(goto="convince", update={"ask": None, "reply": head, "oriented": True, "explained": None, "note": "", **shown})
-        body = (
-            "Nothing more to ask, but no design fits yet: "
-            + "; ".join(f"{f} ({w})" for f, w in st.struck.items())
-            + ". Tell me what is different about the data, or ask another question."
-        )
+        if intent and st.ready:
+            return Command(goto="convince", update={"ask": None, "reply": head, **shown})
+        if intent:
+            body = (
+                "Nothing more to ask, but no design fits yet: "
+                + "; ".join(f"{f} ({w})" for f, w in st.struck.items())
+                + ". Tell me what is different about the data, or ask another question."
+            )
+        else:
+            body = "" if head.strip() else standing(st, memory, state.get("frame"))
     else:
-        body = a.text
-        if state.get("run_intent"):
-            body = "Before I can run, this still has to be settled. " + body
-    return Command(goto="listen", update={"ask": a, "reply": head + body, "oriented": True, "explained": None, "note": "", **shown})
+        body = ("Before I can run, this still has to be settled. " if intent else "") + a.text
+    return Command(goto="listen", update={"ask": a, "reply": (head + body).strip(), **shown})
 
 
 # ------------------------------------------------------------------ convince (the ready moment)
@@ -415,11 +426,14 @@ def convince(state: DeskState, runtime: Runtime[Context]) -> dict:
 
 
 def listen(state: DeskState) -> Command[Literal["infer", "__end__"]]:
-    """The interrupt before the run. Whatever the person says goes to the Reader; only a quit word ends the conversation here."""
+    """The interrupt before the run. Whatever the person says goes to the Reader; only a quit word ends the conversation here.
+    The payload's kind says what the page is looking at: ask when a question rides with the reply, ready at the ready moment,
+    chat otherwise."""
     st, a = state["status"], state.get("ask")
+    memory = F.memory_of(state)
     payload = {
         "phase": "before",
-        "kind": "ask",
+        "kind": "ask" if a is not None else ("ready" if at_ready_moment(state, memory) else "chat"),
         "text": state.get("reply") or "",
         "status": st.render(list(CAT.kinds)) if st else "",
         "ready": bool(st and st.ready),
@@ -431,7 +445,6 @@ def listen(state: DeskState) -> Command[Literal["infer", "__end__"]]:
     low = answer.lower()
     if low in QUIT_WORDS:
         return Command(goto="__end__")
-    memory = F.memory_of(state)
     turn = int(state.get("turn") or 0) + 1
     _remember(memory, turn, ", ".join((("lane:" + x) if a.from_lane else x) for x in a.addresses) if a else "", answer)
     return Command(
@@ -467,8 +480,11 @@ def infer(state: DeskState) -> Command[Literal["infer", "draw", "check", "explai
     src = f"user:turn:{turn}"
     message = state.get("message") or ""
     before = {ad: (f.value, f.status) for ad, f in memory.fields.items()}
+    # before the person has asked to run, what they say in passing is drafted for the readback to confirm; an answer to the
+    # interview is their word; the story is always read into drafts
+    draft = not state.get("run_intent") or (a is not None and a.kind == "story")
     out, thoughts, rejected = RD.read_words(
-        memory, src, message, asked, state.get("open") or [], turn, ask=a, errors=state.get("infer_errors") or [], draft=a is not None and a.kind == "story"
+        memory, src, message, asked, state.get("open") or [], turn, ask=a, errors=state.get("infer_errors") or [], draft=draft
     )
     if a is not None and a.kind == "story" and message.strip():  # the account itself, whole, beside what was read from it
         ops.apply(memory, [ops.Update(address="claim:story.text", value=message, status="confirmed", source=src, said=message, verbatim=True)], CAT)

@@ -32,14 +32,16 @@ def _to_ready(client, fake, name="students_web", max_turns=30):
     v = _say(client, name, "How many students passed?")
     assert v["prompt"]["kind"] == "question" and "not yet a question" in v["prompt"]["text"]
     v = _say(client, name, QUESTION)
-    assert v["question"] == QUESTION and v["prompt"]["kind"] == "ask" and len(v["questions"]) == 1
+    assert v["question"] == QUESTION and v["prompt"]["kind"] == "chat" and v["questions"] == []  # the map; nothing asked until the person wants to run
+    v = _say(client, name, "run the analysis")  # what the page's button sends: run intent, then one question per turn
+    assert v["prompt"]["kind"] == "ask" and len(v["questions"]) == 1
     turns = 0
-    while not v["ready"] or v["questions"]:  # ready can come while a relation a decision rests on is still asked; it never blocks
+    while v["prompt"]["kind"] == "ask":
         assert turns < max_turns, v["prompt"]["text"]
         assert len(v["questions"]) == 1, "one question per turn"
         v = _say(client, name, reply_for(v))
         turns += 1
-    assert v["status"]["ready"] is True and v["questions"] == []
+    assert v["prompt"]["kind"] == "ready" and v["status"]["ready"] is True and v["questions"] == []
     assert {c["status"] for c in v["claims"]} <= {"confirmed", "unknown"} and turns <= 24, [(c["key"], c["status"]) for c in v["claims"]]
     return v
 
@@ -114,9 +116,11 @@ def test_a_new_analysis_can_start_while_the_desk_waits_and_every_run_stays_liste
     assert v["stage"] == "waiting" and v["prompt"]["kind"] == "question" and v["transcript"][-2]["kind"] == "divider"
     assert [r["index"] for r in v["runs"]] == [1] and (settings.root / "data/memory/students_web/designs/1/record.json").exists()
     v = _say(client, "students_web", QUESTION)
-    while not v["ready"]:
+    v = _say(client, "students_web", "run the analysis")
+    while v["prompt"]["kind"] == "ask":
         v = _say(client, "students_web", reply_for(v))
-    v = _say(client, "students_web", "run")
+    assert v["prompt"]["kind"] == "ready"
+    v = _say(client, "students_web", "yes, run it")
     assert [r["index"] for r in v["runs"]] == [1, 2] and v["runs"][1]["question"] == QUESTION and v["prompt"]["text"].startswith("Run 2")
     assert (settings.root / "data/memory/students_web/designs/2/record.json").exists() and (
         settings.root / "data/memory/students_web/designs/1/handoff.json"
