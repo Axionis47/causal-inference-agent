@@ -302,6 +302,20 @@ class HandoffField(BaseModel):
     reason: str | None = None
 
 
+class GapView(BaseModel):
+    address: str
+    reason: str
+    cites: list[str] = Field(default_factory=list)
+
+
+class JudgeView(BaseModel):
+    """A second reading of the context before the run: advice beside the fields, never a block."""
+
+    verdict: Literal["ready", "risky", "not_ready"]
+    summary: str
+    gaps: list[GapView] = Field(default_factory=list)
+
+
 class HandoffView(BaseModel):
     """The pack the ready moment read back, shown before the word: every field the design rests on with its status and the
     sentence it rests on. A correction is sent as a message of `address = value` lines; the desk writes each as the person's
@@ -314,6 +328,7 @@ class HandoffView(BaseModel):
     bets_on: str = ""
     memory_version: int = 0
     fields: list[HandoffField] = Field(default_factory=list, description="the claim fields first, then every carried column's fields")
+    judge: JudgeView | None = Field(default=None, description="the judge's reading of these fields, when it gave one")
 
 
 class Prompt(BaseModel):

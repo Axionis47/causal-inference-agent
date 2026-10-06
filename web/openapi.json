@@ -1381,6 +1381,31 @@
         ],
         "title": "FileEntry"
       },
+      "GapView": {
+        "properties": {
+          "address": {
+            "type": "string",
+            "title": "Address"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "cites": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Cites"
+          }
+        },
+        "type": "object",
+        "required": [
+          "address",
+          "reason"
+        ],
+        "title": "GapView"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -1491,6 +1516,17 @@
             "type": "array",
             "title": "Fields",
             "description": "the claim fields first, then every carried column's fields"
+          },
+          "judge": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JudgeView"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the judge's reading of these fields, when it gave one"
           }
         },
         "type": "object",
@@ -1539,6 +1575,37 @@
           "answer"
         ],
         "title": "InterpretationView"
+      },
+      "JudgeView": {
+        "properties": {
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "risky",
+              "not_ready"
+            ],
+            "title": "Verdict"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "gaps": {
+            "items": {
+              "$ref": "#/components/schemas/GapView"
+            },
+            "type": "array",
+            "title": "Gaps"
+          }
+        },
+        "type": "object",
+        "required": [
+          "verdict",
+          "summary"
+        ],
+        "title": "JudgeView",
+        "description": "A second reading of the context before the run: advice beside the fields, never a block."
       },
       "Mark": {
         "properties": {

@@ -7,6 +7,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from causal_agent.common.contracts import Cited
+
 AskKind = Literal["story", "confirm", "choose", "open"]
 
 
@@ -110,3 +112,24 @@ class Finding(BaseModel):
     @classmethod
     def of(cls, f: Any) -> Finding:
         return cls(address=f.address, rule=f.rule, passed=f.passed, detail=f.detail, evidence=f.evidence)
+
+
+# ------------------------------------------------------------------ the judge, at the ready moment
+
+Verdict = Literal["ready", "risky", "not_ready"]
+
+
+class Gap(Cited):
+    """One field the design rests on that a second reading would not trust as it stands: the field, why, and what in the pack
+    says so."""
+
+    address: str = Field(description="the field's address in the pack: claim:<kind>.<field> or col:<key>.<field>")
+
+
+class Readiness(BaseModel):
+    """What a second analyst says of the context before it runs. Advice beside the fields, never a block: the person still
+    says the word."""
+
+    verdict: Verdict
+    summary: str = Field(description="one sentence: what stands or what is thin")
+    gaps: list[Gap] = Field(default_factory=list, description="empty when ready; at least one otherwise")

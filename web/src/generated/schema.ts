@@ -556,6 +556,15 @@ export interface components {
             /** Size */
             size: number;
         };
+        /** GapView */
+        GapView: {
+            /** Address */
+            address: string;
+            /** Reason */
+            reason: string;
+            /** Cites */
+            cites?: string[];
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -609,6 +618,8 @@ export interface components {
              * @description the claim fields first, then every carried column's fields
              */
             fields?: components["schemas"]["HandoffField"][];
+            /** @description the judge's reading of these fields, when it gave one */
+            judge?: components["schemas"]["JudgeView"] | null;
         };
         /** InterpretationView */
         InterpretationView: {
@@ -620,6 +631,21 @@ export interface components {
             caveats?: string[];
             /** Cites */
             cites?: string[];
+        };
+        /**
+         * JudgeView
+         * @description A second reading of the context before the run: advice beside the fields, never a block.
+         */
+        JudgeView: {
+            /**
+             * Verdict
+             * @enum {string}
+             */
+            verdict: "ready" | "risky" | "not_ready";
+            /** Summary */
+            summary: string;
+            /** Gaps */
+            gaps?: components["schemas"]["GapView"][];
         };
         /**
          * Mark

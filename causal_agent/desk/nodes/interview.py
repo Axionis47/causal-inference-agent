@@ -13,7 +13,6 @@ from langgraph.types import Command, interrupt
 from causal_agent.common.contracts import QuestionFrame
 from causal_agent.desk import edits as ED
 from causal_agent.desk import explainer as X
-from causal_agent.desk import handoff as H
 from causal_agent.desk import reader as RD
 from causal_agent.desk import turns as TD
 from causal_agent.desk.contracts import Ask, Finding, Reading
@@ -370,16 +369,16 @@ def ask(state: DeskState) -> Command[Literal["listen", "fit"]]:
 # ------------------------------------------------------------------ convince (the ready moment)
 
 
-def after_design(state: DeskState) -> Literal["convince", "handoff"]:
-    """Where the design goes: to the ready moment when the interview sent the routing nodes to show it, else on to the hand-off
-    (the word, or a what-if)."""
-    return "convince" if state.get("convincing") else "handoff"
+def after_design(state: DeskState) -> Literal["judge", "handoff"]:
+    """Where the design goes: to the judge and then the ready moment when the interview sent the routing nodes to show it, else
+    on to the hand-off (the word, or a what-if)."""
+    return "judge" if state.get("convincing") else "handoff"
 
 
 def convince(state: DeskState, runtime: Runtime[Context]) -> dict:
     """The ready moment, said from what the routing nodes made: the decision (by code, or one judgement among several), the
     Designer's brief, and the design in the question's words with the evidence, what it bets on, each decision, the threats,
-    and the struck families with one reason each. The pack it reads back is kept as the preview the page shows."""
+    and the struck families with one reason each; then the judge's line. The pack it reads back is the preview the judge built."""
     memory = F.memory_of(state)
     d = state.get("decision")
     registry = {f.name: f for f in R.knowledge()}
@@ -406,9 +405,8 @@ def convince(state: DeskState, runtime: Runtime[Context]) -> dict:
         for v in verdicts.values()
         if not v.admissible and v.family != fam.name
     ]
-    fr = state.get("frame")
-    assert fr is not None
-    pack = H.build(question=state["question"], frame=fr, decision=d, family=R.REGISTRY[fam.name], memory=memory, probes=state.get("probes") or [], brief=brief)
+    pack = state.get("preview")
+    assert pack is not None  # the judge node built it
     lines = [
         head + "Everything the analysis needs is settled. Here is the context the analysis will run on; correct any line before you say yes.",
         pack.render_summary(),
@@ -424,9 +422,13 @@ def convince(state: DeskState, runtime: Runtime[Context]) -> dict:
     lines.append(f"Evidence: {evidence}. " + " ".join(fields))
     if struck:
         lines.append("Set aside: " + "; ".join(struck) + ".")
+    r = state.get("readiness")
+    if r is not None:
+        gaps = "; ".join(f"{g.reason} [{g.address}; {', '.join(g.cites)}]" for g in r.gaps)
+        lines.append(f"A second reading says {r.verdict.replace('_', ' ')}: {r.summary}" + (f" {gaps}" if gaps else ""))
     lines.append("Say yes to hand off, ask for a picture of anything in the file, or tell me anything to change.")
-    _writer()({"convince": {"family": fam.name}})
-    return {**update, "preview": pack, "reply": "\n".join(ln for ln in lines if ln)}
+    _writer()({"convince": {"family": fam.name, "judge": r.verdict if r is not None else None}})
+    return {**update, "reply": "\n".join(ln for ln in lines if ln)}
 
 
 # ------------------------------------------------------------------ listen

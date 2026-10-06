@@ -77,6 +77,8 @@ the questionnaire lands. The ready moment runs through the routing nodes, so the
 
 In the chat: no question until you ask to run. In the trace: a `decide` span first on every turn, then `read:` only on an
 update, `explore` with the agent's episode nested under it, `gate:kind` and `gate:reply` where a record was refused. In the
-memory folder: `artifacts/<id>/` beside `designs/<n>/` and `analyses/<k>/`. Later stages, in order: the design guideline for
-the page and the memory hygiene (every status change moves the version); the handoff view with the run confirmation and a
-judge that advises on it; the questionnaire; the data agent that writes new table versions with lineage.
+memory folder: `artifacts/<id>/` beside `designs/<n>/` and `analyses/<k>/`. At the ready moment: `fit`, `decide`, `gate`,
+`design` and `judge` under it, the judge's verdict in the reply's last lines and beside the fields on the page, and an edit
+on the page arriving as `address = value` lines that no model reads. Built since: the design guideline for the page
+([design.md](../design.md)) and the memory hygiene (every status change moves the version); the handoff view with the run
+confirmation and the judge. Later, in order: the questionnaire; the data agent that writes new table versions with lineage.

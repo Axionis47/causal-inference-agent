@@ -17,6 +17,7 @@ const WORDS: Record<string, string> = {
   decide: "choosing the design",
   gate: "checking the decision",
   design: "writing the design brief",
+  judge: "reading the context once more",
   handoff: "writing the hand-off",
   run: "running the analysis; this takes a few minutes",
   ask_back: "bringing back what the analysis asked",

@@ -57,6 +57,16 @@ export default function HandoffPanel({ h, disabled, onEdit }: { h: HandoffView; 
         )}
         {h.bets_on && <> · bets on: {h.bets_on}</>}
       </p>
+      {h.judge && (
+        <p className={`judge ${h.judge.verdict}`} aria-label="A second reading">
+          <span className="mono">{h.judge.verdict.replace("_", " ")}</span> · {h.judge.summary}
+          {h.judge.gaps.map((g) => (
+            <span className="gap" key={g.address}>
+              <span className="addr">{g.address}</span> {g.reason}
+            </span>
+          ))}
+        </p>
+      )}
       {fieldGroups(h.fields).map((g) => (
         <div className="tbl" key={g.title}>
           <table>

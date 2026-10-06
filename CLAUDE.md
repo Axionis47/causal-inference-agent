@@ -76,8 +76,9 @@ through application-default credentials (`gcloud auth application-default login`
 gcloud project. `INCLUDE_THOUGHTS` and `THINKING_BUDGET` are debug knobs. `RUN_DIR` and `PROFILE_CACHE_DIR` move the run
 folders and the profile cache; `EXPLORE_SANDBOX` picks the fence a script runs in. `DECIDER` picks the decision model that reads each
 turn's kind before any Gemini call: `laya` (the open checkpoint in this process; the first call loads it) or `jev` (a hosted
-endpoint on the same wire, `DECIDER_URL` and `DECIDER_KEY`). `uv run python -m causal_agent.evals.turns` scores it on the
-labelled turns under `desk/evals/`.
+endpoint on the same wire, `DECIDER_URL` and `DECIDER_KEY`). `DECIDER_CHECKPOINT` names a fine-tune of the open checkpoint
+that stands in for it; `make decider` trains one on `desk/evals/turns_train.jsonl` and scores it on the held-out
+`desk/evals/turns.jsonl`, which `uv run python -m causal_agent.evals.turns` scores for any backend.
 
 **Tests.** Set `LANGSMITH_TRACING=false` when running tests locally; `.env` turns tracing on and the tracer floods the output
 when the quota is spent. Tests never call a model: every judgement is scripted through `set_llm(fake)`; see
@@ -102,7 +103,7 @@ is outside. A core package never names a family or an engine; `families/tests/te
 
 **The desk** (`desk/graph.py`) is one LangGraph and the only graph: the question first, then one question per turn until
 the matrix says ready, then the run, then the chat after. Nodes are code except the judgements, each one model call gated
-by code (`infer`, `explain`, `read_question`/frame, `decide`, `design`, `turn`, the exploration agent). Interrupts are
+by code (`infer`, `explain`, `read_question`/frame, `decide`, `design`, `judge`, `turn`, the exploration agent). Interrupts are
 `ask_question`, `listen`, `talk`; the server resumes with `Command(resume=text)`. `listen` matches no word but quit: the Reader
 reads every turn's kind, and a `run` read at the ready moment is what launches the analysis. `desk/route.py` is the same nodes as one function for the evals.
 

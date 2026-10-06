@@ -1,7 +1,7 @@
 """The desk: one conversation from a CSV to a run and back.
 
     START ─ load ─ ask_question ─(interrupt)─ mine ─ read_question ─┬─ (invalid) ─ ask_question
-                                                                   └─ check ─ probe_fit ─ ask ─(fit ─ decide ─ gate ─ design ─ convince, when ready)─ listen ─(interrupt)─ infer ─┬─ check …
+                                                                   └─ check ─ probe_fit ─ ask ─(fit ─ decide ─ gate ─ design ─ judge ─ convince, when ready)─ listen ─(interrupt)─ infer ─┬─ check …
                                                                                                                    (run, at the ready moment) ─┘   └─ handoff ─ run ─ brief ─ talk ─(interrupt)─ turn ─┬─ answer ─ talk
                                                                                                                                                                                                            ├─ revise ─ check …
                                                                                                                                                                                                            ├─ what_if ─ fit ─ … ─ run (on a copy)
@@ -48,7 +48,8 @@ from causal_agent.common.contracts import (
 )
 from causal_agent.common.llm import RETRY as _retry
 from causal_agent.desk import designer as DG
-from causal_agent.desk.contracts import AfterReply, Ask, Exchange, FieldUpdate, Finding, NumberStated, Reading
+from causal_agent.desk import judge as JG
+from causal_agent.desk.contracts import AfterReply, Ask, Exchange, FieldUpdate, Finding, Gap, NumberStated, Readiness, Reading
 from causal_agent.desk.nodes import after as A
 from causal_agent.desk.nodes import decide as D
 from causal_agent.desk.nodes import frame as F
@@ -79,6 +80,7 @@ def build() -> StateGraph:
     b.add_node("decide", D.decide, retry_policy=_retry)
     b.add_node("gate", J.gate)
     b.add_node("design", DG.design_brief, retry_policy=_retry)
+    b.add_node("judge", JG.judge, retry_policy=_retry)
     b.add_node("handoff", J.handoff)
     b.add_node("run", J.run)
     b.add_node("ask_back", J.ask_back)
@@ -104,7 +106,8 @@ def build() -> StateGraph:
     b.add_edge("fit", "decide")
     b.add_edge("decide", "gate")
     # gate → decide | design, via Command
-    b.add_conditional_edges("design", J.after_design, ["convince", "handoff"])  # the ready moment, or the word's hand-off
+    b.add_conditional_edges("design", J.after_design, ["judge", "handoff"])  # the ready moment (judged first), or the word's hand-off
+    b.add_edge("judge", "convince")
     b.add_edge("handoff", "run")
     b.add_conditional_edges("run", J.after_run, ["ask_back", "brief"])
     b.add_edge("ask_back", "listen")
@@ -148,6 +151,8 @@ _CONTRACTS: list = [
     NumberStated,
     AfterReply,
     Exchange,
+    Readiness,
+    Gap,
     Finding,
     ProbeResult,
     Status,

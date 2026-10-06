@@ -209,6 +209,7 @@ def test_the_ready_moment_carries_the_handoff_view_and_an_edit_is_the_persons_wo
     assert h is not None and h["family"] == "adjustment" and h["outcome"] == "math score" and h["treatment"] == "test preparation course"
     by = {f["address"]: f for f in h["fields"]}
     assert by["claim:assignment.kind"]["status"] == "confirmed" and by["claim:assignment.kind"]["value"] == "own_choice"
+    assert h["judge"] == {"verdict": "ready", "summary": "Every field the design rests on is settled.", "gaps": []}
     assert [a.split(":")[0] for a in by] == sorted(a.split(":")[0] for a in by), "the claim fields come before the columns'"
     v = _say(client, "students_web", "claim:change.when = March 2026")
     assert v["prompt"]["kind"] == "ready" and v["handoff"] is not None

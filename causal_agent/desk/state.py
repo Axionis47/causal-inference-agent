@@ -10,7 +10,7 @@ from typing import Annotated
 from typing_extensions import TypedDict
 
 from causal_agent.common.contracts import DesignBrief, FamilyDecision, FamilyVerdict, Handoff, PrefilterVote, QuestionFrame, RunRecord, Thought
-from causal_agent.desk.contracts import AfterReply, Ask, Exchange, Finding
+from causal_agent.desk.contracts import AfterReply, Ask, Exchange, Finding, Readiness
 
 
 @dataclass
@@ -77,6 +77,7 @@ class DeskState(RouteState, total=False):
     convinced_version: int  # the memory version the decision shown at the ready moment was made on
     convincing: bool  # the routing nodes are running to show the ready moment, not to hand off
     preview: Handoff | None  # the pack as the ready moment read it back; the page shows it; the hand-off writes its own
+    readiness: Readiness | None  # the judge's reading of the preview: advice beside the fields, never a block
     phase: str  # before | after
     runs: list[RunRecord]
     exchanges: Annotated[list[Exchange], operator.add]

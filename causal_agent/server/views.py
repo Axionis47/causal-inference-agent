@@ -21,9 +21,11 @@ from causal_agent.server.models import (
     DeclineView,
     EstimateView,
     FeasibilityView,
+    GapView,
     HandoffField,
     HandoffView,
     InterpretationView,
+    JudgeView,
     Prompt,
     QuestionView,
     RefutationView,
@@ -168,7 +170,9 @@ def session_view(mgr: SessionManager, name: str) -> SessionView:
     activity = Activity(node=sess.activity[0], since=sess.activity[1]) if sess.activity else None
     analysis = values.get("analysis") or sess.analysis or None
     preview = values.get("preview")
-    handoff = handoff_view(preview) if phase == "before" and prompt is not None and prompt.kind == "ready" and preview is not None else None
+    handoff = (
+        handoff_view(preview, values.get("readiness")) if phase == "before" and prompt is not None and prompt.kind == "ready" and preview is not None else None
+    )
     return SessionView(
         name=name,
         title=title,
@@ -192,8 +196,9 @@ def session_view(mgr: SessionManager, name: str) -> SessionView:
     )
 
 
-def handoff_view(h) -> HandoffView:
-    """The pack's facts as fields the page can show and correct: the claim fields first, then the columns' fields."""
+def handoff_view(h, readiness=None) -> HandoffView:
+    """The pack's facts as fields the page can show and correct: the claim fields first, then the columns' fields; the judge's
+    reading beside them when it gave one."""
     facts = h.facts
     order = [a for a in facts if a.startswith("claim:")] + [a for a in facts if a.startswith("col:")]
     fields = [
@@ -207,6 +212,13 @@ def handoff_view(h) -> HandoffView:
         bets_on=h.brief.bets_on if h.brief is not None else h.chosen_assumption,
         memory_version=h.memory_version,
         fields=fields,
+        judge=JudgeView(
+            verdict=readiness.verdict,
+            summary=readiness.summary,
+            gaps=[GapView(address=g.address, reason=g.reason, cites=list(g.cites)) for g in readiness.gaps],
+        )
+        if readiness is not None
+        else None,
     )
 
 

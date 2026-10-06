@@ -9,7 +9,7 @@ import re
 from langchain_core.messages import AIMessage
 
 from causal_agent.common.contracts import Candidate, Cited, DecisionMade, DesignBrief, FamilyDecision, PrefilterVote, QuestionFrame, Rejection, Scope
-from causal_agent.desk.contracts import AfterReply, FieldUpdate, Reading
+from causal_agent.desk.contracts import AfterReply, FieldUpdate, Readiness, Reading
 from causal_agent.explore.contracts import Exploration
 from causal_agent.explore.tools import RunCodeStep
 from causal_agent.families import registry as R
@@ -176,9 +176,11 @@ class DeskFake:
         cites: list[str] | None = None,
         explore: list[Exploration] | None = None,
         brief: list[DesignBrief] | None = None,
+        readiness: list[Readiness] | None = None,
     ):
         self.after = list(after or [])
         self.brief = list(brief or [])  # a queue of design briefs; empty means one by rule from the prompt
+        self.readiness = list(readiness or [])  # a queue of the judge's readings; empty means ready with no gaps
         self.explore = list(explore or [])  # a queue of the exploration agent's records; empty means the one that drew math score by lunch
         self.cites = list(cites or [])
         self.infer = infer  # optional callable(message, asked_addresses, human) -> Reading | None, for the Reader over a message
@@ -277,6 +279,8 @@ class DeskFake:
             )
         if schema is DesignBrief:
             return self.brief.pop(0) if self.brief else brief_by_rule(human)
+        if schema is Readiness:
+            return self.readiness.pop(0) if self.readiness else Readiness(verdict="ready", summary="Every field the design rests on is settled.", gaps=[])
         if schema is AfterReply and before_the_run(human):
             return self.explain.pop(0) if self.explain else AfterReply(kind="answer", text="A scripted answer.", cites=["family:adjustment"])
         if schema is AfterReply:

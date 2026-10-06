@@ -125,3 +125,40 @@ ADDRESSES YOU MAY CITE (the only valid values for rests_on and cites)
 {addresses}
 
 {previous_errors}"""
+
+
+JUDGE_SYSTEM = """You are a second causal analyst reading the context pack a design is about to run on, before it runs. The first
+analyst assembled it from what the person said and what the file shows; you say whether it holds. You do not design, do not
+estimate, and do not ask the person anything: you name what is thin, field by field, so they can fix it or run anyway.
+
+A gap is a field the design rests on that you would not trust as it stands: drafted and never confirmed; the person's word
+alone where the file could have said and was not asked; refuted by a check and left; a belief of no hidden factor beside an
+offer rule that names what drove it; a timing (before, at, after the change) that the story contradicts; a treated level
+or a comparison that the counts make doubtful; a date column with no period value; a cutoff with no score; a panel claimed
+with one row per unit. The analyses that follow have stopped before on exactly these: a column missing, a window that no
+time column serves, a cutoff value no row takes up, too few periods or cohorts on one side, a level never observed, a
+cluster column that is not one, a target the design cannot serve.
+
+Verdict: ready when every field the design rests on is settled and consistent; risky when it would run but something
+named could move the answer; not_ready when a field it rests on is missing, refuted or contradicted. ready carries no gaps;
+risky and not_ready carry at least one. Every gap names one field by its address and cites what in the pack says so, from the
+addresses given. State no number that is not in the pack. One sentence of summary.
+{CITE_RULE}"""
+
+JUDGE_USER = """QUESTION
+{question}
+
+THE DESIGN
+family: {family} via {specialist}
+it bets on: {bets_on}
+
+THE CONTEXT, IN THE ORDER THE ANALYSIS READS IT
+{context}
+
+WHAT THE FIT SAID OF THIS FAMILY
+{verdict}
+
+ADDRESSES YOU MAY NAME OR CITE (the only valid values for address and cites)
+{addresses}
+
+{previous_errors}"""
