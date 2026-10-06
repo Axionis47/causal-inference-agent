@@ -50,6 +50,7 @@ class Decider:
     kind: str  # laya | jev: the decision model that reads each turn's kind; laya runs in this process, jev is a hosted endpoint on the same wire
     url: str | None  # the endpoint, when jev
     key: str | None  # its key, when jev
+    checkpoint: str | None  # when laya: a directory holding a fine-tuned checkpoint that stands in for the open one; None is the open one
 
 
 @dataclass(frozen=True)
@@ -93,7 +94,13 @@ def load(env: Mapping[str, str] | None = None, root: Path | None = None) -> Conf
         thinking_budget=int(env.get("THINKING_BUDGET", "1024")),
     )
     sandbox = Sandbox(kind=env.get("EXPLORE_SANDBOX", "auto"), image=env.get("EXPLORE_IMAGE", "causal-desk-explore"))
-    decider = Decider(kind=env.get("DECIDER", "laya"), url=env.get("DECIDER_URL") or None, key=env.get("DECIDER_KEY") or None)
+    ckpt = env.get("DECIDER_CHECKPOINT") or None
+    decider = Decider(
+        kind=env.get("DECIDER", "laya"),
+        url=env.get("DECIDER_URL") or None,
+        key=env.get("DECIDER_KEY") or None,
+        checkpoint=str(root / ckpt) if ckpt and not Path(ckpt).is_absolute() else ckpt,
+    )
     return Config(
         paths=paths, model=model, width_budget=int(env.get("FRAME_WIDTH_BUDGET", "150")), port=int(env.get("PORT", "8000")), sandbox=sandbox, decider=decider
     )

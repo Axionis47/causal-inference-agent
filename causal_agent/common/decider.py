@@ -5,6 +5,7 @@ invokes a decision model."""
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any, Protocol
 
 import httpx
@@ -53,16 +54,23 @@ def parse(raw: dict[str, Any], model: str) -> Decisions:
     return Decisions(answers=answers, model=model)
 
 
+def laya_models(checkpoint: str | None) -> dict[str, str] | None:
+    """What the router is told about checkpoints: nothing, or a fine-tuned directory standing in for the English one. The
+    router keeps its name for it, so the desk's questions reach the fine-tune wherever they would have reached the open
+    checkpoint."""
+    return {"english": checkpoint} if checkpoint else None
+
+
 class Laya:
-    """The open checkpoint, in this process. The router picks the checkpoint by the text's script; preloading is the
+    """The open checkpoint, in this process, or a fine-tune of it (`evals/decider.py` trains one on the labelled turns;
+    `DECIDER_CHECKPOINT` names its directory). The router picks the checkpoint by the text's script; preloading is the
     caller's choice, since the first prediction otherwise pays the load."""
 
-    name = "laya"
-
-    def __init__(self, preload: bool = False) -> None:
+    def __init__(self, checkpoint: str | None = None, preload: bool = False) -> None:
         from laya import Router  # torch and the checkpoint come with it; imported only when this backend is used
 
-        self.router = Router(preload=preload)
+        self.name = "laya" if checkpoint is None else f"laya:{Path(checkpoint).name}"
+        self.router = Router(models=laya_models(checkpoint), preload=preload)
 
     def predict(self, state: dict[str, Any] | str, questions: dict[str, Any]) -> dict[str, Any]:
         return dict(self.router.predict(state, questions))
@@ -87,7 +95,7 @@ def build(cfg: config.Decider | None = None) -> Decider:
     """The backend the config names."""
     d = cfg or config.get().decider
     if d.kind == "laya":
-        return Laya()
+        return Laya(checkpoint=d.checkpoint)
     if d.kind == "jev":
         if not d.url:
             raise ValueError("DECIDER=jev needs DECIDER_URL")

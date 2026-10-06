@@ -32,6 +32,7 @@ RAW_WRITERS = {
     "desk/handoff.py": "a command-line hand-off, outside a graph run",
     "explore/sandbox.py": "the seatbelt profile the fence runs under; code.py goes through trace.write",
     "explore/project.py": "the projected table the exploration agent reads; derivable from the dataset, so not attached; its span names the column dropped",
+    "evals/decider.py": "the training rows for the decision model, written for laya.train outside any graph run",
     "evals/docfigs.py": "the docs' diagrams, outside the layers",
 }
 
