@@ -7,13 +7,13 @@ address within one percent, and before the run only an answer or a drawing reque
 
 from __future__ import annotations
 
-import re
 from typing import Literal
 
 from causal_agent.common import trace
 from causal_agent.common.addresses import norm_address
 from causal_agent.common.contracts import Thought
 from causal_agent.common.llm import structured
+from causal_agent.common.numbers import TOL, grounded, in_line, numbers_in
 from causal_agent.desk import material as M
 from causal_agent.desk.contracts import AfterReply, Exchange
 from causal_agent.desk.nodes.shared import kinds_text
@@ -24,8 +24,6 @@ from causal_agent.memory.matrix import Matrix
 from causal_agent.memory.records import Memory
 
 Phase = Literal["before", "after"]
-TOL = 0.01
-NUM_RE = re.compile(r"(?<![\w:.\-])-?\d+(?:\.\d+)?(?![\w.:\-]*[a-zA-Z_])")
 BEFORE_KINDS = {"answer", "draw"}
 
 
@@ -88,39 +86,6 @@ def answer_from(
 # ------------------------------------------------------------------ the gate
 
 
-def _numbers_in(text: str) -> list[float]:
-    out = []
-    for tok in NUM_RE.findall(text):
-        try:
-            v = float(tok)
-        except ValueError:
-            continue
-        if abs(v) >= 10 or "." in tok:
-            out.append(v)
-    return out
-
-
-def _in_line(v: float, line: str) -> bool:
-    for tok in NUM_RE.findall(line):
-        try:
-            x = float(tok)
-        except ValueError:
-            continue
-        if abs(v - x) <= max(abs(x), 1e-9) * TOL or any(round(x, d) == v for d in range(5)):
-            return True
-    return False
-
-
-def _grounded(v: float, mat: M.Material) -> bool:
-    for x in mat.numbers.values():
-        if abs(v - x) <= max(abs(x), 1e-9) * TOL:
-            return True
-        for d in (0, 1, 2, 3, 4):
-            if round(x, d) == v:
-                return True
-    return f"{v:g}" in mat.text or str(v) in mat.text
-
-
 def gate(reply: AfterReply, mat: M.Material, phase: Phase = "after") -> list[str]:
     """Why the reply is refused, or nothing; the verdict is a span."""
     return trace.gate(_gate(reply, mat, phase), name="gate:reply", kind=reply.kind)
@@ -155,12 +120,12 @@ def _gate(reply: AfterReply, mat: M.Material, phase: Phase = "after") -> list[st
                 n.address in mat.numbers
                 and abs(n.value - mat.numbers[n.address]) > max(abs(mat.numbers[n.address]), 1e-9) * TOL
                 and not any(round(mat.numbers[n.address], d) == n.value for d in range(5))
-                and not _in_line(n.value, mat.by_address.get(n.address, ""))
+                and not in_line(n.value, mat.by_address.get(n.address, ""))
             ):
                 errors.append(f"number {n.value} does not match {n.address} = {mat.numbers[n.address]:.6g}, and does not appear in that line's text")
         stated = {round(n.value, 6) for n in reply.numbers}
-        for v in _numbers_in(reply.text):
-            if round(v, 6) in stated or _grounded(v, mat):
+        for v in numbers_in(reply.text):
+            if round(v, 6) in stated or grounded(v, mat.numbers.values()):
                 continue
             errors.append(f"the text states {v:g}, which is in no artifact; remove it or attach its address in numbers")
     if reply.figure and not mat.has(reply.figure):

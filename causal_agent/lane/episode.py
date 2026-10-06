@@ -12,7 +12,7 @@ text the model was shown, the answer it gave, and what the gate said, so a watch
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any, TypeVar
+from typing import Any, Protocol, TypeVar
 
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 from pydantic import BaseModel, Field
@@ -22,10 +22,22 @@ from causal_agent.common import trace
 from causal_agent.common.addresses import norm_address
 from causal_agent.common.contracts import Thought
 from causal_agent.lane.nodes import rejected
-from causal_agent.lane.tools import Refused, Tools
+from causal_agent.lane.tools import Refused, Result
 
 T = TypeVar("T", bound=BaseModel)
 MAX_TRIES = 3
+
+
+class ToolSet(Protocol):
+    """What an episode needs of its tools: their names, their schemas for the model, and one call by name. The lane's tools
+    and the exploration agent's code tool both have this shape."""
+
+    def names(self) -> tuple[str, ...]: ...
+
+    def schemas(self) -> list[Any]: ...
+
+    def call(self, name: str, args: dict[str, Any]) -> Result: ...
+
 
 TOOL_RULE = (
     "Before you answer you may look at the data with the tools offered, at most {budget} calls in all. Each result comes back "
@@ -98,7 +110,7 @@ def _material(user: str, log: EpisodeLog, errors: list[str]) -> str:
     return user + (f"\n\n{facts}\n" if facts else "") + rejected(errors)
 
 
-def _run(tools: Tools, name: str, args: dict[str, Any], budget: int, log: EpisodeLog) -> str:
+def _run(tools: ToolSet, name: str, args: dict[str, Any], budget: int, log: EpisodeLog) -> str:
     """One tool call: the addressed fact the model reads back, or the refusal; a tool span either way."""
     with trace.span(name, run_type="tool", inputs=args) as s:
         if log.calls >= budget:
@@ -118,7 +130,7 @@ def _run(tools: Tools, name: str, args: dict[str, Any], budget: int, log: Episod
         return f.render()
 
 
-def _look(system: str, user: str, tools: Tools, budget: int, log: EpisodeLog, errors: list[str]) -> list[Thought]:
+def _look(system: str, user: str, tools: ToolSet, budget: int, log: EpisodeLog, errors: list[str]) -> list[Thought]:
     """The tool phase: the model calls tools until it stops or the budget is spent; every result is appended as a tool message."""
     with trace.span("look", inputs={"budget": budget, "spent": log.calls, "tools": list(tools.names())}) as s:
         thoughts = _look_in(system, user, tools, budget, log, errors)
@@ -133,7 +145,7 @@ def _look(system: str, user: str, tools: Tools, budget: int, log: EpisodeLog, er
         return thoughts
 
 
-def _look_in(system: str, user: str, tools: Tools, budget: int, log: EpisodeLog, errors: list[str]) -> list[Thought]:
+def _look_in(system: str, user: str, tools: ToolSet, budget: int, log: EpisodeLog, errors: list[str]) -> list[Thought]:
     bound = LLM.current().bind_tools(tools.schemas())
     messages: list[Any] = [
         SystemMessage(content=system + "\n\n" + TOOL_RULE.format(budget=budget, node=log.node)),
@@ -160,7 +172,7 @@ def run_episode(
     system: str,
     user: str,
     *,
-    tools: Tools | None,
+    tools: ToolSet | None,
     budget: int,
     gate: Callable[[T, EpisodeLog], list[str]],
     node: str,

@@ -83,6 +83,7 @@ exclude = ["tests/"]
 module = [
     "causal_agent.common.*",
     "causal_agent.lane.*",
+    "causal_agent.explore.*",
     "causal_agent.viz.*",
     "causal_agent.memory.*",
     "causal_agent.profile.*",
@@ -111,6 +112,7 @@ layers = [
     "causal_agent.server",
     "causal_agent.desk",
     "causal_agent.families",
+    "causal_agent.explore",
     "causal_agent.lane",
     "causal_agent.viz",
     "causal_agent.memory",
@@ -126,7 +128,7 @@ unmatched_ignore_imports_alerting = "error"
 [[tool.importlinter.contracts]]
 name = "the core names no family"
 type = "forbidden"
-source_modules = ["causal_agent.common", "causal_agent.profile", "causal_agent.memory", "causal_agent.viz", "causal_agent.lane"]
+source_modules = ["causal_agent.common", "causal_agent.profile", "causal_agent.memory", "causal_agent.viz", "causal_agent.lane", "causal_agent.explore"]
 forbidden_modules = ["causal_agent.families"]
 allow_indirect_imports = "True"
 ignore_imports = ["causal_agent.**.tests.** -> causal_agent.families.**"]

@@ -1,0 +1,6 @@
+# The leash, declared: how many scripts one exploration may run, how many times the record may be refused and asked again,
+# how long one script may run, and how much of what it printed the model reads back.
+budget: 8
+tries: 3
+timeout: 60
+stdout_tail: 4000

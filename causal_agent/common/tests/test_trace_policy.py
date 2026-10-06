@@ -30,6 +30,7 @@ RAW_WRITERS = {
     "profile/profiler.py": "a command-line profile",
     "desk/handoff.py": "a command-line hand-off, outside a graph run",
     "viz/sandbox.py": "the seatbelt profile the fence runs under; code.py goes through trace.write",
+    "explore/project.py": "the projected table the exploration agent reads; derivable from the dataset, so not attached; its span names the column dropped",
     "evals/docfigs.py": "the docs' diagrams, outside the layers",
 }
 

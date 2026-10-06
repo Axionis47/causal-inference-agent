@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-CORE = ("common", "profile", "memory", "viz", "lane")
+CORE = ("common", "profile", "memory", "viz", "lane", "explore")
 WORDS = ("adjustment", "diff_in_diff", "discontinuity", "dowhy", "pyfixest", "rdrobust", "rddensity", "rdlocrand", "synthetic_control", "interrupted_series")
 ROOT = Path(__file__).resolve().parents[2]
 
