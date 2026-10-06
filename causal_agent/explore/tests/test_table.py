@@ -111,3 +111,26 @@ def test_a_table_that_loses_the_row_id_invents_a_row_or_drops_the_pair_is_refuse
     assert trail.record is None and trail.calls == 3
     answers = fake.humans["Exploration"]
     assert "has no __row column" in answers[1] and "outside 0 to 999" in answers[2] and "must keep 'test preparation course'" in trail.why
+
+
+def test_a_number_the_ask_itself_states_is_grounded(tmp_path):
+    out = tmp_path / "v"
+    path = PJ.project(CSV, out, drop="math score", row_id=True)
+    req = ExploreRequest(
+        dataset="students",
+        ask="add a column saying whether reading score is 70 or more",
+        context="",
+        columns={k: n for k, n in COLUMNS.items() if n != "math score"},
+        csv=path,
+        out_dir=out,
+        outcome="math score",
+        treatment="test preparation course",
+        dropped="outcome",
+        frozen=False,
+        product="table",
+        rows=1000,
+        keep=["test preparation course"],
+    )
+    set_llm(FakeLLM([[NEW_TABLE], []], [ANSWER.model_copy(update={"summary": "Added high reading, 1 when reading score is 70 or more."})]))
+    trail = AG.explore(req)
+    assert trail.record is not None and trail.why == ""

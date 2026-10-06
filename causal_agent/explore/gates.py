@@ -81,7 +81,7 @@ def gate_record(record: Exploration, req: ExploreRequest, tools: CodeTools) -> l
         joined += [n for n in record.facts if mentions(n, req.outcome) and mentions(n, req.treatment)]
         if joined:
             errors.append("before the design has run nothing may relate the outcome to the treatment; this does: " + "; ".join(repr(j) for j in joined))
-    known = list((step.facts or {}).values()) + numbers_in(req.context)
+    known = list((step.facts or {}).values()) + numbers_in(req.context) + numbers_in(req.ask)  # the ask's own numbers were told too
     loose = [v for v in numbers_in(record.summary) if not grounded(v, known)]
     if loose:
         errors.append("the summary states numbers that are in neither facts.json nor what you were told: " + ", ".join(f"{v:g}" for v in loose))
