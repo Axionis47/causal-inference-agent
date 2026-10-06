@@ -17,7 +17,7 @@ names the layers this table serves.
 | the routing (`desk/nodes/decide.py`, `desk/route.py`) | which family stands, by code; a judgement only among several | the memory, the probes | a decision and its record |
 | the pack builder (`desk/handoff.py`) | the one projection of the memory a lane sees | the memory, the frame, the decision | a `Handoff` |
 | a lane (`families/<name>/lane/`) | the engine and its judgements on the pack alone, in its own process | `handoff.json` | `result.json`, the run folder |
-| the drawing tool (`viz/draw.py`, `viz/sandbox.py`; what it makes lives on the artifacts shelf, `memory/artifacts.py`) | a picture from the file on request, with its code and numbers, in the strongest sandbox at hand | a `DrawRequest` | an `Artifact` or a `Decline` |
+| the exploration agent (`explore/`) | a look at the data on request, from any turn: scripts in a sandbox one step at a time, one gated record, in its own process over A2A; the table it is sent has the outcome or the treatment held back before the freeze | an ask, what is known, the columns | an `Artifact` on the shelf or a `Decline` |
 | the material and the brief (`desk/material.py`) | every artifact as a line with an address; the opening message after a run | a run record, the memory, the journal | citable lines |
 | the chat after (`desk/nodes/after.py`) | one routed reply per message: answer, revise, what-if, requestion, draw, done | the material, the message | a gated reply |
 | the server (`server/`) | the wire: sessions over the desk, the views, the files and pictures | HTTP | `SessionView` and files |
@@ -33,7 +33,8 @@ Bottom to top. A package imports only what is below it.
 | `common` | the contracts (the pack, the artifacts, the frame, the `Design` base), the address grammar, the model wrapper and its retry policy, the trace helpers, the one config reading of the environment, the cite rule | nothing internal |
 | `profile` | the deterministic profile of a CSV, the dataset index, the csv path rule | common |
 | `memory` | what is known about a dataset: the field map, the store on disk, the gated write path, the checks, the shared probe helpers, the fit grid, the text views | common, profile |
-| `viz` | pictures: `FigureSpec`, the figures a lane draws from its own artifacts (`postviz`); the drawing tool (`draw`, `sandbox`) and where what it draws lives (`store`) | common, profile, memory |
+| `viz` | pictures: `FigureSpec`, the figures a lane draws from its own artifacts (`postviz`) | common, profile, memory |
+| `explore` | the exploration agent: the one tool over the sandbox (`sandbox`), the gates, the projection, the agent over the episode, the A2A server and client | common, profile, memory, viz, lane |
 | `lane` | the harness every lane is built on: intake, case, verify, asks, records, figures, words, the episode and its tools, the ladder's shape, the shared nodes, graph compile, task types, prompts, knowledge loader | common, profile, memory, viz |
 | `families` | one package per family (below), the declared families, the registry | everything above |
 | `desk` | the conversation graph, the routing, the pack builder, the material and the brief, the chat after a run | everything above |
@@ -53,7 +54,7 @@ chokepoints a new piece passes through anyway ([adr/0012](adr/0012-the-trace-mir
 | calls the model | `common/llm.py::structured` or `lane/episode.py::run_episode` | a span named for the judgement: prompt in, record and thoughts out; under an episode, a `try n`, a `look`, one tool span per call, a `gate` |
 | compiles a graph | `.compile(name=...)`, via `desk/graph.py` or `lane/graph.py` | a named root (`desk`, `lane:<family>`); the server names each turn `<dataset> <analysis> turn <n> <phase>` |
 | starts a process | `common/trace.py::child_env` and `trace.parent()` in the child (`desk/pipeline.py`) | the lane's graph under the desk's `run` node, on the same thread |
-| writes under a design, run or viz folder | `common/trace.py::write` | an `artifact:<file>` tool span with the file attached |
+| writes under a design, a run or an artifact folder | `common/trace.py::write` | an `artifact:<file>` tool span with the file attached |
 | refuses a model answer | `common/trace.py::gate` | a `gate` tool span with the errors |
 | appends a journal step or saves the memory | `Journal.append`, `store.save` | a `journal` or `memory.save` tool span |
 
@@ -95,12 +96,12 @@ for why a lane keeps its own engine.
 
 | store | where | written by | read by |
 |---|---|---|---|
-| the memory | `data/memory/<name>/` (`meta.yaml`, `columns.yaml`, `fields.yaml`, `said.jsonl`): what is known about the file; every field carries its status, its source, the sentence it rests on, and the reason | `memory.store.save`, through `memory.ops.apply` only | the desk, the pack builder, the drawing tool's context, the server's view |
+| the memory | `data/memory/<name>/` (`meta.yaml`, `columns.yaml`, `fields.yaml`, `said.jsonl`): what is known about the file; every field carries its status, its source, the sentence it rests on, and the reason | `memory.store.save`, through `memory.ops.apply` only | the desk, the pack builder, the exploration agent's context, the server's view |
 | the designs | `data/memory/<name>/designs/<n>/`, one folder per design run: the memory snapshot, the pack, the frame, the decision, then the lane's result, the figures and the run record | `memory.store.snapshot` and `desk.nodes.run` for the design, the lane's process for `result.json`, `desk.pipeline.save_record` for the record | the lane, the brief, the server's runs list |
 | the journal | `data/memory/<name>/analyses/<id>/journal.jsonl`: one conversation's steps, each with its address `step:<n>`, what it read, what it left, and the design run it belongs to | `memory.journal`, from the desk nodes as they run | the after-run chat and explain (citable lines), the server's Journal tab |
 | the checkpoints | `.artifacts/web/checkpoints.sqlite`: where each thread's conversation is | the desk graph through `SqliteSaver`; `desk/graph.py` `_CONTRACTS` lists the classes a checkpoint may hold | the server's session manager |
 | the run artifacts | `.artifacts/runs/<dataset>-<tag>-<id>/` (table, design, estimates, report, figures.json) | a lane, through `lane.records` | the desk's brief and the server's file routes |
-| the pictures | `data/memory/<name>/viz/pre/<id>/` before any run, `data/memory/<name>/designs/<n>/viz/<id>/` after run n: `request.json`, `code.py`, `figure.png`, `facts.json`, `artifact.json` | the drawing tool, `viz.draw`, on the person's request | the chat (`artifact:<id>` and `artifact:<id>.<fact>`), the server's picture route; never code |
+| the artifacts | `data/memory/<name>/artifacts/<id>/`: `artifact.json`, `facts.json`, `code.py`, `thoughts.json`, `request.json`, `figure.png` when it drew, the table when it wrote one, the `step_<n>/` folders; tagged with the design it is about, or none | the exploration agent's client, on receipt | the material before and after a run, the server's artifact routes |
 
 The memory is what is known, the journal is what was done, the checkpoint is where the conversation is. A conversation can be
 thrown away and the knowledge survives; the knowledge can be revised and every design still shows what it was made from.
@@ -118,7 +119,7 @@ breaks the build, not the page.
 ## The checks
 
 `make check` runs what CI runs: ruff (lint and format), the import contracts, mypy, pytest, eslint, prettier, tsc,
-vitest, the web build, and the schema freshness. mypy is `check_untyped_defs` on `common`, `lane`, `viz`, `memory`,
+vitest, the web build, and the schema freshness. mypy is `check_untyped_defs` on `common`, `lane`, `explore`, `viz`, `memory`,
 `profile`, `server` and the family packages outside their lanes; the desk and the lanes are still `ignore_errors`, the
 one typing gap left.
 
@@ -129,4 +130,4 @@ The records under [adr/](adr/) hold the decisions the layout rests on. Add one w
 ## The mechanisms, one page each
 
 [desk.md](desk.md), [memory-and-matrix.md](memory-and-matrix.md), [gates.md](gates.md), [pack-and-addresses.md](pack-and-addresses.md),
-[lanes.md](lanes.md), [drawing-tool.md](drawing-tool.md), [testing.md](testing.md), [page.md](page.md); the index is [README.md](README.md).
+[lanes.md](lanes.md), [exploration.md](exploration.md), [testing.md](testing.md), [page.md](page.md); the index is [README.md](README.md).

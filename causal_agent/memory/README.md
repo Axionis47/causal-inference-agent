@@ -21,7 +21,7 @@ against the file, projected into every run's context pack. See [docs/memory-and-
 - `fields.yaml`, `checks.yaml`, `catalogue.py` — the field catalogue: kinds, fields, options, frames, checks, family needs, thresholds.
 - `table.py` — the matrix computed: every family against every claim kind, each cell with the address that decided it; struck,
   surviving, required, ready. `matrix.py` — the matrix as a record with an update rule and a diff, cited as `matrix:<family>.<kind>`.
-- `views.py` — the text views: the dataset's context, one column's brief line, what the drawing tool and the prompts read.
+- `views.py` — the text views: the dataset's context, one column's brief line, what the exploration agent and the prompts read.
 - `claims.py`, `checks.py`, `probes.py` — the claim-table view and the code that still runs on it.
 
 ```bash

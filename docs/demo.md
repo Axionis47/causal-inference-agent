@@ -20,7 +20,7 @@ needs it. [memory-and-matrix.md](memory-and-matrix.md)
 
 **3. Ready.** With every required claim settled the matrix rules five families out and leaves one in. The desk shows what the design
 rests on and the evidence it checked, then waits for "run". At any point you can ask for a picture of anything in the file: the
-drawing tool makes it in a sandbox and keeps the code and every number it shows. [drawing-tool.md](drawing-tool.md)
+exploration agent makes it in a sandbox and keeps the code and every number it shows. [exploration.md](exploration.md)
 
 ![Design chosen, evidence cited, the other families set aside](demo/3-ready.png)
 
@@ -31,7 +31,7 @@ balance check, and tries three ways to break the estimate. Every sentence carrie
 ![The run's answer with caveats, checks, refutations, and the causal graph](demo/4-result.png)
 
 **5. The figures** the run drew from its own artifacts: the graph, the balance before and after weighting, the effect against its
-refutations. [drawing-tool.md](drawing-tool.md#run-figures-are-a-different-thing)
+refutations. [exploration.md](exploration.md#run-figures-are-a-different-thing)
 
 ![Results panel: causal graph, balance](demo/5-figures.png)
 
@@ -64,7 +64,7 @@ The pictures on the pages are regenerated from these folders by `make docfigs`; 
 
 ## Re-recording
 
-The screenshots above date from 2026-09-25. Since then the pre-run figures were replaced by the drawing tool
+The screenshots above date from 2026-09-25. Since then the pre-run figures were replaced by pictures made on request
 ([ADR 0007](adr/0007-a-picture-is-drawn-on-request.md)), so step 3 and step 5 still show an overlap figure the desk no longer draws
 at the ready moment. To re-record: `make dev-api` and `make dev-web`, upload the file, answer as above, and replace the six
 images. Then copy the new `designs/<n>/` and its run folder into `demo/run/` and `demo/interview/` and run `make docfigs`.

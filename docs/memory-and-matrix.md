@@ -132,7 +132,7 @@ data/memory/<name>/
   analyses/a<k>/journal.jsonl                             what one conversation did, step:<n>
   designs/<n>/  memory.json handoff.json brief.json frame.json decision.json matrix.json record.md
                 result.json figures.json record.json      one design run: the snapshot, the pack, the result
-  viz/pre/<id>/  designs/<n>/viz/<id>/                    pictures drawn on request
+  artifacts/<id>/                                        what the exploration agent made on request: a picture, a table, its facts, its script
 ```
 
 The memory outlives every conversation. Graph state is where the conversation is, never the source of truth.
