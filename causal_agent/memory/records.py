@@ -181,6 +181,35 @@ class Memory(BaseModel):
         if f is not None:
             f.evidence = list(dict.fromkeys(f.evidence + evidence))
 
+    # ------------------------------------------------------------- the file's facts
+    def seed_profile(self, profile) -> None:
+        """The dataset facts and one Column per profiled column, from the profile of the table in play."""
+        dp = profile.dataset
+        self.facts = {
+            "rows": dp.rows,
+            "columns": dp.columns,
+            "duplicate_rows": dp.duplicate_rows,
+            "grain": list(dp.grain or []),
+            "time_coverage": dp.time_coverage.model_dump() if dp.time_coverage else None,
+            "entity_summary": dp.entity_summary.model_dump() if dp.entity_summary else None,
+            "format_issues": list(dp.format_issues or []),
+        }
+        for cp in profile.columns:
+            self.columns[cp.key] = Column(name=cp.name, key=cp.key, facts=ColumnFacts.from_profile(cp))
+
+    def switch_version(self, v: int, csv: str, profile) -> tuple[list[str], list[str]]:
+        """Put table version v in play: the file, its facts and its columns are re-read from the profile; a column the new table
+        lacks goes out of play (its fields stay in the map, unread until it is back); a new column gets a Column and nothing
+        else, so its fields are open. Moves the version like any write. Returns the keys added and the keys dropped."""
+        before = set(self.columns)
+        now = {cp.key for cp in profile.columns}
+        for k in before - now:
+            del self.columns[k]
+        self.seed_profile(profile)
+        self.csv, self.data_version = csv, v
+        self.version += 1
+        return sorted(now - before), sorted(before - now)
+
     # ------------------------------------------------------------- text
     def render(self, known_only: bool = True, roles: dict[str, str] | None = None) -> str:
         lines = []
@@ -212,18 +241,7 @@ class Memory(BaseModel):
         cat = cat or load_catalogue()
         m = cls(name=name, csv=csv, said=list(said or []))
         if profile is not None:
-            dp = profile.dataset
-            m.facts = {
-                "rows": dp.rows,
-                "columns": dp.columns,
-                "duplicate_rows": dp.duplicate_rows,
-                "grain": list(dp.grain or []),
-                "time_coverage": dp.time_coverage.model_dump() if dp.time_coverage else None,
-                "entity_summary": dp.entity_summary.model_dump() if dp.entity_summary else None,
-                "format_issues": list(dp.format_issues or []),
-            }
-            for cp in profile.columns:
-                m.columns[cp.key] = Column(name=cp.name, key=cp.key, facts=ColumnFacts.from_profile(cp))
+            m.seed_profile(profile)
         for claim in table.claims.values():
             spec = cat.kinds.get(claim.kind)
             if claim.kind == COLUMN_KIND:
