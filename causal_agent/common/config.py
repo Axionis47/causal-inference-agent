@@ -31,7 +31,8 @@ class Paths:
 
 @dataclass(frozen=True)
 class Model:
-    name: str
+    name: str  # the heavy tier: every judgement that designs, decides or explains
+    light: str  # the light tier: the per-turn reading of the person's words; the heavy model unless GEMINI_MODEL_LIGHT says otherwise
     project: str | None  # None: the active gcloud project
     location: str
     include_thoughts: bool
@@ -74,8 +75,10 @@ def load(env: Mapping[str, str] | None = None, root: Path | None = None) -> Conf
         checkpoint_db=artifacts / "web" / "checkpoints.sqlite",
         dist=root / "web" / "dist",
     )
+    heavy = env.get("GEMINI_MODEL", "gemini-2.5-flash")
     model = Model(
-        name=env.get("GEMINI_MODEL", "gemini-2.5-flash"),
+        name=heavy,
+        light=env.get("GEMINI_MODEL_LIGHT") or heavy,
         project=env.get("VERTEX_PROJECT") or None,
         location=env.get("VERTEX_LOCATION", "us-central1"),
         include_thoughts=_flag(env, "INCLUDE_THOUGHTS", True),

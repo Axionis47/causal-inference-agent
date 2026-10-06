@@ -76,7 +76,7 @@ def read_words(
         material=material,
         errors=shown,
     )
-    out, thought = structured(Reading, P.READ_SYSTEM, user, node=f"read:{source}")
+    out, thought = structured(Reading, P.READ_SYSTEM, user, node=f"read:{source}", tier="light")
     status = "drafted" if from_note or draft else "confirmed"
     updates = []
     for u in out.updates:

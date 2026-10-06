@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import subprocess
 from functools import lru_cache
-from typing import Any, TypeVar
+from typing import Any, Literal, TypeVar
 
 from dotenv import load_dotenv
 from langgraph.types import RetryPolicy
@@ -20,6 +20,10 @@ from causal_agent.common.contracts import Thought
 load_dotenv()
 
 T = TypeVar("T", bound=BaseModel)
+
+# light: the per-turn reading of the person's words, which a smaller model can do; heavy: everything that designs, decides
+# or explains. One model serves both until GEMINI_MODEL_LIGHT names another.
+Tier = Literal["light", "heavy"]
 
 # the retry policy for a graph node that calls the model: three tries, a second apart at first
 RETRY = RetryPolicy(max_attempts=3, initial_interval=1.0)
@@ -33,12 +37,17 @@ def _gcloud_project() -> str | None:
         return None
 
 
-@lru_cache(maxsize=1)
-def get_llm():
+def model_name(tier: Tier = "heavy") -> str:
+    m = config.get().model
+    return m.light if tier == "light" else m.name
+
+
+@lru_cache(maxsize=2)
+def get_llm(tier: Tier = "heavy"):
     from langchain_google_vertexai import ChatVertexAI
 
     m = config.get().model
-    kwargs: dict[str, Any] = dict(model=m.name, project=m.project or _gcloud_project(), location=m.location, temperature=0, max_retries=2)
+    kwargs: dict[str, Any] = dict(model=model_name(tier), project=m.project or _gcloud_project(), location=m.location, temperature=0, max_retries=2)
     if m.include_thoughts:
         kwargs["include_thoughts"] = True
         kwargs["thinking_budget"] = m.thinking_budget
@@ -54,9 +63,9 @@ def set_llm(llm: Any) -> None:
     _override = llm
 
 
-def current() -> Any:
-    """The model in use: the test's fake when one is set, else Gemini."""
-    return _override or get_llm()
+def current(tier: Tier = "heavy") -> Any:
+    """The model in use: the test's fake when one is set, whatever the tier, else Gemini at that tier."""
+    return _override or get_llm(tier)
 
 
 def extract_thoughts(raw: Any) -> tuple[str, int | None, int | None]:
@@ -81,10 +90,11 @@ def extract_thoughts(raw: Any) -> tuple[str, int | None, int | None]:
     return "\n".join(text_parts), thinking_tokens, output_tokens
 
 
-def structured(schema: type[T], system: str, user: str, *, node: str) -> tuple[T, Thought]:
-    """One judgement: the prompt in, one typed record and the model's thoughts out, as a span named `node` in the trace."""
-    with trace.span(node, inputs={"schema": schema, "system": system, "user": user}) as s:
-        parsed, thought = _structured(schema, system, user, node=node)
+def structured(schema: type[T], system: str, user: str, *, node: str, tier: Tier = "heavy") -> tuple[T, Thought]:
+    """One judgement: the prompt in, one typed record and the model's thoughts out, as a span named `node` in the trace.
+    `tier` picks the model; the span records which one answered."""
+    with trace.span(node, inputs={"schema": schema, "system": system, "user": user, "tier": tier, "model": model_name(tier)}) as s:
+        parsed, thought = _structured(schema, system, user, node=node, tier=tier)
         s.end(
             outputs={
                 "record": trace.record(parsed),
@@ -96,8 +106,8 @@ def structured(schema: type[T], system: str, user: str, *, node: str) -> tuple[T
         return parsed, thought
 
 
-def _structured(schema: type[T], system: str, user: str, *, node: str) -> tuple[T, Thought]:
-    runnable = current().with_structured_output(schema, include_raw=True)
+def _structured(schema: type[T], system: str, user: str, *, node: str, tier: Tier) -> tuple[T, Thought]:
+    runnable = current(tier).with_structured_output(schema, include_raw=True)
     out = runnable.invoke([("system", system), ("human", user)])
     if isinstance(out, dict) and "parsed" in out:
         parsed, raw = out["parsed"], out.get("raw")

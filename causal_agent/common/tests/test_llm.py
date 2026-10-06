@@ -51,3 +51,16 @@ def test_no_record_raises_and_names_the_node():
     set_llm(_Fake(None))
     with pytest.raises(ValueError, match="no structured answer"):
         structured(Answer, "s", "u", node="t")
+
+
+def test_the_tier_picks_the_model_and_the_fake_serves_both():
+    from causal_agent.common import config
+    from causal_agent.common.llm import model_name
+
+    both = config.load({"GEMINI_MODEL": "a"}).model
+    assert (both.name, both.light) == ("a", "a")
+    split = config.load({"GEMINI_MODEL": "a", "GEMINI_MODEL_LIGHT": "b"}).model
+    assert (split.name, split.light) == ("a", "b")
+    assert model_name("heavy") == config.get().model.name and model_name("light") == config.get().model.light
+    set_llm(_Fake({"raw": None, "parsed": Answer(text="light"), "parsing_error": None}))
+    assert structured(Answer, "s", "u", node="t", tier="light")[0].text == "light"
