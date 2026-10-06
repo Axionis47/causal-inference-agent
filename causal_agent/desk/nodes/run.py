@@ -205,4 +205,4 @@ def ask_back(state: DeskState) -> dict:
     reason = (rec.specialist_result.get("feasibility") or {}).get("reason") or "it needs one more thing"
     because = f"{q['because']}\n" if q.get("because") else ""
     text = f"The analysis stopped before estimating: {reason}.\n\n{because}{a.text}"
-    return {"ask": a, "reply": text, "phase": "before", "run_requested": False, "fork": None, "what_if": {}, "handoff": None, "brief": None}
+    return {"ask": a, "reply": text, "phase": "before", "fork": None, "what_if": {}, "handoff": None, "brief": None}

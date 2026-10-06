@@ -22,7 +22,6 @@ from causal_agent.desk.nodes.shared import (
     CAT,
     INFER_ATTEMPTS,
     QUIT_WORDS,
-    RUN_WORDS,
     TH,
     _columns_in_play,
     _csv_path,
@@ -312,13 +311,11 @@ def _told_by_note(memory: Memory, opened: list) -> bool:
     return False
 
 
-def ask(state: DeskState) -> Command[Literal["listen", "fit", "convince"]]:
+def ask(state: DeskState) -> Command[Literal["listen", "convince"]]:
     """The next thing asked: once per question the story (unless a note told it), then the readback of the drafts, then one gap
     question per turn asked because a decision needs it. The map comes first, once; whatever the desk answered or drew last
-    turn comes before the question."""
+    turn comes before the question. At ready the ready moment is shown every time; the person's word launches from there."""
     st = state["status"]
-    if state.get("run_requested") and st.ready:
-        return Command(goto="fit", update={"run_requested": False, "ask": None})
     memory = F.memory_of(state)
     opened = state.get("open") or []
     flags: dict = {}
@@ -328,7 +325,7 @@ def ask(state: DeskState) -> Command[Literal["listen", "fit", "convince"]]:
         if not _told_by_note(memory, opened):
             a = Ask(addresses=[o.address for o in opened], kind="story", text=STORY_TEXT, because=sorted({b for o in opened for b in o.because}))
     if a is None:
-        if state.get("run_requested"):  # the person wants to run: only what blocks is asked; a relation a decision rests on can wait
+        if state.get("run_intent"):  # the person wants to run: only what blocks is asked; a relation a decision rests on can wait
             opened = [o for o in opened if not o.optional or o.status == "drafted"]
         a = compose_ask(memory, opened, state.get("findings") or [], state.get("frame"), surviving=list(st.surviving))
         if a is not None and a.kind == "confirm":
@@ -343,9 +340,7 @@ def ask(state: DeskState) -> Command[Literal["listen", "fit", "convince"]]:
     shown = {"artifact": state.get("artifact"), "drawn": None, **flags}
     if a is None:
         if st.ready:
-            return Command(
-                goto="convince", update={"ask": None, "reply": head, "run_requested": False, "oriented": True, "explained": None, "note": "", **shown}
-            )
+            return Command(goto="convince", update={"ask": None, "reply": head, "oriented": True, "explained": None, "note": "", **shown})
         body = (
             "Nothing more to ask, but no design fits yet: "
             + "; ".join(f"{f} ({w})" for f, w in st.struck.items())
@@ -353,9 +348,9 @@ def ask(state: DeskState) -> Command[Literal["listen", "fit", "convince"]]:
         )
     else:
         body = a.text
-        if state.get("run_requested"):
+        if state.get("run_intent"):
             body = "Before I can run, this still has to be settled. " + body
-    return Command(goto="listen", update={"ask": a, "reply": head + body, "run_requested": False, "oriented": True, "explained": None, "note": "", **shown})
+    return Command(goto="listen", update={"ask": a, "reply": head + body, "oriented": True, "explained": None, "note": "", **shown})
 
 
 # ------------------------------------------------------------------ convince (the ready moment)
@@ -400,7 +395,7 @@ def convince(state: DeskState, runtime: Runtime[Context]) -> dict:
     fr = st3.get("frame")
     pack = H.build(question=state["question"], frame=fr, decision=d, family=R.REGISTRY[fam.name], memory=memory, probes=update.get("probes") or [], brief=brief)
     lines = [
-        head + "Everything the analysis needs is settled. Here is the context the analysis will run on; correct any line before you say run.",
+        head + "Everything the analysis needs is settled. Here is the context the analysis will run on; correct any line before you say yes.",
         pack.render_summary(),
         f"Design: {fam.name.replace('_', ' ')}. {fam.answers[0].upper() + fam.answers[1:]}.",
         f"It bets on: {brief.bets_on if brief else fam.assumes}",
@@ -414,12 +409,13 @@ def convince(state: DeskState, runtime: Runtime[Context]) -> dict:
     lines.append(f"Evidence: {evidence}. " + " ".join(fields))
     if struck:
         lines.append("Set aside: " + "; ".join(struck) + ".")
-    lines.append("Say run to hand off, ask for a picture of anything in the file, or tell me anything to change.")
+    lines.append("Say yes to hand off, ask for a picture of anything in the file, or tell me anything to change.")
     _writer()({"convince": {"family": fam.name}})
     return {**update, "reply": "\n".join(ln for ln in lines if ln)}
 
 
-def listen(state: DeskState) -> Command[Literal["infer", "fit", "handoff", "check", "__end__"]]:
+def listen(state: DeskState) -> Command[Literal["infer", "__end__"]]:
+    """The interrupt before the run. Whatever the person says goes to the Reader; only a quit word ends the conversation here."""
     st, a = state["status"], state.get("ask")
     payload = {
         "phase": "before",
@@ -438,31 +434,6 @@ def listen(state: DeskState) -> Command[Literal["infer", "fit", "handoff", "chec
     memory = F.memory_of(state)
     turn = int(state.get("turn") or 0) + 1
     _remember(memory, turn, ", ".join((("lane:" + x) if a.from_lane else x) for x in a.addresses) if a else "", answer)
-    if low in RUN_WORDS:
-        if st and st.ready:
-            mirror = F.saved(memory)
-            if state.get("decision") is not None and state.get("convinced_version") == memory.version:  # decided at the ready moment; nothing moved since
-                return Command(goto="handoff", update={"turn": turn, "message": answer, "run_requested": False, "artifact": None, **mirror})
-            return Command(goto="fit", update={"turn": turn, "message": answer, "run_requested": False, "artifact": None, **mirror})
-        # "run" is the person's word that the drafts they were shown stand; empty and refuted fields stay open
-        confirmed = []
-        for o in state.get("open") or []:
-            f = memory.field(o.address)
-            if o.status == "drafted" and f is not None and f.value is not None:
-                memory.set(o.address, f.value, status="confirmed", source=f"user:turn:{turn}", said=answer)
-                confirmed.append(o.address)
-        mirror = F.saved(memory)
-        if confirmed:
-            record(
-                state,
-                "claim",
-                by="person",
-                memory=memory,
-                design=design_now(state),
-                read=[f"user:turn:{turn}"],
-                note="confirmed as drafted: " + ", ".join(confirmed),
-            )
-        return Command(goto="check", update={"turn": turn, "message": answer, "run_requested": True, "settled_now": confirmed, "artifact": None, **mirror})
     return Command(
         goto="infer", update={"turn": turn, "message": answer, "infer_errors": [], "infer_attempts": 0, "settled_now": [], "artifact": None, **F.saved(memory)}
     )
@@ -471,14 +442,23 @@ def listen(state: DeskState) -> Command[Literal["infer", "fit", "handoff", "chec
 # ------------------------------------------------------------------ infer: the Reader over a message, gated by apply
 
 
-def infer(state: DeskState) -> Command[Literal["infer", "draw", "check", "explain"]]:
-    """The Reader over what the person said this turn, source user:turn:<n>: what it settles, confirms, or leaves unknown, and
-    whether it asks the desk something or asks for a picture. The story is read into drafts the readback confirms. Three tries
-    when a write is refused."""
+def at_ready_moment(state: DeskState, memory: Memory) -> bool:
+    """The desk has just shown the design it would run, decided on the memory as it stands: a yes here launches."""
+    return state.get("ask") is None and state.get("decision") is not None and state.get("convinced_version") == memory.version and bool(state.get("ready"))
+
+
+def infer(state: DeskState) -> Command[Literal["infer", "draw", "check", "explain", "handoff"]]:
+    """The Reader over what the person said this turn, source user:turn:<n>: the kind of turn first, then what it settles,
+    confirms, or leaves unknown, and whether it asks the desk something or asks for a picture. The story is read into drafts
+    the readback confirms. Three tries when a reading is refused. A run at the ready moment is the word that launches; a run
+    anywhere else turns the interview on."""
     memory = F.memory_of(state)
     turn = int(state.get("turn") or 0)
     a = state.get("ask")
-    if a is None:
+    ready_now = at_ready_moment(state, memory)
+    if ready_now:
+        asked = "(the desk showed the design it would run and asked for the word to run it; a yes here is run)"
+    elif a is None:
         asked = "(no question was asked; the person spoke freely)"
     elif a.kind == "story":
         asked = f"{RD.STORY} {a.text}\n(settles: " + ", ".join(a.addresses) + ")"
@@ -520,6 +500,10 @@ def infer(state: DeskState) -> Command[Literal["infer", "draw", "check", "explai
     update["infer_attempts"] = 0
     if settled:
         record(state, "claim", by="person", memory=memory, design=design_now(state), read=[src], note=", ".join(settled))
+    if out.kind == "run":
+        if ready_now:  # the word, on the design just shown
+            return Command(goto="handoff", update={**update, "artifact": None})
+        return Command(goto="check", update={**update, "run_intent": True})  # the interview asks what blocks, then shows the ready moment
     if asked_draw:
         return Command(goto="draw", update=update)
     if asked_desk:

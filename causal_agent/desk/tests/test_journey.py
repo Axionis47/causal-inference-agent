@@ -158,7 +158,7 @@ def test_students_reaches_ready_in_the_frame_plus_a_few_questions_then_runs():
     assert HELD["students"].field("claim:assignment.kind").status == "drafted" and HELD["students"].field("claim:unobserved.exists") is None
     assert d.values["story_asked"] and d.values["readback_done"] and "Tell me the story" not in text
     turns = d.to_ready(max_turns=10)
-    assert turns <= 8 and d.payload["ready"] and "Say run" in d.payload["text"] and "could be answered" not in d.payload["text"]  # the map was said once
+    assert turns <= 8 and d.payload["ready"] and "Say yes" in d.payload["text"] and "could be answered" not in d.payload["text"]  # the map was said once
     # the relations a decision rests on were asked, in the order of the decisions, and the person's answers landed
     reads = fake.reads("user:")
     settles = lambda h: h.split("(settles: ")[1].split(")")[0].split(", ") if "(settles: " in h else []  # noqa: E731
@@ -640,13 +640,19 @@ def test_each_conversation_has_its_own_analysis_id_that_survives_every_resume():
     assert d2.values["analysis"] == "a7" and d.values["analysis"] == "a1"
 
 
-def test_saying_run_over_open_drafts_is_a_claim_step_on_the_persons_word():
+def test_run_intent_over_open_drafts_asks_the_readback_first_and_the_word_confirms_nothing():
     d = Desk(DeskFake())
     d.say(QUESTION)  # the drafts from the note are open, to be confirmed
+    m = HELD["students"]
     p = d.say("run")
-    assert "Before I can run" in p["text"] or p["ready"]
+    assert p["kind"] == "ask" and "Before I can run" in p["text"] and p["ask"]["kind"] == "confirm", (
+        "run intent turns the interview on; the readback comes first"
+    )
+    assert m.field("claim:assignment.kind").status == "drafted", "the word run confirms no draft"
+    assert d.journal.last("claim") is None or not d.journal.last("claim").note.startswith("confirmed as drafted")
+    d.say("yes, all right")  # the person's word on the drafts they were shown
     claim = d.journal.last("claim")
-    assert claim is not None and claim.by == "person" and claim.note.startswith("confirmed as drafted: claim:") and claim.read == ["user:turn:2"]
+    assert claim is not None and claim.by == "person" and claim.read == ["user:turn:3"] and m.field("claim:assignment.kind").status == "confirmed"
 
 
 def test_the_matrix_is_a_record_a_fit_step_only_when_a_cell_moves_and_matrix_json_at_handoff():
@@ -772,15 +778,6 @@ def test_a_timing_answer_the_file_refutes_is_asked_again_then_stands_as_a_contra
     assert d.payload["ready"]
     d.say("run")
     assert "col:lunch.when" in d.values["handoff"].by_status("contradiction")
-
-
-def test_run_before_ready_takes_the_drafts_on_their_word_and_asks_the_rest():
-    d = Desk(DeskFake())
-    d.say(QUESTION)
-    p = d.say("run")
-    m = HELD["students"]
-    assert m.field("claim:assignment.kind").status == "confirmed" and m.field("claim:assignment.kind").said == "run"
-    assert p["kind"] == "ask" and "Before I can run" in p["text"] and "unobserved" in p["ask"]["addresses"][0]
 
 
 # ------------------------------------------------------------------ the chat after

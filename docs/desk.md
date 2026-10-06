@@ -52,8 +52,9 @@ writes a `fit` step when a cell moves. `ask` composes the next thing by code ([d
 </picture>
 
 `listen` takes the answer. `infer` is the Reader over it; on the story turn the desk also keeps the account whole, as the
-one verbatim field only it may write. `draw` and `explain` serve a picture or an answer before the next ask. "run" while
-drafts are open takes them on the person's word; after a run request only what blocks is asked.
+one verbatim field only it may write. `draw` and `explain` serve a picture or an answer before the next ask. The Reader reads
+the kind of every turn; a run anywhere but the ready moment turns run intent on, after which only what blocks is asked, and a
+run at the ready moment is the word that launches. No word list is matched.
 
 **The routing, by code.** `fit` computes the matrix; `decide` is code when exactly one family survives and a judgement only when
 several do; `gate` checks the decision; `design` is the Designer writing the brief; `handoff` writes `designs/<n>/` with the

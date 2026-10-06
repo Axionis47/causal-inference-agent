@@ -23,7 +23,6 @@ CAT: Catalogue = load_catalogue()
 TH: dict = load_thresholds()
 INFER_ATTEMPTS = 3
 QUIT_WORDS = {"quit", "exit"}
-RUN_WORDS = {"run", "go", "run it", "run the analysis"}
 
 
 def _writer():

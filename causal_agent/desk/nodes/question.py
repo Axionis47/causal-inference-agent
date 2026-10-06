@@ -47,7 +47,7 @@ def load(state: DeskState) -> dict:
         "matrix": None,
         "infer_errors": [],
         "infer_attempts": 0,
-        "run_requested": False,
+        "run_intent": False,
         "ready": False,
         "runs": list(state.get("runs") or []),
         "prefilter_votes": [],

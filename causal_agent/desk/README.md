@@ -33,7 +33,8 @@ The one conversation from a CSV to a routed context pack, and back after the run
   `matrix:` cells, `probe:` results, `step:<n>`, `user:turn:<n>`, and every `claim:`/`col:` field, so every cite is an address
   in the material; only `answer` and `draw` are legal before the run and the gate refuses the rest; three tries, then the honest
   fallback). A refuted answer is asked again with the check that refuted it, under the decision that needs it; kept twice, it
-  stands as a contradiction and reaches the lane. "run" while drafts are open takes them on the person's word. After the run:
+  stands as a contradiction and reaches the lane. A run read anywhere but the ready moment turns run intent on, and only what blocks
+  is asked from then; a run read at the ready moment launches. After the run:
   `brief`, `talk`, `turn` (the same Explainer over `material.render`: answer, revise, what_if, requestion, draw, done), with a
   revision going through the same gate and back to the checks, and a picture drawn into the design's folder and citable as
   `artifact:<id>`.

@@ -99,8 +99,8 @@ is outside. A core package never names a family or an engine; `families/tests/te
 **The desk** (`desk/graph.py`) is one LangGraph and the only graph: the question first, then one question per turn until
 the matrix says ready, then the run, then the chat after. Nodes are code except the judgements, each one model call gated
 by code (`infer`, `explain`, `read_question`/frame, `decide`, `design`, `turn`, the drawing tool). Interrupts are
-`ask_question`, `listen`, `talk`; the server resumes with `Command(resume=text)`, and `listen` runs the analysis only on
-one of `RUN_WORDS` (`desk/nodes/shared.py`). `desk/route.py` is the same nodes as one function for the evals.
+`ask_question`, `listen`, `talk`; the server resumes with `Command(resume=text)`. `listen` matches no word but quit: the Reader
+reads every turn's kind, and a `run` read at the ready moment is what launches the analysis. `desk/route.py` is the same nodes as one function for the evals.
 
 **The memory** (`memory/`) is what is known about a file: a map of `col:<key>.<field>` and `claim:<kind>.<field>` to a
 `Field` with value, status, source, the sentence it rests on, and the reason. The catalogue of kinds is

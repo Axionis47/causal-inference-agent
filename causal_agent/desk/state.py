@@ -70,7 +70,7 @@ class DeskState(RouteState, total=False):
     design_dir: str | None  # designs/<n>/ once the pack is written
     infer_errors: list[str]
     infer_attempts: int
-    run_requested: bool
+    run_intent: bool  # the person has asked to run: the interview asks what blocks, the ready moment is shown, the word launches; cleared by a new question
     ready: bool
     fork: object | None  # a what-if: a copy of the memory the routing and the run read instead of the one on disk
     what_if: dict[str, str]  # the fields changed on the fork, address -> value

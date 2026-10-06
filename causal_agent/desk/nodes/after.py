@@ -203,7 +203,6 @@ def revise(state: DeskState) -> Command[Literal["check", "talk"]]:
         update={
             "phase": "before",
             "settled_now": settled,
-            "run_requested": False,
             "infer_errors": [],
             "infer_attempts": 0,
             "handoff": None,
