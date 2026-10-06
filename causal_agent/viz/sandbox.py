@@ -3,8 +3,10 @@ macOS seatbelt (`sandbox-exec`: no network, reads limited to the interpreter, th
 writes to the artifact folder and the temp folders), `bwrap` or `unshare -rn` on Linux (no network; bwrap also mounts the file
 system read-only but the artifact folder), else a plain subprocess (the same interpreter, isolated mode, a scrubbed environment,
 isolation by environment only). `docker` runs the image from `make viz-image`. Either way: a timeout, and the folder swept
-afterwards so only code.py, figure.png and facts.json stay. The kind that ran is on the outcome, and the artifact records it.
-With a kind chosen by name and not at hand the run is refused, never quietly downgraded."""
+afterwards so only code.py, figure.png, facts.json and the small tables and text files the script wrote stay. What the script
+printed comes back with the outcome, cut to its tail, so a loop that reads a result before writing the next step can see it.
+The kind that ran is on the outcome, and the artifact records it. With a kind chosen by name and not at hand the run is
+refused, never quietly downgraded."""
 
 from __future__ import annotations
 
@@ -19,6 +21,9 @@ from pydantic import BaseModel
 from causal_agent.common import config, trace
 
 KEEP = ("code.py", "figure.png", "facts.json")
+KEEP_SUFFIXES = (".csv", ".json", ".png", ".txt")  # what else a script may leave: a table, a number file, a picture, a note
+MAX_FILE = 5 * 1024 * 1024  # a kept file larger than this is swept: a table of facts is small
+CAP = 20_000  # the tail of stdout and of stderr that comes back
 MPL_DIR = ".mpl"
 PROFILE = ".sandbox.sb"
 CSV_IN_CONTAINER = "/data/table.csv"
@@ -28,7 +33,8 @@ SEATBELT = "/usr/bin/sandbox-exec"
 
 class Outcome(BaseModel):
     ok: bool
-    stderr: str
+    stdout: str  # the last CAP characters the script printed
+    stderr: str  # the last CAP characters it wrote to stderr, or why the fence refused to run it
     files: list[str]
     kind: str
 
@@ -55,25 +61,28 @@ def run(code: str, csv: Path, out_dir: Path, timeout: float = 60) -> Outcome:
     with trace.span("sandbox", run_type="tool", inputs={"kind": kind, "out_dir": str(out_dir), "timeout": timeout}) as s:
         trace.write(out_dir / "code.py", code)
         outcome = _run(kind, box, csv, out_dir, timeout)
-        s.end(outputs={"ok": outcome.ok, "stderr": outcome.stderr, "files": outcome.files})
+        s.end(outputs={"ok": outcome.ok, "stdout": outcome.stdout, "stderr": outcome.stderr, "files": outcome.files})
         return outcome
+
+
+Ran = tuple[bool, str, str]  # ok, stdout, stderr
 
 
 def _run(kind: str, box: config.Sandbox, csv: Path, out_dir: Path, timeout: float) -> Outcome:
     if kind == "docker":
-        ok, stderr = _in_container(csv, out_dir, timeout, box.image)
+        ok, stdout, stderr = _in_container(csv, out_dir, timeout, box.image)
     elif kind == "seatbelt":
-        ok, stderr = _in_seatbelt(csv, out_dir, timeout)
+        ok, stdout, stderr = _in_seatbelt(csv, out_dir, timeout)
     elif kind == "bwrap":
-        ok, stderr = _in_bwrap(csv, out_dir, timeout)
+        ok, stdout, stderr = _in_bwrap(csv, out_dir, timeout)
     elif kind == "unshare":
-        ok, stderr = _in_unshare(csv, out_dir, timeout)
+        ok, stdout, stderr = _in_unshare(csv, out_dir, timeout)
     elif kind == "subprocess":
-        ok, stderr = _in_subprocess(csv, out_dir, timeout)
+        ok, stdout, stderr = _in_subprocess(csv, out_dir, timeout)
     else:
-        ok, stderr = False, f"VIZ_SANDBOX={box.kind!r} is not a sandbox this tool knows ({', '.join(KINDS)})"
+        ok, stdout, stderr = False, "", f"VIZ_SANDBOX={box.kind!r} is not a sandbox this tool knows ({', '.join(KINDS)})"
     _sweep(out_dir)
-    return Outcome(ok=ok, stderr=stderr, files=sorted(p.name for p in out_dir.iterdir()), kind=kind)
+    return Outcome(ok=ok, stdout=stdout, stderr=stderr, files=sorted(p.name for p in out_dir.iterdir()), kind=kind)
 
 
 def _env(csv: Path, out_dir: Path) -> dict[str, str]:
@@ -86,7 +95,7 @@ def _env(csv: Path, out_dir: Path) -> dict[str, str]:
     }
 
 
-def _in_subprocess(csv: Path, out_dir: Path, timeout: float) -> tuple[bool, str]:
+def _in_subprocess(csv: Path, out_dir: Path, timeout: float) -> Ran:
     return _call([sys.executable, "-I", "code.py"], out_dir, _env(csv, out_dir), timeout)
 
 
@@ -114,18 +123,18 @@ def _seatbelt_profile(csv: Path, out_dir: Path) -> str:
     return "\n".join(lines) + "\n"
 
 
-def _in_seatbelt(csv: Path, out_dir: Path, timeout: float) -> tuple[bool, str]:
+def _in_seatbelt(csv: Path, out_dir: Path, timeout: float) -> Ran:
     if not Path(SEATBELT).exists():
-        return False, "VIZ_SANDBOX=seatbelt but sandbox-exec is not on this machine"
+        return False, "", "VIZ_SANDBOX=seatbelt but sandbox-exec is not on this machine"
     profile = out_dir / PROFILE
     profile.write_text(_seatbelt_profile(csv, out_dir))
     return _call([SEATBELT, "-f", str(profile), sys.executable, "-I", "code.py"], out_dir, _env(csv, out_dir), timeout)
 
 
-def _in_bwrap(csv: Path, out_dir: Path, timeout: float) -> tuple[bool, str]:
+def _in_bwrap(csv: Path, out_dir: Path, timeout: float) -> Ran:
     bwrap = shutil.which("bwrap")
     if bwrap is None:
-        return False, "VIZ_SANDBOX=bwrap but bwrap is not on the PATH"
+        return False, "", "VIZ_SANDBOX=bwrap but bwrap is not on the PATH"
     out = str(out_dir.resolve())
     cmd = [
         bwrap,
@@ -143,20 +152,20 @@ def _in_bwrap(csv: Path, out_dir: Path, timeout: float) -> tuple[bool, str]:
     return _call(cmd, out_dir, _env(csv, out_dir), timeout)
 
 
-def _in_unshare(csv: Path, out_dir: Path, timeout: float) -> tuple[bool, str]:
+def _in_unshare(csv: Path, out_dir: Path, timeout: float) -> Ran:
     unshare = shutil.which("unshare")
     if unshare is None:
-        return False, "VIZ_SANDBOX=unshare but unshare is not on the PATH"
+        return False, "", "VIZ_SANDBOX=unshare but unshare is not on the PATH"
     return _call([unshare, "-rn", sys.executable, "-I", "code.py"], out_dir, _env(csv, out_dir), timeout)
 
 
-def _in_container(csv: Path, out_dir: Path, timeout: float, image: str) -> tuple[bool, str]:
+def _in_container(csv: Path, out_dir: Path, timeout: float, image: str) -> Ran:
     docker = shutil.which("docker")
     if docker is None:
-        return False, "VIZ_SANDBOX=docker but no docker binary is on the PATH"
+        return False, "", "VIZ_SANDBOX=docker but no docker binary is on the PATH"
     probe = subprocess.run([docker, "info"], capture_output=True, text=True)
     if probe.returncode != 0:
-        return False, "VIZ_SANDBOX=docker but the container runtime is not running: " + (probe.stderr or probe.stdout).strip()[-300:]
+        return False, "", "VIZ_SANDBOX=docker but the container runtime is not running: " + (probe.stderr or probe.stdout).strip()[-300:]
     cmd = [
         docker,
         "run",
@@ -191,17 +200,22 @@ def _in_container(csv: Path, out_dir: Path, timeout: float, image: str) -> tuple
     return _call(cmd, out_dir, {"PATH": os.environ.get("PATH", ""), "HOME": os.environ.get("HOME", "")}, timeout)
 
 
-def _call(cmd: list[str], cwd: Path, env: dict[str, str], timeout: float) -> tuple[bool, str]:
+def _call(cmd: list[str], cwd: Path, env: dict[str, str], timeout: float) -> Ran:
     try:
         done = subprocess.run(cmd, cwd=cwd, env=env, capture_output=True, text=True, timeout=timeout)
-        return done.returncode == 0, done.stderr
-    except subprocess.TimeoutExpired:
-        return False, f"timed out after {timeout:g}s"
+        return done.returncode == 0, done.stdout[-CAP:], done.stderr[-CAP:]
+    except subprocess.TimeoutExpired as e:
+        out = e.stdout.decode(errors="replace") if isinstance(e.stdout, bytes) else (e.stdout or "")
+        return False, out[-CAP:], f"timed out after {timeout:g}s"
 
 
 def _sweep(out_dir: Path) -> None:
+    """Keep the script, the picture, the numbers, and any small table, number file, picture or note the script wrote; drop
+    the rest: the matplotlib cache, the seatbelt profile, pickles, anything large."""
     for p in out_dir.iterdir():
         if p.name in KEEP:
+            continue
+        if p.is_file() and not p.is_symlink() and p.suffix in KEEP_SUFFIXES and p.stat().st_size <= MAX_FILE:
             continue
         if p.is_dir() and not p.is_symlink():
             shutil.rmtree(p)

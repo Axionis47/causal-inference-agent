@@ -34,7 +34,7 @@ json.dump({"mean_standard": float(means["standard"]), "mean_free_reduced": float
 """
 RAISES = "raise RuntimeError('boom: no such column')\n"
 PROSE = "I will read the CSV from VIZ_CSV, then draw the two means as bars and write both to facts.json.\n" + GOOD
-EXTRA = GOOD + "open('extra.txt', 'w').write('scratch')\n"
+EXTRA = GOOD + "open('extra.pkl', 'wb').write(b'scratch')\n"
 STRING_FACT = GOOD + "json.dump({'mean_standard': 'high', 'mean_free_reduced': 58.9}, open('facts.json', 'w'))\n"
 
 
@@ -148,8 +148,8 @@ def test_an_extra_file_is_swept():
     a, decline, _ = D.draw(request())
     assert decline is None and a is not None
     folder = store.folder("students", "pre", None, a.id)
-    assert not (folder / "extra.txt").exists() and not (folder / sandbox.MPL_DIR).exists()
-    assert "extra.txt" not in a.files
+    assert not (folder / "extra.pkl").exists() and not (folder / sandbox.MPL_DIR).exists()
+    assert "extra.pkl" not in a.files
 
 
 def test_a_string_fact_fails_the_check():

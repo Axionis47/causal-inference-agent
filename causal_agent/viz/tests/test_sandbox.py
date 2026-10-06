@@ -102,3 +102,19 @@ def test_the_container_runs_the_script_with_the_csv_read_only(tmp_path, monkeypa
     assert not out.ok and "Read-only" in out.stderr  # the table cannot be written
     out = sandbox.run(HELLO, CSV, tmp_path / "o")
     assert out.ok and out.kind == "docker" and out.files == ["code.py", "facts.json", "figure.png"]
+
+
+def test_what_the_script_printed_comes_back_cut_to_its_tail_and_its_tables_are_kept(tmp_path, monkeypatch):
+    monkeypatch.setenv("VIZ_SANDBOX", "subprocess")
+    script = HELLO + (
+        "open('table.csv', 'w').write('a,b\\n1,2\\n')\n"
+        "open('notes.txt', 'w').write('kept')\n"
+        "open('big.csv', 'w').write('x' * (sandbox_max + 1))\n"
+        "open('model.pkl', 'wb').write(b'swept')\n"
+        "import os; os.mkdir('scratch'); open('scratch/y', 'w').write('swept')\n"
+        "print('tail ' + 'z' * 30000)\n"
+    ).replace("sandbox_max", str(sandbox.MAX_FILE))
+    out = sandbox.run(script, CSV, tmp_path / "p")
+    assert out.ok and out.files == ["code.py", "facts.json", "figure.png", "notes.txt", "table.csv"]
+    assert len(out.stdout) == sandbox.CAP and out.stdout.rstrip().endswith("z") and "tail" not in out.stdout  # the tail, not the head
+    assert (tmp_path / "p" / "table.csv").read_text() == "a,b\n1,2\n"
