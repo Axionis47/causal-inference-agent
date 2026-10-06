@@ -73,7 +73,7 @@ def check(state: DeskState) -> dict:
             if f is not None and f.source == f"user:turn:{turn}":  # the person answered this turn and the file says otherwise
                 refs[fd.address] = refs.get(fd.address, 0) + 1
                 if refs[fd.address] >= max_asks:
-                    f.status = "contradiction"
+                    memory.mark(fd.address, "contradiction")
     return {"findings": [Finding.of(f) for f in findings], "refutations": refs, **F.saved(memory)}
 
 

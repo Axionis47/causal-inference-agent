@@ -291,8 +291,9 @@ def _refute(memory: Memory, address: str, finding: Finding) -> None:
     if f is None:
         return
     if f.status != "contradiction":  # a contradiction stands; the person kept their answer against the file twice
-        f.status = "refuted"
-    f.evidence = list(dict.fromkeys(f.evidence + [finding.evidence]))
+        memory.mark(address, "refuted", evidence=[finding.evidence])
+    else:
+        memory.note_evidence(address, [finding.evidence])
 
 
 def consistency(memory: Memory, outcome: str | None = None, treatment: str | None = None) -> list[Finding]:
@@ -394,9 +395,10 @@ def check(
         out.append(fd)
         f = memory.field(address)
         if f is not None:
-            f.evidence = list(dict.fromkeys(f.evidence + [fd.evidence]))
             if res.passed is False and f.status != "contradiction":
-                f.status = "refuted"
+                memory.mark(address, "refuted", evidence=[fd.evidence])
+            else:
+                memory.note_evidence(address, [fd.evidence])
     out += consistency(memory, outcome, treatment)
     return out
 

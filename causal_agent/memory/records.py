@@ -161,6 +161,26 @@ class Memory(BaseModel):
         self.version += 1
         return f
 
+    def mark(self, address: str, status: Status, *, evidence: list[str] | None = None) -> Field:
+        """A status change that keeps the value: a data check refuting a field, or the person holding their answer against
+        the file. Moves the version like any write, so whatever rests on the field (an artifact, a readiness) can tell it is
+        stale; the same status twice moves nothing."""
+        f = self.field(address)
+        if f is None:
+            raise KeyError(f"{address!r} names no field")
+        if evidence:
+            f.evidence = list(dict.fromkeys(f.evidence + evidence))
+        if f.status != status:
+            f.status = status
+            self.version += 1
+        return f
+
+    def note_evidence(self, address: str, evidence: list[str]) -> None:
+        """What a check found on a field whose status it leaves alone: kept, never a version."""
+        f = self.field(address)
+        if f is not None:
+            f.evidence = list(dict.fromkeys(f.evidence + evidence))
+
     # ------------------------------------------------------------- text
     def render(self, known_only: bool = True, roles: dict[str, str] | None = None) -> str:
         lines = []

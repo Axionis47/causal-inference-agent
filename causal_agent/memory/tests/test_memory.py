@@ -356,3 +356,18 @@ def test_a_cutoff_rule_needs_its_score_and_cutoff_and_a_lottery_does_not():
     opened = {o.address: o for o in ops.open(m, st, R.needs())}
     assert "claim:assignment.score_column" in opened and not opened["claim:assignment.score_column"].optional
     assert "claim:assignment.depends_on" not in opened
+
+
+def test_a_status_change_moves_the_version_and_the_same_status_twice_does_not():
+    m, _ = students3()
+    v = m.version
+    f = m.mark("col:lunch.when", "refuted", evidence=["check:x"])
+    assert f.status == "refuted" and f.evidence[-1] == "check:x" and m.version == v + 1
+    m.mark("col:lunch.when", "refuted", evidence=["check:y"])
+    assert m.version == v + 1 and "check:y" in m.field("col:lunch.when").evidence
+    m.note_evidence("col:lunch.when", ["check:z"])
+    assert m.version == v + 1 and "check:z" in m.field("col:lunch.when").evidence
+    m.mark("col:lunch.when", "contradiction")
+    assert m.version == v + 2
+    with pytest.raises(KeyError):
+        m.mark("col:lunch.nope", "refuted")
