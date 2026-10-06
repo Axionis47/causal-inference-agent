@@ -1142,7 +1142,12 @@ def test_a_picture_asked_for_before_the_run_is_drawn_shown_and_recorded(tmp_path
     folder = tmp_path / "data" / "memory" / "students" / "artifacts" / a["id"]
     assert (folder / "figure.png").exists() and (folder / "code.py").exists() and VS.list_artifacts("students")[0].id == a["id"]
     step = d.journal.steps()[-1]
-    assert step.kind == "explore" and step.by == "model" and step.note == "plot math score by lunch before we go on" and step.left[0].endswith(f"artifacts/{a['id']}")
+    assert (
+        step.kind == "explore"
+        and step.by == "model"
+        and step.note == "plot math score by lunch before we go on"
+        and step.left[0].endswith(f"artifacts/{a['id']}")
+    )
     assert HELD["students"].version == d.values["convinced_version"] if d.values.get("convinced_version") else True  # a picture settles nothing
     p = d.say(answer_ask(p))
     assert p["artifact"] is None  # shown once
