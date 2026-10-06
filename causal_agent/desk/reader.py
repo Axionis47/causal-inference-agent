@@ -109,5 +109,9 @@ def read_words(
                 updates.append(ops.Update(address=addr, value=f.value, status="confirmed", source=source, said=material[:200], reason="confirmed as drafted"))
         for addr in out.unknown:
             updates.append(ops.Update(address=addr, status="unknown", source=source, said=material[:200]))
-    rejected = trace.gate(ops.apply(memory, updates, CAT), name="gate:writes", updates=[u.address for u in updates])
+    # a refused reading writes nothing: the updates go to a copy first, and only a reading the gate passes whole reaches the
+    # memory, so a re-prompted reading never finds its own earlier drafts there to "confirm" (a real run did exactly that)
+    rejected = trace.gate(ops.apply(memory.snapshot(), updates, CAT), name="gate:writes", updates=[u.address for u in updates])
+    if not rejected:
+        ops.apply(memory, updates, CAT)
     return out, [thought], rejected

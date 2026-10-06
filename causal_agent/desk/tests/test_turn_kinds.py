@@ -7,7 +7,7 @@ from causal_agent.common.llm import set_llm
 from causal_agent.desk import reader as RD
 from causal_agent.desk.contracts import FieldUpdate, Reading
 from causal_agent.desk.tests.fakes import QUESTION, DeskFake
-from causal_agent.desk.tests.test_journey import HELD, REPO, Desk, _held  # noqa: F401  (the autouse fixture that holds the memory in process)
+from causal_agent.desk.tests.test_journey import HELD, REPO, Desk, _held, _no_note  # noqa: F401  (the autouse fixture that holds the memory in process)
 from causal_agent.memory import store
 
 
@@ -80,3 +80,27 @@ def test_a_confident_decision_skips_the_reader_and_an_unsure_one_reaches_it():
     assert len(fake.reads()) == reads + 1 and fake.calls.count("decide") >= 2
     p = d.say("why do you ask about hidden factors?")  # sure: ask, straight to the Explainer
     assert len(fake.reads()) == reads + 1 and "A scripted answer" in p["text"]
+
+
+def test_a_refused_reading_writes_nothing_so_a_re_prompt_cannot_confirm_its_own_drafts(_no_note):
+    """The first reading carries one update the gate refuses beside good drafts; the second, re-prompted, says those drafts are
+    right. Nothing from the first reached the memory, so the second's confirms land on nothing and the fields stay drafted."""
+    readings = [
+        Reading(
+            kind="update",
+            updates=[
+                FieldUpdate(address="claim:assignment.kind", value="own_choice", said="they chose"),
+                FieldUpdate(address="claim:change.date_column", value="", said="no date"),
+            ],
+        ),
+        Reading(
+            kind="update", confirms=["claim:assignment.kind"], updates=[FieldUpdate(address="claim:assignment.kind", value="own_choice", said="they chose")]
+        ),
+    ]
+    fake = DeskFake(infer=lambda msg, addrs, human: readings.pop(0) if readings else None)
+    d = Desk(fake)
+    d.say(QUESTION)
+    d.say("the students chose whether to take it")
+    f = HELD["students"].field("claim:assignment.kind")
+    assert f.value == "own_choice" and f.status == "drafted" and f.source.startswith("user:turn:")
+    assert fake.calls.count("Reading") == 2 and "PREVIOUS READING WAS REJECTED" in fake.humans["Reading"][-1] and "no value given" in fake.humans["Reading"][-1]
