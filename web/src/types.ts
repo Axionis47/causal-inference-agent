@@ -34,6 +34,7 @@ export type ArtifactView = S<"ArtifactView">;
 export type HandoffView = S<"HandoffView">;
 export type HandoffField = S<"HandoffField">;
 export type JudgeView = S<"JudgeView">;
+export type AskItemView = S<"AskItemView">;
 export type StepView = S<"StepView">;
 export type Prompt = S<"Prompt">;
 export type Activity = S<"Activity">;

@@ -15,6 +15,7 @@ from causal_agent.server import artifacts as AV
 from causal_agent.server import datasets as DS
 from causal_agent.server.models import (
     Activity,
+    AskItemView,
     CheckView,
     ClaimView,
     DecisionView,
@@ -153,6 +154,8 @@ def session_view(mgr: SessionManager, name: str) -> SessionView:
                 kind=ask.kind,
                 text=ask.text,
                 options=list(ask.options or []),
+                recommended=ask.recommended,
+                items=[AskItemView(**i.model_dump()) for i in ask.items],
                 evidence_cites=list(ask.evidence or []),
                 because=list(ask.because or []),
             )

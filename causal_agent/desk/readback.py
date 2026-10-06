@@ -4,7 +4,7 @@ read by the Reader like any other message."""
 
 from __future__ import annotations
 
-from causal_agent.desk.contracts import Ask
+from causal_agent.desk.contracts import Ask, AskItem
 from causal_agent.desk.nodes.shared import CAT, value_words
 from causal_agent.memory.records import Memory
 
@@ -32,8 +32,49 @@ def _rests_on(memory: Memory, address: str) -> str:
     return f" — from {f.source}" if f.source else ""
 
 
+def _as_text(value) -> str:
+    """A draft as the text the memory accepts back through `address = value`: yes or no, a list joined, else its words."""
+    if isinstance(value, bool):
+        return "yes" if value else "no"
+    if isinstance(value, list):
+        return ", ".join(str(v) for v in value)
+    return "" if value is None else str(value)
+
+
+def _options(memory: Memory, kind, field: str) -> list[str]:
+    """Every legal answer when the field has a fixed set: the catalogue's options, yes or no, the file's columns."""
+    spec = kind.fields.get(field)
+    if spec is None:
+        return []
+    if spec.type == "choice":
+        return [str(o) for o in spec.options]
+    if spec.type == "bool":
+        return ["yes", "no"]
+    if spec.type in ("column", "column_or_none"):
+        return [c.name for c in memory.columns.values()] + (["none"] if spec.type == "column_or_none" else [])
+    return []
+
+
+def items_of(memory: Memory, drafts: list) -> list[AskItem]:
+    """One item per draft, in the order read back: what the page's questionnaire answers line by line."""
+    out = []
+    for o in drafts:
+        kind = CAT.kinds[o.kind]
+        f = memory.field(o.address)
+        value = _as_text(f.value if f else None)
+        if kind.per_column:
+            col = memory.column(o.address[4:].rsplit(".", 1)[0])
+            label = f"'{col.name if col else o.address}' {o.field.replace('_', ' ')}"
+        else:
+            label = f"{o.kind.replace('_', ' ')}, {o.field.replace('_', ' ')}"
+        out.append(AskItem(address=o.address, label=label, value=value, options=_options(memory, kind, o.field), recommended=value or None))
+    return out
+
+
 def compose_readback(memory: Memory, opened: list) -> Ask | None:
-    """The drafts among `opened`, grouped and read back, as one confirm turn; None when nothing is drafted."""
+    """The drafts among `opened`, grouped and read back, as one confirm turn; None when nothing is drafted. The page gets the
+    same drafts as items, each with the desk's draft recommended and the other legal answers, so a line can be changed on its
+    own (sent back as `address = value`, the person's word) while a yes confirms every line."""
     drafts = [o for o in opened if o.status == "drafted"]
     if not drafts:
         return None
@@ -80,5 +121,7 @@ def compose_readback(memory: Memory, opened: list) -> Ask | None:
         kind="confirm",
         text=text,
         options=["Yes, all right", "No"],
+        recommended="Yes, all right",
+        items=items_of(memory, drafts),
         because=sorted({b for o in drafts for b in o.because}),
     )

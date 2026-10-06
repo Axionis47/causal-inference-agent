@@ -19,6 +19,7 @@ export default function Composer({
 }) {
   const [free, setFree] = useState("");
   const [answers, setAnswers] = useState<Record<number, string>>({});
+  const [edits, setEdits] = useState<Record<string, string>>({});
   const ta = useRef<HTMLTextAreaElement>(null);
   const questions: QuestionView[] = view.questions;
   const before = view.phase === "before";
@@ -27,12 +28,14 @@ export default function Composer({
   const promptKey = view.prompt?.text ?? "";
   useEffect(() => {
     setAnswers({});
+    setEdits({});
   }, [promptKey]);
 
   const picked = Object.entries(answers).map(([i, a]) => ({ i: Number(i), question: questions[Number(i)]?.text ?? "", answer: a }));
   const text = composeAnswer(
     free,
     picked.map((p) => ({ question: p.question, answer: p.answer })),
+    Object.entries(edits).map(([address, value]) => ({ address, value })),
   );
   const canSend = !disabled && text.length > 0;
 
@@ -41,6 +44,7 @@ export default function Composer({
     onSend(text);
     setFree("");
     setAnswers({});
+    setEdits({});
   };
 
   return (
@@ -51,6 +55,16 @@ export default function Composer({
       <QuestionList
         questions={questions}
         answers={answers}
+        edits={edits}
+        onEdit={(address, value) =>
+          setEdits((prev) => {
+            const next = { ...prev };
+            if (value === null) delete next[address];
+            else next[address] = value;
+            return next;
+          })
+        }
+        onOther={() => ta.current?.focus()}
         onPick={(i, a) => {
           setAnswers((prev) => {
             const next = { ...prev };
@@ -62,8 +76,25 @@ export default function Composer({
         }}
       />
       <div className="composer">
-        {picked.length > 0 && (
+        {(picked.length > 0 || Object.keys(edits).length > 0) && (
           <div className="picked">
+            {Object.entries(edits).map(([address, value]) => (
+              <span className="chip on" key={address}>
+                {address} = {value}
+                <button
+                  aria-label="remove"
+                  onClick={() =>
+                    setEdits((prev) => {
+                      const next = { ...prev };
+                      delete next[address];
+                      return next;
+                    })
+                  }
+                >
+                  ×
+                </button>
+              </span>
+            ))}
             {picked.map((p) => (
               <span className="chip on" key={p.i}>
                 {p.i + 1}. {p.answer}

@@ -269,6 +269,22 @@ export interface components {
              */
             table_url?: string | null;
         };
+        /**
+         * AskItemView
+         * @description One line of a readback the page can answer on its own: picking another option or typing a value sends `address = value`.
+         */
+        AskItemView: {
+            /** Address */
+            address: string;
+            /** Label */
+            label: string;
+            /** Value */
+            value: string;
+            /** Options */
+            options?: string[];
+            /** Recommended */
+            recommended?: string | null;
+        };
         /** Body_profile_upload_api_profile_post */
         Body_profile_upload_api_profile_post: {
             /** File */
@@ -768,7 +784,8 @@ export interface components {
         };
         /**
          * QuestionView
-         * @description The one question the desk asks this turn, as the page shows it: the field addresses it settles, its form, its chips.
+         * @description The one question the desk asks this turn, as the page shows it: the field addresses it settles, its form, its chips, the
+         *     option the desk recommends first, and for a readback each draft as an item.
          */
         QuestionView: {
             /** Keys */
@@ -779,6 +796,10 @@ export interface components {
             text: string;
             /** Options */
             options?: string[];
+            /** Recommended */
+            recommended?: string | null;
+            /** Items */
+            items?: components["schemas"]["AskItemView"][];
             /** Evidence Cites */
             evidence_cites?: string[];
             /**

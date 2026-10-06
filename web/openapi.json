@@ -594,6 +594,48 @@
         "title": "ArtifactView",
         "description": "An artifact a tool made from the file on request: what it is, what it shows, the numbers it holds, and where its files\nare served from."
       },
+      "AskItemView": {
+        "properties": {
+          "address": {
+            "type": "string",
+            "title": "Address"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "options": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Options"
+          },
+          "recommended": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recommended"
+          }
+        },
+        "type": "object",
+        "required": [
+          "address",
+          "label",
+          "value"
+        ],
+        "title": "AskItemView",
+        "description": "One line of a readback the page can answer on its own: picking another option or typing a value sends `address = value`."
+      },
       "Body_profile_upload_api_profile_post": {
         "properties": {
           "file": {
@@ -1890,6 +1932,24 @@
             "type": "array",
             "title": "Options"
           },
+          "recommended": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recommended"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AskItemView"
+            },
+            "type": "array",
+            "title": "Items"
+          },
           "evidence_cites": {
             "items": {
               "type": "string"
@@ -1913,7 +1973,7 @@
           "text"
         ],
         "title": "QuestionView",
-        "description": "The one question the desk asks this turn, as the page shows it: the field addresses it settles, its form, its chips."
+        "description": "The one question the desk asks this turn, as the page shows it: the field addresses it settles, its form, its chips, the\noption the desk recommends first, and for a readback each draft as an item."
       },
       "RefutationView": {
         "properties": {

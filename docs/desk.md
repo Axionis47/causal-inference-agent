@@ -39,7 +39,10 @@ writes a `fit` step when a cell moves. `ask` composes the next thing by code ([d
    records and when it was set, what one row is. The Reader drafts every claim it can from the answer. A mined note, or a
    story already told in the chat, skips it.
 3. The readback ([desk/readback.py](../causal_agent/desk/readback.py)): the drafts grouped by the five claims every decision
-   rests on, each line with the sentence it rests on. A yes confirms every draft shown.
+   rests on, each line with the sentence it rests on. A yes confirms every draft shown. On the page it is a questionnaire:
+   one item per draft with the desk's reading recommended, the other legal answers as chips and "other" for a value of the
+   person's own; a changed line comes back as `address = value`, their word on that field, and the readback returns for the
+   lines still drafted.
 4. The gaps that block, asked by decision: the surviving families' decisions in the order each lists them, every open blocking
    field under one decision in one turn, prefixed "To settle <what the decision asks>, I need:". A belief is asked as what the
    design would bet on. The relations a decision merely rests on (the same thing as another column, nested in one, the effect

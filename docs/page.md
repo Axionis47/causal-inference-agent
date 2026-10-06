@@ -28,7 +28,7 @@ each step in a worker thread and keeps the interrupt payload as the prompt is [s
 | field | what |
 |---|---|
 | `stage` | busy, waiting, ended, stale, error, new |
-| `phase`, `ready`, `prompt` | before or after the run; whether the matrix says ready; the current prompt and its kind: `question`, `chat` (nothing asked), `ask` (a question with its chips), `ready` (the design, waiting for the word), `after` |
+| `phase`, `ready`, `prompt` | before or after the run; whether the matrix says ready; the current prompt and its kind: `question`, `chat` (nothing asked), `ask` (a question with its chips, the recommended one named, and for a readback one item per draft), `ready` (the design, waiting for the word), `after` |
 | `claims`, `status` | every claim with its status and source; the matrix as the page draws it |
 | `runs` | one `RunView` per design: the decision, the checks, the estimates, the refutations, the interpretations, the declines, the figures, the pictures drawn after it |
 | `transcript` | one `Turn` per line of the conversation, each with an optional figure or picture |
@@ -51,7 +51,7 @@ that opens the inspector.
 | part | file | shows |
 |---|---|---|
 | the transcript | [Transcript.tsx](../web/src/components/Transcript.tsx), [Message.tsx](../web/src/components/Message.tsx) | each turn; a run figure as inline SVG, a drawn picture as an image with its facts |
-| the composer | [Composer.tsx](../web/src/components/Composer.tsx), [QuestionList.tsx](../web/src/components/QuestionList.tsx) | the ask with chips; `compose.ts` quotes each answered question beside its answer so the graph still reads prose |
+| the composer | [Composer.tsx](../web/src/components/Composer.tsx), [QuestionList.tsx](../web/src/components/QuestionList.tsx) | the ask with chips, the recommended one first; a readback as a questionnaire, one line per draft with the desk's reading recommended, the other legal answers and "other"; `compose.ts` quotes each answered question beside its answer so the graph still reads prose, and sends a changed line as `address = value` |
 | the handoff view | [HandoffPanel.tsx](../web/src/components/HandoffPanel.tsx) | at the ready moment, every field the run rests on, editable in place; a change sends `address = value` |
 | the status strip | [StatusStrip.tsx](../web/src/components/StatusStrip.tsx) | one mark per claim kind, settled or open |
 | the claims tab | [inspector/StatusMatrix.tsx](../web/src/components/inspector/StatusMatrix.tsx), [ClaimsTable.tsx](../web/src/components/inspector/ClaimsTable.tsx) | the matrix, claim kinds down and families across, a struck family marked; every claim with its source and sentence |

@@ -778,6 +778,25 @@ textarea.input {
   border-color: var(--accent);
   color: var(--accent-ink);
 }
+.chip.rec {
+  border-style: dashed;
+}
+.chip .recmark {
+  color: var(--ink-3);
+  font-size: 11px;
+}
+.qs .qrow.item {
+  padding-left: 22px;
+}
+.qs .qrow.item input.other {
+  font: inherit;
+  font-size: 13px;
+  padding: 2px 8px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--ink);
+}
 
 .composer {
   margin-top: 12px;

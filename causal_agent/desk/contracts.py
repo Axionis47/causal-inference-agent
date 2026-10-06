@@ -12,6 +12,17 @@ from causal_agent.common.contracts import Cited
 AskKind = Literal["story", "confirm", "choose", "open"]
 
 
+class AskItem(BaseModel):
+    """One line of a readback as the page can answer it: the field, the draft as the value the memory would accept back, the
+    other legal answers when the field has a fixed set, and the one the desk recommends (its own draft)."""
+
+    address: str
+    label: str = Field(description="the field in the person's terms: 'assignment, kind' or \"'lunch' when\"")
+    value: str = Field(description="the draft, as text the memory accepts back: an option, yes or no, a column name, words")
+    options: list[str] = Field(default_factory=list, description="every legal answer when the field has a fixed set; empty for free text")
+    recommended: str | None = Field(default=None, description="the answer the desk recommends: its draft")
+
+
 class Ask(BaseModel):
     """The one question the desk asks this turn: which fields it settles, in what form, and why it is asked."""
 
@@ -19,6 +30,8 @@ class Ask(BaseModel):
     kind: AskKind
     text: str
     options: list[str] = Field(default_factory=list, description="for choose: the legal answers")
+    recommended: str | None = Field(default=None, description="the option the desk recommends, when it has one; shown first")
+    items: list[AskItem] = Field(default_factory=list, description="for confirm: each draft as a line the page can answer on its own")
     because: list[str] = Field(default_factory=list, description="the families that need these fields")
     decision: str = Field(default="", description="the family decision the question serves, when one rests on these fields")
     evidence: list[str] = Field(default_factory=list, description="check addresses shown beside the question, when the file refuted an answer")

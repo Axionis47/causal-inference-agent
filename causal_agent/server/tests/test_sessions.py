@@ -40,6 +40,9 @@ def _to_ready(client, fake, name="students_web", max_turns=30):
     while v["prompt"]["kind"] == "ask":
         assert turns < max_turns, v["prompt"]["text"]
         assert len(v["questions"]) == 1, "one question per turn"
+        q = v["questions"][0]
+        if q["kind"] == "confirm":  # the readback is a questionnaire: every draft an item, the desk's reading recommended
+            assert q["recommended"] == "Yes, all right" and len(q["items"]) == len(q["keys"]) and all(i["recommended"] == i["value"] for i in q["items"])
         v = _say(client, name, reply_for(v))
         turns += 1
     assert v["prompt"]["kind"] == "ready" and v["status"]["ready"] is True and v["questions"] == []

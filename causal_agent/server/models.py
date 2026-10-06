@@ -113,13 +113,26 @@ class DatasetList(BaseModel):
 # ------------------------------------------------------------------ sessions
 
 
+class AskItemView(BaseModel):
+    """One line of a readback the page can answer on its own: picking another option or typing a value sends `address = value`."""
+
+    address: str
+    label: str
+    value: str
+    options: list[str] = Field(default_factory=list)
+    recommended: str | None = None
+
+
 class QuestionView(BaseModel):
-    """The one question the desk asks this turn, as the page shows it: the field addresses it settles, its form, its chips."""
+    """The one question the desk asks this turn, as the page shows it: the field addresses it settles, its form, its chips, the
+    option the desk recommends first, and for a readback each draft as an item."""
 
     keys: list[str]
     kind: str
     text: str
     options: list[str] = Field(default_factory=list)
+    recommended: str | None = None
+    items: list[AskItemView] = Field(default_factory=list)
     evidence_cites: list[str] = Field(default_factory=list)
     because: list[str] = Field(default_factory=list, description="the families that need these fields")
 

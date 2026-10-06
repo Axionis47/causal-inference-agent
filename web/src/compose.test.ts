@@ -16,3 +16,19 @@ describe("composeAnswer", () => {
     expect(composeAnswer("", [{ question: "q", answer: "  " }])).toBe("");
   });
 });
+
+describe("composeAnswer with edits", () => {
+  it("sends changed lines of the readback as address = value, alone when nothing else was said", () => {
+    expect(
+      composeAnswer(
+        "",
+        [],
+        [
+          { address: "col:lunch.when", value: "before" },
+          { address: "claim:grain.panel", value: " " },
+        ],
+      ),
+    ).toBe("col:lunch.when = before");
+    expect(composeAnswer("and one more thing", [], [{ address: "col:lunch.when", value: "before" }])).toBe("and one more thing\ncol:lunch.when = before");
+  });
+});
