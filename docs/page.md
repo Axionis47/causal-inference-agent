@@ -43,7 +43,7 @@ so a field the server renames breaks the build, not the page. The page never typ
 
 ## The page
 
-Vite, React, TypeScript, no UI kit. Three routes in [App.tsx](../web/src/App.tsx): `/` the datasets, `/new` upload and describe,
+Vite, React, TypeScript, no UI kit; the shapes are in [design.md](design.md). Three routes in [App.tsx](../web/src/App.tsx): `/` the datasets, `/new` upload and describe,
 `/d/:name` the conversation. One shell, the datasets in a sidebar, the conversation in the middle, and a slim strip on the right
 that opens the inspector.
 
@@ -55,9 +55,9 @@ that opens the inspector.
 | the claims tab | [inspector/StatusMatrix.tsx](../web/src/components/inspector/StatusMatrix.tsx), [ClaimsTable.tsx](../web/src/components/inspector/ClaimsTable.tsx) | the matrix, claim kinds down and families across, a struck family marked; every claim with its source and sentence |
 | the results tab | [inspector/RunDetail.tsx](../web/src/components/inspector/RunDetail.tsx), [RunTables.tsx](../web/src/components/inspector/RunTables.tsx) | a run's effect and interval, its figures, the estimates, checks, refutations and declines as tables |
 | the files tab | [inspector/FilesView.tsx](../web/src/components/inspector/FilesView.tsx) | the run folder: the report, the design, the artifacts |
-| the journal tab | [inspector/JournalView.tsx](../web/src/components/inspector/JournalView.tsx) | the conversation's steps |
+| the journal tab | [inspector/JournalView.tsx](../web/src/components/inspector/JournalView.tsx) | the conversation's steps, each with the addresses it read |
 | a run figure | [Figure.tsx](../web/src/components/Figure.tsx) | a `FigureSpec` drawn as SVG: bars, lines, points, density, interval, graph |
-| a drawn picture | [Picture.tsx](../web/src/components/Picture.tsx) | the caption with its `artifact:` address, the image, the facts with their addresses |
+| an artifact | [Picture.tsx](../web/src/components/Picture.tsx) | the caption with its `artifact:` address, the image, the facts with their addresses, a table's first rows |
 
 What is open lives in the URL hash, so a reload keeps it. Below 960px the sidebar and the inspector open as overlays.
 

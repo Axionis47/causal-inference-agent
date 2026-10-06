@@ -13,6 +13,7 @@ One page per mechanism. Each opens with a picture, walks one real example, and l
 | [exploration.md](exploration.md) | how a look at the data is asked for, made by scripts in a sandbox one step at a time in a separate agent, gated, stored, and cited |
 | [testing.md](testing.md) | how every judgement is scripted, where a test writes, the evals |
 | [page.md](page.md) | the routes, the one view, the generated wire, the inspector |
+| [design.md](design.md) | what a turn, an artifact, a cited address, a question and the handoff look like on the page, and what the page never does |
 | [demo.md](demo.md) | one real run walked, and the records it left under `demo/` |
 | [diagrams/](diagrams/README.md) | the pictures and the visual language they share |
 | [adr/](adr/) | the decisions the layout rests on |
