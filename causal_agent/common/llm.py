@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 from langgraph.types import RetryPolicy
 from pydantic import BaseModel
 
-from causal_agent.common import config, trace
+from causal_agent.common import config, decider, trace
 from causal_agent.common.contracts import Thought
 
 load_dotenv()
@@ -66,6 +66,37 @@ def set_llm(llm: Any) -> None:
 def current(tier: Tier = "heavy") -> Any:
     """The model in use: the test's fake when one is set, whatever the tier, else Gemini at that tier."""
     return _override or get_llm(tier)
+
+
+# ------------------------------------------------------------------ the decision model
+
+
+_decider_override: Any = None
+
+
+@lru_cache(maxsize=1)
+def get_decider() -> decider.Decider:
+    return decider.build()
+
+
+def set_decider(d: Any) -> None:
+    """Tests inject a fake here: anything with `predict(state, questions) -> dict` and a `name`. None restores the real one."""
+    global _decider_override
+    _decider_override = d
+
+
+def current_decider() -> Any:
+    return _decider_override or get_decider()
+
+
+def decide(state: dict[str, Any] | str, questions: dict[str, Any], *, node: str) -> decider.Decisions:
+    """One set of typed decisions about a text, no words: the state and the questions in, each answer with its confidence
+    out, as a span named `node`. The one place a decision model is called."""
+    d = current_decider()
+    with trace.span(node, inputs={"state": state, "questions": questions, "model": d.name}) as s:
+        out = decider.parse(d.predict(state, questions), model=d.name)
+        s.end(outputs={"answers": {k: a.model_dump() for k, a in out.answers.items()}})
+        return out
 
 
 def extract_thoughts(raw: Any) -> tuple[str, int | None, int | None]:

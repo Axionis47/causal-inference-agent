@@ -46,12 +46,20 @@ class Sandbox:
 
 
 @dataclass(frozen=True)
+class Decider:
+    kind: str  # laya | jev: the decision model that reads each turn's kind; laya runs in this process, jev is a hosted endpoint on the same wire
+    url: str | None  # the endpoint, when jev
+    key: str | None  # its key, when jev
+
+
+@dataclass(frozen=True)
 class Config:
     paths: Paths
     model: Model
     width_budget: int  # columns beyond this trigger the prefilter fan-out
     port: int
     sandbox: Sandbox
+    decider: Decider
 
 
 def _flag(env: Mapping[str, str], name: str, default: bool) -> bool:
@@ -85,7 +93,10 @@ def load(env: Mapping[str, str] | None = None, root: Path | None = None) -> Conf
         thinking_budget=int(env.get("THINKING_BUDGET", "1024")),
     )
     sandbox = Sandbox(kind=env.get("EXPLORE_SANDBOX", "auto"), image=env.get("EXPLORE_IMAGE", "causal-desk-explore"))
-    return Config(paths=paths, model=model, width_budget=int(env.get("FRAME_WIDTH_BUDGET", "150")), port=int(env.get("PORT", "8000")), sandbox=sandbox)
+    decider = Decider(kind=env.get("DECIDER", "laya"), url=env.get("DECIDER_URL") or None, key=env.get("DECIDER_KEY") or None)
+    return Config(
+        paths=paths, model=model, width_budget=int(env.get("FRAME_WIDTH_BUDGET", "150")), port=int(env.get("PORT", "8000")), sandbox=sandbox, decider=decider
+    )
 
 
 def get() -> Config:

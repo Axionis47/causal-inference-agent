@@ -1,0 +1,16 @@
+# The questions the decision model answers about every message before the Reader is called, and the confidence below which
+# the desk does not trust the answer and lets the Reader decide the kind itself. The wording is the only prompt the decision
+# model sees; it names no column and no method.
+threshold: 0.6
+questions:
+  kind:
+    type: choice
+    instructions: What does the person's message do, in this conversation about their data?
+    criteria:
+      update: says something about the data, answers the question the desk asked, says a draft is right, or says they cannot say
+      explore: asks to look at the data, a picture, a plot, a chart, a table, a count, a comparison of columns or groups
+      ask: asks the desk a question, what a family or a term means, why something is asked, what the file could answer
+      run: asks to run the analysis, says they want the result now, or says yes to the design the desk showed
+  about_data:
+    type: noul
+    instructions: Does the message state something about the data, the columns, who got the change, or answer what the desk asked?
