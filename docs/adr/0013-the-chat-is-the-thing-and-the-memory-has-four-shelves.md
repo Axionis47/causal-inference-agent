@@ -82,4 +82,6 @@ memory folder: `artifacts/<id>/` beside `designs/<n>/` and `analyses/<k>/`. At t
 on the page arriving as `address = value` lines that no model reads. Built since: the design guideline for the page
 ([design.md](../design.md)) and the memory hygiene (every status change moves the version); the handoff view with the run
 confirmation and the judge; the questionnaire (the readback as items with the desk's reading recommended, a changed line
-sent back as the person's word). Later: the data agent that writes new table versions with lineage.
+sent back as the person's word); the data agent (the same agent asked for a table: a new version of the whole file beside its
+parent under `versions/<v>/`, every row keeping its id, the memory switched to it on the person's word with a `version` step,
+and the design shown again on it before anything runs). Nothing of the five stages is left.

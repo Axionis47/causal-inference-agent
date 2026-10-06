@@ -225,3 +225,14 @@ def test_the_ready_moment_carries_the_handoff_view_and_an_edit_is_the_persons_wo
     patch_pipeline(monkeypatch)
     v = _say(client, "students_web", "yes, run it")
     assert v["phase"] == "after" and v["handoff"] is None, "the view is the ready moment's alone"
+
+
+def test_a_change_to_the_table_shows_the_version_in_play(client, settings, monkeypatch):
+    fake = DeskFake(infer=infer_columns)
+    v = _create(client, fake, "students_web")
+    v = _say(client, "students_web", QUESTION)
+    assert v["data_version"] == 0 and v["versions"] == []
+    v = _say(client, "students_web", "add a column high_reading that is 1 when reading score is 70 or more")
+    assert v["data_version"] == 1 and [x["v"] for x in v["versions"]] == [1] and v["versions"][0]["added"] == ["high reading"]
+    assert v["prompt"]["kind"] == "chat" and "[version:1]" in v["prompt"]["text"]
+    assert v["journal"][-1]["kind"] == "version" and v["journal"][-1]["by"] == "person"

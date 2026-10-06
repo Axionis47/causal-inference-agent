@@ -307,3 +307,16 @@
 {"kind": "update", "message": "promotions were assigned at random by the marketing team", "asked": null, "at_ready": false, "last_reply": ""}
 {"kind": "explore", "message": "correlation between price and sales", "asked": null, "at_ready": false, "last_reply": ""}
 {"kind": "ask", "message": "what does the handoff contain?", "asked": null, "at_ready": false, "last_reply": "The mean math score is 64.7 for free/reduced lunch and 70.0 for standard. [artifact:ab12cd34]"}
+{"kind": "transform", "message": "add a column high_reading that is 1 when reading score is 70 or more", "asked": null, "at_ready": false, "last_reply": ""}
+{"kind": "transform", "message": "drop the writing score column", "asked": null, "at_ready": false, "last_reply": ""}
+{"kind": "transform", "message": "keep only the rows where lunch is standard", "asked": null, "at_ready": false, "last_reply": ""}
+{"kind": "transform", "message": "recode lunch as 1 for free/reduced and 0 for standard", "asked": null, "at_ready": false, "last_reply": ""}
+{"kind": "transform", "message": "rename race/ethnicity to group", "asked": null, "at_ready": false, "last_reply": ""}
+{"kind": "transform", "message": "add a column with the mean of reading and writing", "asked": null, "at_ready": false, "last_reply": ""}
+{"kind": "transform", "message": "drop every row with a missing score", "asked": null, "at_ready": false, "last_reply": ""}
+{"kind": "transform", "message": "make a column for the year as a number", "asked": null, "at_ready": false, "last_reply": ""}
+{"kind": "transform", "message": "keep only California and the states that never had the tax", "asked": null, "at_ready": false, "last_reply": ""}
+{"kind": "transform", "message": "add log of income as a new column", "asked": null, "at_ready": false, "last_reply": ""}
+{"kind": "transform", "message": "turn the two-digit year into four digits", "asked": null, "at_ready": false, "last_reply": ""}
+{"kind": "transform", "message": "fill the missing population with the state's mean", "asked": null, "at_ready": false, "last_reply": ""}
+{"kind": "transform", "message": "before that, drop the writing score column", "asked": null, "at_ready": true, "last_reply": "Everything the analysis needs is settled. Here is the context the analysis will run on; correct any line before you say yes."}

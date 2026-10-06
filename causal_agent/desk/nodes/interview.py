@@ -349,7 +349,9 @@ def ask(state: DeskState) -> Command[Literal["listen", "fit"]]:
         head = state["explained"] + "\n\n" + head
     if state.get("explored"):  # the person asked to look at the data last turn: the summary comes first, the artifact beside the reply
         head = state["explored"] + "\n\n" + head
-    shown = {"artifact": state.get("artifact"), "explored": None, "oriented": True, "explained": None, "note": "", **flags}
+    if state.get("transformed"):  # the person asked to change the table last turn: the version now in play comes first
+        head = state["transformed"] + "\n\n" + head
+    shown = {"artifact": state.get("artifact"), "explored": None, "transformed": None, "oriented": True, "explained": None, "note": "", **flags}
     if a is None:
         if intent and st.ready:
             return Command(goto="fit", update={"ask": None, "reply": head, "convincing": True, "gate_errors": [], "decide_attempts": 0, **shown})
@@ -469,7 +471,7 @@ def at_ready_moment(state: DeskState, memory: Memory) -> bool:
     return state.get("ask") is None and state.get("decision") is not None and state.get("convinced_version") == memory.version and bool(state.get("ready"))
 
 
-def infer(state: DeskState) -> Command[Literal["infer", "explore", "check", "explain", "handoff"]]:
+def infer(state: DeskState) -> Command[Literal["infer", "explore", "transform", "check", "explain", "handoff"]]:
     """The Reader over what the person said this turn, source user:turn:<n>: the kind of turn first, then what it settles,
     confirms, or leaves unknown, and whether it asks the desk something or asks for a picture. The story is read into drafts
     the readback confirms. Three tries when a reading is refused. A run at the ready moment is the word that launches; a run
@@ -504,8 +506,13 @@ def infer(state: DeskState) -> Command[Literal["infer", "explore", "check", "exp
         verdict, confidence = TD.classify(message, asked=a.text if a else None, at_ready=ready_now, last_reply=state.get("reply") or "", node=f"decide:{src}")
     if edits is not None:
         pass
-    elif verdict in ("explore", "ask", "run") and not state.get("infer_errors"):
-        out = Reading(kind=verdict, explore=message if verdict == "explore" else None, question=message if verdict == "ask" else None)
+    elif verdict in ("explore", "ask", "run", "transform") and not state.get("infer_errors"):
+        out = Reading(
+            kind=verdict,
+            explore=message if verdict == "explore" else None,
+            question=message if verdict == "ask" else None,
+            transform=message if verdict == "transform" else None,
+        )
         thoughts, rejected = [], []
     else:
         # before the person has asked to run, what they say in passing is drafted for the readback to confirm; an answer to the
@@ -528,6 +535,7 @@ def infer(state: DeskState) -> Command[Literal["infer", "explore", "check", "exp
     attempts = int(state.get("infer_attempts") or 0) + 1
     asked_desk = (out.question or "").strip() or state.get("desk_question") or None  # kept across retries
     asked_explore = (out.explore or "").strip() or state.get("explore_request") or None
+    asked_transform = (out.transform or "").strip() or state.get("transform_request") or None
     _writer()(
         {
             "infer": {
@@ -549,6 +557,7 @@ def infer(state: DeskState) -> Command[Literal["infer", "explore", "check", "exp
         "debug": thoughts,
         "desk_question": asked_desk,
         "explore_request": asked_explore,
+        "transform_request": asked_transform,
         **({"note": note} if note else {}),
         **focus_update,
     }
@@ -561,6 +570,8 @@ def infer(state: DeskState) -> Command[Literal["infer", "explore", "check", "exp
         if ready_now:  # the word, on the design just shown
             return Command(goto="handoff", update={**update, "artifact": None})
         return Command(goto="check", update={**update, "run_intent": True})  # the interview asks what blocks, then shows the ready moment
+    if asked_transform:
+        return Command(goto="transform", update=update)
     if asked_explore:
         return Command(goto="explore", update=update)
     if asked_desk:
@@ -625,6 +636,62 @@ def explore(state: DeskState) -> Command[Literal["explain", "check"]]:
         )
         update = {"explored": f"{artifact.summary} [{artifact.address}]", "artifact": artifact.model_dump()}
     update.update({"explore_request": None, "debug": thoughts})
+    if state.get("desk_question"):
+        return Command(goto="explain", update={**update, "explain_errors": [], "explain_attempts": 0})
+    return Command(goto="check", update=update)
+
+
+# ------------------------------------------------------------------ transform (the data agent), before the run
+
+
+def switch_to(state: DeskState, memory: Memory, version, turn: int) -> str:
+    """Put the version the agent wrote in play: the memory re-reads the file, the journal records the person's word, and the
+    reply's first line says what is in play now. Nothing reruns on its own."""
+    path = XC.VS.table_path(memory.name, version.v)
+    assert path is not None
+    added, dropped = memory.switch_version(version.v, str(path), PD.profile_for(path))
+    _writer()({"version": {"v": version.v, "parent": version.parent, "added": added, "dropped": dropped}})
+    record(
+        state,
+        "version",
+        by="person",
+        memory=memory,
+        design=design_now(state),
+        read=[f"user:turn:{turn}", f"version:{version.parent}"],
+        left=[str(path.parent)],
+        note=f"version {version.v}: {version.summary}",
+    )
+    return f"Table version {version.v} is now in play: {version.summary} [{version.address}]"
+
+
+def transform(state: DeskState) -> Command[Literal["explain", "check"]]:
+    """The person asked to change the table: the data agent writes a new version beside the one in play, the memory switches to
+    it on their word, and the interview goes on over the new table; the design is shown again before anything runs."""
+    memory = F.memory_of(state)
+    turn = int(state.get("turn") or 0)
+    ask = state.get("transform_request") or ""
+    context, columns = explore_context(memory)
+    outcome, treatment = pair_names(state, memory)
+    version, decline, thoughts = XC.transform(
+        dataset=memory.name,
+        ask=ask,
+        context=context,
+        columns=columns,
+        csv=_csv_path(memory),
+        outcome=outcome,
+        treatment=treatment,
+        frozen=False,
+        memory_version=memory.version,
+        data_version=memory.data_version,
+        thread_id=thread_id(),
+    )
+    _writer()({"transform": {"ask": ask, "made": version is not None, "why": decline.reason if decline else ""}})
+    if version is None:
+        assert decline is not None
+        update: dict = {"transformed": f"I could not change the table: {decline.reason}"}
+    else:
+        update = {"transformed": switch_to(state, memory, version, turn), **F.saved(memory)}
+    update.update({"transform_request": None, "debug": thoughts})
     if state.get("desk_question"):
         return Command(goto="explain", update={**update, "explain_errors": [], "explain_attempts": 0})
     return Command(goto="check", update=update)

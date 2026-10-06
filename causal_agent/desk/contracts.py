@@ -45,7 +45,7 @@ class FieldUpdate(BaseModel):
     reason: str = Field(default="", description="one sentence: how the words give this value")
 
 
-ReadKind = Literal["update", "explore", "ask", "run"]
+ReadKind = Literal["update", "explore", "ask", "run", "transform"]
 
 
 class Reading(BaseModel):
@@ -56,6 +56,7 @@ class Reading(BaseModel):
         description="what the message does. update: it says something about the data, answers what was asked, says a draft is right, "
         "or says they cannot say; a note is always update. explore: it asks to look at the data (a picture, a table, a count, a "
         "comparison). ask: it asks the desk something. run: it asks to run the analysis, or says yes to the design the desk showed. "
+        "transform: it asks to change the table itself (drop or keep rows, add, recode or rename a column). "
         "A message that says anything about the data is update, even when it also asks for a picture or asks something; only update "
         "carries updates, confirms or unknown"
     )
@@ -73,6 +74,7 @@ class Reading(BaseModel):
         "is asked, what a term means, what the file could answer); null when it asks nothing. Required when kind is ask; may ride "
         "along with update",
     )
+    transform: str | None = Field(default=None, description="for transform, or beside updates: what to change in the table, in the person's words")
     explore: str | None = Field(
         default=None,
         description="what the person asked to look at in the data (a picture, a plot, a table, a count, a comparison of columns or arms), "
@@ -86,7 +88,7 @@ class NumberStated(BaseModel):
     value: float = Field(description="the number as you state it in the text")
 
 
-AfterKind = Literal["answer", "revise", "what_if", "requestion", "explore", "done"]
+AfterKind = Literal["answer", "revise", "what_if", "requestion", "explore", "transform", "done"]
 
 
 class AfterReply(BaseModel):
@@ -101,6 +103,7 @@ class AfterReply(BaseModel):
     updates: list[FieldUpdate] = Field(default_factory=list, description="for revise and what_if: the field updates the person's words imply")
     question: str | None = Field(default=None, description="for requestion: the new question, in full")
     explore: str | None = Field(default=None, description="for explore: what to look at, in the person's words")
+    transform: str | None = Field(default=None, description="for transform: what to change in the table, in the person's words")
     figure: str | None = Field(
         default=None, description="the address of a figure in the material to show beside the text (figure:<id>), when one makes the point"
     )

@@ -11,6 +11,7 @@ from causal_agent.common.contracts import Decline, RunRecord
 from causal_agent.desk import pipeline
 from causal_agent.memory import journal as J
 from causal_agent.memory import store as MS
+from causal_agent.memory import versions as VS
 from causal_agent.server import artifacts as AV
 from causal_agent.server import datasets as DS
 from causal_agent.server.models import (
@@ -34,6 +35,7 @@ from causal_agent.server.models import (
     SessionView,
     StatusView,
     StepView,
+    VersionView,
 )
 from causal_agent.viz.spec import FigureSpec
 
@@ -161,10 +163,12 @@ def session_view(mgr: SessionManager, name: str) -> SessionView:
             )
         ]
     claims: list[ClaimView] = []
+    data_version = 0
     if MS.exists(name, mgr.s.root):
         try:
-            table = MS.load(name, mgr.s.root).to_claims()
-            claims = [ClaimView(**c.model_dump()) for c in table.claims.values() if c.status != "empty"]
+            mem = MS.load(name, mgr.s.root)
+            data_version = mem.data_version
+            claims = [ClaimView(**c.model_dump()) for c in mem.to_claims().claims.values() if c.status != "empty"]
         except Exception:
             claims = []
     st = values.get("status")
@@ -196,6 +200,13 @@ def session_view(mgr: SessionManager, name: str) -> SessionView:
         journal=journal_view(mgr.s, name, analysis),
         artifacts=AV.of_memory(mgr.s, name),
         handoff=handoff,
+        data_version=data_version,
+        versions=[
+            VersionView(
+                v=x.v, parent=x.parent, address=x.address, ask=x.ask, summary=x.summary, rows=x.rows, added=x.added, dropped=x.dropped, made_at=x.made_at
+            )
+            for x in VS.list_versions(name, mgr.s.root)
+        ],
     )
 
 

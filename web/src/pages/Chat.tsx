@@ -87,6 +87,11 @@ export default function Chat() {
         <div>
           <h1>{view.title}</h1>
           {view.question && <p className="q">{view.question}</p>}
+          {view.data_version > 0 && (
+            <p className="muted">
+              table <span className="addr">version:{view.data_version}</span> {view.versions.find((x) => x.v === view.data_version)?.summary ?? ""}
+            </p>
+          )}
         </div>
       </div>
       <main>

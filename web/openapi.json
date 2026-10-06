@@ -2578,6 +2578,20 @@
               }
             ],
             "description": "at the ready moment: the context the run would rest on, field by field"
+          },
+          "data_version": {
+            "type": "integer",
+            "title": "Data Version",
+            "description": "the table version in play; 0 is the uploaded file",
+            "default": 0
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/VersionView"
+            },
+            "type": "array",
+            "title": "Versions",
+            "description": "every table version the data agent wrote, oldest first"
           }
         },
         "type": "object",
@@ -2882,6 +2896,64 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "VersionView": {
+        "properties": {
+          "v": {
+            "type": "integer",
+            "title": "V"
+          },
+          "parent": {
+            "type": "integer",
+            "title": "Parent"
+          },
+          "address": {
+            "type": "string",
+            "title": "Address"
+          },
+          "ask": {
+            "type": "string",
+            "title": "Ask"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "rows": {
+            "type": "integer",
+            "title": "Rows"
+          },
+          "added": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Added"
+          },
+          "dropped": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Dropped"
+          },
+          "made_at": {
+            "type": "string",
+            "title": "Made At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "v",
+          "parent",
+          "address",
+          "ask",
+          "summary",
+          "rows",
+          "made_at"
+        ],
+        "title": "VersionView",
+        "description": "One table version the data agent wrote: what was asked, what changed, and where it came from."
       }
     }
   }

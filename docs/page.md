@@ -34,6 +34,7 @@ each step in a worker thread and keeps the interrupt payload as the prompt is [s
 | `transcript` | one `Turn` per line of the conversation, each with an optional figure or picture |
 | `journal`, `analysis` | the conversation's steps and its id |
 | `artifacts` | the artifacts about the data before any run |
+| `data_version`, `versions` | the table version in play (0 is the uploaded file) and every version the data agent wrote, with what changed |
 | `handoff` | at the ready moment only: the context the run would rest on, every field with its value, status, source and sentence; a correction is sent as a message of `address = value` lines, the person's word, which no model reads |
 
 ## The wire is one definition

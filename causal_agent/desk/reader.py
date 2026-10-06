@@ -49,6 +49,8 @@ def kind_errors(out: Reading, *, from_note: bool) -> list[str]:
         errors.append("kind is explore but explore is empty; say what to look at, in the person's words")
     if out.kind == "ask" and not (out.question or "").strip():
         errors.append("kind is ask but question is empty; say what was asked, in the person's words")
+    if out.kind == "transform" and not (out.transform or "").strip():
+        errors.append("kind is transform but transform is empty; say what to change in the table, in the person's words")
     if from_note and out.kind != "update":
         errors.append(f"kind is {out.kind} but a note is always read as update")
     return errors

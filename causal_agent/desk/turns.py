@@ -13,8 +13,8 @@ import yaml
 
 from causal_agent.common import llm
 
-Kind = Literal["update", "explore", "ask", "run"]
-KINDS: tuple[Kind, ...] = ("update", "explore", "ask", "run")
+Kind = Literal["update", "explore", "ask", "run", "transform"]
+KINDS: tuple[Kind, ...] = ("update", "explore", "ask", "run", "transform")
 FILE = Path(__file__).with_name("decider.yaml")
 
 

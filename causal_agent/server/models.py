@@ -304,6 +304,20 @@ class StepView(BaseModel):
     run_id: str | None = Field(default=None, description="the lane run dir's name, when a left entry is one")
 
 
+class VersionView(BaseModel):
+    """One table version the data agent wrote: what was asked, what changed, and where it came from."""
+
+    v: int
+    parent: int
+    address: str
+    ask: str
+    summary: str
+    rows: int
+    added: list[str] = Field(default_factory=list)
+    dropped: list[str] = Field(default_factory=list)
+    made_at: str
+
+
 class HandoffField(BaseModel):
     """One field the design rests on, as the memory holds it: the value beside how it was settled."""
 
@@ -383,6 +397,8 @@ class SessionView(BaseModel):
     journal: list[StepView] = Field(default_factory=list, description="the conversation's steps, in order")
     artifacts: list[ArtifactView] = Field(default_factory=list, description="the artifacts about the data before any run, oldest first")
     handoff: HandoffView | None = Field(default=None, description="at the ready moment: the context the run would rest on, field by field")
+    data_version: int = Field(default=0, description="the table version in play; 0 is the uploaded file")
+    versions: list[VersionView] = Field(default_factory=list, description="every table version the data agent wrote, oldest first")
 
 
 # ------------------------------------------------------------------ runs

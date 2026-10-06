@@ -102,6 +102,7 @@ for why a lane keeps its own engine.
 | the checkpoints | `.artifacts/web/checkpoints.sqlite`: where each thread's conversation is | the desk graph through `SqliteSaver`; `desk/graph.py` `_CONTRACTS` lists the classes a checkpoint may hold | the server's session manager |
 | the run artifacts | `.artifacts/runs/<dataset>-<tag>-<id>/` (table, design, estimates, report, figures.json) | a lane, through `lane.records` | the desk's brief and the server's file routes |
 | the artifacts | `data/memory/<name>/artifacts/<id>/`: `artifact.json`, `facts.json`, `code.py`, `thoughts.json`, `request.json`, `figure.png` when it drew, the table when it wrote one, the `step_<n>/` folders; tagged with the design it is about, or none | the exploration agent's client, on receipt | the material before and after a run, the server's artifact routes |
+| the versions | `data/memory/<name>/versions/<v>/`: `table.csv`, `code.py`, `version.json`, `request.json`, `thoughts.json` | the data agent, through `explore/client.py::transform` | the desk, when the person switches to it; the hand-off names the version's table |
 
 The memory is what is known, the journal is what was done, the checkpoint is where the conversation is. A conversation can be
 thrown away and the knowledge survives; the knowledge can be revised and every design still shows what it was made from.

@@ -11,6 +11,7 @@ questions:
       explore: asks to look at the data, a picture, a plot, a chart, a table, a count, a comparison of columns or groups
       ask: asks the desk a question, what a family or a term means, why something is asked, what the file could answer
       run: asks to run the analysis, says they want the result now, or says yes to the design the desk showed
+      transform: asks to change the table itself, drop or keep rows, add, recode or rename a column, fill a value
   about_data:
     type: noul
     instructions: Does the message state something about the data, the columns, who got the change, or answer what the desk asked?

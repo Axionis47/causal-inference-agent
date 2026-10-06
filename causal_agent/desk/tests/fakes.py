@@ -40,6 +40,17 @@ fig.savefig("figure.png")
 json.dump({"mean_standard": float(means["standard"]), "mean_free_reduced": float(means["free/reduced"])}, open("facts.json", "w"))
 """
 EXPLORED = Exploration(summary="Mean math score by lunch, standard against free or reduced.", step=1, facts=["mean_standard", "mean_free_reduced"], figure=True)
+TABLE_SCRIPT = """
+import json, os
+import pandas as pd
+
+df = pd.read_csv(os.environ["DATA_CSV"])
+df["high reading"] = (df["reading score"] >= 70).astype(int)
+df.to_csv("table.csv", index=False)
+json.dump({"rows": int(len(df)), "columns": int(df.shape[1])}, open("facts.json", "w"))
+"""
+TRANSFORMED = Exploration(summary="Added the high reading flag; every row kept its place.", step=1, facts=["rows"], table="table.csv")
+TRANSFORM_WORDS = ("add a column", "drop the", "keep only", "recode", "rename")
 
 
 def U(address: str, value, said: str = "scripted") -> FieldUpdate:
@@ -204,6 +215,8 @@ class DeskFake:
             return sure("run", 0.05)
         if low.startswith(("plot", "show", "draw")):
             return sure("explore", 0.05)
+        if low.startswith(TRANSFORM_WORDS):
+            return sure("transform", 0.05)
         if msg == STORY_ANSWER or low.startswith(("yes", "all right", "right", "none for all", "not that i know")) or "don't know" in low or " = " in msg:
             return sure("update", 0.95)
         if any(w in low for w in ("nothing hidden", "sit alone", "no spillover", "no nudge", "lunch was", "lunch:")):
@@ -285,11 +298,14 @@ class DeskFake:
             return self.explain.pop(0) if self.explain else AfterReply(kind="answer", text="A scripted answer.", cites=["family:adjustment"])
         if schema is AfterReply:
             return self.after.pop(0)
-        if schema is RunCodeStep:  # the exploration agent's look: the script that draws math score by lunch once, then done
+        if schema is RunCodeStep:  # the agent's look: one script (a picture, or a new table when one is asked for), then done
             ran = "WHAT YOU RAN SO FAR" in human
-            return RunCodeStep(done=True) if ran else RunCodeStep(code=DRAW_SCRIPT)
+            table = "new version of the whole table" in human
+            return RunCodeStep(done=True) if ran else RunCodeStep(code=TABLE_SCRIPT if table else DRAW_SCRIPT)
         if schema is Exploration:
-            return self.explore.pop(0) if self.explore else EXPLORED
+            if self.explore:
+                return self.explore.pop(0)
+            return TRANSFORMED if "new version of the whole table" in human else EXPLORED
         raise AssertionError(schema)
 
 
@@ -302,6 +318,8 @@ def read_by_rule(msg: str, addrs: list[str]) -> Reading:
         return Reading(kind="run")
     if low.startswith(("plot", "show", "draw")):
         return Reading(kind="explore", explore=msg)
+    if low.startswith(TRANSFORM_WORDS):
+        return Reading(kind="transform", transform=msg)
     if msg == STORY_ANSWER:
         return Reading(kind="update", updates=students_story_updates())
     if low.startswith("yes") or low.startswith("all right") or low.startswith("right"):

@@ -94,3 +94,7 @@
 {"kind": "update", "message": "the cutoff line is wrong, it is zero", "asked": null, "at_ready": true, "last_reply": "Everything the analysis needs is settled. Here is the context the analysis will run on; correct any line before you say yes."}
 {"kind": "update", "message": "it was a lottery; what is a back door road?", "asked": null, "at_ready": false, "last_reply": "Here is the map of the file as I read it."}
 {"kind": "update", "message": "ok, one second", "asked": null, "at_ready": false, "last_reply": "Here is the map of the file as I read it."}
+{"kind": "transform", "message": "add a column that is 1 when the student completed the course", "asked": null, "at_ready": false, "last_reply": ""}
+{"kind": "transform", "message": "drop the rows before 1970", "asked": null, "at_ready": false, "last_reply": ""}
+{"kind": "transform", "message": "keep only the standard lunch students", "asked": null, "at_ready": false, "last_reply": ""}
+{"kind": "transform", "message": "recode T as treated and untreated", "asked": null, "at_ready": false, "last_reply": ""}

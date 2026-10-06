@@ -65,6 +65,8 @@ class DeskState(RouteState, total=False):
     explore_request: str | None  # what the person asked to look at this turn, in their words
     explored: str | None  # the exploration agent's line for the reply: the summary with its address, or why it could not look
     artifact: dict | None  # the Artifact shown beside the reply this turn
+    transform_request: str | None  # what the person asked to change in the table this turn, in their words
+    transformed: str | None  # the data agent's line for the reply: the version now in play with its address, or why none was made
     explain_errors: list[str]
     explain_attempts: int
     design_dir: str | None  # designs/<n>/ once the pack is written

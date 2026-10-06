@@ -991,6 +991,17 @@ export interface components {
             artifacts?: components["schemas"]["ArtifactView"][];
             /** @description at the ready moment: the context the run would rest on, field by field */
             handoff?: components["schemas"]["HandoffView"] | null;
+            /**
+             * Data Version
+             * @description the table version in play; 0 is the uploaded file
+             * @default 0
+             */
+            data_version: number;
+            /**
+             * Versions
+             * @description every table version the data agent wrote, oldest first
+             */
+            versions?: components["schemas"]["VersionView"][];
         };
         /** StatusView */
         StatusView: {
@@ -1103,6 +1114,30 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /**
+         * VersionView
+         * @description One table version the data agent wrote: what was asked, what changed, and where it came from.
+         */
+        VersionView: {
+            /** V */
+            v: number;
+            /** Parent */
+            parent: number;
+            /** Address */
+            address: string;
+            /** Ask */
+            ask: string;
+            /** Summary */
+            summary: string;
+            /** Rows */
+            rows: number;
+            /** Added */
+            added?: string[];
+            /** Dropped */
+            dropped?: string[];
+            /** Made At */
+            made_at: string;
         };
     };
     responses: never;

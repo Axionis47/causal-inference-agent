@@ -133,9 +133,14 @@ seatbelt, bwrap or unshare on Linux, Docker when asked, else a plain subprocess 
 episode over it, and one gated record naming the step whose files are the answer. Before a design has run the table it is
 sent has the outcome or the treatment taken out, so it cannot estimate the effect. What it made lands on the artifacts shelf
 (`memory/artifacts.py`), and the numbers in its `facts.json` become facts the chat can cite. Three tries, then a decline.
+Asked for a table instead (`product="table"`, the `transform` turn kind), the same agent writes a new version of the whole file:
+every row keeps the row id it was given, the pair stays, and `explore/client.py::transform` re-joins the column held back by row id
+and saves version v under `data/memory/<name>/versions/<v>/` (`memory/versions.py`), never in place; the memory switches to it on the
+person's word (`Memory.switch_version`, a `version` journal step), the interview goes on over the new table, and a run on it is the
+ordinary run path behind the word.
 
 **Addresses** are the spine: `col:`, `claim:`, `probe:`, `check:`, `estimate:`, `refute:`/`placebo:`, `figure:`,
-`artifact:`, `step:`, `user:turn:`. The chat after a run (`desk/material.py`, `desk/nodes/after.py`) may only say what it
+`artifact:`, `version:`, `step:`, `user:turn:`. The chat after a run (`desk/material.py`, `desk/nodes/after.py`) may only say what it
 can cite from the material, and every number it states must match its address within one percent.
 
 **Stores on disk**: the memory under `data/memory/<name>/`; one folder per design run under `designs/<n>/` (snapshot,

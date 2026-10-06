@@ -99,6 +99,24 @@ within one percent. The server serves any file an artifact lists at `GET /api/ar
 ([server/artifacts.py](../causal_agent/server/artifacts.py)); the page shows the picture, the facts and the table link in
 [Picture.tsx](../web/src/components/Picture.tsx).
 
+## 8. A new version of the table
+
+The same agent, asked for a table instead of a look (`ExploreRequest.product = "table"`; the desk's `transform` turn kind, read
+like the others), writes a new version of the whole file rather than a table of facts. The projection then puts a row id
+(`__row`) first; the agent must keep it on every row it keeps, may drop rows, may add, drop or recode columns, and must keep the
+outcome and the treatment. The gate (`explore/gates.py::new_table_errors`) refuses a table that loses the row id, invents a row,
+drops the pair or is empty. The client (`explore/client.py::transform`) re-joins the column held back by row id, restores the
+file's column order, and saves the version with its script and record under `data/memory/<name>/versions/<v>/`
+([memory/versions.py](../causal_agent/memory/versions.py)): `version:<v>`, its parent, what was asked, what changed. Nothing is
+written in place. The desk puts the version in play on the person's word (`Memory.switch_version`: the file's facts and columns
+re-read, a dropped column's fields kept out of play, the memory version moved, a `version` step in the journal) and shows the
+design again on it before anything runs; after a run the same ask goes back to the ready moment on the new version. The
+hand-off names the version's table and its number, so designs on different versions can be told apart.
+
+```bash
+uv run python -m causal_agent.evals.explore students "add a column that is 1 when reading score is 70 or more" --table
+```
+
 ## Run figures are a different thing
 
 | | run figure | artifact |

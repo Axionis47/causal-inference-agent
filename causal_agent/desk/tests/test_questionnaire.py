@@ -39,7 +39,9 @@ def test_a_changed_line_is_the_persons_word_and_the_readback_returns_for_the_res
     reads = fake.calls.count("Reading")
     p = d.say("claim:grain.row_is = one student who sat the May exam")
     f = HELD["students"].field("claim:grain.row_is")
-    assert f.value == "one student who sat the May exam" and f.status == "confirmed" and f.source.startswith("user:turn:") and fake.calls.count("Reading") == reads
+    assert (
+        f.value == "one student who sat the May exam" and f.status == "confirmed" and f.source.startswith("user:turn:") and fake.calls.count("Reading") == reads
+    )
     assert p["ask"]["kind"] == "confirm" and len(p["ask"]["items"]) == n - 1 and "claim:grain.row_is" not in {i["address"] for i in p["ask"]["items"]}
     p = d.say("yes, all right")
     assert p["ask"] is None or p["ask"]["kind"] != "confirm"

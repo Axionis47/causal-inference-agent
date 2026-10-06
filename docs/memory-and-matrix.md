@@ -133,6 +133,7 @@ data/memory/<name>/
   designs/<n>/  memory.json handoff.json brief.json frame.json decision.json matrix.json record.md
                 result.json figures.json record.json      one design run: the snapshot, the pack, the result
   artifacts/<id>/                                        what the exploration agent made on request: a picture, a table, its facts, its script
+  versions/<v>/  table.csv code.py version.json           a table the data agent wrote, version:<v>, beside its parent; version 0 is the file itself
 ```
 
 The memory outlives every conversation. Graph state is where the conversation is, never the source of truth.

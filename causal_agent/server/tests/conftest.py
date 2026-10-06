@@ -12,6 +12,8 @@ from causal_agent.common import config
 from causal_agent.common.contracts import RunRecord
 from causal_agent.common.llm import set_decider, set_llm
 from causal_agent.desk import pipeline
+from causal_agent.explore import client as XC
+from causal_agent.explore import server as XS
 from causal_agent.profile import data as D
 from causal_agent.profile import datasets as DSI
 from causal_agent.server.app import create_app
@@ -28,7 +30,10 @@ def settings(tmp_path, monkeypatch) -> Settings:
     (tmp_path / "data" / "datasets.yaml").write_text("# test index\n{}\n")
     monkeypatch.setattr(DSI, "ROOT", tmp_path)
     monkeypatch.setattr(config, "ROOT", tmp_path)
-    return Settings(root=tmp_path, run_root=tmp_path / "runs", dist=tmp_path / "dist")
+    monkeypatch.setenv("EXPLORE_SANDBOX", "subprocess")
+    XC.set_app(XS.app("http://explore/"))  # the exploration agent in process: a test never starts a process or calls a model
+    yield Settings(root=tmp_path, run_root=tmp_path / "runs", dist=tmp_path / "dist")
+    XC.set_app(None)
 
 
 @pytest.fixture

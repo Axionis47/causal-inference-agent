@@ -82,7 +82,7 @@ def test_a_confident_decision_skips_the_reader_and_an_unsure_one_reaches_it():
     assert len(fake.reads()) == reads + 1 and "A scripted answer" in p["text"]
 
 
-def test_a_refused_reading_writes_nothing_so_a_re_prompt_cannot_confirm_its_own_drafts(_no_note):
+def test_a_refused_reading_writes_nothing_so_a_re_prompt_cannot_confirm_its_own_drafts(_no_note):  # noqa: F811
     """The first reading carries one update the gate refuses beside good drafts; the second, re-prompted, says those drafts are
     right. Nothing from the first reached the memory, so the second's confirms land on nothing and the fields stay drafted."""
     readings = [

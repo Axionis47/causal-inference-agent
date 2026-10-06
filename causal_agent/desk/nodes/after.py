@@ -17,7 +17,7 @@ from causal_agent.desk import material as M
 from causal_agent.desk import pipeline
 from causal_agent.desk.contracts import AfterReply, Exchange
 from causal_agent.desk.nodes import frame as F
-from causal_agent.desk.nodes.interview import explore_context, pair_names
+from causal_agent.desk.nodes.interview import explore_context, pair_names, switch_to
 from causal_agent.desk.nodes.journey import CAT, QUIT_WORDS
 from causal_agent.desk.nodes.shared import _csv_path, design_now, journal_of, record, thread_id
 from causal_agent.desk.state import DeskState
@@ -143,7 +143,7 @@ def talk(state: DeskState) -> Command[Literal["turn", "__end__"]]:
     return Command(goto="turn", update={"message": answer, "turn": turn, "after_errors": [], "after_attempts": 0, "artifact": None, **mirror})
 
 
-def turn(state: DeskState) -> Command[Literal["turn", "answer", "revise", "what_if", "requestion", "explore_after", "__end__"]]:
+def turn(state: DeskState) -> Command[Literal["turn", "answer", "revise", "what_if", "requestion", "explore_after", "transform_after", "__end__"]]:
     runs = state.get("runs") or []
     cur = runs[-1]
     memory = F.memory_of(state)
@@ -162,7 +162,15 @@ def turn(state: DeskState) -> Command[Literal["turn", "answer", "revise", "what_
         )
         gate = [f"fell back after {attempts} tries: " + "; ".join(gate)]
     ex = Exchange(turn=int(state.get("turn", 0)), user=state.get("message", ""), assistant=out.text, kind=out.kind)
-    goto = {"answer": "answer", "revise": "revise", "what_if": "what_if", "requestion": "requestion", "explore": "explore_after", "done": "__end__"}[out.kind]
+    goto = {
+        "answer": "answer",
+        "revise": "revise",
+        "what_if": "what_if",
+        "requestion": "requestion",
+        "explore": "explore_after",
+        "transform": "transform_after",
+        "done": "__end__",
+    }[out.kind]
     return Command(goto=goto, update={"after_reply": out, "after_errors": gate, "after_attempts": 0, "exchanges": [ex], "debug": [thought]})
 
 
@@ -307,3 +315,49 @@ def explore_after(state: DeskState) -> dict:
         "artifact": artifact.model_dump(),
         "debug": thoughts,
     }
+
+
+def transform_after(state: DeskState) -> Command[Literal["check", "talk"]]:
+    """The person asked to change the table after a run: the data agent writes a new version (the whole file, since the design
+    has run), the memory switches to it on their word, and the conversation goes back before the run, through the checks to the
+    ready moment on the new table; the word runs it, nothing reruns on its own."""
+    reply = state["after_reply"]
+    memory = F.memory_of(state)
+    turn = int(state.get("turn") or 0)
+    ask = (reply.transform or "").strip()
+    context, columns = explore_context(memory)
+    outcome, treatment = pair_names(state, memory)
+    version, decline, thoughts = XC.transform(
+        dataset=memory.name,
+        ask=ask,
+        context=context,
+        columns=columns,
+        csv=_csv_path(memory),
+        outcome=outcome,
+        treatment=treatment,
+        frozen=True,
+        memory_version=memory.version,
+        data_version=memory.data_version,
+        thread_id=thread_id(),
+    )
+    if version is None:
+        assert decline is not None
+        text = f"I could not change the table: {decline.reason}"
+        return Command(
+            goto="talk", update={"after_reply": reply.model_copy(update={"kind": "answer", "text": text, "cites": ["run.question"]}), "debug": thoughts}
+        )
+    line = switch_to(state, memory, version, turn)
+    return Command(
+        goto="check",
+        update={
+            "phase": "before",
+            "transformed": line,
+            "settled_now": [],
+            "infer_errors": [],
+            "infer_attempts": 0,
+            "handoff": None,
+            "brief": None,
+            "debug": thoughts,
+            **F.saved(memory),
+        },
+    )
