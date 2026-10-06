@@ -12,7 +12,7 @@ from langgraph.types import Command
 
 from causal_agent.common import config
 from causal_agent.common.contracts import RunRecord
-from causal_agent.common.llm import set_llm
+from causal_agent.common.llm import set_decider, set_llm
 from causal_agent.desk import graph as G
 from causal_agent.desk import pipeline
 from causal_agent.desk.contracts import AfterReply, FieldUpdate, NumberStated, Reading
@@ -56,8 +56,17 @@ def _held(monkeypatch, tmp_path):
         J, "next_analysis_id", lambda name, root=None: f"a{len(list((tmp_path / 'analyses').iterdir())) + 1 if (tmp_path / 'analyses').is_dir() else 1}"
     )
     monkeypatch.setattr(pipeline, "run", canned_run)
+    # artifacts land under the memory home, which is tmp_path here; the exploration agent runs in process, never as a process
+    from causal_agent.explore import client as XC
+    from causal_agent.explore import server as XS
+
+    monkeypatch.setattr(config, "ROOT", tmp_path)
+    monkeypatch.setenv("EXPLORE_SANDBOX", "subprocess")
+    XC.set_app(XS.app("http://explore/"))
     yield
+    XC.set_app(None)
     set_llm(None)
+    set_decider(None)
 
 
 def canned_run(path, n, dataset, question, decision=None, decision_record="", thread_id=None):
@@ -92,6 +101,7 @@ def canned_run(path, n, dataset, question, decision=None, decision_record="", th
 class Desk:
     def __init__(self, fake, dataset="students", analysis=None):
         set_llm(fake)
+        set_decider(fake)
         self.fake, self.g = fake, G.compile_local()
         self.cfg = {"configurable": {"thread_id": str(uuid.uuid4())}}
         self.payload = self._drive({"dataset": dataset, **({"analysis": analysis} if analysis else {})})
@@ -522,8 +532,8 @@ def test_the_story_is_asked_once_then_read_back_then_the_gaps_are_asked_by_decis
     assert when.status == "drafted" and when.value == "after" and m.value("claim:change.what") == "a six-week test preparation course"
     story = m.field("claim:story.text")  # the account itself, whole, on the person's word, beside what was read from it
     assert story.value == STORY_ANSWER and story.status == "confirmed" and story.source == "user:turn:3" and story.said == STORY_ANSWER
-    assert "story" not in fake.reads("user:")[1].split("THE MEMORY AS IT STANDS")[0]  # the Reader is never asked to fill it
-    assert "(the story)" in fake.reads("user:")[1] and d.journal.last("claim").note.count("claim:") >= 8  # [0] read "let's run it"
+    assert "story" not in fake.reads("user:")[0].split("THE MEMORY AS IT STANDS")[0]  # the Reader is never asked to fill it
+    assert "(the story)" in fake.reads("user:")[0] and d.journal.last("claim").note.count("claim:") >= 8  # "let's run it" never reached the Reader
     # the readback: the drafts grouped by the five claims, each line in the world's terms with its sentence, one confirm turn
     text, a = p["text"], p["ask"]
     assert a["kind"] == "confirm" and set(a["addresses"]) >= {"claim:assignment.kind", "claim:change.what", "claim:grain.row_is", "col:lunch.when"}
@@ -1115,20 +1125,7 @@ def test_the_brief_reads_first_and_names_a_flag_by_its_sentence(monkeypatch):
 # ------------------------------------------------------------------ pictures on request
 
 
-@pytest.fixture
-def _artifact_root(tmp_path, monkeypatch):
-    """Artifacts land under the memory home; for a test that is tmp_path. The exploration agent runs in process."""
-    from causal_agent.explore import client as XC
-    from causal_agent.explore import server as XS
-
-    monkeypatch.setattr(config, "ROOT", tmp_path)
-    monkeypatch.setenv("EXPLORE_SANDBOX", "subprocess")
-    XC.set_app(XS.app("http://explore/"))
-    yield tmp_path
-    XC.set_app(None)
-
-
-def test_a_picture_asked_for_before_the_run_is_drawn_shown_and_recorded(_artifact_root, tmp_path):
+def test_a_picture_asked_for_before_the_run_is_drawn_shown_and_recorded(tmp_path):
     from causal_agent.memory import artifacts as VS
 
     def infer(msg, addrs, human):
@@ -1145,13 +1142,13 @@ def test_a_picture_asked_for_before_the_run_is_drawn_shown_and_recorded(_artifac
     folder = tmp_path / "data" / "memory" / "students" / "artifacts" / a["id"]
     assert (folder / "figure.png").exists() and (folder / "code.py").exists() and VS.list_artifacts("students")[0].id == a["id"]
     step = d.journal.steps()[-1]
-    assert step.kind == "explore" and step.by == "model" and step.note == "show me math score by lunch" and step.left[0].endswith(f"artifacts/{a['id']}")
+    assert step.kind == "explore" and step.by == "model" and step.note == "plot math score by lunch before we go on" and step.left[0].endswith(f"artifacts/{a['id']}")
     assert HELD["students"].version == d.values["convinced_version"] if d.values.get("convinced_version") else True  # a picture settles nothing
     p = d.say(answer_ask(p))
     assert p["artifact"] is None  # shown once
 
 
-def test_a_number_from_a_picture_drawn_before_the_run_can_be_cited_and_a_wrong_one_is_refused(_artifact_root, tmp_path):
+def test_a_number_from_a_picture_drawn_before_the_run_can_be_cited_and_a_wrong_one_is_refused(tmp_path):
     """Before the run the material holds every picture drawn so far with its numbers: an answer that cites a drawn number within
     one percent passes; one that states a number the picture does not show is refused and the desk falls back."""
     from causal_agent.desk.contracts import NumberStated
@@ -1182,7 +1179,7 @@ def test_a_number_from_a_picture_drawn_before_the_run_can_be_cited_and_a_wrong_o
     assert p["text"].startswith("I can only answer that from what is settled.")
 
 
-def test_a_picture_asked_for_after_the_run_lands_in_the_design_and_is_citable(_artifact_root, tmp_path):
+def test_a_picture_asked_for_after_the_run_lands_in_the_design_and_is_citable(tmp_path):
     after = [
         AfterReply(kind="explore", text="", explore="the mean math score for each lunch group"),
         AfterReply(kind="answer", text="Standard lunch students average higher.", cites=["artifact:PLACEHOLDER.mean_standard"]),

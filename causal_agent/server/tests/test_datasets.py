@@ -2,7 +2,7 @@ import json
 
 import yaml
 
-from causal_agent.common.llm import set_llm
+from causal_agent.common.llm import set_decider, set_llm
 from causal_agent.desk.tests.fakes import DeskFake
 from causal_agent.server.tests.conftest import STUDENTS, create_request, upload, wait_idle
 
@@ -38,7 +38,9 @@ def test_profile_preview_reports_missing_and_short_files(client):
 
 
 def test_create_lists_and_deletes_a_dataset(client, settings):
-    set_llm(DeskFake())
+    fake = DeskFake()
+    set_llm(fake)
+    set_decider(fake)
     prof = upload(client)
     req = create_request(prof)
     r = client.post("/api/datasets", json=req)

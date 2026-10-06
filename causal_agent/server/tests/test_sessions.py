@@ -2,7 +2,7 @@ import time
 
 from fastapi.testclient import TestClient
 
-from causal_agent.common.llm import set_llm
+from causal_agent.common.llm import set_decider, set_llm
 from causal_agent.desk.contracts import AfterReply, NumberStated
 from causal_agent.desk.tests.fakes import DeskFake
 from causal_agent.server.app import create_app
@@ -13,6 +13,7 @@ C = "completed_vs_none"
 
 def _create(client, fake, name="students_web"):
     set_llm(fake)
+    set_decider(fake)
     r = client.post("/api/datasets", json=create_request(upload(client), name=name))
     assert r.status_code == 201, r.text
     return wait_idle(client, name)

@@ -36,7 +36,8 @@ What LangSmith shows is the workflow as it ran: every judgement with its prompt,
 every file left behind; the lane under the desk's `run` node. That holds because the tracing sits in chokepoints a new piece
 passes through anyway, and `causal_agent/common/tests/test_trace_policy.py` fails when one is bypassed.
 
-- A model call goes through `common/llm.py::structured` or `lane/episode.py::run_episode`; nothing else invokes the model.
+- A model call goes through `common/llm.py::structured` or `lane/episode.py::run_episode`; a decision-model call through
+  `common/llm.py::decide`; nothing else invokes a model.
 - A graph is compiled with a `name=`; a root run is never called "LangGraph".
 - A new process gets the parent run and the thread from `common/trace.py::child_env` and opens under `trace.parent()`;
   a subprocess is never a new root.
@@ -73,7 +74,10 @@ uv run python -m causal_agent.desk.pipeline designs/<n>/handoff.json --json-file
 **Environment.** Copy `.env.example` to `.env`; `common/config.py` is the one reading of it. The model is Gemini on Vertex AI
 through application-default credentials (`gcloud auth application-default login`); `VERTEX_PROJECT` falls back to the active
 gcloud project. `INCLUDE_THOUGHTS` and `THINKING_BUDGET` are debug knobs. `RUN_DIR` and `PROFILE_CACHE_DIR` move the run
-folders and the profile cache; `EXPLORE_SANDBOX` picks the fence a script runs in.
+folders and the profile cache; `EXPLORE_SANDBOX` picks the fence a script runs in. `DECIDER` picks the decision model that reads each
+turn's kind before any Gemini call: `laya` (the open checkpoint in this process; the first call loads it) or `jev` (a hosted
+endpoint on the same wire, `DECIDER_URL` and `DECIDER_KEY`). `uv run python -m causal_agent.evals.turns` scores it on the
+labelled turns under `desk/evals/`.
 
 **Tests.** Set `LANGSMITH_TRACING=false` when running tests locally; `.env` turns tracing on and the tracer floods the output
 when the quota is spent. Tests never call a model: every judgement is scripted through `set_llm(fake)`; see

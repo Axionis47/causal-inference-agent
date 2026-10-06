@@ -186,6 +186,32 @@ class DeskFake:
         self.calls: list[str] = []
         self.humans: dict[str, list[str]] = {}
 
+    name = "fake"
+
+    def predict(self, state, questions) -> dict:
+        """The decision model by rule, confident on the same cues `read_by_rule` reads and unsure on anything else: a run word is
+        run, plot/show/draw is explore, a question mark is ask, a known phrase about the data is update."""
+        msg = str(state.get("message", "") if isinstance(state, dict) else state)
+        low = msg.lower().strip()
+        self.calls.append("decide")
+
+        def sure(kind, about):
+            return {"answers": {"kind": {"choice": kind, "answer_confidence": 0.95}, "about_data": {"noul": about, "answer_confidence": 0.95}}}
+
+        if low in {"run", "go", "run it", "run the analysis", "yes, run it", "let's run it"} or "run the analysis" in low:
+            return sure("run", 0.05)
+        if low.startswith(("plot", "show", "draw")):
+            return sure("explore", 0.05)
+        if msg == STORY_ANSWER or low.startswith(("yes", "all right", "right", "none for all", "not that i know")) or "don't know" in low or " = " in msg:
+            return sure("update", 0.95)
+        if any(w in low for w in ("nothing hidden", "sit alone", "no spillover", "no nudge", "lunch was", "lunch:")):
+            return sure("update", 0.95)
+        if low.endswith("?"):
+            return sure("ask", 0.05)
+        return {
+            "answers": {"kind": {"choice": "update", "answer_confidence": 0.3}, "about_data": {"noul": 0.5, "answer_confidence": 0.3}}
+        }  # unsure: the Reader decides
+
     def reads(self, source: str = "user:") -> list[str]:
         """The READ prompts whose material carried this source prefix."""
         return [h for h in self.humans.get("Reading", []) if source_of(h).startswith(source)]

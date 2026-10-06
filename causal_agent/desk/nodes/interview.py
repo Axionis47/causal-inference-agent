@@ -15,7 +15,8 @@ from causal_agent.desk import designer as DG
 from causal_agent.desk import explainer as X
 from causal_agent.desk import handoff as H
 from causal_agent.desk import reader as RD
-from causal_agent.desk.contracts import Ask, Finding
+from causal_agent.desk import turns as TD
+from causal_agent.desk.contracts import Ask, Finding, Reading
 from causal_agent.desk.nodes import decide as D
 from causal_agent.desk.nodes import frame as F
 from causal_agent.desk.nodes.shared import (
@@ -482,12 +483,19 @@ def infer(state: DeskState) -> Command[Literal["infer", "explore", "check", "exp
     src = f"user:turn:{turn}"
     message = state.get("message") or ""
     before = {ad: (f.value, f.status) for ad, f in memory.fields.items()}
-    # before the person has asked to run, what they say in passing is drafted for the readback to confirm; an answer to the
-    # interview is their word; the story is always read into drafts
-    draft = not state.get("run_intent") or (a is not None and a.kind == "story")
-    out, thoughts, rejected = RD.read_words(
-        memory, src, message, asked, state.get("open") or [], turn, ask=a, errors=state.get("infer_errors") or [], draft=draft
-    )
+    # the kind first, cheaply: a confident explore, ask or run never reaches the Reader; an update, or an unsure decision,
+    # does, and the Reader decides the kind for itself there
+    verdict, confidence = TD.classify(message, asked=a.text if a else None, at_ready=ready_now, last_reply=state.get("reply") or "", node=f"decide:{src}")
+    if verdict in ("explore", "ask", "run") and not state.get("infer_errors"):
+        out = Reading(kind=verdict, explore=message if verdict == "explore" else None, question=message if verdict == "ask" else None)
+        thoughts, rejected = [], []
+    else:
+        # before the person has asked to run, what they say in passing is drafted for the readback to confirm; an answer to the
+        # interview is their word; the story is always read into drafts
+        draft = not state.get("run_intent") or (a is not None and a.kind == "story")
+        out, thoughts, rejected = RD.read_words(
+            memory, src, message, asked, state.get("open") or [], turn, ask=a, errors=state.get("infer_errors") or [], draft=draft
+        )
     if a is not None and a.kind == "story" and message.strip():  # the account itself, whole, beside what was read from it
         ops.apply(memory, [ops.Update(address="claim:story.text", value=message, status="confirmed", source=src, said=message, verbatim=True)], CAT)
     settled = [ad for ad, f in memory.fields.items() if before.get(ad) != (f.value, f.status)]
@@ -502,7 +510,19 @@ def infer(state: DeskState) -> Command[Literal["infer", "explore", "check", "exp
     attempts = int(state.get("infer_attempts") or 0) + 1
     asked_desk = (out.question or "").strip() or state.get("desk_question") or None  # kept across retries
     asked_explore = (out.explore or "").strip() or state.get("explore_request") or None
-    _writer()({"infer": {"settled": settled, "rejected": rejected, "attempt": attempts, **({"focus": focus_update["focus"]} if focus_update else {})}})
+    _writer()(
+        {
+            "infer": {
+                "kind": out.kind,
+                "decided": verdict,
+                "confidence": round(confidence, 3),
+                "settled": settled,
+                "rejected": rejected,
+                "attempt": attempts,
+                **({"focus": focus_update["focus"]} if focus_update else {}),
+            }
+        }
+    )
     update = {
         **F.saved(memory),
         "infer_errors": rejected,
