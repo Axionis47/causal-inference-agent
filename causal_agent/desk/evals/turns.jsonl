@@ -39,3 +39,58 @@
 {"kind": "ask", "message": "what have you understood so far?", "asked": null, "at_ready": false, "last_reply": ""}
 {"kind": "ask", "message": "can this file answer it at all?", "asked": null, "at_ready": false, "last_reply": ""}
 {"kind": "update", "message": "thanks, one moment", "asked": null, "at_ready": false, "last_reply": ""}
+{"kind": "run", "message": "go ahead, run it", "asked": null, "at_ready": false, "last_reply": "Noted: assignment.kind is drafted as own_choice from what you said."}
+{"kind": "run", "message": "analyse it now", "asked": null, "at_ready": false, "last_reply": "Noted: assignment.kind is drafted as own_choice from what you said."}
+{"kind": "run", "message": "I've told you enough, run", "asked": null, "at_ready": false, "last_reply": "Noted: assignment.kind is drafted as own_choice from what you said."}
+{"kind": "run", "message": "let's get the estimate", "asked": null, "at_ready": false, "last_reply": "Noted: assignment.kind is drafted as own_choice from what you said."}
+{"kind": "run", "message": "yes please", "asked": null, "at_ready": true, "last_reply": "Everything the analysis needs is settled. Here is the context the analysis will run on; correct any line before you say yes."}
+{"kind": "run", "message": "go", "asked": null, "at_ready": true, "last_reply": "Everything the analysis needs is settled. Here is the context the analysis will run on; correct any line before you say yes."}
+{"kind": "run", "message": "that is right, run", "asked": null, "at_ready": true, "last_reply": "Everything the analysis needs is settled. Here is the context the analysis will run on; correct any line before you say yes."}
+{"kind": "run", "message": "fine", "asked": null, "at_ready": true, "last_reply": "Everything the analysis needs is settled. Here is the context the analysis will run on; correct any line before you say yes."}
+{"kind": "run", "message": "run it now", "asked": null, "at_ready": true, "last_reply": "Everything the analysis needs is settled. Here is the context the analysis will run on; correct any line before you say yes."}
+{"kind": "run", "message": "all correct", "asked": null, "at_ready": true, "last_reply": "Everything the analysis needs is settled. Here is the context the analysis will run on; correct any line before you say yes."}
+{"kind": "run", "message": "ok", "asked": null, "at_ready": true, "last_reply": "Everything the analysis needs is settled. Here is the context the analysis will run on; correct any line before you say yes."}
+{"kind": "explore", "message": "plot sales per capita for California against the rest", "asked": null, "at_ready": false, "last_reply": "Here is the map of the file as I read it."}
+{"kind": "explore", "message": "how many households sit on each side of zero?", "asked": null, "at_ready": false, "last_reply": "Here is the map of the file as I read it."}
+{"kind": "explore", "message": "histogram of nextGPA", "asked": null, "at_ready": false, "last_reply": "Here is the map of the file as I read it."}
+{"kind": "explore", "message": "show me employment by state as a table", "asked": null, "at_ready": false, "last_reply": "Here is the map of the file as I read it."}
+{"kind": "explore", "message": "what does the margin distribution look like near zero?", "asked": null, "at_ready": false, "last_reply": "Here is the map of the file as I read it."}
+{"kind": "explore", "message": "mean Support by Participation, as a picture", "asked": null, "at_ready": false, "last_reply": "Here is the map of the file as I read it."}
+{"kind": "explore", "message": "count stores by promotion", "asked": null, "at_ready": false, "last_reply": "Here is the map of the file as I read it."}
+{"kind": "explore", "message": "scatter of povrate60 and child mortality", "asked": null, "at_ready": false, "last_reply": "Here is the map of the file as I read it."}
+{"kind": "explore", "message": "before I say yes, show me the sales trend", "asked": null, "at_ready": true, "last_reply": "Everything the analysis needs is settled. Here is the context the analysis will run on; correct any line before you say yes."}
+{"kind": "explore", "message": "first a plot of X against nextGPA", "asked": null, "at_ready": true, "last_reply": "Everything the analysis needs is settled. Here is the context the analysis will run on; correct any line before you say yes."}
+{"kind": "ask", "message": "what does the discontinuity design assume?", "asked": null, "at_ready": false, "last_reply": "Adjustment compares units that got the change with units that did not, holding the columns that drove both fixed."}
+{"kind": "ask", "message": "why is the panel important?", "asked": null, "at_ready": false, "last_reply": "Adjustment compares units that got the change with units that did not, holding the columns that drove both fixed."}
+{"kind": "ask", "message": "what is a donor pool?", "asked": null, "at_ready": false, "last_reply": "Adjustment compares units that got the change with units that did not, holding the columns that drove both fixed."}
+{"kind": "ask", "message": "which family did you pick and why?", "asked": null, "at_ready": false, "last_reply": "Adjustment compares units that got the change with units that did not, holding the columns that drove both fixed."}
+{"kind": "ask", "message": "what does uptake mean?", "asked": null, "at_ready": false, "last_reply": "Adjustment compares units that got the change with units that did not, holding the columns that drove both fixed."}
+{"kind": "ask", "message": "what does the estimate say in plain words?", "asked": null, "at_ready": false, "last_reply": "Adjustment compares units that got the change with units that did not, holding the columns that drove both fixed."}
+{"kind": "ask", "message": "what is still blocking the run?", "asked": null, "at_ready": false, "last_reply": "Adjustment compares units that got the change with units that did not, holding the columns that drove both fixed."}
+{"kind": "ask", "message": "what does the design rest on?", "asked": null, "at_ready": true, "last_reply": "Everything the analysis needs is settled. Here is the context the analysis will run on; correct any line before you say yes."}
+{"kind": "ask", "message": "how long will it take?", "asked": null, "at_ready": true, "last_reply": "Everything the analysis needs is settled. Here is the context the analysis will run on; correct any line before you say yes."}
+{"kind": "update", "message": "the tax rise was 25 cents a pack from January 1989", "asked": null, "at_ready": false, "last_reply": "Here is the map of the file as I read it."}
+{"kind": "update", "message": "households below zero on the score were eligible", "asked": null, "at_ready": false, "last_reply": "Here is the map of the file as I read it."}
+{"kind": "update", "message": "probation kicked in below a 1.6 GPA", "asked": null, "at_ready": false, "last_reply": "Here is the map of the file as I read it."}
+{"kind": "update", "message": "New Jersey is the treated state", "asked": null, "at_ready": false, "last_reply": "Here is the map of the file as I read it."}
+{"kind": "update", "message": "the promotion was assigned at random", "asked": null, "at_ready": false, "last_reply": "Here is the map of the file as I read it."}
+{"kind": "update", "message": "counties above 59.2 percent got the grant help", "asked": null, "at_ready": false, "last_reply": "Here is the map of the file as I read it."}
+{"kind": "update", "message": "margin is the running variable and vote the outcome", "asked": null, "at_ready": false, "last_reply": "Here is the map of the file as I read it."}
+{"kind": "update", "message": "each row is one county", "asked": null, "at_ready": false, "last_reply": "Here is the map of the file as I read it."}
+{"kind": "update", "message": "there is no restaurant identifier", "asked": null, "at_ready": false, "last_reply": "Here is the map of the file as I read it."}
+{"kind": "update", "message": "the score cannot be gamed by households", "asked": null, "at_ready": false, "last_reply": "Here is the map of the file as I read it."}
+{"kind": "update", "message": "nothing outside the file decided the offer", "asked": null, "at_ready": false, "last_reply": "Here is the map of the file as I read it."}
+{"kind": "update", "message": "neighbouring states may leak sales", "asked": null, "at_ready": false, "last_reply": "Here is the map of the file as I read it."}
+{"kind": "update", "message": "1", "asked": "Which value in that column means the unit got the change?", "at_ready": false, "last_reply": "Before I can run, this still has to be settled."}
+{"kind": "update", "message": "no", "asked": "Could a unit that got the change affect another unit's outcome?", "at_ready": false, "last_reply": "Before I can run, this still has to be settled."}
+{"kind": "update", "message": "not that I know of", "asked": "Is there anything not in the file that affected both who got the change and how the outcome turned out?", "at_ready": false, "last_reply": "Before I can run, this still has to be settled."}
+{"kind": "update", "message": "one restaurant", "asked": "What does one row stand for, and do any columns together pick out exactly one row?", "at_ready": false, "last_reply": "Before I can run, this still has to be settled."}
+{"kind": "update", "message": "by side", "asked": "Were all units kept, or were rows picked by which side of a line they fell on, by whether they got the change, by group or by period?", "at_ready": false, "last_reply": "Before I can run, this still has to be settled."}
+{"kind": "update", "message": "89", "asked": "When did the change take effect, and which value in the date column marks it?", "at_ready": false, "last_reply": "Before I can run, this still has to be settled."}
+{"kind": "update", "message": "yes", "asked": "Is this right? Correct any line, or say yes.", "at_ready": false, "last_reply": "Before I can run, this still has to be settled."}
+{"kind": "update", "message": "the second line is wrong", "asked": "Is this right? Correct any line, or say yes.", "at_ready": false, "last_reply": "Before I can run, this still has to be settled."}
+{"kind": "update", "message": "1.6 on GPA, below got it", "asked": "What is the cutoff on the score, and which side got the change?", "at_ready": false, "last_reply": "Before I can run, this still has to be settled."}
+{"kind": "update", "message": "no, the treated state is New Jersey", "asked": null, "at_ready": true, "last_reply": "Everything the analysis needs is settled. Here is the context the analysis will run on; correct any line before you say yes."}
+{"kind": "update", "message": "the cutoff line is wrong, it is zero", "asked": null, "at_ready": true, "last_reply": "Everything the analysis needs is settled. Here is the context the analysis will run on; correct any line before you say yes."}
+{"kind": "update", "message": "it was a lottery; what is a back door road?", "asked": null, "at_ready": false, "last_reply": "Here is the map of the file as I read it."}
+{"kind": "update", "message": "ok, one second", "asked": null, "at_ready": false, "last_reply": "Here is the map of the file as I read it."}
