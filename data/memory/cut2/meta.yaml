@@ -1,6 +1,7 @@
 name: cut2
 version: 0
 csv: cut.csv
+data_version: 0
 facts:
   rows: 400
   columns: 5

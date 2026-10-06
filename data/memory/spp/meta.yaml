@@ -1,6 +1,7 @@
 name: spp
 version: 0
 csv: data/raw/spp-colombia-financial-aid/spp.csv
+data_version: 0
 facts:
   rows: 23132
   columns: 9

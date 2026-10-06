@@ -120,6 +120,7 @@ def build(
         intent=frame.intent,
         design_id=design_id,
         memory_version=m.version,
+        data_version=m.data_version,
         why=decision.why_over_alternatives,
         over={r.family: r.reason for r in decision.rejected},
         csv=m.csv or entry.get("csv"),

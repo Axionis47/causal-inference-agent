@@ -544,7 +544,9 @@ def draw(state: DeskState) -> Command[Literal["explain", "check"]]:
     turn = int(state.get("turn") or 0)
     ask = state.get("draw_request") or ""
     context, columns = draw_context(memory)
-    req = VD.DrawRequest(dataset=memory.name, moment="pre", memory_version=memory.version, ask=ask, context=context, csv=_csv_path(memory), columns=columns)
+    req = VD.DrawRequest(
+        dataset=memory.name, memory_version=memory.version, data_version=memory.data_version, ask=ask, context=context, csv=_csv_path(memory), columns=columns
+    )
     artifact, decline, thoughts = VD.draw(req)
     _writer()({"draw": {"ask": ask, "made": artifact is not None, "why": decline.reason if decline else ""}})
     if artifact is None:
@@ -559,10 +561,10 @@ def draw(state: DeskState) -> Command[Literal["explain", "check"]]:
             memory=memory,
             design=design_now(state),
             read=[f"user:turn:{turn}"],
-            left=[str(VD.store.folder(artifact.dataset, artifact.moment, artifact.design, artifact.id))],
+            left=[str(VD.store.folder(artifact.dataset, artifact.id))],
             note=ask,
         )
-        update = {"drawn": f"{artifact.caption} [{artifact.address}]", "artifact": artifact.model_dump()}
+        update = {"drawn": f"{artifact.summary} [{artifact.address}]", "artifact": artifact.model_dump()}
     update.update({"draw_request": None, "debug": thoughts})
     if state.get("desk_question"):
         return Command(goto="explain", update={**update, "explain_errors": [], "explain_attempts": 0})

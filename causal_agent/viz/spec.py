@@ -1,5 +1,5 @@
 """The figure contract for what a lane draws from its own artifacts. A figure is data with addresses, never an image: the
-page draws it, the chat cites it, a run keeps it. A picture drawn on request is an Artifact (`viz/store.py`), not a figure.
+page draws it, the chat cites it, a run keeps it. A picture drawn on request is an Artifact (`memory/artifacts.py`), not a figure.
 
 Addresses: figure:<id> for the figure, figure:<id>.<series>.<i> for one drawn value, and every number the figure shows is
 also a probe address the desk already has (probe:<family>.<name>), from the same computation."""

@@ -74,6 +74,7 @@ class Memory(BaseModel):
     name: str
     version: int = 0
     csv: str | None = None
+    data_version: int = PField(default=0, description="the version of the table in play; 0 is the uploaded file, a later agent may write 1 and up")
     facts: dict = PField(default_factory=dict, description="the dataset facts from the profile: rows, columns, grain, time coverage")
     columns: dict[str, Column] = PField(default_factory=dict, description="key -> the file's facts on the column")
     fields: dict[str, Field] = PField(default_factory=dict, description="address -> the field; absent means nothing said yet")

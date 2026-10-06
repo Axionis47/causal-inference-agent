@@ -8,10 +8,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from causal_agent.common.contracts import Decline, DesignBrief, Estimate, Handoff, RunRecord
+from causal_agent.memory import artifacts as VA
 from causal_agent.memory.journal import Step
 from causal_agent.memory.matrix import Matrix
 from causal_agent.memory.records import Memory
-from causal_agent.viz import store as VS
 
 
 @dataclass
@@ -253,14 +253,17 @@ def render(
 
 
 def add_artifacts(m: Material, dataset: str, design: int | None = None) -> None:
-    """Every picture drawn on request, before any run and, when a design is given, after that run: the caption at its address
-    and every number it shows at its own, so the chat can cite a drawn number and the gate can check it."""
-    found = VS.list_artifacts(dataset, "pre") + (VS.list_artifacts(dataset, "post", design) if design is not None else [])
-    for a in found:
-        when = "before the run" if a.moment == "pre" else f"design {a.design}"
-        m.add(a.address, f"{a.caption} ({when}; asked: {a.ask})")
+    """Every artifact about the data and, when a design is given, every one about that run: the summary at its address and
+    every number it holds at its own, the table and the picture when there are any, so the chat can cite them and the gate
+    can check the numbers."""
+    for a in VA.about(dataset, design):
+        m.add(a.address, f"{a.summary} ({a.kind}; {a.when()}; asked: {a.ask})")
         for name, value in a.facts.items():
             m.add(f"{a.address}.{name}", f"{name}: {value:.4g}", value)
+        if a.table:
+            m.add(f"{a.address}.table", f"a table: {a.table}")
+        if a.figure:
+            m.add(f"{a.address}.figure", "a picture")
 
 
 def brief(run: RunRecord, previous: RunRecord | None, material: Material) -> str:

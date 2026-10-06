@@ -411,10 +411,10 @@
         }
       }
     },
-    "/api/artifacts/{name}/{moment}/{design}/{artifact_id}/figure.png": {
+    "/api/artifacts/{name}/{artifact_id}/{file}": {
       "get": {
-        "summary": "Artifact Figure",
-        "operationId": "artifact_figure_api_artifacts__name___moment___design___artifact_id__figure_png_get",
+        "summary": "Artifact File",
+        "operationId": "artifact_file_api_artifacts__name___artifact_id___file__get",
         "parameters": [
           {
             "name": "name",
@@ -426,30 +426,21 @@
             }
           },
           {
-            "name": "moment",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Moment"
-            }
-          },
-          {
-            "name": "design",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Design"
-            }
-          },
-          {
             "name": "artifact_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "title": "Artifact Id"
+            }
+          },
+          {
+            "name": "file",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "File"
             }
           }
         ],
@@ -507,14 +498,13 @@
             "title": "Address",
             "description": "artifact:<id>, as the chat cites it"
           },
-          "moment": {
+          "kind": {
             "type": "string",
             "enum": [
-              "pre",
-              "post"
+              "exploration",
+              "picture"
             ],
-            "title": "Moment",
-            "description": "pre: drawn before any run; post: drawn after design run `design`"
+            "title": "Kind"
           },
           "design": {
             "anyOf": [
@@ -525,16 +515,18 @@
                 "type": "null"
               }
             ],
-            "title": "Design"
+            "title": "Design",
+            "description": "the design run it is about; null before any run"
           },
           "ask": {
             "type": "string",
             "title": "Ask",
             "description": "what was asked for, in the person's words"
           },
-          "caption": {
+          "summary": {
             "type": "string",
-            "title": "Caption"
+            "title": "Summary",
+            "description": "what it shows, in words; a picture's caption"
           },
           "facts": {
             "additionalProperties": {
@@ -542,30 +534,65 @@
             },
             "type": "object",
             "title": "Facts",
-            "description": "every number the picture shows, by name; each is citable as artifact:<id>.<name>"
+            "description": "every number it holds, by name; each is citable as artifact:<id>.<name>"
+          },
+          "figure": {
+            "type": "boolean",
+            "title": "Figure",
+            "default": false
+          },
+          "table": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Table",
+            "description": "the table file's name, when it wrote one"
           },
           "made_at": {
             "type": "string",
             "title": "Made At"
           },
           "url": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Url",
-            "description": "where the page fetches figure.png"
+            "description": "where the page fetches figure.png, when there is one"
+          },
+          "table_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Table Url",
+            "description": "where the page fetches the table, when there is one"
           }
         },
         "type": "object",
         "required": [
           "id",
           "address",
-          "moment",
+          "kind",
           "ask",
-          "caption",
-          "made_at",
-          "url"
+          "summary",
+          "made_at"
         ],
         "title": "ArtifactView",
-        "description": "A picture the drawing tool made on request: where it is served from, what it shows, and the numbers it holds."
+        "description": "An artifact a tool made from the file on request: what it is, what it shows, the numbers it holds, and where its files\nare served from."
       },
       "Body_profile_upload_api_profile_post": {
         "properties": {
@@ -1992,7 +2019,7 @@
             },
             "type": "array",
             "title": "Artifacts",
-            "description": "the pictures drawn on request after this run, oldest first"
+            "description": "the artifacts about this run, oldest first"
           },
           "declines": {
             "items": {
@@ -2304,7 +2331,7 @@
             },
             "type": "array",
             "title": "Artifacts",
-            "description": "the pictures drawn before any run, oldest first"
+            "description": "the artifacts about the data before any run, oldest first"
           }
         },
         "type": "object",

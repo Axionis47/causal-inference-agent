@@ -1,6 +1,7 @@
 name: senate
 version: 63
 csv: data/raw/senate-incumbency/senate.csv
+data_version: 0
 facts:
   rows: 1390
   columns: 17

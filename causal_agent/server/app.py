@@ -145,14 +145,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return FileResponse(path, media_type=media, filename=filename)
         return FileResponse(path, media_type=media)
 
-    # ------------------------------------------------------------------ pictures drawn on request
+    # ------------------------------------------------------------------ the artifacts' files
 
-    @app.get("/api/artifacts/{name}/{moment}/{design}/{artifact_id}/figure.png")
-    def artifact_figure(name: str, moment: str, design: int, artifact_id: str):
+    @app.get("/api/artifacts/{name}/{artifact_id}/{file}")
+    def artifact_file(name: str, artifact_id: str, file: str):
         try:
-            return FileResponse(AV.figure_path(s, name, moment, design, artifact_id), media_type="image/png")
+            path, media = AV.file_path(s, name, artifact_id, file)
+            return FileResponse(path, media_type=media)
         except AV.NotFound:
-            raise HTTPException(404, "no such picture") from None
+            raise HTTPException(404, "no such file") from None
 
     # ------------------------------------------------------------------ the page
 

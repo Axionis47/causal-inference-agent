@@ -178,15 +178,15 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/artifacts/{name}/{moment}/{design}/{artifact_id}/figure.png": {
+    "/api/artifacts/{name}/{artifact_id}/{file}": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Artifact Figure */
-        get: operations["artifact_figure_api_artifacts__name___moment___design___artifact_id__figure_png_get"];
+        /** Artifact File */
+        get: operations["artifact_file_api_artifacts__name___artifact_id___file__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -208,7 +208,8 @@ export interface components {
         };
         /**
          * ArtifactView
-         * @description A picture the drawing tool made on request: where it is served from, what it shows, and the numbers it holds.
+         * @description An artifact a tool made from the file on request: what it is, what it shows, the numbers it holds, and where its files
+         *     are served from.
          */
         ArtifactView: {
             /** Id */
@@ -219,34 +220,54 @@ export interface components {
              */
             address: string;
             /**
-             * Moment
-             * @description pre: drawn before any run; post: drawn after design run `design`
+             * Kind
              * @enum {string}
              */
-            moment: "pre" | "post";
-            /** Design */
+            kind: "exploration" | "picture";
+            /**
+             * Design
+             * @description the design run it is about; null before any run
+             */
             design?: number | null;
             /**
              * Ask
              * @description what was asked for, in the person's words
              */
             ask: string;
-            /** Caption */
-            caption: string;
+            /**
+             * Summary
+             * @description what it shows, in words; a picture's caption
+             */
+            summary: string;
             /**
              * Facts
-             * @description every number the picture shows, by name; each is citable as artifact:<id>.<name>
+             * @description every number it holds, by name; each is citable as artifact:<id>.<name>
              */
             facts?: {
                 [key: string]: number;
             };
+            /**
+             * Figure
+             * @default false
+             */
+            figure: boolean;
+            /**
+             * Table
+             * @description the table file's name, when it wrote one
+             */
+            table?: string | null;
             /** Made At */
             made_at: string;
             /**
              * Url
-             * @description where the page fetches figure.png
+             * @description where the page fetches figure.png, when there is one
              */
-            url: string;
+            url?: string | null;
+            /**
+             * Table Url
+             * @description where the page fetches the table, when there is one
+             */
+            table_url?: string | null;
         };
         /** Body_profile_upload_api_profile_post */
         Body_profile_upload_api_profile_post: {
@@ -769,7 +790,7 @@ export interface components {
             figures?: components["schemas"]["FigureSpec"][];
             /**
              * Artifacts
-             * @description the pictures drawn on request after this run, oldest first
+             * @description the artifacts about this run, oldest first
              */
             artifacts?: components["schemas"]["ArtifactView"][];
             /** Declines */
@@ -869,7 +890,7 @@ export interface components {
             journal?: components["schemas"]["StepView"][];
             /**
              * Artifacts
-             * @description the pictures drawn before any run, oldest first
+             * @description the artifacts about the data before any run, oldest first
              */
             artifacts?: components["schemas"]["ArtifactView"][];
         };
@@ -1324,15 +1345,14 @@ export interface operations {
             };
         };
     };
-    artifact_figure_api_artifacts__name___moment___design___artifact_id__figure_png_get: {
+    artifact_file_api_artifacts__name___artifact_id___file__get: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 name: string;
-                moment: string;
-                design: number;
                 artifact_id: string;
+                file: string;
             };
             cookie?: never;
         };

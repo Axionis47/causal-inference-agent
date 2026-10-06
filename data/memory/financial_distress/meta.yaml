@@ -1,6 +1,7 @@
 name: financial_distress
 version: 0
 csv: data/raw/financial_distress/StudentsPerformance.csv
+data_version: 0
 facts:
   rows: 1000
   columns: 8

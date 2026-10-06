@@ -17,8 +17,9 @@ from pydantic import BaseModel, Field
 from causal_agent.common import trace
 from causal_agent.common.contracts import Decline, Thought
 from causal_agent.common.llm import structured
-from causal_agent.viz import sandbox, store
-from causal_agent.viz.store import Artifact, Moment
+from causal_agent.memory import artifacts as store
+from causal_agent.memory.artifacts import Artifact
+from causal_agent.viz import sandbox
 
 TRIES = 3
 STDERR_TAIL = 1500
@@ -52,9 +53,9 @@ FAILED = "\nPREVIOUS ATTEMPT FAILED. Fix the script.\n{why}\n"
 
 class DrawRequest(BaseModel):
     dataset: str
-    moment: Moment
-    design: int | None = None
+    design: int | None = Field(default=None, description="the design run the picture is about; None before any run")
     memory_version: int = 0
+    data_version: int = 0
     ask: str = Field(description="what to draw, in the person's words")
     context: str = Field(description="what is known about the data, as text with addresses")
     csv: Path = Field(description="the file, read-only for the code")
@@ -72,7 +73,7 @@ class DrawCode(BaseModel):
 
 def draw(req: DrawRequest) -> tuple[Artifact | None, Decline | None, list[Thought]]:
     """One picture asked for: up to TRIES scripts, each run in the sandbox and checked; one span, the files attached on success."""
-    with trace.span("draw", inputs={"ask": req.ask, "moment": req.moment, "design": req.design, "columns": req.columns}) as s:
+    with trace.span("draw", inputs={"ask": req.ask, "design": req.design, "columns": req.columns}) as s:
         a, decline, thoughts = _draw(req)
         s.end(outputs={"artifact": trace.record(a), "decline": trace.record(decline)})
         return a, decline, thoughts
@@ -81,7 +82,7 @@ def draw(req: DrawRequest) -> tuple[Artifact | None, Decline | None, list[Though
 def _draw(req: DrawRequest) -> tuple[Artifact | None, Decline | None, list[Thought]]:
     thoughts: list[Thought] = []
     artifact_id = store.new_id()
-    out = store.folder(req.dataset, req.moment, req.design, artifact_id)
+    out = store.folder(req.dataset, artifact_id)
     columns = "\n".join(f"- {k} -> {v}" for k, v in req.columns.items())
     why = ""
     for _ in range(TRIES):
@@ -107,11 +108,13 @@ def _draw(req: DrawRequest) -> tuple[Artifact | None, Decline | None, list[Thoug
         a = Artifact(
             id=artifact_id,
             dataset=req.dataset,
-            moment=req.moment,
+            kind="picture",
             design=req.design,
             memory_version=req.memory_version,
+            data_version=req.data_version,
             ask=req.ask,
-            caption=answer.caption,
+            summary=answer.caption,
+            figure=True,
             facts=facts,
             made_at=dt.datetime.now(dt.UTC).isoformat(timespec="seconds"),
             files=sorted({*ran.files, "request.json", store.FILE}),

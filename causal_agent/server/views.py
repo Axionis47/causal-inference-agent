@@ -94,7 +94,7 @@ def session_view(mgr: SessionManager, name: str) -> SessionView:
     if not sess.thread_id:
         runs0 = [run_view(r, mgr.s) for r in all_runs(mgr.s, name, [])]
         return SessionView(
-            name=name, title=title, question=question, stage="new", runs=runs0, transcript=mgr.transcript(name), artifacts=AV.before_runs(mgr.s, name)
+            name=name, title=title, question=question, stage="new", runs=runs0, transcript=mgr.transcript(name), artifacts=AV.of_memory(mgr.s, name)
         )
     snap = mgr._snapshot(sess)
     values = dict(snap.values or {})
@@ -183,7 +183,7 @@ def session_view(mgr: SessionManager, name: str) -> SessionView:
         error=sess.error,
         analysis=analysis,
         journal=journal_view(mgr.s, name, analysis),
-        artifacts=AV.before_runs(mgr.s, name),
+        artifacts=AV.of_memory(mgr.s, name),
     )
 
 
@@ -274,6 +274,6 @@ def run_view(r: RunRecord, s: Settings | None = None) -> RunView:
         what_if=dict(r.what_if or {}),
         differs=list(r.differs or []),
         figures=[FigureSpec.model_validate(f) for f in r.figures or []],
-        artifacts=AV.after_run(s, r.dataset, int(r.index)) if s is not None else [],
+        artifacts=AV.of_design(s, r.dataset, int(r.index)) if s is not None else [],
         declines=declines,
     )

@@ -1,6 +1,7 @@
 name: marketing
 version: 35
 csv: data/raw/fast-food-marketing-campaign-ab-test/WA_Marketing-Campaign.csv
+data_version: 0
 facts:
   rows: 548
   columns: 7

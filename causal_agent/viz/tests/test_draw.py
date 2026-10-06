@@ -11,8 +11,9 @@ from langchain_core.messages import AIMessage
 
 from causal_agent.common import config
 from causal_agent.common.llm import set_llm
+from causal_agent.memory import artifacts as store
 from causal_agent.viz import draw as D
-from causal_agent.viz import sandbox, store
+from causal_agent.viz import sandbox
 
 ROOT = Path(__file__).resolve().parents[3]
 CSV = ROOT / "data/raw/students-performance-in-exams/StudentsPerformance.csv"
@@ -72,10 +73,9 @@ def _root(tmp_path, monkeypatch):
     set_llm(None)
 
 
-def request(moment="pre", design=None) -> D.DrawRequest:
+def request(design=None) -> D.DrawRequest:
     return D.DrawRequest(
         dataset="students",
-        moment=moment,
         design=design,
         memory_version=2,
         ask="mean math score by lunch",
@@ -90,25 +90,25 @@ def test_a_good_script_becomes_an_artifact(tmp_path):
     set_llm(fake)
     a, decline, thoughts = D.draw(request())
     assert decline is None and a is not None and len(thoughts) == 1 and thoughts[0].node == "draw"
-    folder = store.folder("students", "pre", None, a.id)
-    assert folder.parent == tmp_path / "data" / "memory" / "students" / "viz" / "pre"
+    folder = store.folder("students", a.id)
+    assert folder.parent == tmp_path / "data" / "memory" / "students" / "artifacts" and a.kind == "picture" and a.figure and a.design is None
     assert sorted(p.name for p in folder.iterdir()) == ["artifact.json", "code.py", "facts.json", "figure.png", "request.json"] == a.files
     assert set(a.facts) == {"mean_standard", "mean_free_reduced"} and all(isinstance(v, float) for v in a.facts.values())
     assert a.facts["mean_standard"] > a.facts["mean_free_reduced"]
-    assert len(a.addresses()) == 3 and a.render().count("[artifact:") == 3
-    assert [x.id for x in store.list_artifacts("students", "pre")] == [a.id]
+    assert len(a.addresses()) == 4 and a.render().count("[artifact:") == 4  # the picture itself is an address too
+    assert [x.id for x in store.list_artifacts("students")] == [a.id]
     req = json.loads((folder / "request.json").read_text())
     assert req["ask"] == "mean math score by lunch" and "context" not in req
     assert "use the file's own name" in fake.prompts[0] and "math score" in fake.prompts[0] and "PREVIOUS ATTEMPT" not in fake.prompts[0]
 
 
-def test_a_post_artifact_lives_under_its_design(tmp_path):
+def test_a_picture_about_a_run_is_tagged_with_its_design(tmp_path):
     set_llm(FakeLLM(GOOD))
-    a, decline, _ = D.draw(request(moment="post", design=2))
+    a, decline, _ = D.draw(request(design=2))
     assert decline is None and a is not None and a.design == 2
-    assert store.folder("students", "post", 2, a.id).parent == tmp_path / "data" / "memory" / "students" / "designs" / "2" / "viz"
-    assert [x.id for x in store.list_artifacts("students", "post", 2)] == [a.id]
-    assert store.list_artifacts("students", "pre") == []
+    assert store.folder("students", a.id).parent == tmp_path / "data" / "memory" / "students" / "artifacts"
+    assert [x.id for x in store.list_artifacts("students", design=2)] == [a.id]
+    assert store.about("students", None) == [] and [x.id for x in store.about("students", 2)] == [a.id]
 
 
 def test_a_failed_script_is_retried_with_its_error():
@@ -117,8 +117,8 @@ def test_a_failed_script_is_retried_with_its_error():
     a, decline, thoughts = D.draw(request())
     assert decline is None and a is not None and len(fake.prompts) == 2 and len(thoughts) == 2
     assert "PREVIOUS ATTEMPT FAILED" in fake.prompts[1] and "boom: no such column" in fake.prompts[1]
-    assert len(store.list_artifacts("students", "pre")) == 1
-    assert (store.folder("students", "pre", None, a.id) / "code.py").read_text() == GOOD
+    assert len(store.list_artifacts("students")) == 1
+    assert (store.folder("students", a.id) / "code.py").read_text() == GOOD
 
 
 def test_words_in_the_script_field_are_sent_back_without_a_run(tmp_path, monkeypatch):
@@ -139,15 +139,15 @@ def test_three_failures_are_a_decline_and_no_folder(tmp_path):
     a, decline, thoughts = D.draw(request())
     assert a is None and decline is not None and len(fake.prompts) == 3 and len(thoughts) == 3
     assert decline.stage == "draw" and decline.check == "draw.failed" and "boom" in decline.reason
-    assert store.list_artifacts("students", "pre") == []
-    assert not (tmp_path / "data" / "memory" / "students" / "viz").exists()
+    assert store.list_artifacts("students") == []
+    assert not (tmp_path / "data" / "memory" / "students" / "artifacts").exists()
 
 
 def test_an_extra_file_is_swept():
     set_llm(FakeLLM(EXTRA))
     a, decline, _ = D.draw(request())
     assert decline is None and a is not None
-    folder = store.folder("students", "pre", None, a.id)
+    folder = store.folder("students", a.id)
     assert not (folder / "extra.pkl").exists() and not (folder / sandbox.MPL_DIR).exists()
     assert "extra.pkl" not in a.files
 

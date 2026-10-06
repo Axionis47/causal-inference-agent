@@ -21,10 +21,10 @@ from causal_agent.desk.nodes.interview import draw_context
 from causal_agent.desk.nodes.journey import CAT, QUIT_WORDS
 from causal_agent.desk.nodes.shared import _csv_path, design_now, journal_of, record
 from causal_agent.desk.state import DeskState
+from causal_agent.memory import artifacts as VA
 from causal_agent.memory import ops
 from causal_agent.memory.matrix import Matrix
 from causal_agent.viz import draw as VD
-from causal_agent.viz import store as VS
 
 MAX_ATTEMPTS = 3
 DONE_WORDS = {"done", "bye", "finished"} | QUIT_WORDS
@@ -116,7 +116,7 @@ def talk(state: DeskState) -> Command[Literal["turn", "__end__"]]:
     if artifact is None and reply is not None and cur is not None:  # an answer that cites a drawn picture shows it
         cited = [c.split(".")[0][len("artifact:") :] for c in reply.cites if c.startswith("artifact:")]
         if cited:
-            pool = VS.list_artifacts(cur.dataset, "pre") + VS.list_artifacts(cur.dataset, "post", cur.index)
+            pool = VA.about(cur.dataset, cur.index)
             found = next((a for a in pool if a.id == cited[0]), None)
             artifact = found.model_dump() if found else None
     payload = {
@@ -276,9 +276,9 @@ def draw_after(state: DeskState) -> dict:
     context += "\n\nWHAT THE RUN FOUND\n" + "\n".join(ln for ln in mat.lines if ln.startswith(("[design.", "[estimate:", "[check:", "[refute:", "[placebo:")))
     req = VD.DrawRequest(
         dataset=memory.name,
-        moment="post",
         design=int(cur.index),
         memory_version=memory.version,
+        data_version=memory.data_version,
         ask=ask,
         context=context,
         csv=_csv_path(memory),
@@ -296,10 +296,10 @@ def draw_after(state: DeskState) -> dict:
         memory=memory,
         design=design_now(state),
         read=[f"user:turn:{turn}"],
-        left=[str(VS.folder(artifact.dataset, artifact.moment, artifact.design, artifact.id))],
+        left=[str(VA.folder(artifact.dataset, artifact.id))],
         note=ask,
     )
-    text = f"{artifact.caption} [{artifact.address}]"
+    text = f"{artifact.summary} [{artifact.address}]"
     return {
         "after_reply": reply.model_copy(update={"kind": "answer", "text": text, "cites": [artifact.address]}),
         "artifact": artifact.model_dump(),

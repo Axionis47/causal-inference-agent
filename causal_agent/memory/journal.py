@@ -2,7 +2,6 @@
 and what it left on disk. It records what was done and seen; it never writes what is known.
 
 data/memory/<name>/analyses/<id>/journal.jsonl     one Step per line, in order
-data/memory/<name>/analyses/<id>/explore/<k>/       what an exploration before any design drew (reserved)
 
 A step's design is the design run it belongs to: a step after a run belongs to the last design written; a step before
 a run leads to the next design, which is not known yet, so it is null and a reader attaches it to the design step that

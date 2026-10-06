@@ -1122,7 +1122,7 @@ def _artifact_root(tmp_path, monkeypatch):
 
 
 def test_a_picture_asked_for_before_the_run_is_drawn_shown_and_recorded(_artifact_root, tmp_path):
-    from causal_agent.viz import store as VS
+    from causal_agent.memory import artifacts as VS
 
     def infer(msg, addrs, human):
         return Reading(kind="explore", explore="show me math score by lunch") if "plot" in msg else None
@@ -1132,13 +1132,13 @@ def test_a_picture_asked_for_before_the_run_is_drawn_shown_and_recorded(_artifac
     d.say(QUESTION)
     p = d.say("plot math score by lunch before we go on")
     a = p["artifact"]
-    assert a and a["moment"] == "pre" and a["design"] is None and set(a["facts"]) == {"mean_standard", "mean_free_reduced"}
+    assert a and a["kind"] == "picture" and a["design"] is None and set(a["facts"]) == {"mean_standard", "mean_free_reduced"}
     assert p["text"].startswith("Mean math score by lunch") and f"[artifact:{a['id']}]" in p["text"] and p["kind"] == "chat"  # the caption; nothing asked
     assert fake.calls.count("DrawCode") == 1 and "COLUMNS" in fake.humans["DrawCode"][0] and "math score" in fake.humans["DrawCode"][0]
-    folder = tmp_path / "data" / "memory" / "students" / "viz" / "pre" / a["id"]
-    assert (folder / "figure.png").exists() and (folder / "code.py").exists() and VS.list_artifacts("students", "pre")[0].id == a["id"]
+    folder = tmp_path / "data" / "memory" / "students" / "artifacts" / a["id"]
+    assert (folder / "figure.png").exists() and (folder / "code.py").exists() and VS.list_artifacts("students")[0].id == a["id"]
     step = d.journal.steps()[-1]
-    assert step.kind == "explore" and step.by == "model" and step.note == "show me math score by lunch" and step.left[0].endswith(f"viz/pre/{a['id']}")
+    assert step.kind == "explore" and step.by == "model" and step.note == "show me math score by lunch" and step.left[0].endswith(f"artifacts/{a['id']}")
     assert HELD["students"].version == d.values["convinced_version"] if d.values.get("convinced_version") else True  # a picture settles nothing
     p = d.say(answer_ask(p))
     assert p["artifact"] is None  # shown once
@@ -1188,12 +1188,12 @@ def test_a_picture_asked_for_after_the_run_lands_in_the_design_and_is_citable(_a
     d.say("run")
     p = d.say("draw me the mean math score by lunch")
     a = p["artifact"]
-    assert a and a["moment"] == "post" and a["design"] == 1 and p["text"].startswith("Mean math score by lunch") and p["kind"] == "after"
+    assert a and a["kind"] == "picture" and a["design"] == 1 and p["text"].startswith("Mean math score by lunch") and p["kind"] == "after"
     assert "WHAT THE RUN FOUND" in fake.humans["DrawCode"][0] and "[estimate:completed_vs_none.value]" in fake.humans["DrawCode"][0]
-    folder = tmp_path / "data" / "memory" / "students" / "designs" / "1" / "viz" / a["id"]
+    folder = tmp_path / "data" / "memory" / "students" / "artifacts" / a["id"]
     assert (folder / "figure.png").exists()
     step = d.journal.steps()[-1]
-    assert step.kind == "explore" and step.design == 1 and step.left[0].endswith(f"designs/1/viz/{a['id']}")
+    assert step.kind == "explore" and step.design == 1 and step.left[0].endswith(f"artifacts/{a['id']}")
     fake.after[0].cites = [f"artifact:{a['id']}.mean_standard"]
     p = d.say("who does better?")
     assert p["text"].startswith("Standard lunch") and p["artifact"]["id"] == a["id"]  # an answer that cites the picture shows it

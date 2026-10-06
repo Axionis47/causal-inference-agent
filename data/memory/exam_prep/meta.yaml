@@ -1,6 +1,7 @@
 name: exam_prep
 version: 34
 csv: data/raw/exam_prep/StudentsPerformance.csv
+data_version: 0
 facts:
   rows: 1000
   columns: 8

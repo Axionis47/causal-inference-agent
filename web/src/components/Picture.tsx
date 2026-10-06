@@ -1,15 +1,15 @@
 import type { ArtifactView } from "../types";
 
-// A picture the drawing tool made on request (causal_agent/viz/store.py): the image, its caption with the address the chat
-// cites, and every number it holds with its own address.
+// An artifact a tool made from the file on request (causal_agent/memory/artifacts.py): the picture when it drew one, the
+// summary with the address the chat cites, every number it holds with its own address, and the table when it wrote one.
 export default function Picture({ a }: { a: ArtifactView }) {
-  const when = a.moment === "pre" ? "before the run" : `after design ${a.design}`;
+  const when = a.design == null ? "before any run" : `about design ${a.design}`;
   return (
-    <figure className="pic" aria-label={a.caption}>
+    <figure className="pic" aria-label={a.summary}>
       <figcaption>
-        <span className="addr">{a.address}</span> {a.caption} <span className="muted">({when})</span>
+        <span className="addr">{a.address}</span> {a.summary} <span className="muted">({when})</span>
       </figcaption>
-      <img src={a.url} alt={a.caption} loading="lazy" />
+      {a.url && <img src={a.url} alt={a.summary} loading="lazy" />}
       {Object.keys(a.facts).length > 0 && (
         <dl className="kv facts">
           {Object.entries(a.facts).map(([name, value]) => (
@@ -23,6 +23,13 @@ export default function Picture({ a }: { a: ArtifactView }) {
             </div>
           ))}
         </dl>
+      )}
+      {a.table_url && (
+        <p className="muted">
+          <a href={a.table_url} target="_blank" rel="noreferrer">
+            the table: {a.table}
+          </a>
+        </p>
       )}
     </figure>
   );

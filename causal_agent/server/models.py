@@ -242,22 +242,26 @@ class RunView(BaseModel):
     what_if: dict[str, str] = Field(default_factory=dict)
     differs: list[str] = Field(default_factory=list)
     figures: list[FigureSpec] = Field(default_factory=list, description="what the run left, in the order the chat shows them")
-    artifacts: list[ArtifactView] = Field(default_factory=list, description="the pictures drawn on request after this run, oldest first")
+    artifacts: list[ArtifactView] = Field(default_factory=list, description="the artifacts about this run, oldest first")
     declines: list[DeclineView] = Field(default_factory=list)
 
 
 class ArtifactView(BaseModel):
-    """A picture the drawing tool made on request: where it is served from, what it shows, and the numbers it holds."""
+    """An artifact a tool made from the file on request: what it is, what it shows, the numbers it holds, and where its files
+    are served from."""
 
     id: str
     address: str = Field(description="artifact:<id>, as the chat cites it")
-    moment: Literal["pre", "post"] = Field(description="pre: drawn before any run; post: drawn after design run `design`")
-    design: int | None = None
+    kind: Literal["exploration", "picture"]
+    design: int | None = Field(default=None, description="the design run it is about; null before any run")
     ask: str = Field(description="what was asked for, in the person's words")
-    caption: str
-    facts: dict[str, float] = Field(default_factory=dict, description="every number the picture shows, by name; each is citable as artifact:<id>.<name>")
+    summary: str = Field(description="what it shows, in words; a picture's caption")
+    facts: dict[str, float] = Field(default_factory=dict, description="every number it holds, by name; each is citable as artifact:<id>.<name>")
+    figure: bool = False
+    table: str | None = Field(default=None, description="the table file's name, when it wrote one")
     made_at: str
-    url: str = Field(description="where the page fetches figure.png")
+    url: str | None = Field(default=None, description="where the page fetches figure.png, when there is one")
+    table_url: str | None = Field(default=None, description="where the page fetches the table, when there is one")
 
 
 class Turn(BaseModel):
@@ -324,7 +328,7 @@ class SessionView(BaseModel):
     error: str | None = None
     analysis: str | None = Field(default=None, description="a<k>: this conversation's journal")
     journal: list[StepView] = Field(default_factory=list, description="the conversation's steps, in order")
-    artifacts: list[ArtifactView] = Field(default_factory=list, description="the pictures drawn before any run, oldest first")
+    artifacts: list[ArtifactView] = Field(default_factory=list, description="the artifacts about the data before any run, oldest first")
 
 
 # ------------------------------------------------------------------ runs

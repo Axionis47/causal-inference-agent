@@ -122,7 +122,7 @@ never asks the person; what it would not guess is a flag (`unsure`), and on a ca
 `result.json` plus a run folder under `.artifacts/runs/`. The three built lanes are adjustment (DoWhy), diff-in-diff
 (pyfixest) and discontinuity (rdrobust); four more families are declared so the routing can rule them in or out.
 
-**The drawing tool** (`viz/draw.py`, `viz/sandbox.py`, `viz/store.py`) draws only on request, before or after a run: the
+**The drawing tool** (`viz/draw.py`, `viz/sandbox.py`; its pictures live on the artifacts shelf, `memory/artifacts.py`) draws only on request, before or after a run: the
 model writes a matplotlib script, the sandbox runs it in the strongest fence at hand (the macOS seatbelt, bwrap or unshare
 on Linux, Docker when asked, else a plain subprocess with a scrubbed environment), and the numbers the script writes to
 `facts.json` become facts the chat can cite. Three tries, then a decline.

@@ -364,6 +364,7 @@ class Handoff(BaseModel):
     intent: Intent = "effect_of_change"
     design_id: int = Field(default=0, description="which design of this dataset the pack is; 0 for a forced hand-off")
     memory_version: int = Field(default=0, description="the memory version the pack was projected from")
+    data_version: int = Field(default=0, description="the version of the table the pack reads; 0 is the uploaded file")
     why: str = Field(default="", description="why this family over the others")
     over: dict[str, str] = Field(default_factory=dict, description="rejected family -> reason")
     # the data

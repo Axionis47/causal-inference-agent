@@ -60,7 +60,7 @@ prompt text itself; all of it arrives as data.
 | gate 1 | the code parses (`ast.parse`); a syntax error retries without touching the sandbox | [viz/draw.py:114](../causal_agent/viz/draw.py) |
 | run | `sandbox.run(code, csv, out_dir)` | [viz/sandbox.py:29](../causal_agent/viz/sandbox.py) |
 | gate 2 | `figure.png` is non-empty; `facts.json` is a JSON object; every value is a number, no booleans; every promised name is present | [viz/draw.py:124](../causal_agent/viz/draw.py) |
-| out | an `Artifact`, or after three failures a `Decline(check="draw.failed")` and no folder | [viz/store.py:25](../causal_agent/viz/store.py), [viz/draw.py:111](../causal_agent/viz/draw.py) |
+| out | an `Artifact`, or after three failures a `Decline(check="draw.failed")` and no folder | [memory/artifacts.py](../causal_agent/memory/artifacts.py), [viz/draw.py:111](../causal_agent/viz/draw.py) |
 
 A failed try's stderr, cut to its last 1500 characters, goes into the next prompt under "PREVIOUS ATTEMPT FAILED. Fix the script."
 

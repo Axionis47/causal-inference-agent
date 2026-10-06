@@ -48,7 +48,7 @@ def _save(memory: Memory, root: Path | None = None) -> Path:
     d = home(memory.name, root)
     d.mkdir(parents=True, exist_ok=True)
     dump = memory.model_dump(mode="json")
-    (d / "meta.yaml").write_text(yaml.safe_dump({k: dump[k] for k in ("name", "version", "csv", "facts")}, sort_keys=False, allow_unicode=True))
+    (d / "meta.yaml").write_text(yaml.safe_dump({k: dump[k] for k in ("name", "version", "csv", "data_version", "facts")}, sort_keys=False, allow_unicode=True))
     (d / "columns.yaml").write_text(yaml.safe_dump(dump["columns"], sort_keys=False, allow_unicode=True))
     (d / "fields.yaml").write_text(yaml.safe_dump(dump["fields"], sort_keys=False, allow_unicode=True))
     (d / "said.jsonl").write_text("".join(json.dumps(s, ensure_ascii=False) + "\n" for s in dump["said"]))
