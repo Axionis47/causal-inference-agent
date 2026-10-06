@@ -181,6 +181,7 @@ export interface JournalRow {
   by: string;
   at: string;
   note: string;
+  read: string[];
   run: number | null;
   hasFiles: boolean;
 }
@@ -202,6 +203,7 @@ export function journalGroups(steps: StepView[]): JournalGroup[] {
     by: s.by,
     at: s.at,
     note: s.note,
+    read: s.read,
     run: s.run,
     hasFiles: !!s.run_id,
   });

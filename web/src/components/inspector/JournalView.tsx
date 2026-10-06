@@ -10,7 +10,8 @@ function when(at: string): string {
   }
 }
 
-/** The conversation's record, one group per design run: the steps that led to it, the design, the run, and what was said about it. */
+/** The conversation's record, one group per design run: the steps that led to it, the design, the run, and what was said about
+ * it. The read column is every address a step pulled: what an answer cited, what a reading drafted from, what a run rested on. */
 export default function JournalView({ steps, onSelect }: { steps: StepView[]; onSelect: (s: Selection) => void }) {
   const groups = journalGroups(steps);
   if (!groups.length) return <p className="empty-note">Nothing yet. The journal fills as the conversation reads the question, settles claims, and runs.</p>;
@@ -27,6 +28,7 @@ export default function JournalView({ steps, onSelect }: { steps: StepView[]; on
                   <th>what</th>
                   <th>by</th>
                   <th>note</th>
+                  <th>read</th>
                   <th>when</th>
                   <th></th>
                 </tr>
@@ -38,6 +40,15 @@ export default function JournalView({ steps, onSelect }: { steps: StepView[]; on
                     <td className="mono">{r.kind.replace(/_/g, " ")}</td>
                     <td className="mono">{r.by}</td>
                     <td className="wrap">{r.note || "—"}</td>
+                    <td className="wrap">
+                      {r.read.length
+                        ? r.read.map((a) => (
+                            <span className="addr" key={a}>
+                              {a}
+                            </span>
+                          ))
+                        : "—"}
+                    </td>
                     <td className="mono">{when(r.at)}</td>
                     <td>
                       {r.run !== null && (
