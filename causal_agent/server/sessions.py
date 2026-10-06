@@ -48,6 +48,7 @@ class Session:
     name: str
     thread_id: str
     analysis: str = ""  # a<k>: the journal this thread appends to
+    turn: int = 0  # the person's turns sent on this thread, so each trace root says which turn it is
     busy: bool = False
     future: Future | None = None
     activity: tuple[str, str] | None = None
@@ -57,11 +58,16 @@ class Session:
     lock: threading.Lock = field(default_factory=threading.Lock)
 
     @property
+    def phase(self) -> str:
+        return (self.last_payload or {}).get("phase") or "before"
+
+    @property
     def cfg(self) -> dict:
         return {
+            "run_name": f"{self.name} {self.analysis or '-'} turn {self.turn} {self.phase}",
             "configurable": {"thread_id": self.thread_id},
             "tags": [f"dataset:{self.name}", f"analysis:{self.analysis or '-'}", "desk", "web"],
-            "metadata": {"dataset": self.name, "analysis": self.analysis},
+            "metadata": {"dataset": self.name, "analysis": self.analysis, "turn": self.turn, "phase": self.phase},
         }
 
 
@@ -143,7 +149,7 @@ class SessionManager:
 
     def _begin(self, sess: Session, meta: dict) -> None:
         """A fresh thread for the session, under its lock."""
-        sess.thread_id = str(uuid.uuid4())
+        sess.thread_id, sess.turn = str(uuid.uuid4()), 0
         sess.analysis = J.next_analysis_id(sess.name, self.s.root)
         sess.ended, sess.error, sess.last_payload = False, None, None
         meta.update({"thread_id": sess.thread_id, "analysis": sess.analysis, "ended": False, "last_prompt": None, "started_at": _now()})
@@ -159,8 +165,8 @@ class SessionManager:
                 raise SessionEnded(name)
             if self._pending_without_interrupt(sess):
                 raise SessionState("the last step did not finish; resume it first")
-            phase = (sess.last_payload or {}).get("phase") or "before"
-            self._append(name, Turn(role="user", text=text, phase=phase, at=_now()))
+            self._append(name, Turn(role="user", text=text, phase=sess.phase, at=_now()))
+            sess.turn += 1
             self._launch(sess, Command(resume=text))
         return sess
 

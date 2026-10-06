@@ -22,6 +22,9 @@ oldcode:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 state:
   name: state
   key: state
@@ -46,6 +49,9 @@ state:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 povrate60:
   name: povrate60
   key: povrate60
@@ -70,6 +76,9 @@ povrate60:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 mort_age59_related_posths:
   name: mort_age59_related_postHS
   key: mort_age59_related_posths
@@ -94,6 +103,9 @@ mort_age59_related_posths:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 mort_age59_injury_posths:
   name: mort_age59_injury_postHS
   key: mort_age59_injury_posths
@@ -118,6 +130,9 @@ mort_age59_injury_posths:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 mort_age59_all_posths:
   name: mort_age59_all_postHS
   key: mort_age59_all_posths
@@ -142,6 +157,9 @@ mort_age59_all_posths:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 mort_age25plus_related_posths:
   name: mort_age25plus_related_postHS
   key: mort_age25plus_related_posths
@@ -166,6 +184,9 @@ mort_age25plus_related_posths:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 mort_age25plus_injuries_posths:
   name: mort_age25plus_injuries_postHS
   key: mort_age25plus_injuries_posths
@@ -190,6 +211,9 @@ mort_age25plus_injuries_posths:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 mort_age59_related_prehs:
   name: mort_age59_related_preHS
   key: mort_age59_related_prehs
@@ -214,6 +238,9 @@ mort_age59_related_prehs:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 mort_wh_age59_related_posths:
   name: mort_wh_age59_related_postHS
   key: mort_wh_age59_related_posths
@@ -238,6 +265,9 @@ mort_wh_age59_related_posths:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 mort_bl_age59_related_posths:
   name: mort_bl_age59_related_postHS
   key: mort_bl_age59_related_posths
@@ -262,6 +292,9 @@ mort_bl_age59_related_posths:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 census1960_pop:
   name: census1960_pop
   key: census1960_pop
@@ -286,6 +319,9 @@ census1960_pop:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 census1960_pctsch1417:
   name: census1960_pctsch1417
   key: census1960_pctsch1417
@@ -310,6 +346,9 @@ census1960_pctsch1417:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 census1960_pctsch534:
   name: census1960_pctsch534
   key: census1960_pctsch534
@@ -334,6 +373,9 @@ census1960_pctsch534:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 census1960_pctsch25plus:
   name: census1960_pctsch25plus
   key: census1960_pctsch25plus
@@ -358,6 +400,9 @@ census1960_pctsch25plus:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 census1960_pop1417:
   name: census1960_pop1417
   key: census1960_pop1417
@@ -382,6 +427,9 @@ census1960_pop1417:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 census1960_pop534:
   name: census1960_pop534
   key: census1960_pop534
@@ -406,6 +454,9 @@ census1960_pop534:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 census1960_pop25plus:
   name: census1960_pop25plus
   key: census1960_pop25plus
@@ -430,6 +481,9 @@ census1960_pop25plus:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 census1960_pcturban:
   name: census1960_pcturban
   key: census1960_pcturban
@@ -454,6 +508,9 @@ census1960_pcturban:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 census1960_pctblack:
   name: census1960_pctblack
   key: census1960_pctblack
@@ -478,6 +535,9 @@ census1960_pctblack:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 census1990_pop:
   name: census1990_pop
   key: census1990_pop
@@ -502,6 +562,9 @@ census1990_pop:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 census1990_pop1824:
   name: census1990_pop1824
   key: census1990_pop1824
@@ -526,6 +589,9 @@ census1990_pop1824:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 census1990_pop2534:
   name: census1990_pop2534
   key: census1990_pop2534
@@ -550,6 +616,9 @@ census1990_pop2534:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 census1990_pop3554:
   name: census1990_pop3554
   key: census1990_pop3554
@@ -574,6 +643,9 @@ census1990_pop3554:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 census1990_pop55plus:
   name: census1990_pop55plus
   key: census1990_pop55plus
@@ -598,6 +670,9 @@ census1990_pop55plus:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 census1990_pcturban:
   name: census1990_pcturban
   key: census1990_pcturban
@@ -622,6 +697,9 @@ census1990_pcturban:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 census1990_pctblack:
   name: census1990_pctblack
   key: census1990_pctblack
@@ -646,6 +724,9 @@ census1990_pctblack:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 census1990_percapinc:
   name: census1990_percapinc
   key: census1990_percapinc
@@ -670,3 +751,6 @@ census1990_percapinc:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []

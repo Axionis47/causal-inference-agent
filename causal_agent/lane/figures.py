@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from causal_agent.common import trace
 from causal_agent.common.addresses import norm_address
 from causal_agent.common.contracts import Decline, Estimate, Handoff
 from causal_agent.viz.spec import FigureSpec
@@ -83,5 +84,5 @@ def write(run_dir: str | Path | None, specs: list[FigureSpec | None], ok: set[st
             continue
         kept.append(spec)
     if run_dir:
-        Path(run_dir, "figures.json").write_text(json.dumps([s.model_dump() for s in kept], indent=2, default=str))
+        trace.write(Path(run_dir, "figures.json"), json.dumps([s.model_dump() for s in kept], indent=2, default=str))
     return kept, declines

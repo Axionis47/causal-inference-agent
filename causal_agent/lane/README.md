@@ -11,7 +11,7 @@ yaml in its own package, and copies nothing that is here.
   reading names the claim and cites what changed it.
 - `episode.py`: a judgement as a bounded episode: the model may look at the data through the tools, every fact it asked for gets
   an address (`probe:<node>.<n>`), the budget and the answer's shape are fixed by the caller, and the gate re-prompts with the
-  log kept.
+  log kept. In the trace an episode is one span, each try a span under it, each tool call and gate a span under that.
 - `tools.py`: the read-only data tools an episode may be offered: six on any table (describe, by arm, association, redundancy,
   cells, timing), two more on a panel (a column by group and period, the composition of the panel over time) and two on a
   recentred score (a column by side within a band of the line, the score's histogram either side), each offered only when the

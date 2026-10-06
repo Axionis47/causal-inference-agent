@@ -7,6 +7,7 @@ again on a rejection."""
 
 from __future__ import annotations
 
+from causal_agent.common import trace
 from causal_agent.common.contracts import Thought
 from causal_agent.common.llm import structured
 from causal_agent.desk.contracts import Ask, Reading
@@ -89,5 +90,5 @@ def read_words(
                 updates.append(ops.Update(address=addr, value=f.value, status="confirmed", source=source, said=material[:200], reason="confirmed as drafted"))
         for addr in out.unknown:
             updates.append(ops.Update(address=addr, status="unknown", source=source, said=material[:200]))
-    rejected = ops.apply(memory, updates, CAT)
+    rejected = trace.gate(ops.apply(memory, updates, CAT), name="gate:writes", updates=[u.address for u in updates])
     return out, [thought], rejected

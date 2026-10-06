@@ -10,6 +10,7 @@ from typing import Literal
 
 from langgraph.types import Command, interrupt
 
+from causal_agent.common import trace
 from causal_agent.common.contracts import Handoff, RunRecord, Said
 from causal_agent.desk import explainer as X
 from causal_agent.desk import material as M
@@ -190,7 +191,7 @@ def revise(state: DeskState) -> Command[Literal["check", "talk"]]:
         for u in reply.updates
     ]
     before = {a: (f.value, f.status) for a, f in memory.fields.items()}
-    rejected = ops.apply(memory, updates, CAT)
+    rejected = trace.gate(ops.apply(memory, updates, CAT), name="gate:writes", updates=[u.address for u in updates])
     settled = [a for a, f in memory.fields.items() if before.get(a) != (f.value, f.status)]
     mirror = F.saved(memory)
     if not settled:
@@ -225,7 +226,7 @@ def what_if(state: DeskState) -> Command[Literal["fit", "talk"]]:
         for u in reply.updates
     ]
     before = {a: f.value for a, f in fork.fields.items()}
-    rejected = ops.apply(fork, updates, CAT)
+    rejected = trace.gate(ops.apply(fork, updates, CAT), name="gate:writes", updates=[u.address for u in updates])
     changed = {a: f.value for a, f in fork.fields.items() if before.get(a) != f.value}  # a field the kind change reopened keeps its value: not supposed
     if not changed:
         note = "I could not suppose that: " + "; ".join(rejected)

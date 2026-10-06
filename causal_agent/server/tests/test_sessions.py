@@ -47,7 +47,7 @@ def _to_ready(client, fake, name="students_web", max_turns=30):
 def test_question_journey_run_answer_done_and_a_new_analysis(client, settings, monkeypatch):
     calls = []
 
-    def fake_run(path, n, dataset, question, decision=None, decision_record=""):
+    def fake_run(path, n, dataset, question, decision=None, decision_record="", thread_id=None):
         calls.append((dataset, question, n))
         return canned_run(path, n, dataset, question, decision, decision_record)
 
@@ -131,7 +131,7 @@ def test_a_new_analysis_can_start_while_the_desk_waits_and_every_run_stays_liste
 
 
 def test_busy_rejects_a_second_message(client, monkeypatch):
-    def slow_run(path, n, dataset, question, decision=None, decision_record=""):
+    def slow_run(path, n, dataset, question, decision=None, decision_record="", thread_id=None):
         time.sleep(0.8)
         return canned_run(path, n, dataset, question, decision, decision_record)
 

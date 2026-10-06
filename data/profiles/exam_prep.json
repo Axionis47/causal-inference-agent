@@ -1,7 +1,7 @@
 {
   "dataset": {
     "profiler_version": "0.1.0",
-    "file": "/Users/sid47/Desktop/Causal Analysis Agent/data/raw/students_web/StudentsPerformance.csv",
+    "file": "/Users/sid47/Desktop/Causal Analysis Agent/data/raw/exam_prep/StudentsPerformance.csv",
     "file_hash": "ade5869dba8b2d3e2b96379359fb2f61cb0308e8394d9b1ba37e174cfe3bee69",
     "rows": 1000,
     "columns": 8,
@@ -39,7 +39,12 @@
       "observed_sentinels": [],
       "varies_over": "unknown",
       "switch": null,
-      "format_issues": []
+      "format_issues": [],
+      "binary_like": true,
+      "bounds": null,
+      "role_hints": [
+        "binary"
+      ]
     },
     {
       "name": "race/ethnicity",
@@ -81,7 +86,10 @@
       "observed_sentinels": [],
       "varies_over": "unknown",
       "switch": null,
-      "format_issues": []
+      "format_issues": [],
+      "binary_like": false,
+      "bounds": null,
+      "role_hints": []
     },
     {
       "name": "parental level of education",
@@ -128,7 +136,10 @@
       "observed_sentinels": [],
       "varies_over": "unknown",
       "switch": null,
-      "format_issues": []
+      "format_issues": [],
+      "binary_like": false,
+      "bounds": null,
+      "role_hints": []
     },
     {
       "name": "lunch",
@@ -155,7 +166,12 @@
       "observed_sentinels": [],
       "varies_over": "unknown",
       "switch": null,
-      "format_issues": []
+      "format_issues": [],
+      "binary_like": true,
+      "bounds": null,
+      "role_hints": [
+        "binary"
+      ]
     },
     {
       "name": "test preparation course",
@@ -182,7 +198,12 @@
       "observed_sentinels": [],
       "varies_over": "unknown",
       "switch": null,
-      "format_issues": []
+      "format_issues": [],
+      "binary_like": true,
+      "bounds": null,
+      "role_hints": [
+        "binary"
+      ]
     },
     {
       "name": "math score",
@@ -207,7 +228,15 @@
       "observed_sentinels": [],
       "varies_over": "unknown",
       "switch": null,
-      "format_issues": []
+      "format_issues": [],
+      "binary_like": false,
+      "bounds": [
+        "0",
+        "100"
+      ],
+      "role_hints": [
+        "measure"
+      ]
     },
     {
       "name": "reading score",
@@ -232,7 +261,15 @@
       "observed_sentinels": [],
       "varies_over": "unknown",
       "switch": null,
-      "format_issues": []
+      "format_issues": [],
+      "binary_like": false,
+      "bounds": [
+        "17",
+        "100"
+      ],
+      "role_hints": [
+        "measure"
+      ]
     },
     {
       "name": "writing score",
@@ -257,7 +294,15 @@
       "observed_sentinels": [],
       "varies_over": "unknown",
       "switch": null,
-      "format_issues": []
+      "format_issues": [],
+      "binary_like": false,
+      "bounds": [
+        "10",
+        "100"
+      ],
+      "role_hints": [
+        "measure"
+      ]
     }
   ]
 }

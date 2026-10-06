@@ -6,9 +6,11 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Literal
 
+from langgraph.config import get_config
 from langgraph.runtime import Runtime
 from langgraph.types import Command
 
+from causal_agent.common import trace
 from causal_agent.common.contracts import RunRecord
 from causal_agent.desk import pipeline
 from causal_agent.desk.contracts import Ask
@@ -43,16 +45,16 @@ def handoff(state: DeskState, runtime: Runtime[Context]) -> dict:
     d = store.snapshot(memory, n)
     if h is not None:
         h.design_id = n
-        (d / "handoff.json").write_text(h.model_dump_json(indent=2))
+        trace.write(d / "handoff.json", h.model_dump_json(indent=2))
         if h.brief is not None:
-            (d / "brief.json").write_text(h.brief.model_dump_json(indent=2))
-    (d / "record.md").write_text(out.get("decision_record") or "")
+            trace.write(d / "brief.json", h.brief.model_dump_json(indent=2))
+    trace.write(d / "record.md", out.get("decision_record") or "")
     if state.get("frame") is not None:
-        (d / "frame.json").write_text(state["frame"].model_dump_json(indent=2))
+        trace.write(d / "frame.json", state["frame"].model_dump_json(indent=2))
     if state.get("decision") is not None:
-        (d / "decision.json").write_text(state["decision"].model_dump_json(indent=2))
+        trace.write(d / "decision.json", state["decision"].model_dump_json(indent=2))
     if isinstance(state.get("matrix"), Matrix):
-        (d / "matrix.json").write_text(state["matrix"].model_dump_json(indent=2))
+        trace.write(d / "matrix.json", state["matrix"].model_dump_json(indent=2))
     dec = state.get("decision")
     met = [c for v in (state.get("family_verdicts") or []) if h is not None and v.family == h.family for nd in v.needs if nd.met for c in nd.cites]
     label = f"design {n}: {h.family} via {h.specialist}" if h is not None else f"design {n}: no family admissible"
@@ -85,20 +87,23 @@ def run(state: DeskState) -> dict:
             design_dir=state.get("design_dir"),
         )
     else:
-        rec = pipeline.run(
-            Path(state["design_dir"]) / "handoff.json",
-            n,
-            state["dataset"],
-            question,
-            decision=pipeline.decision_dict(state.get("decision"), state.get("handoff")),
-            decision_record=state.get("decision_record") or "",
-        )
+        with trace.span("lane", inputs={"handoff": str(Path(state["design_dir"]) / "handoff.json"), "family": h.family, "specialist": h.specialist}) as s:
+            rec = pipeline.run(
+                Path(state["design_dir"]) / "handoff.json",
+                n,
+                state["dataset"],
+                question,
+                decision=pipeline.decision_dict(state.get("decision"), state.get("handoff")),
+                decision_record=state.get("decision_record") or "",
+                thread_id=_thread_id(),
+            )
+            s.end(outputs={"status": rec.status, "effect": rec.effect, "ci": [rec.ci_low, rec.ci_high], "estimator": rec.estimator, "run_dir": rec.run_dir})
     rec.what_if = dict(state.get("what_if") or {})
     rec.figures = _figures(state, rec)
     if state.get("design_dir"):
         import json
 
-        (Path(state["design_dir"]) / "figures.json").write_text(json.dumps(rec.figures, indent=2, default=str))
+        trace.write(Path(state["design_dir"]) / "figures.json", json.dumps(rec.figures, indent=2, default=str))
     pipeline.save_record(rec)
     design_step = journal_of(state).last("design")
     left = ([rec.run_dir] if rec.run_dir else []) + (
@@ -116,6 +121,14 @@ def run(state: DeskState) -> dict:
             mirror = F.saved(memory)
             record(state, "claim", by="model", memory=memory, design=n, read=written, note="drafted from the run's graph: " + ", ".join(written))
     return {"runs": runs + [rec], "phase": "after", **mirror}
+
+
+def _thread_id() -> str | None:
+    """The conversation's thread, so the lane's process groups under it; None outside a graph run."""
+    try:
+        return str(get_config().get("configurable", {}).get("thread_id") or "") or None
+    except RuntimeError:
+        return None
 
 
 def _g(x: float | None) -> str:

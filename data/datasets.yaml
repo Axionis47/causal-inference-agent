@@ -64,8 +64,11 @@ senate3:
   note: data/context/senate3.md
   profile: data/profiles/senate3.json
   claims: data/claims/senate3.yaml
-students_web:
-  csv: data/raw/students_web/StudentsPerformance.csv
-  note: data/context/students_web.md
-  profile: data/profiles/students_web.json
-  claims: data/claims/students_web.yaml
+financial_distress:
+  csv: data/raw/financial_distress/StudentsPerformance.csv
+  note: data/context/financial_distress.md
+  profile: data/profiles/financial_distress.json
+  claims: data/claims/financial_distress.yaml
+exam_prep:
+  csv: data/raw/exam_prep/StudentsPerformance.csv
+  profile: data/profiles/exam_prep.json

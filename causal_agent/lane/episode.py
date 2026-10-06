@@ -18,6 +18,7 @@ from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 from pydantic import BaseModel, Field
 
 from causal_agent.common import llm as LLM
+from causal_agent.common import trace
 from causal_agent.common.addresses import norm_address
 from causal_agent.common.contracts import Thought
 from causal_agent.lane.nodes import rejected
@@ -98,22 +99,41 @@ def _material(user: str, log: EpisodeLog, errors: list[str]) -> str:
 
 
 def _run(tools: Tools, name: str, args: dict[str, Any], budget: int, log: EpisodeLog) -> str:
-    """One tool call: the addressed fact the model reads back, or the refusal."""
-    if log.calls >= budget:
-        return f"refused: the budget of {budget} calls is spent; answer from what you have"
-    log.calls += 1
-    try:
-        r = tools.call(name, args)
-    except Refused as e:
-        log.refusals.append(Refusal(tool=name, args=args, reason=str(e)))
-        return str(e)
-    f = Fact(node=log.node, n=len(log.facts) + 1, tool=name, args=args, text=r.text, value=r.value)
-    log.facts.append(f)
-    return f.render()
+    """One tool call: the addressed fact the model reads back, or the refusal; a tool span either way."""
+    with trace.span(name, run_type="tool", inputs=args) as s:
+        if log.calls >= budget:
+            text = f"refused: the budget of {budget} calls is spent; answer from what you have"
+            s.end(outputs={"refused": text})
+            return text
+        log.calls += 1
+        try:
+            r = tools.call(name, args)
+        except Refused as e:
+            log.refusals.append(Refusal(tool=name, args=args, reason=str(e)))
+            s.end(outputs={"refused": str(e)})
+            return str(e)
+        f = Fact(node=log.node, n=len(log.facts) + 1, tool=name, args=args, text=r.text, value=r.value)
+        log.facts.append(f)
+        s.end(outputs={"address": f.address, "text": f.text, "value": f.value})
+        return f.render()
 
 
 def _look(system: str, user: str, tools: Tools, budget: int, log: EpisodeLog, errors: list[str]) -> list[Thought]:
     """The tool phase: the model calls tools until it stops or the budget is spent; every result is appended as a tool message."""
+    with trace.span("look", inputs={"budget": budget, "spent": log.calls, "tools": list(tools.names())}) as s:
+        thoughts = _look_in(system, user, tools, budget, log, errors)
+        s.end(
+            outputs={
+                "spent": log.calls,
+                "facts": [f.render() for f in log.facts],
+                "refusals": [r.reason for r in log.refusals],
+                "thoughts": [t.text for t in thoughts if t.text],
+            }
+        )
+        return thoughts
+
+
+def _look_in(system: str, user: str, tools: Tools, budget: int, log: EpisodeLog, errors: list[str]) -> list[Thought]:
     bound = LLM.current().bind_tools(tools.schemas())
     messages: list[Any] = [
         SystemMessage(content=system + "\n\n" + TOOL_RULE.format(budget=budget, node=log.node)),
@@ -147,19 +167,45 @@ def run_episode(
     tries: int = MAX_TRIES,
 ) -> tuple[T | None, EpisodeLog, list[Thought], list[str]]:
     """Run one episode. Returns the record the gate accepted (or None after `tries` refusals), the log, the thoughts, and the
-    errors of the last refusal."""
+    errors of the last refusal. The episode is one span, each try a span under it, each tool call and gate a span under that."""
     log = EpisodeLog(node=node, system=system)
     thoughts: list[Thought] = []
     errors: list[str] = []
-    for n in range(1, tries + 1):
-        if tools is not None and log.calls < budget:
-            thoughts += _look(system, user, tools, budget, log, errors)
-        shown = _material(user, log, errors)
-        record, th = LLM.structured(schema, system, shown, node=node)
-        thoughts.append(th)
-        answer = record.model_dump(mode="json")  # as the model gave it, before a gate may normalise a field
-        errors = gate(record, log)
-        log.tries.append(Try(n=n, user=shown, answer=answer, errors=list(errors)))
-        if not errors:
-            return record, log, thoughts, []
+    with trace.span(
+        f"episode:{node}",
+        inputs={"schema": schema, "system": system, "user": user, "budget": budget, "tools": list(tools.names()) if tools else [], "tries": tries},
+    ) as ep:
+        for n in range(1, tries + 1):
+            with trace.span(f"try {n}", inputs={"errors": list(errors)}) as t:
+                if tools is not None and log.calls < budget:
+                    thoughts += _look(system, user, tools, budget, log, errors)
+                shown = _material(user, log, errors)
+                record, th = LLM.structured(schema, system, shown, node=node)
+                thoughts.append(th)
+                answer = record.model_dump(mode="json")  # as the model gave it, before a gate may normalise a field
+                errors = trace.gate(gate(record, log))
+                log.tries.append(Try(n=n, user=shown, answer=answer, errors=list(errors)))
+                t.end(outputs={"answer": answer, "errors": list(errors)})
+            if not errors:
+                ep.end(
+                    outputs={
+                        "record": answer,
+                        "tries": n,
+                        "calls": log.calls,
+                        "facts": [f.render() for f in log.facts],
+                        "refusals": [r.reason for r in log.refusals],
+                    }
+                )
+                return record, log, thoughts, []
+        ep.end(
+            outputs={
+                "record": None,
+                "tries": tries,
+                "calls": log.calls,
+                "facts": [f.render() for f in log.facts],
+                "refusals": [r.reason for r in log.refusals],
+                "errors": list(errors),
+            },
+            error="no record passed the gate in " + str(tries) + " tries: " + "; ".join(errors[:3]),
+        )
     return None, log, thoughts, errors

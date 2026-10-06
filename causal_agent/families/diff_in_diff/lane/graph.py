@@ -72,12 +72,12 @@ def build() -> StateGraph:
 
 def compile_subgraph():
     """As a node inside the desk's graphs: no checkpointer of its own, no interrupts."""
-    return G.compile_subgraph(build)
+    return G.compile_subgraph(build, "lane:diff_in_diff")
 
 
 def compile_local():
     """Standalone, for tests and the command line: an in-memory checkpointer, a thread_id per run."""
-    return G.compile_local(build)
+    return G.compile_local(build, "lane:diff_in_diff")
 
 
-graph = build().compile()
+graph = build().compile(name="lane:diff_in_diff")

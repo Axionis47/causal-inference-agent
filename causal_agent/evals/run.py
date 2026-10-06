@@ -32,6 +32,7 @@ def run_case(s: EvalSpec, inputs: dict) -> dict:
         h = Handoff.model_validate(raw)
         g = s.lane_graph()
         cfg = {
+            "run_name": f"lane:{s.family}",
             "configurable": {"thread_id": str(uuid.uuid4())},
             "tags": [f"dataset:{h.pack_name}", f"lane:{s.prefix}", "forced"],
             "metadata": {"dataset": h.pack_name},
@@ -49,6 +50,7 @@ def run_case(s: EvalSpec, inputs: dict) -> dict:
     h = routed
     g = s.lane_graph()
     cfg = {
+        "run_name": f"lane:{s.family}",
         "configurable": {"thread_id": str(uuid.uuid4())},
         "tags": [f"dataset:{inputs['dataset']}", f"lane:{s.prefix}"],
         "metadata": {"dataset": inputs["dataset"]},

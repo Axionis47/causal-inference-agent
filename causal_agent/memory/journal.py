@@ -17,6 +17,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from causal_agent.common import trace
 from causal_agent.memory import store
 
 StepKind = Literal["question", "claim", "fit", "explain", "design", "run", "brief", "answer", "what_if", "revise", "requestion", "explore"]
@@ -107,6 +108,23 @@ class Journal:
             return str(p)
 
     def append(
+        self,
+        kind: StepKind,
+        *,
+        by: By,
+        memory_version: int,
+        design: int | None = None,
+        read: Iterable[str] = (),
+        left: Iterable[str] = (),
+        note: str = "",
+        at: str | None = None,
+    ) -> Step:
+        with trace.span("journal", run_type="tool", inputs={"kind": kind, "by": by, "design": design, "note": note}) as s:
+            step = self._append(kind, by=by, memory_version=memory_version, design=design, read=read, left=left, note=note, at=at)
+            s.end(outputs=step.model_dump(mode="json"))
+            return step
+
+    def _append(
         self,
         kind: StepKind,
         *,

@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from causal_agent.common import trace
 from causal_agent.common.contracts import Decline
 from causal_agent.lane.asks import ask_dict, status_of
 
@@ -49,8 +50,8 @@ def artifacts(state: dict, extra: dict | None = None) -> dict:
 def write(run_dir: str | None, arts: dict, report: str) -> None:
     if not run_dir:
         return
-    Path(run_dir, "report.md").write_text(report)
-    Path(run_dir, "artifacts.json").write_text(json.dumps(arts, indent=2, default=str))
+    trace.write(Path(run_dir, "report.md"), report)
+    trace.write(Path(run_dir, "artifacts.json"), json.dumps(arts, indent=2, default=str))
 
 
 def result(state: dict, report: str, extra: dict | None = None) -> dict:

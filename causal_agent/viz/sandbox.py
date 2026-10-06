@@ -16,7 +16,7 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from causal_agent.common import config
+from causal_agent.common import config, trace
 
 KEEP = ("code.py", "figure.png", "facts.json")
 MPL_DIR = ".mpl"
@@ -49,11 +49,17 @@ def resolve(kind: str) -> str:
 
 def run(code: str, csv: Path, out_dir: Path, timeout: float = 60) -> Outcome:
     """Write the script as code.py in out_dir and run it there. The script sees the CSV path as VIZ_CSV and nothing else
-    of the caller's environment."""
-    out_dir.mkdir(parents=True, exist_ok=True)
-    (out_dir / "code.py").write_text(code)
+    of the caller's environment. One tool span: the fence, whether it ran, and its stderr."""
     box = config.get().sandbox
     kind = resolve(box.kind)
+    with trace.span("sandbox", run_type="tool", inputs={"kind": kind, "out_dir": str(out_dir), "timeout": timeout}) as s:
+        trace.write(out_dir / "code.py", code)
+        outcome = _run(kind, box, csv, out_dir, timeout)
+        s.end(outputs={"ok": outcome.ok, "stderr": outcome.stderr, "files": outcome.files})
+        return outcome
+
+
+def _run(kind: str, box: config.Sandbox, csv: Path, out_dir: Path, timeout: float) -> Outcome:
     if kind == "docker":
         ok, stderr = _in_container(csv, out_dir, timeout, box.image)
     elif kind == "seatbelt":

@@ -19,6 +19,7 @@ from pathlib import Path
 
 import yaml
 
+from causal_agent.common import trace
 from causal_agent.memory.claims import Claim, ClaimTable, ProbeResult
 from causal_agent.memory.records import Memory
 from causal_agent.profile import datasets as DS
@@ -34,6 +35,16 @@ def exists(name: str, root: Path | None = None) -> bool:
 
 
 def save(memory: Memory, root: Path | None = None) -> Path:
+    """The memory to disk, as a tool span naming the version written."""
+    with trace.span("memory.save", run_type="tool", inputs={"name": memory.name, "version": memory.version}) as s:
+        d = _save(memory, root)
+        s.end(
+            outputs={"dir": str(d), "files": ["meta.yaml", "columns.yaml", "fields.yaml", "said.jsonl"], "fields": len(memory.fields), "said": len(memory.said)}
+        )
+        return d
+
+
+def _save(memory: Memory, root: Path | None = None) -> Path:
     d = home(memory.name, root)
     d.mkdir(parents=True, exist_ok=True)
     dump = memory.model_dump(mode="json")
@@ -61,7 +72,7 @@ def load(name: str, root: Path | None = None) -> Memory:
 def snapshot(memory: Memory, design_id: int, root: Path | None = None) -> Path:
     d = home(memory.name, root) / "designs" / str(design_id)
     d.mkdir(parents=True, exist_ok=True)
-    (d / "memory.json").write_text(memory.model_dump_json(indent=2))
+    trace.write(d / "memory.json", memory.model_dump_json(indent=2))
     return d
 
 

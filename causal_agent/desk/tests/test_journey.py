@@ -60,7 +60,7 @@ def _held(monkeypatch, tmp_path):
     set_llm(None)
 
 
-def canned_run(path, n, dataset, question, decision=None, decision_record=""):
+def canned_run(path, n, dataset, question, decision=None, decision_record="", thread_id=None):
     sr = {
         "status": "done",
         "design": {"estimator": "linear_regression", "contrast": {"treated": "completed", "control": "none"}, "checks": {"results": []}},
@@ -674,7 +674,7 @@ def test_the_matrix_is_a_record_a_fit_step_only_when_a_cell_moves_and_matrix_jso
 
 
 def test_the_runs_graph_comes_back_as_drafts_the_person_confirms_on_the_next_ask(monkeypatch):
-    def graph_run(path, n, dataset, question, decision=None, decision_record=""):
+    def graph_run(path, n, dataset, question, decision=None, decision_record="", thread_id=None):
         rec = canned_run(path, n, dataset, question, decision, decision_record)
         rec.specialist_result["design"]["graph"] = {
             "treatment": "test_preparation_course",
@@ -903,7 +903,7 @@ def test_a_new_question_about_a_different_change_asks_the_relative_fields_again(
 def test_a_lane_that_asks_back_gets_its_answer_and_runs_again(monkeypatch):
     calls = []
 
-    def asking_run(path, n, dataset, question, decision=None, decision_record=""):
+    def asking_run(path, n, dataset, question, decision=None, decision_record="", thread_id=None):
         calls.append(n)
         if n == 1:
             return RunRecord(
@@ -956,7 +956,7 @@ def test_a_lane_ask_with_options_and_evidence_reaches_the_page_and_is_asked_once
         "evidence": ["check:c.pre_trends"],
     }
 
-    def asking_run(path, n, dataset, question, decision=None, decision_record=""):
+    def asking_run(path, n, dataset, question, decision=None, decision_record="", thread_id=None):
         return RunRecord(
             index=n,
             dataset=dataset,
@@ -996,7 +996,7 @@ def test_a_lane_ask_with_options_and_evidence_reaches_the_page_and_is_asked_once
 
 
 def test_the_brief_lists_where_the_lane_disagreed_with_the_pack(monkeypatch):
-    def declining_run(path, n, dataset, question, decision=None, decision_record=""):
+    def declining_run(path, n, dataset, question, decision=None, decision_record="", thread_id=None):
         rec = canned_run(path, n, dataset, question, decision, decision_record)
         rec.specialist_result["declines"] = [
             {
@@ -1026,7 +1026,7 @@ def test_the_desk_shows_what_the_lane_drew_and_marks_the_ready_figure(monkeypatc
     """A lane's own figures.json is what the run shows; without one the post-viz fallback draws."""
     import json
 
-    def drawing_run(path, n, dataset, question, decision=None, decision_record=""):
+    def drawing_run(path, n, dataset, question, decision=None, decision_record="", thread_id=None):
         rec = canned_run(path, n, dataset, question, decision, decision_record)
         run_dir = tmp_path / "run"
         run_dir.mkdir(exist_ok=True)
@@ -1074,7 +1074,7 @@ def test_the_desk_shows_what_the_lane_drew_and_marks_the_ready_figure(monkeypatc
 
 
 def test_the_brief_reads_first_and_names_a_flag_by_its_sentence(monkeypatch):
-    def worded_run(path, n, dataset, question, decision=None, decision_record=""):
+    def worded_run(path, n, dataset, question, decision=None, decision_record="", thread_id=None):
         rec = canned_run(path, n, dataset, question, decision, decision_record)
         rec.specialist_result["design"]["checks"] = {
             "results": [

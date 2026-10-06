@@ -10,6 +10,7 @@ from __future__ import annotations
 import re
 from typing import Literal
 
+from causal_agent.common import trace
 from causal_agent.common.contracts import Thought
 from causal_agent.common.llm import structured
 from causal_agent.desk import material as M
@@ -121,6 +122,11 @@ def _grounded(v: float, mat: M.Material) -> bool:
 
 
 def gate(reply: AfterReply, mat: M.Material, phase: Phase = "after") -> list[str]:
+    """Why the reply is refused, or nothing; the verdict is a span."""
+    return trace.gate(_gate(reply, mat, phase), name="gate:reply", kind=reply.kind)
+
+
+def _gate(reply: AfterReply, mat: M.Material, phase: Phase = "after") -> list[str]:
     """Why the reply is refused, or nothing. Cites and numbers are checked against the material; the kinds legal in this
     phase, and what each kind must carry."""
     errors: list[str] = []

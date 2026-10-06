@@ -56,4 +56,10 @@ evals: ## run one family's evals: make evals FAMILY=discontinuity
 viz-image: ## build the drawing tool's container image (VIZ_SANDBOX=docker uses it)
 	docker build -t causal-desk-viz -f docker/viz.Dockerfile docker
 
-.PHONY: help lint fmt types test test-web schema check dev-api dev-web build-web evals viz-image studio
+docfigs: ## redraw docs/diagrams/*.svg from the records under docs/demo/
+	LANGSMITH_TRACING=false $(UV) python -m causal_agent.evals.docfigs
+
+trace: ## the newest LangSmith trace as a tree in the terminal: make trace ARGS="--last 8" | ARGS="--thoughts"
+	$(UV) python -m causal_agent.evals.trace $(ARGS)
+
+.PHONY: help lint fmt types test test-web schema check dev-api dev-web build-web evals viz-image docfigs studio trace

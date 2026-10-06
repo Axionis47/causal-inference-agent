@@ -3,94 +3,109 @@ claim:missing.why:
   status: confirmed
   source: data
   said: null
+  reason: null
   evidence: []
 claim:grain.row_is:
-  value: one student's results from the May 2026 exam
-  status: drafted
-  source: doc:context
-  said: null
+  value: one student's exam results
+  status: confirmed
+  source: user:turn:10
+  said: yes, all right
+  reason: confirmed as drafted
   evidence: []
 claim:grain.panel:
   value: false
-  status: drafted
-  source: doc:context
-  said: null
+  status: confirmed
+  source: user:turn:10
+  said: yes, all right
+  reason: confirmed as drafted
   evidence: []
 claim:change.what:
   value: a six-week test preparation course
-  status: drafted
-  source: doc:context
-  said: null
+  status: confirmed
+  source: user:turn:10
+  said: yes, all right
+  reason: confirmed as drafted
   evidence: []
 claim:change.to_whom:
-  value: students
-  status: drafted
-  source: doc:context
-  said: null
+  value: students at the school
+  status: confirmed
+  source: user:turn:10
+  said: yes, all right
+  reason: confirmed as drafted
   evidence: []
 claim:change.when:
-  value: 1 March to 12 April 2026
-  status: drafted
-  source: doc:context
-  said: null
+  value: the six weeks before the May 2026 exam
+  status: confirmed
+  source: user:turn:10
+  said: yes, all right
+  reason: confirmed as drafted
   evidence: []
 claim:assignment.kind:
   value: own_choice
-  status: drafted
-  source: doc:context
-  said: null
+  status: confirmed
+  source: user:turn:10
+  said: yes, all right
+  reason: confirmed as drafted
   evidence: []
 claim:assignment.rule:
-  value: The counsellor offered places first to students on free or reduced lunch
-    and to students whose parents hold no degree; remaining places were open to anyone
-    who asked. After that, uptake was voluntary.
-  status: drafted
-  source: doc:context
-  said: null
+  value: offered first by lunch status and parental education, then open to anyone
+    who asked
+  status: confirmed
+  source: user:turn:10
+  said: yes, all right
+  reason: confirmed as drafted
   evidence: []
 claim:assignment.depends_on:
   value:
   - lunch
   - parental level of education
-  status: drafted
-  source: doc:context
-  said: null
+  status: confirmed
+  source: user:turn:10
+  said: yes, all right
+  reason: confirmed as drafted
   evidence: []
 claim:assignment.treatment_column:
   value: test preparation course
-  status: drafted
-  source: doc:context
-  said: null
-  evidence: []
+  status: confirmed
+  source: user:turn:10
+  said: yes, all right
+  reason: confirmed as drafted
+  evidence:
+  - check:assignment.treatment_column.treatment_varies
 claim:assignment.treated_level:
   value: completed
-  status: drafted
-  source: doc:context
-  said: null
+  status: confirmed
+  source: user:turn:10
+  said: yes, all right
+  reason: confirmed as drafted
   evidence: []
 claim:sampling.how:
   value: whole
-  status: drafted
-  source: doc:context
-  said: null
+  status: confirmed
+  source: user:turn:2
+  said: yes, all right
+  reason: confirmed as drafted
   evidence: []
 claim:sampling.detail:
   value: Every enrolled student who sat the exam is included; absentees are not.
-  status: drafted
-  source: doc:context
-  said: null
+  status: confirmed
+  source: user:turn:2
+  said: yes, all right
+  reason: confirmed as drafted
   evidence: []
 col:gender.meaning:
   value: The student's gender.
   status: drafted
   source: doc:context
   said: null
+  reason: null
   evidence: []
 col:gender.when:
   value: before
   status: drafted
   source: doc:context
   said: null
+  reason: null
   evidence: []
 col:race_ethnicity.meaning:
   value: The student's race/ethnicity, according to the school's grouping (letters
@@ -98,123 +113,248 @@ col:race_ethnicity.meaning:
   status: drafted
   source: doc:context
   said: null
+  reason: null
   evidence: []
 col:race_ethnicity.when:
   value: before
   status: drafted
   source: doc:context
   said: null
+  reason: null
   evidence: []
 col:parental_level_of_education.meaning:
-  value: The highest qualification held by either parent, as declared at enrolment.
-    Six levels from some high school to master's degree.
-  status: drafted
-  source: doc:context
-  said: null
+  value: the parents' education at enrolment
+  status: confirmed
+  source: user:turn:10
+  said: yes, all right
+  reason: confirmed as drafted
   evidence: []
 col:parental_level_of_education.when:
   value: before
-  status: drafted
-  source: doc:context
-  said: null
+  status: confirmed
+  source: user:turn:10
+  said: yes, all right
+  reason: confirmed as drafted
   evidence: []
 col:lunch.meaning:
-  value: Whether the student receives standard or free/reduced lunch. Free/reduced
-    is assigned by the district based on household income below the federal threshold,
-    serving as the school's low-income indicator.
-  status: drafted
-  source: doc:context
-  said: null
+  value: lunch status at enrolment
+  status: confirmed
+  source: user:turn:10
+  said: yes, all right
+  reason: confirmed as drafted
   evidence: []
 col:lunch.when:
   value: before
-  status: drafted
-  source: doc:context
-  said: null
+  status: confirmed
+  source: user:turn:10
+  said: yes, all right
+  reason: confirmed as drafted
   evidence: []
 col:lunch.set_by:
   value: the district
-  status: drafted
-  source: doc:context
-  said: null
+  status: confirmed
+  source: user:turn:2
+  said: yes, all right
+  reason: confirmed as drafted
   evidence: []
 col:test_preparation_course.meaning:
-  value: Whether the student completed the test preparation course (completed or none).
-  status: drafted
-  source: doc:context
-  said: null
+  value: whether the student completed the course
+  status: confirmed
+  source: user:turn:10
+  said: yes, all right
+  reason: confirmed as drafted
   evidence: []
 col:test_preparation_course.proxy:
   value: derived
-  status: drafted
-  source: doc:context
-  said: null
+  status: confirmed
+  source: user:turn:2
+  said: yes, all right
+  reason: confirmed as drafted
   evidence: []
 col:test_preparation_course.derived_from:
   value:
   - lunch
   - parental level of education
-  status: drafted
-  source: doc:context
-  said: null
+  status: confirmed
+  source: user:turn:2
+  said: yes, all right
+  reason: confirmed as drafted
   evidence: []
 col:test_preparation_course.when:
-  value: before
-  status: drafted
-  source: doc:context
-  said: null
+  value: at
+  status: confirmed
+  source: user:turn:10
+  said: yes, all right
+  reason: confirmed as drafted
   evidence: []
 col:math_score.meaning:
-  value: The student's math exam mark, 0 to 100.
-  status: drafted
-  source: doc:context
-  said: null
+  value: the math mark on the May exam
+  status: confirmed
+  source: user:turn:10
+  said: yes, all right
+  reason: confirmed as drafted
   evidence: []
 col:math_score.when:
   value: after
-  status: drafted
-  source: doc:context
-  said: null
+  status: confirmed
+  source: user:turn:10
+  said: yes, all right
+  reason: confirmed as drafted
   evidence: []
 col:math_score.measures_outcome:
   value: true
-  status: drafted
-  source: doc:context
-  said: null
+  status: confirmed
+  source: user:turn:2
+  said: yes, all right
+  reason: confirmed as drafted
   evidence: []
 col:reading_score.meaning:
   value: The student's reading exam mark, 0 to 100.
   status: drafted
   source: doc:context
   said: null
+  reason: null
   evidence: []
 col:reading_score.when:
   value: after
   status: drafted
   source: doc:context
   said: null
+  reason: null
   evidence: []
 col:reading_score.measures_outcome:
   value: true
   status: drafted
   source: doc:context
   said: null
+  reason: null
   evidence: []
 col:writing_score.meaning:
   value: The student's writing exam mark, 0 to 100.
   status: drafted
   source: doc:context
   said: null
+  reason: null
   evidence: []
 col:writing_score.when:
   value: after
   status: drafted
   source: doc:context
   said: null
+  reason: null
   evidence: []
 col:writing_score.measures_outcome:
   value: true
   status: drafted
   source: doc:context
   said: null
+  reason: null
+  evidence: []
+claim:unobserved.exists:
+  value: false
+  status: confirmed
+  source: user:turn:3
+  said: nothing hidden
+  reason: null
+  evidence: []
+claim:exclusion.exists:
+  value: false
+  status: confirmed
+  source: user:turn:4
+  said: no nudge
+  reason: null
+  evidence: []
+claim:spillover.possible:
+  value: false
+  status: confirmed
+  source: user:turn:5
+  said: they sit alone
+  reason: null
+  evidence: []
+claim:story.text:
+  value: Each row is one student's exam results. The change was a six-week test preparation
+    course, offered to students at the school in the six weeks before the May 2026
+    exam. Places were offered first by lunch status and parental education, then open
+    to anyone who asked; the course column says who completed it. Lunch and parental
+    level of education were recorded at enrolment; the math score is from the exam
+    sat after the course.
+  status: confirmed
+  source: user:turn:9
+  said: Each row is one student's exam results. The change was a six-week test preparation
+    course, offered to students at the school in the six weeks before the May 2026
+    exam. Places were offered first by lunch status and parental education, then open
+    to anyone who asked; the course column says who completed it. Lunch and parental
+    level of education were recorded at enrolment; the math score is from the exam
+    sat after the course.
+  reason: null
+  evidence: []
+claim:assignment.offer_column:
+  value: none
+  status: confirmed
+  source: user:turn:11
+  said: none for all
+  reason: null
+  evidence: []
+claim:assignment.uptake_column:
+  value: none
+  status: confirmed
+  source: user:turn:11
+  said: none for all
+  reason: null
+  evidence: []
+col:parental_level_of_education.stands_for:
+  value: null
+  status: unknown
+  source: user:turn:12
+  said: I don't know
+  reason: null
+  evidence: []
+col:parental_level_of_education.same_as:
+  value: null
+  status: unknown
+  source: user:turn:12
+  said: I don't know
+  reason: null
+  evidence: []
+col:parental_level_of_education.nested_in:
+  value: null
+  status: unknown
+  source: user:turn:12
+  said: I don't know
+  reason: null
+  evidence: []
+col:lunch.stands_for:
+  value: null
+  status: unknown
+  source: user:turn:12
+  said: I don't know
+  reason: null
+  evidence: []
+col:lunch.same_as:
+  value: null
+  status: unknown
+  source: user:turn:12
+  said: I don't know
+  reason: null
+  evidence: []
+col:lunch.nested_in:
+  value: null
+  status: unknown
+  source: user:turn:12
+  said: I don't know
+  reason: null
+  evidence: []
+col:parental_level_of_education.may_modify:
+  value: false
+  status: confirmed
+  source: user:turn:13
+  said: not that I know
+  reason: null
+  evidence: []
+col:lunch.may_modify:
+  value: false
+  status: confirmed
+  source: user:turn:13
+  said: not that I know
+  reason: null
   evidence: []

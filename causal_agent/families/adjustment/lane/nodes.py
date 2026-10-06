@@ -19,6 +19,7 @@ from typing import Any, Literal
 import pandas as pd
 from langgraph.types import Command, Send
 
+from causal_agent.common import trace
 from causal_agent.common.addresses import key as _key
 from causal_agent.common.addresses import norm_address
 from causal_agent.common.contracts import (
@@ -1350,8 +1351,8 @@ def freeze_design(state: SpecialistState) -> dict:
         within=_within(state),
     )
     run_dir = Path(state["run_dir"])
-    (run_dir / "design.json").write_text(d.model_dump_json(indent=2))
-    (run_dir / "design.md").write_text(d.render())
+    trace.write(run_dir / "design.json", d.model_dump_json(indent=2))
+    trace.write(run_dir / "design.md", d.render())
     _writer()({"design": d.render()})
     return {"design": d, "declines": declines}
 

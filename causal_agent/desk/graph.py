@@ -116,7 +116,7 @@ def build() -> StateGraph:
     return b
 
 
-graph = build().compile()  # for `langgraph dev`: the platform injects its own checkpointer
+graph = build().compile(name="desk")  # for `langgraph dev`: the platform injects its own checkpointer
 
 _CONTRACTS: list = [
     Thought,
@@ -164,9 +164,9 @@ serde = JsonPlusSerializer(allowed_msgpack_modules=_CONTRACTS)
 
 def compile_local():
     """For the CLI and tests: in-memory checkpointer; one thread per conversation."""
-    return build().compile(checkpointer=InMemorySaver(serde=serde))
+    return build().compile(checkpointer=InMemorySaver(serde=serde), name="desk")
 
 
 def compile_with(checkpointer):
     """For the server: any checkpointer built with `serde`; the graph is otherwise the same."""
-    return build().compile(checkpointer=checkpointer)
+    return build().compile(checkpointer=checkpointer, name="desk")

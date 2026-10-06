@@ -1,10 +1,12 @@
 """The drawing tool. The model writes one Python script that draws one figure from the file; the script runs in the
 sandbox; the picture and the numbers it shows are kept as an Artifact the chat can cite. The prompt names no method and
 no column: the columns and what is known arrive as data from the caller. Up to three tries; a failed try's error goes
-into the next prompt; three failures are a Decline and no folder."""
+into the next prompt; three failures are a Decline and no folder. The script is parsed before it runs: the model's plan
+has its own field, and a script field that holds words instead is sent back as such, without a sandbox run."""
 
 from __future__ import annotations
 
+import ast
 import datetime as dt
 import json
 import shutil
@@ -12,6 +14,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
+from causal_agent.common import trace
 from causal_agent.common.contracts import Decline, Thought
 from causal_agent.common.llm import structured
 from causal_agent.viz import sandbox, store
@@ -30,8 +33,9 @@ The script:
 - uses no network, writes no other file, and reads nothing but VIZ_CSV
 - names columns by the file's own names, exactly as listed
 
-Answer with the script, a caption of one sentence in the person's words on what the picture shows, and the names of the
-numbers the script writes to facts.json."""
+Answer with the plan in one or two sentences, then the script alone in its own field with no words before or after it, a
+caption of one sentence in the person's words on what the picture shows, and the names of the numbers the script writes
+to facts.json."""
 
 USER = """What to draw, in the person's words:
 {ask}
@@ -58,14 +62,23 @@ class DrawRequest(BaseModel):
 
 
 class DrawCode(BaseModel):
-    """The model's answer: the script, what the picture shows, and the numbers it writes."""
+    """The model's answer: the plan, the script, what the picture shows, and the numbers it writes."""
 
-    code: str = Field(description="a complete Python script")
+    plan: str = Field(description="one or two sentences: what the script computes and draws")
+    code: str = Field(description="the complete Python script and nothing else: it starts with its first import")
     caption: str = Field(description="one sentence, in the person's words")
     facts: list[str] = Field(description="the names of the numbers the script writes to facts.json")
 
 
 def draw(req: DrawRequest) -> tuple[Artifact | None, Decline | None, list[Thought]]:
+    """One picture asked for: up to TRIES scripts, each run in the sandbox and checked; one span, the files attached on success."""
+    with trace.span("draw", inputs={"ask": req.ask, "moment": req.moment, "design": req.design, "columns": req.columns}) as s:
+        a, decline, thoughts = _draw(req)
+        s.end(outputs={"artifact": trace.record(a), "decline": trace.record(decline)})
+        return a, decline, thoughts
+
+
+def _draw(req: DrawRequest) -> tuple[Artifact | None, Decline | None, list[Thought]]:
     thoughts: list[Thought] = []
     artifact_id = store.new_id()
     out = store.folder(req.dataset, req.moment, req.design, artifact_id)
@@ -75,6 +88,9 @@ def draw(req: DrawRequest) -> tuple[Artifact | None, Decline | None, list[Though
         failure = FAILED.format(why=why) if why else ""
         answer, thought = structured(DrawCode, SYSTEM, USER.format(ask=req.ask, context=req.context, columns=columns, failure=failure), node="draw")
         thoughts.append(thought)
+        why = _not_a_script(answer.code)
+        if trace.gate([why] if why else [], name="gate:script"):
+            continue
         if out.exists():
             shutil.rmtree(out)
         ran = sandbox.run(answer.code, req.csv, out)
@@ -82,10 +98,12 @@ def draw(req: DrawRequest) -> tuple[Artifact | None, Decline | None, list[Though
             why = ran.stderr[-STDERR_TAIL:] or "the script failed with no error text"
             continue
         facts, why = _check(out, answer.facts)
-        if why:
+        if trace.gate([why] if why else [], name="gate:picture"):
             continue
         assert facts is not None
-        (out / "request.json").write_text(json.dumps(req.model_dump(mode="json", exclude={"context"}), indent=2))
+        for name in ("figure.png", "facts.json"):
+            trace.artifact(out / name)
+        trace.write(out / "request.json", json.dumps(req.model_dump(mode="json", exclude={"context"}), indent=2))
         a = Artifact(
             id=artifact_id,
             dataset=req.dataset,
@@ -97,6 +115,7 @@ def draw(req: DrawRequest) -> tuple[Artifact | None, Decline | None, list[Though
             facts=facts,
             made_at=dt.datetime.now(dt.UTC).isoformat(timespec="seconds"),
             files=sorted({*ran.files, "request.json", store.FILE}),
+            sandbox=ran.kind,
         )
         store.save(a)
         return a, None, thoughts
@@ -104,7 +123,16 @@ def draw(req: DrawRequest) -> tuple[Artifact | None, Decline | None, list[Though
     return None, Decline(stage="draw", kind="declined", about="artifact", check="draw.failed", reason=why), thoughts
 
 
-            sandbox=ran.kind,
+def _not_a_script(code: str) -> str:
+    """Why the code field is not a Python script, or empty. Words where the script should be are the usual case."""
+    try:
+        ast.parse(code)
+    except SyntaxError as e:
+        head = code.strip().splitlines()[0][:160] if code.strip() else ""
+        return f"the code field must hold only the Python script, no words before or after it (line {e.lineno}: {e.msg}). It began: {head!r}"
+    return ""
+
+
 def _check(out: Path, names: list[str]) -> tuple[dict[str, float] | None, str]:
     """The picture is there, facts.json is an object of numbers, and every promised name is in it. Else why not."""
     png = out / "figure.png"

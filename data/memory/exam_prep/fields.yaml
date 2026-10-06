@@ -1,0 +1,222 @@
+claim:missing.why:
+  value: none
+  status: confirmed
+  source: data
+  said: null
+  evidence: []
+claim:assignment.treatment_column:
+  value: test preparation course
+  status: confirmed
+  source: user:turn:2
+  said: Yes, that is right.
+  evidence:
+  - check:assignment.treatment_column.treatment_varies
+col:gender.meaning:
+  value: gender
+  status: confirmed
+  source: user:turn:3
+  said: gender
+  evidence: []
+col:gender.when:
+  value: before
+  status: confirmed
+  source: user:turn:3
+  said: gender, race/ethnicity and parental level of education were recorded at enrolment,
+    before the course.
+  evidence: []
+col:race_ethnicity.meaning:
+  value: race/ethnicity
+  status: confirmed
+  source: user:turn:3
+  said: race/ethnicity
+  evidence: []
+col:race_ethnicity.when:
+  value: before
+  status: confirmed
+  source: user:turn:3
+  said: gender, race/ethnicity and parental level of education were recorded at enrolment,
+    before the course.
+  evidence: []
+col:parental_level_of_education.meaning:
+  value: parental level of education
+  status: confirmed
+  source: user:turn:3
+  said: parental level of education
+  evidence: []
+col:parental_level_of_education.when:
+  value: before
+  status: confirmed
+  source: user:turn:3
+  said: gender, race/ethnicity and parental level of education were recorded at enrolment,
+    before the course.
+  evidence: []
+col:lunch.meaning:
+  value: standard or free/reduced lunch, set by the district from household income,
+    indicating low-income status
+  status: confirmed
+  source: user:turn:3
+  said: lunch is standard or free/reduced; the district sets it from household income
+    before the exam, so it is our low-income marker.
+  evidence: []
+col:lunch.when:
+  value: before
+  status: confirmed
+  source: user:turn:3
+  said: the district sets it from household income before the exam
+  evidence: []
+col:test_preparation_course.meaning:
+  value: whether the student completed the six-week test preparation course; 'none'
+    means not completed, 'completed' means completed
+  status: confirmed
+  source: user:turn:3
+  said: test preparation course says whether the student completed the six-week prep
+    course that ran 1 March to 12 April, before the exam; the counsellor recorded
+    completion.
+  evidence: []
+col:test_preparation_course.when:
+  value: at
+  status: confirmed
+  source: user:turn:3
+  said: test preparation course says whether the student completed the six-week prep
+    course that ran 1 March to 12 April, before the exam
+  evidence: []
+col:math_score.meaning:
+  value: math exam mark, 0 to 100
+  status: confirmed
+  source: user:turn:3
+  said: math score, reading score and writing score are the exam marks, 0 to 100
+  evidence: []
+col:math_score.when:
+  value: after
+  status: confirmed
+  source: user:turn:3
+  said: recorded at the sitting after the course.
+  evidence: []
+col:reading_score.meaning:
+  value: reading exam mark, 0 to 100
+  status: confirmed
+  source: user:turn:3
+  said: math score, reading score and writing score are the exam marks, 0 to 100
+  evidence: []
+col:reading_score.when:
+  value: after
+  status: confirmed
+  source: user:turn:3
+  said: recorded at the sitting after the course.
+  evidence: []
+col:writing_score.meaning:
+  value: writing exam mark, 0 to 100
+  status: confirmed
+  source: user:turn:3
+  said: math score, reading score and writing score are the exam marks, 0 to 100
+  evidence: []
+col:writing_score.when:
+  value: after
+  status: confirmed
+  source: user:turn:3
+  said: recorded at the sitting after the course.
+  evidence: []
+claim:grain.row_is:
+  value: one student who sat the May 2026 exam at our school
+  status: confirmed
+  source: user:turn:3
+  said: Each row is one student who sat the May 2026 exam at our school.
+  evidence: []
+claim:assignment.kind:
+  value: own_choice
+  status: confirmed
+  source: user:turn:4
+  said: own_choice.
+  evidence: []
+claim:assignment.rule:
+  value: The counsellor offered places first to students on free or reduced lunch
+    and to students whose parents hold no degree; the remaining places went to anyone
+    who asked. Taking the place was the student's own choice.
+  status: confirmed
+  source: user:turn:4
+  said: The counsellor offered places first to students on free or reduced lunch and
+    to students whose parents hold no degree; the remaining places went to anyone
+    who asked. Taking the place was the student's own choice.
+  evidence: []
+claim:assignment.treated_level:
+  value: completed
+  status: confirmed
+  source: user:turn:5
+  said: The treated level is completed.
+  evidence: []
+claim:assignment.depends_on:
+  value:
+  - lunch
+  - parental level of education
+  status: confirmed
+  source: user:turn:5
+  said: The offer depended on lunch and parental level of education.
+  evidence: []
+claim:change.what:
+  value: a six-week test preparation course the school ran
+  status: confirmed
+  source: user:turn:6
+  said: The change was a six-week test preparation course the school ran from 1 March
+    to 12 April 2026, before the May exam.
+  evidence: []
+claim:change.to_whom:
+  value: any enrolled student at the school
+  status: confirmed
+  source: user:turn:6
+  said: It could reach any enrolled student at the school.
+  evidence: []
+claim:change.when:
+  value: from 1 March to 12 April 2026, before the May exam
+  status: confirmed
+  source: user:turn:6
+  said: The change was a six-week test preparation course the school ran from 1 March
+    to 12 April 2026, before the May exam.
+  evidence: []
+claim:grain.panel:
+  value: false
+  status: confirmed
+  source: user:turn:7
+  said: No. Each student appears once; there is no student identifier and no repeat
+    periods.
+  evidence: []
+claim:sampling.how:
+  value: whole
+  status: confirmed
+  source: user:turn:8
+  said: whole. Every enrolled student who sat the exam is in the file, 1000 rows.
+    Absentees are not.
+  evidence: []
+claim:unobserved.exists:
+  value: false
+  status: confirmed
+  source: user:turn:9
+  said: No.
+  evidence: []
+claim:unobserved.why_believed:
+  value: The offer rule only looked at lunch and parental level of education, and
+    both are in the file. After the offer, places were open to anyone who asked.
+  status: confirmed
+  source: user:turn:9
+  said: The offer rule only looked at lunch and parental level of education, and both
+    are in the file. After the offer, places were open to anyone who asked.
+  evidence: []
+claim:exclusion.exists:
+  value: false
+  status: confirmed
+  source: user:turn:10
+  said: No.
+  evidence: []
+claim:spillover.possible:
+  value: false
+  status: confirmed
+  source: user:turn:11
+  said: No.
+  evidence: []
+claim:spillover.why:
+  value: Students sit the exam individually, so one student's result does not affect
+    another's.
+  status: confirmed
+  source: user:turn:11
+  said: Students sit the exam individually, so one student's result does not affect
+    another's.
+  evidence: []

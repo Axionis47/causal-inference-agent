@@ -1,0 +1,318 @@
+claim:assignment.kind:
+  value: lottery
+  status: confirmed
+  source: user:turn:4
+  said: null
+  evidence:
+  - doc:context
+  - col:test_preparation_course
+  - user:turn:1
+  - user:turn:4
+  - check:assignment.treatment_varies
+claim:assignment.rule:
+  value: The counsellor offered places first to students on free or reduced lunch
+    and to students whose parents hold no degree; remaining places were open to anyone
+    who asked. Uptake was voluntary.
+  status: confirmed
+  source: user:turn:4
+  said: null
+  evidence:
+  - doc:context
+  - col:test_preparation_course
+  - user:turn:1
+  - user:turn:4
+  - check:assignment.treatment_varies
+claim:assignment.depends_on:
+  value:
+  - lunch
+  - parental level of education
+  status: confirmed
+  source: user:turn:4
+  said: null
+  evidence:
+  - doc:context
+  - col:test_preparation_course
+  - user:turn:1
+  - user:turn:4
+  - check:assignment.treatment_varies
+claim:assignment.treatment_column:
+  value: test preparation course
+  status: confirmed
+  source: user:turn:4
+  said: null
+  evidence:
+  - doc:context
+  - col:test_preparation_course
+  - user:turn:1
+  - user:turn:4
+  - check:assignment.treatment_varies
+claim:assignment.treated_level:
+  value: completed
+  status: confirmed
+  source: user:turn:4
+  said: null
+  evidence:
+  - doc:context
+  - col:test_preparation_course
+  - user:turn:1
+  - user:turn:4
+  - check:assignment.treatment_varies
+claim:assignment.movable:
+  value: true
+  status: confirmed
+  source: user:turn:4
+  said: null
+  evidence:
+  - doc:context
+  - col:test_preparation_course
+  - user:turn:1
+  - user:turn:4
+  - check:assignment.treatment_varies
+claim:change.what:
+  value: A six-week test preparation course
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+claim:change.to_whom:
+  value: students
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+claim:change.when:
+  value: from 1 March to 12 April 2026, before the exam
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+claim:grain.row_is:
+  value: one student's results from the May 2026 exam at one school
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:gender.meaning:
+  value: Recorded at enrolment
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - col:gender
+  - user:turn:1
+col:gender.when:
+  value: before
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - col:gender
+  - user:turn:1
+col:race_ethnicity.meaning:
+  value: The school's own grouping, letters A to E; the mapping is not published.
+    Recorded at enrolment.
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - col:race_ethnicity
+  - user:turn:1
+col:race_ethnicity.when:
+  value: before
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - col:race_ethnicity
+  - user:turn:1
+col:parental_level_of_education.meaning:
+  value: Highest qualification held by either parent, declared at enrolment. Six levels
+    from some high school to master's degree.
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - col:parental_level_of_education
+  - user:turn:1
+col:parental_level_of_education.when:
+  value: before
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - col:parental_level_of_education
+  - user:turn:1
+col:lunch.meaning:
+  value: Standard or free/reduced. Free/reduced is assigned by the district when household
+    income is below the federal threshold, so it is the low-income indicator.
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - col:lunch
+  - user:turn:1
+col:lunch.when:
+  value: before
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - col:lunch
+  - user:turn:1
+col:lunch.set_by:
+  value: district
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - col:lunch
+  - user:turn:1
+col:test_preparation_course.meaning:
+  value: Whether the student completed the prep course.
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - col:test_preparation_course
+  - user:turn:1
+col:test_preparation_course.when:
+  value: before
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - col:test_preparation_course
+  - user:turn:1
+col:test_preparation_course.moved_by_change:
+  value: true
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - col:test_preparation_course
+  - user:turn:1
+col:math_score.meaning:
+  value: Exam mark, 0 to 100
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - col:math_score
+  - user:turn:1
+col:math_score.when:
+  value: after
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - col:math_score
+  - user:turn:1
+col:reading_score.meaning:
+  value: Exam mark, 0 to 100
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - col:reading_score
+  - user:turn:1
+col:reading_score.when:
+  value: after
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - col:reading_score
+  - user:turn:1
+col:writing_score.meaning:
+  value: Writing score goddam it.
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - col:writing_score
+  - user:turn:1
+col:writing_score.when:
+  value: after
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - col:writing_score
+  - user:turn:1
+claim:sampling.how:
+  value: by_group
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+claim:sampling.detail:
+  value: Every enrolled student who sat the exam is included; absentees are not.
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+claim:missing.why:
+  value: none
+  status: confirmed
+  source: data
+  said: null
+  evidence:
+  - check:missing.missing_by_arm
+claim:unobserved.exists:
+  value: true
+  status: confirmed
+  source: user:turn:2
+  said: null
+  evidence:
+  - user:turn:2
+claim:exclusion.exists:
+  value: true
+  status: confirmed
+  source: user:turn:2
+  said: null
+  evidence:
+  - user:turn:2
+claim:spillover.possible:
+  value: false
+  status: confirmed
+  source: user:turn:2
+  said: null
+  evidence:
+  - user:turn:2
+claim:trend_continues.believed:
+  value: true
+  status: confirmed
+  source: user:turn:2
+  said: null
+  evidence:
+  - user:turn:2

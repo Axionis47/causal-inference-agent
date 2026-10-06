@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 from langgraph.types import RetryPolicy
 from pydantic import BaseModel
 
-from causal_agent.common import config
+from causal_agent.common import config, trace
 from causal_agent.common.contracts import Thought
 
 load_dotenv()
@@ -82,6 +82,21 @@ def extract_thoughts(raw: Any) -> tuple[str, int | None, int | None]:
 
 
 def structured(schema: type[T], system: str, user: str, *, node: str) -> tuple[T, Thought]:
+    """One judgement: the prompt in, one typed record and the model's thoughts out, as a span named `node` in the trace."""
+    with trace.span(node, inputs={"schema": schema, "system": system, "user": user}) as s:
+        parsed, thought = _structured(schema, system, user, node=node)
+        s.end(
+            outputs={
+                "record": trace.record(parsed),
+                "thoughts": thought.text,
+                "thinking_tokens": thought.thinking_tokens,
+                "output_tokens": thought.output_tokens,
+            }
+        )
+        return parsed, thought
+
+
+def _structured(schema: type[T], system: str, user: str, *, node: str) -> tuple[T, Thought]:
     runnable = current().with_structured_output(schema, include_raw=True)
     out = runnable.invoke([("system", system), ("human", user)])
     if isinstance(out, dict) and "parsed" in out:

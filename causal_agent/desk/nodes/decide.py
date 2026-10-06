@@ -9,6 +9,7 @@ from langgraph.config import get_stream_writer
 from langgraph.runtime import Runtime
 from langgraph.types import Command
 
+from causal_agent.common import trace
 from causal_agent.common.addresses import norm_address
 from causal_agent.common.contracts import FamilyDecision, FamilyVerdict, Handoff, NeedCheck, QuestionFrame, Rejection, render_change_text
 from causal_agent.common.llm import structured
@@ -215,6 +216,7 @@ def gate(state: RouteState, runtime: Runtime[Context]) -> Command[Literal["decid
         elif fr.cause not in relevant_names:
             errors.append(f"cause {fr.cause!r} missing from relevant columns")
     attempts = state.get("decide_attempts", 0) + 1
+    trace.gate(errors, name="gate:decide", attempt=attempts)
     _writer()({"gate": {"passed": not errors, "errors": errors, "attempt": attempts}})
     if not errors:
         return Command(update={"gate_errors": [], "decide_attempts": attempts}, goto="design")

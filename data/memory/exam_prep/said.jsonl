@@ -1,0 +1,25 @@
+{"turn": 1, "about": "question", "text": "Did completing the test preparation course raise students' math score?"}
+{"turn": 2, "about": "claim:assignment.treatment_column", "text": "Yes, that is right."}
+{"turn": 3, "about": "col:gender.meaning, col:gender.when, col:race_ethnicity.meaning, col:race_ethnicity.when, col:parental_level_of_education.meaning, col:parental_level_of_education.when, col:lunch.meaning, col:lunch.when, col:test_preparation_course.meaning, col:test_preparation_course.when, col:math_score.meaning, col:math_score.when, col:reading_score.meaning, col:reading_score.when, col:writing_score.meaning, col:writing_score.when", "text": "Each row is one student who sat the May 2026 exam at our school. gender, race/ethnicity and parental level of education were recorded at enrolment, before the course. lunch is standard or free/reduced; the district sets it from household income before the exam, so it is our low-income marker. test preparation course says whether the student completed the six-week prep course that ran 1 March to 12 April, before the exam; the counsellor recorded completion. math score, reading score and writing score are the exam marks, 0 to 100, recorded at the sitting after the course."}
+{"turn": 4, "about": "claim:assignment.kind", "text": "own_choice. The counsellor offered places first to students on free or reduced lunch and to students whose parents hold no degree; the remaining places went to anyone who asked. Taking the place was the student's own choice. The column test preparation course records who completed it. A student could not change their lunch status or their parents' education."}
+{"turn": 5, "about": "claim:assignment.treated_level", "text": "The treated level is completed. The offer depended on lunch and parental level of education."}
+{"turn": 6, "about": "claim:change.what", "text": "The change was a six-week test preparation course the school ran from 1 March to 12 April 2026, before the May exam. It could reach any enrolled student at the school. No column records the period; every row is the same exam sitting."}
+{"turn": 7, "about": "claim:grain.panel", "text": "No. Each student appears once; there is no student identifier and no repeat periods."}
+{"turn": 8, "about": "claim:sampling.how", "text": "whole. Every enrolled student who sat the exam is in the file, 1000 rows. Absentees are not."}
+{"turn": 9, "about": "claim:unobserved.exists", "text": "No. The offer rule only looked at lunch and parental level of education, and both are in the file. After the offer, places were open to anyone who asked."}
+{"turn": 10, "about": "claim:exclusion.exists", "text": "No. Lunch and parental education pushed students toward the course, but both also affect exam marks on their own."}
+{"turn": 11, "about": "claim:spillover.possible", "text": "No. Students sit the exam individually, so one student's result does not affect another's."}
+{"turn": 12, "about": "", "text": "run"}
+{"turn": 13, "about": "after", "text": "Is a 5.7 point rise a lot, and should I worry about the soft balance check on parental education?"}
+{"turn": 14, "about": "question", "text": "Did completing the test preparation course raise students' math score?"}
+{"turn": 15, "about": "", "text": "What does own_choice mean for you here, and why does it matter for which method you pick?"}
+{"turn": 16, "about": "", "text": "What does own_choice mean for you here, and why does it matter for which method you pick?"}
+{"turn": 17, "about": "", "text": "What does own_choice mean for you here, and why does it matter for which method you pick?"}
+{"turn": 18, "about": "", "text": "run"}
+{"turn": 19, "about": "question", "text": "Did completing the test preparation course raise students' math score?"}
+{"turn": 20, "about": "", "text": "run"}
+{"turn": 21, "about": "after", "text": "what did we settle first, and on whose word?"}
+{"turn": 22, "about": "after", "text": "what did we settle first, and on whose word?"}
+{"turn": 23, "about": "question", "text": "Did completing the test preparation course raise students' math score?"}
+{"turn": 24, "about": "", "text": "run"}
+{"turn": 25, "about": "after", "text": "Is 5.7 points a lot?"}

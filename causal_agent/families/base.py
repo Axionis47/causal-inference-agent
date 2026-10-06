@@ -164,4 +164,4 @@ def stub_lane(family: str, specialist: str, built: bool):
     g.add_node("run", run)
     g.add_edge(START, "run")
     g.add_edge("run", END)
-    return g.compile(checkpointer=False)
+    return g.compile(checkpointer=False, name=f"lane:{family}")

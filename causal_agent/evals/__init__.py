@@ -5,6 +5,7 @@ that are its own; what is shared is here. Outside the layers: this package may i
     uv run python -m causal_agent.evals.run <family>                # run and score them
     uv run python -m causal_agent.evals.lane <family> <dataset> "<question>"   # one run from the command line
     uv run python -m causal_agent.evals.lane <family> --handoff handoff.json   # the lane alone, from a stored hand-off
+    uv run python -m causal_agent.evals.trace [--last N | --trace ID] [--thoughts]   # the newest LangSmith trace as a tree
 """
 
 from dotenv import load_dotenv

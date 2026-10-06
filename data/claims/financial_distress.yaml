@@ -2,20 +2,23 @@ claims:
 - kind: assignment
   key: assignment
   fields:
-    kind: own_choice
-    rule: Places were offered first to students on free or reduced lunch and to those
-      whose parents hold no degree, then to anyone who asked; students chose whether
-      to take the place.
+    kind: lottery
+    rule: The counsellor offered places first to students on free or reduced lunch
+      and to students whose parents hold no degree; remaining places were open to
+      anyone who asked. Uptake was voluntary.
     depends_on:
     - lunch
     - parental level of education
     treatment_column: test preparation course
     treated_level: completed
+    movable: true
   status: confirmed
-  source: user:turn:1
+  source: user:turn:4
   evidence:
   - doc:context
+  - col:test_preparation_course
   - user:turn:1
+  - user:turn:4
   - check:assignment.treatment_varies
   check_detail: '''test preparation course'' takes 2 values'
   asked: 0
@@ -23,9 +26,9 @@ claims:
 - kind: change
   key: change
   fields:
-    what: a six-week test preparation course
+    what: A six-week test preparation course
     to_whom: students
-    when: in the six weeks before the May 2026 exam
+    when: from 1 March to 12 April 2026, before the exam
   status: confirmed
   source: user:turn:1
   evidence:
@@ -37,7 +40,8 @@ claims:
 - kind: grain
   key: grain
   fields:
-    row_is: unknown
+    row_is: one student's results from the May 2026 exam at one school
+    key_columns: null
   status: confirmed
   source: user:turn:1
   evidence:
@@ -49,9 +53,8 @@ claims:
 - kind: measured
   key: col:gender
   fields:
-    meaning: student's gender
+    meaning: Recorded at enrolment
     when: before
-    set_by: recorded at enrolment
   status: confirmed
   source: user:turn:1
   evidence:
@@ -64,9 +67,9 @@ claims:
 - kind: measured
   key: col:race_ethnicity
   fields:
-    meaning: the school's grouping of the student
+    meaning: The school's own grouping, letters A to E; the mapping is not published.
+      Recorded at enrolment.
     when: before
-    set_by: recorded at enrolment
   status: confirmed
   source: user:turn:1
   evidence:
@@ -79,9 +82,9 @@ claims:
 - kind: measured
   key: col:parental_level_of_education
   fields:
-    meaning: unknown
-    when: unknown
-    set_by: declared at enrolment
+    meaning: Highest qualification held by either parent, declared at enrolment. Six
+      levels from some high school to master's degree.
+    when: before
   status: confirmed
   source: user:turn:1
   evidence:
@@ -94,9 +97,10 @@ claims:
 - kind: measured
   key: col:lunch
   fields:
-    meaning: unknown
-    when: unknown
-    set_by: set by the district
+    meaning: Standard or free/reduced. Free/reduced is assigned by the district when
+      household income is below the federal threshold, so it is the low-income indicator.
+    when: before
+    set_by: district
   status: confirmed
   source: user:turn:1
   evidence:
@@ -109,9 +113,9 @@ claims:
 - kind: measured
   key: col:test_preparation_course
   fields:
-    meaning: unknown
-    when: unknown
-    set_by: recorded by the counsellor
+    meaning: Whether the student completed the prep course.
+    when: before
+    affected_by_treatment: true
   status: confirmed
   source: user:turn:1
   evidence:
@@ -124,9 +128,8 @@ claims:
 - kind: measured
   key: col:math_score
   fields:
-    meaning: unknown
-    when: unknown
-    set_by: recorded at the sitting
+    meaning: Exam mark, 0 to 100
+    when: after
   status: confirmed
   source: user:turn:1
   evidence:
@@ -139,9 +142,8 @@ claims:
 - kind: measured
   key: col:reading_score
   fields:
-    meaning: unknown
-    when: unknown
-    set_by: recorded at the sitting
+    meaning: Exam mark, 0 to 100
+    when: after
   status: confirmed
   source: user:turn:1
   evidence:
@@ -154,9 +156,8 @@ claims:
 - kind: measured
   key: col:writing_score
   fields:
-    meaning: unknown
-    when: unknown
-    set_by: recorded at the sitting
+    meaning: Writing score goddam it.
+    when: after
   status: confirmed
   source: user:turn:1
   evidence:
@@ -169,9 +170,8 @@ claims:
 - kind: sampling
   key: sampling
   fields:
-    how: unknown
-    detail: Every student who sat the exam is in the file; nobody was left out and
-      there are no missing values.
+    how: by_group
+    detail: Every enrolled student who sat the exam is included; absentees are not.
   status: confirmed
   source: user:turn:1
   evidence:
@@ -194,7 +194,7 @@ claims:
 - kind: unobserved
   key: unobserved
   fields:
-    exists: false
+    exists: true
   status: confirmed
   source: user:turn:2
   evidence:
@@ -216,7 +216,7 @@ claims:
 - kind: spillover
   key: spillover
   fields:
-    possible: true
+    possible: false
   status: confirmed
   source: user:turn:2
   evidence:
@@ -227,7 +227,7 @@ claims:
 - kind: trend_continues
   key: trend_continues
   fields:
-    believed: false
+    believed: true
   status: confirmed
   source: user:turn:2
   evidence:

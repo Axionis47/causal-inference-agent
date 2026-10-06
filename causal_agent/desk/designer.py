@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from langgraph.runtime import Runtime
 
+from causal_agent.common import trace
 from causal_agent.common.addresses import norm_address
 from causal_agent.common.contracts import DecisionMade, DesignBrief, FamilyVerdict
 from causal_agent.common.llm import structured
@@ -127,11 +128,11 @@ def design_brief(state: RouteState, runtime: Runtime[Context] | None = None) -> 
                 node=f"design:{attempt}",
             )
         except ValueError as e:  # no brief came back: a failed check, re-prompted like any other, the fallback after the last try
-            errors = [str(e)]
+            errors = trace.gate([str(e)], name="gate:design")
             D._writer()({"design": {"attempt": attempt, "errors": errors}})
             continue
         thoughts.append(thought)
-        errors = check(brief, family, d.chosen, memory, probes)
+        errors = trace.gate(check(brief, family, d.chosen, memory, probes), name="gate:design")
         D._writer()({"design": {"attempt": attempt, "errors": errors}})
         if not errors:
             return {"brief": _canonical(brief), "debug": thoughts}

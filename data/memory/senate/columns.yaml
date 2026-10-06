@@ -14,6 +14,9 @@ state:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 year:
   name: year
   key: year
@@ -38,6 +41,9 @@ year:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 margin:
   name: margin
   key: margin
@@ -62,6 +68,9 @@ margin:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 vote:
   name: vote
   key: vote
@@ -86,6 +95,9 @@ vote:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 class:
   name: class
   key: class
@@ -111,6 +123,9 @@ class:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 termshouse:
   name: termshouse
   key: termshouse
@@ -135,6 +150,9 @@ termshouse:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 termssenate:
   name: termssenate
   key: termssenate
@@ -159,6 +177,9 @@ termssenate:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 dopen:
   name: dopen
   key: dopen
@@ -183,6 +204,9 @@ dopen:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 population:
   name: population
   key: population
@@ -207,6 +231,9 @@ population:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 presdemvoteshlag1:
   name: presdemvoteshlag1
   key: presdemvoteshlag1
@@ -231,6 +258,9 @@ presdemvoteshlag1:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 demvoteshlag1:
   name: demvoteshlag1
   key: demvoteshlag1
@@ -255,6 +285,9 @@ demvoteshlag1:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 demvoteshlag2:
   name: demvoteshlag2
   key: demvoteshlag2
@@ -279,6 +312,9 @@ demvoteshlag2:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 demvoteshfor1:
   name: demvoteshfor1
   key: demvoteshfor1
@@ -303,6 +339,9 @@ demvoteshfor1:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 demwinprv1:
   name: demwinprv1
   key: demwinprv1
@@ -327,6 +366,9 @@ demwinprv1:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 demwinprv2:
   name: demwinprv2
   key: demwinprv2
@@ -351,6 +393,9 @@ demwinprv2:
     switch: null
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 dmidterm:
   name: dmidterm
   key: dmidterm
@@ -379,6 +424,9 @@ dmidterm:
       last_entity_first_on: '1374'
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []
 dpresdem:
   name: dpresdem
   key: dpresdem
@@ -407,3 +455,6 @@ dpresdem:
       last_entity_first_on: '1374'
     sentinels: []
     format_issues: []
+    binary_like: false
+    bounds: null
+    role_hints: []

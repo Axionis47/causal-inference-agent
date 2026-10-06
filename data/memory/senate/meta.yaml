@@ -1,5 +1,5 @@
 name: senate
-version: 2
+version: 63
 csv: data/raw/senate-incumbency/senate.csv
 facts:
   rows: 1390

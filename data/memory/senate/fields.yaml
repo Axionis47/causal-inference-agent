@@ -1,13 +1,721 @@
 claim:grain.panel:
   value: true
-  status: confirmed
-  source: data
-  said: null
+  status: drafted
+  source: doc:context
+  said: A state appears 16 to 33 times, once for each election of either of its two
+    seats, so rows within a state are related
+  reason: The description indicates that states appear multiple times across different
+    elections, making it a panel dataset.
   evidence: []
 claim:grain.key_columns:
   value:
   - state
+  - year
   status: drafted
-  source: data
-  said: null
+  source: doc:context
+  said: a state and a year
+  reason: The text identifies 'a state and a year' as what constitutes one US Senate
+    election, implying they are key identifiers.
+  evidence: []
+claim:grain.row_is:
+  value: one US Senate election
+  status: drafted
+  source: doc:context
+  said: Each row is one US Senate election
+  reason: The text explicitly states what each row represents.
+  evidence: []
+claim:grain.nesting:
+  value:
+  - state
+  status: drafted
+  source: doc:context
+  said: state can serve as a cluster
+  reason: The text explicitly states that 'state can serve as a cluster', indicating
+    it's a nesting column.
+  evidence: []
+claim:sampling.how:
+  value: whole
+  status: drafted
+  source: doc:context
+  said: it holds every election in the period with the needed returns
+  reason: The text states that the file contains 'every election' in the specified
+    period, indicating a whole population sample.
+  evidence: []
+claim:sampling.detail:
+  value: every election in the period with the needed returns
+  status: drafted
+  source: doc:context
+  said: it holds every election in the period with the needed returns
+  reason: This is a direct quote describing the sampling method.
+  evidence: []
+claim:change.what:
+  value: A Democrat wins the seat
+  status: drafted
+  source: doc:context
+  said: A Democrat wins the seat at election t.
+  reason: The text directly states 'What changed' is 'A Democrat wins the seat at
+    election t'.
+  evidence: []
+claim:change.to_whom:
+  value: the seat
+  status: drafted
+  source: doc:context
+  said: A Democrat wins the seat at election t.
+  reason: The change is described as happening to 'the seat'.
+  evidence: []
+claim:change.when:
+  value: at election t
+  status: drafted
+  source: doc:context
+  said: A Democrat wins the seat at election t.
+  reason: The text specifies the change occurs 'at election t'.
+  evidence: []
+claim:change.date_column:
+  value: year
+  status: drafted
+  source: doc:context
+  said: Year of election t
+  reason: The 'year' column is described as the 'Year of election t', which aligns
+    with the 'when' of the change.
+  evidence: []
+claim:assignment.kind:
+  value: cutoff_rule
+  status: drafted
+  source: doc:context
+  said: The cutoff is 0. A margin at or above 0 means the Democrat won the seat
+  reason: The assignment is determined by a numerical cutoff on the 'margin' score.
+  evidence: []
+claim:assignment.rule:
+  value: A margin at or above 0 means the Democrat won the seat and the party holds
+    it for the six-year term; a margin below 0 means the Democrat lost.
+  status: drafted
+  source: doc:context
+  said: A margin at or above 0 means the Democrat won the seat and the party holds
+    it for the six-year term; a margin below 0 means the Democrat lost.
+  reason: This is the explicit rule stated for assignment.
+  evidence: []
+claim:assignment.score_column:
+  value: margin
+  status: drafted
+  source: doc:context
+  said: The score is margin
+  reason: The text explicitly states 'The score is margin'.
+  evidence: []
+claim:assignment.cutoff:
+  value: 0.0
+  status: drafted
+  source: doc:context
+  said: The cutoff is 0.
+  reason: The text explicitly states 'The cutoff is 0'.
+  evidence: []
+claim:assignment.treated_side:
+  value: above
+  status: drafted
+  source: doc:context
+  said: A margin at or above 0 means the Democrat won the seat
+  reason: Units with a margin 'at or above 0' are treated, indicating the treated
+    side is 'above' the cutoff.
+  evidence: []
+claim:assignment.cutoff_value_treated:
+  value: true
+  status: drafted
+  source: doc:context
+  said: A margin at or above 0 means the Democrat won the seat
+  reason: The text states 'at or above 0' means the Democrat won, so the cutoff value
+    itself is treated.
+  evidence: []
+claim:assignment.treatment_column:
+  value: margin
+  status: drafted
+  source: doc:context
+  said: treatment is the cutoff rule itself, 1 when margin is at or above 0.
+  reason: The 'margin' column directly determines treatment status based on the cutoff
+    rule.
+  evidence: []
+col:state.meaning:
+  value: State name.
+  status: drafted
+  source: doc:context
+  said: State name.
+  reason: The text explicitly defines 'state' as 'State name'.
+  evidence: []
+col:state.when:
+  value: before
+  status: drafted
+  source: doc:context
+  said: Fixed.
+  reason: The column is described as 'Fixed', implying its value is set before the
+    change.
+  evidence: []
+col:state.may_modify:
+  value: true
+  status: drafted
+  source: doc:context
+  said: Repeated across elections, so usable as a cluster.
+  reason: The text states 'state can serve as a cluster', indicating that effects
+    might differ by state.
+  evidence: []
+col:year.meaning:
+  value: Year of election t, 1914 to 2010.
+  status: drafted
+  source: doc:context
+  said: Year of election t, 1914 to 2010.
+  reason: The text explicitly defines 'year' as 'Year of election t, 1914 to 2010'.
+  evidence: []
+col:year.when:
+  value: at
+  status: drafted
+  source: doc:context
+  said: Year of election t
+  reason: The column is described as the 'Year of election t', meaning it is set at
+    the time of the election.
+  evidence: []
+col:margin.meaning:
+  value: 'Democratic margin of victory at election t, in percentage points of the
+    vote, from -100 to 100. The cutoff is 0: at or above 0 the Democrat won and the
+    row is treated; below 0 the Democrat lost.'
+  status: drafted
+  source: doc:context
+  said: 'Democratic margin of victory at election t, in percentage points of the vote,
+    from -100 to 100. The cutoff is 0: at or above 0 the Democrat won and the row
+    is treated; below 0 the Democrat lost.'
+  reason: The text explicitly defines 'margin' and its meaning in relation to the
+    cutoff.
+  evidence: []
+col:margin.when:
+  value: at
+  status: drafted
+  source: doc:context
+  said: Set by the election t result.
+  reason: The text states the column is 'Set by the election t result', meaning it
+    is set at the time of the election.
+  evidence: []
+col:margin.feeds_treatment:
+  value: true
+  status: drafted
+  source: doc:context
+  said: 'The cutoff is 0: at or above 0 the Democrat won and the row is treated'
+  reason: The 'margin' column is explicitly used to determine treatment status based
+    on the cutoff rule.
+  evidence: []
+col:vote.meaning:
+  value: Democratic vote share at election t+2, the next election for the same seat,
+    in percent.
+  status: drafted
+  source: doc:context
+  said: Democratic vote share at election t+2, the next election for the same seat,
+    in percent.
+  reason: The text explicitly defines 'vote' as 'Democratic vote share at election
+    t+2, the next election for the same seat, in percent'.
+  evidence: []
+col:vote.when:
+  value: after
+  status: drafted
+  source: doc:context
+  said: Measured six years after the score.
+  reason: The text states the column is 'Measured six years after the score', indicating
+    it is set after the change.
+  evidence: []
+col:vote.measures_outcome:
+  value: true
+  status: drafted
+  source: doc:context
+  said: The outcome.
+  reason: The text explicitly states 'vote' is 'The outcome'.
+  evidence: []
+col:class.meaning:
+  value: 'Senate class of the seat, 1 to 3. The class fixes which years the seat is
+    contested: class 1 in years ending 2 modulo 6, class 2 in years ending 4, class
+    3 in years ending 0.'
+  status: drafted
+  source: doc:context
+  said: 'Senate class of the seat, 1 to 3. The class fixes which years the seat is
+    contested: class 1 in years ending 2 modulo 6, class 2 in years ending 4, class
+    3 in years ending 0.'
+  reason: The text explicitly defines 'class' and its meaning.
+  evidence: []
+col:class.when:
+  value: before
+  status: drafted
+  source: doc:context
+  said: Fixed before election t.
+  reason: The text states the column is 'Fixed before election t', indicating it is
+    set before the change.
+  evidence: []
+col:class.may_modify:
+  value: true
+  status: drafted
+  source: doc:context
+  said: The class fixes which years the seat is contested
+  reason: The class determines when the seat is contested, suggesting the effect of
+    the change could differ by class.
+  evidence: []
+col:termshouse.meaning:
+  value: Number of terms served in the House, per the package docstring, which does
+    not say whose terms. A characteristic at election t.
+  status: drafted
+  source: doc:context
+  said: Number of terms served in the House, per the package docstring, which does
+    not say whose terms. A characteristic at election t.
+  reason: The text explicitly defines 'termshouse' and its meaning.
+  evidence: []
+col:termshouse.when:
+  value: at
+  status: drafted
+  source: doc:context
+  said: A characteristic at election t.
+  reason: The text states the column is 'A characteristic at election t', meaning
+    it is set at the time of the election.
+  evidence: []
+col:termssenate.meaning:
+  value: Number of terms served in the Senate, per the package docstring, which does
+    not say whose terms. A characteristic at election t.
+  status: drafted
+  source: doc:context
+  said: Number of terms served in the Senate, per the package docstring, which does
+    not say whose terms. A characteristic at election t.
+  reason: The text explicitly defines 'termssenate' and its meaning.
+  evidence: []
+col:termssenate.when:
+  value: at
+  status: drafted
+  source: doc:context
+  said: A characteristic at election t.
+  reason: The text states the column is 'A characteristic at election t', meaning
+    it is set at the time of the election.
+  evidence: []
+col:dopen.meaning:
+  value: 1 if the seat was open at election t, that is no incumbent ran.
+  status: drafted
+  source: doc:context
+  said: 1 if the seat was open at election t, that is no incumbent ran.
+  reason: The text explicitly defines 'dopen' and its meaning.
+  evidence: []
+col:dopen.when:
+  value: before
+  status: drafted
+  source: doc:context
+  said: Known before the vote.
+  reason: The text states the column is 'Known before the vote', indicating it is
+    set before the change.
+  evidence: []
+col:population.meaning:
+  value: State population in the election year.
+  status: drafted
+  source: doc:context
+  said: State population in the election year.
+  reason: The text explicitly defines 'population' as 'State population in the election
+    year'.
+  evidence: []
+col:population.when:
+  value: before
+  status: drafted
+  source: doc:context
+  said: Fixed before the vote.
+  reason: The text states the column is 'Fixed before the vote', indicating it is
+    set before the change.
+  evidence: []
+col:presdemvoteshlag1.meaning:
+  value: Democratic vote share in the state at the presidential election before t
+    (t-1), in percent.
+  status: drafted
+  source: doc:context
+  said: Democratic vote share in the state at the presidential election before t (t-1),
+    in percent.
+  reason: The text explicitly defines 'presdemvoteshlag1' and its meaning.
+  evidence: []
+col:presdemvoteshlag1.when:
+  value: before
+  status: drafted
+  source: doc:context
+  said: Fixed before the score.
+  reason: The text states the column is 'Fixed before the score', indicating it is
+    set before the change.
+  evidence: []
+col:demvoteshlag1.meaning:
+  value: Democratic vote share at the state's previous Senate election (t-1), in percent.
+  status: drafted
+  source: doc:context
+  said: Democratic vote share at the state's previous Senate election (t-1), in percent.
+  reason: The text explicitly defines 'demvoteshlag1' and its meaning.
+  evidence: []
+col:demvoteshlag1.when:
+  value: before
+  status: drafted
+  source: doc:context
+  said: Fixed before the score.
+  reason: The text states the column is 'Fixed before the score', indicating it is
+    set before the change.
+  evidence: []
+col:demvoteshlag2.meaning:
+  value: Democratic vote share at the state's Senate election two before t (t-2),
+    in percent.
+  status: drafted
+  source: doc:context
+  said: Democratic vote share at the state's Senate election two before t (t-2), in
+    percent.
+  reason: The text explicitly defines 'demvoteshlag2' and its meaning.
+  evidence: []
+col:demvoteshlag2.when:
+  value: before
+  status: drafted
+  source: doc:context
+  said: Fixed before the score.
+  reason: The text states the column is 'Fixed before the score', indicating it is
+    set before the change.
+  evidence: []
+col:demvoteshfor1.meaning:
+  value: Democratic vote share at election t+1, the state's next Senate election two
+    years after t, which is for the other seat.
+  status: drafted
+  source: doc:context
+  said: Democratic vote share at election t+1, the state's next Senate election two
+    years after t, which is for the other seat.
+  reason: The text explicitly defines 'demvoteshfor1' and its meaning.
+  evidence: []
+col:demvoteshfor1.when:
+  value: after
+  status: drafted
+  source: doc:context
+  said: Measured after the score
+  reason: The text states the column is 'Measured after the score', indicating it
+    is set after the change.
+  evidence: []
+col:demvoteshfor1.measures_outcome:
+  value: true
+  status: drafted
+  source: doc:context
+  said: so it is a later outcome, not a covariate.
+  reason: The text explicitly states 'it is a later outcome, not a covariate'.
+  evidence: []
+col:demwinprv1.meaning:
+  value: 1 if the Democrat won the state's previous Senate election (t-1).
+  status: drafted
+  source: doc:context
+  said: 1 if the Democrat won the state's previous Senate election (t-1).
+  reason: The text explicitly defines 'demwinprv1' and its meaning.
+  evidence: []
+col:demwinprv1.when:
+  value: before
+  status: drafted
+  source: doc:context
+  said: Fixed before the score.
+  reason: The text states the column is 'Fixed before the score', indicating it is
+    set before the change.
+  evidence: []
+col:demwinprv1.proxy:
+  value: derived
+  status: drafted
+  source: doc:context
+  said: Derived from that earlier result
+  reason: The text states the column is 'Derived from that earlier result'.
+  evidence: []
+col:demwinprv1.derived_from:
+  value:
+  - demvoteshlag1
+  status: drafted
+  source: doc:context
+  said: Derived from that earlier result
+  reason: The column 'demwinprv1' is derived from the previous election's result,
+    which is captured by 'demvoteshlag1'.
+  evidence: []
+col:demwinprv2.meaning:
+  value: 1 if the Democrat won the state's Senate election two before t (t-2).
+  status: drafted
+  source: doc:context
+  said: 1 if the Democrat won the state's Senate election two before t (t-2).
+  reason: The text explicitly defines 'demwinprv2' and its meaning.
+  evidence: []
+col:demwinprv2.when:
+  value: before
+  status: drafted
+  source: doc:context
+  said: Fixed before the score.
+  reason: The text states the column is 'Fixed before the score', indicating it is
+    set before the change.
+  evidence: []
+col:demwinprv2.proxy:
+  value: derived
+  status: drafted
+  source: doc:context
+  said: Derived from that earlier result
+  reason: The text states the column is 'Derived from that earlier result'.
+  evidence: []
+col:demwinprv2.derived_from:
+  value:
+  - demvoteshlag2
+  status: drafted
+  source: doc:context
+  said: Derived from that earlier result
+  reason: The column 'demwinprv2' is derived from the election result two before t,
+    which is captured by 'demvoteshlag2'.
+  evidence: []
+col:dmidterm.meaning:
+  value: 1 if election t was a midterm election, that is the year is not a presidential
+    year.
+  status: drafted
+  source: doc:context
+  said: 1 if election t was a midterm election, that is the year is not a presidential
+    year.
+  reason: The text explicitly defines 'dmidterm' and its meaning.
+  evidence: []
+col:dmidterm.when:
+  value: before
+  status: drafted
+  source: doc:context
+  said: Set by the calendar.
+  reason: The text states the column is 'Set by the calendar', implying it is known
+    and fixed before the election.
+  evidence: []
+col:dpresdem.meaning:
+  value: 1 if the sitting president at election t was a Democrat.
+  status: drafted
+  source: doc:context
+  said: 1 if the sitting president at election t was a Democrat.
+  reason: The text explicitly defines 'dpresdem' and its meaning.
+  evidence: []
+col:dpresdem.when:
+  value: before
+  status: drafted
+  source: doc:context
+  said: Fixed before the vote.
+  reason: The text states the column is 'Fixed before the vote', indicating it is
+    set before the change.
+  evidence: []
+claim:story.text:
+  value: '# US Senate Elections 1914 to 2010
+
+
+    ## About the dataset
+
+    Each row is one US Senate election: a state and a year. There are 1,390 rows over
+    50 states and 49 election years from 1914, the first year of popular Senate elections,
+    to 2010. A state appears 16 to 33 times, once for each election of either of its
+    two seats, so rows within a state are related and state can serve as a cluster.
+    The file is not sampled by side of the cutoff; it holds every election in the
+    period with the needed returns. Data are from Cattaneo, Frandsen and Titiunik''s
+    2015 study and ship inside the rdrobust Python package as data/rdrobust_RDsenate.csv
+    under GPL-3; senate.csv is that table written out unchanged. [rdrobust package
+    data; Cattaneo, Frandsen and Titiunik 2015]
+
+
+    ## What changed
+
+    **A Democrat wins the seat at election t.** The score is margin, the Democratic
+    margin of victory at election t in percentage points of the vote. The cutoff is
+    0. A margin at or above 0 means the Democrat won the seat and the party holds
+    it for the six-year term; a margin below 0 means the Democrat lost. No row sits
+    exactly at 0. Margins run continuously from -100 to 100: 50 elections were decided
+    by less than two points against the Democrat and 52 by less than two points in
+    the Democrat''s favour, so elections sit just below and just above the cutoff.
+    There is no take-up column: treatment is the cutoff rule itself, 1 when margin
+    is at or above 0. The outcome is vote, the Democratic vote share at election t+2,
+    the next election for the same seat six years later. [Cattaneo, Frandsen and Titiunik
+    2015]
+
+
+    ## About each column
+
+    **state** - State name. Fixed. Repeated across elections, so usable as a cluster.
+    [rdrobust package docs]
+
+
+    **year** - Year of election t, 1914 to 2010. [rdrobust package docs]
+
+
+    **margin** - The score. Democratic margin of victory at election t, in percentage
+    points of the vote, from -100 to 100. The cutoff is 0: at or above 0 the Democrat
+    won and the row is treated; below 0 the Democrat lost. Set by the election t result.
+    [rdrobust package docs; Cattaneo, Frandsen and Titiunik 2015]
+
+
+    **vote** - The outcome. Democratic vote share at election t+2, the next election
+    for the same seat, in percent. Measured six years after the score. Missing for
+    93 rows. [rdrobust package docs]
+
+
+    **class** - Senate class of the seat, 1 to 3. The class fixes which years the
+    seat is contested: class 1 in years ending 2 modulo 6, class 2 in years ending
+    4, class 3 in years ending 0. Fixed before election t. [Cattaneo, Frandsen and
+    Titiunik 2015; rdrobust package docs]
+
+
+    **termshouse** - Number of terms served in the House, per the package docstring,
+    which does not say whose terms. A characteristic at election t. Missing for 282
+    rows. [rdrobust package docs]
+
+
+    **termssenate** - Number of terms served in the Senate, per the package docstring,
+    which does not say whose terms. A characteristic at election t. Missing for 282
+    rows. [rdrobust package docs]
+
+
+    **dopen** - 1 if the seat was open at election t, that is no incumbent ran. Known
+    before the vote. Missing for 10 rows. [Cattaneo, Idrobo and Titiunik 2024, Table
+    2.2]
+
+
+    **population** - State population in the election year. Fixed before the vote.
+    [rdrobust package docs]
+
+
+    **presdemvoteshlag1** - Democratic vote share in the state at the presidential
+    election before t (t-1), in percent. Fixed before the score. Missing for 3 rows.
+    [Cattaneo, Idrobo and Titiunik 2024, Table 2.2]
+
+
+    **demvoteshlag1** - Democratic vote share at the state''s previous Senate election
+    (t-1), in percent. A lag of an earlier election, fixed before the score. Missing
+    for 41 rows. [Cattaneo, Idrobo and Titiunik 2024, Table 2.2]
+
+
+    **demvoteshlag2** - Democratic vote share at the state''s Senate election two
+    before t (t-2), in percent. A lag, fixed before the score. Missing for 82 rows.
+    [Cattaneo, Idrobo and Titiunik 2024, Table 2.2]
+
+
+    **demvoteshfor1** - Democratic vote share at election t+1, the state''s next Senate
+    election two years after t, which is for the other seat. Measured after the score,
+    so it is a later outcome, not a covariate. Missing for 49 rows. [Cattaneo, Frandsen
+    and Titiunik 2015]
+
+
+    **demwinprv1** - 1 if the Democrat won the state''s previous Senate election (t-1).
+    Derived from that earlier result, fixed before the score. Missing for 41 rows.
+    [Cattaneo, Idrobo and Titiunik 2024, Table 2.2]
+
+
+    **demwinprv2** - 1 if the Democrat won the state''s Senate election two before
+    t (t-2). Derived from that earlier result, fixed before the score. Missing for
+    82 rows. [Cattaneo, Idrobo and Titiunik 2024, Table 2.2]
+
+
+    **dmidterm** - 1 if election t was a midterm election, that is the year is not
+    a presidential year. Set by the calendar. [Cattaneo, Idrobo and Titiunik 2024,
+    Table 2.2]
+
+
+    **dpresdem** - 1 if the sitting president at election t was a Democrat. In the
+    file it is 1 for 1914 to 1920 and 1934 to 1940 and 0 for 1922 to 1932, matching
+    the president''s party. Fixed before the vote. [rdrobust package docs; file check]'
+  status: drafted
+  source: doc:context
+  said: '# US Senate Elections 1914 to 2010
+
+
+    ## About the dataset
+
+    Each row is one US Senate election: a state and a year. There are 1,390 rows over
+    50 states and 49 election years from 1914, the first year of popular Senate elections,
+    to 2010. A state appears 16 to 33 times, once for each election of either of its
+    two seats, so rows within a state are related and state can serve as a cluster.
+    The file is not sampled by side of the cutoff; it holds every election in the
+    period with the needed returns. Data are from Cattaneo, Frandsen and Titiunik''s
+    2015 study and ship inside the rdrobust Python package as data/rdrobust_RDsenate.csv
+    under GPL-3; senate.csv is that table written out unchanged. [rdrobust package
+    data; Cattaneo, Frandsen and Titiunik 2015]
+
+
+    ## What changed
+
+    **A Democrat wins the seat at election t.** The score is margin, the Democratic
+    margin of victory at election t in percentage points of the vote. The cutoff is
+    0. A margin at or above 0 means the Democrat won the seat and the party holds
+    it for the six-year term; a margin below 0 means the Democrat lost. No row sits
+    exactly at 0. Margins run continuously from -100 to 100: 50 elections were decided
+    by less than two points against the Democrat and 52 by less than two points in
+    the Democrat''s favour, so elections sit just below and just above the cutoff.
+    There is no take-up column: treatment is the cutoff rule itself, 1 when margin
+    is at or above 0. The outcome is vote, the Democratic vote share at election t+2,
+    the next election for the same seat six years later. [Cattaneo, Frandsen and Titiunik
+    2015]
+
+
+    ## About each column
+
+    **state** - State name. Fixed. Repeated across elections, so usable as a cluster.
+    [rdrobust package docs]
+
+
+    **year** - Year of election t, 1914 to 2010. [rdrobust package docs]
+
+
+    **margin** - The score. Democratic margin of victory at election t, in percentage
+    points of the vote, from -100 to 100. The cutoff is 0: at or above 0 the Democrat
+    won and the row is treated; below 0 the Democrat lost. Set by the election t result.
+    [rdrobust package docs; Cattaneo, Frandsen and Titiunik 2015]
+
+
+    **vote** - The outcome. Democratic vote share at election t+2, the next election
+    for the same seat, in percent. Measured six years after the score. Missing for
+    93 rows. [rdrobust package docs]
+
+
+    **class** - Senate class of the seat, 1 to 3. The class fixes which years the
+    seat is contested: class 1 in years ending 2 modulo 6, class 2 in years ending
+    4, class 3 in years ending 0. Fixed before election t. [Cattaneo, Frandsen and
+    Titiunik 2015; rdrobust package docs]
+
+
+    **termshouse** - Number of terms served in the House, per the package docstring,
+    which does not say whose terms. A characteristic at election t. Missing for 282
+    rows. [rdrobust package docs]
+
+
+    **termssenate** - Number of terms served in the Senate, per the package docstring,
+    which does not say whose terms. A characteristic at election t. Missing for 282
+    rows. [rdrobust package docs]
+
+
+    **dopen** - 1 if the seat was open at election t, that is no incumbent ran. Known
+    before the vote. Missing for 10 rows. [Cattaneo, Idrobo and Titiunik 2024, Table
+    2.2]
+
+
+    **population** - State population in the election year. Fixed before the vote.
+    [rdrobust package docs]
+
+
+    **presdemvoteshlag1** - Democratic vote share in the state at the presidential
+    election before t (t-1), in percent. Fixed before the score. Missing for 3 rows.
+    [Cattaneo, Idrobo and Titiunik 2024, Table 2.2]
+
+
+    **demvoteshlag1** - Democratic vote share at the state''s previous Senate election
+    (t-1), in percent. A lag of an earlier election, fixed before the score. Missing
+    for 41 rows. [Cattaneo, Idrobo and Titiunik 2024, Table 2.2]
+
+
+    **demvoteshlag2** - Democratic vote share at the state''s Senate election two
+    before t (t-2), in percent. A lag, fixed before the score. Missing for 82 rows.
+    [Cattaneo, Idrobo and Titiunik 2024, Table 2.2]
+
+
+    **demvoteshfor1** - Democratic vote share at election t+1, the state''s next Senate
+    election two years after t, which is for the other seat. Measured after the score,
+    so it is a later outcome, not a covariate. Missing for 49 rows. [Cattaneo, Frandsen
+    and Titiunik 2015]
+
+
+    **demwinprv1** - 1 if the Democrat won the state''s previous Senate election (t-1).
+    Derived from that earlier result, fixed before the score. Missing for 41 rows.
+    [Cattaneo, Idrobo and Titiunik 2024, Table 2.2]
+
+
+    **demwinprv2** - 1 if the Democrat won the state''s Senate election two before
+    t (t-2). Derived from that earlier result, fixed before the score. Missing for
+    82 rows. [Cattaneo, Idrobo and Titiunik 2024, Table 2.2]
+
+
+    **dmidterm** - 1 if election t was a midterm election, that is the year is not
+    a presidential year. Set by the calendar. [Cattaneo, Idrobo and Titiunik 2024,
+    Table 2.2]
+
+
+    **dpresdem** - 1 if the sitting president at election t was a Democrat. In the
+    file it is 1 for 1914 to 1920 and 1934 to 1940 and 0 for 1922 to 1932, matching
+    the president''s party. Fixed before the vote. [rdrobust package docs; file check]
+
+    '
+  reason: null
   evidence: []

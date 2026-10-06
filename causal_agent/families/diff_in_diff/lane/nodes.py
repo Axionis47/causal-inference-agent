@@ -21,6 +21,7 @@ from typing import Any
 import pandas as pd
 from langgraph.types import Command, Send
 
+from causal_agent.common import trace
 from causal_agent.common.addresses import key as _key
 from causal_agent.common.addresses import norm_address
 from causal_agent.common.contracts import (
@@ -1085,7 +1086,7 @@ def assess(state: SpecialistState) -> Command:
         for c in parsed.cites:
             if not V.resolves(c, h, checks=[r.address for r in results], also=_made_here(state)):
                 errors.append(f"{c} is not a check, pack or ladder address")
-        if errors:
+        if trace.gate(errors, name="gate:assess"):
             continue
         _writer()({"assess": parsed.model_dump()})
         if parsed.action == "proceed":
@@ -1177,7 +1178,7 @@ def pick_estimator(state: SpecialistState) -> Command:
         for c in parsed.cites:
             if not V.resolves(c, state["handoff"], checks=[r.address for r in state["checks"]] + [f"estimator:{n}" for n in names], also=_made_here(state)):
                 errors.append(f"{c} is not a check, pack, ladder or estimator address")
-        if not errors:
+        if not trace.gate(errors, name="gate:pick_estimator"):
             _writer()({"estimator": parsed.model_dump()})
             return Command(
                 goto="freeze_design",
@@ -1267,8 +1268,8 @@ def freeze_design(state: SpecialistState) -> dict:
         excluded_rel_times=list(range(-int(lad.mechanism.anticipation_periods), 0)) if lad.mechanism is not None and lad.mechanism.anticipation_periods else [],
     )
     run_dir = Path(state["run_dir"])
-    (run_dir / "design.json").write_text(d.model_dump_json(indent=2))
-    (run_dir / "design.md").write_text(d.render())
+    trace.write(run_dir / "design.json", d.model_dump_json(indent=2))
+    trace.write(run_dir / "design.md", d.render())
     _writer()({"design": d.render(), "declines": [x.render() for x in declines]})
     return {"design": d, "declines": declines, "ladder": lad.model_copy(update={"cluster": cluster})}
 
@@ -1587,7 +1588,7 @@ def interpret(state: SpecialistState) -> dict:
             errors.append("these must be cited: " + ", ".join(missing))
         if primary is not None and abs(parsed.effect_stated - primary.value) > max(abs(primary.value), 1e-9) * tol:
             errors.append(f"effect_stated {parsed.effect_stated} does not match the primary estimate {primary.value:.4g}")
-        if not errors:
+        if not trace.gate(errors, name="gate:interpret"):
             break
     out: dict[str, Any] = {"interpretations": [parsed], "debug": debug}
     if errors:

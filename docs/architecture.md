@@ -22,6 +22,7 @@ names the layers this table serves.
 | the chat after (`desk/nodes/after.py`) | one routed reply per message: answer, revise, what-if, requestion, draw, done | the material, the message | a gated reply |
 | the server (`server/`) | the wire: sessions over the desk, the views, the files and pictures | HTTP | `SessionView` and files |
 | the page (`web/`) | showing, never deciding | the wire | the screen |
+| the trace (`common/trace.py`) | the span tree that mirrors the graph: a span per judgement, episode, try, tool call, gate and file; the parent handed to the lane's process | a call at a chokepoint | a LangSmith run under the node that made it |
 
 ## The layers
 
@@ -29,7 +30,7 @@ Bottom to top. A package imports only what is below it.
 
 | package | holds | may import |
 |---|---|---|
-| `common` | the contracts (the pack, the artifacts, the frame, the `Design` base), the address grammar, the model wrapper and its retry policy, the one config reading of the environment, the cite rule | nothing internal |
+| `common` | the contracts (the pack, the artifacts, the frame, the `Design` base), the address grammar, the model wrapper and its retry policy, the trace helpers, the one config reading of the environment, the cite rule | nothing internal |
 | `profile` | the deterministic profile of a CSV, the dataset index, the csv path rule | common |
 | `memory` | what is known about a dataset: the field map, the store on disk, the gated write path, the checks, the shared probe helpers, the fit grid, the text views | common, profile |
 | `viz` | pictures: `FigureSpec`, the figures a lane draws from its own artifacts (`postviz`); the drawing tool (`draw`, `sandbox`) and where what it draws lives (`store`) | common, profile, memory |
@@ -41,6 +42,22 @@ Bottom to top. A package imports only what is below it.
 
 The contract in `pyproject.toml` under `[tool.importlinter]` is the executable form of this table. `causal_agent/families/tests/test_core_names_no_family.py`
 greps the five core packages for any family or engine name.
+
+## The trace
+
+The LangSmith trace is the graph as it ran, and it stays that way when the graph changes because the tracing lives in the
+chokepoints a new piece passes through anyway ([adr/0012](adr/0012-the-trace-mirrors-the-graph.md)):
+
+| anything new that | goes through | and shows as |
+|---|---|---|
+| calls the model | `common/llm.py::structured` or `lane/episode.py::run_episode` | a span named for the judgement: prompt in, record and thoughts out; under an episode, a `try n`, a `look`, one tool span per call, a `gate` |
+| compiles a graph | `.compile(name=...)`, via `desk/graph.py` or `lane/graph.py` | a named root (`desk`, `lane:<family>`); the server names each turn `<dataset> <analysis> turn <n> <phase>` |
+| starts a process | `common/trace.py::child_env` and `trace.parent()` in the child (`desk/pipeline.py`) | the lane's graph under the desk's `run` node, on the same thread |
+| writes under a design, run or viz folder | `common/trace.py::write` | an `artifact:<file>` tool span with the file attached |
+| refuses a model answer | `common/trace.py::gate` | a `gate` tool span with the errors |
+| appends a journal step or saves the memory | `Journal.append`, `store.save` | a `journal` or `memory.save` tool span |
+
+`causal_agent/common/tests/test_trace_policy.py` greps for a bypass. `make trace` prints the newest trace as a tree.
 
 ## A family package
 

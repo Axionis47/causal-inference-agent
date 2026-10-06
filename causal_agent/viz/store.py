@@ -16,7 +16,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from causal_agent.common import config
+from causal_agent.common import config, trace
 
 Moment = Literal["pre", "post"]
 FILE = "artifact.json"
@@ -71,7 +71,7 @@ def new_id() -> str:
 def save(a: Artifact, root: Path | None = None) -> Path:
     d = folder(a.dataset, a.moment, a.design, a.id, root)
     d.mkdir(parents=True, exist_ok=True)
-    (d / FILE).write_text(a.model_dump_json(indent=2))
+    trace.write(d / FILE, a.model_dump_json(indent=2))
     return d
 
 

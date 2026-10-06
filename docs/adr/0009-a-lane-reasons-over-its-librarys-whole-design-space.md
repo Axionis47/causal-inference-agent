@@ -36,7 +36,8 @@ the harness, a mask the lane passes.
 the Foundations say when a two-sided or a coverage-error width fits and leave the choice to the analyst; the kernel is
 a declaration, because the literature says it matters little. The estimator among the survivors is a judgement; which
 entries survive is a fact. How the treated group came to be chosen is a judgement where the pack leaves it open, and a
-fact where it does not.
+fact where it does not. (The last sentence is withdrawn by
+[ADR 0011](0011-the-design-space-is-declared-and-the-reasoning-stays-inside-it.md): a judgement always.)
 
 **The catalogue is keyed on facts, and no yaml is dead.** An entry applies by one rule over facts the lane computes;
 every yaml key is a field of its entry model; a test per lane asserts both. An inference entry, a falsification, a

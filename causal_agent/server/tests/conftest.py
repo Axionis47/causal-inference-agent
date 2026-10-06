@@ -60,7 +60,7 @@ def create_request(prof: dict, name: str = "students_web") -> dict:
     return {"name": name, "title": "Students web", "upload_id": prof["upload_id"]}
 
 
-def canned_run(path, n, dataset, question, decision=None, decision_record="", effect: float = 5.618) -> RunRecord:
+def canned_run(path, n, dataset, question, decision=None, decision_record="", effect: float = 5.618, thread_id=None) -> RunRecord:
     sr = {
         "status": "done",
         "design": {

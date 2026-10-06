@@ -33,6 +33,7 @@ fig.savefig("figure.png")
 json.dump({"mean_standard": float(means["standard"]), "mean_free_reduced": float(means["free/reduced"])}, open("facts.json", "w"))
 """
 RAISES = "raise RuntimeError('boom: no such column')\n"
+PROSE = "I will read the CSV from VIZ_CSV, then draw the two means as bars and write both to facts.json.\n" + GOOD
 EXTRA = GOOD + "open('extra.txt', 'w').write('scratch')\n"
 STRING_FACT = GOOD + "json.dump({'mean_standard': 'high', 'mean_free_reduced': 58.9}, open('facts.json', 'w'))\n"
 
@@ -55,7 +56,9 @@ class FakeLLM:
                 )
                 return {
                     "raw": raw,
-                    "parsed": D.DrawCode(code=code, caption="Standard-lunch students score higher in math.", facts=fake.facts),
+                    "parsed": D.DrawCode(
+                        plan="mean math score by lunch, as two bars", code=code, caption="Standard-lunch students score higher in math.", facts=fake.facts
+                    ),
                     "parsing_error": None,
                 }
 
@@ -116,6 +119,18 @@ def test_a_failed_script_is_retried_with_its_error():
     assert "PREVIOUS ATTEMPT FAILED" in fake.prompts[1] and "boom: no such column" in fake.prompts[1]
     assert len(store.list_artifacts("students", "pre")) == 1
     assert (store.folder("students", "pre", None, a.id) / "code.py").read_text() == GOOD
+
+
+def test_words_in_the_script_field_are_sent_back_without_a_run(tmp_path, monkeypatch):
+    runs: list[str] = []
+    real = sandbox.run
+    monkeypatch.setattr(sandbox, "run", lambda code, csv, out: runs.append(code) or real(code, csv, out))
+    fake = FakeLLM(PROSE, GOOD)
+    set_llm(fake)
+    a, decline, thoughts = D.draw(request())
+    assert decline is None and a is not None and len(fake.prompts) == 2 and len(thoughts) == 2
+    assert runs == [GOOD]
+    assert "must hold only the Python script" in fake.prompts[1] and "It began: 'I will read the CSV" in fake.prompts[1]
 
 
 def test_three_failures_are_a_decline_and_no_folder(tmp_path):

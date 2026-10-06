@@ -17,34 +17,43 @@ import uuid
 from pathlib import Path
 
 import causal_agent.families.registry  # noqa: F401  (registers every family's block before a pack is read)
+from causal_agent.common import trace
 from causal_agent.common.contracts import FamilyDecision, Handoff, RunRecord
 
 
-def run_lane(h: Handoff, question: str) -> dict:
-    """The specialist subgraph for the pack's family, in this process."""
+def run_lane(h: Handoff, question: str, *, thread_id: str | None = None) -> dict:
+    """The specialist subgraph for the pack's family, in this process, as one named root (or child, under a parent handed in)."""
     from causal_agent.families import registry as R
 
     sub = R.lanes().get(h.family)
     if sub is None:
         return {"status": "not_supported", "family": h.family, "message": f"no specialist for {h.family}"}
     cfg = {
-        "configurable": {"thread_id": str(uuid.uuid4())},
-        "tags": [f"dataset:{h.pack_name}", f"lane:{h.specialist}", "desk"],
-        "metadata": {"dataset": h.pack_name},
+        "run_name": f"lane:{h.family}",
+        "configurable": {"thread_id": thread_id or str(uuid.uuid4())},
+        "tags": [f"dataset:{h.pack_name}", f"lane:{h.specialist}", f"design:{h.design_id}", "desk"],
+        "metadata": {"dataset": h.pack_name, "family": h.family, "specialist": h.specialist, "design": h.design_id},
     }
     out = sub.invoke({"question": question, "handoff": h, "dataset": h.pack_name}, cfg)
     return out.get("specialist_result") or {"status": "unknown"}
 
 
-def run(handoff_path: str | Path, index: int, dataset: str, question: str, decision: dict | None = None, decision_record: str = "") -> RunRecord:
-    """The lane in a subprocess on a hand-off file; a RunRecord either way."""
+def run(
+    handoff_path: str | Path,
+    index: int,
+    dataset: str,
+    question: str,
+    decision: dict | None = None,
+    decision_record: str = "",
+    thread_id: str | None = None,
+) -> RunRecord:
+    """The lane in a subprocess on a hand-off file; a RunRecord either way. The child continues the caller's trace and thread."""
     from causal_agent.profile.datasets import ROOT
 
     handoff_path = Path(handoff_path)
     out_path = handoff_path.parent / "result.json"
     cmd = [sys.executable, "-m", "causal_agent.desk.pipeline", str(handoff_path), "--json-file", str(out_path)]
-    env = dict(os.environ)
-    env.setdefault("LANGSMITH_TAGS", "desk")
+    env = trace.child_env(dict(os.environ), thread_id)
     proc = subprocess.run(cmd, cwd=str(ROOT), env=env, capture_output=True, text=True)
     if not out_path.exists():
         tail = (proc.stderr or proc.stdout or "")[-2000:]
@@ -114,9 +123,7 @@ def save_record(rec: RunRecord) -> Path | None:
     """The record beside the design it came from, so a later conversation can list the run."""
     if not rec.design_dir:
         return None
-    p = Path(rec.design_dir) / "record.json"
-    p.write_text(rec.model_dump_json(indent=2))
-    return p
+    return trace.write(Path(rec.design_dir) / "record.json", rec.model_dump_json(indent=2))
 
 
 def load_record(design_dir: str | Path) -> RunRecord | None:
@@ -132,8 +139,9 @@ def main(argv: list[str] | None = None) -> None:
     args = ap.parse_args(argv)
     raw = json.loads(Path(args.handoff).read_text())
     h = Handoff.model_validate(raw)
-    sr = run_lane(h, h.question)
-    Path(args.json_file).write_text(json.dumps(sr, default=str))
+    with trace.parent():
+        sr = run_lane(h, h.question, thread_id=trace.thread_id())
+        trace.write(args.json_file, json.dumps(sr, default=str))
 
 
 if __name__ == "__main__":

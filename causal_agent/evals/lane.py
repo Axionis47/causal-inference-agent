@@ -23,6 +23,7 @@ from causal_agent.evals.spec import EvalSpec
 def run_from_handoff(s: EvalSpec, handoff: Handoff, question: str) -> dict:
     g = s.lane_graph()
     cfg = {
+        "run_name": f"lane:{s.family}",
         "configurable": {"thread_id": str(uuid.uuid4())},
         "tags": [f"dataset:{handoff.pack_name}", f"lane:{s.prefix}"],
         "metadata": {"dataset": handoff.pack_name},

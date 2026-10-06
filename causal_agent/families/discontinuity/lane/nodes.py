@@ -23,6 +23,7 @@ import numpy as np
 import pandas as pd
 from langgraph.types import Command, Send
 
+from causal_agent.common import trace
 from causal_agent.common.addresses import key as _key
 from causal_agent.common.addresses import norm_address
 from causal_agent.common.contracts import CheckResult, Checks, Cited, Contrast, Decline, Estimate, Feasibility, Handoff, LaneAsk, Refutation
@@ -1062,7 +1063,7 @@ def assess(state: SpecialistState) -> Command:
                     + ", ".join(sorted({r.name for r in flags if r.name in argue}))
                     + "; cite the card that says how the score was set or that the covariate was fixed before the change"
                 )
-        if errors:
+        if trace.gate(errors, name="gate:assess"):
             continue
         _writer()({"assess": parsed.model_dump()})
         if parsed.action == "proceed":
@@ -1138,7 +1139,7 @@ def pick_estimator(state: SpecialistState) -> Command:
         for c in parsed.cites:
             if not V.resolves(c, state["handoff"], checks=list(check_addresses) + [f"estimator:{n}" for n in names], also=_made_here(state)):
                 errors.append(f"{c} is not a check, pack, ladder or estimator address")
-        if not errors:
+        if not trace.gate(errors, name="gate:pick_estimator"):
             _writer()({"estimator": parsed.model_dump()})
             return Command(
                 goto="window",
@@ -1347,11 +1348,12 @@ def freeze_design(state: SpecialistState) -> Command:
         modifiers=[m.column for m in lad.heterogeneity.modifiers] if lad.heterogeneity is not None else [],
     )
     run_dir = Path(state["run_dir"])
-    (run_dir / "design.json").write_text(d.model_dump_json(indent=2))
-    (run_dir / "design.md").write_text(d.render())
+    trace.write(run_dir / "design.json", d.model_dump_json(indent=2))
+    trace.write(run_dir / "design.md", d.render())
     b = adapter.bins(canon["y"], canon["x"])
     if b is not None:
         b.to_csv(run_dir / "bins.csv", index=False)
+        trace.artifact(run_dir / "bins.csv")
     _writer()({"design": d.render()})
     return Command(goto="estimate", update={"design": d})
 
@@ -1835,7 +1837,7 @@ def interpret(state: SpecialistState) -> dict:
                 errors.append(f"bandwidth_right_stated {parsed.bandwidth_right_stated} does not match h = {prim['h_right']:.4g} on the treated side")
             if parsed.n_left_stated != prim["n_h_left"] or parsed.n_right_stated != prim["n_h_right"]:
                 errors.append(f"effective rows must be {prim['n_h_left']} control-side and {prim['n_h_right']} treated-side")
-        if not errors:
+        if not trace.gate(errors, name="gate:interpret"):
             break
     out: dict[str, Any] = {"interpretations": [parsed], "debug": debug}
     if errors:

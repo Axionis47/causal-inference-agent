@@ -38,7 +38,12 @@ ax.set_ylabel("mean math score")
 fig.savefig("figure.png")
 json.dump({"mean_standard": float(means["standard"]), "mean_free_reduced": float(means["free/reduced"])}, open("facts.json", "w"))
 """
-DRAW = DrawCode(code=DRAW_SCRIPT, caption="Mean math score by lunch, standard against free or reduced.", facts=["mean_standard", "mean_free_reduced"])
+DRAW = DrawCode(
+    plan="mean math score by lunch, as two bars",
+    code=DRAW_SCRIPT,
+    caption="Mean math score by lunch, standard against free or reduced.",
+    facts=["mean_standard", "mean_free_reduced"],
+)
 
 
 def U(address: str, value, said: str = "scripted") -> FieldUpdate:

@@ -1,0 +1,147 @@
+hh:
+  name: hh
+  key: hh
+  facts:
+    kind: id
+    nulls: 0
+    null_rate: 0.0
+    distinct: 400
+    constant: false
+    varies_over: unknown
+    numeric:
+      min: 0.0
+      max: 399.0
+      mean: 199.5
+      p01: 3.99
+      p25: 99.75
+      p50: 199.5
+      p75: 299.25
+      p99: 395.01
+    top_values: []
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+    binary_like: false
+    bounds:
+    - '0'
+    - '399'
+    role_hints:
+    - id_like
+score:
+  name: score
+  key: score
+  facts:
+    kind: numeric
+    nulls: 0
+    null_rate: 0.0
+    distinct: 400
+    constant: false
+    varies_over: unknown
+    numeric:
+      min: -0.9993986197861542
+      max: 0.994419871578422
+      mean: 0.061374
+      p01: -0.9757507870789012
+      p25: -0.42746266355538387
+      p50: 0.11092599222725799
+      p75: 0.5945569639771393
+      p99: 0.9880713539589873
+    top_values: []
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+    binary_like: false
+    bounds:
+    - '-0.999399'
+    - '0.99442'
+    role_hints:
+    - measure
+got_it:
+  name: got_it
+  key: got_it
+  facts:
+    kind: boolean
+    nulls: 0
+    null_rate: 0.0
+    distinct: 2
+    constant: false
+    varies_over: unknown
+    numeric: null
+    top_values:
+    - value: '0'
+      count: 217
+      share: 0.5425
+    - value: '1'
+      count: 183
+      share: 0.4575
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+    binary_like: true
+    bounds: null
+    role_hints:
+    - binary
+outcome:
+  name: outcome
+  key: outcome
+  facts:
+    kind: numeric
+    nulls: 0
+    null_rate: 0.0
+    distinct: 400
+    constant: false
+    varies_over: unknown
+    numeric:
+      min: 0.3754431497261785
+      max: 3.533325992518781
+      mean: 1.928489
+      p01: 0.5364725637914521
+      p25: 1.2083205634765855
+      p50: 1.7278307149653558
+      p75: 2.688464904861976
+      p99: 3.3899968687562585
+    top_values: []
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+    binary_like: false
+    bounds:
+    - '0.375443'
+    - '3.53333'
+    role_hints:
+    - measure
+age:
+  name: age
+  key: age
+  facts:
+    kind: numeric
+    nulls: 0
+    null_rate: 0.0
+    distinct: 50
+    constant: false
+    varies_over: unknown
+    numeric:
+      min: 20.0
+      max: 69.0
+      mean: 44.6625
+      p01: 20.0
+      p25: 32.0
+      p50: 46.0
+      p75: 57.0
+      p99: 69.0
+    top_values: []
+    datetime: null
+    switch: null
+    sentinels: []
+    format_issues: []
+    binary_like: false
+    bounds:
+    - '20'
+    - '69'
+    role_hints:
+    - period
+    - measure

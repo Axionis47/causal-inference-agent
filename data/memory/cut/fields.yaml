@@ -1,0 +1,256 @@
+claim:assignment.kind:
+  value: cutoff_rule
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:assignment.takeup_by_side
+claim:assignment.rule:
+  value: households with a score below zero were eligible
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:assignment.takeup_by_side
+claim:assignment.score_column:
+  value: score
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:assignment.takeup_by_side
+claim:assignment.cutoff:
+  value: 0.0
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:assignment.takeup_by_side
+claim:assignment.treated_side:
+  value: below
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:assignment.takeup_by_side
+claim:assignment.cutoff_value_treated:
+  value: false
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:assignment.takeup_by_side
+claim:assignment.treatment_column:
+  value: got_it
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:assignment.takeup_by_side
+claim:assignment.treated_level:
+  value: '1'
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:assignment.takeup_by_side
+claim:assignment.movable:
+  value: false
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:assignment.takeup_by_side
+claim:change.what:
+  value: a cash transfer
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+claim:change.to_whom:
+  value: poor households
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+claim:change.when:
+  value: '2006'
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+claim:grain.row_is:
+  value: one household
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:grain.key_unique
+claim:grain.key_columns:
+  value:
+  - hh
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:grain.key_unique
+claim:grain.panel:
+  value: false
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+  - check:grain.key_unique
+col:hh.meaning:
+  value: household id
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:hh.when:
+  value: before
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:score.meaning:
+  value: the eligibility score
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:score.when:
+  value: before
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:got_it.meaning:
+  value: received the transfer
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:got_it.when:
+  value: at
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:outcome.meaning:
+  value: support for the government
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:outcome.when:
+  value: after
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:age.meaning:
+  value: age of the head
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+col:age.when:
+  value: before
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+claim:sampling.how:
+  value: whole
+  status: confirmed
+  source: user:turn:1
+  said: null
+  evidence:
+  - doc:context
+  - user:turn:1
+claim:missing.why:
+  value: none
+  status: confirmed
+  source: data
+  said: null
+  evidence:
+  - check:missing.missing_by_arm
+claim:unobserved.exists:
+  value: null
+  status: unknown
+  source: user:turn:2
+  said: null
+  evidence:
+  - user:turn:2
+claim:exclusion.exists:
+  value: null
+  status: unknown
+  source: user:turn:2
+  said: null
+  evidence:
+  - user:turn:2
+claim:spillover.possible:
+  value: null
+  status: unknown
+  source: user:turn:2
+  said: null
+  evidence:
+  - user:turn:2
+claim:cutoff_only.believed:
+  value: null
+  status: unknown
+  source: user:turn:2
+  said: null
+  evidence:
+  - user:turn:2

@@ -23,7 +23,9 @@ Four levels, one direction, one gate.
 1. **said**: every sentence, verbatim, always kept, never interpreted.
 2. **drafted**: a tool's reading of a sentence, a note, or the file. Carries the reason. Never trusted by the matrix.
 3. **confirmed**: on the person's word or a data check, and only then. Carries the reason.
-4. **fact**: what a lane takes from the pack, weighed by code.
+4. **fact**: what a lane takes from the pack, weighed by code. (Amended by
+   [ADR 0011](0011-the-design-space-is-declared-and-the-reasoning-stays-inside-it.md): a data check's result, or a word
+   about the data's shape that a check bears out; a word about cause is evidence to a judgement at every status.)
 
 A tool can only draft. Only the person or the data escalates. A contradiction is remembered as one, never overwritten.
 A relationship between columns is a claim under the same rule, not lane state. Artifacts are evidence with an address;
@@ -33,7 +35,9 @@ they never set a field.
 
 The Designer writes one record per lane with these decisions filled, each with the claim addresses it rests on and the
 reason. The lane's block is that record. The matrix strikes a family when a claim a decision rests on does not fit. The
-interview asks for a claim only because a decision needs it.
+interview asks for a claim only because a decision needs it. A decision rests on a claim as evidence the lane's judgement
+weighs with its status; code never derives the decision from the claim
+([ADR 0011](0011-the-design-space-is-declared-and-the-reasoning-stays-inside-it.md)).
 
 Adjustment:
 

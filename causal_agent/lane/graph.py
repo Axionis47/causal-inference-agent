@@ -12,11 +12,11 @@ from langgraph.graph import StateGraph
 from causal_agent.common.llm import RETRY as RETRY  # the policy every judgement node shares
 
 
-def compile_subgraph(build: Callable[[], StateGraph]) -> Any:
-    """As a node inside the desk's graphs: no checkpointer of its own, no interrupts."""
-    return build().compile(checkpointer=False)
+def compile_subgraph(build: Callable[[], StateGraph], name: str) -> Any:
+    """As a node inside the desk's graphs: no checkpointer of its own, no interrupts; named, so its trace root reads as the lane."""
+    return build().compile(checkpointer=False, name=name)
 
 
-def compile_local(build: Callable[[], StateGraph]) -> Any:
+def compile_local(build: Callable[[], StateGraph], name: str) -> Any:
     """Standalone, for tests and the command line: an in-memory checkpointer, a thread_id per run."""
-    return build().compile(checkpointer=InMemorySaver())
+    return build().compile(checkpointer=InMemorySaver(), name=name)
