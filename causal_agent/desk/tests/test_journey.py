@@ -1223,3 +1223,12 @@ def test_the_memory_is_mirrored_into_the_state_after_every_save_and_no_node_read
         if re.search(r'state(\.get\(|\[)"memory"', line)
     ]
     assert not hits, hits
+
+
+def test_a_story_told_in_the_chat_is_not_asked_again_when_the_person_wants_to_run(_no_note):
+    d = Desk(DeskFake())
+    d.say(QUESTION)
+    p = d.say("claim:assignment.kind = own_choice")  # said in passing, before any wish to run: drafted, nothing asked
+    assert p["kind"] == "chat" and HELD["students"].field("claim:assignment.kind").status == "drafted"
+    p = d.say("let's run it")
+    assert p["ask"]["kind"] == "confirm" and "Tell me the story" not in p["text"], "the chat told it; the readback comes first"

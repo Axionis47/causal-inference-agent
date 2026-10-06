@@ -310,11 +310,12 @@ def acknowledge(memory: Memory, addresses: list[str]) -> str:
     return ("Noted: " + "; ".join(lines) + "\n\n") if lines else ""
 
 
-def _told_by_note(memory: Memory, opened: list) -> bool:
-    """Whether a note already told the story: a draft among the open fields comes from doc:<name>."""
+def _told_already(memory: Memory, opened: list) -> bool:
+    """Whether the story was already told, by a note or by the person in the chat: a draft among the open fields comes from
+    doc:<name> or from user:turn:<n>. Asking for it again would be asking for what the memory already holds."""
     for o in opened:
         f = memory.field(o.address)
-        if o.status == "drafted" and f is not None and (f.source or "").startswith("doc:"):
+        if o.status == "drafted" and f is not None and (f.source or "").startswith(("doc:", "user:turn:")):
             return True
     return False
 
@@ -333,7 +334,7 @@ def ask(state: DeskState) -> Command[Literal["listen", "convince"]]:
     if intent and not state.get("story_asked") and opened:
         flags["story_asked"] = True
         story = memory.field("claim:story.text")
-        if not _told_by_note(memory, opened) and (story is None or story.value is None):
+        if not _told_already(memory, opened) and (story is None or story.value is None):
             a = Ask(addresses=[o.address for o in opened], kind="story", text=STORY_TEXT, because=sorted({b for o in opened for b in o.because}))
     if a is None and intent:  # only what blocks is asked; a relation a decision rests on never does
         opened = [o for o in opened if not o.optional or o.status == "drafted"]
