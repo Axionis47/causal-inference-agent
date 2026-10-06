@@ -98,7 +98,7 @@ is outside. A core package never names a family or an engine; `families/tests/te
 
 **The desk** (`desk/graph.py`) is one LangGraph and the only graph: the question first, then one question per turn until
 the matrix says ready, then the run, then the chat after. Nodes are code except the judgements, each one model call gated
-by code (`infer`, `explain`, `read_question`/frame, `decide`, `design`, `turn`, the drawing tool). Interrupts are
+by code (`infer`, `explain`, `read_question`/frame, `decide`, `design`, `turn`, the exploration agent). Interrupts are
 `ask_question`, `listen`, `talk`; the server resumes with `Command(resume=text)`. `listen` matches no word but quit: the Reader
 reads every turn's kind, and a `run` read at the ready moment is what launches the analysis. `desk/route.py` is the same nodes as one function for the evals.
 
@@ -122,10 +122,12 @@ never asks the person; what it would not guess is a flag (`unsure`), and on a ca
 `result.json` plus a run folder under `.artifacts/runs/`. The three built lanes are adjustment (DoWhy), diff-in-diff
 (pyfixest) and discontinuity (rdrobust); four more families are declared so the routing can rule them in or out.
 
-**The drawing tool** (`viz/draw.py`, `viz/sandbox.py`; its pictures live on the artifacts shelf, `memory/artifacts.py`) draws only on request, before or after a run: the
-model writes a matplotlib script, the sandbox runs it in the strongest fence at hand (the macOS seatbelt, bwrap or unshare
-on Linux, Docker when asked, else a plain subprocess with a scrubbed environment), and the numbers the script writes to
-`facts.json` become facts the chat can cite. Three tries, then a decline.
+**The exploration agent** (`explore/`) looks at the data on request, from any turn, before or after a run: a separate agent
+reached over A2A in its own process, one tool (`run_code`) that runs a script in the sandbox (`viz/sandbox.py`: the macOS
+seatbelt, bwrap or unshare on Linux, Docker when asked, else a plain subprocess with a scrubbed environment), a bounded
+episode over it, and one gated record naming the step whose files are the answer. Before a design has run the table it is
+sent has the outcome or the treatment taken out, so it cannot estimate the effect. What it made lands on the artifacts shelf
+(`memory/artifacts.py`), and the numbers in its `facts.json` become facts the chat can cite. Three tries, then a decline.
 
 **Addresses** are the spine: `col:`, `claim:`, `probe:`, `check:`, `estimate:`, `refute:`/`placebo:`, `figure:`,
 `artifact:`, `step:`, `user:turn:`. The chat after a run (`desk/material.py`, `desk/nodes/after.py`) may only say what it

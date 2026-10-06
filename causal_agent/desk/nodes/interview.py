@@ -35,10 +35,12 @@ from causal_agent.desk.nodes.shared import (
     options_text,
     probes_and_facts,
     record,
+    thread_id,
     value_words,
 )
 from causal_agent.desk.readback import compose_readback
 from causal_agent.desk.state import Context, DeskState
+from causal_agent.explore import client as XC
 from causal_agent.families import registry as R
 from causal_agent.families.base import Decision, Family
 from causal_agent.memory import ops
@@ -46,7 +48,6 @@ from causal_agent.memory import views as V
 from causal_agent.memory.matrix import Matrix
 from causal_agent.memory.records import Memory
 from causal_agent.profile import data as PD
-from causal_agent.viz import draw as VD
 
 STORY_TEXT = (
     "Tell me the story: what the change was, who could get it and how that was decided, what each column records and when it "
@@ -346,9 +347,9 @@ def ask(state: DeskState) -> Command[Literal["listen", "convince"]]:
         head = compose_map(st, memory, state.get("frame")) + "\n\n" + head
     if state.get("explained"):  # the person asked the desk something last turn: the answer comes first
         head = state["explained"] + "\n\n" + head
-    if state.get("drawn"):  # the person asked for a picture last turn: the caption comes first, the picture beside the reply
-        head = state["drawn"] + "\n\n" + head
-    shown = {"artifact": state.get("artifact"), "drawn": None, "oriented": True, "explained": None, "note": "", **flags}
+    if state.get("explored"):  # the person asked to look at the data last turn: the summary comes first, the artifact beside the reply
+        head = state["explored"] + "\n\n" + head
+    shown = {"artifact": state.get("artifact"), "explored": None, "oriented": True, "explained": None, "note": "", **flags}
     if a is None:
         if intent and st.ready:
             return Command(goto="convince", update={"ask": None, "reply": head, **shown})
@@ -461,7 +462,7 @@ def at_ready_moment(state: DeskState, memory: Memory) -> bool:
     return state.get("ask") is None and state.get("decision") is not None and state.get("convinced_version") == memory.version and bool(state.get("ready"))
 
 
-def infer(state: DeskState) -> Command[Literal["infer", "draw", "check", "explain", "handoff"]]:
+def infer(state: DeskState) -> Command[Literal["infer", "explore", "check", "explain", "handoff"]]:
     """The Reader over what the person said this turn, source user:turn:<n>: the kind of turn first, then what it settles,
     confirms, or leaves unknown, and whether it asks the desk something or asks for a picture. The story is read into drafts
     the readback confirms. Three tries when a reading is refused. A run at the ready moment is the word that launches; a run
@@ -500,7 +501,7 @@ def infer(state: DeskState) -> Command[Literal["infer", "draw", "check", "explai
             focus_update = {"focus": list(dict.fromkeys(out.focus))}
     attempts = int(state.get("infer_attempts") or 0) + 1
     asked_desk = (out.question or "").strip() or state.get("desk_question") or None  # kept across retries
-    asked_draw = (out.explore or "").strip() or state.get("draw_request") or None
+    asked_explore = (out.explore or "").strip() or state.get("explore_request") or None
     _writer()({"infer": {"settled": settled, "rejected": rejected, "attempt": attempts, **({"focus": focus_update["focus"]} if focus_update else {})}})
     update = {
         **F.saved(memory),
@@ -509,7 +510,7 @@ def infer(state: DeskState) -> Command[Literal["infer", "draw", "check", "explai
         "settled_now": settled,
         "debug": thoughts,
         "desk_question": asked_desk,
-        "draw_request": asked_draw,
+        "explore_request": asked_explore,
         **focus_update,
     }
     if rejected and attempts < INFER_ATTEMPTS:
@@ -521,38 +522,57 @@ def infer(state: DeskState) -> Command[Literal["infer", "draw", "check", "explai
         if ready_now:  # the word, on the design just shown
             return Command(goto="handoff", update={**update, "artifact": None})
         return Command(goto="check", update={**update, "run_intent": True})  # the interview asks what blocks, then shows the ready moment
-    if asked_draw:
-        return Command(goto="draw", update=update)
+    if asked_explore:
+        return Command(goto="explore", update=update)
     if asked_desk:
         return Command(goto="explain", update={**update, "explain_errors": [], "explain_attempts": 0})
     return Command(goto="check", update=update)
 
 
-# ------------------------------------------------------------------ draw (the drawing tool), before the run
+# ------------------------------------------------------------------ explore (the exploration agent), before the run
 
 
-def draw_context(memory: Memory) -> tuple[str, dict[str, str]]:
-    """What the drawing tool is told about the file: the dataset, the change, the beliefs, and one line per column."""
+def explore_context(memory: Memory) -> tuple[str, dict[str, str]]:
+    """What the exploration agent is told about the file: the dataset, the change, the beliefs, and one line per column."""
     cols = "\n".join(V.brief_of(memory, c).line() for c in memory.columns.values() if not c.facts.constant)
     return V.context_text(memory) + "\n\nCOLUMNS\n" + cols, {c.key: c.name for c in memory.columns.values()}
 
 
-def draw(state: DeskState) -> Command[Literal["explain", "check"]]:
-    """The person asked for a picture: the drawing tool makes it from the file, the journal records it, and the caption is shown
-    before the next thing asked. A picture settles nothing."""
+def pair_names(state: DeskState, memory: Memory) -> tuple[str | None, str | None]:
+    """The outcome and the treatment by the file's own names, as far as the frame and the memory know them."""
+    fr = state.get("frame")
+    out = memory.column(fr.outcome) if fr is not None and fr.outcome else None
+    t = memory.value("claim:assignment.treatment_column") or (fr.cause if fr is not None else None)
+    tr = memory.column(str(t)) if t else None
+    return (out.name if out else None), (tr.name if tr else None)
+
+
+def explore(state: DeskState) -> Command[Literal["explain", "check"]]:
+    """The person asked to look at the data: the exploration agent makes it from the file, the journal records it, and the
+    summary is shown with the artifact beside the reply. What it made settles nothing."""
     memory = F.memory_of(state)
     turn = int(state.get("turn") or 0)
-    ask = state.get("draw_request") or ""
-    context, columns = draw_context(memory)
-    req = VD.DrawRequest(
-        dataset=memory.name, memory_version=memory.version, data_version=memory.data_version, ask=ask, context=context, csv=_csv_path(memory), columns=columns
+    ask = state.get("explore_request") or ""
+    context, columns = explore_context(memory)
+    outcome, treatment = pair_names(state, memory)
+    artifact, decline, thoughts = XC.explore(
+        dataset=memory.name,
+        ask=ask,
+        context=context,
+        columns=columns,
+        csv=_csv_path(memory),
+        outcome=outcome,
+        treatment=treatment,
+        frozen=False,
+        design=None,
+        memory_version=memory.version,
+        data_version=memory.data_version,
+        thread_id=thread_id(),
     )
-    artifact, decline, thoughts = VD.draw(req)
-    _writer()({"draw": {"ask": ask, "made": artifact is not None, "why": decline.reason if decline else ""}})
+    _writer()({"explore": {"ask": ask, "made": artifact is not None, "why": decline.reason if decline else ""}})
     if artifact is None:
         assert decline is not None
-        drawn = f"I could not draw that: {decline.reason}"
-        update: dict = {"drawn": drawn, "artifact": None}
+        update: dict = {"explored": f"I could not look at that: {decline.reason}", "artifact": None}
     else:
         record(
             state,
@@ -561,11 +581,11 @@ def draw(state: DeskState) -> Command[Literal["explain", "check"]]:
             memory=memory,
             design=design_now(state),
             read=[f"user:turn:{turn}"],
-            left=[str(VD.store.folder(artifact.dataset, artifact.id))],
+            left=[str(XC.VA.folder(artifact.dataset, artifact.id))],
             note=ask,
         )
-        update = {"drawn": f"{artifact.summary} [{artifact.address}]", "artifact": artifact.model_dump()}
-    update.update({"draw_request": None, "debug": thoughts})
+        update = {"explored": f"{artifact.summary} [{artifact.address}]", "artifact": artifact.model_dump()}
+    update.update({"explore_request": None, "debug": thoughts})
     if state.get("desk_question"):
         return Command(goto="explain", update={**update, "explain_errors": [], "explain_attempts": 0})
     return Command(goto="check", update=update)
@@ -577,7 +597,7 @@ def draw(state: DeskState) -> Command[Literal["explain", "check"]]:
 MAX_EXPLAIN_ATTEMPTS = 3
 
 
-def explain(state: DeskState) -> Command[Literal["explain", "draw", "check"]]:
+def explain(state: DeskState) -> Command[Literal["explain", "explore", "check"]]:
     """The person asked the desk something: the Explainer answers from the families' knowledge, the matrix, the steps and the
     memory, every cite checked by the one gate; three tries, then the honest fallback. Shown before the next thing asked. An
     answer that turns out to be a drawing request goes to the drawing tool."""
@@ -594,10 +614,10 @@ def explain(state: DeskState) -> Command[Literal["explain", "draw", "check"]]:
     _writer()({"explain": {"question": question, "attempt": attempts, "problems": problems}})
     if problems and attempts < MAX_EXPLAIN_ATTEMPTS:
         return Command(goto="explain", update={"explain_errors": problems, "explain_attempts": attempts, "debug": [thought]})
-    if not problems and out.kind == "draw":
+    if not problems and out.kind == "explore":
         return Command(
-            goto="draw",
-            update={"draw_request": (out.draw or "").strip(), "desk_question": None, "explain_errors": [], "explain_attempts": 0, "debug": [thought]},
+            goto="explore",
+            update={"explore_request": (out.explore or "").strip(), "desk_question": None, "explain_errors": [], "explain_attempts": 0, "debug": [thought]},
         )
     if problems:
         text = "I can only answer that from what is settled. " + (_design_line(st, memory, state.get("frame")) if st else "")

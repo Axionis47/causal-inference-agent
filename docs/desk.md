@@ -17,7 +17,7 @@ routing is a `Command(goto=...)` returned by the node, so the route is always a 
 | interrupt | when | the payload | the resume |
 |---|---|---|---|
 | `ask_question` | the first turn, and again after a question the file cannot answer | the prompt for a causal question | the question text |
-| `listen` | every interview turn | the next ask, the status strip, what is open, a drawn picture if one was asked | the person's message, or `run` |
+| `listen` | every interview turn | the next ask, the status strip, what is open, an artifact if one was asked for | the person's message, or `run` |
 | `talk` | every turn after a run | the brief or the reply, a figure or a picture to show beside it | the person's message, or `done` |
 
 The server resumes with `Command(resume=text)` and keeps the graph on a sqlite checkpointer, so a conversation survives a
@@ -54,7 +54,7 @@ writes a `fit` step when a cell moves. `ask` composes the next thing by code ([d
 </picture>
 
 `listen` takes the answer. `infer` is the Reader over it; on the story turn the desk also keeps the account whole, as the
-one verbatim field only it may write. `draw` and `explain` serve a picture or an answer before the next ask. The Reader reads
+one verbatim field only it may write. `explore` and `explain` serve an artifact or an answer before the next ask. The Reader reads
 the kind of every turn; a run anywhere but the ready moment turns run intent on, after which only what blocks is asked, and a
 run at the ready moment is the word that launches. No word list is matched.
 
@@ -69,7 +69,7 @@ absorbs the run's graph back into the memory as drafts, and writes the record. A
 **The chat after.** `brief` renders the opening message from the material ([desk/material.py](../causal_agent/desk/material.py)):
 the answer, the caveats, the checks that did not pass clean, the refutations, where the lane disagreed with the pack, the figures.
 `turn` is the Explainer routing each message: answer, revise (back through the gate and the checks), what_if (on a copy of the
-memory, a new design), requestion, draw, done.
+memory, a new design), requestion, explore, done.
 
 ## Watching the desk in Studio
 
@@ -84,7 +84,7 @@ Click a node to read what it wrote. `memory` is the memory as it stands after th
 this view and read by no node; the diff against the node before is what the turn changed. `settled_now` is the list of
 addresses this turn wrote. `infer_errors`, `explain_errors`, `gate_errors` and `after_errors` are the gate refusing a
 judgement, try by try. `status`, `matrix` and `open` are the fit. `debug` holds one `Thought` per model call, so a node with
-none ran as code. The judgement nodes are `mine`, `prefilter`, `read_question`, `infer`, `explain`, `draw`, `decide`,
+none ran as code. The judgement nodes are `mine`, `prefilter`, `read_question`, `infer`, `explain`, `explore`, `decide`,
 `design`, `convince` and `turn`; every other node is code. `run` is one box, because the lane runs in its own process; watch a
 lane in its own graph ([lanes.md](lanes.md)). With `LANGSMITH_TRACING=true` in `.env`, Studio links each node to its trace,
 where the prompt text is; without it, the state is the record.

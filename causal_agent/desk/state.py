@@ -62,8 +62,8 @@ class DeskState(RouteState, total=False):
     readback_done: bool  # the drafts have been read back once for this question
     desk_question: str | None  # what the person asked the desk this turn, to answer beside the next ask
     explained: str | None  # the desk's answer, shown before the next ask
-    draw_request: str | None  # what the person asked to see drawn this turn, in their words
-    drawn: str | None  # the drawing tool's line for the reply: the caption with its address, or why it could not draw
+    explore_request: str | None  # what the person asked to look at this turn, in their words
+    explored: str | None  # the exploration agent's line for the reply: the summary with its address, or why it could not look
     artifact: dict | None  # the Artifact shown beside the reply this turn
     explain_errors: list[str]
     explain_attempts: int

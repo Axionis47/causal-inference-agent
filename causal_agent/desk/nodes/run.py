@@ -6,7 +6,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Literal
 
-from langgraph.config import get_config
 from langgraph.runtime import Runtime
 from langgraph.types import Command
 
@@ -16,7 +15,7 @@ from causal_agent.desk import pipeline
 from causal_agent.desk.contracts import Ask
 from causal_agent.desk.nodes import decide as D
 from causal_agent.desk.nodes import frame as F
-from causal_agent.desk.nodes.shared import CAT, journal_of, record
+from causal_agent.desk.nodes.shared import CAT, journal_of, record, thread_id
 from causal_agent.desk.relations import absorb_relations
 from causal_agent.desk.state import Context, DeskState
 from causal_agent.families import registry as R
@@ -95,7 +94,7 @@ def run(state: DeskState) -> dict:
                 question,
                 decision=pipeline.decision_dict(state.get("decision"), state.get("handoff")),
                 decision_record=state.get("decision_record") or "",
-                thread_id=_thread_id(),
+                thread_id=thread_id(),
             )
             s.end(outputs={"status": rec.status, "effect": rec.effect, "ci": [rec.ci_low, rec.ci_high], "estimator": rec.estimator, "run_dir": rec.run_dir})
     rec.what_if = dict(state.get("what_if") or {})
@@ -121,14 +120,6 @@ def run(state: DeskState) -> dict:
             mirror = F.saved(memory)
             record(state, "claim", by="model", memory=memory, design=n, read=written, note="drafted from the run's graph: " + ", ".join(written))
     return {"runs": runs + [rec], "phase": "after", **mirror}
-
-
-def _thread_id() -> str | None:
-    """The conversation's thread, so the lane's process groups under it; None outside a graph run."""
-    try:
-        return str(get_config().get("configurable", {}).get("thread_id") or "") or None
-    except RuntimeError:
-        return None
 
 
 def _g(x: float | None) -> str:

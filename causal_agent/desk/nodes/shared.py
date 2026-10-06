@@ -6,7 +6,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pandas as pd
-from langgraph.config import get_stream_writer
+from langgraph.config import get_config, get_stream_writer
 
 from causal_agent.common.contracts import QuestionFrame, Said
 from causal_agent.families import registry as R
@@ -23,6 +23,14 @@ CAT: Catalogue = load_catalogue()
 TH: dict = load_thresholds()
 INFER_ATTEMPTS = 3
 QUIT_WORDS = {"quit", "exit"}
+
+
+def thread_id() -> str | None:
+    """The conversation's thread, so a process started for this turn groups under it; None outside a graph run."""
+    try:
+        return str(get_config().get("configurable", {}).get("thread_id") or "") or None
+    except RuntimeError:
+        return None
 
 
 def _writer():

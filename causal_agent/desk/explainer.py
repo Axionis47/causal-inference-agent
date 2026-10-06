@@ -24,7 +24,7 @@ from causal_agent.memory.matrix import Matrix
 from causal_agent.memory.records import Memory
 
 Phase = Literal["before", "after"]
-BEFORE_KINDS = {"answer", "draw"}
+BEFORE_KINDS = {"answer", "explore"}
 
 
 # ------------------------------------------------------------------ the material before a run
@@ -32,7 +32,7 @@ BEFORE_KINDS = {"answer", "draw"}
 
 def before_material(memory: Memory, matrix: Matrix | None, probes: list, steps: list[Step], asked: str | None = None) -> M.Material:
     """What the desk may cite before a run: `family:<name>` (the family's knowledge), `matrix:` cells, `probe:` results,
-    `step:<n>`, `user:turn:<n>`, every `claim:`/`col:` field the memory holds, every picture drawn so far with its numbers, and
+    `step:<n>`, `user:turn:<n>`, every `claim:`/`col:` field the memory holds, every artifact made so far with its numbers, and
     what the desk was about to ask."""
     m = M.Material()
     M.add_artifacts(m, memory.name)
@@ -76,7 +76,7 @@ def answer_from(
         memory=(memory.render() if memory is not None else "") or "(nothing known)",
         kinds=kinds_text(),
         exchanges=exchanges_text(exchanges),
-        phase="before the run: only answer and draw are legal" if phase == "before" else "after the run",
+        phase="before the run: only answer and explore are legal" if phase == "before" else "after the run",
         message=message,
         errors=shown,
     )
@@ -96,7 +96,7 @@ def _gate(reply: AfterReply, mat: M.Material, phase: Phase = "after") -> list[st
     phase, and what each kind must carry."""
     errors: list[str] = []
     if phase == "before" and reply.kind not in BEFORE_KINDS:
-        errors.append(f"{reply.kind} is not legal before the run; answer from the material, or draw")
+        errors.append(f"{reply.kind} is not legal before the run; answer from the material, or explore")
         return errors
     if reply.kind == "answer":
         if not reply.cites and reply.figure:
@@ -136,7 +136,7 @@ def _gate(reply: AfterReply, mat: M.Material, phase: Phase = "after") -> list[st
     elif reply.kind == "requestion":
         if not (reply.question or "").strip():
             errors.append("requestion needs the new question in full")
-    elif reply.kind == "draw":
-        if not (reply.draw or "").strip():
-            errors.append("draw needs what to draw, in the person's words")
+    elif reply.kind == "explore":
+        if not (reply.explore or "").strip():
+            errors.append("explore needs what to look at, in the person's words")
     return errors

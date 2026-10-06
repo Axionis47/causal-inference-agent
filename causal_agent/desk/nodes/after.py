@@ -1,6 +1,6 @@
-"""The chat after a run. Facts: brief, answer, revise's gate, requestion, draw_after. Judgement, gated: turn (the Explainer over
+"""The chat after a run. Facts: brief, answer, revise's gate, requestion, explore_after. Judgement, gated: turn (the Explainer over
 what the run left behind). Interrupt: talk. Everything is answered from the run's artifacts and the memory; a change goes
-through the gate and back to the checks; a picture is drawn by the tool from the file and the pack, and cited like any other
+through the gate and back to the checks; an artifact is made by the exploration agent from the file and the pack, and cited like any other
 artifact."""
 
 from __future__ import annotations
@@ -17,14 +17,14 @@ from causal_agent.desk import material as M
 from causal_agent.desk import pipeline
 from causal_agent.desk.contracts import AfterReply, Exchange
 from causal_agent.desk.nodes import frame as F
-from causal_agent.desk.nodes.interview import draw_context
+from causal_agent.desk.nodes.interview import explore_context, pair_names
 from causal_agent.desk.nodes.journey import CAT, QUIT_WORDS
-from causal_agent.desk.nodes.shared import _csv_path, design_now, journal_of, record
+from causal_agent.desk.nodes.shared import _csv_path, design_now, journal_of, record, thread_id
 from causal_agent.desk.state import DeskState
+from causal_agent.explore import client as XC
 from causal_agent.memory import artifacts as VA
 from causal_agent.memory import ops
 from causal_agent.memory.matrix import Matrix
-from causal_agent.viz import draw as VD
 
 MAX_ATTEMPTS = 3
 DONE_WORDS = {"done", "bye", "finished"} | QUIT_WORDS
@@ -113,7 +113,7 @@ def talk(state: DeskState) -> Command[Literal["turn", "__end__"]]:
     elif reply is None and cur is not None and cur.figures:
         figure = cur.figures[0]  # the brief shows the run's first figure
     artifact = state.get("artifact")
-    if artifact is None and reply is not None and cur is not None:  # an answer that cites a drawn picture shows it
+    if artifact is None and reply is not None and cur is not None:  # an answer that cites an artifact shows it
         cited = [c.split(".")[0][len("artifact:") :] for c in reply.cites if c.startswith("artifact:")]
         if cited:
             pool = VA.about(cur.dataset, cur.index)
@@ -143,7 +143,7 @@ def talk(state: DeskState) -> Command[Literal["turn", "__end__"]]:
     return Command(goto="turn", update={"message": answer, "turn": turn, "after_errors": [], "after_attempts": 0, "artifact": None, **mirror})
 
 
-def turn(state: DeskState) -> Command[Literal["turn", "answer", "revise", "what_if", "requestion", "draw_after", "__end__"]]:
+def turn(state: DeskState) -> Command[Literal["turn", "answer", "revise", "what_if", "requestion", "explore_after", "__end__"]]:
     runs = state.get("runs") or []
     cur = runs[-1]
     memory = F.memory_of(state)
@@ -162,7 +162,7 @@ def turn(state: DeskState) -> Command[Literal["turn", "answer", "revise", "what_
         )
         gate = [f"fell back after {attempts} tries: " + "; ".join(gate)]
     ex = Exchange(turn=int(state.get("turn", 0)), user=state.get("message", ""), assistant=out.text, kind=out.kind)
-    goto = {"answer": "answer", "revise": "revise", "what_if": "what_if", "requestion": "requestion", "draw": "draw_after", "done": "__end__"}[out.kind]
+    goto = {"answer": "answer", "revise": "revise", "what_if": "what_if", "requestion": "requestion", "explore": "explore_after", "done": "__end__"}[out.kind]
     return Command(goto=goto, update={"after_reply": out, "after_errors": gate, "after_attempts": 0, "exchanges": [ex], "debug": [thought]})
 
 
@@ -256,38 +256,40 @@ def requestion(state: DeskState) -> dict:
     }
 
 
-def draw_after(state: DeskState) -> dict:
-    """The person asked for a picture after the run: the drawing tool makes it from the file, told what the pack settled and what
-    the run found, and it lands in the design's folder. The caption is the reply; the picture is shown beside it."""
+def explore_after(state: DeskState) -> dict:
+    """The person asked to look at the data or the run after it: the exploration agent makes it from the file, told what the
+    pack settled and what the run found, and it is tagged with the design. The summary is the reply; the artifact beside it."""
     reply = state["after_reply"]
     runs = state.get("runs") or []
     cur = runs[-1]
     memory = F.memory_of(state)
     turn = int(state.get("turn") or 0)
-    ask = (reply.draw or "").strip()
-    context, columns = draw_context(memory)
+    ask = (reply.explore or "").strip()
+    context, columns = explore_context(memory)
+    outcome, treatment = pair_names(state, memory)
     if cur.design_dir and (Path(cur.design_dir) / "handoff.json").exists():
-        context = (
-            Handoff.model_validate_json((Path(cur.design_dir) / "handoff.json").read_text()).render_context()
-            + "\n\nCOLUMNS\n"
-            + context.split("COLUMNS\n", 1)[-1]
-        )
+        h = Handoff.model_validate_json((Path(cur.design_dir) / "handoff.json").read_text())
+        outcome, treatment = h.outcome, h.treatment
+        context = h.render_context() + "\n\nCOLUMNS\n" + context.split("COLUMNS\n", 1)[-1]
     mat = M.render(cur, memory)
     context += "\n\nWHAT THE RUN FOUND\n" + "\n".join(ln for ln in mat.lines if ln.startswith(("[design.", "[estimate:", "[check:", "[refute:", "[placebo:")))
-    req = VD.DrawRequest(
+    artifact, decline, thoughts = XC.explore(
         dataset=memory.name,
+        ask=ask,
+        context=context,
+        columns=columns,
+        csv=_csv_path(memory),
+        outcome=outcome,
+        treatment=treatment,
+        frozen=True,
         design=int(cur.index),
         memory_version=memory.version,
         data_version=memory.data_version,
-        ask=ask,
-        context=context,
-        csv=_csv_path(memory),
-        columns=columns,
+        thread_id=thread_id(),
     )
-    artifact, decline, thoughts = VD.draw(req)
     if artifact is None:
         assert decline is not None
-        text = f"I could not draw that: {decline.reason}"
+        text = f"I could not look at that: {decline.reason}"
         return {"after_reply": reply.model_copy(update={"kind": "answer", "text": text, "cites": ["run.question"]}), "artifact": None, "debug": thoughts}
     record(
         state,

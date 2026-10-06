@@ -71,21 +71,21 @@ class NumberStated(BaseModel):
     value: float = Field(description="the number as you state it in the text")
 
 
-AfterKind = Literal["answer", "revise", "what_if", "requestion", "draw", "done"]
+AfterKind = Literal["answer", "revise", "what_if", "requestion", "explore", "done"]
 
 
 class AfterReply(BaseModel):
-    """The Explainer's reply, before or after the run. Before the run only answer and draw are legal; the gate refuses the rest."""
+    """The Explainer's reply, before or after the run. Before the run only answer and explore are legal; the gate refuses the rest."""
 
     kind: AfterKind = Field(
-        description="answer: reply from the material; revise: the person changed something about the data; what_if: the person asks what the answer would be if the data had been different, without changing what is known; requestion: a new causal question of the same data; draw: they ask for a picture, plot or chart of the data or the run; done: they are finished"
+        description="answer: reply from the material; revise: the person changed something about the data; what_if: the person asks what the answer would be if the data had been different, without changing what is known; requestion: a new causal question of the same data; explore: they ask to look at the data or the run, a picture, a table, a count; done: they are finished"
     )
     text: str = Field(description="the message to the person")
     cites: list[str] = Field(default_factory=list, description="material addresses the message rests on")
     numbers: list[NumberStated] = Field(default_factory=list, description="every number stated in the text, with its address")
     updates: list[FieldUpdate] = Field(default_factory=list, description="for revise and what_if: the field updates the person's words imply")
     question: str | None = Field(default=None, description="for requestion: the new question, in full")
-    draw: str | None = Field(default=None, description="for draw: what to draw, in the person's words")
+    explore: str | None = Field(default=None, description="for explore: what to look at, in the person's words")
     figure: str | None = Field(
         default=None, description="the address of a figure in the material to show beside the text (figure:<id>), when one makes the point"
     )

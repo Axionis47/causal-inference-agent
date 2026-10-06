@@ -220,7 +220,7 @@ def test_students_reaches_ready_in_the_frame_plus_a_few_questions_then_runs():
         p["figure"]["id"] == "effect_completed_vs_none" and (tmp_dir := runs[0].design_dir) and (__import__("pathlib").Path(tmp_dir) / "figures.json").exists()
     )
     assert len(runs) == 1 and runs[0].effect == 5.6 and runs[0].family == "adjustment" and d.values["phase"] == "after"
-    assert fake.calls.count("FamilyDecision") == 0 and fake.calls.count("DrawCode") == 0  # one family stood: chosen by code; nothing drawn unasked
+    assert fake.calls.count("FamilyDecision") == 0 and fake.calls.count("Exploration") == 0  # one family stood: chosen by code; nothing drawn unasked
     assert (d.values["design_dir"]) and d.values["handoff"].design_id == 1
     # the pack carries the brief and bets on its sentence; the design folder holds it twice, in handoff.json and brief.json
     import json
@@ -1117,8 +1117,15 @@ def test_the_brief_reads_first_and_names_a_flag_by_its_sentence(monkeypatch):
 
 @pytest.fixture
 def _artifact_root(tmp_path, monkeypatch):
-    """Drawn pictures land under the memory home; for a test that is tmp_path."""
+    """Artifacts land under the memory home; for a test that is tmp_path. The exploration agent runs in process."""
+    from causal_agent.explore import client as XC
+    from causal_agent.explore import server as XS
+
     monkeypatch.setattr(config, "ROOT", tmp_path)
+    monkeypatch.setenv("VIZ_SANDBOX", "subprocess")
+    XC.set_app(XS.app("http://explore/"))
+    yield tmp_path
+    XC.set_app(None)
 
 
 def test_a_picture_asked_for_before_the_run_is_drawn_shown_and_recorded(_artifact_root, tmp_path):
@@ -1134,7 +1141,7 @@ def test_a_picture_asked_for_before_the_run_is_drawn_shown_and_recorded(_artifac
     a = p["artifact"]
     assert a and a["kind"] == "picture" and a["design"] is None and set(a["facts"]) == {"mean_standard", "mean_free_reduced"}
     assert p["text"].startswith("Mean math score by lunch") and f"[artifact:{a['id']}]" in p["text"] and p["kind"] == "chat"  # the caption; nothing asked
-    assert fake.calls.count("DrawCode") == 1 and "COLUMNS" in fake.humans["DrawCode"][0] and "math score" in fake.humans["DrawCode"][0]
+    assert fake.calls.count("Exploration") == 1 and fake.calls.count("RunCodeStep") == 2 and "math score" in fake.humans["Exploration"][0]
     folder = tmp_path / "data" / "memory" / "students" / "artifacts" / a["id"]
     assert (folder / "figure.png").exists() and (folder / "code.py").exists() and VS.list_artifacts("students")[0].id == a["id"]
     step = d.journal.steps()[-1]
@@ -1177,7 +1184,7 @@ def test_a_number_from_a_picture_drawn_before_the_run_can_be_cited_and_a_wrong_o
 
 def test_a_picture_asked_for_after_the_run_lands_in_the_design_and_is_citable(_artifact_root, tmp_path):
     after = [
-        AfterReply(kind="draw", text="", draw="the mean math score for each lunch group"),
+        AfterReply(kind="explore", text="", explore="the mean math score for each lunch group"),
         AfterReply(kind="answer", text="Standard lunch students average higher.", cites=["artifact:PLACEHOLDER.mean_standard"]),
         AfterReply(kind="done", text="Bye."),
     ]
@@ -1189,7 +1196,7 @@ def test_a_picture_asked_for_after_the_run_lands_in_the_design_and_is_citable(_a
     p = d.say("draw me the mean math score by lunch")
     a = p["artifact"]
     assert a and a["kind"] == "picture" and a["design"] == 1 and p["text"].startswith("Mean math score by lunch") and p["kind"] == "after"
-    assert "WHAT THE RUN FOUND" in fake.humans["DrawCode"][0] and "[estimate:completed_vs_none.value]" in fake.humans["DrawCode"][0]
+    assert "WHAT THE RUN FOUND" in fake.humans["Exploration"][0] and "[estimate:completed_vs_none.value]" in fake.humans["Exploration"][0]
     folder = tmp_path / "data" / "memory" / "students" / "artifacts" / a["id"]
     assert (folder / "figure.png").exists()
     step = d.journal.steps()[-1]

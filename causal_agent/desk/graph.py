@@ -6,7 +6,7 @@
                                                                                                                                                                                                            ├─ revise ─ check …
                                                                                                                                                                                                            ├─ what_if ─ fit ─ … ─ run (on a copy)
                                                                                                                                                                                                            ├─ requestion ─ read_question …
-                                                                                                                                                                                                           ├─ draw_after ─ talk
+                                                                                                                                                                                                           ├─ explore_after ─ talk
                                                                                                                                                                                                            └─ done ─ END
 
 The first thing asked is the causal question, validated against the file. Then the story (unless a note told it), the
@@ -74,7 +74,7 @@ def build() -> StateGraph:
     b.add_node("listen", J.listen)
     b.add_node("infer", J.infer, retry_policy=_retry)
     b.add_node("explain", J.explain, retry_policy=_retry)
-    b.add_node("draw", J.draw)
+    b.add_node("explore", J.explore)
     b.add_node("fit", D.fit)
     b.add_node("decide", D.decide, retry_policy=_retry)
     b.add_node("gate", J.gate)
@@ -89,7 +89,7 @@ def build() -> StateGraph:
     b.add_node("revise", A.revise)
     b.add_node("what_if", A.what_if)
     b.add_node("requestion", A.requestion)
-    b.add_node("draw_after", A.draw_after)
+    b.add_node("explore_after", A.explore_after)
     b.add_edge(START, "load")
     b.add_edge("load", "ask_question")
     # ask_question → mine | END, via Command
@@ -98,8 +98,8 @@ def build() -> StateGraph:
     # read_question → ask_question | check, via Command
     b.add_edge("check", "probe_fit")
     b.add_edge("probe_fit", "ask")
-    # ask → listen | convince | fit; listen → infer | fit | handoff | check | END; infer → infer | draw | explain | check;
-    # draw → explain | check; explain → explain | draw | check, via Command
+    # ask → listen | convince | fit; listen → infer | fit | handoff | check | END; infer → infer | explore | explain | check | handoff;
+    # explore → explain | check; explain → explain | explore | check, via Command
     b.add_edge("convince", "listen")
     b.add_edge("fit", "decide")
     b.add_edge("decide", "gate")
@@ -109,9 +109,9 @@ def build() -> StateGraph:
     b.add_conditional_edges("run", J.after_run, ["ask_back", "brief"])
     b.add_edge("ask_back", "listen")
     b.add_edge("brief", "talk")
-    # talk → turn | END; turn → answer | revise | what_if | requestion | draw_after | END; revise → check | talk; what_if → fit | talk, via Command
+    # talk → turn | END; turn → answer | revise | what_if | requestion | explore_after | END; revise → check | talk; what_if → fit | talk, via Command
     b.add_edge("answer", "talk")
-    b.add_edge("draw_after", "talk")
+    b.add_edge("explore_after", "talk")
     b.add_edge("requestion", "read_question")
     return b
 

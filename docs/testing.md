@@ -18,7 +18,7 @@ hands the human prompt to `answer(schema, human)`, and `answer` dispatches on th
 | `FamilyDecision` | adjustment, citing what it was given |
 | `DesignBrief` | a queued brief, else `brief_by_rule` from the family block in the prompt |
 | `AfterReply` | popped from the `explain` queue before the run and the `after` queue after it |
-| `DrawCode` | a queued script, else one that draws mean math score by lunch and keeps two numbers |
+| `RunCodeStep`, `Exploration` | the exploration agent's look (the script that draws mean math score by lunch, then done) and its record (two numbers and the picture), or a queued record |
 
 It records every call and every prompt, so a test can assert what a node was given. `answer_ask(payload)` scripts the person's side
 of the interview, answering each interrupt payload, so a whole conversation runs from question to done in one test.

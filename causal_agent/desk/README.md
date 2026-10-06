@@ -26,16 +26,16 @@ The one conversation from a CSV to a routed context pack, and back after the run
   over a message tagged `user:turn:<n>` or a note tagged `doc:<name>`, returning a `Reading`: the fields it fills with the words
   each rests on, the drafts confirmed, the ones unknown, and whether it asks the desk something or asks for a picture; the story
   is read into drafts, a note drafts and never confirms and never sets a belief). The gate is `memory.ops.apply`. `draw` (when
-  the person asked for a picture: the drawing tool makes it from the file, the journal records an `explore` step, the caption
+  the person asked for a picture: the exploration agent makes it from the file, the journal records an `explore` step, the caption
   and the picture come before the next thing asked; a picture settles nothing). `explain` is the Explainer before the run
   (`explainer.py`, `answer_from` and `gate`: one prompt, `ANSWER_SYSTEM`/`ANSWER_USER`, one contract `AfterReply`, one gate
   before and after the run; before it the material is `before_material`: `family:<name>` lines with each family's knowledge,
   `matrix:` cells, `probe:` results, `step:<n>`, `user:turn:<n>`, and every `claim:`/`col:` field, so every cite is an address
-  in the material; only `answer` and `draw` are legal before the run and the gate refuses the rest; three tries, then the honest
+  in the material; only `answer` and `explore` are legal before the run and the gate refuses the rest; three tries, then the honest
   fallback). A refuted answer is asked again with the check that refuted it, under the decision that needs it; kept twice, it
   stands as a contradiction and reaches the lane. A run read anywhere but the ready moment turns run intent on, and only what blocks
   is asked from then; a run read at the ready moment launches. After the run:
-  `brief`, `talk`, `turn` (the same Explainer over `material.render`: answer, revise, what_if, requestion, draw, done), with a
+  `brief`, `talk`, `turn` (the same Explainer over `material.render`: answer, revise, what_if, requestion, explore, done), with a
   revision going through the same gate and back to the checks, and a picture drawn into the design's folder and citable as
   `artifact:<id>`.
   Every step writes itself into the conversation's journal (`memory.journal`, through `nodes/shared.record`): the question read,

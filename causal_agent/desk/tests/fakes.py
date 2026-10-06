@@ -10,8 +10,9 @@ from langchain_core.messages import AIMessage
 
 from causal_agent.common.contracts import Candidate, Cited, DecisionMade, DesignBrief, FamilyDecision, PrefilterVote, QuestionFrame, Rejection, Scope
 from causal_agent.desk.contracts import AfterReply, FieldUpdate, Reading
+from causal_agent.explore.contracts import Exploration
+from causal_agent.explore.tools import RunCodeStep
 from causal_agent.families import registry as R
-from causal_agent.viz.draw import DrawCode
 
 FAMILIES = [f.name for f in R.knowledge()]
 QUESTION = "Did completing the prep course raise math scores?"
@@ -38,12 +39,7 @@ ax.set_ylabel("mean math score")
 fig.savefig("figure.png")
 json.dump({"mean_standard": float(means["standard"]), "mean_free_reduced": float(means["free/reduced"])}, open("facts.json", "w"))
 """
-DRAW = DrawCode(
-    plan="mean math score by lunch, as two bars",
-    code=DRAW_SCRIPT,
-    caption="Mean math score by lunch, standard against free or reduced.",
-    facts=["mean_standard", "mean_free_reduced"],
-)
+EXPLORED = Exploration(summary="Mean math score by lunch, standard against free or reduced.", step=1, facts=["mean_standard", "mean_free_reduced"], figure=True)
 
 
 def U(address: str, value, said: str = "scripted") -> FieldUpdate:
@@ -178,12 +174,12 @@ class DeskFake:
         infer=None,
         explain: list[AfterReply] | None = None,
         cites: list[str] | None = None,
-        draw: list[DrawCode] | None = None,
+        explore: list[Exploration] | None = None,
         brief: list[DesignBrief] | None = None,
     ):
         self.after = list(after or [])
         self.brief = list(brief or [])  # a queue of design briefs; empty means one by rule from the prompt
-        self.draw = list(draw or [])  # a queue of scripts for the drawing tool; empty means the one that draws math score by lunch
+        self.explore = list(explore or [])  # a queue of the exploration agent's records; empty means the one that drew math score by lunch
         self.cites = list(cites or [])
         self.infer = infer  # optional callable(message, asked_addresses, human) -> Reading | None, for the Reader over a message
         self.explain = list(explain or [])  # a queue of AfterReply for questions asked before the run
@@ -259,8 +255,11 @@ class DeskFake:
             return self.explain.pop(0) if self.explain else AfterReply(kind="answer", text="A scripted answer.", cites=["family:adjustment"])
         if schema is AfterReply:
             return self.after.pop(0)
-        if schema is DrawCode:
-            return self.draw.pop(0) if self.draw else DRAW
+        if schema is RunCodeStep:  # the exploration agent's look: the script that draws math score by lunch once, then done
+            ran = "WHAT YOU RAN SO FAR" in human
+            return RunCodeStep(done=True) if ran else RunCodeStep(code=DRAW_SCRIPT)
+        if schema is Exploration:
+            return self.explore.pop(0) if self.explore else EXPLORED
         raise AssertionError(schema)
 
 

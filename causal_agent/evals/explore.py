@@ -12,7 +12,7 @@ from __future__ import annotations
 import argparse
 
 from causal_agent.common import trace
-from causal_agent.desk.nodes.interview import draw_context
+from causal_agent.desk.nodes.interview import explore_context
 from causal_agent.desk.nodes.shared import _csv_path
 from causal_agent.explore import client as XC
 from causal_agent.memory import store
@@ -28,7 +28,7 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--design", type=int, default=None)
     args = ap.parse_args(argv)
     memory = store.memory_for(args.dataset)
-    context, columns = draw_context(memory)
+    context, columns = explore_context(memory)
     treatment = args.treatment
     if treatment is None:
         t = memory.value("claim:assignment.treatment_column")

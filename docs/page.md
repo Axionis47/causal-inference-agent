@@ -16,7 +16,7 @@ no model calls and no analysis logic. The page shows and never decides.
 | `POST /api/sessions/{name}/resume` | continue a checkpoint whose step died with the process |
 | `POST /api/sessions/{name}/analyses` | a new question on the same file: a new thread over the memory as it stands, its own journal |
 | `GET /api/runs/{id}`, `/files/{name}` | a run folder's known files |
-| `GET /api/artifacts/{name}/{moment}/{design}/{id}/figure.png` | a drawn picture |
+| `GET /api/artifacts/{name}/{id}/{file}` | a file an artifact lists: its picture, its table |
 
 Everything else serves `web/dist`. The routes are in [server/app.py](../causal_agent/server/app.py); the session manager that runs
 each step in a worker thread and keeps the interrupt payload as the prompt is [server/sessions.py](../causal_agent/server/sessions.py).
@@ -33,7 +33,7 @@ each step in a worker thread and keeps the interrupt payload as the prompt is [s
 | `runs` | one `RunView` per design: the decision, the checks, the estimates, the refutations, the interpretations, the declines, the figures, the pictures drawn after it |
 | `transcript` | one `Turn` per line of the conversation, each with an optional figure or picture |
 | `journal`, `analysis` | the conversation's steps and its id |
-| `artifacts` | the pictures drawn before any run |
+| `artifacts` | the artifacts about the data before any run |
 
 ## The wire is one definition
 
