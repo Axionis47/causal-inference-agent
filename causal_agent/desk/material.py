@@ -7,7 +7,9 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from causal_agent.common.addresses import norm_address
 from causal_agent.common.contracts import Decline, DesignBrief, Estimate, Handoff, RunRecord
+from causal_agent.desk.pull import Item, Shelf, shelf_of
 from causal_agent.memory import artifacts as VA
 from causal_agent.memory.journal import Step
 from causal_agent.memory.matrix import Matrix
@@ -16,17 +18,45 @@ from causal_agent.memory.records import Memory
 
 @dataclass
 class Material:
+    """Everything citable at one point of the conversation, as lines with addresses. Addresses are normalised on the way in,
+    so a cite in another case or spelling of a column still resolves. `pull` and `shelf` are the two reads."""
+
     lines: list[str] = field(default_factory=list)
     addresses: set[str] = field(default_factory=set)
     numbers: dict[str, float] = field(default_factory=dict)
     by_address: dict[str, str] = field(default_factory=dict)
 
     def add(self, address: str, text: str, value: float | None = None) -> None:
+        address = norm_address(address)
         self.lines.append(f"[{address}] {text}")
         self.addresses.add(address)
         self.by_address[address] = text
         if value is not None and isinstance(value, (int, float)) and value == value:
             self.numbers[address] = float(value)
+
+    def close(self) -> None:
+        """Every parent of an address is citable too: artifact:<id> for artifact:<id>.<fact>, estimate:<c> for its .value."""
+        for a in list(self.addresses):
+            self.addresses.add(a.rsplit(".", 1)[0])
+
+    def has(self, address: str) -> bool:
+        return norm_address(address) in self.addresses
+
+    def pull(self, address: str) -> Item | None:
+        """One item by address, or None when nothing on any shelf answers to it."""
+        a = norm_address(address)
+        if a not in self.addresses:
+            return None
+        return Item(address=a, shelf=shelf_of(a), text=self.by_address.get(a, ""), value=self.numbers.get(a))
+
+    def shelf(self, kind: Shelf) -> list[Item]:
+        """Everything on one shelf, in the order it was added."""
+        out = []
+        for line in self.lines:
+            a = line[1:].partition("] ")[0]
+            if shelf_of(a) == kind:
+                out.append(Item(address=a, shelf=kind, text=self.by_address.get(a, ""), value=self.numbers.get(a)))
+        return out
 
     @property
     def text(self) -> str:
@@ -247,8 +277,7 @@ def render(
                 float(f.value) if isinstance(f.value, (int, float)) and not isinstance(f.value, bool) else None,
             )
         _scale(run, m)
-        for a in list(m.addresses):
-            m.addresses.add(a.rsplit(".", 1)[0])
+    m.close()
     return m
 
 

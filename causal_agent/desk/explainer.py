@@ -11,6 +11,7 @@ import re
 from typing import Literal
 
 from causal_agent.common import trace
+from causal_agent.common.addresses import norm_address
 from causal_agent.common.contracts import Thought
 from causal_agent.common.llm import structured
 from causal_agent.desk import material as M
@@ -54,8 +55,7 @@ def before_material(memory: Memory, matrix: Matrix | None, probes: list, steps: 
         if f.value is None and f.status == "empty":
             continue
         m.add(address, f.render(address).split("] ", 1)[-1], float(f.value) if isinstance(f.value, (int, float)) and not isinstance(f.value, bool) else None)
-    for a in list(m.addresses):
-        m.addresses.add(a.rsplit(".", 1)[0])
+    m.close()
     if asked:
         m.add("desk.asked", asked)
     return m
@@ -138,7 +138,8 @@ def _gate(reply: AfterReply, mat: M.Material, phase: Phase = "after") -> list[st
             reply.cites = [reply.figure]
         if not reply.cites and reply.numbers:
             reply.cites = list(dict.fromkeys(n.address for n in reply.numbers))
-        bad = [c for c in reply.cites if c not in mat.addresses]
+        reply.cites = [norm_address(c) for c in reply.cites]  # a cite in another case or spelling still resolves, and is kept as resolved
+        bad = [c for c in reply.cites if not mat.has(c)]
         if bad:
             errors.append(f"cites not in the material: {bad}")
         if not reply.cites:
@@ -147,7 +148,8 @@ def _gate(reply: AfterReply, mat: M.Material, phase: Phase = "after") -> list[st
                 "or say the material cannot answer and cite the nearest line"
             )
         for n in reply.numbers:
-            if n.address not in mat.addresses:
+            n.address = norm_address(n.address)
+            if not mat.has(n.address):
                 errors.append(f"number {n.value} attached to {n.address!r}, which is not in the material")
             elif (
                 n.address in mat.numbers
@@ -161,7 +163,7 @@ def _gate(reply: AfterReply, mat: M.Material, phase: Phase = "after") -> list[st
             if round(v, 6) in stated or _grounded(v, mat):
                 continue
             errors.append(f"the text states {v:g}, which is in no artifact; remove it or attach its address in numbers")
-    if reply.figure and reply.figure not in mat.addresses:
+    if reply.figure and not mat.has(reply.figure):
         errors.append(f"figure {reply.figure!r} is not in the material; name one of the figure: addresses or leave it empty")
     if reply.kind in ("revise", "what_if"):
         if not reply.updates:
