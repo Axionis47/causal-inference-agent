@@ -1,6 +1,9 @@
 # 7. A picture is drawn on request; no figure is drawn before the run
 
-Decided 2026-09-28, folded into ADR 0006 at the time and recorded here on its own.
+Decided 2026-09-28, folded into ADR 0006 at the time and recorded here on its own. Superseded in part on 2026-10-06 by
+[ADR 0013](0013-the-chat-is-the-thing-and-the-memory-has-four-shelves.md): a picture is one product of the exploration
+agent, and it lives on the artifacts shelf by what it is, not under `viz/pre` or the design by when it was made. The rule
+that no figure is drawn before the run unless asked for stands.
 
 Before this, each family registered figures the desk drew at the ready moment to make the family's point, an overlap chart for
 adjustment among them, and a figure-pick graph chose which to show. That was a second reasoning path with its own registry, and
