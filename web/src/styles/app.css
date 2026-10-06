@@ -1568,3 +1568,7 @@ a.chip {
 .pic .facts {
   margin-top: 6px;
 }
+.pic .tbl {
+  margin-top: 6px;
+  max-height: 260px;
+}
