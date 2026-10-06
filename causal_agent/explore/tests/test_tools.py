@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[3]
 CSV = ROOT / "data/raw/students-performance-in-exams/StudentsPerformance.csv"
 
 COUNTS = """import os, json, pandas as pd
-df = pd.read_csv(os.environ["VIZ_CSV"])
+df = pd.read_csv(os.environ["DATA_CSV"])
 counts = df["lunch"].value_counts()
 print(counts.to_string())
 json.dump({"n_standard": int(counts["standard"]), "n_free_reduced": int(counts["free/reduced"])}, open("facts.json", "w"))
@@ -27,7 +27,7 @@ def _tools(tmp_path, dropped=None) -> CodeTools:
 
 
 def test_each_script_runs_in_its_own_step_folder_and_the_text_carries_what_came_back(tmp_path, monkeypatch):
-    monkeypatch.setenv("VIZ_SANDBOX", "subprocess")
+    monkeypatch.setenv("EXPLORE_SANDBOX", "subprocess")
     t = _tools(tmp_path)
     r = t.call("run_code", {"code": COUNTS})
     assert "step 1 ran (subprocess)." in r.text and "standard" in r.text and "files: by_lunch.csv, code.py, facts.json" in r.text
@@ -40,7 +40,7 @@ def test_each_script_runs_in_its_own_step_folder_and_the_text_carries_what_came_
 
 
 def test_a_failing_script_is_a_failed_step_with_its_error(tmp_path, monkeypatch):
-    monkeypatch.setenv("VIZ_SANDBOX", "subprocess")
+    monkeypatch.setenv("EXPLORE_SANDBOX", "subprocess")
     t = _tools(tmp_path)
     r = t.call("run_code", {"code": "import pandas as pd\nraise ValueError('boom: no such column')\n"})
     assert "step 1 failed" in r.text and "boom: no such column" in r.text and not t.step(1).ok

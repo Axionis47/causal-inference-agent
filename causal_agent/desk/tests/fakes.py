@@ -31,7 +31,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-df = pd.read_csv(os.environ["VIZ_CSV"])
+df = pd.read_csv(os.environ["DATA_CSV"])
 means = df.groupby("lunch")["math score"].mean()
 fig, ax = plt.subplots()
 ax.bar(means.index, means.values)

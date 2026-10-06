@@ -25,7 +25,7 @@ CSV = ROOT / "data/raw/students-performance-in-exams/StudentsPerformance.csv"
 
 @pytest.fixture(autouse=True)
 def _env(tmp_path, monkeypatch):
-    monkeypatch.setenv("VIZ_SANDBOX", "subprocess")
+    monkeypatch.setenv("EXPLORE_SANDBOX", "subprocess")
     monkeypatch.setattr(config, "ROOT", tmp_path)
     XC.set_app(S.app("http://explore/"))
     yield tmp_path

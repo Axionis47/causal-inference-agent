@@ -65,7 +65,7 @@ make dev-web                    # the page on :5173, proxying /api
 make studio                     # langgraph dev on :2024: the desk and the adjustment lane from langgraph.json
 make evals FAMILY=adjustment    # a family's cases against its LangSmith dataset; `evals.dataset <family>` uploads the cases first
 make trace                      # the newest LangSmith trace as a tree (see the rule above)
-make viz-image                  # the drawing tool's container image, for VIZ_SANDBOX=docker
+make explore-image              # the exploration agent's container image, for EXPLORE_SANDBOX=docker
 uv run python -m causal_agent.desk.handoff <dataset> --family <f> --outcome ... -o handoff.json   # a forced hand-off; scripts/forced_handoffs.sh regenerates the stored ones
 uv run python -m causal_agent.desk.pipeline designs/<n>/handoff.json --json-file out.json         # the lane process exactly as the desk launches it
 ```
@@ -73,7 +73,7 @@ uv run python -m causal_agent.desk.pipeline designs/<n>/handoff.json --json-file
 **Environment.** Copy `.env.example` to `.env`; `common/config.py` is the one reading of it. The model is Gemini on Vertex AI
 through application-default credentials (`gcloud auth application-default login`); `VERTEX_PROJECT` falls back to the active
 gcloud project. `INCLUDE_THOUGHTS` and `THINKING_BUDGET` are debug knobs. `RUN_DIR` and `PROFILE_CACHE_DIR` move the run
-folders and the profile cache; `VIZ_SANDBOX` picks the drawing fence.
+folders and the profile cache; `EXPLORE_SANDBOX` picks the fence a script runs in.
 
 **Tests.** Set `LANGSMITH_TRACING=false` when running tests locally; `.env` turns tracing on and the tracer floods the output
 when the quota is spent. Tests never call a model: every judgement is scripted through `set_llm(fake)`; see
@@ -123,7 +123,7 @@ never asks the person; what it would not guess is a flag (`unsure`), and on a ca
 (pyfixest) and discontinuity (rdrobust); four more families are declared so the routing can rule them in or out.
 
 **The exploration agent** (`explore/`) looks at the data on request, from any turn, before or after a run: a separate agent
-reached over A2A in its own process, one tool (`run_code`) that runs a script in the sandbox (`viz/sandbox.py`: the macOS
+reached over A2A in its own process, one tool (`run_code`) that runs a script in the sandbox (`explore/sandbox.py`: the macOS
 seatbelt, bwrap or unshare on Linux, Docker when asked, else a plain subprocess with a scrubbed environment), a bounded
 episode over it, and one gated record naming the step whose files are the answer. Before a design has run the table it is
 sent has the outcome or the treatment taken out, so it cannot estimate the effect. What it made lands on the artifacts shelf

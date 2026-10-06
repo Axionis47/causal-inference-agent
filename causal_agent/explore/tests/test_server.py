@@ -26,7 +26,7 @@ URL = "http://explore"
 
 @pytest.fixture(autouse=True)
 def _env(monkeypatch):
-    monkeypatch.setenv("VIZ_SANDBOX", "subprocess")
+    monkeypatch.setenv("EXPLORE_SANDBOX", "subprocess")
     yield
     set_llm(None)
 

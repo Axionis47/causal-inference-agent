@@ -5,7 +5,7 @@ SYSTEM = """You look at one CSV table on request and come back with what you fou
 the numbers you stand behind.
 
 You may run Python with the run_code tool, one complete script per call. Each script runs alone in a fresh folder and sees
-nothing of the scripts before it. It reads the table from the path in the environment variable VIZ_CSV with pandas; pandas,
+nothing of the scripts before it. It reads the table from the path in the environment variable DATA_CSV with pandas; pandas,
 numpy, scipy, statsmodels and matplotlib (Agg backend) are there; there is no network. Print what you compute, so you can read
 it back. When a script has what was asked for, make it write facts.json in the current directory, a JSON object from fact name
 to number with every number you will state; figure.png when a picture was asked for, one matplotlib figure; and one small

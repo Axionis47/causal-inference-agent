@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[3]
 CSV = ROOT / "data/raw/students-performance-in-exams/StudentsPerformance.csv"
 
 TABLE = """import os, json, pandas as pd
-df = pd.read_csv(os.environ["VIZ_CSV"])
+df = pd.read_csv(os.environ["DATA_CSV"])
 t = df.groupby("lunch")["reading score"].mean().round(2)
 print(t.to_string())
 json.dump({"reading_standard": float(t["standard"]), "reading_free_reduced": float(t["free/reduced"])}, open("facts.json", "w"))
@@ -35,7 +35,7 @@ t.plot.bar(); plt.savefig("figure.png")
 
 @pytest.fixture(autouse=True)
 def _env(monkeypatch):
-    monkeypatch.setenv("VIZ_SANDBOX", "subprocess")
+    monkeypatch.setenv("EXPLORE_SANDBOX", "subprocess")
     yield
     set_llm(None)
 

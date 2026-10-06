@@ -1,8 +1,8 @@
-"""Runs one drawing script inside the strongest fence the machine has. `VIZ_SANDBOX=auto` (the default) picks by code: the
+"""Runs one script inside the strongest fence the machine has. `EXPLORE_SANDBOX=auto` (the default) picks by code: the
 macOS seatbelt (`sandbox-exec`: no network, reads limited to the interpreter, the system, the CSV and the artifact folder,
 writes to the artifact folder and the temp folders), `bwrap` or `unshare -rn` on Linux (no network; bwrap also mounts the file
 system read-only but the artifact folder), else a plain subprocess (the same interpreter, isolated mode, a scrubbed environment,
-isolation by environment only). `docker` runs the image from `make viz-image`. Either way: a timeout, and the folder swept
+isolation by environment only). `docker` runs the image from `make explore-image`. Either way: a timeout, and the folder swept
 afterwards so only code.py, figure.png, facts.json and the small tables and text files the script wrote stay. What the script
 printed comes back with the outcome, cut to its tail, so a loop that reads a result before writing the next step can see it.
 The kind that ran is on the outcome, and the artifact records it. With a kind chosen by name and not at hand the run is
@@ -54,7 +54,7 @@ def resolve(kind: str) -> str:
 
 
 def run(code: str, csv: Path, out_dir: Path, timeout: float = 60) -> Outcome:
-    """Write the script as code.py in out_dir and run it there. The script sees the CSV path as VIZ_CSV and nothing else
+    """Write the script as code.py in out_dir and run it there. The script sees the CSV path as DATA_CSV and nothing else
     of the caller's environment. One tool span: the fence, whether it ran, and its stderr."""
     box = config.get().sandbox
     kind = resolve(box.kind)
@@ -80,7 +80,7 @@ def _run(kind: str, box: config.Sandbox, csv: Path, out_dir: Path, timeout: floa
     elif kind == "subprocess":
         ok, stdout, stderr = _in_subprocess(csv, out_dir, timeout)
     else:
-        ok, stdout, stderr = False, "", f"VIZ_SANDBOX={box.kind!r} is not a sandbox this tool knows ({', '.join(KINDS)})"
+        ok, stdout, stderr = False, "", f"EXPLORE_SANDBOX={box.kind!r} is not a sandbox this tool knows ({', '.join(KINDS)})"
     _sweep(out_dir)
     return Outcome(ok=ok, stdout=stdout, stderr=stderr, files=sorted(p.name for p in out_dir.iterdir()), kind=kind)
 
@@ -89,7 +89,7 @@ def _env(csv: Path, out_dir: Path) -> dict[str, str]:
     return {
         "PATH": os.environ.get("PATH", ""),
         "HOME": str(out_dir),
-        "VIZ_CSV": str(Path(csv).resolve()),
+        "DATA_CSV": str(Path(csv).resolve()),
         "MPLBACKEND": "Agg",
         "MPLCONFIGDIR": str(out_dir / MPL_DIR),
     }
@@ -125,7 +125,7 @@ def _seatbelt_profile(csv: Path, out_dir: Path) -> str:
 
 def _in_seatbelt(csv: Path, out_dir: Path, timeout: float) -> Ran:
     if not Path(SEATBELT).exists():
-        return False, "", "VIZ_SANDBOX=seatbelt but sandbox-exec is not on this machine"
+        return False, "", "EXPLORE_SANDBOX=seatbelt but sandbox-exec is not on this machine"
     profile = out_dir / PROFILE
     profile.write_text(_seatbelt_profile(csv, out_dir))
     return _call([SEATBELT, "-f", str(profile), sys.executable, "-I", "code.py"], out_dir, _env(csv, out_dir), timeout)
@@ -134,7 +134,7 @@ def _in_seatbelt(csv: Path, out_dir: Path, timeout: float) -> Ran:
 def _in_bwrap(csv: Path, out_dir: Path, timeout: float) -> Ran:
     bwrap = shutil.which("bwrap")
     if bwrap is None:
-        return False, "", "VIZ_SANDBOX=bwrap but bwrap is not on the PATH"
+        return False, "", "EXPLORE_SANDBOX=bwrap but bwrap is not on the PATH"
     out = str(out_dir.resolve())
     cmd = [
         bwrap,
@@ -155,17 +155,17 @@ def _in_bwrap(csv: Path, out_dir: Path, timeout: float) -> Ran:
 def _in_unshare(csv: Path, out_dir: Path, timeout: float) -> Ran:
     unshare = shutil.which("unshare")
     if unshare is None:
-        return False, "", "VIZ_SANDBOX=unshare but unshare is not on the PATH"
+        return False, "", "EXPLORE_SANDBOX=unshare but unshare is not on the PATH"
     return _call([unshare, "-rn", sys.executable, "-I", "code.py"], out_dir, _env(csv, out_dir), timeout)
 
 
 def _in_container(csv: Path, out_dir: Path, timeout: float, image: str) -> Ran:
     docker = shutil.which("docker")
     if docker is None:
-        return False, "", "VIZ_SANDBOX=docker but no docker binary is on the PATH"
+        return False, "", "EXPLORE_SANDBOX=docker but no docker binary is on the PATH"
     probe = subprocess.run([docker, "info"], capture_output=True, text=True)
     if probe.returncode != 0:
-        return False, "", "VIZ_SANDBOX=docker but the container runtime is not running: " + (probe.stderr or probe.stdout).strip()[-300:]
+        return False, "", "EXPLORE_SANDBOX=docker but the container runtime is not running: " + (probe.stderr or probe.stdout).strip()[-300:]
     cmd = [
         docker,
         "run",
@@ -185,7 +185,7 @@ def _in_container(csv: Path, out_dir: Path, timeout: float, image: str) -> Ran:
         "-w",
         "/work",
         "-e",
-        f"VIZ_CSV={CSV_IN_CONTAINER}",
+        f"DATA_CSV={CSV_IN_CONTAINER}",
         "-e",
         "MPLBACKEND=Agg",
         "-e",

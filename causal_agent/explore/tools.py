@@ -13,13 +13,12 @@ from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
 
 from causal_agent.common import trace
-from causal_agent.explore import gates
+from causal_agent.explore import gates, sandbox
 from causal_agent.explore.contracts import Step
 from causal_agent.lane.tools import Refused, Result
-from causal_agent.viz import sandbox
 
 RUN_CODE = (
-    "Run one complete Python script on the table at the path in VIZ_CSV, in a fresh folder of its own. Back comes the tail of "
+    "Run one complete Python script on the table at the path in DATA_CSV, in a fresh folder of its own. Back comes the tail of "
     "what it printed, the files it wrote, and the numbers in facts.json when it wrote one. pandas, numpy, scipy, statsmodels and "
     "matplotlib (Agg) are there; no network; the table is read-only; nothing of an earlier step is on disk."
 )

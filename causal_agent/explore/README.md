@@ -4,7 +4,7 @@ The exploration agent: a read-only look at the data on request, from any turn of
 
 - `contracts.py` — `ExploreRequest` (the table, what is known, the columns, the pair it must not join), `Exploration` (the
   record: the step whose files are the answer, the facts, the picture, the table), `Step`, `Trail`.
-- `tools.py` — the one tool, `run_code`: a script runs in the sandbox (`viz/sandbox.py`) in its own `step_<n>/` folder; what it
+- `tools.py` — the one tool, `run_code`: a script runs in the sandbox (`explore/sandbox.py`) in its own `step_<n>/` folder; what it
   printed, the files it wrote and its `facts.json` come back as the tool's text, addressed `probe:explore.<n>` by the episode.
 - `gates.py` — what code checks: the script parses and does not name the held-back column; the record names a step that ran,
   facts that are in its `facts.json`, a picture that exists, a table that parses, at least one product, nothing that relates the

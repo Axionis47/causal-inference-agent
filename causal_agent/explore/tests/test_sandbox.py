@@ -11,12 +11,12 @@ from pathlib import Path
 
 import pytest
 
-from causal_agent.viz import sandbox
+from causal_agent.explore import sandbox
 
 ROOT = Path(__file__).resolve().parents[3]
 CSV = ROOT / "data/raw/students-performance-in-exams/StudentsPerformance.csv"
-HELLO = "import os\nopen('facts.json', 'w').write('{}')\nopen('figure.png', 'wb').write(b'x')\nprint(os.environ['VIZ_CSV'])\n"
-READS_CSV = HELLO + "assert len(open(os.environ['VIZ_CSV']).read()) > 100\n"
+HELLO = "import os\nopen('facts.json', 'w').write('{}')\nopen('figure.png', 'wb').write(b'x')\nprint(os.environ['DATA_CSV'])\n"
+READS_CSV = HELLO + "assert len(open(os.environ['DATA_CSV']).read()) > 100\n"
 NETWORK = "import socket\ns = socket.socket()\ns.settimeout(2)\ns.connect(('127.0.0.1', 9))\n"
 HOME_LIST = "import os, pwd\nprint(os.listdir(pwd.getpwuid(os.getuid()).pw_dir))\n"
 HOME_WRITE = "import os, pwd\nopen(os.path.join(pwd.getpwuid(os.getuid()).pw_dir, '.causal_desk_sandbox_probe'), 'w').write('x')\n"
@@ -28,7 +28,7 @@ def _daemon_up() -> bool:
 
 
 def test_auto_is_the_default_and_picks_the_strongest_fence_at_hand(tmp_path, monkeypatch):
-    monkeypatch.delenv("VIZ_SANDBOX", raising=False)
+    monkeypatch.delenv("EXPLORE_SANDBOX", raising=False)
     out = sandbox.run(READS_CSV, CSV, tmp_path / "a")
     assert out.ok and out.files == ["code.py", "facts.json", "figure.png"]
     expected = "seatbelt" if sys.platform == "darwin" else "bwrap" if shutil.which("bwrap") else "unshare" if shutil.which("unshare") else "subprocess"
@@ -36,26 +36,26 @@ def test_auto_is_the_default_and_picks_the_strongest_fence_at_hand(tmp_path, mon
 
 
 def test_the_subprocess_runner_runs_by_name(tmp_path, monkeypatch):
-    monkeypatch.setenv("VIZ_SANDBOX", "subprocess")
+    monkeypatch.setenv("EXPLORE_SANDBOX", "subprocess")
     out = sandbox.run(HELLO, CSV, tmp_path / "s")
     assert out.ok and out.kind == "subprocess" and out.files == ["code.py", "facts.json", "figure.png"]
 
 
 def test_an_unknown_sandbox_is_refused(tmp_path, monkeypatch):
-    monkeypatch.setenv("VIZ_SANDBOX", "vm")
+    monkeypatch.setenv("EXPLORE_SANDBOX", "vm")
     out = sandbox.run(HELLO, CSV, tmp_path / "b")
     assert not out.ok and "not a sandbox this tool knows" in out.stderr and out.files == ["code.py"] and out.kind == "vm"
 
 
 def test_a_fence_named_and_not_at_hand_is_refused(tmp_path, monkeypatch):
-    monkeypatch.setenv("VIZ_SANDBOX", "bwrap")
+    monkeypatch.setenv("EXPLORE_SANDBOX", "bwrap")
     monkeypatch.setattr(shutil, "which", lambda name: None)
     out = sandbox.run(HELLO, CSV, tmp_path / "c")
     assert not out.ok and "bwrap is not on the PATH" in out.stderr and out.files == ["code.py"]
 
 
 def test_the_container_is_refused_without_a_runtime(tmp_path, monkeypatch):
-    monkeypatch.setenv("VIZ_SANDBOX", "docker")
+    monkeypatch.setenv("EXPLORE_SANDBOX", "docker")
     monkeypatch.setattr(shutil, "which", lambda name: None)
     out = sandbox.run(HELLO, CSV, tmp_path / "d")
     assert not out.ok and "no docker binary" in out.stderr and out.files == ["code.py"]
@@ -63,7 +63,7 @@ def test_the_container_is_refused_without_a_runtime(tmp_path, monkeypatch):
 
 @pytest.mark.skipif(sys.platform != "darwin" or not Path(sandbox.SEATBELT).exists(), reason="the seatbelt is macOS only")
 def test_the_seatbelt_blocks_the_network_the_home_folder_and_writes_outside_the_folder(tmp_path, monkeypatch):
-    monkeypatch.setenv("VIZ_SANDBOX", "seatbelt")
+    monkeypatch.setenv("EXPLORE_SANDBOX", "seatbelt")
     ok = sandbox.run(READS_CSV, CSV, tmp_path / "e")
     assert ok.ok and ok.kind == "seatbelt" and ok.files == ["code.py", "facts.json", "figure.png"]  # the CSV reads, the figure writes
     net = sandbox.run(HELLO + NETWORK, CSV, tmp_path / "f")
@@ -77,7 +77,7 @@ def test_the_seatbelt_blocks_the_network_the_home_folder_and_writes_outside_the_
 
 @pytest.mark.skipif(not sys.platform.startswith("linux") or not shutil.which("bwrap"), reason="bwrap is Linux only")
 def test_bwrap_blocks_the_network_and_writes_outside_the_folder(tmp_path, monkeypatch):
-    monkeypatch.setenv("VIZ_SANDBOX", "bwrap")
+    monkeypatch.setenv("EXPLORE_SANDBOX", "bwrap")
     ok = sandbox.run(READS_CSV, CSV, tmp_path / "i")
     assert ok.ok and ok.kind == "bwrap"
     net = sandbox.run(HELLO + NETWORK, CSV, tmp_path / "j")
@@ -88,7 +88,7 @@ def test_bwrap_blocks_the_network_and_writes_outside_the_folder(tmp_path, monkey
 
 @pytest.mark.skipif(not sys.platform.startswith("linux") or not shutil.which("unshare"), reason="unshare is Linux only")
 def test_unshare_blocks_the_network(tmp_path, monkeypatch):
-    monkeypatch.setenv("VIZ_SANDBOX", "unshare")
+    monkeypatch.setenv("EXPLORE_SANDBOX", "unshare")
     ok = sandbox.run(READS_CSV, CSV, tmp_path / "l")
     assert ok.ok and ok.kind == "unshare"
     net = sandbox.run(HELLO + NETWORK, CSV, tmp_path / "m")
@@ -97,15 +97,15 @@ def test_unshare_blocks_the_network(tmp_path, monkeypatch):
 
 @pytest.mark.skipif(not _daemon_up(), reason="no container runtime running")
 def test_the_container_runs_the_script_with_the_csv_read_only(tmp_path, monkeypatch):
-    monkeypatch.setenv("VIZ_SANDBOX", "docker")
-    out = sandbox.run(HELLO + "open(os.environ['VIZ_CSV'], 'a')\n", CSV, tmp_path / "n")
+    monkeypatch.setenv("EXPLORE_SANDBOX", "docker")
+    out = sandbox.run(HELLO + "open(os.environ['DATA_CSV'], 'a')\n", CSV, tmp_path / "n")
     assert not out.ok and "Read-only" in out.stderr  # the table cannot be written
     out = sandbox.run(HELLO, CSV, tmp_path / "o")
     assert out.ok and out.kind == "docker" and out.files == ["code.py", "facts.json", "figure.png"]
 
 
 def test_what_the_script_printed_comes_back_cut_to_its_tail_and_its_tables_are_kept(tmp_path, monkeypatch):
-    monkeypatch.setenv("VIZ_SANDBOX", "subprocess")
+    monkeypatch.setenv("EXPLORE_SANDBOX", "subprocess")
     script = HELLO + (
         "open('table.csv', 'w').write('a,b\\n1,2\\n')\n"
         "open('notes.txt', 'w').write('kept')\n"

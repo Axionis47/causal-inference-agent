@@ -1122,7 +1122,7 @@ def _artifact_root(tmp_path, monkeypatch):
     from causal_agent.explore import server as XS
 
     monkeypatch.setattr(config, "ROOT", tmp_path)
-    monkeypatch.setenv("VIZ_SANDBOX", "subprocess")
+    monkeypatch.setenv("EXPLORE_SANDBOX", "subprocess")
     XC.set_app(XS.app("http://explore/"))
     yield tmp_path
     XC.set_app(None)

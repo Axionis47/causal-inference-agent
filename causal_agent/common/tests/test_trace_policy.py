@@ -15,7 +15,7 @@ MODEL_CALLERS = {"common/llm.py", "lane/episode.py"}
 # the only places that start a process; the first must carry the trace across
 PROCESS_STARTERS = {
     "desk/pipeline.py": "the lane's process; carries the parent run and the thread",
-    "viz/sandbox.py": "the drawing script, fenced; its span is opened around the call",
+    "explore/sandbox.py": "a script, fenced; its span is opened around the call",
     "explore/client.py": "the exploration agent's process; carries the parent run and the thread",
     "common/llm.py": "gcloud config, to find the project; no trace",
 }
@@ -30,7 +30,7 @@ RAW_WRITERS = {
     "profile/data.py": "the profile cache",
     "profile/profiler.py": "a command-line profile",
     "desk/handoff.py": "a command-line hand-off, outside a graph run",
-    "viz/sandbox.py": "the seatbelt profile the fence runs under; code.py goes through trace.write",
+    "explore/sandbox.py": "the seatbelt profile the fence runs under; code.py goes through trace.write",
     "explore/project.py": "the projected table the exploration agent reads; derivable from the dataset, so not attached; its span names the column dropped",
     "evals/docfigs.py": "the docs' diagrams, outside the layers",
 }
