@@ -46,7 +46,8 @@ writes a `fit` step when a cell moves. `ask` composes the next thing by code ([d
    could differ by it, an offer and an uptake as two columns) are not asked: they never block.
 5. The ready moment: the routing nodes run (`fit`, `decide`, `gate`, `design`), then `convince` builds the pack and reads the assembled context back in the order the reasoning reads it, the
    pair, the mechanism, time, the relations, the hidden factors, heterogeneity, the threats, then names the design and what it
-   bets on. The person corrects any line there, or says yes, and the yes is what launches.
+   bets on. The person corrects any line there, in words or on the page's handoff view (which sends `address = value` lines:
+   their word on each field, written confirmed, read by no model), or says yes, and the yes is what launches.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="diagrams/decisions-dark.svg">

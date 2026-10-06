@@ -561,6 +561,55 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /**
+         * HandoffField
+         * @description One field the design rests on, as the memory holds it: the value beside how it was settled.
+         */
+        HandoffField: {
+            /** Address */
+            address: string;
+            /** Value */
+            value?: unknown;
+            /** Status */
+            status: string;
+            /** Source */
+            source?: string | null;
+            /** Said */
+            said?: string | null;
+            /** Reason */
+            reason?: string | null;
+        };
+        /**
+         * HandoffView
+         * @description The pack the ready moment read back, shown before the word: every field the design rests on with its status and the
+         *     sentence it rests on. A correction is sent as a message of `address = value` lines; the desk writes each as the person's
+         *     word and shows the ready moment again.
+         */
+        HandoffView: {
+            /** Family */
+            family: string;
+            /** Specialist */
+            specialist: string;
+            /** Outcome */
+            outcome: string;
+            /** Treatment */
+            treatment?: string | null;
+            /**
+             * Bets On
+             * @default
+             */
+            bets_on: string;
+            /**
+             * Memory Version
+             * @default 0
+             */
+            memory_version: number;
+            /**
+             * Fields
+             * @description the claim fields first, then every carried column's fields
+             */
+            fields?: components["schemas"]["HandoffField"][];
+        };
         /** InterpretationView */
         InterpretationView: {
             /** Contrast */
@@ -893,6 +942,8 @@ export interface components {
              * @description the artifacts about the data before any run, oldest first
              */
             artifacts?: components["schemas"]["ArtifactView"][];
+            /** @description at the ready moment: the context the run would rest on, field by field */
+            handoff?: components["schemas"]["HandoffView"] | null;
         };
         /** StatusView */
         StatusView: {

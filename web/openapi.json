@@ -1394,6 +1394,114 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "HandoffField": {
+        "properties": {
+          "address": {
+            "type": "string",
+            "title": "Address"
+          },
+          "value": {
+            "title": "Value"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "said": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Said"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "address",
+          "status"
+        ],
+        "title": "HandoffField",
+        "description": "One field the design rests on, as the memory holds it: the value beside how it was settled."
+      },
+      "HandoffView": {
+        "properties": {
+          "family": {
+            "type": "string",
+            "title": "Family"
+          },
+          "specialist": {
+            "type": "string",
+            "title": "Specialist"
+          },
+          "outcome": {
+            "type": "string",
+            "title": "Outcome"
+          },
+          "treatment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Treatment"
+          },
+          "bets_on": {
+            "type": "string",
+            "title": "Bets On",
+            "default": ""
+          },
+          "memory_version": {
+            "type": "integer",
+            "title": "Memory Version",
+            "default": 0
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/HandoffField"
+            },
+            "type": "array",
+            "title": "Fields",
+            "description": "the claim fields first, then every carried column's fields"
+          }
+        },
+        "type": "object",
+        "required": [
+          "family",
+          "specialist",
+          "outcome"
+        ],
+        "title": "HandoffView",
+        "description": "The pack the ready moment read back, shown before the word: every field the design rests on with its status and the\nsentence it rests on. A correction is sent as a message of `address = value` lines; the desk writes each as the person's\nword and shows the ready moment again."
+      },
       "InterpretationView": {
         "properties": {
           "contrast": {
@@ -2332,6 +2440,17 @@
             "type": "array",
             "title": "Artifacts",
             "description": "the artifacts about the data before any run, oldest first"
+          },
+          "handoff": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HandoffView"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "at the ready moment: the context the run would rest on, field by field"
           }
         },
         "type": "object",

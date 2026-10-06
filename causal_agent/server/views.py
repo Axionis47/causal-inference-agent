@@ -21,6 +21,8 @@ from causal_agent.server.models import (
     DeclineView,
     EstimateView,
     FeasibilityView,
+    HandoffField,
+    HandoffView,
     InterpretationView,
     Prompt,
     QuestionView,
@@ -165,6 +167,8 @@ def session_view(mgr: SessionManager, name: str) -> SessionView:
     runs = [run_view(r, mgr.s) for r in all_runs(mgr.s, name, list(values.get("runs") or []))]
     activity = Activity(node=sess.activity[0], since=sess.activity[1]) if sess.activity else None
     analysis = values.get("analysis") or sess.analysis or None
+    preview = values.get("preview")
+    handoff = handoff_view(preview) if phase == "before" and prompt is not None and prompt.kind == "ready" and preview is not None else None
     return SessionView(
         name=name,
         title=title,
@@ -184,6 +188,25 @@ def session_view(mgr: SessionManager, name: str) -> SessionView:
         analysis=analysis,
         journal=journal_view(mgr.s, name, analysis),
         artifacts=AV.of_memory(mgr.s, name),
+        handoff=handoff,
+    )
+
+
+def handoff_view(h) -> HandoffView:
+    """The pack's facts as fields the page can show and correct: the claim fields first, then the columns' fields."""
+    facts = h.facts
+    order = [a for a in facts if a.startswith("claim:")] + [a for a in facts if a.startswith("col:")]
+    fields = [
+        HandoffField(address=a, value=facts[a].value, status=facts[a].status, source=facts[a].source, said=facts[a].said, reason=facts[a].reason) for a in order
+    ]
+    return HandoffView(
+        family=h.family,
+        specialist=h.specialist,
+        outcome=h.outcome,
+        treatment=h.treatment,
+        bets_on=h.brief.bets_on if h.brief is not None else h.chosen_assumption,
+        memory_version=h.memory_version,
+        fields=fields,
     )
 
 

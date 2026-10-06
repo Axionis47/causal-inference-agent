@@ -34,6 +34,7 @@ each step in a worker thread and keeps the interrupt payload as the prompt is [s
 | `transcript` | one `Turn` per line of the conversation, each with an optional figure or picture |
 | `journal`, `analysis` | the conversation's steps and its id |
 | `artifacts` | the artifacts about the data before any run |
+| `handoff` | at the ready moment only: the context the run would rest on, every field with its value, status, source and sentence; a correction is sent as a message of `address = value` lines, the person's word, which no model reads |
 
 ## The wire is one definition
 
@@ -51,6 +52,7 @@ that opens the inspector.
 |---|---|---|
 | the transcript | [Transcript.tsx](../web/src/components/Transcript.tsx), [Message.tsx](../web/src/components/Message.tsx) | each turn; a run figure as inline SVG, a drawn picture as an image with its facts |
 | the composer | [Composer.tsx](../web/src/components/Composer.tsx), [QuestionList.tsx](../web/src/components/QuestionList.tsx) | the ask with chips; `compose.ts` quotes each answered question beside its answer so the graph still reads prose |
+| the handoff view | [HandoffPanel.tsx](../web/src/components/HandoffPanel.tsx) | at the ready moment, every field the run rests on, editable in place; a change sends `address = value` |
 | the status strip | [StatusStrip.tsx](../web/src/components/StatusStrip.tsx) | one mark per claim kind, settled or open |
 | the claims tab | [inspector/StatusMatrix.tsx](../web/src/components/inspector/StatusMatrix.tsx), [ClaimsTable.tsx](../web/src/components/inspector/ClaimsTable.tsx) | the matrix, claim kinds down and families across, a struck family marked; every claim with its source and sentence |
 | the results tab | [inspector/RunDetail.tsx](../web/src/components/inspector/RunDetail.tsx), [RunTables.tsx](../web/src/components/inspector/RunTables.tsx) | a run's effect and interval, its figures, the estimates, checks, refutations and declines as tables |

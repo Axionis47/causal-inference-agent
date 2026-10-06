@@ -1572,3 +1572,36 @@ a.chip {
   margin-top: 6px;
   max-height: 260px;
 }
+
+/* the handoff view at the ready moment: the fields the run rests on, each editable in place */
+.handoff {
+  margin: 8px 0 10px;
+}
+.handoff .hh {
+  font-size: 12.5px;
+  color: var(--ink-2);
+  margin: 0 0 6px;
+}
+.handoff .tbl {
+  margin-bottom: 8px;
+  max-height: 320px;
+}
+.handoff input.hv {
+  font: inherit;
+  font-size: 13px;
+  width: 16em;
+  max-width: 100%;
+  padding: 2px 6px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ink);
+}
+.handoff input.hv:focus {
+  border-color: var(--rule);
+  background: var(--panel);
+  outline: none;
+}
+.handoff td .chip {
+  margin-left: 6px;
+}

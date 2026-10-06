@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { composeAnswer } from "../compose";
 import type { QuestionView, SessionView } from "../types";
+import HandoffPanel from "./HandoffPanel";
 import QuestionList from "./QuestionList";
 
 export default function Composer({
@@ -44,6 +45,9 @@ export default function Composer({
 
   return (
     <>
+      {before && view.prompt?.kind === "ready" && view.handoff && (
+        <HandoffPanel h={view.handoff} disabled={disabled} onEdit={(address, value) => onSend(`${address} = ${value}`)} />
+      )}
       <QuestionList
         questions={questions}
         answers={answers}

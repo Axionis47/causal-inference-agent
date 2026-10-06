@@ -11,6 +11,7 @@ from langgraph.runtime import Runtime
 from langgraph.types import Command, interrupt
 
 from causal_agent.common.contracts import QuestionFrame
+from causal_agent.desk import edits as ED
 from causal_agent.desk import explainer as X
 from causal_agent.desk import handoff as H
 from causal_agent.desk import reader as RD
@@ -486,10 +487,22 @@ def infer(state: DeskState) -> Command[Literal["infer", "explore", "check", "exp
     src = f"user:turn:{turn}"
     message = state.get("message") or ""
     before = {ad: (f.value, f.status) for ad, f in memory.fields.items()}
-    # the kind first, cheaply: a confident explore, ask or run never reaches the Reader; an update, or an unsure decision,
-    # does, and the Reader decides the kind for itself there
-    verdict, confidence = TD.classify(message, asked=a.text if a else None, at_ready=ready_now, last_reply=state.get("reply") or "", node=f"decide:{src}")
-    if verdict in ("explore", "ask", "run") and not state.get("infer_errors"):
+    note = ""
+    edits = ED.edits_in(message)
+    if edits is not None:  # lines of `address = value`, as the handoff view sends them: the person's word on each, no model reads them
+        verdict, confidence = "update", 1.0
+        out, thoughts = Reading(kind="update"), []
+        refused = ops.apply(memory, [ops.Update(address=ad, value=v, status="confirmed", source=src, said=f"{ad} = {v}") for ad, v in edits], CAT)
+        rejected = []
+        if refused:
+            note = "Not written: " + "; ".join(refused) + ".\n\n"
+    else:
+        # the kind first, cheaply: a confident explore, ask or run never reaches the Reader; an update, or an unsure decision,
+        # does, and the Reader decides the kind for itself there
+        verdict, confidence = TD.classify(message, asked=a.text if a else None, at_ready=ready_now, last_reply=state.get("reply") or "", node=f"decide:{src}")
+    if edits is not None:
+        pass
+    elif verdict in ("explore", "ask", "run") and not state.get("infer_errors"):
         out = Reading(kind=verdict, explore=message if verdict == "explore" else None, question=message if verdict == "ask" else None)
         thoughts, rejected = [], []
     else:
@@ -534,6 +547,7 @@ def infer(state: DeskState) -> Command[Literal["infer", "explore", "check", "exp
         "debug": thoughts,
         "desk_question": asked_desk,
         "explore_request": asked_explore,
+        **({"note": note} if note else {}),
         **focus_update,
     }
     if rejected and attempts < INFER_ATTEMPTS:

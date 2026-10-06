@@ -318,7 +318,7 @@ def read_by_rule(msg: str, addrs: list[str]) -> Reading:
         return Reading(kind="update", updates=[FieldUpdate(address="col:lunch.when", value="after", said=msg)])
     if "lunch was before" in low:
         return Reading(kind="update", updates=[FieldUpdate(address="col:lunch.when", value="before", said=msg)])
-    m = re.match(r"([a-z_:.]+) = (.+)", msg)  # "claim:sampling.how = whole"
+    m = re.search(r"((?:claim|col):[a-z_.]+) = (.+)", msg)  # "I'd say claim:sampling.how = whole" (a bare `address = value` line never reaches a reader)
     if m:
         return Reading(kind="update", updates=[FieldUpdate(address=m.group(1), value=m.group(2), said=msg)])
     if msg.rstrip().endswith("?"):

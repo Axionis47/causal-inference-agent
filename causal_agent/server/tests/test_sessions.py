@@ -200,3 +200,24 @@ def test_run_view_carries_where_the_lane_disagreed_with_the_pack():
     v = run_view(RunRecord(index=1, dataset="d", question="q", status="done", specialist_result=sr))
     assert [d.address for d in v.declines] == ["decline:load.scope_target"] and v.declines[0].took == "effect_at_cutoff" and v.declines[0].kind == "substituted"
     assert run_view(RunRecord(index=1, dataset="d", question="q", status="done")).declines == []
+
+
+def test_the_ready_moment_carries_the_handoff_view_and_an_edit_is_the_persons_word(client, settings, monkeypatch):
+    fake = DeskFake(infer=infer_columns)
+    v = _to_ready(client, fake)
+    h = v["handoff"]
+    assert h is not None and h["family"] == "adjustment" and h["outcome"] == "math score" and h["treatment"] == "test preparation course"
+    by = {f["address"]: f for f in h["fields"]}
+    assert by["claim:assignment.kind"]["status"] == "confirmed" and by["claim:assignment.kind"]["value"] == "own_choice"
+    assert [a.split(":")[0] for a in by] == sorted(a.split(":")[0] for a in by), "the claim fields come before the columns'"
+    v = _say(client, "students_web", "claim:change.when = March 2026")
+    assert v["prompt"]["kind"] == "ready" and v["handoff"] is not None
+    f = {f["address"]: f for f in v["handoff"]["fields"]}["claim:change.when"]
+    assert f["value"] == "March 2026" and f["status"] == "confirmed" and f["source"].startswith("user:turn:")
+    change = next(c for c in v["claims"] if c["key"] == "change")
+    assert change["fields"]["when"] == "March 2026"
+    v = _say(client, "students_web", "what is a back door road?")
+    assert v["prompt"]["kind"] == "ready" and v["handoff"] is not None, "the ready moment returns after a question, and the view with it"
+    patch_pipeline(monkeypatch)
+    v = _say(client, "students_web", "yes, run it")
+    assert v["phase"] == "after" and v["handoff"] is None, "the view is the ready moment's alone"

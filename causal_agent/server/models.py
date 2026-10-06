@@ -291,6 +291,31 @@ class StepView(BaseModel):
     run_id: str | None = Field(default=None, description="the lane run dir's name, when a left entry is one")
 
 
+class HandoffField(BaseModel):
+    """One field the design rests on, as the memory holds it: the value beside how it was settled."""
+
+    address: str
+    value: Any = None
+    status: str
+    source: str | None = None
+    said: str | None = None
+    reason: str | None = None
+
+
+class HandoffView(BaseModel):
+    """The pack the ready moment read back, shown before the word: every field the design rests on with its status and the
+    sentence it rests on. A correction is sent as a message of `address = value` lines; the desk writes each as the person's
+    word and shows the ready moment again."""
+
+    family: str
+    specialist: str
+    outcome: str
+    treatment: str | None = None
+    bets_on: str = ""
+    memory_version: int = 0
+    fields: list[HandoffField] = Field(default_factory=list, description="the claim fields first, then every carried column's fields")
+
+
 class Prompt(BaseModel):
     text: str = ""
     status: str = ""
@@ -329,6 +354,7 @@ class SessionView(BaseModel):
     analysis: str | None = Field(default=None, description="a<k>: this conversation's journal")
     journal: list[StepView] = Field(default_factory=list, description="the conversation's steps, in order")
     artifacts: list[ArtifactView] = Field(default_factory=list, description="the artifacts about the data before any run, oldest first")
+    handoff: HandoffView | None = Field(default=None, description="at the ready moment: the context the run would rest on, field by field")
 
 
 # ------------------------------------------------------------------ runs
