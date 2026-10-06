@@ -1,41 +1,44 @@
-"""A scripted model for the exploration agent: each entry of `looks` is one round of looking, a list of scripts to run with
-run_code (an empty list stops looking); `answers` are the records, in order."""
+"""A scripted model for the exploration agent: each entry of `looks` is one round of looking, a list of scripts to run one
+step at a time (an empty list is done at once); `answers` are the records, in order. Every call is a structured call, as it is
+with the real model; the prompts are kept by schema name."""
 
 from __future__ import annotations
 
 from langchain_core.messages import AIMessage
 
 from causal_agent.explore.contracts import Exploration
+from causal_agent.explore.tools import RunCodeStep
 
 
 class FakeLLM:
     def __init__(self, looks: list[list[str]], answers: list[Exploration]):
-        self.looks = list(looks)
+        self.rounds = [list(r) for r in looks]
         self.answers = list(answers)
-        self.bound: list[str] = []
-        self.tool_texts: list[str] = []
-        self.humans: list[str] = []
-
-    def bind_tools(self, tools):
-        self.bound = [t.name for t in tools]
-        return self
-
-    def invoke(self, messages):
-        for m in messages:
-            if getattr(m, "type", "") == "tool":
-                self.tool_texts.append(str(m.content))
-        scripts = self.looks.pop(0) if self.looks else []
-        return AIMessage(
-            content=[{"type": "thinking", "thinking": "looking"}] if scripts else "",
-            tool_calls=[{"name": "run_code", "args": {"code": code}, "id": f"c{i}"} for i, code in enumerate(scripts)],
-        )
+        self.humans: dict[str, list[str]] = {}
+        self.systems: dict[str, list[str]] = {}
+        self.current: list[str] | None = None
 
     def with_structured_output(self, schema, include_raw=False):
         fake = self
 
         class R:
             def invoke(self_, messages):
-                fake.humans.append(messages[-1][1])
-                return {"raw": AIMessage(content=""), "parsed": fake.answers.pop(0), "parsing_error": None}
+                fake.systems.setdefault(schema.__name__, []).append(messages[0][1])
+                fake.humans.setdefault(schema.__name__, []).append(messages[-1][1])
+                if schema is RunCodeStep:
+                    if fake.current is None:
+                        fake.current = fake.rounds.pop(0) if fake.rounds else []
+                    if fake.current:
+                        parsed = RunCodeStep(code=fake.current.pop(0))
+                    else:
+                        fake.current = None
+                        parsed = RunCodeStep(done=True)
+                else:
+                    parsed = fake.answers.pop(0)
+                return {
+                    "raw": AIMessage(content=[{"type": "thinking", "thinking": "looking" if schema is RunCodeStep else "answering"}]),
+                    "parsed": parsed,
+                    "parsing_error": None,
+                }
 
         return R()

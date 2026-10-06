@@ -87,7 +87,7 @@ def test_an_ask_naming_both_before_the_freeze_is_declined_without_a_call():
     fake = FakeLLM([], [])
     set_llm(fake)
     a, d, _ = _ask("math score by test preparation course")
-    assert a is None and d is not None and d.check == "explore.no_join" and fake.humans == [] and fake.bound == []
+    assert a is None and d is not None and d.check == "explore.no_join" and fake.humans == {}
 
 
 def test_the_process_serves_its_card_and_stops():

@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from langchain_core.tools import StructuredTool
+from pydantic import BaseModel, Field
 
 from causal_agent.common import trace
 from causal_agent.explore import gates
@@ -24,9 +25,18 @@ RUN_CODE = (
 )
 
 
+class RunCodeStep(BaseModel):
+    """One step of looking: the next script to run, or done. Asked for as a record, not a function call, because a model that
+    carries a script inside a function call mangles it."""
+
+    done: bool = Field(default=False, description="true when you have what was asked for and will answer; the code is then empty")
+    code: str = Field(default="", description="the complete Python script to run next, and nothing else: it starts with its first import")
+
+
 @dataclass
 class CodeTools:
-    """The tool set over one table, for `run_episode`: one tool, `run_code`, and the steps it ran."""
+    """The tool set over one table, for `run_episode`: one tool, `run_code`, looked at one step at a time as a record, and the
+    steps it ran."""
 
     csv: Path
     out_dir: Path
@@ -37,6 +47,14 @@ class CodeTools:
 
     def names(self) -> tuple[str, ...]:
         return ("run_code",)
+
+    def step_schema(self) -> type[BaseModel]:
+        return RunCodeStep
+
+    def brief_args(self, name: str, args: dict[str, Any]) -> dict[str, Any]:
+        """The script by its length in the fact's line; the script itself is on disk and in the tool's span."""
+        code = str(args.get("code", ""))
+        return {"code": f"a script of {len(code.splitlines())} lines"}
 
     def schemas(self) -> list[Any]:
         return [StructuredTool.from_function(func=self.run_code, name="run_code", description=RUN_CODE)]

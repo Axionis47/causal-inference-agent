@@ -73,8 +73,12 @@ def test_a_good_step_and_a_record_make_a_trail(tmp_path):
     trail = AG.explore(request(tmp_path))
     assert trail.record is not None and trail.why == "" and trail.calls == 1 and [s.ok for s in trail.steps] == [True]
     assert trail.steps[0].facts == {"reading_standard": 71.65, "reading_free_reduced": 64.65} and trail.sandbox == "subprocess"
-    assert fake.bound == ["run_code"] and "step 1 ran" in fake.tool_texts[0] and "FACTS YOU ASKED FOR" in fake.humans[0]
-    assert "held back until the design has run" in fake.humans[0] and "'math score'" in fake.humans[0]  # the model is told what it cannot see
+    assert (
+        "step 1 ran" in fake.humans["RunCodeStep"][1] and "FACTS YOU ASKED FOR" in fake.humans["Exploration"][0]
+    )  # the step shown to the next look, then to the answer
+    assert (
+        "held back until the design has run" in fake.humans["RunCodeStep"][0] and "'math score'" in fake.humans["RunCodeStep"][0]
+    )  # the model is told what it cannot see
     assert any(t.text == "looking" for t in trail.thoughts)
 
 
@@ -90,8 +94,8 @@ def test_each_refusal_is_re_prompted_with_its_reason_and_three_leave_no_record(t
     set_llm(fake)
     trail = AG.explore(request(tmp_path))
     assert trail.record is None and trail.calls == 1
-    assert "no script has run yet" in fake.humans[1] and "lacks: not_there" in fake.humans[2] and "wrote no figure.png" in fake.humans[2]
-    assert "did not write" in fake.humans[2]
+    answers = fake.humans["Exploration"]
+    assert "no script has run yet" in answers[1] and "lacks: not_there" in answers[2] and "wrote no figure.png" in answers[2] and "did not write" in answers[2]
     assert "nothing may relate the outcome to the treatment" in trail.why and "5.78" in trail.why
 
 
@@ -99,5 +103,5 @@ def test_a_picture_is_a_product_too_and_a_record_without_any_product_is_refused(
     fake = FakeLLM([[PICTURE], []], [Exploration(summary="Two bars.", step=1), Exploration(summary="Two bars.", step=1, figure=True)])
     set_llm(fake)
     trail = AG.explore(request(tmp_path, ask="reading score by lunch, as a picture"))
-    assert trail.record is not None and trail.record.figure and "names no product" in fake.humans[1]
+    assert trail.record is not None and trail.record.figure and "names no product" in fake.humans["Exploration"][1]
     assert (tmp_path / "art" / "step_1" / "figure.png").stat().st_size > 0

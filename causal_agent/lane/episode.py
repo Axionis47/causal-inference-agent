@@ -30,7 +30,9 @@ MAX_TRIES = 3
 
 class ToolSet(Protocol):
     """What an episode needs of its tools: their names, their schemas for the model, and one call by name. The lane's tools
-    and the exploration agent's code tool both have this shape."""
+    and the exploration agent's code tool both have this shape. A tool set that also has `step_schema()` is looked at one
+    step at a time as a structured record instead of a function call: the record names the one tool's arguments and whether
+    the model is done. A model that mangles a function call carrying a script (Gemini does) still answers a schema cleanly."""
 
     def names(self) -> tuple[str, ...]: ...
 
@@ -43,6 +45,11 @@ TOOL_RULE = (
     "Before you answer you may look at the data with the tools offered, at most {budget} calls in all. Each result comes back "
     "with an address [probe:{node}.<n>]; cite it as you would a pack address. A tool that would join the outcome with the "
     "treatment is refused, and the refusal says why. When you have seen enough, stop calling tools."
+)
+STEP_RULE = (
+    "Before you answer you act one step at a time, at most {budget} steps in all: return the next step as the record asked for, "
+    "or say done when you have what was asked for. Each step's result comes back with an address [probe:{node}.<n>] under "
+    "WHAT YOU RAN SO FAR; cite it as you would a pack address. A step that is refused says why; read it and act again."
 )
 
 
@@ -124,7 +131,8 @@ def _run(tools: ToolSet, name: str, args: dict[str, Any], budget: int, log: Epis
             log.refusals.append(Refusal(tool=name, args=args, reason=str(e)))
             s.end(outputs={"refused": str(e)})
             return str(e)
-        f = Fact(node=log.node, n=len(log.facts) + 1, tool=name, args=args, text=r.text, value=r.value)
+        brief = getattr(tools, "brief_args", None)  # a tool set may say its arguments shorter than they are (a script by its length)
+        f = Fact(node=log.node, n=len(log.facts) + 1, tool=name, args=brief(name, args) if brief else args, text=r.text, value=r.value)
         log.facts.append(f)
         s.end(outputs={"address": f.address, "text": f.text, "value": f.value})
         return f.render()
@@ -146,6 +154,9 @@ def _look(system: str, user: str, tools: ToolSet, budget: int, log: EpisodeLog, 
 
 
 def _look_in(system: str, user: str, tools: ToolSet, budget: int, log: EpisodeLog, errors: list[str]) -> list[Thought]:
+    step_schema = getattr(tools, "step_schema", None)
+    if step_schema is not None:
+        return _look_by_record(system, user, tools, step_schema(), budget, log, errors)
     bound = LLM.current().bind_tools(tools.schemas())
     messages: list[Any] = [
         SystemMessage(content=system + "\n\n" + TOOL_RULE.format(budget=budget, node=log.node)),
@@ -164,6 +175,23 @@ def _look_in(system: str, user: str, tools: ToolSet, budget: int, log: EpisodeLo
         for i, call in enumerate(calls):
             content = _run(tools, str(call.get("name")), dict(call.get("args") or {}), budget, log)
             messages.append(ToolMessage(content=content, tool_call_id=str(call.get("id") or f"{log.calls}.{i}")))
+    return thoughts
+
+
+def _look_by_record(system: str, user: str, tools: ToolSet, schema: type[BaseModel], budget: int, log: EpisodeLog, errors: list[str]) -> list[Thought]:
+    """The look phase as records: each step is one structured call answering the tool set's step schema (its one tool's
+    arguments, and `done`); the step runs and its result is shown under WHAT YOU RAN SO FAR for the next."""
+    name = tools.names()[0]
+    thoughts: list[Thought] = []
+    seen: list[str] = []
+    while log.calls < budget:
+        shown = _material(user, log, errors) + ("\n\nWHAT YOU RAN SO FAR\n" + "\n\n".join(seen) if seen else "")
+        record, th = LLM.structured(schema, system + "\n\n" + STEP_RULE.format(budget=budget, node=log.node), shown, node=f"{log.node}:look")
+        thoughts.append(th)
+        if getattr(record, "done", False):
+            break
+        args = record.model_dump(mode="json", exclude={"done"})
+        seen.append(_run(tools, name, args, budget, log))
     return thoughts
 
 
