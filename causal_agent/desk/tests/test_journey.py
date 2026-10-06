@@ -24,6 +24,7 @@ from causal_agent.memory import store
 from causal_agent.memory.records import Memory
 
 HELD: dict[str, Memory] = {}
+REPO = Path(__file__).resolve().parents[3]  # the fixture claims files live here; everything written goes under tmp_path
 
 
 @pytest.fixture(autouse=True)
@@ -32,7 +33,7 @@ def _held(monkeypatch, tmp_path):
 
     def memory_for(name, root=None):
         if name not in HELD:
-            HELD[name] = store.migrate(name, write=False)
+            HELD[name] = store.migrate(name, root=REPO, write=False)
         return HELD[name]
 
     def snapshot(memory, n, root=None):

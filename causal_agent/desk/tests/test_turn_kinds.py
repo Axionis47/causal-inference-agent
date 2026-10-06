@@ -7,7 +7,7 @@ from causal_agent.common.llm import set_llm
 from causal_agent.desk import reader as RD
 from causal_agent.desk.contracts import FieldUpdate, Reading
 from causal_agent.desk.tests.fakes import QUESTION, DeskFake
-from causal_agent.desk.tests.test_journey import HELD, Desk, _held  # noqa: F401  (the autouse fixture that holds the memory in process)
+from causal_agent.desk.tests.test_journey import HELD, REPO, Desk, _held  # noqa: F401  (the autouse fixture that holds the memory in process)
 from causal_agent.memory import store
 
 
@@ -40,7 +40,7 @@ class _Fixed:
 
 
 def test_a_note_read_as_anything_but_update_is_refused_and_writes_nothing():
-    memory = store.migrate("students", write=False)
+    memory = store.migrate("students", root=REPO, write=False)
     before = memory.version
     set_llm(_Fixed(Reading(kind="ask", question="what is this?")))
     out, _thoughts, rejected = RD.read_words(memory, "doc:students", "a note", RD.DESCRIPTION, [], 0)

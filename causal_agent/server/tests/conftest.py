@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from causal_agent.common import config
 from causal_agent.common.contracts import RunRecord
 from causal_agent.common.llm import set_decider, set_llm
 from causal_agent.desk import pipeline
@@ -26,6 +27,7 @@ def settings(tmp_path, monkeypatch) -> Settings:
     (tmp_path / "data").mkdir()
     (tmp_path / "data" / "datasets.yaml").write_text("# test index\n{}\n")
     monkeypatch.setattr(DSI, "ROOT", tmp_path)
+    monkeypatch.setattr(config, "ROOT", tmp_path)
     return Settings(root=tmp_path, run_root=tmp_path / "runs", dist=tmp_path / "dist")
 
 

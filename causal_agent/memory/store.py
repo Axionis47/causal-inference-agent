@@ -19,14 +19,16 @@ from pathlib import Path
 
 import yaml
 
-from causal_agent.common import trace
+from causal_agent.common import config, trace
 from causal_agent.memory.claims import Claim, ClaimTable, ProbeResult
 from causal_agent.memory.records import Memory
 from causal_agent.profile import datasets as DS
 
 
 def home(name: str, root: Path | None = None) -> Path:
-    return Path(root or DS.ROOT) / "data" / "memory" / name
+    """Where a memory lives: read from the config at every call, like the artifacts shelf, so a test that points the config
+    at a temporary root is believed without a second seam."""
+    return config.load(root=root).paths.memory / name
 
 
 def exists(name: str, root: Path | None = None) -> bool:
@@ -108,7 +110,7 @@ def migrate(name: str, root: Path | None = None, *, write: bool = True) -> Memor
     """A memory from a datasets.yaml entry: the profile for the facts, the claims file for the fields."""
     from causal_agent.profile.profiler import Profile
 
-    root = Path(root or DS.ROOT)
+    root = config.load(root=root).paths.root
     entries = DS.dataset_entries(root / "data" / "datasets.yaml")
     if name not in entries:
         raise KeyError(f"unknown dataset {name!r}; known: {sorted(entries)}")
