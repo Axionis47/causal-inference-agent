@@ -373,7 +373,7 @@ def test_the_chat_after_a_run_can_cite_what_the_design_rested_on():
 def test_naming_the_families_you_care_about_drops_the_questions_the_others_need():
     def only_adjustment(msg, addrs, human):
         if msg.startswith("only adjustment"):
-            return Reading(focus=["adjustment"])
+            return Reading(kind="update", focus=["adjustment"])
         return None
 
     fake = DeskFake(infer=only_adjustment)
@@ -398,7 +398,7 @@ def test_a_family_the_grid_does_not_know_is_refused_and_the_focus_stays():
     def magic(msg, addrs, human):
         if msg.startswith("only magic"):
             calls.append(human)
-            return Reading(focus=["magic"]) if len(calls) == 1 else Reading()
+            return Reading(kind="update", focus=["magic"]) if len(calls) == 1 else Reading(kind="update")
         return None
 
     fake = DeskFake(infer=magic)
@@ -426,6 +426,7 @@ def test_a_question_to_the_desk_is_answered_beside_the_next_ask_and_an_update_in
     def curious(msg, addrs, human):
         if msg.startswith("what does own choice mean"):
             return Reading(
+                kind="update",
                 question="what does own choice mean here?",
                 updates=[FieldUpdate(address="claim:unobserved.exists", value="false", said="nothing hidden either way")],
             )
@@ -469,7 +470,7 @@ def test_a_question_to_the_desk_is_answered_beside_the_next_ask_and_an_update_in
 
 def test_an_answer_that_cites_nothing_real_or_settles_something_is_refused_three_times_then_falls_back():
     def curious(msg, addrs, human):
-        return Reading(question="why do you ask that?") if msg.startswith("why") else None
+        return Reading(kind="ask", question="why do you ask that?") if msg.startswith("why") else None
 
     bad = AfterReply(kind="answer", text="Because.", cites=["nonsense:thing"])
     revise = AfterReply(kind="revise", text="Noted.", updates=[FieldUpdate(address="claim:sampling.how", value="by_arm", said="x")])  # not legal before the run
@@ -926,9 +927,9 @@ def test_a_lane_that_asks_back_gets_its_answer_and_runs_again(monkeypatch):
 
     def infer(msg, addrs, human):
         if "nothing hidden" in msg:  # the person says a hidden factor exists this time
-            return Reading(updates=[FieldUpdate(address="claim:unobserved.exists", value="true", said=msg)])
+            return Reading(kind="update", updates=[FieldUpdate(address="claim:unobserved.exists", value="true", said=msg)])
         if msg == "no mediator":
-            return Reading(updates=[FieldUpdate(address="claim:mediator.exists", value="false", said=msg)])
+            return Reading(kind="update", updates=[FieldUpdate(address="claim:mediator.exists", value="false", said=msg)])
         return None
 
     d = Desk(DeskFake(infer=infer))
@@ -972,7 +973,7 @@ def test_a_lane_ask_with_options_and_evidence_reaches_the_page_and_is_asked_once
 
     def infer(msg, addrs, human):
         if msg == "yes there is":
-            return Reading(updates=[FieldUpdate(address="claim:trend_continues.believed", value="true", said=msg)])
+            return Reading(kind="update", updates=[FieldUpdate(address="claim:trend_continues.believed", value="true", said=msg)])
         return None
 
     d = Desk(DeskFake(infer=infer))
@@ -1125,7 +1126,7 @@ def test_a_picture_asked_for_before_the_run_is_drawn_shown_and_recorded(_artifac
     from causal_agent.viz import store as VS
 
     def infer(msg, addrs, human):
-        return Reading(draw="show me math score by lunch") if "plot" in msg else None
+        return Reading(kind="explore", explore="show me math score by lunch") if "plot" in msg else None
 
     fake = DeskFake(infer=infer)
     d = Desk(fake)
@@ -1151,8 +1152,8 @@ def test_a_number_from_a_picture_drawn_before_the_run_can_be_cited_and_a_wrong_o
 
     def infer(msg, addrs, human):
         if "plot" in msg:
-            return Reading(draw="show me math score by lunch")
-        return Reading(question="which lunch group scores higher?") if msg.startswith("which") else None
+            return Reading(kind="explore", explore="show me math score by lunch")
+        return Reading(kind="ask", question="which lunch group scores higher?") if msg.startswith("which") else None
 
     fake = DeskFake(infer=infer)
     d = Desk(fake)

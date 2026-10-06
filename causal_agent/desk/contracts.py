@@ -30,10 +30,20 @@ class FieldUpdate(BaseModel):
     reason: str = Field(default="", description="one sentence: how the words give this value")
 
 
-class Reading(BaseModel):
-    """What the Reader made of one piece of the person's words, a message or a note: the fields it fills, the drafted fields
-    the person confirmed, the ones they cannot say, and what else the words did."""
+ReadKind = Literal["update", "explore", "ask", "run"]
 
+
+class Reading(BaseModel):
+    """What the Reader made of one piece of the person's words, a message or a note: what kind of turn it is, the fields it
+    fills, the drafted fields the person confirmed, the ones they cannot say, and what else the words did."""
+
+    kind: ReadKind = Field(
+        description="what the message does. update: it says something about the data, answers what was asked, says a draft is right, "
+        "or says they cannot say; a note is always update. explore: it asks to look at the data (a picture, a table, a count, a "
+        "comparison). ask: it asks the desk something. run: it asks to run the analysis, or says yes to the design the desk showed. "
+        "A message that says anything about the data is update, even when it also asks for a picture or asks something; only update "
+        "carries updates, confirms or unknown"
+    )
     updates: list[FieldUpdate] = Field(default_factory=list)
     confirms: list[str] = Field(default_factory=list, description="addresses of drafted fields the person said are right, as they stand")
     unknown: list[str] = Field(default_factory=list, description="addresses the person said they cannot say")
@@ -45,12 +55,13 @@ class Reading(BaseModel):
     question: str | None = Field(
         default=None,
         description="what the person asked the desk, in their words, when the message asks something (what a family is, why a question "
-        "is asked, what a term means, what the file could answer); null when it asks nothing. A question is never an update",
+        "is asked, what a term means, what the file could answer); null when it asks nothing. Required when kind is ask; may ride "
+        "along with update",
     )
-    draw: str | None = Field(
+    explore: str | None = Field(
         default=None,
-        description="what the person asked to see drawn (a picture, plot, chart or figure of something in the file), in their words; null when "
-        "the message asks for none. A drawing request is never an update",
+        description="what the person asked to look at in the data (a picture, a plot, a table, a count, a comparison of columns or arms), "
+        "in their words; null when the message asks for none. Required when kind is explore; may ride along with update",
     )
     note: str = Field(default="", description="anything said that fits no field, one sentence, or empty")
 

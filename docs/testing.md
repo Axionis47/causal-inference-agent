@@ -13,7 +13,7 @@ hands the human prompt to `answer(schema, human)`, and `answer` dispatches on th
 | schema asked | the fake answers with |
 |---|---|
 | `Reading` over a note | the students note's drafts |
-| `Reading` over a message | an optional scripted `infer` callable, else `read_by_rule`: the story's updates, confirms on "yes", unknown on "don't know", and `address = value` lines |
+| `Reading` over a message | an optional scripted `infer` callable, else `read_by_rule`: the kind by cue (a run word, a message starting with plot or show, one ending in a question mark), the story's updates, confirms on "yes", unknown on "don't know", and `address = value` lines |
 | `QuestionFrame` | parsed from the QUESTION line: "how many" is not causal, "why" is a root cause, otherwise the students frame |
 | `FamilyDecision` | adjustment, citing what it was given |
 | `DesignBrief` | a queued brief, else `brief_by_rule` from the family block in the prompt |

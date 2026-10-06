@@ -153,4 +153,4 @@ def infer_columns(msg, addrs, human):
             ups.append(FieldUpdate(address=a, value=f"{name} as recorded", said=msg))
         elif a.endswith(".when"):
             ups.append(FieldUpdate(address=a, value=WHEN.get(name, "before"), said=msg))
-    return Reading(updates=ups)
+    return Reading(kind="update", updates=ups)

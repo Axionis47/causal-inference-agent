@@ -503,7 +503,7 @@ def infer(state: DeskState) -> Command[Literal["infer", "draw", "check", "explai
             focus_update = {"focus": list(dict.fromkeys(out.focus))}
     attempts = int(state.get("infer_attempts") or 0) + 1
     asked_desk = (out.question or "").strip() or state.get("desk_question") or None  # kept across retries
-    asked_draw = (out.draw or "").strip() or state.get("draw_request") or None
+    asked_draw = (out.explore or "").strip() or state.get("draw_request") or None
     _writer()({"infer": {"settled": settled, "rejected": rejected, "attempt": attempts, **({"focus": focus_update["focus"]} if focus_update else {})}})
     update = {
         **F.saved(memory),

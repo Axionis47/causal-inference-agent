@@ -213,7 +213,7 @@ class DeskFake:
         self.calls.append(schema.__name__)
         self.humans.setdefault(schema.__name__, []).append(human)
         if schema is Reading and source_of(human).startswith("doc:"):
-            return Reading(updates=students_doc_updates())
+            return Reading(kind="update", updates=students_doc_updates())
         if schema is QuestionFrame:
             q = human.split("QUESTION\n")[1].split("\n")[0].lower()
             if "how many" in q or "what share" in q:
@@ -266,32 +266,39 @@ class DeskFake:
 
 def read_by_rule(msg: str, addrs: list[str]) -> Reading:
     """The Reader by rule: the scripted story fills many fields at once; a yes confirms what was asked; a few phrases fill one
-    field each; an address with '=' fills that field."""
+    field each; an address with '=' fills that field. The kind by cue: a run word is run, a message that starts with plot, show
+    or draw is explore, one that ends with a question mark and fills nothing is ask, everything else is update."""
     low = msg.lower()
+    if low in {"run", "go", "run it", "run the analysis", "yes, run it", "let's run it"} or "run the analysis" in low:
+        return Reading(kind="run")
+    if low.startswith(("plot", "show", "draw")):
+        return Reading(kind="explore", explore=msg)
     if msg == STORY_ANSWER:
-        return Reading(updates=students_story_updates())
+        return Reading(kind="update", updates=students_story_updates())
     if low.startswith("yes") or low.startswith("all right") or low.startswith("right"):
-        return Reading(confirms=addrs)
+        return Reading(kind="update", confirms=addrs)
     if "don't know" in low or "do not know" in low:
-        return Reading(unknown=addrs)
+        return Reading(kind="update", unknown=addrs)
     if low.startswith("none for all"):
-        return Reading(updates=[FieldUpdate(address=a, value="none", said=msg) for a in addrs])
+        return Reading(kind="update", updates=[FieldUpdate(address=a, value="none", said=msg) for a in addrs])
     if low.startswith("not that i know"):
-        return Reading(updates=[FieldUpdate(address=a, value="false", said=msg) for a in addrs])
+        return Reading(kind="update", updates=[FieldUpdate(address=a, value="false", said=msg) for a in addrs])
     if "nothing hidden" in low:
-        return Reading(updates=[FieldUpdate(address="claim:unobserved.exists", value="false", said=msg)])
+        return Reading(kind="update", updates=[FieldUpdate(address="claim:unobserved.exists", value="false", said=msg)])
     if "sit alone" in low or "no spillover" in low:
-        return Reading(updates=[FieldUpdate(address="claim:spillover.possible", value="false", said=msg)])
+        return Reading(kind="update", updates=[FieldUpdate(address="claim:spillover.possible", value="false", said=msg)])
     if "no nudge" in low:
-        return Reading(updates=[FieldUpdate(address="claim:exclusion.exists", value="false", said=msg)])
+        return Reading(kind="update", updates=[FieldUpdate(address="claim:exclusion.exists", value="false", said=msg)])
     if "lunch was after" in low or "lunch: after" in low:
-        return Reading(updates=[FieldUpdate(address="col:lunch.when", value="after", said=msg)])
+        return Reading(kind="update", updates=[FieldUpdate(address="col:lunch.when", value="after", said=msg)])
     if "lunch was before" in low:
-        return Reading(updates=[FieldUpdate(address="col:lunch.when", value="before", said=msg)])
+        return Reading(kind="update", updates=[FieldUpdate(address="col:lunch.when", value="before", said=msg)])
     m = re.match(r"([a-z_:.]+) = (.+)", msg)  # "claim:sampling.how = whole"
     if m:
-        return Reading(updates=[FieldUpdate(address=m.group(1), value=m.group(2), said=msg)])
-    return Reading()
+        return Reading(kind="update", updates=[FieldUpdate(address=m.group(1), value=m.group(2), said=msg)])
+    if msg.rstrip().endswith("?"):
+        return Reading(kind="ask", question=msg)
+    return Reading(kind="update")
 
 
 def answer_ask(payload: dict) -> str:

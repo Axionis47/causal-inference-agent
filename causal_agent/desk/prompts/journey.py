@@ -23,13 +23,18 @@ READ_SYSTEM = (
     "Never fill a field from the file's numbers alone; the columns are shown so you can name the one the words meant. "
     "Never fill a belief (a field marked uncheckable) unless the person states it in a message; a note cannot state a "
     "belief, and a note confirms nothing. The person may say anything; you decide what their words support, and the desk "
-    "decides what is written. When a message says which families of analysis they care about (only adjustment; forget the "
-    "discontinuity; every one again), put the family names in focus, spelled as the memory's fit grid spells them; "
-    "otherwise leave focus null. When a message asks the desk something (what a family is, why this is asked, what a term "
-    "means, what the file could answer), put the question in question, in their words; the desk answers it beside the next "
-    "thing asked. A question fills no field. When a message asks to see something drawn (a picture, a plot, a chart, a "
-    "figure of columns or arms or scores), put what to draw in draw, in their words; the desk draws it and shows it beside "
-    "the next thing asked. A drawing request fills no field. " + UPDATE_RULE
+    "decides what is written.\n"
+    "First say what the message does, in kind. update: it says something about the data, answers what was asked, says a "
+    "draft is right, or says they cannot say; every field it fills goes in updates, confirms or unknown. explore: it asks "
+    "to look at the data: a picture, a plot, a chart, a table, a count, a comparison of columns or arms or scores; put what "
+    "to look at in explore, in their words. ask: it asks the desk something: what a family is, why this is asked, what a "
+    "term means, what the file could answer; put the question in question, in their words. run: it asks to run the "
+    "analysis, or says yes to the design the desk showed and asked to run. A message that says anything about the data is "
+    "update, even when it also asks for a picture or asks something: put the picture in explore and the question in "
+    "question beside the updates. Only update carries updates, confirms or unknown; the other kinds carry none. A note is "
+    "always update. You do not decide what the desk asks next; the desk does.\n"
+    "When a message says which families of analysis they care about (only adjustment; forget the discontinuity; every one "
+    "again), put the family names in focus, spelled as the memory's fit grid spells them; otherwise leave focus null. " + UPDATE_RULE
 )
 
 READ_USER = """KINDS OF FIELD
@@ -50,7 +55,7 @@ THE FILE'S COLUMNS
 THE MATERIAL
 [{source}] {material}
 {errors}
-Return what the material settles.
+Return the kind, then what the material settles.
 """
 
 ANSWER_SYSTEM = (

@@ -40,6 +40,20 @@ def open_lines(memory: Memory, opened: list, asked: Ask | None) -> str:
     return "\n".join(lines) or "(nothing open)"
 
 
+def kind_errors(out: Reading, *, from_note: bool) -> list[str]:
+    """The kind gate, code: only update carries writes; explore and ask carry what they are about; a note is read as update."""
+    errors = []
+    if out.kind != "update" and (out.updates or out.confirms or out.unknown):
+        errors.append(f"kind is {out.kind} but the reading carries writes; a message that says anything about the data is update")
+    if out.kind == "explore" and not (out.explore or "").strip():
+        errors.append("kind is explore but explore is empty; say what to look at, in the person's words")
+    if out.kind == "ask" and not (out.question or "").strip():
+        errors.append("kind is ask but question is empty; say what was asked, in the person's words")
+    if from_note and out.kind != "update":
+        errors.append(f"kind is {out.kind} but a note is always read as update")
+    return errors
+
+
 def _belief(address: str) -> bool:
     where, name, _ = Memory.parse(address)
     kind = CAT.kinds.get(COLUMN_KIND if where == "col" else name)
@@ -64,7 +78,7 @@ def read_words(
     the updates are written as drafts for the readback to confirm; confirms and unknowns stay the person's word."""
     from_note = source.startswith("doc:")
     errs = errors or []
-    shown = ("\nPREVIOUS UPDATES WERE REJECTED:\n" + "\n".join(f"- {e}" for e in errs) + "\nFix them and return the set again.\n") if errs else ""
+    shown = ("\nPREVIOUS READING WAS REJECTED:\n" + "\n".join(f"- {e}" for e in errs) + "\nFix it and return the reading again.\n") if errs else ""
     cols = "\n".join(V.brief_of(memory, c).line() for c in memory.columns.values() if not c.facts.constant)
     user = P.READ_USER.format(
         kinds=kinds_text(),
@@ -77,6 +91,11 @@ def read_words(
         errors=shown,
     )
     out, thought = structured(Reading, P.READ_SYSTEM, user, node=f"read:{source}", tier="light")
+    wrong = trace.gate(kind_errors(out, from_note=from_note), name="gate:kind", kind=out.kind)
+    if wrong:
+        return out, [thought], wrong
+    if out.kind != "update":  # nothing to write: the kind gate has held that the reading carries no writes
+        return out, [thought], []
     status = "drafted" if from_note or draft else "confirmed"
     updates = []
     for u in out.updates:

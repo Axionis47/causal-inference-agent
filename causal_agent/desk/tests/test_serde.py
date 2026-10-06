@@ -28,7 +28,7 @@ def test_the_records_the_desk_checkpoints_come_back_as_themselves():
     assert isinstance(back, RunRecord) and back.effect == 1.5 and back.family == "adjustment"
     ask = Ask(addresses=["col:lunch.when"], kind="story", text="Tell me the story.", decision="")
     assert isinstance(roundtrip(ask), Ask)
-    reading = Reading(updates=[FieldUpdate(address="col:lunch.when", value="before", said="at enrolment")], confirms=["claim:assignment.kind"])
+    reading = Reading(kind="update", updates=[FieldUpdate(address="col:lunch.when", value="before", said="at enrolment")], confirms=["claim:assignment.kind"])
     back = roundtrip(reading)
     assert isinstance(back, Reading) and isinstance(back.updates[0], FieldUpdate) and back.confirms == ["claim:assignment.kind"]
     assert (
