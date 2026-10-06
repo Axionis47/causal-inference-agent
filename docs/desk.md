@@ -44,7 +44,7 @@ writes a `fit` step when a cell moves. `ask` composes the next thing by code ([d
    field under one decision in one turn, prefixed "To settle <what the decision asks>, I need:". A belief is asked as what the
    design would bet on. The relations a decision merely rests on (the same thing as another column, nested in one, the effect
    could differ by it, an offer and an uptake as two columns) are not asked: they never block.
-5. The ready moment: the desk builds the pack and reads the assembled context back in the order the reasoning reads it, the
+5. The ready moment: the routing nodes run (`fit`, `decide`, `gate`, `design`), then `convince` builds the pack and reads the assembled context back in the order the reasoning reads it, the
    pair, the mechanism, time, the relations, the hidden factors, heterogeneity, the threats, then names the design and what it
    bets on. The person corrects any line there, or says yes, and the yes is what launches.
 
@@ -86,7 +86,7 @@ this view and read by no node; the diff against the node before is what the turn
 addresses this turn wrote. `infer_errors`, `explain_errors`, `gate_errors` and `after_errors` are the gate refusing a
 judgement, try by try. `status`, `matrix` and `open` are the fit. `debug` holds one `Thought` per model call, so a node with
 none ran as code. The judgement nodes are `mine`, `prefilter`, `read_question`, `infer`, `explain`, `explore`, `decide`,
-`design`, `convince` and `turn`; every other node is code. `run` is one box, because the lane runs in its own process; watch a
+`design` and `turn`; every other node is code (`convince` only says what the routing nodes made). `run` is one box, because the lane runs in its own process; watch a
 lane in its own graph ([lanes.md](lanes.md)). With `LANGSMITH_TRACING=true` in `.env`, Studio links each node to its trace,
 where the prompt text is; without it, the state is the record.
 

@@ -70,8 +70,8 @@ the chokepoints ADR 0012 names.
 A process per exploration, started on demand and stopped after. A decision model loaded in the API process. The Reader's
 prompt grows by one paragraph. The shortcut that confirmed every open draft on the word "run" goes, and with it the test
 that proved it: the readback is now the first thing asked under run intent, one turn. The interview stays plain text until
-the questionnaire lands. The ready moment still rebuilds the decision inline until the handoff view routes it through the
-nodes.
+the questionnaire lands. The ready moment runs through the routing nodes, so the trace shows `fit`, `decide`, `gate` and
+`design` under it and nothing is built twice.
 
 ## How it is read
 

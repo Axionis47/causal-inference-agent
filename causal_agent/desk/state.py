@@ -75,6 +75,8 @@ class DeskState(RouteState, total=False):
     fork: object | None  # a what-if: a copy of the memory the routing and the run read instead of the one on disk
     what_if: dict[str, str]  # the fields changed on the fork, address -> value
     convinced_version: int  # the memory version the decision shown at the ready moment was made on
+    convincing: bool  # the routing nodes are running to show the ready moment, not to hand off
+    preview: Handoff | None  # the pack as the ready moment read it back; the page shows it; the hand-off writes its own
     phase: str  # before | after
     runs: list[RunRecord]
     exchanges: Annotated[list[Exchange], operator.add]

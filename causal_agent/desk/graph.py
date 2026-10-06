@@ -1,7 +1,7 @@
 """The desk: one conversation from a CSV to a run and back.
 
     START ─ load ─ ask_question ─(interrupt)─ mine ─ read_question ─┬─ (invalid) ─ ask_question
-                                                                   └─ check ─ probe_fit ─ ask ─(convince, when ready)─ listen ─(interrupt)─ infer ─┬─ check …
+                                                                   └─ check ─ probe_fit ─ ask ─(fit ─ decide ─ gate ─ design ─ convince, when ready)─ listen ─(interrupt)─ infer ─┬─ check …
                                                                                                                    (run, at the ready moment) ─┘   └─ handoff ─ run ─ brief ─ talk ─(interrupt)─ turn ─┬─ answer ─ talk
                                                                                                                                                                                                            ├─ revise ─ check …
                                                                                                                                                                                                            ├─ what_if ─ fit ─ … ─ run (on a copy)
@@ -98,13 +98,13 @@ def build() -> StateGraph:
     # read_question → ask_question | check, via Command
     b.add_edge("check", "probe_fit")
     b.add_edge("probe_fit", "ask")
-    # ask → listen | convince | fit; listen → infer | fit | handoff | check | END; infer → infer | explore | explain | check | handoff;
+    # ask → listen | fit; listen → infer | END; infer → infer | explore | explain | check | handoff;
     # explore → explain | check; explain → explain | explore | check, via Command
     b.add_edge("convince", "listen")
     b.add_edge("fit", "decide")
     b.add_edge("decide", "gate")
     # gate → decide | design, via Command
-    b.add_edge("design", "handoff")
+    b.add_conditional_edges("design", J.after_design, ["convince", "handoff"])  # the ready moment, or the word's hand-off
     b.add_edge("handoff", "run")
     b.add_conditional_edges("run", J.after_run, ["ask_back", "brief"])
     b.add_edge("ask_back", "listen")

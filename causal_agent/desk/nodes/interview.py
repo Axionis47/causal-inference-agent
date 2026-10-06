@@ -11,13 +11,11 @@ from langgraph.runtime import Runtime
 from langgraph.types import Command, interrupt
 
 from causal_agent.common.contracts import QuestionFrame
-from causal_agent.desk import designer as DG
 from causal_agent.desk import explainer as X
 from causal_agent.desk import handoff as H
 from causal_agent.desk import reader as RD
 from causal_agent.desk import turns as TD
 from causal_agent.desk.contracts import Ask, Finding, Reading
-from causal_agent.desk.nodes import decide as D
 from causal_agent.desk.nodes import frame as F
 from causal_agent.desk.nodes.shared import (
     CAT,
@@ -322,11 +320,12 @@ def _told_already(memory: Memory, opened: list) -> bool:
     return False
 
 
-def ask(state: DeskState) -> Command[Literal["listen", "convince"]]:
+def ask(state: DeskState) -> Command[Literal["listen", "fit"]]:
     """The reply this turn, and whether a question rides with it. Without run intent nothing is asked: the reply is what the desk
     answered, drew or noted, the map once, or where the question stands. With run intent, the story once (unless a note or the
     person told it), then the readback of the drafts, then one blocking gap per turn, and at ready the ready moment every
-    time; the person's word launches from there."""
+    time: the routing nodes (fit, decide, gate, design) run and `convince` says what they made; the person's word launches
+    from there."""
     st = state["status"]
     memory = F.memory_of(state)
     opened = state.get("open") or []
@@ -353,7 +352,7 @@ def ask(state: DeskState) -> Command[Literal["listen", "convince"]]:
     shown = {"artifact": state.get("artifact"), "explored": None, "oriented": True, "explained": None, "note": "", **flags}
     if a is None:
         if intent and st.ready:
-            return Command(goto="convince", update={"ask": None, "reply": head, **shown})
+            return Command(goto="fit", update={"ask": None, "reply": head, "convincing": True, "gate_errors": [], "decide_attempts": 0, **shown})
         if intent:
             body = (
                 "Nothing more to ask, but no design fits yet: "
@@ -370,33 +369,33 @@ def ask(state: DeskState) -> Command[Literal["listen", "convince"]]:
 # ------------------------------------------------------------------ convince (the ready moment)
 
 
+def after_design(state: DeskState) -> Literal["convince", "handoff"]:
+    """Where the design goes: to the ready moment when the interview sent the routing nodes to show it, else on to the hand-off
+    (the word, or a what-if)."""
+    return "convince" if state.get("convincing") else "handoff"
+
+
 def convince(state: DeskState, runtime: Runtime[Context]) -> dict:
-    """At ready: decide by code (a judgement only among several), the Designer's brief, and the design said in the question's
-    words with the evidence, what it bets on, each decision, the threats, and the struck families with one reason each."""
+    """The ready moment, said from what the routing nodes made: the decision (by code, or one judgement among several), the
+    Designer's brief, and the design in the question's words with the evidence, what it bets on, each decision, the threats,
+    and the struck families with one reason each. The pack it reads back is kept as the preview the page shows."""
     memory = F.memory_of(state)
-    out = D.fit(state, runtime)
-    st2 = {**state, **out}
-    dec = D.decide(st2, runtime)
-    st3 = {**st2, **dec}
-    g = D.gate(st3, runtime)
-    update: dict = {**out, **dec, **(g.update or {}), "convinced_version": memory.version}
-    d = update.get("decision")
+    d = state.get("decision")
     registry = {f.name: f for f in R.knowledge()}
     head = state.get("reply") or ""
-    verdicts = {v.family: v for v in update.get("family_verdicts") or []}
-    if d is None or g.goto == "__end__" or d.chosen not in registry:
+    verdicts = {v.family: v for v in state.get("family_verdicts") or []}
+    update: dict = {"convinced_version": memory.version, "convincing": False}
+    if d is None or state.get("gate_errors") or d.chosen not in registry:
         text = (
             head
             + "Everything the analysis needs is settled, but no family stands: "
             + "; ".join(f"{v.family} ({next((n.note for n in v.needs if not n.met), v.concern or 'does not fit')})" for v in verdicts.values())
             + ". Tell me what is different about the data."
         )
-        return {**update, "reply": text, "handoff": None, "brief": None}
+        return {**update, "reply": text, "handoff": None, "brief": None, "preview": None}
     fam = registry[d.chosen]
-    designed = DG.design_brief({**st3, **(g.update or {})}, runtime)
-    brief = designed["brief"]
-    update.update({"brief": brief, "debug": list(dec.get("debug") or []) + list(designed.get("debug") or [])})
-    probes = [p for p in update.get("probes") or [] if p.family == fam.name and p.passed is not None]
+    brief = state.get("brief")
+    probes = [p for p in state.get("probes") or [] if p.family == fam.name and p.passed is not None]
     evidence = "; ".join(f"{p.detail} [{p.address}]" for p in probes) or "no probe applies"
     fields = [f"[claim:assignment.kind] {memory.value('claim:assignment.kind')}"] + [
         f"[{a}]" for a in ("claim:change.what", "claim:grain.panel") if memory.value(a) is not None
@@ -406,8 +405,9 @@ def convince(state: DeskState, runtime: Runtime[Context]) -> dict:
         for v in verdicts.values()
         if not v.admissible and v.family != fam.name
     ]
-    fr = st3.get("frame")
-    pack = H.build(question=state["question"], frame=fr, decision=d, family=R.REGISTRY[fam.name], memory=memory, probes=update.get("probes") or [], brief=brief)
+    fr = state.get("frame")
+    assert fr is not None
+    pack = H.build(question=state["question"], frame=fr, decision=d, family=R.REGISTRY[fam.name], memory=memory, probes=state.get("probes") or [], brief=brief)
     lines = [
         head + "Everything the analysis needs is settled. Here is the context the analysis will run on; correct any line before you say yes.",
         pack.render_summary(),
@@ -425,7 +425,10 @@ def convince(state: DeskState, runtime: Runtime[Context]) -> dict:
         lines.append("Set aside: " + "; ".join(struck) + ".")
     lines.append("Say yes to hand off, ask for a picture of anything in the file, or tell me anything to change.")
     _writer()({"convince": {"family": fam.name}})
-    return {**update, "reply": "\n".join(ln for ln in lines if ln)}
+    return {**update, "preview": pack, "reply": "\n".join(ln for ln in lines if ln)}
+
+
+# ------------------------------------------------------------------ listen
 
 
 def listen(state: DeskState) -> Command[Literal["infer", "__end__"]]:

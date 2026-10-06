@@ -13,7 +13,7 @@ from causal_agent.common.llm import structured
 from causal_agent.desk.nodes import decide as D
 from causal_agent.desk.nodes.frame import memory_of
 from causal_agent.desk.prompts import routing as P
-from causal_agent.desk.state import Context, RouteState
+from causal_agent.desk.state import Context, DeskState
 from causal_agent.families import registry as R
 from causal_agent.families.base import Family
 from causal_agent.memory.claims import ProbeResult
@@ -82,14 +82,15 @@ def _canonical(brief: DesignBrief) -> DesignBrief:
     return brief
 
 
-def _previous(state: RouteState) -> DesignBrief | None:
+def _previous(state: DeskState) -> DesignBrief | None:
     """The brief of the last design that ran, so a revise says what it keeps and changes."""
     runs = state.get("runs") or []
     raw = (runs[-1].decision or {}).get("brief") if runs else None
     return DesignBrief.model_validate(raw) if raw else None
 
 
-def design_brief(state: RouteState, runtime: Runtime[Context] | None = None) -> dict:
+def design_brief(state: DeskState, runtime: Runtime[Context] | None = None) -> dict:
+    # annotated with the whole desk state: a graph node sees only the keys its annotation names, and the brief before lives in the runs
     memory = memory_of(state)
     fr, d = state.get("frame"), state.get("decision")
     registry = {f.name: f for f in R.knowledge()}
