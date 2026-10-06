@@ -7,7 +7,7 @@ the refusal.
 ## The fake
 
 `DeskFake` ([desk/tests/fakes.py:169](../causal_agent/desk/tests/fakes.py)) stands in for the model wrapper. A test installs it with
-`set_llm(fake)` and `set_llm(None)` restores the real one. Its `with_structured_output(schema)` returns an object whose `invoke`
+`set_llm(fake)` and `set_llm(None)` restores the real one. The decision model is swapped the same way with `set_decider(fake)`, and `DeskFake` is both: its `predict` answers by the cues `read_by_rule` reads and is unsure on anything else. Its `with_structured_output(schema)` returns an object whose `invoke`
 hands the human prompt to `answer(schema, human)`, and `answer` dispatches on the schema the node asked for:
 
 | schema asked | the fake answers with |
