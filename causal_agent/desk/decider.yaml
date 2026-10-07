@@ -1,7 +1,9 @@
 # The questions the decision model answers about every message before the Reader is called, and the confidence below which
 # the desk does not trust the answer and lets the Reader decide the kind itself. The wording is the only prompt the decision
 # model sees; it names no column and no method.
-threshold: 0.6
+# 0.8: on the 100 held-out turns the open checkpoint decides 6% of turns at 0.8, all right, and 26% at 0.6 with a third of them
+# wrong, among them corrections at the ready moment read as run. A fine-tune that earns a lower threshold is scored by evals/turns.py.
+threshold: 0.8
 questions:
   kind:
     type: choice

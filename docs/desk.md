@@ -60,7 +60,7 @@ writes a `fit` step when a cell moves. `ask` composes the next thing by code ([d
 `listen` takes the answer. `infer` is the Reader over it; on the story turn the desk also keeps the account whole, as the
 one verbatim field only it may write. `explore` and `explain` serve an artifact or an answer before the next ask. A decision model (Laya, or Jev on the same wire;
 `desk/turns.py`, `desk/decider.yaml`) reads the kind of every turn first, cheaply, and a confident explore, ask, run or transform (a change to the table: a new version the data agent writes, put in play on the person's word) never reaches
-the Reader; when it is unsure the Reader reads the kind; a run anywhere but the ready moment turns run intent on, after which only what blocks is asked, and a
+the Reader, except at the ready moment, where the Reader always reads the word; when it is unsure the Reader reads the kind; a run anywhere but the ready moment turns run intent on, after which only what blocks is asked, and a
 run at the ready moment is the word that launches. No word list is matched.
 
 **The routing, by code.** `fit` computes the matrix; `decide` is code when exactly one family survives and a judgement only when

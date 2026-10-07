@@ -506,7 +506,9 @@ def infer(state: DeskState) -> Command[Literal["infer", "explore", "transform", 
         verdict, confidence = TD.classify(message, asked=a.text if a else None, at_ready=ready_now, last_reply=state.get("reply") or "", node=f"decide:{src}")
     if edits is not None:
         pass
-    elif verdict in ("explore", "ask", "run", "transform") and not state.get("infer_errors"):
+    elif verdict in ("explore", "ask", "run", "transform") and not state.get("infer_errors") and not ready_now:
+        # a confident kind skips the Reader, except at the ready moment: the word that launches an analysis is always read by
+        # the Reader, since a correction mistaken for the word would run a design the person just said was wrong
         out = Reading(
             kind=verdict,
             explore=message if verdict == "explore" else None,

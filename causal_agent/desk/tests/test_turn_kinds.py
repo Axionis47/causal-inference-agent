@@ -104,3 +104,13 @@ def test_a_refused_reading_writes_nothing_so_a_re_prompt_cannot_confirm_its_own_
     f = HELD["students"].field("claim:assignment.kind")
     assert f.value == "own_choice" and f.status == "drafted" and f.source.startswith("user:turn:")
     assert fake.calls.count("Reading") == 2 and "PREVIOUS READING WAS REJECTED" in fake.humans["Reading"][-1] and "no value given" in fake.humans["Reading"][-1]
+
+
+def test_at_the_ready_moment_the_reader_always_reads_the_word():
+    fake = DeskFake()
+    d = Desk(fake)
+    d.say(QUESTION)
+    d.to_ready()
+    reads = fake.calls.count("Reading")
+    d.say("yes, run it")  # the fake decision model is sure this is run; the Reader reads it all the same
+    assert fake.calls.count("Reading") == reads + 1 and d.values["phase"] == "after"
