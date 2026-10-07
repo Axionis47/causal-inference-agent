@@ -74,7 +74,9 @@ uv run python -m causal_agent.desk.pipeline designs/<n>/handoff.json --json-file
 
 **Environment.** Copy `.env.example` to `.env`; `common/config.py` is the one reading of it. The model is Gemini on Vertex AI
 through application-default credentials (`gcloud auth application-default login`); `VERTEX_PROJECT` falls back to the active
-gcloud project. `INCLUDE_THOUGHTS` and `THINKING_BUDGET` are debug knobs. `RUN_DIR` and `PROFILE_CACHE_DIR` move the run
+gcloud project. A cloud session has no gcloud login: `.claude/hooks/session-start.sh` writes `GOOGLE_SERVICE_ACCOUNT_JSON` from
+the environment's settings to `.artifacts/gcp-key.json` and exports `GOOGLE_APPLICATION_CREDENTIALS` and `VERTEX_PROJECT` from it;
+`LANGSMITH_API_KEY` and `LANGSMITH_PROJECT` are set there too. `INCLUDE_THOUGHTS` and `THINKING_BUDGET` are debug knobs. `RUN_DIR` and `PROFILE_CACHE_DIR` move the run
 folders and the profile cache; `EXPLORE_SANDBOX` picks the fence a script runs in. `DECIDER` picks the decision model that reads each
 turn's kind before any Gemini call: `laya` (the open checkpoint in this process; the first call loads it) or `jev` (a hosted
 endpoint on the same wire, `DECIDER_URL` and `DECIDER_KEY`). `uv run python -m causal_agent.evals.turns` scores either on the
