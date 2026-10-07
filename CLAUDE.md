@@ -76,9 +76,8 @@ through application-default credentials (`gcloud auth application-default login`
 gcloud project. `INCLUDE_THOUGHTS` and `THINKING_BUDGET` are debug knobs. `RUN_DIR` and `PROFILE_CACHE_DIR` move the run
 folders and the profile cache; `EXPLORE_SANDBOX` picks the fence a script runs in. `DECIDER` picks the decision model that reads each
 turn's kind before any Gemini call: `laya` (the open checkpoint in this process; the first call loads it) or `jev` (a hosted
-endpoint on the same wire, `DECIDER_URL` and `DECIDER_KEY`). `DECIDER_CHECKPOINT` names a fine-tune of the open checkpoint
-that stands in for it; `make decider` trains one on `desk/evals/turns_train.jsonl` and scores it on the held-out
-`desk/evals/turns.jsonl`, which `uv run python -m causal_agent.evals.turns` scores for any backend.
+endpoint on the same wire, `DECIDER_URL` and `DECIDER_KEY`). `uv run python -m causal_agent.evals.turns` scores either on the
+labelled turns under `desk/evals/`.
 
 **Tests.** Set `LANGSMITH_TRACING=false` when running tests locally; `.env` turns tracing on and the tracer floods the output
 when the quota is spent. Tests never call a model: every judgement is scripted through `set_llm(fake)`; see

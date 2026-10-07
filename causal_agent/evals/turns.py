@@ -8,9 +8,7 @@ model answers every turn once; the thresholds are applied to those answers, so a
 threshold: the share decided (not escalated to the Reader), and the accuracy among the decided; then the confusion by kind
 at the threshold decider.yaml declares, or the one given.
 
-`turns.jsonl` is the held-out set and the one scored by default; `turns_train.jsonl` is the set `evals/decider.py` fine-tunes
-on, and a sentence in the held-out set is never in it. Both are in the desk's own row shape; `to_laya` renders a row as the
-decision model is trained on it, from the same `state_of` and the same questions the desk sends."""
+The turns are in the desk's own row shape and the model is asked exactly what the desk asks, through `desk/turns.py`."""
 
 from __future__ import annotations
 
@@ -23,19 +21,11 @@ from causal_agent.common import llm, trace
 from causal_agent.desk import turns as TD
 
 SET = Path(__file__).resolve().parents[1] / "desk" / "evals" / "turns.jsonl"
-TRAIN_SET = SET.with_name("turns_train.jsonl")
 SWEEP = (0.0, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9)
 
 
 def rows_of(path: Path) -> list[dict]:
     return [json.loads(ln) for ln in path.read_text().splitlines() if ln.strip()]
-
-
-def to_laya(row: dict) -> dict:
-    """One labelled turn in the shape the decision model trains on: the state the desk would send, the questions
-    decider.yaml spells, and the expected answer to each (the kind; about the data exactly when the kind is update)."""
-    state = TD.state_of(row["message"], row.get("asked"), bool(row.get("at_ready")), row.get("last_reply") or "")
-    return {"state": state, "questions": TD.spec()["questions"], "expected": {"kind": row["kind"], "about_data": row["kind"] == "update"}}
 
 
 def answers(rows: list[dict]) -> list[tuple[str | None, float]]:

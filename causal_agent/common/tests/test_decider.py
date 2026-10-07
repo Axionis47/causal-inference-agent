@@ -16,15 +16,8 @@ def test_parse_reads_laya_and_jev_confidences_alike():
     assert decider.parse({}, model="x").answers == {}
 
 
-def test_a_fine_tune_stands_in_for_the_english_checkpoint():
-    assert decider.laya_models(None) is None
-    assert decider.laya_models("/ckpt/turns") == {"english": "/ckpt/turns"}
-
-
-def test_the_checkpoint_is_read_relative_to_the_root(tmp_path):
+def test_the_backend_is_read_from_the_environment(tmp_path):
     d = config.load({"DECIDER": "laya"}, root=tmp_path).decider
-    assert (d.kind, d.checkpoint) == ("laya", None)
-    d = config.load({"DECIDER_CHECKPOINT": ".artifacts/decider/turns"}, root=tmp_path).decider
-    assert d.checkpoint == str(tmp_path / ".artifacts" / "decider" / "turns")
-    d = config.load({"DECIDER_CHECKPOINT": "/elsewhere/turns"}, root=tmp_path).decider
-    assert d.checkpoint == "/elsewhere/turns"
+    assert (d.kind, d.url, d.key) == ("laya", None, None)
+    d = config.load({"DECIDER": "jev", "DECIDER_URL": "https://jev.example", "DECIDER_KEY": "k"}, root=tmp_path).decider
+    assert (d.kind, d.url, d.key) == ("jev", "https://jev.example", "k")
