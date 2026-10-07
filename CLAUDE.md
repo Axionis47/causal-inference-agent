@@ -61,6 +61,7 @@ uv run pytest causal_agent/desk/tests/test_journey.py -k picture -q   # one test
 make lint types                 # ruff + import contracts + eslint; mypy + tsc
 make fmt                        # ruff and prettier, in place
 make schema                     # after any change to server/models.py: regenerates web/openapi.json and web/src/generated/schema.ts; CI fails on a diff
+make ladder                     # after any change to a lane's rungs.yaml, space.yaml, checks.yaml, beliefs.yaml or catalogue: rewrites docs/ladders/<family>.md; CI fails on a diff
 make dev-api                    # the API on :8000, the desk in process, the page served from web/dist when built
 make dev-web                    # the page on :5173, proxying /api
 make studio                     # langgraph dev on :2024: the desk and the adjustment lane from langgraph.json
@@ -117,9 +118,12 @@ computes data facts (`probe:data.*`) for the columns in play at every fit and at
 
 **A lane** (`families/<name>/lane/`) runs in its own process on `designs/<n>/handoff.json` and reads nothing else
 (`desk/pipeline.py`). Shared plumbing is in `lane/`; the engine, judgements and knowledge yaml stay in the family. A lane
-climbs a ladder of rungs in the order an analyst reads its design (`Ladder` in the family's `contracts.py`, the shape in
+climbs a ladder of rungs in the order an analyst reads its design, declared once in the family's `lane/knowledge/rungs.yaml`
+(every node, what decides it, where it may go, whether it may stop, what it asks and stops on); `lane/graph.py::build` makes the
+graph from it, `families/tests/test_ladders.py` holds the two equal, and `make ladder` writes `docs/ladders/<family>.md` with the
+rungs, the space and the end states derived from the declarations (`Ladder` in the family's `contracts.py` is the record, the shape in
 `lane/ladder.py`); a rung is code where the pack settles it and a bounded episode where it does not (`lane/episode.py`: the
-model may call the read-only tools in `lane/tools.py` within the budget its `checks.yaml` declares, then answers one typed
+model may call the read-only tools in `lane/tools.py` within the budget its `rungs.yaml` declares, then answers one typed
 record that code gates; no tool joins the outcome with the treatment before the freeze). Every claim a judgement makes cites
 an address the pack, the episode's facts or a rung below resolves; an unresolved cite is rejected and re-prompted. A rung
 never asks the person; what it would not guess is a flag (`unsure`), and on a catalogue claim also a decline. The result is

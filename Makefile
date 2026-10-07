@@ -34,7 +34,10 @@ schema: ## regenerate the OpenAPI schema and the web's types from it
 	$(UV) python -m causal_agent.server --openapi > web/openapi.json
 	npm run $(WEB) types
 
-check: lint types test test-web schema ## everything CI runs
+ladder: ## write docs/ladders/<family>.md from each lane's declarations; CI fails on a diff
+	LANGSMITH_TRACING=false $(UV) python -m causal_agent.evals.ladder
+
+check: lint types test test-web schema ladder ## everything CI runs
 
 # ------------------------------------------------------------------ running
 
@@ -62,4 +65,4 @@ docfigs: ## redraw docs/diagrams/*.svg from the records under docs/demo/
 trace: ## the newest LangSmith trace as a tree in the terminal: make trace ARGS="--last 8" | ARGS="--thoughts"
 	$(UV) python -m causal_agent.evals.trace $(ARGS)
 
-.PHONY: help lint fmt types test test-web schema check dev-api dev-web build-web evals explore-image docfigs studio trace
+.PHONY: help lint fmt types test test-web schema ladder check dev-api dev-web build-web evals explore-image docfigs studio trace

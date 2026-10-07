@@ -115,13 +115,6 @@ in_words:
   few_clusters: "whether there are enough separate groups of units for the usual clustered standard errors to be trusted"
   one_sided_takeup: "whether take-up varies on one side of the cutoff only, so the width is chosen as for a sharp design"
 
-# How many tool calls each reasoning episode may make before it must answer. The leash, declared.
-episode_budget:
-  score: 2
-  line: 4
-  covariates: 8
-  heterogeneity: 4
-  window: 2
 
 # How many modifiers the heterogeneity rung may name; the effect at the cutoff is estimated within each level of each, at the
 # design's bandwidth, and a level with fewer effective rows on a side than the floor is recorded as too thin.

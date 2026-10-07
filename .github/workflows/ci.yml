@@ -24,6 +24,10 @@ jobs:
           LANGSMITH_TRACING: "false"
       - name: the OpenAPI schema the web's types are generated from is committed as the server declares it
         run: uv run python -m causal_agent.server --openapi > web/openapi.json && git diff --exit-code web/openapi.json
+      - name: the ladder tables under docs/ladders say what the lanes' declarations say
+        run: uv run python -m causal_agent.evals.ladder && git diff --exit-code docs/ladders
+        env:
+          LANGSMITH_TRACING: "false"
 
   web:
     runs-on: ubuntu-latest

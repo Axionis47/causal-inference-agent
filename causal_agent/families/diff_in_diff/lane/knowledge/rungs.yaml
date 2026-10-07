@@ -1,0 +1,113 @@
+# The diff-in-diff lane's ladder, declared once (ADR 0011). Every node of the graph in the order it runs: what decides it
+# (`decider`: code, pack, judgement or ask, each with when), where it goes on (`exits`; the next rung when not said), whether
+# it may stop (`stop`; yes when not said), the function in nodes.py that picks among several exits (`route`), whether it is
+# a worker reached by Send (`worker`), a judgement's tool budget, the addresses it may ask back (`asks`) and the declared
+# causes it stops on (`stops_on`). feasibility, figures and assemble are the builder's nodes. The graph is held to this
+# file by a test; `make ladder` writes docs/ladders/diff_in_diff.md from it, the checks and the beliefs. This lane declares
+# its space in its own step of ADR 0011; until then its answers are not enumerated.
+
+goal: freeze_design
+
+loops:  # the cycles the graph still has; ADR 0011 rule 6 takes them out
+  - {from: assess, to: merge_controls, max: 3, why: a control delta on a flagged check}
+  - {from: estimate, to: pick_estimator, max: 1, why: a second pick when the estimator failed to fit}
+
+rungs:
+  - name: load
+    level: the file
+    decider: {code: always}
+    stops_on: [intake, shape]
+  - name: case
+    level: the pack weighed
+    decider: {code: always}
+    stop: false
+  - name: groups
+    level: who got the change
+    decider: {pack: the treated group is confirmed, judgement: otherwise}
+    budget: 2
+    tools: [describe, by_arm, association, redundancy, cells, timing, by_group_over_time, composition]
+    route: after_groups
+  - name: periods
+    level: when the change came
+    decider: {pack: the period of the change is confirmed, ask: the first period at or after the change is not known, judgement: otherwise}
+    budget: 2
+    tools: [describe, by_arm, association, redundancy, cells, timing, by_group_over_time, composition]
+    asks: [claim:change.period_value]
+    route: after_periods
+  - name: shape_table
+    level: the panel
+    decider: {code: always}
+    stops_on: [shape]
+  - name: mechanism
+    level: how assignment happened
+    decider: {judgement: always}
+    budget: 3
+    tools: [describe, by_arm, association, redundancy, cells, timing, by_group_over_time, composition]
+  - name: trends
+    level: the evidence
+    decider: {code: always}
+    stop: false
+  - name: comparison
+    level: the comparison
+    decider: {judgement: always}
+    budget: 6
+    tools: [describe, by_arm, association, redundancy, cells, timing, by_group_over_time, composition]
+  - name: controls
+    level: what else moves the outcome
+    decider: {pack: a column whose claims are confirmed, judgement: every other candidate}
+    budget: 8
+    tools: [describe, by_arm, association, redundancy, cells, timing, by_group_over_time, composition]
+  - name: merge_controls
+    level: the design
+    decider: {code: a pure function of the rungs below and the revisions applied}
+    stop: false
+  - name: verify
+    level: the design
+    decider: {code: always}
+    stops_on: [graph]
+  - name: heterogeneity
+    level: where the effect differs
+    decider: {code: no candidate, judgement: candidates exist}
+    budget: 4
+    tools: [describe, by_arm, association, redundancy, cells, timing, by_group_over_time, composition]
+  - name: threats
+    level: the risks
+    decider: {code: always}
+    stop: false
+  - name: check_design
+    level: the checks
+    decider: {code: always}
+    stop: false
+    exits: [assess, pick_estimator]
+    route: after_checks
+  - name: assess
+    level: the assessment
+    decider: {code: beliefs.yaml decides a stop or a question before any judgement, ask: a belief rule asks, judgement: a flag stands}
+    budget: 0
+    exits: [pick_estimator, merge_controls]
+    stops_on: [checks, beliefs, threats, assessment]
+  - name: pick_estimator
+    level: the pick
+    decider: {judgement: always}
+    budget: 0
+  - name: freeze_design
+    level: the design
+    decider: {code: always}
+    stop: false
+  - name: estimate
+    level: the estimate
+    decider: {code: always}
+    exits: [placebo, interpret, pick_estimator]
+    stops_on: [engine]
+  - name: placebo
+    level: the estimate
+    decider: {code: always}
+    worker: true
+    stop: false
+    exits: [interpret]
+  - name: interpret
+    level: the answer
+    decider: {judgement: always}
+    budget: 0
+    stop: false
+    exits: [figures]

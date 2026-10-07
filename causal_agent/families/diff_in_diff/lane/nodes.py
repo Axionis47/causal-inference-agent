@@ -59,6 +59,7 @@ from causal_agent.families.diff_in_diff.lane.contracts import (
     ShapeFacts,
 )
 from causal_agent.families.diff_in_diff.lane.knowledge import (
+    SPEC,
     EstimatorEntry,
     load_beliefs,
     load_checks,
@@ -199,7 +200,7 @@ def _ladder(state: SpecialistState) -> Ladder:
 
 
 def _budget(node: str) -> int:
-    return int((load_checks().get("episode_budget") or {}).get(node, 4))
+    return SPEC.budget(node)  # the leash, declared in rungs.yaml
 
 
 def _treated_mask(state: SpecialistState) -> pd.Series | None:

@@ -8,8 +8,10 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 from causal_agent.lane.knowledge import Knowledge, matches
+from causal_agent.lane.rungs import load_spec
 
 _HERE = Path(__file__).parent
+SPEC = load_spec(_HERE / "rungs.yaml")  # the ladder, declared once (ADR 0011): the graph is built from it and held to it
 
 
 class EstimatorEntry(BaseModel):

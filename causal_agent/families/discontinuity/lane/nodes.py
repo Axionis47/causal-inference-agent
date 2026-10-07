@@ -53,6 +53,7 @@ from causal_agent.families.discontinuity.lane.contracts import (
     WindowPick,
 )
 from causal_agent.families.discontinuity.lane.knowledge import (
+    SPEC,
     EstimatorEntry,
     load_beliefs,
     load_checks,
@@ -211,7 +212,7 @@ def _ladder(state: SpecialistState) -> Ladder:
 
 
 def _budget(node: str) -> int:
-    return int((_cfg().get("episode_budget") or {}).get(node, 4))
+    return SPEC.budget(node)  # the leash, declared in rungs.yaml
 
 
 def _treated_mask(state: SpecialistState) -> pd.Series | None:

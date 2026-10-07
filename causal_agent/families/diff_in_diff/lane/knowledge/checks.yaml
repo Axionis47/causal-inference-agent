@@ -60,17 +60,9 @@ in_words:
   composition: "whether the same units are present before and after the change"
   cohort_heterogeneity: "whether the units that got the change at different times moved alike after it"
 
-# How many tool calls each reasoning episode may make before it must answer. The leash, declared.
 anticipation:
   window_max: 3            # the mechanism rung may name at most this many periods of anticipation; ours
 
-episode_budget:
-  groups: 2
-  periods: 2
-  mechanism: 3
-  comparison: 6
-  controls: 8
-  heterogeneity: 4
 
 # How many modifiers the heterogeneity rung may name; the effect is estimated within each level of each, a unit trait.
 modifiers:

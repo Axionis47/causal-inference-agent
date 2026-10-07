@@ -96,6 +96,12 @@ class LadderBase(BaseModel):
 
 # ------------------------------------------------------------------ the threats every design shares, by code from the pack
 
+# the two threats that can stop a design by themselves; the end-state table of every lane lists them
+HARD_THREATS = {
+    "selection": "rows were drawn by how the outcome turned out; a comparison among the selected does not reach the population the question asks about",
+    "outcome_timing": "the outcome was measured before the change; it cannot carry its effect",
+}
+
 _SAMPLING_WORDS = {
     "by_arm": "by whether the unit got the change",
     "by_side": "by which side of the line they fell on",
@@ -116,7 +122,7 @@ def pack_threats(h: Handoff, case: Case, outcome_key: str, columns: dict[str, st
             Threat(
                 name="selection",
                 level="hard",
-                text="rows were drawn by how the outcome turned out; a comparison among the selected does not reach the population the question asks about",
+                text=HARD_THREATS["selection"],
                 cites=["claim:sampling.how"],
             )
         )
@@ -136,7 +142,7 @@ def pack_threats(h: Handoff, case: Case, outcome_key: str, columns: dict[str, st
             Threat(
                 name="outcome_timing",
                 level="hard",
-                text="the outcome was measured before the change; it cannot carry its effect",
+                text=HARD_THREATS["outcome_timing"],
                 cites=[f"col:{outcome_key}.when"],
             )
         )

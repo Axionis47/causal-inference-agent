@@ -394,7 +394,7 @@ def test_the_desk_reaches_the_real_specialist():
 
     SPECIALISTS = lanes()
 
-    assert {"pair", "mechanism", "time", "roles", "post_roles", "freeze_design"} <= set(SPECIALISTS["adjustment"].get_graph().nodes)
+    assert {"pair", "mechanism", "timing", "roles", "post_roles", "freeze_design"} <= set(SPECIALISTS["adjustment"].get_graph().nodes)
     assert "relate" not in SPECIALISTS["synthetic_control"].get_graph().nodes  # still a stub
 
 
@@ -1028,7 +1028,7 @@ def test_the_pack_may_arrive_as_json_and_every_routing_node_declares_its_destina
         ("load", "case"),
         ("load", "feasibility"),
         ("pair", "mechanism"),
-        ("mechanism", "time"),
+        ("mechanism", "timing"),
         ("roles", "post_roles"),
         ("post_roles", "merge_graph"),
         ("verify_graph", "road"),

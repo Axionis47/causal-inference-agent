@@ -42,9 +42,19 @@ judgement where that node is one, and forking at `interpret` appends a second in
 on your machine. The other two lanes are not registered: the discontinuity lane once ended its parent process silently on
 macOS, which is why lanes run in a subprocess under the desk, and each is added once a run has proved the server survives it.
 
+## The ladder is declared
+
+Every built lane declares its ladder once, in `lane/knowledge/rungs.yaml`: each node in the order it runs, what decides it, where
+it may go, whether it may stop, a judgement's tool budget, what it may ask back and the causes it stops on. The graph is built
+from that file (`lane/graph.py::build`) and `families/tests/test_ladders.py` holds the two equal, so a node cannot go where the
+declaration does not say. `make ladder` writes one table per lane under [ladders/](ladders/) from the declaration, the space, the
+checks and the beliefs: the rungs, the space, and the end states a lane can reach, derived, never listed: the cells a design can
+reach, the questions a rung can send back, and the typed stops each rung can raise with the reason and the fix. CI fails when a
+table is stale. [adr/0011](adr/0011-the-design-space-is-declared-and-the-reasoning-stays-inside-it.md)
+
 ## The adjustment lane, stage by stage
 
-[families/adjustment/lane/](../causal_agent/families/adjustment/lane/): `graph.py` wires it, `nodes.py` holds the stages,
+[families/adjustment/lane/](../causal_agent/families/adjustment/lane/): `knowledge/rungs.yaml` declares it and `graph.py` builds it, `nodes.py` holds the stages,
 `prompts.py` the judgements, `adapter.py` is the only file that imports DoWhy. The design is climbed as a ladder, in the order an
 analyst reads the problem: the pair, the mechanism, time, the columns fixed before the change all together, the columns set at or
 after it all together, the graph, the road, where the effect could differ, and the threats. Each rung is code where the pack
@@ -125,7 +135,7 @@ code filters it, with parameters the model never sees;
 
 [families/diff_in_diff/lane/](../causal_agent/families/diff_in_diff/lane/) climbs its own ladder on the same harness, in the order
 an analyst reads a before-and-after comparison. Every rung is code where the pack settles it and a bounded episode where it does
-not, with the budgets its `checks.yaml` declares; every claim cites the pack, a fact the episode asked for, or a rung below.
+not, with the budgets its `rungs.yaml` declares; every claim cites the pack, a fact the episode asked for, or a rung below.
 
 1. **groups** (rung 0). Who got the change: the column and the level; the pack's block when it names one and the file bears it out,
    else a judgement, with the pack's failed answer shown as the first rejection.
@@ -215,7 +225,7 @@ an analyst reads a cutoff design.
 | | diff-in-diff | discontinuity |
 |---|---|---|
 | engine | pyfixest | rdrobust and rddensity; rdlocrand for a discrete score |
-| stages | load, case, groups, periods, shape_table, comparison, controls, merge_controls, verify, heterogeneity, threats, check_design, assess, pick_estimator, freeze_design, estimate, placebo, interpret, figures, assemble | load, case, score, shape_table, density, line, balance, covariates, merge_covariates, verify, heterogeneity, threats, check_design, assess, pick_estimator, window, freeze_design, estimate, placebo, interpret, figures, assemble |
+| stages | [ladders/diff_in_diff.md](ladders/diff_in_diff.md), from its `rungs.yaml` | [ladders/discontinuity.md](ladders/discontinuity.md), from its `rungs.yaml` |
 | its own judgements | groups, periods, comparison, controls, heterogeneity | score, line, covariates, heterogeneity, window |
 | its evidence rungs, by code | | density, balance |
 | the canonical shape code builds | `y, unit, time, time_index, treated, post, treat, rel_time, cohort` from a long or a wide table, with each unit's first treated period as `cohort` (0 for never treated) | `y, x, side, row` with the score recentred on the cutoff and the treated side positive |

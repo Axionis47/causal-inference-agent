@@ -34,14 +34,6 @@ in_words:
   identification: "whether anything in the graph identifies the effect at all"
   adjusts_outside_candidates: "whether the adjustment reaches columns the notes never named as drivers of the offer"
 
-# How many tool calls each reasoning episode may make before it must answer. The leash, declared.
-episode_budget:
-  pair: 2
-  mechanism: 4
-  roles: 8
-  post_roles: 4
-  road: 0
-  heterogeneity: 4
 
 # The effect is estimated within each level of each modifier the heterogeneity rung names; how many it may name is a
 # dimension of space.yaml.

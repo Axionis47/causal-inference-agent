@@ -2,8 +2,8 @@
 rung decides each, the fact it is read from, and the shapes the library does not run with the reason a stop carries. The
 dimension names are the catalogue's own `applies_when` keys, so the estimator and refuter entries are the allowed tuples.
 
-Four pure functions read it. `coverage` proves, before any run, that every cell is served by an estimator and a refuter or
-is declared unsupported. `bounds` projects one file onto the space at load, so a file that can reach no cell stops before
+Four pure functions read it. `cells` enumerates the space with what serves each cell; `coverage` proves, before any run, that
+every cell is served by an estimator and a refuter or is declared unsupported. `bounds` projects one file onto the space at load, so a file that can reach no cell stops before
 any model call. `offer` gives a deciding rung only the values still runnable given what the rungs below fixed. `cell` names
 the shape a design reached, or says where it left the space.
 """
@@ -84,6 +84,15 @@ class Covered(BaseModel):
     unsupported: int
 
 
+class Cell(BaseModel):
+    """One point of the keyed dimensions: the entries whose rule applies to it, or the declared reason it is not run."""
+
+    point: dict[str, Any]
+    estimators: list[str] = Field(default_factory=list)
+    refuters: list[str] = Field(default_factory=list)
+    unsupported: str | None = None
+
+
 def load_space(path: Path) -> Space:
     return Space.model_validate(yaml.safe_load(Path(path).read_text()) or {})
 
@@ -141,25 +150,45 @@ def _keyed(space: Space, entries: list[Any]) -> list[str]:
     return [n for n, d in space.dimensions.items() if d.discrete() and n in named]
 
 
-def coverage(space: Space, estimators: list[Any], refuters: list[Any]) -> Covered | Gap:
-    """Every cell of the keyed dimensions is served by an estimator and a refuter, or is declared unsupported."""
+def _name(entry: Any) -> str:
+    return str(getattr(entry, "name", entry.applies_when))
+
+
+def cells(space: Space, estimators: list[Any], refuters: list[Any]) -> list[Cell]:
+    """Every cell of the keyed dimensions, in the space's order: the entries whose rule applies to it for some value of the soft
+    dimensions, or the declared reason it is not run. The end states a design can reach, enumerated from the declaration."""
     entries = list(estimators) + list(refuters)
     hard = [n for n in _keyed(space, entries) if not space.dimensions[n].soft]
     soft = [n for n in _keyed(space, entries) if space.dimensions[n].soft]
-    cells = 0
-    declared = 0
+    out: list[Cell] = []
     for values in product(*[space.dimensions[n].values or [] for n in hard]):
         point = dict(zip(hard, values, strict=True))
-        cells += 1
-        if space.reason_for(point) is not None:
-            declared += 1
+        reason = space.reason_for(point)
+        if reason is not None:
+            out.append(Cell(point=point, unsupported=reason))
             continue
         variants = [dict(point, **dict(zip(soft, sv, strict=True))) for sv in product(*[space.dimensions[n].values or [] for n in soft])] or [point]
-        if not any(matches(e.applies_when, v) for e in estimators for v in variants):
-            return Gap(cell=point, missing="estimator")
-        if not any(matches(r.applies_when, v) for r in refuters for v in variants):
-            return Gap(cell=point, missing="refuter")
-    return Covered(cells=cells, unsupported=declared)
+        out.append(
+            Cell(
+                point=point,
+                estimators=[_name(e) for e in estimators if any(matches(e.applies_when, v) for v in variants)],
+                refuters=[_name(r) for r in refuters if any(matches(r.applies_when, v) for v in variants)],
+            )
+        )
+    return out
+
+
+def coverage(space: Space, estimators: list[Any], refuters: list[Any]) -> Covered | Gap:
+    """Every cell of the keyed dimensions is served by an estimator and a refuter, or is declared unsupported."""
+    all_cells = cells(space, estimators, refuters)
+    for c in all_cells:
+        if c.unsupported is not None:
+            continue
+        if not c.estimators:
+            return Gap(cell=c.point, missing="estimator")
+        if not c.refuters:
+            return Gap(cell=c.point, missing="refuter")
+    return Covered(cells=len(all_cells), unsupported=sum(1 for c in all_cells if c.unsupported is not None))
 
 
 def _as_list(v: Any) -> list[Any]:

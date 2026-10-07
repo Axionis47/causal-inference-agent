@@ -33,6 +33,7 @@ RAW_WRITERS = {
     "explore/sandbox.py": "the seatbelt profile the fence runs under; code.py goes through trace.write",
     "explore/project.py": "the projected table the exploration agent reads; derivable from the dataset, so not attached; its span names the column dropped",
     "evals/docfigs.py": "the docs' diagrams, outside the layers",
+    "evals/ladder.py": "the docs' ladder tables, written from the lanes' declarations outside any graph run",
 }
 
 REPROMPT = re.compile(r"WAS REJECTED|FAILED THESE CHECKS|PREVIOUS ATTEMPT FAILED|_?rejected\(errors\)")

@@ -10,6 +10,7 @@ One page per mechanism. Each opens with a picture, walks one real example, and l
 | [gates.md](gates.md) | every model call in the system, what it is given, what it returns, what code checks, what happens on failure |
 | [pack-and-addresses.md](pack-and-addresses.md) | the only input a lane sees, and the address grammar every cite is checked against |
 | [lanes.md](lanes.md) | the harness, the adjustment lane stage by stage, the other two lanes |
+| [ladders/](ladders/) | one table per lane, written by `make ladder` from its declarations: the rungs, the space, and the end states it can reach |
 | [exploration.md](exploration.md) | how a look at the data is asked for, made by scripts in a sandbox one step at a time in a separate agent, gated, stored, and cited |
 | [testing.md](testing.md) | how every judgement is scripted, where a test writes, the evals |
 | [page.md](page.md) | the routes, the one view, the generated wire, the inspector |

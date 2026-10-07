@@ -63,6 +63,7 @@ from causal_agent.families.adjustment.lane.contracts import (
 )
 from causal_agent.families.adjustment.lane.knowledge import (
     SPACE,
+    SPEC,
     load_beliefs,
     load_checks,
     load_estimators,
@@ -194,7 +195,7 @@ def _ladder(state: SpecialistState) -> Ladder:
 
 
 def _budget(node: str) -> int:
-    return int((load_checks().get("episode_budget") or {}).get(node, 4))
+    return SPEC.budget(node)  # the leash, declared in rungs.yaml
 
 
 def _treated_mask(state: SpecialistState) -> pd.Series | None:
@@ -309,7 +310,7 @@ def _validate_contrasts(items: list[Contrast], levels: list[str]) -> list[str]:
 # rung 1: the mechanism (code from the pack; a judgement fills what the pack leaves open)
 
 
-def mechanism(state: SpecialistState) -> Command[Literal["time", "feasibility"]]:
+def mechanism(state: SpecialistState) -> Command[Literal["timing", "feasibility"]]:
     h = state["handoff"]
     lad = _ladder(state)
     blk = _block(h)
@@ -331,7 +332,7 @@ def mechanism(state: SpecialistState) -> Command[Literal["time", "feasibility"]]
             by="pack",
         )
         _writer()({"mechanism": m.model_dump()})
-        return Command(goto="time", update={"ladder": lad.model_copy(update={"mechanism": m})})
+        return Command(goto="timing", update={"ladder": lad.model_copy(update={"mechanism": m})})
     t, _, others = _keys(state)
 
     def gate(r: Mechanism, log: EpisodeLog) -> list[str]:
@@ -381,7 +382,7 @@ def mechanism(state: SpecialistState) -> Command[Literal["time", "feasibility"]]
         }
     )
     _writer()({"mechanism": m.model_dump()})
-    return Command(goto="time", update={"ladder": lad.model_copy(update={"mechanism": m}), "debug": thoughts, "episodes": {"mechanism": log}})
+    return Command(goto="timing", update={"ladder": lad.model_copy(update={"mechanism": m}), "debug": thoughts, "episodes": {"mechanism": log}})
 
 
 # rung 2: time (code from the pack)
